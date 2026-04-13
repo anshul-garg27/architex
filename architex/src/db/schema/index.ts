@@ -33,6 +33,11 @@ export {
   type UserAchievement,
   type NewUserAchievement,
 } from "./achievements";
+export {
+  activityEvents,
+  type ActivityEvent,
+  type NewActivityEvent,
+} from "./activity";
 
 // Relations (defined in a single file to avoid circular imports)
 export {
