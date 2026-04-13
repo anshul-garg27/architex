@@ -34,11 +34,6 @@ import type {
   LLDProblem,
 } from "@/lib/lld";
 import {
-  getPatternsByCategory,
-  SOLID_DEMOS,
-  LLD_PROBLEMS,
-  SEQUENCE_EXAMPLES,
-  STATE_MACHINE_EXAMPLES,
   parseTypeScriptCode,
   parsePythonCode,
 } from "@/lib/lld";
@@ -65,11 +60,13 @@ import { StreakCounter } from "../panels/StreakCounter";
 interface PatternBrowserProps {
   activePatternId: string | null;
   onSelect: (pattern: DesignPattern) => void;
+  patterns: DesignPattern[];
 }
 
 const PatternBrowser = memo(function PatternBrowser({
   activePatternId,
   onSelect,
+  patterns,
 }: PatternBrowserProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     creational: true,
@@ -86,7 +83,7 @@ const PatternBrowser = memo(function PatternBrowser({
     <TooltipProvider delayDuration={300}>
     <div className="space-y-1">
       {CATEGORY_ORDER.map((cat) => {
-        const patterns = getPatternsByCategory(cat);
+        const catPatterns = patterns.filter((p) => p.category === cat);
         const isOpen = expanded[cat];
         return (
           <div key={cat}>
@@ -103,7 +100,7 @@ const PatternBrowser = memo(function PatternBrowser({
                   )}
                   {CATEGORY_LABELS[cat]}
                   <span className="ml-auto text-[10px] font-normal rounded-full border border-border/30 bg-elevated/50 backdrop-blur-sm px-1.5 py-0.5 text-foreground-subtle">
-                    {patterns.length}
+                    {catPatterns.length}
                   </span>
                 </button>
               </TooltipTrigger>
@@ -113,7 +110,7 @@ const PatternBrowser = memo(function PatternBrowser({
             </Tooltip>
             {isOpen && (
               <div className="ml-3 space-y-0.5">
-                {patterns.map((p) => (
+                {catPatterns.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => onSelect(p)}
@@ -182,18 +179,20 @@ const ClassPalette = memo(function ClassPalette({
 interface SOLIDBrowserProps {
   activeDemoId: string | null;
   onSelect: (demo: SOLIDDemo) => void;
+  demos: SOLIDDemo[];
 }
 
 const SOLIDBrowser = memo(function SOLIDBrowser({
   activeDemoId,
   onSelect,
+  demos,
 }: SOLIDBrowserProps) {
   return (
     <div className="space-y-1">
       <p className="px-2 text-[10px] text-foreground-subtle">
         Compare before/after class diagrams for each SOLID principle.
       </p>
-      {SOLID_DEMOS.map((demo) => (
+      {demos.map((demo) => (
         <button
           key={demo.id}
           onClick={() => onSelect(demo)}
@@ -229,6 +228,7 @@ interface ProblemsBrowserProps {
   onSelect: (problem: LLDProblem) => void;
   onStartPractice: (problem: LLDProblem, minutes: PracticeTimerOption) => void;
   practiceActive: boolean;
+  problems: LLDProblem[];
 }
 
 const ProblemsBrowser = memo(function ProblemsBrowser({
@@ -236,6 +236,7 @@ const ProblemsBrowser = memo(function ProblemsBrowser({
   onSelect,
   onStartPractice,
   practiceActive,
+  problems,
 }: ProblemsBrowserProps) {
   const [setupProblemId, setSetupProblemId] = useState<string | null>(null);
 
@@ -244,7 +245,7 @@ const ProblemsBrowser = memo(function ProblemsBrowser({
       <p className="px-2 text-[10px] text-foreground-subtle">
         Pick a problem to load its starter diagram onto the canvas.
       </p>
-      {LLD_PROBLEMS.map((prob) => {
+      {problems.map((prob) => {
         const isActive = activeProblemId === prob.id;
         const showSetup = setupProblemId === prob.id;
         return (
@@ -372,19 +373,21 @@ export const PracticeModeSetup = memo(function PracticeModeSetup({
 
 interface SequenceBrowserProps {
   activeExampleId: string | null;
-  onSelect: (example: (typeof SEQUENCE_EXAMPLES)[number]) => void;
+  onSelect: (example: SequenceExample) => void;
+  examples: SequenceExample[];
 }
 
 const SequenceBrowser = memo(function SequenceBrowser({
   activeExampleId,
   onSelect,
+  examples,
 }: SequenceBrowserProps) {
   return (
     <div className="space-y-1">
       <p className="px-2 text-[10px] text-foreground-subtle">
         Select a sequence diagram to visualize message flow between participants.
       </p>
-      {SEQUENCE_EXAMPLES.map((ex) => (
+      {examples.map((ex) => (
         <button
           key={ex.id}
           onClick={() => onSelect(ex)}
@@ -407,19 +410,21 @@ const SequenceBrowser = memo(function SequenceBrowser({
 
 interface StateMachineBrowserProps {
   activeExampleId: string | null;
-  onSelect: (example: (typeof STATE_MACHINE_EXAMPLES)[number]) => void;
+  onSelect: (example: StateMachineExample) => void;
+  examples: StateMachineExample[];
 }
 
 const StateMachineBrowser = memo(function StateMachineBrowser({
   activeExampleId,
   onSelect,
+  examples,
 }: StateMachineBrowserProps) {
   return (
     <div className="space-y-1">
       <p className="px-2 text-[10px] text-foreground-subtle">
         Select a state machine to visualize states and transitions.
       </p>
-      {STATE_MACHINE_EXAMPLES.map((ex) => (
+      {examples.map((ex) => (
         <button
           key={ex.id}
           onClick={() => onSelect(ex)}
@@ -623,6 +628,11 @@ const SIDEBAR_TABS: { mode: SidebarMode; label: string; icon: React.ComponentTyp
   { mode: "palette", label: "Palette", icon: GripVertical },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SequenceExample = { id: string; name: string; [key: string]: any; };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StateMachineExample = { id: string; name: string; [key: string]: any; };
+
 interface LLDSidebarProps {
   mode: SidebarMode;
   onModeChange: (mode: SidebarMode) => void;
@@ -636,10 +646,18 @@ interface LLDSidebarProps {
   onStartPractice: (problem: LLDProblem, minutes: PracticeTimerOption) => void;
   practiceActive: boolean;
   activeSequenceId: string | null;
-  onSelectSequence: (example: (typeof SEQUENCE_EXAMPLES)[number]) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSelectSequence: (example: any) => void;
   activeStateMachineId: string | null;
-  onSelectStateMachine: (example: (typeof STATE_MACHINE_EXAMPLES)[number]) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSelectStateMachine: (example: any) => void;
   onParseCode: (classes: UMLClass[], relationships: UMLRelationship[]) => void;
+  // Data arrays passed from parent (useLLDData hook → API or static)
+  patterns: DesignPattern[];
+  solidDemos: SOLIDDemo[];
+  problems: LLDProblem[];
+  sequenceExamples: SequenceExample[];
+  stateMachineExamples: StateMachineExample[];
 }
 
 export const LLDSidebar = memo(function LLDSidebar({
@@ -659,6 +677,11 @@ export const LLDSidebar = memo(function LLDSidebar({
   activeStateMachineId,
   onSelectStateMachine,
   onParseCode,
+  patterns,
+  solidDemos,
+  problems,
+  sequenceExamples,
+  stateMachineExamples,
 }: LLDSidebarProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [isNarrow, setIsNarrow] = useState(false);
@@ -727,6 +750,7 @@ export const LLDSidebar = memo(function LLDSidebar({
           <PatternBrowser
             activePatternId={activePatternId}
             onSelect={onSelectPattern}
+            patterns={patterns}
           />
         )}
         {mode === "palette" && <ClassPalette onAddClass={onAddClass} />}
@@ -734,6 +758,7 @@ export const LLDSidebar = memo(function LLDSidebar({
           <SOLIDBrowser
             activeDemoId={activeDemoId}
             onSelect={onSelectDemo}
+            demos={solidDemos}
           />
         )}
         {mode === "problems" && (
@@ -741,6 +766,7 @@ export const LLDSidebar = memo(function LLDSidebar({
             activeProblemId={activeProblemId}
             onSelect={onSelectProblem}
             onStartPractice={onStartPractice}
+            problems={problems}
             practiceActive={practiceActive}
           />
         )}
@@ -748,12 +774,14 @@ export const LLDSidebar = memo(function LLDSidebar({
           <SequenceBrowser
             activeExampleId={activeSequenceId}
             onSelect={onSelectSequence}
+            examples={sequenceExamples}
           />
         )}
         {mode === "state-machine" && (
           <StateMachineBrowser
             activeExampleId={activeStateMachineId}
             onSelect={onSelectStateMachine}
+            examples={stateMachineExamples}
           />
         )}
         {mode === "code-to-diagram" && (

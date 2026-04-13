@@ -43,7 +43,7 @@ import {
   removeMethod,
   addRelationship,
 } from "@/lib/lld";
-import { useLLDData } from "./useLLDData";
+import { useLLDData, useLLDFullPattern } from "./useLLDData";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { trackLLDExploration } from "@/lib/progress/module-progress";
@@ -84,6 +84,24 @@ export function useLLDModule() {
   } = useLLDData();
 
   const [activePattern, setActivePattern] = useState<DesignPattern | null>(null);
+  const [selectedPatternSlug, setSelectedPatternSlug] = useState<string | null>(null);
+  const { fullPattern, isLoading: isPatternLoading } = useLLDFullPattern(selectedPatternSlug);
+
+  // When full pattern loads from API, update the active pattern and canvas
+  React.useEffect(() => {
+    if (fullPattern && selectedPatternSlug) {
+      setActivePattern(fullPattern);
+      setClasses(
+        (fullPattern.classes ?? []).map((c: UMLClass) => ({
+          ...c,
+          attributes: [...(c.attributes ?? [])],
+          methods: [...(c.methods ?? [])],
+        })),
+      );
+      setRelationships([...(fullPattern.relationships ?? [])]);
+    }
+  }, [fullPattern, selectedPatternSlug]);
+
   const [activeDemo, setActiveDemo] = useState<SOLIDDemo | null>(null);
   const [activeProblem, setActiveProblem] = useState<LLDProblem | null>(null);
   const [activeSequence, setActiveSequence] = useState<(typeof SEQUENCE_EXAMPLES)[number] | null>(null);
@@ -338,9 +356,15 @@ export function useLLDModule() {
   const handleSelectPattern = useCallback((pattern: DesignPattern) => {
     const run = () => {
       clearAllModes();
-      setActivePattern(pattern);
-      setClasses(pattern.classes.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] })));
-      setRelationships([...pattern.relationships]);
+      // If pattern has full content (static mode), use directly
+      if (pattern.classes && pattern.code) {
+        setActivePattern(pattern);
+        setClasses(pattern.classes.map((c) => ({ ...c, attributes: [...(c.attributes ?? [])], methods: [...(c.methods ?? [])] })));
+        setRelationships([...(pattern.relationships ?? [])]);
+      } else {
+        // API mode: pattern is metadata-only, trigger detail fetch via slug
+        setSelectedPatternSlug(pattern.id);
+      }
       dismissMobileSheet();
     };
     confirmOrRun(run);
@@ -816,6 +840,11 @@ export function useLLDModule() {
       activeSequenceId={activeSequence?.id ?? null} onSelectSequence={handleSelectSequence}
       activeStateMachineId={activeStateMachine?.id ?? null} onSelectStateMachine={handleSelectStateMachine}
       onParseCode={handleParseCode}
+      patterns={DESIGN_PATTERNS}
+      solidDemos={SOLID_DEMOS}
+      problems={LLD_PROBLEMS}
+      sequenceExamples={SEQUENCE_EXAMPLES}
+      stateMachineExamples={STATE_MACHINE_EXAMPLES}
     />
   );
 

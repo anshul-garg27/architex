@@ -3,16 +3,16 @@
 /**
  * LLD data source hook — bridges between static imports and API-backed data.
  *
- * When NEXT_PUBLIC_LLD_USE_API=true, fetches from /api/content.
- * Otherwise, returns the static imports directly (zero overhead).
+ * When NEXT_PUBLIC_LLD_USE_API=true:
+ *   - List view: fetches metadata from /api/content (slug, name, category)
+ *   - Detail view: fetches full JSONB from /api/content/:slug (code, classes, etc.)
  *
- * This hook provides the same data shape as the static imports,
- * so consuming components don't need to change.
+ * When flag is off:
+ *   - Returns static imports directly (zero overhead, full objects)
  */
 
-import { useMemo } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import { useCatalog, useContentDetail } from "@/hooks/use-content";
-import type { ContentListItem } from "@/hooks/use-content";
 
 // Static imports (used when feature flag is off)
 import {
@@ -41,9 +41,10 @@ interface LLDDataResult {
 
 /**
  * Returns the full LLD catalog data, either from API or static imports.
+ * In API mode, list items have metadata only — use useLLDFullPattern()
+ * to fetch the full content when a user selects an item.
  */
 export function useLLDData(): LLDDataResult {
-  // API path
   const patternsQuery = useCatalog("lld", "pattern");
   const problemsQuery = useCatalog("lld", "problem");
   const solidQuery = useCatalog("lld", "solid-demo");
@@ -62,9 +63,6 @@ export function useLLDData(): LLDDataResult {
       };
     }
 
-    // API mode: map list items back to the expected shapes.
-    // Full content is loaded on-demand via useContentDetail when user selects an item.
-    // For list views, the metadata from the catalog is sufficient.
     const isLoading =
       patternsQuery.isLoading ||
       problemsQuery.isLoading ||
@@ -95,21 +93,39 @@ export function useLLDData(): LLDDataResult {
 }
 
 /**
- * Fetch the full content detail for a selected item.
- * Used when user clicks on a pattern/problem to load the complete JSONB payload.
+ * Fetch the full pattern content when a user selects one from the sidebar.
+ *
+ * In static mode: returns the pattern as-is (already has full content).
+ * In API mode: fetches /api/content/:slug?module=lld&type=pattern to get
+ * the full JSONB payload (code, classes, relationships, etc.)
  */
-export function useLLDDetail(
-  type: string,
-  slug: string | null,
-) {
-  const query = useContentDetail("lld", type, slug);
+export function useLLDFullPattern(selectedSlug: string | null) {
+  const detailQuery = useContentDetail("lld", "pattern", USE_API ? selectedSlug : null);
+  const [fullPattern, setFullPattern] = useState<DesignPattern | null>(null);
 
-  if (!USE_API || !slug) {
-    return { data: null, isLoading: false };
-  }
+  useEffect(() => {
+    if (!selectedSlug) {
+      setFullPattern(null);
+      return;
+    }
+
+    if (!USE_API) {
+      // Static mode: find from in-memory array (has full content)
+      const found = DESIGN_PATTERNS.find((p) => p.id === selectedSlug) ?? null;
+      setFullPattern(found);
+      return;
+    }
+
+    // API mode: use the detail query result
+    if (detailQuery.data?.item) {
+      const content = detailQuery.data.item.content as Record<string, unknown>;
+      // The JSONB content IS the full DesignPattern — it was seeded from the same object
+      setFullPattern(content as unknown as DesignPattern);
+    }
+  }, [selectedSlug, detailQuery.data]);
 
   return {
-    data: query.data?.item?.content ?? null,
-    isLoading: query.isLoading,
+    fullPattern,
+    isLoading: USE_API ? detailQuery.isLoading : false,
   };
 }
