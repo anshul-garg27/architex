@@ -55,7 +55,7 @@ import { SequenceDiagramCanvas, SequencePlaybackToolbar } from "../canvas/Sequen
 import { StateMachineCanvas, SimToast, SimTransitionPanel } from "../canvas/StateMachineCanvas";
 import { LLDSidebar } from "../sidebar/LLDSidebar";
 import { LLDProperties, LLDSOLIDProperties, LLDProblemProperties, SequenceProperties, StateMachineProperties } from "../panels/LLDProperties";
-import { LLDBottomPanel, LLDSOLIDBottomPanel, LLDProblemBottomPanel, SequenceBottomPanel, StateMachineBottomPanel, GeneratedCodePanel, LLDBottomPanelTabs } from "../panels/LLDBottomPanels";
+import { ContextualBottomTabs } from "../panels/ContextualBottomTabs";
 import { PracticeTimerBar, PracticeAssessment } from "../panels/InterviewPractice";
 import { ScreenReaderView } from "../panels/ScreenReaderView";
 import {
@@ -957,25 +957,25 @@ export function useLLDModule() {
 
   const isPracticeSubmitted = practiceState?.submitted === true;
 
-  const explanationPanel = isPracticeSubmitted && activeProblem ? (
+  const practiceAssessment = isPracticeSubmitted && activeProblem ? (
     <PracticeAssessment problem={practiceState!.problem} checkedHints={practiceState!.checkedHints} onToggleHint={handleTogglePracticeHint} onRetry={handlePracticeRetry} onExit={handlePracticeCancel} />
-  ) : isStateMachineMode ? (
-    <StateMachineBottomPanel example={activeStateMachine} />
-  ) : isSequenceMode ? (
-    <SequenceBottomPanel example={activeSequence} />
-  ) : activeDemo ? (
-    <LLDSOLIDBottomPanel demo={activeDemo} solidView={solidView} classCount={classes.length} relationshipCount={relationships.length} />
-  ) : activeProblem ? (
-    <LLDProblemBottomPanel problem={activeProblem} classCount={classes.length} relationshipCount={relationships.length} />
-  ) : (
-    <LLDBottomPanel pattern={activePattern} classCount={classes.length} relationshipCount={relationships.length} />
-  );
-
-  const codePanel = !isSequenceMode && !isStateMachineMode && !isPracticeSubmitted && classes.length > 0 ? (
-    <GeneratedCodePanel classes={classes} relationships={relationships} />
   ) : null;
 
-  const bottomPanel = <LLDBottomPanelTabs explanationPanel={explanationPanel} codePanel={codePanel} />;
+  const bottomPanel = (
+    <ContextualBottomTabs
+      activePattern={activePattern}
+      activeDemo={activeDemo}
+      activeProblem={activeProblem}
+      activeSequence={activeSequence}
+      activeStateMachine={activeStateMachine}
+      classes={classes}
+      relationships={relationships}
+      solidView={solidView}
+      isPracticeSubmitted={isPracticeSubmitted}
+      practiceAssessment={practiceAssessment}
+      onLoadPattern={handleSelectPattern}
+    />
+  );
 
   // Presentation mode overlay
   const presentationOverlay = presentationMode && activePattern ? (
