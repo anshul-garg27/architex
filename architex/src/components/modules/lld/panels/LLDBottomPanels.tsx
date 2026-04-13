@@ -5,18 +5,20 @@
  * Split from LLDModule.tsx (LLD-037).
  */
 
-import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, { memo, useState, useCallback, useMemo, useRef, useEffect, lazy, Suspense } from "react";
 import { Code, Copy, Check, AlertTriangle } from "lucide-react";
 import { BottomPanelEmptyState } from "@/components/shared/lld-empty-states";
 import { cn } from "@/lib/utils";
 import type { UMLClass, UMLRelationship, DesignPattern, SOLIDDemo, LLDProblem } from "@/lib/lld";
 import { generateTypeScript, generatePython, generateMermaid } from "@/lib/lld";
-import PatternBehavioralSimulator from "@/components/modules/lld/PatternBehavioralSimulator";
-import SequenceDiagramLatencyOverlay from "@/components/modules/lld/SequenceDiagramLatencyOverlay";
-import { PatternQuiz } from "./PatternQuiz";
-import { SOLIDQuiz } from "./SOLIDQuiz";
-import { ScenarioChallenge } from "./ScenarioChallenge";
-import { DailyChallenge } from "./DailyChallenge";
+
+// Lazy-load heavy tab components — only loaded when user clicks their tab
+const PatternBehavioralSimulator = lazy(() => import("@/components/modules/lld/PatternBehavioralSimulator"));
+const SequenceDiagramLatencyOverlay = lazy(() => import("@/components/modules/lld/SequenceDiagramLatencyOverlay"));
+const PatternQuiz = lazy(() => import("./PatternQuiz").then(m => ({ default: m.PatternQuiz })));
+const SOLIDQuiz = lazy(() => import("./SOLIDQuiz").then(m => ({ default: m.SOLIDQuiz })));
+const ScenarioChallenge = lazy(() => import("./ScenarioChallenge").then(m => ({ default: m.ScenarioChallenge })));
+const DailyChallenge = lazy(() => import("./DailyChallenge").then(m => ({ default: m.DailyChallenge })));
 import { STEREOTYPE_BORDER_COLOR, PRINCIPLE_COLORS, DIFFICULTY_COLORS, smStateColor, type LLDBottomTab } from "../constants";
 
 // ── Pattern Bottom Panel ─────────────────────────────────
@@ -505,12 +507,14 @@ export const LLDBottomPanelTabs = memo(function LLDBottomPanelTabs({
             )}
           </div>
         )}
-        {activeTab === "behavioral-sim" && <PatternBehavioralSimulator />}
-        {activeTab === "sequence-latency" && <SequenceDiagramLatencyOverlay />}
-        {activeTab === "pattern-quiz" && <PatternQuiz />}
-        {activeTab === "solid-quiz" && <SOLIDQuiz />}
-        {activeTab === "scenario-challenge" && <ScenarioChallenge />}
-        {activeTab === "daily-challenge" && <DailyChallenge />}
+        <Suspense fallback={<div className="flex items-center justify-center py-8 text-xs text-foreground-subtle">Loading...</div>}>
+          {activeTab === "behavioral-sim" && <PatternBehavioralSimulator />}
+          {activeTab === "sequence-latency" && <SequenceDiagramLatencyOverlay />}
+          {activeTab === "pattern-quiz" && <PatternQuiz />}
+          {activeTab === "solid-quiz" && <SOLIDQuiz />}
+          {activeTab === "scenario-challenge" && <ScenarioChallenge />}
+          {activeTab === "daily-challenge" && <DailyChallenge />}
+        </Suspense>
       </div>
     </div>
   );
