@@ -13,13 +13,13 @@ const SEED_MODULES: Record<string, () => Promise<{ seed: (db: ReturnType<typeof 
   "system-design": () => import("./system-design"),
   algorithms: () => import("./algorithms"),
   "data-structures": () => import("./data-structures"),
-  // database: () => import("./database"),
-  // networking: () => import("./networking"),
-  // security: () => import("./security"),
-  // distributed: () => import("./distributed"),
-  // os: () => import("./os"),
-  // "ml-design": () => import("./ml-design"),
-  // concurrency: () => import("./concurrency"),
+  database: () => import("./database"),
+  networking: () => import("./networking"),
+  security: () => import("./security"),
+  distributed: () => import("./distributed"),
+  os: () => import("./os"),
+  "ml-design": () => import("./ml-design"),
+  concurrency: () => import("./concurrency"),
 };
 
 async function main() {
