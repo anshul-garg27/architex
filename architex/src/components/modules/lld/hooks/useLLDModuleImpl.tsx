@@ -33,12 +33,8 @@ import type {
   StateTransition,
 } from "@/lib/lld";
 import {
-  DESIGN_PATTERNS,
+  // Data arrays now sourced via useLLDData() hook for API-backed loading
   getPatternsByCategory,
-  SOLID_DEMOS,
-  LLD_PROBLEMS,
-  SEQUENCE_EXAMPLES,
-  STATE_MACHINE_EXAMPLES,
   removeClass,
   updateClass,
   addAttribute,
@@ -47,6 +43,7 @@ import {
   removeMethod,
   addRelationship,
 } from "@/lib/lld";
+import { useLLDData } from "./useLLDData";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { trackLLDExploration } from "@/lib/progress/module-progress";
@@ -76,6 +73,16 @@ function newClassId(): string {
 }
 
 export function useLLDModule() {
+  // Data source: static imports (default) or API-backed (when LLD_USE_API=true)
+  const {
+    patterns: DESIGN_PATTERNS,
+    solidDemos: SOLID_DEMOS,
+    problems: LLD_PROBLEMS,
+    sequenceExamples: SEQUENCE_EXAMPLES,
+    stateMachineExamples: STATE_MACHINE_EXAMPLES,
+    isLoading: isDataLoading,
+  } = useLLDData();
+
   const [activePattern, setActivePattern] = useState<DesignPattern | null>(null);
   const [activeDemo, setActiveDemo] = useState<SOLIDDemo | null>(null);
   const [activeProblem, setActiveProblem] = useState<LLDProblem | null>(null);
