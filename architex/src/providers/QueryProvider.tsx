@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState, useEffect, type ReactNode } from "react";
 import { initProgressSync } from "@/lib/sync/progress-sync-subscriber";
+import { migrateLocalStorageToDb } from "@/lib/sync/local-to-db-migration";
 
 /** Default stale time for content queries (5 minutes). */
 const CONTENT_STALE_TIME = 5 * 60 * 1000;
@@ -30,9 +31,10 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       }),
   );
 
-  // Initialize progress sync subscriber (once, client-side only)
+  // Initialize progress sync subscriber + one-time migration (client-side only)
   useEffect(() => {
     initProgressSync();
+    migrateLocalStorageToDb();
   }, []);
 
   return (
