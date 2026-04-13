@@ -1,0 +1,338 @@
+[
+  {
+    "id": "ALG-201",
+    "epic": "ALG",
+    "title": "Rewrite ALL algorithm descriptions with Hook + Intuition + Real-World template",
+    "description": "EVERY algorithm description currently starts with a dry textbook definition (T1=0, T2=0 across all 62 topics \u2014 Grade F). COMPLETE REWRITTEN CONTENT for top 10 algorithms is in docs/guides/world-class-algorithm-content.md \u2014 copy-paste ready with Hook, Intuition, Mechanism, When-to-Use, Real-World, and Key-Insight for: Bubble Sort, Quick Sort, Merge Sort, Dijkstra, BFS, DFS, Knapsack, KMP, N-Queens, AVL Tree. Style guide is in docs/guides/algorithm-content-style.md. Remaining 52 algorithms should follow the same template. The description field in AlgorithmConfig may need to become a structured object (hook, intuition, mechanism, realWorld, summary) rather than a plain string, to enable per-section rendering in the properties panel.",
+    "acceptanceCriteria": [
+      "Top 15 algorithms have descriptions following Hook + Intuition + What + When + Real-World template",
+      "Each hook is a question, scenario, or motivation \u2014 NOT a definition",
+      "Each intuition uses a concrete analogy a beginner would understand",
+      "Each description mentions at least one real-world application",
+      "Character count per description stays under 500 chars for UI fit"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/string/index.ts",
+      "src/lib/algorithms/backtracking/index.ts",
+      "src/lib/algorithms/geometry/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "hook",
+      "intuition",
+      "rewrite"
+    ]
+  },
+  {
+    "id": "ALG-202",
+    "epic": "ALG",
+    "title": "Add WHY explanations to ALL sorting step descriptions",
+    "description": "All sorting engine step descriptions say WHAT ('Compare arr[2]=5 with arr[3]=3') but never WHY (T4=0 for all sorting). Rewrite step descriptions in all 6 runnable sorting engines. Pattern: 'Compare neighbors 5 and 3 \u2014 since 5 > 3, they're out of order. Swap so the smaller value moves left. (Bubble Sort always checks adjacent pairs.)' First occurrence of each operation type should include the full WHY. Subsequent occurrences can be shorter. Source template in task description.",
+    "acceptanceCriteria": [
+      "First comparison step includes WHY: 'we compare adjacent elements because...'",
+      "First swap step includes WHY: 'we swap because they're out of order...'",
+      "First sorted-marking step includes WHY: 'after this pass, the largest unsorted element has bubbled to the end'",
+      "Quick Sort pivot selection explains WHY: 'Lomuto scheme uses the last element as pivot because...'",
+      "Merge Sort divide step explains WHY: 'we split in half because divide-and-conquer reduces the problem size logarithmically'",
+      "Step descriptions remain under 200 chars each"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/sorting/insertion-sort.ts",
+      "src/lib/algorithms/sorting/selection-sort.ts",
+      "src/lib/algorithms/sorting/merge-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts",
+      "src/lib/algorithms/sorting/heap-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "why-explanations",
+      "steps"
+    ]
+  },
+  {
+    "id": "ALG-203",
+    "epic": "ALG",
+    "title": "Add WHY explanations to ALL graph algorithm step descriptions",
+    "description": "Graph engine steps say 'Dequeue node B' and 'Discover node C via A' but never explain WHY. BFS: 'We visit the closest unvisited node first because BFS explores level by level \u2014 this guarantees shortest path in unweighted graphs.' Dijkstra: 'We pick the node with smallest tentative distance because any other path would go through a farther node, making it longer.' Apply to all 16 graph engines.",
+    "acceptanceCriteria": [
+      "BFS: enqueue/dequeue steps explain level-by-level exploration strategy",
+      "DFS: explore steps explain depth-first backtracking strategy",
+      "Dijkstra: extract-min explains greedy choice property",
+      "Kruskal: edge selection explains why smallest non-cycle edge is safe",
+      "At least first occurrence of each operation type has WHY explanation"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/bfs.ts",
+      "src/lib/algorithms/graph/dfs.ts",
+      "src/lib/algorithms/graph/dijkstra.ts",
+      "src/lib/algorithms/graph/kruskal.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "why-explanations",
+      "graph"
+    ]
+  },
+  {
+    "id": "ALG-204",
+    "epic": "ALG",
+    "title": "Add WHY explanations to DP, tree, string, backtracking step descriptions",
+    "description": "Apply the same WHY-explanation pattern to all remaining engines. DP: 'We fill cell [i][j] by checking: is it better to include item i or skip it? dp[i][j] = max(skip, take).' BST: 'We go left because the target value is less than this node \u2014 BST property guarantees all smaller values are in the left subtree.' N-Queens: 'We try column 3 \u2014 checking diagonal conflicts because queens attack diagonally.'",
+    "acceptanceCriteria": [
+      "DP engines: cell computation steps explain the recurrence relationship",
+      "Tree engines: traversal/rotation steps explain BST property or balance condition",
+      "String engines: pattern shift steps explain the skip optimization",
+      "Backtracking engines: pruning steps explain WHY the branch is invalid"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/knapsack.ts",
+      "src/lib/algorithms/dp/lcs.ts",
+      "src/lib/algorithms/tree/bst.ts",
+      "src/lib/algorithms/tree/avl.ts",
+      "src/lib/algorithms/string/kmp.ts",
+      "src/lib/algorithms/backtracking/n-queens.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "why-explanations",
+      "dp",
+      "tree",
+      "string"
+    ]
+  },
+  {
+    "id": "ALG-205",
+    "epic": "ALG",
+    "title": "Add complexity intuition text to ALL algorithms",
+    "description": "Every algorithm shows 'O(n\u00b2)' or 'O(n log n)' in the properties panel with ZERO explanation (T5=0 across all 62). Add a complexityIntuition field to AlgorithmConfig. For each algorithm, write a 1-2 sentence explanation of what the complexity MEANS in concrete terms. Example: Bubble Sort: 'O(n\u00b2) means for each of n elements, you might compare with every other element. Double the array \u2192 4x the work. 10 elements \u2248 45 comparisons, 100 elements \u2248 4,950.' Display below the complexity notation in properties panel.",
+    "acceptanceCriteria": [
+      "AlgorithmConfig type has new optional complexityIntuition: string field",
+      "Top 20 algorithms have complexity intuition text",
+      "Text explains what the Big-O means in terms of concrete numbers",
+      "Text includes a scaling example (double input \u2192 what happens?)",
+      "Displayed in the properties panel below the complexity grid"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/graph/index.ts",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "complexity",
+      "intuition"
+    ]
+  },
+  {
+    "id": "ALG-206",
+    "epic": "ALG",
+    "title": "Add edge case demonstrations to top 10 sorting algorithms",
+    "description": "No algorithm demonstrates edge cases interactively (T6=0-1 across all). Bubble Sort has an early-exit optimization but users can't SEE it. Add preset buttons: 'Already Sorted', 'Reverse Sorted', 'All Same', 'Single Element' that load edge-case inputs. After running, show a callout: 'Notice: 0 swaps! The early-exit optimization detected the array was already sorted in just 1 pass.' These callouts teach through DISCOVERY.",
+    "acceptanceCriteria": [
+      "Edge case preset buttons visible below the sort preset selector",
+      "At least 4 presets per sorting algorithm: sorted, reverse, single, all-same",
+      "After running on edge case, a callout explains what happened and WHY",
+      "Bubble Sort on sorted input shows 'Best case O(n) \u2014 0 swaps, 1 pass'",
+      "Quick Sort on sorted input shows 'Worst case O(n\u00b2) \u2014 every partition is maximally unbalanced'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-142",
+      "ALG-143"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "edge-cases",
+      "interactive"
+    ]
+  },
+  {
+    "id": "ALG-207",
+    "epic": "ALG",
+    "title": "Add 'Common Mistakes' section to top 15 algorithms",
+    "description": "Zero common mistakes highlighted in any algorithm (T8=0 everywhere). Students learn from OTHER students' errors. Add commonMistakes field to AlgorithmConfig. Examples: Quick Sort: 'Students often think Quick Sort is always faster than Merge Sort \u2014 but on sorted input with naive pivot, it degrades to O(n\u00b2).' DP: 'Common mistake: confusing memoization (top-down) with tabulation (bottom-up) \u2014 they solve the same problem differently.' Source: web search '[algorithm] common mistakes students'.",
+    "acceptanceCriteria": [
+      "AlgorithmConfig has optional commonMistakes: string[] field",
+      "Top 15 algorithms have 2-3 common mistakes each",
+      "Mistakes are specific and educational, not generic warnings",
+      "Displayed in properties panel under a 'Common Mistakes' section",
+      "At least 3 algorithms have interactive mistake demonstrations"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/graph/index.ts",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "mistakes",
+      "misconceptions"
+    ]
+  },
+  {
+    "id": "ALG-208",
+    "epic": "ALG",
+    "title": "Add memorable 3-bullet summary to ALL algorithms",
+    "description": "No algorithm has a concise takeaway (T12=0 everywhere). Add summary field to AlgorithmConfig. 3 bullet points max that fit on a flashcard. Example for Merge Sort: '1. Divide array in half recursively until single elements. 2. Merge sorted halves \u2014 compare heads, take smaller. 3. Always O(n log n) but needs O(n) extra space. Stable.' Display at bottom of properties panel and optionally as copy-to-clipboard flashcard.",
+    "acceptanceCriteria": [
+      "AlgorithmConfig has optional summary: string[] field",
+      "All 62 algorithms have 3-bullet summaries",
+      "Each bullet is under 80 chars \u2014 fits a flashcard",
+      "Summary includes: core idea, key property, complexity in plain words",
+      "Copy-to-clipboard button for flashcard export"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/sorting/index.ts",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "summary",
+      "flashcard"
+    ]
+  },
+  {
+    "id": "ALG-209",
+    "epic": "ALG",
+    "title": "Create content style guide for algorithm descriptions and step text",
+    "description": "The root cause of all F grades is that content was written as engineering documentation, not teaching material. Create a CONTENT_STYLE_GUIDE.md that defines: (1) Description template (Hook\u2192Intuition\u2192What\u2192When\u2192Real-World), (2) Step description rules (first occurrence = full WHY, subsequent = shorter), (3) Complexity intuition format, (4) Common mistakes format, (5) Summary format. All future algorithm additions must follow this guide. Include 3 before/after examples.",
+    "acceptanceCriteria": [
+      "CONTENT_STYLE_GUIDE.md exists at docs/guides/algorithm-content-style.md",
+      "Guide includes the description template with 3 complete examples",
+      "Guide includes step description rules with before/after pairs",
+      "Guide includes complexity intuition format with 3 examples",
+      "Guide is referenced in existing docs/guides/adding-an-algorithm.md"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "docs/guides/algorithm-content-style.md",
+      "docs/guides/adding-an-algorithm.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "style-guide",
+      "documentation",
+      "process"
+    ]
+  },
+  {
+    "id": "ALG-210",
+    "epic": "ALG",
+    "title": "Add algorithm comparison guides: sorting, graph shortest path, DP patterns",
+    "description": "Zero comparison between alternatives exists (T7=0 everywhere). The comparison MODE exists for sorting but there's no CONTENT explaining when to use which. Add 3 comparison guides: (1) 'Which sorting algorithm should I use?' table comparing all sorts by stability, in-place, best/worst/avg, input characteristics. (2) 'Dijkstra vs Bellman-Ford vs Floyd-Warshall' decision tree. (3) 'When to use DP: memoization vs tabulation' guide. Display as a special 'Compare' view in properties panel.",
+    "acceptanceCriteria": [
+      "Sorting comparison table accessible from a 'Compare Sorts' button in sidebar",
+      "Table shows all sorting algorithms with: stability, in-place, best/avg/worst, when to use",
+      "Graph shortest path comparison: Dijkstra (non-negative), Bellman-Ford (negative edges), Floyd-Warshall (all-pairs)",
+      "DP guide: when to use top-down vs bottom-up, with decision flowchart",
+      "Each comparison links to the relevant algorithm for immediate run"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/graph/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "comparison",
+      "decision-guide"
+    ]
+  }
+]

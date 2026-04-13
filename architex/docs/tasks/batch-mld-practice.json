@@ -1,0 +1,142 @@
+[
+  {
+    "id": "MLD-142",
+    "epic": "MLD",
+    "title": "Add prediction mode — 'what happens next?' before every simulation run",
+    "description": "THE SINGLE MOST IMPACTFUL PRACTICE FEATURE. Before the user clicks Train/Run, show a prediction prompt: 'What do you think will happen?' with multiple-choice options. After running, reveal the answer with explanation.\n\nPrediction questions per mode:\n- NN: 'After 10 epochs on Circle, will loss be above or below 0.25?'\n- CNN: 'With stride 2, will output be 6×6 or 3×3?'\n- A/B Testing: 'With n=1000 and 0.2% difference, significant or not?'\n- Bandits: 'With ε=0.1, after 100 rounds, how many pulls for the best arm?'\n- Feature Store: 'Will online or offline store be populated first?'\n- Serving: 'At what tick will the lift stabilize?'\n\nResearch basis: Testing effect shows retrieval practice produces 50% more correct responses vs passive observation. Source: Karpicke & Blunt 2011.",
+    "acceptanceCriteria": ["Prediction prompt appears above canvas before first run in each mode", "At least 2 prediction questions per mode (12 total)", "After simulation, 'Check your prediction' reveal with explanation", "Correct prediction = green checkmark + 'Great insight!'", "Wrong prediction = 'Actually...' + visual explanation using the simulation result", "Prediction can be dismissed for returning users"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "prediction", "active-learning", "highest-impact"]
+  },
+  {
+    "id": "MLD-143",
+    "epic": "MLD",
+    "title": "Add manual NN forward pass tracing — 'you are the neuron'",
+    "description": "Let the student compute one forward pass by hand:\n1. Show a data point (x=0.3, y=-0.5) and the network weights\n2. Ask student to compute the weighted sum for neuron 1: 'z = 0.3 × w1 + (-0.5) × w2 + bias. What is z?'\n3. Student types answer (with tolerance ±0.1)\n4. Show activation: 'sigmoid(z) = 0.62'\n5. Repeat for each neuron and layer\n6. Final output: 'The network predicts class __ with confidence __%'\n\nThis transforms the NN from a black box into a transparent computation the student has personally verified. Based on Karpathy's 'Zero to Hero' approach — build it to understand it.",
+    "acceptanceCriteria": ["Student clicks a data point to start manual tracing", "Each neuron's computation shown step by step with fill-in-the-blank", "Student must enter the weighted sum (with ±0.1 tolerance)", "Activation function applied automatically after correct sum", "All layers traced until final output", "Feedback on errors: show the correct computation with work shown"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/neural-net.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "manual-tracing", "active-learning", "bloom-apply"]
+  },
+  {
+    "id": "MLD-144",
+    "epic": "MLD",
+    "title": "Add bandit selection challenge — 'you are the algorithm'",
+    "description": "At each round of the bandit simulation, pause and ask the student which arm to pull:\n- Show current estimated values and pull counts\n- For ε-greedy: 'Random number = 0.73, ε = 0.1. Explore or exploit?'\n- For UCB1: 'Compute the UCB for each arm. Which has the highest?' (show formula)\n- For Thompson: 'Beta samples drawn: [0.72, 0.45, 0.68, 0.81]. Which arm wins?'\n\nStudent clicks their choice. If correct, advance. If wrong, explain why.\n\nThis teaches the explore-exploit tradeoff through embodied decision-making, not passive observation.",
+    "acceptanceCriteria": ["Toggle to enable 'Play as Algorithm' mode in bandit sidebar", "At each round, simulation pauses and asks student to choose", "Student sees all necessary information (estimates, pull counts, formula)", "Correct choice advances the simulation", "Wrong choice shows explanation of the correct answer with WHY", "Score tracked: X/N correct decisions"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/multi-armed-bandit.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "manual-tracing", "active-learning", "bloom-apply"]
+  },
+  {
+    "id": "MLD-145",
+    "epic": "MLD",
+    "title": "Add A/B test decision challenge — 'you are the data scientist'",
+    "description": "After an A/B test simulation runs, present the results and ask the student to make a decision:\n- 'Control: 10.2%, Treatment: 11.8%, p-value: 0.042, n = 3000 per group. What do you recommend?'\n- Options: 'Ship treatment' / 'Collect more data' / 'Results inconclusive'\n- Feedback explains the right answer based on significance level and practical significance\n\nVary scenarios:\n- Clear win (p < 0.01, large lift) → Ship\n- Borderline (p = 0.06) → Collect more data\n- Significant but tiny effect (p = 0.03, lift = 0.1%) → Probably not worth shipping\n- Already overpowered (n >> required) → Decision is clear either way",
+    "acceptanceCriteria": ["After A/B test run, decision challenge appears", "3 options: Ship / Collect more / Inconclusive", "4 scenario variants testing different judgment calls", "Feedback explains both statistical AND practical significance", "Common mistake highlighted: 'Statistically significant ≠ practically important'", "Score tracked: X/4 correct decisions"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "scenario", "active-learning", "bloom-evaluate"]
+  },
+  {
+    "id": "MLD-146",
+    "epic": "MLD",
+    "title": "Add serving pattern selection challenge — 'choose the deployment strategy'",
+    "description": "Present real-world deployment scenarios and ask which serving pattern to use:\n\n1. 'New fraud model with 2% higher accuracy, untested edge cases' → Shadow then Canary\n2. 'UI color change, low risk, want quick winner' → A/B Test\n3. 'Critical model update, CEO wants it live tomorrow' → Canary (fast rollout with safety nets)\n4. 'Model rewrite in new framework, same expected behavior' → Shadow (verify parity)\n5. 'Testing 5 thumbnail variants for new content' → Multi-Armed Bandit\n\nEach scenario has 1 best answer and 2 acceptable alternatives with tradeoff explanations.",
+    "acceptanceCriteria": ["5 deployment scenario cards presented sequentially", "Student selects from A/B Test, Canary, Shadow, or Bandit", "Best answer highlighted in green with full explanation", "Acceptable alternatives shown in yellow with tradeoff discussion", "Wrong answers explained: 'A/B test here would be slow because...'", "Score and streak tracked"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "scenario", "active-learning", "bloom-evaluate"]
+  },
+  {
+    "id": "MLD-147",
+    "epic": "MLD",
+    "title": "Add CNN convolution manual computation challenge",
+    "description": "In the CNN Demo, after showing the sliding window concept, challenge the student to compute one convolution output manually:\n- Show the 3×3 input window and the 3×3 filter\n- Ask: 'Compute the element-wise product and sum. What is the output value?'\n- Student types a number\n- Reveal correct answer with worked calculation\n- Advance to next window position and repeat 2-3 times\n\nThis ensures students understand the MATH of convolution, not just the animation.",
+    "acceptanceCriteria": ["Challenge mode toggle in CNN Demo", "Student sees input window values and filter values", "Must type the correct output value (tolerance ±0.5)", "Worked calculation shown after answer", "3 computation challenges per CNN Demo run", "Feedback on wrong answers shows the multiplication table"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "manual-tracing", "active-learning", "bloom-apply"]
+  },
+  {
+    "id": "MLD-148",
+    "epic": "MLD",
+    "title": "Add comparison challenges — 'which is better and why?'",
+    "description": "Present side-by-side scenarios and ask the student to analyze:\n\n1. 'ε-greedy ε=0.01 vs ε=0.50 — which finds the best arm faster?'\n2. 'NN with 1 hidden layer vs 4 layers on Spiral dataset — which achieves higher accuracy?'\n3. 'A/B test with n=100 vs n=10000 — which is more reliable?'\n4. 'Canary rollout vs full deploy — which is safer for a model with known bugs?'\n5. 'Feature Store online (Redis) vs offline (S3) — which to query for real-time inference?'\n\nEach has a 'Why?' free-text or multiple-choice follow-up testing reasoning.",
+    "acceptanceCriteria": ["5 comparison challenges accessible from a 'Challenges' tab", "Each presents two options with relevant context", "Student must select the better option AND explain why", "After answering, both options are simulated and shown side-by-side", "Explanation of the correct reasoning provided", "Can be replayed with different parameters"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "comparison", "active-learning", "bloom-analyze"]
+  },
+  {
+    "id": "MLD-149",
+    "epic": "MLD",
+    "title": "Add hyperparameter tuning challenge — 'achieve target accuracy'",
+    "description": "Challenge: 'Achieve 95% accuracy on the Spiral dataset. You have unlimited attempts. Adjust: layers (1-4), neurons (1-8), activation (ReLU/Sigmoid/Tanh), learning rate, epochs.'\n\nThis is a 'design' challenge (Bloom's Level 6 — Create) that requires the student to understand how each hyperparameter affects learning.\n\nVariants:\n- 'Achieve 90% on XOR with only 1 hidden layer' (possible but tricky)\n- 'Achieve 95% on Spiral with ≤20 parameters' (forces efficient architecture)\n- 'Train to 90% in ≤50 epochs' (forces high learning rate + good architecture)\n\nLeaderboard: fewest epochs, fewest parameters, highest accuracy.",
+    "acceptanceCriteria": ["Challenge banner shown in NN mode with target metrics", "Student adjusts hyperparameters and clicks Train", "Success/failure evaluated against target", "Multiple challenge variants with different constraints", "Best attempt tracked (fewest epochs, fewest params)", "Celebration animation on success"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "challenge", "active-learning", "bloom-create"]
+  },
+  {
+    "id": "MLD-150",
+    "epic": "MLD",
+    "title": "Add quick-fire recall quiz for ML concepts",
+    "description": "Flashcard-style quiz testing basic recall (Bloom's Level 1):\n- 'What loss function is used for binary classification?' → Binary Cross-Entropy\n- 'What does dropout do during training?' → Randomly deactivates neurons\n- 'In A/B testing, what does p < 0.05 mean?' → The difference is statistically significant\n- 'What is the explore-exploit tradeoff?' → Balancing trying new options vs using known best\n- 'What does a Feature Store's online store use?' → Redis (or similar low-latency cache)\n\n15-20 questions covering all 6 modes. Timed mode (10 seconds per question) for advanced users.",
+    "acceptanceCriteria": ["Quiz accessible from sidebar or welcome screen", "15-20 multiple-choice questions covering all modes", "Immediate feedback: correct (green) / wrong (red + correct answer)", "Score shown: X/Y correct, % accuracy", "Timed mode optional (10s countdown)", "Questions shuffled each attempt, answers randomized"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/quiz-data.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "quiz", "recall", "bloom-remember"]
+  },
+  {
+    "id": "MLD-151",
+    "epic": "MLD",
+    "title": "Add scoring system with XP, streaks, and per-concept mastery",
+    "description": "Gamification layer inspired by Duolingo (streaks increase engagement 60%, leaderboards increase completion 25%):\n- XP points: +10 for correct prediction, +20 for correct manual trace, +5 for completing a simulation\n- Streak: consecutive days with at least 1 prediction challenge completed\n- Per-concept mastery: 0-5 stars based on correct predictions + challenges completed\n- Overall progress: 'You've explored 4/6 modes and mastered 2 concepts'\n\nStore in localStorage. Show progress bar in sidebar header.",
+    "acceptanceCriteria": ["XP counter visible in sidebar header", "Streak counter shows consecutive active days", "Per-mode mastery stars (0-5) shown on mode tabs", "Overall progress bar across all modes", "XP awarded for predictions, traces, challenges, completions", "All state persisted in localStorage"],
+    "priority": "P3", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/stores/ml-progress-store.ts"],
+    "dependencies": ["MLD-142", "MLD-143"], "blockedBy": ["MLD-142"], "tags": ["practice", "gamification", "engagement", "retention"]
+  },
+  {
+    "id": "MLD-152",
+    "epic": "MLD",
+    "title": "Add feedback system with progressive hints for wrong answers",
+    "description": "When a student answers a prediction/challenge wrong, don't just say 'Wrong.' Provide progressive hints:\n- Level 1: Rephrase the question ('Think about what ε controls — exploration probability')\n- Level 2: Give a clue ('With ε=0.1, 10% of the time the algorithm explores randomly')\n- Level 3: Show the first step ('Random number 0.73 was drawn. Since 0.73 > 0.1, we exploit.')\n\nFor correct answers: brief 'Why you're right' explanation to reinforce understanding.",
+    "acceptanceCriteria": ["Wrong answer shows 'Not quite — here's a hint' with Level 1 hint", "Student can request deeper hints (Level 2, Level 3)", "Level 3 hint essentially shows the answer with explanation", "Correct answer shows 'Exactly! Here's why:' with reinforcement", "Hints tailored to each specific question (not generic)"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-142"], "blockedBy": ["MLD-142"], "tags": ["practice", "feedback", "hints", "learning-science"]
+  },
+  {
+    "id": "MLD-153",
+    "epic": "MLD",
+    "title": "Add 'debug the model' challenges — find what's wrong",
+    "description": "Show a pre-configured scenario with a problem and ask the student to diagnose:\n\n1. 'This NN trained for 500 epochs but accuracy is stuck at 50%. What's wrong?' → Learning rate too low (or too high causing oscillation). Student adjusts and re-runs.\n2. 'A/B test shows p=0.001 after only 50 samples. Is this trustworthy?' → No — sample too small, result likely spurious. Must check required sample size.\n3. 'UCB1 keeps pulling Arm 3 even though Arm 1 has higher average. Why?' → Arm 1 has been pulled many times (low exploration bonus), Arm 3 hasn't (high bonus). UCB = avg + exploration_bonus.\n4. 'Feature Store online store has 3 keys but serving returns stale features. What happened?' → TTL expired — features not refreshed in time.\n\nEach scenario loads pre-set parameters and asks for diagnosis.",
+    "acceptanceCriteria": ["4 debugging scenarios accessible from a 'Debug' tab", "Each loads a pre-configured state with a specific problem", "Student must identify the issue from multiple choice options", "After answering, the fix is applied and simulation re-runs to show improvement", "Explanation connects the diagnosis to the underlying concept", "Scenarios cover: NN convergence, A/B test reliability, bandit behavior, feature store staleness"],
+    "priority": "P3", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-142"], "blockedBy": [], "tags": ["practice", "debugging", "active-learning", "bloom-evaluate"]
+  },
+  {
+    "id": "MLD-154",
+    "epic": "MLD",
+    "title": "Add spaced repetition for ML concept review",
+    "description": "After a student completes a mode's prediction challenges, schedule review:\n- Day 1: Quick 3-question recap quiz\n- Day 3: Harder questions testing deeper understanding\n- Day 7: Comparison/evaluation questions\n- Day 14: Full scenario challenge\n\nUse FSRS-like scheduling: if the student answers correctly, increase the interval. If wrong, shorten it.\n\nImplement via localStorage timestamps + a 'Review Due' badge on the module entry.",
+    "acceptanceCriteria": ["After completing a mode's challenges, next review date is scheduled", "Review questions escalate in difficulty over time (Bloom's progression)", "Due reviews shown as badge on the ML Playground module icon", "Review quiz uses questions from the concept's question bank", "Correct answers lengthen interval, wrong answers shorten it", "At least 4 review intervals: 1, 3, 7, 14 days"],
+    "priority": "P3", "effort": "L", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/stores/ml-progress-store.ts"],
+    "dependencies": ["MLD-150", "MLD-151"], "blockedBy": ["MLD-150"], "tags": ["practice", "spaced-repetition", "retention", "learning-science"]
+  },
+  {
+    "id": "MLD-155",
+    "epic": "MLD",
+    "title": "Add progressive difficulty system across all practice features",
+    "description": "Unified difficulty ladder for all practice:\n- WARM-UP (Bloom 1-2): 'What does dropout do?' / 'What is p-value?'\n- EASY (Bloom 3): 'Predict if loss will be above/below X after 10 epochs'\n- MEDIUM (Bloom 4): 'Which strategy finds the best arm faster: ε=0.01 or ε=0.5?'\n- HARD (Bloom 5): 'A/B test shows p=0.08 after 2 weeks. What should you do?'\n- EXPERT (Bloom 6): 'Achieve 95% accuracy on Spiral with ≤20 parameters'\n\nStudent starts at WARM-UP. 3 correct in a row → advance. 2 wrong → drop back. This ensures appropriate challenge level (Vygotsky's Zone of Proximal Development).",
+    "acceptanceCriteria": ["5 difficulty levels with clear labels", "Automatic progression: 3 correct → advance, 2 wrong → drop back", "Current difficulty level shown in practice UI", "Questions selected from the appropriate difficulty pool", "Each concept has questions at all 5 levels", "Cannot attempt EXPERT until HARD is passed"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/quiz-data.ts"],
+    "dependencies": ["MLD-142", "MLD-150"], "blockedBy": ["MLD-142"], "tags": ["practice", "difficulty", "progression", "learning-science"]
+  }
+]

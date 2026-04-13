@@ -1,0 +1,1005 @@
+[
+  {
+    "id": "NET-016",
+    "epic": "NET",
+    "title": "Fix CORS simulator incorrectly forcing preflight for credentialed simple requests",
+    "description": "cors-simulator.ts:208 \u2014 `const isSimple = isSimpleMethod && hasOnlySimpleHeaders && !config.credentials` treats credentials as a preflight trigger. Per the Fetch spec, credentials do NOT trigger a preflight. A GET with cookies is a simple request. Line 218-219 also teaches the wrong rule to users. Fix: remove `&& !config.credentials` from isSimple and move credentials validation to response check only.",
+    "acceptanceCriteria": [
+      "A credentialed GET/HEAD/POST with only simple headers does NOT trigger preflight",
+      "Credentials validation happens on the actual response check, not preflight decision",
+      "User-facing description no longer says 'Request includes credentials' as a preflight reason"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/cors-simulator.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engine-bug",
+      "educational-accuracy",
+      "cors"
+    ]
+  },
+  {
+    "id": "NET-017",
+    "epic": "NET",
+    "title": "Fix TLS 1.2 simulation using wrong message types for ServerKeyExchange, ServerHelloDone, ClientKeyExchange",
+    "description": "tls-handshake.ts:443,460,475 \u2014 TLSMessageType lacks TLS 1.2-specific types. Engine reuses 'CertificateVerify' for ServerKeyExchange and 'Finished' for ServerHelloDone/ClientKeyExchange. The sequence diagram and step list show misleading labels. Fix: extend TLSMessageType to include 'ServerKeyExchange' | 'ServerHelloDone' | 'ClientKeyExchange' | 'ChangeCipherSpec' and use correctly.",
+    "acceptanceCriteria": [
+      "TLS 1.2 handshake labels show correct message type names",
+      "TLSMessageType union includes all TLS 1.2 message types",
+      "Sequence diagram labels match actual TLS 1.2 spec message names"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/tls-handshake.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engine-bug",
+      "educational-accuracy",
+      "tls"
+    ]
+  },
+  {
+    "id": "NET-018",
+    "epic": "NET",
+    "title": "Fix ConnectionPoolVisualization nested setState causing stale data and double render",
+    "description": "ConnectionPoolVisualization.tsx:142-264 \u2014 setQueue is called inside setConnections callback. The connection mutations from lines 151-240 are computed but discarded (line 264 returns prevConns unchanged). A second setConnections at line 268 re-processes independently with different random values. Fix: use useReducer with a single dispatch that atomically updates connections, queue, and metrics.",
+    "acceptanceCriteria": [
+      "Connections, queue, and metrics are updated atomically in a single state transition",
+      "No double-render per tick",
+      "Pool exhaustion warning accurately reflects current state"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/ConnectionPoolVisualization.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "state-bug",
+      "performance"
+    ]
+  },
+  {
+    "id": "NET-019",
+    "epic": "NET",
+    "title": "Add Step Back and Pause buttons to playback controls",
+    "description": "NetworkingModule.tsx:1939-1963 \u2014 Only Step (forward), Play All, and Reset exist. No way to go back one step (must reset and re-step). No way to pause during autoplay. Play button stays labeled 'Play All' during animation with no visual indicator. Fix: add Previous Step button (decrement stepIndex), toggle Play/Pause during autoplay, show pulsing indicator during play.",
+    "acceptanceCriteria": [
+      "Previous Step button decrements stepIndex by 1, disabled at step 0",
+      "Play button toggles to Pause during autoplay",
+      "Visual indicator (e.g., pulsing dot or 'Playing...' text) shown during autoplay",
+      "Pause stops at current step without resetting"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "interaction",
+      "playback"
+    ]
+  },
+  {
+    "id": "NET-020",
+    "epic": "NET",
+    "title": "Replace 50+ hardcoded hex colors with CSS custom properties throughout module",
+    "description": "NetworkingModule.tsx:215-332 (SequenceDiagram SVG uses #1e293b, #334155, #e2e8f0, #3b82f6, #60a5fa, #9ca3af, #6b7280), tls13-handshake.ts:442,450,457-458, dns-resolution.ts:167-168, cdn-flow.ts:199-217, serialization-comparison.ts:269-312, ConnectionPoolVisualization.tsx:423-478 \u2014 50+ instances. SVG elements use inline hex; engine files return raw hex. Fix: use var(--primary), var(--border), etc. in SVG; move color mapping from engines to component layer.",
+    "acceptanceCriteria": [
+      "Zero hardcoded hex values in SequenceDiagram SVG",
+      "Engine files return semantic identifiers not hex colors",
+      "Module renders correctly in both dark theme and (future) light theme",
+      "ConnectionPoolVisualization uses CSS variables for all colors"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx",
+      "src/lib/networking/tls13-handshake.ts",
+      "src/lib/networking/dns-resolution.ts",
+      "src/lib/networking/cdn-flow.ts",
+      "src/lib/networking/serialization-comparison.ts",
+      "src/components/modules/networking/ConnectionPoolVisualization.tsx",
+      "src/components/modules/networking/PacketJourneySimulator.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "theming",
+      "a11y"
+    ]
+  },
+  {
+    "id": "NET-021",
+    "epic": "NET",
+    "title": "Increase all sub-11px text to minimum 11px across module",
+    "description": "NetworkingModule.tsx \u2014 34+ instances of text-[9px] (lines 735,740,755,763,1078,1082,1197,1220,1450,1498 etc.) and SVG fontSize='8' at lines 322,333. 9px text fails WCAG readability. Fix: bump text-[9px] to text-[11px] or text-xs (12px), SVG fontSize='8' to at least fontSize='10'.",
+    "acceptanceCriteria": [
+      "No text element in the module renders below 11px",
+      "SVG state labels use fontSize 10 or higher",
+      "Layout remains compact without visual overflow"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "a11y",
+      "visual",
+      "readability"
+    ]
+  },
+  {
+    "id": "NET-022",
+    "epic": "NET",
+    "title": "Add ARIA roles, labels, and live regions for screen reader support",
+    "description": "NetworkingModule.tsx:158 \u2014 SVG has no role='img' or aria-label. Line 1922 \u2014 sidebar buttons lack aria-current. Lines 1960,2326 \u2014 step counter and description have no aria-live. Line 2218 \u2014 error message not linked via aria-describedby. ConnectionPoolVisualization.tsx:429 \u2014 color-only state distinction. Fix: add role='img' + aria-label to SVG, aria-current to active sidebar button, aria-live='polite' to dynamic content, aria-describedby to error.",
+    "acceptanceCriteria": [
+      "SequenceDiagram SVG has role='img' and descriptive aria-label",
+      "Active sidebar protocol button has aria-current='true'",
+      "Step counter span has aria-live='polite'",
+      "Step description container has aria-live='polite'",
+      "Serialization error linked to textarea via aria-describedby",
+      "Connection states have text/icon backup beyond color"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx",
+      "src/components/modules/networking/ConnectionPoolVisualization.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "a11y",
+      "screen-reader"
+    ]
+  },
+  {
+    "id": "NET-023",
+    "epic": "NET",
+    "title": "Add keyboard shortcuts for step navigation (arrow keys, space, R)",
+    "description": "NetworkingModule.tsx \u2014 Zero keyboard event handlers. DataStructuresModule has onKeyDown at its line 2577. Fix: add Right arrow = step forward, Left arrow = step back, Space = play/pause, R = reset. Register on the module container element. Cross-module consistency with DataStructures.",
+    "acceptanceCriteria": [
+      "Right arrow advances one step",
+      "Left arrow goes back one step",
+      "Space toggles play/pause",
+      "R resets to step 0",
+      "Shortcuts only active when module has focus"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [
+      "NET-019"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "keyboard",
+      "cross-module-consistency"
+    ]
+  },
+  {
+    "id": "NET-024",
+    "epic": "NET",
+    "title": "Add reduced-motion support to all animations",
+    "description": "No file references prefers-reduced-motion. PacketJourneySimulator.tsx:199 (whileTap), 294 (pulsing dot); ConnectionPoolVisualization.tsx:333 (blinking warning), 432 (pulsing dots) all animate unconditionally. NetworkingModule.tsx bar width transitions also lack motion preference. Fix: wrap motion values with useReducedMotion() from framer-motion, provide static alternatives.",
+    "acceptanceCriteria": [
+      "All animations respect prefers-reduced-motion: reduce",
+      "Pulsing dots replaced with static indicators when reduced motion preferred",
+      "Bar width transitions use instant transitions when motion reduced",
+      "Functionality unchanged with motion enabled"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/PacketJourneySimulator.tsx",
+      "src/components/modules/networking/ConnectionPoolVisualization.tsx",
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "a11y",
+      "motion",
+      "animation"
+    ]
+  },
+  {
+    "id": "NET-025",
+    "epic": "NET",
+    "title": "Make SequenceDiagram and HTTP grid responsive for mobile viewports",
+    "description": "NetworkingModule.tsx:149 \u2014 SVG colWidth=200, DNS 5 columns = 1000px on 375px screen (illegible). Line 714 \u2014 grid-cols-3 for HTTP comparison does not collapse. Fix: make colWidth responsive based on container width (use ResizeObserver or useCallback ref), change grid-cols-3 to grid-cols-1 md:grid-cols-3.",
+    "acceptanceCriteria": [
+      "DNS sequence diagram readable at 375px viewport width",
+      "HTTP comparison stacks vertically on mobile",
+      "SVG colWidth adapts to container or enables horizontal scroll",
+      "All text remains readable at mobile breakpoints"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "mobile",
+      "responsive",
+      "svg"
+    ]
+  },
+  {
+    "id": "NET-026",
+    "epic": "NET",
+    "title": "Split NetworkingModule.tsx (2814 lines) into per-visualization components",
+    "description": "NetworkingModule.tsx contains 9 visualizer components, sidebar, properties panel, bottom panel, hook, and helpers in one file. Fix: extract each visualization into networking/ directory (e.g., TCPVisualization.tsx, CORSVisualization.tsx), hook into useNetworkingModule.ts, types into networking-types.ts, helpers into networking-helpers.ts.",
+    "acceptanceCriteria": [
+      "NetworkingModule.tsx under 500 lines",
+      "Each visualization component in its own file",
+      "useNetworkingModule hook in separate file",
+      "All imports resolve correctly",
+      "No functional regression"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "code-quality",
+      "maintainability"
+    ]
+  },
+  {
+    "id": "NET-027",
+    "epic": "NET",
+    "title": "Write tests for WebSocket, CORS, and TLS 1.2 engines (currently zero coverage)",
+    "description": "websocket-lifecycle.ts, cors-simulator.ts, tls-handshake.ts have ZERO tests. CORS engine has a confirmed bug (NET-016). Fix: create test files covering connect/sendMessage/heartbeat/close for WS, simple/preflight/credentials/wildcard for CORS, TLS 1.2/1.3/0-RTT for TLS.",
+    "acceptanceCriteria": [
+      "websocket-lifecycle.test.ts covers all 4 lifecycle phases + error states",
+      "cors-simulator.test.ts covers simple request, preflight, credentials, wildcard+creds, same-origin",
+      "tls-handshake.test.ts covers performHandshake, performResumption, performTLS12Handshake",
+      "All new tests pass"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/networking/websocket-lifecycle.test.ts",
+      "src/__tests__/lib/networking/cors-simulator.test.ts",
+      "src/__tests__/lib/networking/tls-handshake.test.ts"
+    ],
+    "dependencies": [
+      "NET-016",
+      "NET-017"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "coverage"
+    ]
+  },
+  {
+    "id": "NET-028",
+    "epic": "NET",
+    "title": "Fix TCP packet loss ACK calculation for pure-ACK segments",
+    "description": "tcp-state-machine.ts:596 \u2014 `expectedAck = original.segment.seqNum + (original.segment.data?.length ?? 1)`. The ?? 1 fallback applies to pure ACKs that consume 0 seq numbers. Fix: compute as `(original.segment.data?.length ?? 0) + (original.segment.syn ? 1 : 0) + (original.segment.fin ? 1 : 0)`.",
+    "acceptanceCriteria": [
+      "simulatePacketLoss on a pure ACK uses 0 for consumed bytes",
+      "SYN and FIN segments still correctly add 1",
+      "Data segments use actual data length"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/tcp-state-machine.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engine-bug",
+      "tcp"
+    ]
+  },
+  {
+    "id": "NET-029",
+    "epic": "NET",
+    "title": "Fix CDN cache-purge flow skipping Origin Shield in response path",
+    "description": "cdn-flow.ts:633 \u2014 Step 8 of cache-purge shows from:'Origin' to:'Edge POP' directly, skipping the Origin Shield cache step that should exist in the response path. Fix: split into two steps: Origin \u2192 Origin Shield (cache-store), then Origin Shield \u2192 Edge POP (cache-store).",
+    "acceptanceCriteria": [
+      "Cache purge response path shows Origin \u2192 Shield \u2192 Edge",
+      "Both Shield and Edge cache-store steps have appropriate headers",
+      "Sequence diagram renders correctly with the additional step"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/cdn-flow.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engine-bug",
+      "cdn"
+    ]
+  },
+  {
+    "id": "NET-030",
+    "epic": "NET",
+    "title": "Add disclosure that serialization binary sizes are simulated approximations",
+    "description": "serialization-comparison.ts:85-91 \u2014 Protobuf/MessagePack/Avro sizes are fixed ratios of JSON (0.42/0.72/0.55). Hex dump at line 176 is fake. No user-facing disclosure. Fix: add prominent note in descriptions and UI: 'Sizes estimated from typical compression ratios, not actual encoding.' Consider adding a footnote in the visualization.",
+    "acceptanceCriteria": [
+      "Description text for each binary format mentions sizes are approximate",
+      "Hex dump section includes note that output is simulated",
+      "User can distinguish simulated from actual values"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/serialization-comparison.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "educational-accuracy",
+      "content"
+    ]
+  },
+  {
+    "id": "NET-031",
+    "epic": "NET",
+    "title": "Fix Play interval stale closure when data changes mid-animation",
+    "description": "NetworkingModule.tsx:2614-2628 \u2014 handlePlay's setInterval captures messages.length from closure. If user changes sub-options while playing (e.g., toggle 0-RTT), the old interval uses stale length. handleSelect clears the timer but sub-option changes don't. Fix: use a ref for messages.length inside the interval, or add an effect that clears the timer when messages change.",
+    "acceptanceCriteria": [
+      "Changing TLS toggle/DNS scenario/CDN scenario during autoplay does not cause index overshoot",
+      "Animation stops or restarts cleanly when data source changes"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "state-bug",
+      "playback"
+    ]
+  },
+  {
+    "id": "NET-032",
+    "epic": "NET",
+    "title": "Add placeholder text to CORS config inputs and serialization textarea",
+    "description": "NetworkingModule.tsx:2131-2216 \u2014 5 inputs lack placeholder text (origin, target, method, headers, JSON textarea). Fix: add e.g. placeholder='https://app.example.com', 'e.g. PUT, DELETE', 'Content-Type, Authorization', etc.",
+    "acceptanceCriteria": [
+      "All 5 inputs show helpful placeholder text when empty",
+      "Placeholders use realistic example values"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "content",
+      "inputs"
+    ]
+  },
+  {
+    "id": "NET-033",
+    "epic": "NET",
+    "title": "Add error boundary for lazy-loaded Learn tab components",
+    "description": "NetworkingModule.tsx:2316-2321 \u2014 PacketJourneySimulator and ConnectionPoolVisualization lazy-loaded with Suspense but no ErrorBoundary. Chunk load failure crashes the panel. Fix: wrap Suspense in ErrorBoundary with retry button.",
+    "acceptanceCriteria": [
+      "Failed chunk load shows error message with retry button",
+      "Successful retry loads the components",
+      "Error does not propagate to parent module"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "error-handling",
+      "lazy-loading"
+    ]
+  },
+  {
+    "id": "NET-034",
+    "epic": "NET",
+    "title": "Cap serialization textarea input and add size validation",
+    "description": "NetworkingModule.tsx:2211 \u2014 textarea has no maxLength. User can paste arbitrarily large JSON causing browser freeze during JSON.parse + TextEncoder.encode. Fix: add maxLength=10000, validate size before parsing.",
+    "acceptanceCriteria": [
+      "Textarea has maxLength=10000",
+      "Attempting to paste beyond limit is truncated",
+      "Performance remains smooth for max-length input"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "security",
+      "input-validation"
+    ]
+  },
+  {
+    "id": "NET-035",
+    "epic": "NET",
+    "title": "Eliminate duplicate data generation between hook and visualizer components",
+    "description": "NetworkingModule.tsx:2402-2412 creates wsEvents in hook, while WebSocketVisualization:853-863 independently creates identical events. Same for DNS (hook:2390 vs DNSVisualization:568) and TLS. Fix: compute data once in hook and pass as props, or lift to shared context.",
+    "acceptanceCriteria": [
+      "Each engine simulation runs exactly once per configuration",
+      "Visualizer components receive data as props",
+      "No duplicate useMemo computations for same data"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [
+      "NET-026"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "architecture"
+    ]
+  },
+  {
+    "id": "NET-036",
+    "epic": "NET",
+    "title": "Lazy-load engine files per protocol and defer unused data computation",
+    "description": "NetworkingModule.tsx:17-48 \u2014 all 9 engine files imported eagerly. Lines 2374-2448 compute data for all protocols on mount. Fix: dynamic-import engines per active protocol, wrap data computation in conditional blocks keyed on active protocol.",
+    "acceptanceCriteria": [
+      "Only the active protocol's engine is imported",
+      "Inactive protocol data is not computed",
+      "Switching protocols loads engine dynamically without perceptible delay"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [
+      "NET-026"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "bundle",
+      "lazy-loading"
+    ]
+  },
+  {
+    "id": "NET-038",
+    "epic": "NET",
+    "title": "Add pre-training glossary tooltip for protocol-specific terms",
+    "description": "Mayer's Pre-training principle scored 2/5. Users dropped into TCP with no explanation of SYN/ACK/FIN terms. Fix: add hover tooltips on key terms in descriptions (SYN, ACK, FIN, ISN, CNAME, TTL, etc.) and/or a 'Key Terms' collapsible section in properties panel per protocol.",
+    "acceptanceCriteria": [
+      "At least 10 key networking terms have hover tooltips",
+      "Tooltips show brief definition + RFC reference",
+      "Tooltips accessible via keyboard (focusable)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "mayers-principles",
+      "content"
+    ]
+  },
+  {
+    "id": "NET-039",
+    "epic": "NET",
+    "title": "Add completion feedback and progress tracking per protocol",
+    "description": "Octalysis ACCOMPLISHMENT scored 2/5. No completion state, achievements, or 'you learned X' feedback. Fix: show completion animation when all steps viewed, track which protocols have been completed, display progress in sidebar (e.g., checkmark on completed protocols).",
+    "acceptanceCriteria": [
+      "Completion animation plays when user reaches final step",
+      "Sidebar shows checkmark on protocols where all steps have been viewed",
+      "Progress persists during session (resets on page reload is acceptable)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engagement",
+      "gamification",
+      "ux"
+    ]
+  },
+  {
+    "id": "NET-040",
+    "epic": "NET",
+    "title": "Remove duplicate useEffect timer cleanup",
+    "description": "NetworkingModule.tsx:2368-2372 and 2685-2689 \u2014 two identical useEffect blocks that cleanup timerRef.current on unmount. The second is dead code. Fix: remove the duplicate at lines 2685-2689.",
+    "acceptanceCriteria": [
+      "Only one useEffect cleans up the timer on unmount",
+      "No functional regression"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "cleanup",
+      "dead-code"
+    ]
+  },
+  {
+    "id": "NET-041",
+    "epic": "NET",
+    "title": "Remove 3 unused type imports",
+    "description": "NetworkingModule.tsx:44 CDNScenarioDef, :46 APIComparisonResult, :48 SerializationResult \u2014 imported but never used. Fix: remove all three unused type imports.",
+    "acceptanceCriteria": [
+      "No unused imports remain",
+      "TypeScript compilation passes"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "cleanup",
+      "dead-code"
+    ]
+  },
+  {
+    "id": "NET-042",
+    "epic": "NET",
+    "title": "Fix DNS CNAME depth off-by-one (allows 9 hops instead of intended 8)",
+    "description": "dns-resolution.ts:328 \u2014 `if (cnameDepth > MAX_CNAME_DEPTH)` with MAX_CNAME_DEPTH=8 allows depths 0-8 (9 hops). Fix: change to >= MAX_CNAME_DEPTH.",
+    "acceptanceCriteria": [
+      "CNAME chain resolves up to exactly MAX_CNAME_DEPTH hops",
+      "Depth 8 triggers the abort message"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/dns-resolution.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engine-bug",
+      "dns"
+    ]
+  },
+  {
+    "id": "NET-044",
+    "epic": "NET",
+    "title": "Add time-travel scrubber for all protocol simulations",
+    "description": "Innovation idea #4 (3/3 gates). Transform passive stepping into active exploration. Add a scrubber/slider that lets users drag to any step instantly. Like Redux DevTools time-travel debugging. Clicking the slider updates both the visualization and the description panel.",
+    "acceptanceCriteria": [
+      "Horizontal slider appears below the canvas for all protocols",
+      "Dragging the slider instantly jumps to the corresponding step",
+      "Step counter updates to match slider position",
+      "Works with all 9 protocol visualizations"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [
+      "NET-019"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "ux",
+      "interaction"
+    ]
+  },
+  {
+    "id": "NET-046",
+    "epic": "NET",
+    "title": "Add Protocol Decision Tree for 'which protocol should I use?'",
+    "description": "Innovation idea #8 (3/3 gates). Interactive flowchart: 'What kind of communication? One-way \u2192 SSE. Two-way \u2192 WebSocket/WebRTC. Unreliable OK? \u2192 UDP. Need ordering? \u2192 TCP.' Addresses the #1 system design interview question.",
+    "acceptanceCriteria": [
+      "Interactive flowchart with clickable decision nodes",
+      "Each terminal node links to the corresponding protocol simulation",
+      "Covers at least 6 protocols in the decision tree",
+      "Works as a standalone view accessible from sidebar"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/ProtocolDecisionTree.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "education",
+      "interview-prep"
+    ]
+  },
+  {
+    "id": "NET-047",
+    "epic": "NET",
+    "title": "Add Protocol Diff view to compare any two protocols side by side",
+    "description": "Innovation idea #3 \u2014 first-in-world feature. Select any 2 protocols and see differences highlighted header by header, handshake step by step, performance metric by metric. Like a git diff for protocols.",
+    "acceptanceCriteria": [
+      "Dropdown to select 2 protocols for comparison",
+      "Side-by-side view with highlighted differences",
+      "Covers handshake steps, header fields, and performance metrics",
+      "Animated transitions between compared protocols"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/ProtocolDiff.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "first-in-world",
+      "education"
+    ]
+  },
+  {
+    "id": "NET-048",
+    "epic": "NET",
+    "title": "Add DHCP DORA handshake simulation",
+    "description": "4-step Discover-Offer-Request-Acknowledge handshake is a perfect fit for the existing sequence diagram component. Fills the Layer 3 gap. University curricula require it.",
+    "acceptanceCriteria": [
+      "DHCP engine produces 4+ events for the DORA flow",
+      "Sequence diagram shows Client, DHCP Server, and broadcast messages",
+      "Step descriptions explain each phase and IP assignment"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/dhcp-simulation.ts",
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "new-protocol",
+      "content"
+    ]
+  },
+  {
+    "id": "NET-049",
+    "epic": "NET",
+    "title": "Add TLS attack simulation (MITM, SSL stripping, certificate forgery)",
+    "description": "Innovation idea #13 \u2014 emotional 'gasp' moment. Watch a simulated MITM attack in real time. See the attacker intercept, forge certificate. Then toggle on certificate pinning and watch the attack FAIL. Visceral understanding of WHY TLS matters.",
+    "acceptanceCriteria": [
+      "At least 2 attack scenarios (MITM, SSL stripping) with step-by-step visualization",
+      "Toggle to enable/disable protection and see different outcomes",
+      "Descriptions explain which handshake step is compromised",
+      "Red visual indicators for attack actions"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/tls-attacks.ts",
+      "src/components/modules/networking/TLSAttackSimulation.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "security",
+      "education"
+    ]
+  },
+  {
+    "id": "NET-051",
+    "epic": "NET",
+    "title": "Add Quick Cards view \u2014 one-screen protocol summary (Julia Evans style)",
+    "description": "Innovation idea #6 (3/3 gates). One screen per protocol with key visual, essential facts, common gotchas. Inspired by Julia Evans' networking zines. Useful for cramming and quick reference.",
+    "acceptanceCriteria": [
+      "Each protocol has a Quick Card accessible from sidebar or toggle",
+      "Card fits in a single viewport with no scrolling",
+      "Contains: visual diagram, 3-5 key facts, common mistakes, use cases",
+      "Shareable/exportable as image"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/QuickCard.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "education",
+      "content"
+    ]
+  },
+  {
+    "id": "NET-052",
+    "epic": "NET",
+    "title": "Add 100-second autoplay overview mode per protocol",
+    "description": "Innovation idea #5 (3/3 gates). Ultra-fast animated overview \u2014 no interaction needed, just watch and learn. Addresses 12-year-old, ADHD, and 2am student personas. Auto-advances with timed pauses on key moments.",
+    "acceptanceCriteria": [
+      "Each protocol has a '100s Overview' button",
+      "Animation auto-advances through all steps with appropriate timing",
+      "Key moments pause briefly with highlighted annotation",
+      "Can be interrupted by clicking Step or Pause"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [
+      "NET-019"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "engagement",
+      "a11y"
+    ]
+  },
+  {
+    "id": "NET-053",
+    "epic": "NET",
+    "title": "Add Full OSI encapsulation visualizer (type URL, watch packet build layer by layer)",
+    "description": "Innovation idea #35 \u2014 first-in-world potential. Type a URL. Watch data get encapsulated: Application \u2192 Transport \u2192 Network \u2192 Data Link \u2192 Physical. At each layer see the header added, size grow. Then watch decapsulation at server. The single most-asked concept in networking education.",
+    "acceptanceCriteria": [
+      "URL input triggers encapsulation animation through all layers",
+      "Each layer clearly shows header being prepended with size",
+      "Reverse path shows decapsulation",
+      "Layer names, protocols, and header sizes are accurate"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/OSIEncapsulation.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "first-in-world",
+      "education",
+      "dream"
+    ]
+  },
+  {
+    "id": "NET-054",
+    "epic": "NET",
+    "title": "Add 'Break the Protocol' challenge mode",
+    "description": "Innovation idea #20. Given a working protocol, user tries to break it: drop a packet, forge a response, replay a message. System shows what breaks and why the real protocol has that protection. Learn-by-breaking is more engaging than learn-by-watching.",
+    "acceptanceCriteria": [
+      "At least 3 protocols support break-the-protocol challenges",
+      "User can inject faults: drop, reorder, forge, replay",
+      "System shows the consequences of each fault",
+      "Comparison with how the real protocol prevents it"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/BreakTheProtocol.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "gamification",
+      "education",
+      "dream"
+    ]
+  },
+  {
+    "id": "NET-055",
+    "epic": "NET",
+    "title": "Add export simulation as GIF/video for content creators",
+    "description": "Innovation idea #17. Every exported GIF is free marketing. Use MediaRecorder API or html2canvas to capture simulation playback as an animated GIF or MP4. Addresses content creator and professor personas.",
+    "acceptanceCriteria": [
+      "Export button appears on every protocol simulation",
+      "Creates animated GIF or MP4 of the simulation playback",
+      "Includes Architex watermark/attribution",
+      "Works in Chrome and Firefox"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/ExportSimulation.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "sharing",
+      "marketing",
+      "dream"
+    ]
+  }
+]

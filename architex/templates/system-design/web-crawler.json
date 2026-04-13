@@ -1,0 +1,579 @@
+{
+  "id": "web-crawler",
+  "name": "Web Crawler",
+  "description": "Design a scalable web crawler for indexing billions of web pages. Covers URL frontier, politeness policies, deduplication, and distributed fetching.",
+  "difficulty": 3,
+  "category": "classic",
+  "tags": [
+    "crawler",
+    "url-frontier",
+    "distributed",
+    "deduplication",
+    "politeness",
+    "scraping"
+  ],
+  "nodes": [
+    {
+      "id": "scheduler",
+      "type": "batch-processor",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "URL Scheduler / Prioritizer",
+        "category": "compute",
+        "componentType": "batch-processor",
+        "icon": "Layers",
+        "config": {
+          "batchSizeRecords": 100000,
+          "intervalSeconds": 60,
+          "parallelism": 100,
+          "retryAttempts": 3
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "url-frontier",
+      "type": "message-queue",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "URL Frontier (Priority Queue)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": {
+          "partitions": 256,
+          "retentionHours": 48,
+          "maxThroughputMBps": 200
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "fetcher",
+      "type": "worker",
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "data": {
+        "label": "Fetcher Workers",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": {
+          "instances": 500,
+          "concurrencyPerInstance": 100,
+          "retryAttempts": 3
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "page-storage",
+      "type": "storage",
+      "position": {
+        "x": 750,
+        "y": 50
+      },
+      "data": {
+        "label": "Page Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": {
+          "type": "s3",
+          "storageGB": 50000000,
+          "replicationFactor": 3
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "url-db",
+      "type": "database",
+      "position": {
+        "x": 750,
+        "y": 200
+      },
+      "data": {
+        "label": "URL DB (Visited / Bloom Filter)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 2,
+          "maxConnections": 500,
+          "storageGB": 5000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "search-index",
+      "type": "search-engine",
+      "position": {
+        "x": 750,
+        "y": 400
+      },
+      "data": {
+        "label": "Search Index (Elasticsearch)",
+        "category": "storage",
+        "componentType": "search-engine",
+        "icon": "Search",
+        "config": {
+          "shards": 500,
+          "replicas": 2,
+          "indexSizeGB": 100000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": {
+        "x": 500,
+        "y": 400
+      },
+      "data": {
+        "label": "DNS / Robots.txt Cache",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 32,
+          "evictionPolicy": "lru",
+          "ttlSeconds": 86400,
+          "cacheHitRate": 0.95
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-sched-frontier",
+      "source": "scheduler",
+      "target": "url-frontier",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-frontier-fetcher",
+      "source": "url-frontier",
+      "target": "fetcher",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-fetcher-storage",
+      "source": "fetcher",
+      "target": "page-storage",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "blob-write",
+        "latency": 50,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-fetcher-urldb",
+      "source": "fetcher",
+      "target": "url-db",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-fetcher-index",
+      "source": "fetcher",
+      "target": "search-index",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "index-write",
+        "latency": 20,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-fetcher-cache",
+      "source": "fetcher",
+      "target": "cache",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-urldb-sched",
+      "source": "url-db",
+      "target": "scheduler",
+      "sourceHandle": "bottom",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 10,
+        "animated": false
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "URL Frontier Design",
+      "description": "The URL Frontier is a priority queue with two sub-components: a front queue (prioritizes by page importance \u2014 PageRank, freshness) and a back queue (enforces politeness \u2014 one connection per host at a time). URLs are partitioned by domain to prevent overwhelming any single server.",
+      "highlightNodes": [
+        "url-frontier",
+        "scheduler"
+      ],
+      "highlightEdges": [
+        "e-sched-frontier"
+      ]
+    },
+    {
+      "title": "Distributed Fetching",
+      "description": "500 fetcher workers pull URLs from the frontier. Each checks the DNS/robots.txt cache before fetching. Workers respect crawl-delay directives and maintain per-host rate limits. Content is fingerprinted (SimHash) for near-duplicate detection before storing.",
+      "highlightNodes": [
+        "fetcher",
+        "cache"
+      ],
+      "highlightEdges": [
+        "e-frontier-fetcher",
+        "e-fetcher-cache"
+      ]
+    },
+    {
+      "title": "URL Deduplication",
+      "description": "Before adding a discovered URL to the frontier, the system checks a Bloom filter (in-memory, ~10GB for 10B URLs, 1% false positive rate). URLs passing the Bloom filter are verified against the URL DB. This two-tier approach avoids re-crawling billions of already-visited pages.",
+      "highlightNodes": [
+        "url-db",
+        "scheduler"
+      ],
+      "highlightEdges": [
+        "e-fetcher-urldb",
+        "e-urldb-sched"
+      ]
+    },
+    {
+      "title": "Content Processing Pipeline",
+      "description": "Fetched pages are stored in S3 for later reprocessing. The indexing pipeline extracts text, parses links (to feed back to the frontier), and builds the inverted index in Elasticsearch. Links are normalized (remove fragments, canonicalize) before being added back to the scheduler.",
+      "highlightNodes": [
+        "page-storage",
+        "search-index"
+      ],
+      "highlightEdges": [
+        "e-fetcher-storage",
+        "e-fetcher-index"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-dns-failure",
+        "name": "DNS Resolver Failure",
+        "description": "DNS resolver cache expires and upstream DNS is slow",
+        "targetNodes": [
+          "dns-resolver"
+        ],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "Crawl rate drops dramatically. URL frontier queue grows.",
+        "mitigationSteps": [
+          "Multiple DNS resolvers",
+          "Extended DNS cache TTL",
+          "Fallback to IP-based crawling"
+        ]
+      },
+      {
+        "id": "cs-spider-trap",
+        "name": "Spider Trap Detection Failure",
+        "description": "Crawler stuck in infinite URL generation on a malicious site",
+        "targetNodes": [
+          "crawler-workers"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Crawler resources consumed by single domain. Other domains starved.",
+        "mitigationSteps": [
+          "Per-domain crawl limits",
+          "URL depth limiting",
+          "Duplicate URL detection"
+        ]
+      },
+      {
+        "id": "cs-storage-full",
+        "name": "Content Storage Full",
+        "description": "Crawled content storage reaches capacity",
+        "targetNodes": [
+          "content-store"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "New pages cannot be stored. Crawling pauses.",
+        "mitigationSteps": [
+          "Evict stale content",
+          "Expand storage",
+          "Prioritize high-value pages"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "dns-resolver",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 10000,
+        "bottleneckNode": "crawler-workers",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-web-crawler-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "dns-resolver"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-web-crawler-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "content-store"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-web-crawler-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "dns-resolver"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 15000,
+      "components": [
+        {
+          "nodeId": "dns-resolver",
+          "label": "Primary Service",
+          "monthlyCostUsd": 5000,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "content-store",
+          "label": "Storage",
+          "monthlyCostUsd": 5000,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 5000,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 1000,
+          "monthlyCostUsd": 5000
+        },
+        {
+          "label": "Medium",
+          "rps": 10000,
+          "monthlyCostUsd": 15000
+        },
+        {
+          "label": "High",
+          "rps": 50000,
+          "monthlyCostUsd": 45000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 10000,
+      "trafficProfile": "steady",
+      "p50LatencyMs": 500,
+      "p99LatencyMs": 5000,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 10000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "dns-resolver",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 5000,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "dns-resolver"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "dns-resolver"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 10000ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

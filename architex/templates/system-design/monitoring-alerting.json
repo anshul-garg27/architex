@@ -1,0 +1,183 @@
+{
+  "id": "monitoring-alerting",
+  "name": "Monitoring & Alerting Pipeline",
+  "description": "Design a production monitoring and alerting system modeled on Prometheus and Grafana. Covers pull-based metrics collection, time-series storage, rule-based alert evaluation, notification routing, and dashboard visualization.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": ["monitoring", "alerting", "prometheus", "grafana", "time-series", "observability", "metrics"],
+  "nodes": [
+    {
+      "id": "apps",
+      "type": "app-server",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Instrumented Applications",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 200, "cpuCores": 4, "memoryGB": 8, "processingTimeMs": 2 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "metrics-collector",
+      "type": "worker",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Metrics Collector (Prometheus)",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 4, "concurrencyPerInstance": 50, "scrapeIntervalSec": 15, "retryAttempts": 2 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "tsdb",
+      "type": "timeseries-db",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Time-Series DB (Prometheus TSDB)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "TrendingUp",
+        "config": { "retentionDays": 90, "ingestionRate": 2000000, "storageGB": 5000, "compactionEnabled": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "alert-evaluator",
+      "type": "batch-processor",
+      "position": { "x": 750, "y": 100 },
+      "data": {
+        "label": "Alert Evaluator (Rules Engine)",
+        "category": "compute",
+        "componentType": "batch-processor",
+        "icon": "Layers",
+        "config": { "batchSizeRecords": 10000, "intervalSeconds": 15, "parallelism": 8, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "alert-queue",
+      "type": "message-queue",
+      "position": { "x": 1000, "y": 100 },
+      "data": {
+        "label": "Alert Queue (SQS)",
+        "category": "messaging",
+        "componentType": "sqs",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 4, "retentionHours": 24, "maxThroughputMBps": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "notifier",
+      "type": "worker",
+      "position": { "x": 1250, "y": 100 },
+      "data": {
+        "label": "Notification Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 4, "concurrencyPerInstance": 10, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "dashboard",
+      "type": "client",
+      "position": { "x": 500, "y": 425 },
+      "data": {
+        "label": "Grafana Dashboard",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 200, "requestsPerSecond": 500 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-apps-collector",
+      "source": "apps",
+      "target": "metrics-collector",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "metrics-scrape", "latency": 100, "animated": true }
+    },
+    {
+      "id": "e-collector-tsdb",
+      "source": "metrics-collector",
+      "target": "tsdb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-tsdb-alerter",
+      "source": "tsdb",
+      "target": "alert-evaluator",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "promql-query", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-alerter-queue",
+      "source": "alert-evaluator",
+      "target": "alert-queue",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-queue-notifier",
+      "source": "alert-queue",
+      "target": "notifier",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-dash-tsdb",
+      "source": "dashboard",
+      "target": "tsdb",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "promql-query", "latency": 50, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Pull-Based Metrics Collection",
+      "description": "Prometheus Collectors scrape /metrics HTTP endpoints from 200+ instrumented applications every 15 seconds. Each application exposes counters (total requests), gauges (active connections), and histograms (request latency buckets) using a client library. The pull model means Prometheus controls the scrape rate, can auto-discover targets via service discovery (Kubernetes, Consul), and detects down targets by failed scrapes.",
+      "highlightNodes": ["apps", "metrics-collector"],
+      "highlightEdges": ["e-apps-collector"]
+    },
+    {
+      "title": "Time-Series Storage and Compression",
+      "description": "Scraped samples flow into the Prometheus TSDB, which stores data in 2-hour blocks. The in-memory head block holds the most recent samples for fast writes. Blocks are periodically compacted and compressed using Gorilla encoding (delta-of-delta timestamps, XOR'd values), achieving ~1.4 bytes per sample. With 2M samples/sec ingestion and 90-day retention, the TSDB stores trillions of data points in ~5TB.",
+      "highlightNodes": ["metrics-collector", "tsdb"],
+      "highlightEdges": ["e-collector-tsdb"]
+    },
+    {
+      "title": "Alert Rule Evaluation Pipeline",
+      "description": "The Alert Evaluator runs PromQL rules against the TSDB every 15 seconds (e.g., 'rate(http_errors_total[5m]) / rate(http_requests_total[5m]) > 0.05 for 5m'). A 'for' duration prevents flapping -- the condition must hold continuously before firing. Fired alerts include labels (service, severity) and annotations (description, runbook URL). Alerts are published to the queue where the Notification Worker handles grouping (batch related alerts), silencing (suppress during maintenance), and routing (PagerDuty for critical, Slack for warning).",
+      "highlightNodes": ["tsdb", "alert-evaluator", "alert-queue", "notifier"],
+      "highlightEdges": ["e-tsdb-alerter", "e-alerter-queue", "e-queue-notifier"]
+    },
+    {
+      "title": "Dashboarding and Visualization",
+      "description": "Grafana queries the TSDB via PromQL to render real-time dashboards. Common queries include rate() for request throughput, histogram_quantile() for p99 latency, and increase() for error counts. Dashboards use variable templates (dropdown for service, environment) and auto-refresh intervals. Drill-down links navigate from high-level overviews to per-instance metrics, enabling rapid root-cause analysis during incidents.",
+      "highlightNodes": ["dashboard", "tsdb"],
+      "highlightEdges": ["e-dash-tsdb"]
+    }
+  ]
+}

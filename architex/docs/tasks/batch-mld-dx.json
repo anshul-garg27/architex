@@ -1,0 +1,102 @@
+[
+  {
+    "id": "MLD-185",
+    "epic": "MLD",
+    "title": "Write 'How to Add a New ML Mode' contributor guide",
+    "description": "THE #1 DX IMPROVEMENT. No documentation exists for adding a new mode to the ML module. A developer currently spends ~2 hours reverse-engineering the 3,737-line monolith.\n\nCreate docs/guides/ml-design-new-mode.md covering:\n1. Prerequisites (understand the mode pattern, TypeScript unions)\n2. Step 1: Create engine file (src/lib/ml-design/your-mode.ts) — template provided\n3. Step 2: Export types in index.ts\n4. Step 3: Add to ModuleMode union (MLDesignModule.tsx:57)\n5. Step 4: Add to MODE_TABS array (line 78)\n6. Step 5: Create Sidebar, Canvas, Properties, BottomPanel components\n7. Step 6: Register in MLSidebar (line 983), canvas/properties/bottomPanel sections\n8. Step 7: Add state variables to useMLDesignModule hook\n9. Step 8: Write tests\n10. Checklist before submitting PR\n\nInclude a complete annotated template for a minimal mode (e.g., 'Hello World ML Mode').",
+    "acceptanceCriteria": ["Guide exists at docs/guides/ml-design-new-mode.md", "Covers all 10 steps with file paths and line numbers", "Includes copyable template code for engine + types", "Includes PR checklist with quality criteria", "A new developer can add a mode in <2 hours using this guide", "Guide references content style guide (MLD-127) for educational content"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["docs/guides/ml-design-new-mode.md"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "documentation", "contributor-guide", "highest-impact"]
+  },
+  {
+    "id": "MLD-186",
+    "epic": "MLD",
+    "title": "Create ML mode scaffolding script",
+    "description": "Automate new mode creation to reduce errors and save ~1 hour per mode:\n\n```bash\npnpm scaffold:ml-mode --name reinforcement-learning --label 'Reinforcement Learning' --icon Gamepad2\n```\n\nCreates:\n- src/lib/ml-design/reinforcement-learning.ts (engine boilerplate with types)\n- Updates src/lib/ml-design/index.ts (adds exports)\n- Prints remaining manual steps: 'Add to ModuleMode union, MODE_TABS, sidebar/canvas/properties rendering'\n\nThe manual steps can't be auto-generated because they're inline in the monolith. After MLD-028 (split the monolith), the script could create component files too.",
+    "acceptanceCriteria": ["Script creates engine file with boilerplate types and functions", "Script updates barrel export index.ts", "Script prints clear next-steps checklist", "Generated code compiles without errors", "Template includes JSDoc annotations and educational comments"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["scripts/scaffold-ml-mode.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "scaffolding", "automation"]
+  },
+  {
+    "id": "MLD-187",
+    "epic": "MLD",
+    "title": "Write ML Design architecture overview document",
+    "description": "No architecture documentation exists. Create docs/architecture/ml-design.md with:\n\n1. Module overview: 6 modes, their purposes, target audience\n2. Data flow diagram (from types audit): User → Hook → Engine → Result → Visualizer\n3. File organization: lib/ml-design/ (engines), components/modules/MLDesignModule.tsx (UI), components/ml-design/ (ORPHANED — explain status)\n4. State management: ~30 useState in useMLDesignModule hook, no Zustand store\n5. Type system: layer diagram showing INPUT → ENGINE → STEP → RESULT types\n6. Known issues: optimizer bug, orphaned files, monolith to be split\n7. Cross-module integration: bridge system status, progress store status\n\nThis is the document a new developer reads FIRST before touching any code.",
+    "acceptanceCriteria": ["Architecture doc at docs/architecture/ml-design.md", "Data flow diagram included (Mermaid or ASCII)", "File organization map with purpose of each directory", "Known issues section with task references", "Document takes <15 minutes to read", "Updated when major architecture changes are made"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["docs/architecture/ml-design.md"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "documentation", "architecture"]
+  },
+  {
+    "id": "MLD-188",
+    "epic": "MLD",
+    "title": "Add README.md to src/lib/ml-design/ explaining the library",
+    "description": "The ml-design library directory has 17 files and zero README. A developer finding this directory has no context.\n\nCreate src/lib/ml-design/README.md:\n- What this library provides (pure computation functions for ML concepts)\n- File index with 1-line description per file\n- Which files are actively used vs orphaned\n- How to import (use barrel export index.ts)\n- Testing: how to run tests, what's covered",
+    "acceptanceCriteria": ["README.md exists in src/lib/ml-design/", "Lists all files with 1-line descriptions", "Clearly marks which files are orphaned/unused", "Import examples provided", "Test running instructions included"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/README.md"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "documentation", "readme"]
+  },
+  {
+    "id": "MLD-189",
+    "epic": "MLD",
+    "title": "Add JSDoc 'why' comments to neural-net.ts training loop",
+    "description": "neural-net.ts train() function (lines 129-218) implements backpropagation but has minimal inline comments. A developer reading this to understand the algorithm would struggle.\n\nAdd explanatory comments:\n- Line 136: // Iterate over all training samples (online SGD — update after each sample)\n- Line 149: // MSE loss: average squared difference between prediction and target\n- Line 166: // Backpropagation: compute error signal (delta) for each layer in reverse\n- Line 173: // Output delta = error × activation_derivative (chain rule at output)\n- Line 175: // Clip gradient to [-5, 5] to prevent exploding gradients in deep networks\n- Line 181: // Hidden layer delta: propagate error backward through weights\n- Line 198: // SGD weight update: w -= learning_rate × delta × input (gradient descent step)\n- Line 203: // Each weight changes proportionally to both the error signal and the input that caused it\n\nThis makes the code serve as a readable reference for students AND contributors.",
+    "acceptanceCriteria": ["Every non-obvious line in train() has an inline comment", "Comments explain WHY (algorithm concept), not WHAT (code mechanics)", "Comments reference algorithm concepts: chain rule, gradient descent, MSE", "A mid-level developer can understand backpropagation by reading this file", "No code changes — comments only"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/neural-net.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "documentation", "comments", "teaching-code"]
+  },
+  {
+    "id": "MLD-190",
+    "epic": "MLD",
+    "title": "Create GitHub issue template for new ML Design concepts",
+    "description": ".github/ISSUE_TEMPLATE/new_algorithm.yml exists for the Algorithms module but not for ML Design. Create new_ml_concept.yml with:\n- Concept name\n- Category dropdown (Neural Network, CNN, Regularization, MLOps, Statistics, Experimentation)\n- Description of what the concept teaches\n- Prerequisites (what should the student know first)\n- Real-world application example\n- Suggested visualization approach\n- Complexity/difficulty level\n- References (papers, textbooks, courses)",
+    "acceptanceCriteria": ["new_ml_concept.yml exists in .github/ISSUE_TEMPLATE/", "Category dropdown covers all 6+ ML concept categories", "Required fields: name, category, description, prerequisites", "Optional fields: visualization approach, references", "Template encourages educational thinking (why does this concept matter?)"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": [".github/ISSUE_TEMPLATE/new_ml_concept.yml"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "github", "template"]
+  },
+  {
+    "id": "MLD-191",
+    "epic": "MLD",
+    "title": "Create PR review checklist specific to ML Design contributions",
+    "description": "No review criteria exist for ML Design PRs. Create a PR template or reviewer guide:\n\n**Engine Quality:**\n- [ ] Implementation mathematically correct (verified against textbook/paper)\n- [ ] Edge cases handled (empty input, extreme values)\n- [ ] Zero `any` types\n- [ ] JSDoc on all exported functions\n- [ ] Unit tests written and passing\n\n**Educational Quality:**\n- [ ] Hook paragraph explains WHY this concept matters\n- [ ] Intuition paragraph uses analogy (no jargon without explanation)\n- [ ] Step descriptions say WHY not just WHAT\n- [ ] Real-world application mentioned\n- [ ] Key takeaways (3 bullets) provided\n\n**Visual Quality:**\n- [ ] Colors from CSS variables (no hardcoded hex)\n- [ ] Legend present for all color-coded states\n- [ ] Responsive (adapts to container size)\n- [ ] Reduced-motion support\n\n**Platform Integration:**\n- [ ] Mode registered in exhaustive switches\n- [ ] Cross-module bridge links added where relevant\n- [ ] Concepts added to command palette search",
+    "acceptanceCriteria": ["PR checklist exists as .github/PULL_REQUEST_TEMPLATE/ml-design.md or as a doc", "Covers engine, educational, visual, and platform integration categories", "Each item is specific and testable (not vague)", "Referenced in the contributor guide (MLD-185)"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": [".github/PULL_REQUEST_TEMPLATE/ml-design.md"],
+    "dependencies": ["MLD-185"], "blockedBy": [], "tags": ["dx", "review", "quality"]
+  },
+  {
+    "id": "MLD-192",
+    "epic": "MLD",
+    "title": "Add scoped test command: pnpm test:ml-design",
+    "description": "No scoped test command exists for ML Design. Running `pnpm test` runs ALL tests across all modules. For a contributor working on ML Design, add a scoped command:\n```json\n\"test:ml-design\": \"vitest run src/lib/ml-design\"\n\"test:ml-design:watch\": \"vitest src/lib/ml-design\"\n```\nAlso add a smoke test that imports MLDesignModule and verifies it renders without crashing.",
+    "acceptanceCriteria": ["pnpm test:ml-design runs only ML Design tests", "pnpm test:ml-design:watch runs in watch mode", "Smoke test verifies MLDesignModule.tsx renders all 6 modes without crash", "Test output clearly shows which ML tests passed/failed"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["package.json", "src/lib/ml-design/__tests__/smoke.test.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "testing", "automation"]
+  },
+  {
+    "id": "MLD-193",
+    "epic": "MLD",
+    "title": "Add developer-facing error messages for common ML mode registration mistakes",
+    "description": "When a developer adds a new mode but forgets a registration step, the feedback is silent failure or misleading output. Add runtime dev-mode checks:\n\n```typescript\nif (process.env.NODE_ENV === 'development') {\n  const modeValues = MODE_TABS.map(t => t.value);\n  const allModes: ModuleMode[] = ['neural-network', 'pipeline-builder', ...];\n  for (const mode of allModes) {\n    if (!modeValues.includes(mode)) {\n      console.error(`[ML Design] Mode '${mode}' exists in ModuleMode but is missing from MODE_TABS array at MLDesignModule.tsx:78`);\n    }\n  }\n}\n```\n\nThis catches the most common mistake (forgot to add to MODE_TABS) with a helpful error pointing to the exact location.",
+    "acceptanceCriteria": ["Dev-mode console.error for modes missing from MODE_TABS", "Error message includes file path and line number", "Only runs in development (stripped in production)", "Covers: MODE_TABS, sidebar rendering, canvas rendering, properties rendering", "A new developer sees a clear error instead of silent failure"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "error-messages", "developer-feedback"]
+  },
+  {
+    "id": "MLD-194",
+    "epic": "MLD",
+    "title": "Document magic numbers with named constants and comments",
+    "description": "Several magic numbers in MLDesignModule.tsx lack explanation:\n- Line 75: DATASET_SAMPLE_COUNT = 200 — named but no comment WHY 200\n- Line 76: GRID_RESOLUTION = 30 — no comment WHY 30 (tradeoff: higher = smoother but slower)\n- Line 1235: cellSize = 28 — why 28px? (fits 8×8 grid in ~224px)\n- Line 2927: FS_SVG_W = 820 — why 820? (fits all nodes with spacing)\n- Line 2928: FS_SVG_H = 420 — why 420?\n- Line 1879: svgW = 700, svgH = 300 — ServingCanvas dimensions\n- Line 2407: svgW = 660, svgH = 300 — ABTestingCanvas dimensions\n\nAdd comments explaining the reasoning behind each constant.",
+    "acceptanceCriteria": ["Every magic number constant has a comment explaining WHY that value", "Comments reference the tradeoff (e.g., 'Higher resolution = smoother boundary but more forward passes')", "Non-obvious pixel dimensions explain what they accommodate", "No code changes — comments only"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "documentation", "readability"]
+  }
+]

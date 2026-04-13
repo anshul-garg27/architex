@@ -1,0 +1,183 @@
+{
+  "id": "task-queue",
+  "name": "Task Queue (Celery-Style)",
+  "description": "Design a distributed task queue system like Celery. Covers async job submission, priority queuing, worker pools, retries with backoff, result storage, and dead-letter handling.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": ["task-queue", "celery", "async", "worker", "message-queue", "background-jobs"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 10000, "requestsPerSecond": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 10000, "authType": "jwt", "timeoutMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "web-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Application Server",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 5, "maxConnections": 10000, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "message-queue",
+      "type": "message-queue",
+      "position": { "x": 750, "y": 200 },
+      "data": {
+        "label": "Task Broker (RabbitMQ)",
+        "category": "messaging",
+        "componentType": "rabbitmq",
+        "icon": "ArrowRightLeft",
+        "config": { "type": "rabbitmq", "queues": 8, "replicationFactor": 3, "retentionHours": 48, "maxPriority": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "worker-pool",
+      "type": "worker",
+      "position": { "x": 1000, "y": 200 },
+      "data": {
+        "label": "Worker Pool",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 20, "concurrencyPerInstance": 8, "retryAttempts": 3, "taskTimeoutMs": 300000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 1000, "y": 400 },
+      "data": {
+        "label": "Result Store (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 200, "storageGB": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "object-storage",
+      "type": "storage",
+      "position": { "x": 750, "y": 400 },
+      "data": {
+        "label": "Artifact Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 10000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-app",
+      "source": "api-gw",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "message-queue",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-mq-worker",
+      "source": "message-queue",
+      "target": "worker-pool",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-worker-db",
+      "source": "worker-pool",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 10, "animated": false }
+    },
+    {
+      "id": "e-worker-storage",
+      "source": "worker-pool",
+      "target": "object-storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 25, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Asynchronous Task Submission",
+      "description": "The Application Server receives a request (e.g., generate a report, process an image) and immediately publishes a task message to RabbitMQ with a unique task ID, payload, priority, and retry policy. It returns HTTP 202 Accepted with the task ID so the client can poll for results. This decouples the request lifecycle from the task execution, keeping API response times under 50ms regardless of task complexity.",
+      "highlightNodes": ["client", "api-gw", "app-server", "message-queue"],
+      "highlightEdges": ["e-client-gw", "e-gw-app", "e-app-mq"]
+    },
+    {
+      "title": "Priority Queues and Routing",
+      "description": "RabbitMQ maintains multiple queues with different priorities (critical, high, normal, low). Tasks are routed to queues via exchange bindings based on task type and priority header. Workers consume from higher-priority queues first using consumer priority settings. This ensures time-sensitive tasks (password resets, payment confirmations) are processed ahead of bulk jobs (report generation, data exports).",
+      "highlightNodes": ["message-queue", "worker-pool"],
+      "highlightEdges": ["e-app-mq", "e-mq-worker"]
+    },
+    {
+      "title": "Worker Pool Execution and Concurrency",
+      "description": "20 worker instances each run 8 concurrent greenlet/threads, giving 160 parallel task slots. Workers prefetch a small batch (4 messages) to minimize idle time. Each task runs inside a timeout wrapper -- if a task exceeds 5 minutes it is killed and re-queued. Workers report heartbeats; if a worker dies mid-task, RabbitMQ redelivers the unacknowledged message to another worker. Results and artifacts are written to PostgreSQL and S3 respectively.",
+      "highlightNodes": ["worker-pool", "database", "object-storage"],
+      "highlightEdges": ["e-mq-worker", "e-worker-db", "e-worker-storage"]
+    },
+    {
+      "title": "Retries, Dead Letters, and Observability",
+      "description": "Failed tasks are retried with exponential backoff (1s, 4s, 16s) up to 3 attempts. After max retries, tasks move to a dead-letter queue (DLQ) for manual inspection. Each task state transition (pending, started, retry, success, failure) is logged to PostgreSQL with timestamps, enabling dashboards to show queue depth, throughput, p99 latency, and failure rates. Alerting fires when the DLQ grows or queue depth exceeds thresholds.",
+      "highlightNodes": ["message-queue", "worker-pool", "database"],
+      "highlightEdges": ["e-mq-worker", "e-worker-db"]
+    }
+  ]
+}

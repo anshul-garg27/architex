@@ -1,0 +1,200 @@
+[
+  {
+    "id": "SEC-189",
+    "epic": "SEC",
+    "title": "Write 'How to Add a New Security Topic' contributor guide",
+    "description": "CONTRIBUTING.md has guides for algorithms, nodes, templates, and modules — but NOTHING for adding a Security topic. A contributor currently spends 2+ hours reverse-engineering the pattern. Write a step-by-step guide covering: (1) Create engine file in lib/security/, (2) Define step type, (3) Add to SecurityTopic union + TOPICS array, (4) Add canvas component, (5) Add properties panel case, (6) Add bottom panel case, (7) Add state to useSecurityModule hook, (8) Update barrel export, (9) Write tests, (10) Checklist before PR. Include file paths, code snippets, and 'copy this template' examples. Estimated time savings: 4-6 hours per new contributor.",
+    "acceptanceCriteria": [
+      "Guide exists in CONTRIBUTING.md or docs/security-contributor-guide.md",
+      "Step-by-step with exact file paths and line number references",
+      "Includes a 'template to copy' annotated code block for engine file",
+      "Includes PR checklist specific to Security topics",
+      "A new developer can follow the guide and add a topic in <2 hours"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["CONTRIBUTING.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "contributor-guide"]
+  },
+  {
+    "id": "SEC-190",
+    "epic": "SEC",
+    "title": "Create Security topic scaffolding script (pnpm scaffold:security-topic)",
+    "description": "No scaffolding tool exists. Adding a topic requires modifying 10 locations across 2 files. Create a script that: (1) Prompts for topic ID and name, (2) Creates engine file with boilerplate step type + function, (3) Creates test file with 3 template tests, (4) Adds to SecurityTopic union + TOPICS array, (5) Adds placeholder canvas/properties/bottom-panel cases, (6) Updates barrel export, (7) Prints 'Next steps: implement engine, fill in canvas, run pnpm test'. Script reduces 10-location manual edit to 1 command. Estimated time savings: 1-2 hours per topic.",
+    "acceptanceCriteria": [
+      "Script runnable via `pnpm scaffold:security-topic`",
+      "Prompts for topic ID (slug) and display name",
+      "Generates engine file in lib/security/ with boilerplate",
+      "Generates test file in __tests__/lib/security/",
+      "Updates SecurityTopic union and TOPICS array",
+      "All generated code compiles without errors"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["scripts/scaffold-security-topic.ts", "package.json"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "scaffolding", "automation"]
+  },
+  {
+    "id": "SEC-191",
+    "epic": "SEC",
+    "title": "Write Security module architecture overview diagram",
+    "description": "No architecture overview exists. New contributors can't visualize the data flow. Create a Mermaid diagram showing: User Input (Properties Panel) → Engine Functions (lib/security/) → Step Arrays → State (useSecurityModule hook) → Canvas Components → SVG/HTML rendering. Include all 11 topics as labeled boxes. Also show the SecurityPropertiesContext data flow. Place in docs/ or at the top of SecurityModule.tsx as a JSDoc comment.",
+    "acceptanceCriteria": [
+      "Mermaid diagram showing complete data flow from input to rendering",
+      "All 11 topics visible as labeled nodes",
+      "SecurityPropertiesContext data flow shown",
+      "Diagram accessible in docs/ directory or module JSDoc"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["docs/security-architecture.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "architecture"]
+  },
+  {
+    "id": "SEC-192",
+    "epic": "SEC",
+    "title": "Add JSDoc to all exported Security engine functions",
+    "description": "Most engine files have JSDoc on the main function but not all. Specifically: web-attacks.ts getWebAttackSteps() has no JSDoc. actorToColumn() has no JSDoc. encryption-comparison.ts simulation functions have minimal JSDoc. Add @param, @returns, and @example tags to all exported functions. This enables IDE hover documentation for contributors.",
+    "acceptanceCriteria": [
+      "Every exported function in lib/security/ has JSDoc with @param and @returns",
+      "At least 5 functions have @example tags showing usage",
+      "IDE hover shows meaningful documentation for all exports"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/lib/security/web-attacks.ts", "src/lib/security/encryption-comparison.ts", "src/lib/security/rate-limiting-demo.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "jsdoc"]
+  },
+  {
+    "id": "SEC-193",
+    "epic": "SEC",
+    "title": "Write content style guide for Security step descriptions",
+    "description": "No style guide exists for writing step descriptions. The concept quality audit found T1 (Hook) averaged 0.5/3 and T12 (Summary) averaged 0.3/3. Create a guide: (1) Every topic must open with a PROBLEM, not a definition, (2) Step descriptions must explain WHY, not just WHAT, (3) Use analogies before formalism, (4) Include real-world applications, (5) End with 3-bullet memorable summary. Include good and bad examples from existing content.",
+    "acceptanceCriteria": [
+      "Style guide document exists in docs/ or CONTRIBUTING.md",
+      "Includes 5 good examples and 5 bad examples from existing content",
+      "Defines the 6 required sections per topic: Hook, Intuition, Steps, Real-World, Mistakes, Summary",
+      "Linked from the Security topic contributor guide (SEC-189)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["docs/security-content-style-guide.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "content-quality"]
+  },
+  {
+    "id": "SEC-194",
+    "epic": "SEC",
+    "title": "Create PR review checklist specific to Security module contributions",
+    "description": "No quality checklist exists for Security PRs. Create a .github/PULL_REQUEST_TEMPLATE/security.md or docs/security-pr-checklist.md with: [ ] Engine produces correct steps, [ ] Step descriptions explain 'why' not just 'what', [ ] Properties panel has input controls, [ ] Bottom panel shows step log, [ ] Edge cases handled (empty, invalid input), [ ] Tests written and passing, [ ] Topic registered in TOPICS array + SecurityTopic union, [ ] Barrel export updated, [ ] No hardcoded hex colors in SVG, [ ] Accessibility: aria-labels on interactive elements.",
+    "acceptanceCriteria": [
+      "Checklist document exists and is linked from contributor guide",
+      "Covers code, content, visual, and accessibility quality",
+      "At least 12 checklist items covering the full contribution lifecycle"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["docs/security-pr-checklist.md"],
+    "dependencies": ["SEC-189"],
+    "blockedBy": [],
+    "tags": ["dx", "review", "checklist"]
+  },
+  {
+    "id": "SEC-195",
+    "epic": "SEC",
+    "title": "Add pre-commit hooks for lint + typecheck (prevent broken commits)",
+    "description": "No pre-commit hooks exist (no .husky/ directory). ESLint and tsc --noEmit are configured as scripts but not enforced. Add husky + lint-staged to run: (1) ESLint on changed .ts/.tsx files, (2) Prettier format check, (3) tsc --noEmit typecheck. This prevents contributors from committing code that breaks type safety or style. Catches the 4 silent failures identified in Phase 6.",
+    "acceptanceCriteria": [
+      "husky pre-commit hook runs lint-staged",
+      "lint-staged runs eslint + prettier on changed files",
+      "Pre-commit typecheck runs tsc --noEmit",
+      "Broken TypeScript code cannot be committed"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": [".husky/pre-commit", "package.json"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "automation", "quality-gate"]
+  },
+  {
+    "id": "SEC-196",
+    "epic": "SEC",
+    "title": "Colocate Security engine tests with engine files (move from __tests__ to __tests__)",
+    "description": "Engine tests are split across 2 directories: src/lib/security/__tests__/ (7 files for utilities) and src/__tests__/lib/security/ (3 files for engines like jwt-engine.test.ts). This inconsistency makes it hard to find tests for a given file. Move the 3 engine test files to src/lib/security/__tests__/ to colocate all Security tests in one directory.",
+    "acceptanceCriteria": [
+      "All Security test files in one directory: src/lib/security/__tests__/",
+      "jwt-engine.test.ts, diffie-hellman.test.ts, aes-engine.test.ts moved",
+      "All tests pass from new location",
+      "No duplicate test files in old location"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/__tests__/lib/security/", "src/lib/security/__tests__/"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "organization", "tests"]
+  },
+  {
+    "id": "SEC-197",
+    "epic": "SEC",
+    "title": "Extract named constants for magic numbers (800ms interval, 40-char truncation, etc.)",
+    "description": "SecurityModule.tsx has magic numbers: 800 (auto-play interval, line 4853), 300 (CSS duration), 40 and 45 (OAuth SVG label truncation, lines 294, 331), 650 (maxHeight, line 220). Replace with named constants: const AUTO_PLAY_INTERVAL_MS = 800, const SVG_LABEL_MAX_CHARS = 40, const SEQUENCE_DIAGRAM_MAX_HEIGHT = 650. Makes the code self-documenting and parameters adjustable.",
+    "acceptanceCriteria": [
+      "All magic numbers replaced with named constants",
+      "Constants defined at top of file or in a shared constants file",
+      "Each constant has a JSDoc comment explaining its purpose"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "readability", "constants"]
+  }
+]

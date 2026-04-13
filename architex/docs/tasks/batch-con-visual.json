@@ -1,0 +1,213 @@
+[
+  {
+    "id": "CON-173", "epic": "CON", "title": "Add entry animations for event log rows across all 7 event-log-based visualizations",
+    "description": "BIGGEST VISUAL GAP: 7 visualizations (Race Condition, Producer-Consumer, Dining Philosophers event, Readers-Writers, Sleeping Barber, Async Patterns, Thread Pool) render event log rows that appear INSTANTLY with no entry animation. When stepping through, new rows just pop into existence. This makes it impossible to visually track 'what just changed.'\n\nFIX: Add a subtle slide-in + fade-in animation for the newest event log row:\n- New row: opacity 0→1 over 200ms, translateY(-4px→0)\n- Current step row: bg-primary/5 highlight (already exists in some)\n- Use CSS @keyframes or Tailwind animate-in utility\n\nThis one change affects ALL 7 visualizations and dramatically improves the sense of 'things happening.' File locations: ConcurrencyModule.tsx search for `.map((e, i) =>` in event log sections — approximately lines 195, 307, 1469, 1617, plus each viz's event log.",
+    "acceptanceCriteria": [
+      "New event log rows slide in with 200ms fade+translate animation",
+      "Current step row has distinct background highlight",
+      "Animation does not cause layout shift or flicker",
+      "Works across all 7 event-log visualizations",
+      "Respects prefers-reduced-motion (instant if reduced)"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-014"], "blockedBy": [], "tags": ["visual", "animation", "entry-animation", "polish"]
+  },
+  {
+    "id": "CON-174", "epic": "CON", "title": "Add smooth counter transition animation to Race Condition counter display",
+    "description": "The Race Condition counter display (ConcurrencyModule.tsx:184-192) shows counter values as text-3xl font-bold. When the counter increments, the number changes INSTANTLY — no visual feedback that a change occurred. On a 3→4 transition, the user can't tell the moment it changed.\n\nFIX: Add a number flip/count animation:\n- On value change: brief scale pulse (1.0→1.15→1.0 over 300ms)\n- Color flash: text briefly brightens then returns\n- OR: use a CSS counter animation that counts up digit-by-digit\n- The unsafe counter should feel 'unstable' (slight shake on write collisions)\n- The safe counter should feel 'solid' (clean increment with green flash)",
+    "acceptanceCriteria": [
+      "Counter value changes include a visible scale pulse animation",
+      "Unsafe counter has a distinct 'collision' feel (shake or red flash) when writes collide",
+      "Safe counter has a 'clean' feel (smooth increment with subtle green flash)",
+      "Animation duration 200-300ms, eases out"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "micro-interaction"]
+  },
+  {
+    "id": "CON-175", "epic": "CON", "title": "Add state transition animations to Dining Philosophers SVG circles",
+    "description": "Philosopher circles (ConcurrencyModule.tsx:424-456) change color INSTANTLY when state changes (thinking→hungry→eating→waiting). There is ZERO transition — the circle snaps from gray to amber. This makes it hard to notice which philosopher changed state.\n\nFIX: Add SVG CSS transitions on circle fill:\n- fill transition: 300ms ease-out\n- On state change: brief scale pulse (r: 18→21→18 over 400ms via CSS transform)\n- On DEADLOCK: all circles simultaneously flash red with a dramatic 'lock-in' animation\n- On eating: brief 'celebrate' pulse (circle briefly glows green)\n\nAlso: the philosopher state text at :449 (fontSize='7') truncates to 5 chars ('think','hungr','eatin'). Replace with full word or single-letter abbreviation (T/H/E/W).",
+    "acceptanceCriteria": [
+      "Philosopher circle fill transitions smoothly over 300ms on state change",
+      "Active philosopher has brief scale pulse to draw attention",
+      "DEADLOCK state triggers dramatic animation on all 5 circles simultaneously",
+      "State text shows full word or clear abbreviation, not truncated"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "SVG", "state-transition"]
+  },
+  {
+    "id": "CON-176", "epic": "CON", "title": "Add state transition animations to Thread Lifecycle SVG state circles",
+    "description": "Thread Lifecycle state circles (ConcurrencyModule.tsx:824-865) change opacity from 0.35 to 0.9 when a thread enters a state, but the change is INSTANT. The thread indicator dots (small circles at :854-863) appear/disappear instantly too.\n\nFIX:\n- State circle: animate opacity 0.35→0.9 over 400ms ease-out\n- Thread indicator dot: animate entry with scale 0→1 over 200ms spring\n- When thread LEAVES a state: animate opacity 0.9→0.35 over 300ms\n- Active transition arrow: animate stroke-width 1.5→2.5 over 200ms (currently instant at :783)",
+    "acceptanceCriteria": [
+      "State circle opacity transitions smoothly (not instant snap)",
+      "Thread indicator dots scale-in on entry and scale-out on exit",
+      "Active transition arrow width animates smoothly",
+      "All animations have appropriate duration (200-400ms)"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "SVG", "state-transition"]
+  },
+  {
+    "id": "CON-177", "epic": "CON", "title": "Add 'settling' animation to Async Patterns promise boxes on resolve/reject",
+    "description": "Promise boxes (ConcurrencyModule.tsx:1710-1759) change state INSTANTLY from pending (blue) to resolved (green) or rejected (red). The pending state has a nice CSS pulse animation, but the SETTLEMENT moment — the most important teaching moment — has zero visual emphasis.\n\nFIX:\n- On resolve: border flashes bright green, scale pulse 1.0→1.05→1.0, checkmark appears briefly\n- On reject: border flashes bright red, slight shake animation (translateX ±2px), ✗ appears briefly\n- The settlement animation should feel DECISIVE — like a gavel striking. This is the moment the student needs to notice.\n- Pending pulse should slow down as settlement approaches (if possible with hand-crafted demos)",
+    "acceptanceCriteria": [
+      "Resolve triggers green flash + scale pulse on the promise box",
+      "Reject triggers red flash + horizontal shake on the promise box",
+      "Settlement animation is visually distinct from the pending pulse",
+      "Animation completes in 400ms and doesn't block step progression"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "state-transition", "micro-interaction"]
+  },
+  {
+    "id": "CON-178", "epic": "CON", "title": "Add staggered histogram bar build animation to Race Condition Monte Carlo",
+    "description": "The histogram (ConcurrencyModule.tsx:2068-2095) renders all bars INSTANTLY after computation. This misses a huge visual opportunity — watching the histogram BUILD is the 'wow' moment that makes non-determinism visceral.\n\nFIX:\n- After compute completes, animate bars growing from 0 to final height\n- Stagger: each bar starts 30ms after the previous (left to right)\n- Easing: spring or ease-out for organic feel\n- The expected-value bar (green) should appear LAST with a distinctive flash\n- Total build animation: ~800ms for 10 bars",
+    "acceptanceCriteria": [
+      "Histogram bars grow from 0 to final height sequentially",
+      "30ms stagger between bars (left to right)",
+      "Expected value bar (green) has a distinctive final flash",
+      "Total animation under 1 second"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "histogram", "delight"]
+  },
+  {
+    "id": "CON-179", "epic": "CON", "title": "Add Deadlock Demo arrow-drawing animation for hold/wait connections",
+    "description": "Deadlock Demo arrows (ConcurrencyModule.tsx:1877-1917) appear INSTANTLY when a thread acquires or requests a resource. The arrow should DRAW itself — the hold arrow should animate from resource to thread, and the wait arrow should animate from thread to resource. This makes the circular dependency formation VISIBLE as it builds.\n\nFIX:\n- Use SVG stroke-dasharray + stroke-dashoffset animation to draw arrows progressively\n- Hold arrow (green solid): draws from resource up to thread over 400ms\n- Wait arrow (red dashed): draws from thread down to resource over 400ms with urgency\n- On DEADLOCK: the cycle rectangle draws itself (all 4 sides) as a dramatic reveal\n- This transforms the static diagram into an animated story of deadlock formation",
+    "acceptanceCriteria": [
+      "Hold arrows animate drawing progressively (not instant appearance)",
+      "Wait arrows animate with dashed pattern drawing progressively",
+      "Deadlock cycle rectangle draws its border progressively on deadlock detection",
+      "Arrow drawing direction matches semantic meaning (hold: resource→thread, wait: thread→resource)"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "SVG", "storytelling"]
+  },
+  {
+    "id": "CON-180", "epic": "CON", "title": "Add buffer fill/drain animation to Producer-Consumer buffer slots",
+    "description": "Buffer slots (ConcurrencyModule.tsx:285-301) change from empty (gray) to filled (primary color) INSTANTLY. The buffer is the CENTER of the producer-consumer concept but has zero visual drama.\n\nFIX:\n- On produce (item enters buffer): slot scales up briefly (1.0→1.1→1.0) with green flash, number fades in\n- On consume (item leaves buffer): slot scales down briefly (1.0→0.9→1.0) with blue flash, number fades out\n- Buffer-full state: all slots pulse amber briefly (visual warning)\n- Buffer-empty state: all slots dim further (visual 'depleted' feel)\n- Item numbers should slide in from left (produce) and slide out to right (consume) to show data flow direction",
+    "acceptanceCriteria": [
+      "Items entering buffer have scale-up + fade-in animation",
+      "Items leaving buffer have scale-down + fade-out animation",
+      "Buffer-full triggers a visual warning pulse on all slots",
+      "Animation direction matches data flow (left→right)"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "state-transition"]
+  },
+  {
+    "id": "CON-181", "epic": "CON", "title": "Replace Sleeping Barber emoji characters with custom SVG illustrations",
+    "description": "SleepingBarberViz uses HTML entity emoji (✂️💤👤🚪) at ConcurrencyModule.tsx:1533/1540/1568/1584. These render differently across platforms (Windows shows flat colored emoji, macOS shows Apple-style, Linux may show text). Replace with custom SVG illustrations or Lucide icons for cross-platform consistency.\n\nALSO: Add animations to the barber shop:\n- Customer arriving: slide-in from right\n- Customer sitting: drop-into-chair animation\n- Customer leaving: slide-out to right with frustrated red color\n- Barber waking: 💤→✂️ with a 'wake up' bounce\n- Haircut done: brief green flash on barber chair",
+    "acceptanceCriteria": [
+      "All 4 emoji replaced with Lucide icons or custom SVG",
+      "Icons render identically on macOS, Windows, and Linux Chrome",
+      "At least 3 animations added (arrive, leave, wake-up)",
+      "Icons inherit foreground color for theme compatibility"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "cross-platform", "animation", "icons"]
+  },
+  {
+    "id": "CON-182", "epic": "CON", "title": "Upgrade all visualizations to use theme-aware CSS custom properties instead of hardcoded hex",
+    "description": "95 hardcoded hex colors across all visualizations (from mega-audit). This prevents dark/light theme adaptation and creates maintenance burden. Create a concurrency-specific CSS custom properties file:\n\n```css\n:root {\n  --con-state-running: theme('colors.green.500');\n  --con-state-waiting: theme('colors.blue.500');\n  --con-state-blocked: theme('colors.red.500');\n  --con-state-done: theme('colors.gray.500');\n  --con-state-thinking: theme('colors.gray.500');\n  --con-state-hungry: theme('colors.amber.500');\n  --con-state-eating: theme('colors.green.500');\n  --con-lock-held: theme('colors.amber.500');\n  --con-lock-free: theme('colors.gray.600');\n  --con-arrow-hold: theme('colors.green.500');\n  --con-arrow-wait: theme('colors.red.500');\n  --con-surface-dark: theme('colors.slate.800');\n  --con-surface-darker: theme('colors.slate.900');\n}\n```\n\nThen replace all inline hex in SVG fill/stroke with var(--con-*) references. This is a prerequisite for dark/light theme support.",
+    "acceptanceCriteria": [
+      "CSS custom properties file created with all concurrency state colors",
+      "All SVG fill/stroke attributes reference CSS variables",
+      "All constant maps (GOROUTINE_STATE_COLORS, THREAD_STATE_COLORS, etc.) consume CSS variables",
+      "Visual output is identical to current hardcoded values",
+      "Foundation laid for future dark/light theme toggle"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/concurrency-tokens.css"],
+    "dependencies": ["CON-014"], "blockedBy": [], "tags": ["visual", "design-tokens", "theming", "architecture"]
+  },
+  {
+    "id": "CON-183", "epic": "CON", "title": "Add gradient fills to SVG visualization elements for depth and polish",
+    "description": "All SVG elements use flat solid fills: philosopher circles are flat green/red/amber, goroutine boxes are flat colored rectangles, channel pipes are flat dark slate. Flat colors look like a school project. Professional visualizations use subtle gradients for depth.\n\nFIX: Add SVG linearGradient/radialGradient defs:\n- Philosopher circles: radial gradient (lighter center, darker edge) for 3D sphere effect\n- Goroutine boxes: top-to-bottom gradient (lighter top, slightly darker bottom) for card depth\n- Channel pipes: left-to-right gradient for cylindrical pipe effect\n- Thread lifecycle state circles: radial gradient matching state color\n- Resource squares in deadlock: subtle gradient for 3D box effect\n\nKeep gradients SUBTLE — 10-20% lightness variation. Not glossy, not flat.",
+    "acceptanceCriteria": [
+      "At least 4 SVG visualization types use gradient fills instead of flat colors",
+      "Gradients are subtle (10-20% lightness variation) — professional, not gaudy",
+      "Gradient definitions use the CSS custom property colors (from CON-182)",
+      "Visual upgrade is noticeable in side-by-side comparison"
+    ],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-182"], "blockedBy": [], "tags": ["visual", "polish", "SVG", "gradients"]
+  },
+  {
+    "id": "CON-184", "epic": "CON", "title": "Add hover micro-interactions to all interactive visualization elements",
+    "description": "No SVG element in the module has hover feedback except the Thread Lifecycle transitions (cursor:pointer only). Philosopher circles, goroutine boxes, channel pipes, resource squares — all have zero hover state.\n\nFIX: Add subtle hover effects:\n- Philosopher/goroutine/thread circles: slight scale-up (1.0→1.08) + brightness increase on hover\n- Channel pipes: subtle glow on hover\n- Resource squares: slight lift (translateY -2px) + shadow\n- Thread pool slots: brightness increase\n- Event log rows: subtle left-border highlight on hover\n- All with transition duration 150ms ease-out\n- Show cursor:pointer on all clickable/hoverable elements",
+    "acceptanceCriteria": [
+      "All SVG interactive elements have hover scale/glow effect",
+      "All event log rows have hover highlight",
+      "Transitions are 150ms ease-out",
+      "cursor:pointer shown on all hoverable elements"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "micro-interaction", "hover", "polish"]
+  },
+  {
+    "id": "CON-185", "epic": "CON", "title": "Add responsive breakpoints to Event Loop 4-column grid layout",
+    "description": "EventLoopViz at ConcurrencyModule.tsx:542 uses `grid-cols-4` with no responsive breakpoint. At 375px (mobile), each column is ~88px wide — queue item text at 10px is illegible and items clip.\n\nFIX:\n- sm (<640px): grid-cols-1, stack columns vertically with collapse/expand toggles\n- md (640-1024px): grid-cols-2, arranged as 2×2 grid\n- lg (>1024px): grid-cols-4, current layout\n- Each column should show its header even when collapsed\n- Console output should always be visible at bottom",
+    "acceptanceCriteria": [
+      "At <640px: columns stack vertically with toggle to expand/collapse",
+      "At 640-1024px: columns arrange in 2×2 grid",
+      "At >1024px: current 4-column layout preserved",
+      "Console output visible at all breakpoints",
+      "No content clipping or overflow at any size"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "responsive", "mobile", "layout"]
+  },
+  {
+    "id": "CON-186", "epic": "CON", "title": "Create shared animation constants file for consistent motion across all concurrency visualizations",
+    "description": "Each visualization uses ad-hoc animation values: Goroutine dots dur='1s', deadlock pulse dur='1.2s', blocked pulse dur='1s', pending pulse '1.5s', lock comparison transition 0.2s. There's no shared motion system.\n\nCreate src/components/modules/concurrency/motion-constants.ts:\n```ts\nexport const CON_MOTION = {\n  // State transitions\n  stateChange: { duration: 300, easing: 'ease-out' },\n  // Entry/exit\n  enter: { duration: 200, easing: 'ease-out', translate: 4 },\n  exit: { duration: 150, easing: 'ease-in' },\n  // Emphasis\n  pulse: { duration: 800, easing: 'ease-in-out' },\n  scalePulse: { duration: 400, from: 1.0, to: 1.1 },\n  // Message passing\n  messageDot: { duration: 800 },\n  // Danger/alert\n  alertPulse: { duration: 1200 },\n  shake: { duration: 300, amplitude: 2 },\n} as const;\n```\n\nAll visualizations should import from this file instead of using magic numbers.",
+    "acceptanceCriteria": [
+      "Shared motion constants file created with documented values",
+      "All existing SVG animate/animateMotion elements reference shared constants",
+      "All CSS transition durations reference shared constants",
+      "Consistent feel across all 12 visualizations"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/concurrency/motion-constants.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-014"], "blockedBy": [], "tags": ["visual", "animation", "architecture", "consistency"]
+  },
+  {
+    "id": "CON-187", "epic": "CON", "title": "Add visual cause-and-effect connections in Goroutine channel communication",
+    "description": "Go Goroutines already has animated message dots — the BEST animation in the module. But the cause-and-effect could be stronger: when a sender blocks waiting for a receiver, there's no visual connection between 'sender blocked' and 'no receiver available.' The dots animate whether or not both sides are ready.\n\nFIX:\n- When sender is blocked (no receiver): show the dot reaching the channel pipe and BOUNCING BACK, then the sender box flashes\n- When both sender and receiver are ready (rendezvous): dots from both sides meet at the channel simultaneously — a visual 'handshake'\n- When buffer is full: dots pile up at the channel entrance (visual queue)\n- When goroutine leaks (select demo): leaked goroutine's dot should visually 'decay' (fade out slowly) to show the resource waste",
+    "acceptanceCriteria": [
+      "Blocked sender shows dot bouncing back from channel (no receiver feedback)",
+      "Rendezvous shows dots meeting at channel center from both sides",
+      "Full buffer shows visual queue of dots at channel entrance",
+      "Leaked goroutine shows visual decay effect"
+    ],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "cause-effect", "storytelling"]
+  },
+  {
+    "id": "CON-188", "epic": "CON", "title": "Add Lock Comparison CPU meter animation — live spinning/idle indicator per thread",
+    "description": "Lock Comparison thread state bars (ConcurrencyModule.tsx:2178-2202) show width proportional to CPU usage with transition. But the SPINNING state should FEEL different from SLEEPING. Currently both are static colored bars.\n\nFIX:\n- SPINNING thread: add rapid small oscillation to the bar (subtle vibration effect) + animated gradient stripe pattern moving left-to-right (busy-indicator)\n- SLEEPING thread: bar is still and dim (zero CPU visual)\n- ACQUIRED thread: bar is solid bright green with steady glow\n- This makes the CPU waste of spinlocks VISCERALLY VISIBLE — the student can SEE the thread burning cycles",
+    "acceptanceCriteria": [
+      "Spinning threads have visible vibration/stripe animation indicating CPU burn",
+      "Sleeping threads are visually calm/dim indicating zero CPU",
+      "The visual difference between spinning and sleeping is immediately obvious",
+      "Respects prefers-reduced-motion"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "simulation-realism"]
+  }
+]

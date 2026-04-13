@@ -1,0 +1,152 @@
+[
+  {
+    "id": "PLT-028",
+    "epic": "PLT",
+    "title": "Add deep-linking to specific topics within modules (e.g., /m/security/oauth)",
+    "description": "PLT-001 adds module-level routing. This extends to TOPIC-level deep linking: /m/security/oauth, /m/algorithms/bubble-sort. Each module wrapper reads topic slug from URL and passes to the module hook. For Security: map URL slugs to SecurityTopic type (oauth, jwt, aes, etc.).",
+    "acceptanceCriteria": [
+      "URL /m/security/oauth loads Security module with OAuth topic active",
+      "Topic switching within module updates URL slug",
+      "Unknown slug shows module default state gracefully"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 7,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/app/page.tsx", "src/components/modules/wrappers/SecurityWrapper.tsx"],
+    "dependencies": ["PLT-001"],
+    "blockedBy": ["PLT-001"],
+    "tags": ["platform", "deep-linking", "navigation"]
+  },
+  {
+    "id": "PLT-029",
+    "epic": "PLT",
+    "title": "Add keyboard shortcuts for modules 10-13 (Security, ML, Interview, KG have no shortcut)",
+    "description": "activity-bar.tsx:53-56 shows Security, ML Design, Interview, Knowledge Graph with empty shortcut strings. Cmd+1-9 covers first 9. Add Cmd+0 for Security or Cmd+Shift+1-4 for modules 10-13.",
+    "acceptanceCriteria": [
+      "All 13 modules accessible via keyboard shortcut",
+      "Shortcut shown in tooltip and KeyboardShortcutsDialog",
+      "No conflict with browser defaults"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/shared/activity-bar.tsx", "src/hooks/use-keyboard-shortcuts.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "keyboard", "accessibility"]
+  },
+  {
+    "id": "PLT-030",
+    "epic": "PLT",
+    "title": "Create shared animation constants file and migrate modules to use it",
+    "description": "lib/constants/motion.ts exists for dashboard but modules use hardcoded CSS values. Extend motion.ts with: SPRING_GENTLE, SPRING_SNAPPY, DURATION_FAST(150ms), DURATION_NORMAL(300ms), DURATION_SLOW(500ms). Migrate Security module as first adopter.",
+    "acceptanceCriteria": [
+      "Shared animation constants in lib/constants/motion.ts",
+      "Security module uses shared constants instead of hardcoded 'duration-300'",
+      "Constants cover springs, durations, and easing curves"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/lib/constants/motion.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "design-system", "animation"]
+  },
+  {
+    "id": "PLT-031",
+    "epic": "PLT",
+    "title": "Wire up Security module to platform mastery/XP/streak tracking",
+    "description": "useCrossModuleStore has moduleMastery and useProgressStore has XP/streaks, but Security module never calls updateModuleMastery() or addXP(). Wire up: viewing all steps of a topic → updateModuleMastery('security', 'theory', 5). Completing challenge → updateModuleMastery('security', 'practice', 10) + addXP(25). This makes the dashboard radar chart reflect actual Security module usage.",
+    "acceptanceCriteria": [
+      "Stepping through all steps of a Security topic increases theory mastery",
+      "Dashboard radar chart shows non-zero Security mastery after usage",
+      "XP added for topic completion",
+      "Streak updated on daily Security module activity"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx", "src/stores/cross-module-store.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "progress", "security", "mastery"]
+  },
+  {
+    "id": "PLT-032",
+    "epic": "PLT",
+    "title": "Add Security-specific cross-module bridge definitions",
+    "description": "bridge-types.ts defines AlgorithmToSystem, DataStructureToSystem, DatabaseToSystem payloads but zero Security bridge types. Add: SecurityToSystem (rate limiting→API gateway, OAuth→auth service, TLS→load balancer), SecurityToNetworking (TLS→HTTPS, CORS→browser), SecurityToDatabase (password hashing→storage). Plus intra-module: OAuth→JWT, DH→HTTPS, AES→Encryption.",
+    "acceptanceCriteria": [
+      "SecurityToSystem bridge type defined with 3+ connections",
+      "SecurityToNetworking bridge type with 2+ connections",
+      "RecommendedBridges shows Security-related suggestions when in Security module",
+      "Clicking a bridge navigates to the target module/topic"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/lib/cross-module/bridge-types.ts", "src/components/cross-module/RecommendedBridges.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "cross-module", "security"]
+  },
+  {
+    "id": "PLT-033",
+    "epic": "PLT",
+    "title": "Enforce CSS variable usage in all SVG visualizations (design system lint rule)",
+    "description": "globals.css defines 50+ CSS custom properties but SVG elements across modules use hardcoded hex. Security module alone has 40+ violations. Create lint rule or code convention doc: no fill/stroke hex in SVG — use style={{ fill: 'var(--surface)' }}. Provide migration guide per module.",
+    "acceptanceCriteria": [
+      "Migration guide document for SVG CSS variable adoption",
+      "Security module SVGs migrated as reference implementation",
+      "ESLint custom rule or PR checklist to catch new violations"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 7,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/app/globals.css"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "design-system", "svg", "consistency"]
+  },
+  {
+    "id": "PLT-034",
+    "epic": "PLT",
+    "title": "Add module-level bundle size monitoring (verify code splitting works)",
+    "description": "All 14 module wrappers use dynamic(() => import(...), { ssr: false }) but no verification that chunks are reasonably sized. SecurityModule.tsx is 5169 lines, DataStructuresModule is 235k tokens. Run `ANALYZE=true next build` and document per-module chunk sizes. Set budgets: <200KB per module chunk. Flag violations.",
+    "acceptanceCriteria": [
+      "Bundle analysis run with per-module chunk sizes documented",
+      "Each module chunk size < 200KB (or documented exception with plan)",
+      "CI check or manual process to monitor chunk growth",
+      "SecurityModule.tsx extraction (SEC-059-072) verified to reduce chunk size"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["next.config.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "performance", "bundle"]
+  }
+]

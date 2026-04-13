@@ -1,0 +1,161 @@
+{
+  "id": "data-lake",
+  "name": "Data Lake Architecture",
+  "description": "Design a data lake with real-time ingestion, batch ETL, and query layers. Covers the medallion architecture (raw/silver/gold), stream ingestion, batch processing, and search indexing for data discovery.",
+  "difficulty": 4,
+  "category": "infrastructure",
+  "tags": ["data-lake", "etl", "batch-processing", "medallion-architecture", "analytics"],
+  "nodes": [
+    {
+      "id": "sources",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Data Sources",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 50000, "requestsPerSecond": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "stream-processor",
+      "type": "stream-processor",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Stream Ingestion (Flink)",
+        "category": "compute",
+        "componentType": "stream-processor",
+        "icon": "Activity",
+        "config": { "parallelism": 16, "checkpointIntervalMs": 30000, "windowSizeMs": 60000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "raw-storage",
+      "type": "storage",
+      "position": { "x": 400, "y": 100 },
+      "data": {
+        "label": "Raw Zone (S3 Bronze)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 500000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "batch-processor",
+      "type": "batch-processor",
+      "position": { "x": 600, "y": 200 },
+      "data": {
+        "label": "Batch ETL (Spark)",
+        "category": "compute",
+        "componentType": "batch-processor",
+        "icon": "Layers",
+        "config": { "clusterSize": 20, "executorMemoryGB": 16, "scheduleCron": "0 */4 * * *" },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "processed-storage",
+      "type": "storage",
+      "position": { "x": 800, "y": 100 },
+      "data": {
+        "label": "Curated Zone (S3 Gold)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 100000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "search-engine",
+      "type": "search-engine",
+      "position": { "x": 800, "y": 300 },
+      "data": {
+        "label": "Data Catalog (Elasticsearch)",
+        "category": "storage",
+        "componentType": "search-engine",
+        "icon": "Search",
+        "config": { "shards": 10, "replicas": 1, "indexCount": 50, "storageGB": 500 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-sources-stream",
+      "source": "sources",
+      "target": "stream-processor",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-stream-raw",
+      "source": "stream-processor",
+      "target": "raw-storage",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-raw-batch",
+      "source": "raw-storage",
+      "target": "batch-processor",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "read", "latency": 100, "animated": true }
+    },
+    {
+      "id": "e-batch-processed",
+      "source": "batch-processor",
+      "target": "processed-storage",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 100, "animated": true }
+    },
+    {
+      "id": "e-batch-search",
+      "source": "batch-processor",
+      "target": "search-engine",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "index", "latency": 20, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Stream Ingestion into Raw Zone",
+      "description": "Data from diverse sources (application logs, CDC streams, IoT telemetry, third-party APIs) flows through Apache Flink. Flink performs schema validation, deduplication, and partitions data by source and timestamp before writing to the S3 Bronze zone in Parquet/Avro format. This preserves the raw, immutable data for reprocessing if downstream logic changes.",
+      "highlightNodes": ["sources", "stream-processor", "raw-storage"],
+      "highlightEdges": ["e-sources-stream", "e-stream-raw"]
+    },
+    {
+      "title": "Batch ETL: Bronze to Gold",
+      "description": "Apache Spark jobs run on a schedule (every 4 hours) to transform raw data through medallion layers. Bronze (raw) to Silver (cleaned, deduplicated, schema-enforced) to Gold (aggregated, business-level tables). Each layer is stored as Delta Lake tables on S3, providing ACID transactions, time-travel queries, and schema evolution on top of object storage.",
+      "highlightNodes": ["raw-storage", "batch-processor", "processed-storage"],
+      "highlightEdges": ["e-raw-batch", "e-batch-processed"]
+    },
+    {
+      "title": "Data Catalog and Discovery",
+      "description": "Spark jobs index table metadata, column statistics, and data lineage into Elasticsearch. Data analysts and scientists search the catalog to discover datasets by name, column, owner, or description. The catalog tracks data freshness, quality scores, and downstream dependencies, enabling self-service analytics without tribal knowledge.",
+      "highlightNodes": ["batch-processor", "search-engine"],
+      "highlightEdges": ["e-batch-search"]
+    },
+    {
+      "title": "Cost and Lifecycle Management",
+      "description": "The two S3 zones have different lifecycle policies. Bronze retains all data for 2 years with Glacier transition after 90 days. Gold data stays in standard storage for fast query access. Spark compaction jobs periodically merge small files to optimize query performance. This tiered approach balances query speed (Gold), reprocessing capability (Bronze), and storage cost.",
+      "highlightNodes": ["raw-storage", "processed-storage", "batch-processor"],
+      "highlightEdges": ["e-raw-batch", "e-batch-processed"]
+    }
+  ]
+}

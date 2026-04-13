@@ -1,0 +1,227 @@
+[
+  {
+    "id": "DIS-111",
+    "epic": "DIS",
+    "title": "Add deep-link URL routing for distributed simulations (/concepts/distributed/raft)",
+    "description": "Platform audit P2: All 13 modules live at the root URL (/) with module switching via Zustand store (ui-store.ts:126 setActiveModule). There are NO deep-linkable URLs for individual simulations. A user cannot bookmark or share 'the Raft consensus visualization' — they can only link to the platform root and hope the right module loads.\n\nThe concepts page (app/concepts/[slug]/page.tsx) exists for SEO content but doesn't link back to the interactive simulation. Add: /concepts/distributed/raft should either (a) open the main app with Raft pre-selected, or (b) embed the simulation in the concept page.\n\nCurrently: sharing 'try the Raft visualization' means telling someone 'go to architex.dev, click the 6th icon in the sidebar, then click Raft in the list.' That's 3 steps instead of one URL.",
+    "acceptanceCriteria": [
+      "Each of 11 distributed simulations has a shareable URL",
+      "URL loads the platform with that simulation pre-selected",
+      "Browser back/forward works between simulations",
+      "Shared URL shows correct OG meta tags for social preview"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/app/page.tsx", "src/stores/ui-store.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "routing", "shareability", "p1"]
+  },
+  {
+    "id": "DIS-112",
+    "epic": "DIS",
+    "title": "Connect distributed simulations to concept pages (bidirectional linking)",
+    "description": "Platform audit P4: The SEO concept pages (app/concepts/[slug]/page.tsx) have rich content for cap-theorem, consistent-hashing, gossip-protocol, raft-consensus, etc. with interview questions and explanations. The distributed module simulations have properties panels. Neither links to the other.\n\nAdd bidirectional links:\n1. Concept page (e.g., /concepts/raft-consensus) → 'Try Interactive Simulation' button → opens distributed module with Raft selected\n2. Distributed module properties panel → 'Read Full Article' link → opens /concepts/raft-consensus\n\nThis connects the two halves of the learning experience: theory (concept pages) and practice (simulations).",
+    "acceptanceCriteria": [
+      "Each concept page with a matching simulation has 'Try Simulation' CTA",
+      "Each simulation's properties panel has 'Read Full Article' link",
+      "Links work bidirectionally for all 6+ concepts that exist in both layers",
+      "Navigation preserves context (going back returns to previous view)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/app/concepts/[slug]/page.tsx", "src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "cross-linking", "content-connection", "p1"]
+  },
+  {
+    "id": "DIS-113",
+    "epic": "DIS",
+    "title": "Add distributed module to command palette search (currently modules only, not individual sims)",
+    "description": "Platform audit P2: The command palette (command-palette.tsx) lists all 13 modules as switchable items. But it does NOT list individual simulations within modules. A user pressing Cmd+K and typing 'Raft' or 'Consistent Hashing' gets no results — they must first switch to the Distributed module, then find Raft in the sidebar.\n\nAdd all 11 distributed simulations as searchable items in the command palette. When selected, switch to distributed module AND select that specific simulation. Group under 'Distributed Systems' heading.",
+    "acceptanceCriteria": [
+      "All 11 distributed simulations appear in command palette search",
+      "Typing 'Raft' shows 'Raft Consensus (Distributed Systems)' as a result",
+      "Selecting the result switches to distributed module with that sim active",
+      "Results grouped under 'Distributed Systems' heading"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/shared/command-palette.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "search", "discoverability", "p1"]
+  },
+  {
+    "id": "DIS-114",
+    "epic": "DIS",
+    "title": "Wire cross-module bridge links from distributed concepts to related modules",
+    "description": "Platform audit P4: A cross-module bridge system exists (BridgePanel.tsx, BridgeConsumer.tsx, bridge-registry.ts) with navigation context and payload passing. The distributed module's BridgePanel (rendered at page.tsx:33) shows available bridges. But specific distributed-to-other-module bridges need to be registered.\n\nRegister bridges:\n- Consistent Hashing → Data Structures (Hash Table visualization)\n- CAP Theorem → Database (Database selection guide)\n- 2PC / Saga → System Design (Microservice transactions pattern)\n- Gossip → System Design (Service mesh / Service Discovery)\n- CRDTs → Data Structures (Set/Counter data structure concepts)\n- Raft → System Design (etcd/Kubernetes coordination)\n- MapReduce → System Design (Batch processing architecture)\n- Vector Clocks → Database (Conflict resolution in multi-leader replication)\n\nEach bridge should describe WHY the concepts are connected.",
+    "acceptanceCriteria": [
+      "At least 8 bridges registered in bridge-registry for distributed module",
+      "BridgePanel shows relevant bridges when distributed module is active",
+      "Clicking a bridge navigates to target module with context",
+      "Each bridge has a description explaining the connection"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/cross-module/bridge-registry.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "cross-module", "bridge", "p2"]
+  },
+  {
+    "id": "DIS-115",
+    "epic": "DIS",
+    "title": "Ensure distributed module uses shared motion constants (springs, durations, easing)",
+    "description": "Platform audit P7: A comprehensive motion design system exists at lib/constants/motion.ts with named springs (snappy, smooth, bouncy, heavy), durations, and easing curves. The distributed module's inline canvases use NONE of it — they have hardcoded 300ms RAF linear (Raft messages) and SVG <animate> with hardcoded durations (CRDT merge).\n\nWhen DIS-091 adds framer-motion to canvases, it MUST import from the shared motion system rather than creating new constants:\n- springs.snappy for button press, springs.smooth for state transitions\n- duration.fast (150ms), duration.normal (250ms), duration.slow (400ms)\n- The reducedMotion helper for prefers-reduced-motion support\n\nThis ensures distributed module animations feel like the rest of the platform.",
+    "acceptanceCriteria": [
+      "All new animations import from @/lib/constants/motion",
+      "No hardcoded animation durations in canvas components",
+      "reducedMotion() helper used for motion preference checking",
+      "Animation feel is consistent with other modules (system design, algorithms)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx", "src/lib/constants/motion.ts"],
+    "dependencies": ["DIS-091"],
+    "blockedBy": [],
+    "tags": ["platform", "design-system", "motion", "p2"]
+  },
+  {
+    "id": "DIS-116",
+    "epic": "DIS",
+    "title": "Add distributed module features to the dashboard page",
+    "description": "Platform audit P5: The dashboard (app/dashboard/page.tsx) shows overall progress, recent activity, skill radar chart, and module recommendations using data from module-progress.ts and cross-module-store.ts. The distributed module needs to properly integrate:\n\n1. Progress: module-progress.ts only tracks 6/11 features (already flagged as DIS-084/DIS-023). After that fix, dashboard should show correct distributed % completion.\n2. Activity: When user interacts with distributed simulations, activity entries should be logged (currently no evidence of activity tracking FROM the distributed module hook).\n3. Radar chart: cross-module-store tracks theory/practice mastery per module. Distributed module should call updateModuleMastery() when user explores simulations.\n4. Recommendations: dashboard recommends unvisited modules. Distributed should appear correctly.",
+    "acceptanceCriteria": [
+      "Dashboard shows distributed module with correct completion %",
+      "Distributed simulation interactions appear in 'Recent Activity'",
+      "Skill radar chart shows distributed systems theory/practice scores",
+      "Module recommendation works for distributed when unvisited"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/app/dashboard/page.tsx",
+      "src/lib/progress/module-progress.ts",
+      "src/stores/cross-module-store.ts",
+      "src/components/modules/DistributedModule.tsx"
+    ],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["platform", "dashboard", "progress", "p2"]
+  },
+  {
+    "id": "DIS-117",
+    "epic": "DIS",
+    "title": "Ensure distributed module sidebar/properties/controls match platform design patterns",
+    "description": "Platform audit P7: The workspace layout (workspace-layout.tsx) defines a consistent 4-panel layout: activity bar + sidebar + canvas + properties + bottom panel, with react-resizable-panels. Check that distributed module's panels match the design patterns used by other modules:\n\n1. Sidebar header: 'DISTRIBUTED SYSTEMS' in xs uppercase tracking-wider — matches platform pattern? \n2. Properties panel header: 'DETAILS' in same style — consistent with other modules?\n3. Bottom panel tabs: 'Event Log' / 'Learn' — same tab style as other modules?\n4. Control buttons: uses inline btnBase/btnPrimary/btnDanger classes instead of shared button components\n5. Select dropdowns: uses native <select> instead of platform's custom select component\n\nThe distributed module was built independently and may not follow the shared component library patterns used by newer modules.",
+    "acceptanceCriteria": [
+      "Sidebar header style matches other modules",
+      "Properties panel uses same header/section pattern",
+      "Control buttons use shared button components (if they exist)",
+      "Select dropdowns use shared select component (if it exists)",
+      "Tab styling in bottom panel matches platform pattern"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["platform", "design-consistency", "p2"]
+  },
+  {
+    "id": "DIS-118",
+    "epic": "DIS",
+    "title": "Add keyboard shortcut 6 for distributed module to match activity bar numbering",
+    "description": "Platform audit P2: The activity bar (activity-bar.tsx:50) assigns shortcut '6' to the distributed module. The command palette and keyboard shortcuts dialog should also list this. Verify: pressing '6' (when not in an input field) switches to distributed module. The keyboard shortcuts system (use-keyboard-shortcuts hook) should handle this.",
+    "acceptanceCriteria": [
+      "Pressing '6' switches to distributed module",
+      "Keyboard shortcuts dialog lists '6 → Distributed Systems'",
+      "Shortcut only fires when not focused on input/textarea",
+      "Works consistently with other module shortcuts (1-9)"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/hooks/use-keyboard-shortcuts.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "keyboard", "shortcut", "p3"]
+  },
+  {
+    "id": "DIS-119",
+    "epic": "DIS",
+    "title": "Add distributed simulation state preservation when switching modules and back",
+    "description": "Platform audit P3: When user switches FROM distributed to another module and back, the Raft cluster state persists (because engine refs survive), but the events array is cleared (DistributedModule.tsx:4267). The active simulation selection also persists via useState.\n\nThis is partially good (state preserved) but the cleared events can be confusing — user had 50 events in the log, switches to another module, comes back, events are gone but the cluster state shows the result of those events.\n\nFix: either (a) preserve events across module switches, or (b) also reset engine state when events are cleared so state is consistent, or (c) show a 'Session restored — previous events cleared' message.",
+    "acceptanceCriteria": [
+      "Events and engine state are either both preserved or both reset",
+      "No confusing state where results show but history is gone",
+      "User understands what happened if state was reset"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "state-management", "module-switching", "p3"]
+  },
+  {
+    "id": "DIS-120",
+    "epic": "DIS",
+    "title": "Add OG image and social preview for distributed concepts sharing",
+    "description": "Platform audit P1: The landing page has proper OG meta (layout.tsx:29-43). But when sharing a specific concept (if deep-links from DIS-111 are implemented), the social preview should show the concept name and a visualization thumbnail.\n\nAdd: dynamic OG image generation at /api/og route that accepts a concept parameter: /api/og?title=Raft%20Consensus&module=distributed. Should show the Architex brand + concept name + a small visualization icon/screenshot.",
+    "acceptanceCriteria": [
+      "Sharing a distributed concept URL shows concept-specific OG image",
+      "OG image includes concept name and Architex branding",
+      "Twitter card preview looks good (summary_large_image)",
+      "Works for all 11 distributed concepts"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/app/api/og/route.tsx"],
+    "dependencies": ["DIS-111"],
+    "blockedBy": ["DIS-111"],
+    "tags": ["platform", "seo", "sharing", "p3"]
+  }
+]

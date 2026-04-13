@@ -1,0 +1,245 @@
+{
+  "id": "microservices-demo",
+  "name": "Microservices with Service Mesh",
+  "description": "Design a microservices architecture with API gateway, load-balanced service instances, shared caching, database per service, and async messaging. Demonstrates service decomposition, inter-service communication, and shared infrastructure patterns.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": ["microservices", "service-mesh", "api-gateway", "service-decomposition", "distributed-systems"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 250 },
+      "data": {
+        "label": "Client Application",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 100000, "requestsPerSecond": 20000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 200, "y": 250 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 50000, "authType": "jwt", "timeoutMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 400, "y": 250 },
+      "data": {
+        "label": "Service Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "Scale",
+        "config": { "algorithm": "round-robin", "maxConnectionsPerServer": 20000, "healthCheckIntervalMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "user-service",
+      "type": "app-server",
+      "position": { "x": 600, "y": 100 },
+      "data": {
+        "label": "User Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 3, "cpuCores": 2, "memoryGB": 4, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "order-service",
+      "type": "app-server",
+      "position": { "x": 600, "y": 250 },
+      "data": {
+        "label": "Order Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 5, "cpuCores": 4, "memoryGB": 8, "processingTimeMs": 15 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "product-service",
+      "type": "app-server",
+      "position": { "x": 600, "y": 400 },
+      "data": {
+        "label": "Product Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 3, "cpuCores": 2, "memoryGB": 4, "processingTimeMs": 8 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 850, "y": 100 },
+      "data": {
+        "label": "Shared Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 32, "evictionPolicy": "lru", "ttlSeconds": 3600, "cacheHitRate": 0.85 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 850, "y": 250 },
+      "data": {
+        "label": "Service Database (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 300, "storageGB": 1000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 850, "y": 400 },
+      "data": {
+        "label": "Event Bus (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 24, "retentionHours": 168, "maxThroughputMBps": 50 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-lb",
+      "source": "api-gw",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-lb-user",
+      "source": "lb",
+      "target": "user-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-lb-order",
+      "source": "lb",
+      "target": "order-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-lb-product",
+      "source": "lb",
+      "target": "product-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-user-cache",
+      "source": "user-service",
+      "target": "cache",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-order-db",
+      "source": "order-service",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-product-db",
+      "source": "product-service",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-order-mq",
+      "source": "order-service",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-product-mq",
+      "source": "product-service",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "API Gateway as Single Entry Point",
+      "description": "All client requests pass through the API Gateway, which handles authentication (JWT validation), rate limiting, request routing, and response aggregation. The gateway maps external API paths to internal service endpoints, shielding clients from service topology changes. It also handles cross-cutting concerns like CORS, request logging, and circuit breaking.",
+      "highlightNodes": ["client", "api-gw"],
+      "highlightEdges": ["e-client-gw"]
+    },
+    {
+      "title": "Load-Balanced Service Instances",
+      "description": "The internal Load Balancer distributes requests across multiple instances of each service using round-robin with health checks. Each service registers itself via service discovery. The LB enables horizontal scaling: the Order Service runs 5 instances during peak load but scales down during off-peak. gRPC is used for inter-service communication for lower latency and strong typing.",
+      "highlightNodes": ["lb", "user-service", "order-service", "product-service"],
+      "highlightEdges": ["e-gw-lb", "e-lb-user", "e-lb-order", "e-lb-product"]
+    },
+    {
+      "title": "Shared Cache and Database Per Service",
+      "description": "Redis provides a shared caching layer for frequently accessed data (user profiles, product catalog). Each service logically owns its own tables in PostgreSQL (schema-per-service pattern). The User Service caches profiles in Redis to avoid hitting the DB on every auth check. Services never directly query another service's tables, enforcing loose coupling.",
+      "highlightNodes": ["cache", "database", "user-service", "order-service"],
+      "highlightEdges": ["e-user-cache", "e-order-db", "e-product-db"]
+    },
+    {
+      "title": "Async Event-Driven Communication",
+      "description": "Services communicate asynchronously via Kafka for non-latency-critical operations. When the Order Service creates an order, it publishes an 'OrderCreated' event. The Product Service consumes it to update inventory. This event-driven approach eliminates synchronous dependencies between services, improving resilience. If the Product Service is down, events queue in Kafka and are processed when it recovers.",
+      "highlightNodes": ["order-service", "product-service", "mq"],
+      "highlightEdges": ["e-order-mq", "e-product-mq"]
+    }
+  ]
+}

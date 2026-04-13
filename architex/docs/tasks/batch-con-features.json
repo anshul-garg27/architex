@@ -1,0 +1,231 @@
+[
+  {
+    "id": "CON-220", "epic": "CON", "title": "Wire FSRS spaced repetition to concurrency concepts — schedule reviews after demo completion",
+    "description": "LAYER 6 RETENTION: Platform has a fully implemented FSRS system (srs.ts, 286 lines) with ReviewCard, stability, intervals, and SM-2-style ratings. Currently ONLY used by InterviewModule. Wire it to Concurrency: after a user completes a demo (reaches maxSteps or answers a prediction correctly), create a ReviewCard for that concept. Schedule review based on rating (good=7 days, hard=3 days, again=1 day). Show 'Review Due' badge count in sidebar.\n\nUSER STORY: 'As a student who learned about race conditions yesterday, I see a ⏰ badge on the Concurrency sidebar showing 1 concept due for review. I click it, get a prediction question about stale reads, answer correctly, and the concept is rescheduled for 7 days later.'\n\nSCIENCE: FSRS is proven to reduce forgetting from 80% (Ebbinghaus) to ~10% when reviews are optimally spaced (PNAS study on spaced repetition optimization).\n\nINFRA: srs.ts has ReviewCard type, scheduleReview(), computeNextInterval(). Just need to: (1) create cards per concept, (2) store in localStorage, (3) show badge count, (4) present review questions.",
+    "acceptanceCriteria": [
+      "ReviewCard created for each concurrency concept after first completion",
+      "FSRS schedules next review based on user rating",
+      "Sidebar shows '⏰ N due' badge when concepts are due for review",
+      "Review mode presents prediction questions from the concept",
+      "Review history persists in localStorage across sessions"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/interview/srs.ts"],
+    "dependencies": ["CON-157"], "blockedBy": [], "tags": ["retention", "spaced-repetition", "FSRS", "layer-6"]
+  },
+  {
+    "id": "CON-221", "epic": "CON", "title": "Wire streak system to concurrency module — track consecutive learning days",
+    "description": "LAYER 6 RETENTION: Platform has streak-protector.ts (593 lines) with streak counting, freeze protection, and milestone tracking. NOT wired to Concurrency. Wire it: any concurrency demo completion or practice exercise completion counts toward the daily streak.\n\nUSER STORY: 'As a student preparing for interviews, I see a 🔥 7-day streak counter on my dashboard. Today I practice the Dining Philosophers prediction challenge, which extends my streak to 8 days. If I miss tomorrow, I get a streak freeze reminder.'\n\nSCIENCE: Duolingo's streak is their #1 retention mechanic — users with 7+ day streaks have 3.5x higher 30-day retention (Duolingo research blog).",
+    "acceptanceCriteria": [
+      "Completing any concurrency demo extends the daily streak",
+      "Streak counter visible on concurrency module header and dashboard",
+      "Streak freeze protection applies (1 free freeze per week)",
+      "Milestone badges at 7, 30, 100 day streaks"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/innovation/streak-protector.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["retention", "streaks", "gamification", "layer-6"]
+  },
+  {
+    "id": "CON-222", "epic": "CON", "title": "Wire achievement system to concurrency — 10 unlockable badges",
+    "description": "LAYER 6 RETENTION: Platform has achievements.ts (651 lines) with badge definitions, unlock conditions, and progress tracking. ZERO concurrency achievements exist. Add 10:\n\n1. 'First Race Found' — complete Race Condition demo\n2. 'Deadlock Breaker' — complete Deadlock Demo with prevention side\n3. 'Event Loop Master' — correctly predict output order for all 3 demos\n4. 'Goroutine Whisperer' — view all 5 Go Goroutine sub-demos\n5. 'Lock Connoisseur' — compare all 3 lock types and view metrics\n6. 'Promise Keeper' — complete all 6 async pattern scenarios\n7. 'Full Coverage' — view all 12 concurrency demos\n8. 'Speed Demon' — complete speed run mode (all demos in 5 minutes)\n9. 'Bug Hunter' — find 3 concurrency bugs in debugging challenges\n10. 'Concurrency Scholar' — achieve 5-star mastery on all concepts",
+    "acceptanceCriteria": [
+      "10 achievement definitions added to achievements.ts for concurrency",
+      "Achievements unlock based on specific concurrency actions",
+      "Unlocked achievements show notification toast",
+      "Achievements visible on profile page and dashboard"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/interview/achievements.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["retention", "achievements", "gamification", "layer-6"]
+  },
+  {
+    "id": "CON-223", "epic": "CON", "title": "Add 'Weekly Recap' summary of what the student learned this week",
+    "description": "LAYER 6 RETENTION: No recap/review feature exists. After a week of learning, show a personalized summary: 'This week you learned: Race Conditions (3 predictions correct), Deadlock (mastered!), Event Loop (needs review). You're in the top 20% of learners. Next goal: try Dining Philosophers.'\n\nInspired by Spotify Wrapped — make the student feel PROUD of their progress. Generate from MODULE_FEATURES progress data + FSRS review history.\n\nFrontend-only: reads from localStorage, generates summary card, shareable as image.",
+    "acceptanceCriteria": [
+      "Weekly recap card shown on dashboard when user has 3+ days of activity",
+      "Shows concepts learned, accuracy score, mastery progress, and recommendation",
+      "Shareable as PNG image (using existing gif-recorder canvas capture)",
+      "Recap updates every Monday"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/app/dashboard/page.tsx", "src/lib/progress/module-progress.ts"],
+    "dependencies": ["CON-220", "CON-189"], "blockedBy": [], "tags": ["retention", "recap", "engagement", "layer-6"]
+  },
+  {
+    "id": "CON-224", "epic": "CON", "title": "Add 'Share This Moment' — URL-encoded simulation state for social sharing",
+    "description": "LAYER 7 COMMUNITY: No way to share a specific simulation state. Add a Share button that encodes the current demo + sub-demo + step index + any custom parameters into URL query params. Anyone opening the URL sees the exact same state.\n\nURL format: /concurrency?demo=dining-philosophers&variant=naive&step=8\n\nOpen Graph preview should show a screenshot of the current visualization state (server-rendered or client-captured). This is the #1 organic growth mechanic for visual tools.\n\nUSER STORY: 'As a professor, I pause the deadlock demo at the exact moment circular wait forms, click Share, and paste the URL in my lecture slides. Students click it and see the deadlock frozen at that exact step.'",
+    "acceptanceCriteria": [
+      "Share button visible in playback controls area",
+      "URL encodes demo ID, sub-demo variant, and step index",
+      "Opening the shared URL restores exact demo state",
+      "Copy-to-clipboard with success feedback",
+      "URL works even if the recipient has never used the platform before"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["community", "sharing", "organic-growth", "layer-7"]
+  },
+  {
+    "id": "CON-225", "epic": "CON", "title": "Add export as GIF/video for concurrency demos — one-click animation capture",
+    "description": "LAYER 7 COMMUNITY: Platform has gif-recorder.ts (404 lines) with MediaRecorder WebM support AND RecordButton.tsx (275 lines) — fully built but NOT wired to Concurrency. Wire the existing RecordButton into concurrency playback controls.\n\nUSER STORY: 'As a content creator, I click Record, play through the Event Loop demo, and get a WebM video I can embed in my YouTube video or tweet. The recording includes the step descriptions as subtitles.'\n\nThis is the #1 shareability feature for visual tools. GoTrace's 3D visualizations went viral because people shared videos/GIFs of them.",
+    "acceptanceCriteria": [
+      "RecordButton visible in concurrency playback controls",
+      "Clicking Record starts capture, Play auto-starts, recording stops at maxSteps",
+      "WebM video downloaded with step description overlay",
+      "Recording captures the canvas area (not sidebar/properties)",
+      "Works for all 12 concurrency demos"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/shared/RecordButton.tsx", "src/lib/export/gif-recorder.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["community", "sharing", "export", "viral", "layer-7"]
+  },
+  {
+    "id": "CON-226", "epic": "CON", "title": "Add concurrency leaderboard — track prediction accuracy and practice scores",
+    "description": "LAYER 7 COMMUNITY: Platform has leaderboard.ts (194 lines) with score tracking and ranking. NOT wired to Concurrency. Add a concurrency leaderboard tracking: prediction accuracy (% correct), demos completed, practice score, and streak length.\n\nFor frontend-only MVP: local leaderboard with pseudonymous entries stored in localStorage. Future: server-backed with real user accounts.\n\nUSER STORY: 'As a student, I see I'm ranked #3 on the concurrency leaderboard with 87% prediction accuracy. My friend is #1 with 94%. I practice more to beat them.'",
+    "acceptanceCriteria": [
+      "Leaderboard accessible from concurrency sidebar or dashboard",
+      "Tracks: prediction accuracy, demos completed, streak length",
+      "MVP: localStorage-based with pseudonymous names",
+      "Shows personal rank and top 10"
+    ],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/interview/leaderboard.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-157", "CON-221"], "blockedBy": [], "tags": ["community", "leaderboard", "gamification", "layer-7"]
+  },
+  {
+    "id": "CON-227", "epic": "CON", "title": "Add embeddable iframe widget for concurrency demos in blog posts",
+    "description": "LAYER 9 DISCOVERY: No embed feature exists. Create an embeddable widget URL that renders a single concurrency demo in a compact iframe-friendly layout (no sidebar, no activity bar — just canvas + controls + step description).\n\nURL format: /embed/concurrency/race-condition?theme=dark&autoplay=false\n\nUSER STORY: 'As a blogger writing about race conditions, I paste an iframe embed code in my article. Readers see an interactive Race Condition visualization RIGHT IN THE BLOG POST. They can step through it without leaving the article. A small \"Powered by Architex\" badge links to the full platform.'\n\nSEO value: every embed is a backlink. Every blog reader is a potential user.",
+    "acceptanceCriteria": [
+      "Embed URL /embed/concurrency/[demo] renders compact visualization",
+      "No sidebar, no activity bar — just canvas + controls + description",
+      "Theme parameter supports dark/light",
+      "Copy embed code button on each demo's share menu",
+      "'Powered by Architex' badge links to full platform"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/app/embed/concurrency/[demo]/page.tsx", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["discovery", "embed", "SEO", "organic-growth", "layer-9"]
+  },
+  {
+    "id": "CON-228", "epic": "CON", "title": "Add individual SEO-optimized URLs per concurrency concept with meta tags",
+    "description": "LAYER 9 DISCOVERY: The platform has seo/concepts-data.ts (919 lines) with concept pages and sitemap.ts — but concurrency concepts may not be fully represented. Ensure every concept has:\n\n1. Individual URL: /concepts/race-condition, /concepts/deadlock, /concepts/event-loop\n2. Meta title: 'Race Condition Visualization — Interactive Step-by-Step | Architex'\n3. Meta description: 'Watch how threads create race conditions step-by-step. Compare unsafe vs mutex-protected access. Interactive simulation.'\n4. Open Graph image: auto-generated from /api/og route showing the visualization\n5. JSON-LD structured data: schema.org/LearningResource\n\nThese pages should be SSR/SSG for SEO (not client-rendered), loading the concurrency module with the specific demo pre-selected.",
+    "acceptanceCriteria": [
+      "All 12 concurrency concepts have individual /concepts/[slug] URLs",
+      "Each page has unique meta title, description, and OG image",
+      "Pages are SSR/SSG rendered (not client-only) for search engine crawlability",
+      "JSON-LD structured data with schema.org/LearningResource type",
+      "All concept pages appear in sitemap.ts"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/seo/concepts-data.ts", "src/app/concepts/[slug]/page.tsx", "src/app/sitemap.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["discovery", "SEO", "meta-tags", "layer-9"]
+  },
+  {
+    "id": "CON-229", "epic": "CON", "title": "Add concurrency concept comparison landing pages for high-traffic search terms",
+    "description": "LAYER 9 DISCOVERY: High-traffic searches like 'mutex vs semaphore', 'deadlock vs livelock', 'Promise.all vs Promise.race' have no dedicated landing pages. Create comparison pages that rank for these queries:\n\n1. /concepts/mutex-vs-semaphore — side-by-side comparison with interactive demos\n2. /concepts/deadlock-vs-livelock-vs-starvation — visual taxonomy\n3. /concepts/promise-all-vs-race-vs-allsettled-vs-any — decision flowchart\n4. /concepts/spinlock-vs-mutex-vs-ttas — performance comparison\n5. /concepts/concurrency-vs-parallelism — the #2 student pain point\n\nEach page: SSG, unique meta tags, comparison table, interactive demo embeds, 'Try it yourself' CTA linking to the full module.",
+    "acceptanceCriteria": [
+      "At least 5 comparison landing pages created",
+      "Each page has unique SEO meta tags targeting the comparison search query",
+      "Each page includes an interactive demo comparison",
+      "Pages are SSG for fast loading and SEO crawlability",
+      "Each page has a 'Try it yourself →' CTA linking to the full concurrency module"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/app/concepts/[slug]/page.tsx", "src/lib/seo/concepts-data.ts"],
+    "dependencies": ["CON-228"], "blockedBy": [], "tags": ["discovery", "SEO", "comparison-pages", "content-marketing", "layer-9"]
+  },
+  {
+    "id": "CON-230", "epic": "CON", "title": "Add social proof counters — 'N students have visualized this concept'",
+    "description": "LAYER 7+9 COMMUNITY + DISCOVERY: No social proof anywhere. Add anonymous view counters per concept: 'Race Condition: 12,847 students have explored this.' For MVP, use anonymous localStorage-based counting that increments on first view (per-user, not per-visit). Future: server-backed counter.\n\nSocial proof increases conversion 2.7x (ConversionXL research). Seeing '12K students learned this' makes it feel trustworthy.",
+    "acceptanceCriteria": [
+      "View counter visible on each demo in the sidebar or properties panel",
+      "Counter increments once per user per concept (localStorage flag)",
+      "Counter displays as 'Explored by N learners' with abbreviated large numbers",
+      "MVP: client-side only. Future: server-backed for real counts"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["community", "social-proof", "discovery", "layer-7"]
+  },
+  {
+    "id": "CON-231", "epic": "CON", "title": "Add 'Teach a Friend' mode — shareable quiz links for peer learning",
+    "description": "LAYER 7 COMMUNITY: Learning is 2x more effective when teaching (the protégé effect). Add 'Teach a Friend' mode: user creates a custom quiz from the prediction questions they've mastered, gets a shareable link. Their friend opens the link, answers the questions, and both see the score.\n\nURL: /quiz/concurrency?q=rc-predict,el-order,dp-deadlock&by=username\n\nFrontend-only: quiz questions encoded in URL, no backend needed for MVP.",
+    "acceptanceCriteria": [
+      "'Create Quiz' button available after mastering 3+ concepts",
+      "User selects which prediction questions to include",
+      "Shareable URL encodes selected questions",
+      "Friend opens URL, answers questions, sees score",
+      "Quiz creator sees friend's score on next visit (localStorage)"
+    ],
+    "priority": "P3", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/app/quiz/concurrency/page.tsx", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-157"], "blockedBy": [], "tags": ["community", "peer-learning", "sharing", "layer-7"]
+  },
+  {
+    "id": "CON-232", "epic": "CON", "title": "Add concurrency-specific daily challenge to dashboard challenge pool",
+    "description": "LAYER 6 RETENTION: Dashboard has 7 DAILY_CHALLENGES (dashboard/page.tsx:63-71) with ZERO concurrency entries. Add 7 concurrency challenges to the rotation:\n\n1. 'Race Condition: Predict the Counter' — Easy, concurrency\n2. 'Deadlock: Break the Circular Wait' — Medium, concurrency\n3. 'Event Loop: Predict Output Order' — Medium, concurrency\n4. 'SpinLock vs Mutex: Pick the Winner' — Hard, concurrency\n5. 'Dining Philosophers: Feed Everyone' — Hard, concurrency\n6. 'Promise.all vs .race: Choose Wisely' — Medium, concurrency\n7. 'Goroutine Leak: Find the Bug' — Hard, concurrency\n\nEach challenge links directly to the concurrency module with the relevant demo + prediction mode active.",
+    "acceptanceCriteria": [
+      "7 concurrency challenges added to DAILY_CHALLENGES array",
+      "Challenges span Easy/Medium/Hard",
+      "Clicking challenge navigates to concurrency module with correct demo active",
+      "Challenge completion counts toward streak"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/app/dashboard/page.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["retention", "daily-challenge", "layer-6"]
+  },
+  {
+    "id": "CON-233", "epic": "CON", "title": "Add personalized 'Next Up' recommendation engine based on mastery + learning path",
+    "description": "LAYER 6 RETENTION: After completing a demo, there's no 'what's next' guidance. Add a recommendation engine that suggests the next concept based on: (1) learning path position, (2) prerequisite completion, (3) FSRS due dates, (4) time since last visit.\n\nShow as a card at the bottom of the completed demo: 'You just mastered Race Conditions! Next up: Producer-Consumer (you'll see how the bounded buffer pattern solves coordination problems). → Start Now'\n\nAlgorithm: dependency graph (CON-119) + progress data (CON-189) + SRS due dates (CON-220).",
+    "acceptanceCriteria": [
+      "After reaching maxSteps, 'Next Up' card shows recommended concept",
+      "Recommendation based on dependency graph + progress data",
+      "Card shows concept name, brief hook, and 'Start Now' button",
+      "If a review is due (FSRS), that takes priority over new concepts"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-220", "CON-189", "CON-119"], "blockedBy": [], "tags": ["retention", "recommendation", "personalization", "layer-6"]
+  },
+  {
+    "id": "CON-234", "epic": "CON", "title": "Add content creation pipeline documentation and quality checklist",
+    "description": "LAYER 8 OPERATIONS: CONTRIBUTING.md has module-level guides but no concurrency content quality standards. Create documentation that enables non-engineers (CS professors) to contribute content:\n\n1. Content Quality Checklist:\n   - [ ] Hook sentence (problem-first, not definition-first)\n   - [ ] Intuition analogy (physical-world before formal)\n   - [ ] Step descriptions include WHY not just WHAT\n   - [ ] Real-world application examples (2+ specific systems)\n   - [ ] Common mistakes section (2+ specific gotchas)\n   - [ ] Complexity intuition (what O(n) MEANS, not just notation)\n   - [ ] Summary (3-4 bullet flashcard-style takeaway)\n\n2. Example of a perfectly-written concept (use Event Loop as the gold standard)\n\n3. Style guide: tone, length, technical depth, target audience\n\nThis enables a CS professor to write a Semaphore explanation that matches the Event Loop's quality without understanding the codebase.",
+    "acceptanceCriteria": [
+      "Content quality checklist with 7+ verifiable items",
+      "Gold-standard example using Event Loop content",
+      "Style guide covering tone, length, depth, audience",
+      "Checklist usable by non-engineers (no code knowledge needed)"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/concurrency/CONTENT_GUIDELINES.md"],
+    "dependencies": [], "blockedBy": [], "tags": ["operations", "content-pipeline", "quality", "layer-8"]
+  },
+  {
+    "id": "CON-235", "epic": "CON", "title": "Add automated content validation tests for concurrency engines",
+    "description": "LAYER 8 OPERATIONS: No automated quality checks for new content. Add vitest tests that validate content quality:\n\n1. Every engine's simulation terminates (doesn't infinite loop)\n2. Every step has a non-empty description\n3. Every step's tick is >= previous step's tick (monotonic)\n4. DEMOS array entries match exported engine IDs\n5. maxSteps switch has a case for every ConcurrencyDemo value\n6. Properties panel has content for every active demo value\n\nThese tests catch the most common content addition mistakes BEFORE they reach production.",
+    "acceptanceCriteria": [
+      "Test file validates all engine termination with timeout",
+      "Test validates non-empty descriptions on all steps",
+      "Test validates tick monotonicity across all engines",
+      "Test validates DEMOS array completeness vs ConcurrencyDemo union",
+      "Tests run in CI on every PR"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/__tests__/lib/concurrency/content-validation.test.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["operations", "testing", "content-quality", "CI", "layer-8"]
+  },
+  {
+    "id": "CON-236", "epic": "CON", "title": "Add Open Graph image generation for concurrency concept pages",
+    "description": "LAYER 9 DISCOVERY: Platform has /api/og route (route.tsx) for OG image generation. Ensure concurrency concepts generate beautiful preview cards when shared on Twitter/LinkedIn:\n\nOG image should show:\n- Concept name in large text\n- A small preview of the visualization (static snapshot)\n- 'Interactive Concurrency Visualization | Architex' tagline\n- Dark background matching the app theme\n\nWhen someone shares /concepts/race-condition on Twitter, the card should be visually striking enough to click.",
+    "acceptanceCriteria": [
+      "OG image route generates unique images for each concurrency concept",
+      "Images include concept name, visualization preview, and Architex branding",
+      "Images render at 1200x630 (Twitter/LinkedIn optimal)",
+      "OG meta tags on concept pages reference the generated image URL"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/app/api/og/route.tsx", "src/lib/seo/concepts-data.ts"],
+    "dependencies": ["CON-228"], "blockedBy": [], "tags": ["discovery", "OG-images", "social-sharing", "layer-9"]
+  }
+]

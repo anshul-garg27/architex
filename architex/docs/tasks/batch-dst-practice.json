@@ -1,0 +1,301 @@
+[
+  {
+    "id": "DST-149",
+    "epic": "DST",
+    "title": "Add prediction gate overlay on Step button for BST, Heap, Hash Table",
+    "description": "THE single most impactful practice feature. Currently the Step button reveals the next step passively. Instead: before revealing, show a prediction prompt derived from the step description.\n\nFor BST: 'The current node is 25. You are inserting 42. Which direction? [Left] [Right]'\nFor Heap: 'After extracting min, the last element 9 is at root. Should it swap with left child (4) or right child (7)? [Left] [Right] [Neither]'\nFor Hash Table: 'Key \"alice\" is being inserted. hash(\"alice\") % 8 = ? [Type number]'\n\nThe DSStep.description strings in bst-ds.ts already contain the answer ('42 > 25 -- go right'). A parser can auto-generate two-option prediction prompts.\n\nImplementation: PredictionOverlay component wraps Step button. Extends DSStep type with optional predictionOptions field. Shows overlay \u2192 awaits input \u2192 compares \u2192 shows feedback \u2192 animates.\n\nResearch basis: Testing effect (Cohen's d = 0.54-0.80) shows active prediction doubles retention vs passive watching. Brilliant.org uses this exact pattern.\n\nSource: Kang 2016 'Spaced Repetition Promotes Efficient Learning', Brilliant.org lesson design.",
+    "acceptanceCriteria": [
+      "Step button shows prediction overlay before revealing next step for BST/Heap/Hash",
+      "BST: direction prediction (Left/Right) at each comparison step",
+      "Heap: swap direction prediction during bubble-up/down",
+      "Hash: bucket index prediction during insert",
+      "Correct answer shows green flash + brief explanation",
+      "Wrong answer shows red flash + WHY explanation using DS property",
+      "Prediction is optional \u2014 user can click 'Skip' to see step without predicting"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "prediction",
+      "active-learning",
+      "testing-effect",
+      "bloom-level-3"
+    ]
+  },
+  {
+    "id": "DST-150",
+    "epic": "DST",
+    "title": "Add manual tracing mode for BST insert \u2014 user clicks correct child position",
+    "description": "Transform passive watching into active doing. In manual trace mode, the BST shows the current node highlighted and the value to insert. Two buttons appear: 'Left' and 'Right'. Student must click correct direction at each step. Wrong clicks show red flash with explanation.\n\nThis is 'You Are The Algorithm' for BST specifically \u2014 the highest-impact single DS for manual tracing because every step is a binary choice.\n\nExtend to BST search and delete after BST insert works.\n\nResearch: Bloom's Level 3 (Apply) requires the student to USE the concept on new data, not just watch. Manual tracing is the bicycle \u2014 you learn to ride by riding, not by watching.\n\nSource: Brilliant.org interactive exercises, VisuAlgo quiz mode.",
+    "acceptanceCriteria": [
+      "Manual Trace toggle button in controls bar",
+      "BST insert shows current node + value, student clicks Left/Right",
+      "Correct click advances to next node with green feedback",
+      "Wrong click shows red + explanation ('42 > 25, so we go RIGHT')",
+      "Score displayed: correct/total decisions",
+      "After completion, auto-replay shows optimal path",
+      "Works for BST insert, search, and delete"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "manual-tracing",
+      "active-learning",
+      "bst",
+      "bloom-level-3"
+    ]
+  },
+  {
+    "id": "DST-151",
+    "epic": "DST",
+    "title": "Add 5 scenario-based 'Which DS?' selection challenges",
+    "description": "Bloom's Level 5 (Evaluate) is completely absent (0/5). Students never judge or choose.\n\nAdd 5 scenario challenges accessible from a 'Challenge' tab in bottom panel:\n\nS1: 'You need O(1) lookup by username for 100M users. Which DS?' \u2192 Hash Table\nS2: 'A task scheduler must always process highest priority. Which DS?' \u2192 Heap/Priority Queue\nS3: 'A database needs sorted range scans over 500GB. Which DS?' \u2192 B+ Tree\nS4: 'Count word frequency in 10TB logs, memory < 100MB. Which DS?' \u2192 Count-Min Sketch\nS5: 'Spell-checker needs prefix-based suggestions. Which DS?' \u2192 Trie\n\nEach presents 4 options. Wrong answer explains WHY the choice was wrong AND what the right answer offers.\n\nSource: FAANG interview system design questions, NeetCode patterns.",
+    "acceptanceCriteria": [
+      "Challenge tab in bottom panel with 5 scenario questions",
+      "Each question has 4 multiple-choice options",
+      "Correct answer shows green + brief explanation",
+      "Wrong answer shows red + explains WHY wrong + WHY correct answer is better",
+      "Score tracked across all 5 questions",
+      "Questions randomize option order on each attempt"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "scenario",
+      "evaluation",
+      "bloom-level-5",
+      "interview"
+    ]
+  },
+  {
+    "id": "DST-152",
+    "epic": "DST",
+    "title": "Add 5 comparison challenges \u2014 same data on two DS side by side",
+    "description": "Bloom's Level 4 (Analyze) scores 1/5. Students can't compare DS structurally.\n\nAdd comparison challenges:\nC1: BST vs AVL \u2014 insert [1,2,3,4,5]. Which stays balanced?\nC2: Array vs Linked List \u2014 insert at position 0 repeatedly. Which is faster?\nC3: Hash Table vs BST \u2014 find all elements in range [10,50]. Which is efficient?\nC4: Min-Heap vs Sorted Array \u2014 find minimum after 1000 insertions.\nC5: Bloom Filter vs Hash Set \u2014 store 1 billion URLs, memory < 2GB.\n\nEach challenge shows the question, student predicts, then the module demonstrates with split-view animation.\n\nSource: Princeton Algorithms textbook comparison exercises.",
+    "acceptanceCriteria": [
+      "5 comparison challenges accessible from Challenge tab",
+      "Student predicts which DS 'wins' before seeing answer",
+      "Split-view shows both DS operating on same data simultaneously",
+      "After prediction, animation plays showing the difference",
+      "Explanation connects to complexity analysis"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-097"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "comparison",
+      "analysis",
+      "bloom-level-4"
+    ]
+  },
+  {
+    "id": "DST-153",
+    "epic": "DST",
+    "title": "Add 3 debugging challenges with broken DS implementations",
+    "description": "Bloom's Level 5 (Evaluate) \u2014 judging correctness of code.\n\nBug 1: BST Insert missing empty tree base case \u2192 crashes on empty tree\nBug 2: Heap Extract missing bubble-down \u2192 heap property violated after extract\nBug 3: Hash Table delete sets slot to null \u2192 breaks probe chains in open addressing\n\nShow buggy pseudocode + the visualization showing wrong behavior. Student identifies which line/concept is wrong. After identification, show correct vs buggy side by side.\n\nSource: Common student errors from Reddit r/learnprogramming, GeeksforGeeks.",
+    "acceptanceCriteria": [
+      "3 debugging challenges accessible from Challenge tab",
+      "Buggy pseudocode displayed alongside broken visualization",
+      "Student selects which line/concept is wrong",
+      "Correct identification shows explanation + fixed code",
+      "Wrong identification shows hint pointing toward the actual bug"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "debugging",
+      "evaluation",
+      "bloom-level-5"
+    ]
+  },
+  {
+    "id": "DST-154",
+    "epic": "DST",
+    "title": "Add complexity recall quiz \u2014 quick-fire flashcard-style testing",
+    "description": "Bloom's Level 1 (Remember) scores 1/5. Students see complexity values passively but are never tested on recall.\n\nAdd a quick-fire quiz mode: show DS name, student types or selects the complexity for a given operation. 10 questions, timed (optional), scored.\n\n'BST Search average case?' \u2192 Student types 'O(log n)'\n'Hash Table Insert worst case?' \u2192 'O(n)'\n'Heap Extract Min?' \u2192 'O(log n)'\n\nAccept equivalent forms: O(log n), O(logn), O(log(n)).\n\nSource: Anki flashcard methodology, testing effect research.",
+    "acceptanceCriteria": [
+      "Quick-fire quiz accessible from Challenge tab",
+      "10 randomly selected complexity questions",
+      "Student types answer or selects from options",
+      "Accepts equivalent notation forms",
+      "Score displayed at end with correct/incorrect breakdown",
+      "Questions cover all 6 DS categories"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "recall",
+      "quiz",
+      "flashcard",
+      "bloom-level-1"
+    ]
+  },
+  {
+    "id": "DST-155",
+    "epic": "DST",
+    "title": "Add feedback system with wrong-answer explanations using visualization",
+    "description": "Practice without feedback is useless. Currently zero feedback exists because zero questions are asked.\n\nDesign the feedback system:\n\nCorrect answer: Green flash + brief 'Correct! Because [DS property]' (1.5s)\nWrong answer: Red flash + DON'T just say 'Wrong' \u2014 use the visualization to show WHY:\n  'You predicted left, but 42 > 25, so BST rule says go right. Watch:' \u2192 plays correct animation\n\nHint system (3 levels):\n  Level 1: Rephrase the question\n  Level 2: State the relevant DS property\n  Level 3: Show the first step, ask about the second\n\nSource: Brilliant.org per-answer feedback, Duolingo hint system.",
+    "acceptanceCriteria": [
+      "Correct answer shows green feedback with DS property explanation",
+      "Wrong answer shows red + visualization-backed explanation",
+      "3-level hint system available on each question",
+      "Feedback persists for 2 seconds then auto-dismisses",
+      "Wrong answer feedback references the specific DS rule violated"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-149"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "feedback",
+      "hints",
+      "wrong-answer",
+      "learning"
+    ]
+  },
+  {
+    "id": "DST-156",
+    "epic": "DST",
+    "title": "Add per-concept mastery tracking with 5-star progress system",
+    "description": "Zero progress tracking exists. Students have no sense of mastery or growth.\n\nTrack per-DS mastery based on practice performance:\n  0 stars: Haven't explored this DS\n  1 star: Performed 3+ operations (explored)\n  2 stars: Answered 3+ Level 1 recall questions correctly\n  3 stars: Completed 5+ Level 3 predictions correctly\n  4 stars: Completed a manual trace with <2 errors\n  5 stars: Completed a scenario + debugging challenge\n\nDisplay stars in sidebar next to each DS name. Overall progress: 'X/34 DS explored, Y at 3+ stars.'\nPersist in localStorage.\n\nSource: Duolingo crown/star system, Khan Academy mastery progress.",
+    "acceptanceCriteria": [
+      "Each DS shows 0-5 stars in sidebar",
+      "Stars earned through progressive practice activities",
+      "Overall progress shown at top of sidebar",
+      "Persisted in localStorage across sessions",
+      "Progress dashboard accessible showing per-DS breakdown"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-149",
+      "DST-154"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "progress",
+      "mastery",
+      "gamification",
+      "retention"
+    ]
+  },
+  {
+    "id": "DST-157",
+    "epic": "DST",
+    "title": "Add progressive difficulty ladder with 5 levels per data structure",
+    "description": "No difficulty progression exists. All interactions are flat \u2014 same level regardless of student skill.\n\nImplement 5-level difficulty per DS:\nL1 RECOGNIZE: Multiple choice ('Which complexity is BST search?' \u2192 4 options)\nL2 RECALL: Free text ('What is worst-case BST search?' \u2192 type O(n))\nL3 PREDICT: Animation-gated ('Will 42 go left or right from 25?' \u2192 choose before step plays)\nL4 TRACE: Full manual trace ('Click every node on BST search path for value 17')\nL5 SCENARIO: 'Which DS for this system design requirement?' + 'Find the bug'\n\nAuto-advance: 4/5 correct \u2192 unlock next level. 2/5 or fewer \u2192 review prompt.\n\nSource: Duolingo difficulty ladder, Brilliant.org level progression.",
+    "acceptanceCriteria": [
+      "5 difficulty levels implemented per DS",
+      "Auto-advance based on accuracy (4/5 correct \u2192 next level)",
+      "Auto-review suggested on poor performance (2/5 or fewer)",
+      "Current level shown per DS in sidebar",
+      "Each level's question type matches Bloom's taxonomy level"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-149",
+      "DST-150",
+      "DST-151",
+      "DST-154"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "difficulty",
+      "progression",
+      "bloom-taxonomy",
+      "gamification"
+    ]
+  }
+]

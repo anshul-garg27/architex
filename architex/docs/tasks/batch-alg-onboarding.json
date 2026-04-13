@@ -1,0 +1,232 @@
+[
+  {
+    "id": "ALG-261",
+    "epic": "ALG",
+    "title": "Add one-click demo CTA button to all 7 algorithm empty states",
+    "description": "ONBOARDING: Every empty state (AlgorithmModule.tsx:842-937) shows instructional text with NO action button. A beginner reads 'Select a sorting algorithm...' but doesn't know what to do. Replace with a prominent CTA: '[Play icon] Watch Demo \u2014 Bubble Sort on [5, 3, 8, 1, 9]'. Clicking auto-generates the sample data, selects Bubble Sort, runs it, and auto-plays. User sees their first visualization in ONE CLICK. Each category has a different demo: sorting=Bubble Sort, graph=BFS, tree=BST Insert, dp=Fibonacci, string=KMP, backtracking=N-Queens(4), geometry=Convex Hull. This is the #1 onboarding fix \u2014 reduces time-to-first-success from ~30s to ~2s.",
+    "acceptanceCriteria": [
+      "Each of 7 empty states has a prominent CTA button with algorithm-specific demo",
+      "Clicking CTA: auto-generates sample data, selects algorithm, runs, auto-plays",
+      "User sees animated visualization within 2 seconds of clicking",
+      "CTA text includes the sample data (e.g., '[5, 3, 8, 1, 9]') so user knows what to expect",
+      "After demo plays, user is in a state where they can modify data and re-run"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-142",
+      "ALG-147"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "empty-state",
+      "cta",
+      "first-success",
+      "p1"
+    ]
+  },
+  {
+    "id": "ALG-262",
+    "epic": "ALG",
+    "title": "Add 3-step algorithm-specific onboarding tour for first-time algorithm module visitors",
+    "description": "ONBOARDING: The platform onboarding tour (onboarding-overlay.tsx) has 5 steps but ALL are about System Design (drag, connect, simulate). The Algorithm module gets ZERO onboarding. Add a 3-step micro-tour that triggers on first visit to the Algorithm module (using existing useFirstEncounter hook with 'algorithm-module' feature ID). Steps: (1) Point to dropdown: 'Choose an algorithm \u2014 start with Bubble Sort!', (2) Point to Generate+Run: 'Click Generate for random data, then Run to see it animate.', (3) Point to playback: 'Step through slowly, or press Play to watch it all.' Tour leads to first success in 3 clicks.",
+    "acceptanceCriteria": [
+      "3-step spotlight tour triggers on first visit to Algorithm module",
+      "Uses existing OnboardingOverlay spotlight mechanism (data-onboarding attributes)",
+      "Step 1 highlights algorithm dropdown, Step 2 highlights Generate+Run, Step 3 highlights playback",
+      "Tour can be skipped (Skip button) and replayed (from settings or help menu)",
+      "Tracked via localStorage 'architex-first-encounter-algorithm-module'",
+      "Does NOT re-trigger after completion"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/components/shared/onboarding-overlay.tsx",
+      "src/hooks/useFirstEncounter.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "tour",
+      "first-visit",
+      "guided"
+    ]
+  },
+  {
+    "id": "ALG-263",
+    "epic": "ALG",
+    "title": "Add tooltips to all algorithm playback controls using existing ToolbarButton wrapper",
+    "description": "HELP SYSTEM: Algorithm playback buttons (AlgorithmPanel.tsx:1228-1260) have title attributes but NO proper tooltips. The ToolbarButton component (src/components/ui/toolbar-button.tsx) already wraps buttons with Radix tooltip + optional shortcut display \u2014 but playback buttons don't use it. Wrap all 5 playback buttons (Stop, Step Back, Play/Pause, Step Forward, Speed) with ToolbarButton. Add tooltip text: Stop='Reset to beginning', Step Back='Previous step (\u2190)', Play/Pause='Play/Pause (Space)', Step Forward='Next step (\u2192)', Speed='Playback speed'. This gives beginners discoverable help on hover.",
+    "acceptanceCriteria": [
+      "All 5 playback control buttons wrapped with ToolbarButton",
+      "Each shows tooltip on hover with action name + keyboard shortcut",
+      "Speed buttons show current speed on tooltip",
+      "Tooltips use existing Radix tooltip with 200ms delay",
+      "Tooltips work on touch devices (long-press shows tooltip)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/ui/toolbar-button.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "tooltips",
+      "help",
+      "controls"
+    ]
+  },
+  {
+    "id": "ALG-264",
+    "epic": "ALG",
+    "title": "Add 'Replay Algorithm Tour' option to settings panel and help menu",
+    "description": "HELP SYSTEM: Settings panel (settings-panel.tsx) has Theme, About, and Links sections but NO 'Replay Tour' option. A returning user who dismissed the tour can never see it again. Add 'Learning Help' section to settings: (1) 'Replay Algorithm Tour' \u2014 clears localStorage flag and triggers tour, (2) 'Reset All Tutorials' \u2014 clears all first-encounter flags, (3) Link to docs/guides/adding-an-algorithm.md. Also add Cmd+? shortcut to open keyboard shortcuts dialog (already exists but shortcut not documented in settings).",
+    "acceptanceCriteria": [
+      "Settings panel has 'Learning Help' section",
+      "'Replay Algorithm Tour' button resets tour flag and starts tour on next module visit",
+      "'Reset All Tutorials' clears all 'architex-first-encounter-*' localStorage keys",
+      "Link to adding-an-algorithm.md guide visible in settings",
+      "Settings accessible from algorithm module sidebar or activity bar"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/settings-panel.tsx"
+    ],
+    "dependencies": [
+      "ALG-262"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "settings",
+      "replay-tour",
+      "help"
+    ]
+  },
+  {
+    "id": "ALG-265",
+    "epic": "ALG",
+    "title": "Add fullscreen/presentation mode for algorithm visualizations",
+    "description": "Persona gap: professors in 200-seat lecture halls need the visualization FULLSCREEN \u2014 no sidebar, no properties panel, no bottom panel. Just the visualizer + minimal playback controls + step description overlay. Add a 'Present' button (or F11 / Cmd+Shift+F shortcut) that enters fullscreen mode: hides all panels, maximizes the visualizer, shows floating playback controls at the bottom, and overlays the current step description. Font sizes increase 2x for projector readability. Exit with Escape. This enables: professors embedding in lectures, students screensharing in study groups, content creators recording clean animations.",
+    "acceptanceCriteria": [
+      "Present button visible in algorithm module toolbar",
+      "Clicking it hides sidebar, properties panel, bottom panel, activity bar",
+      "Visualizer fills the entire viewport",
+      "Floating playback controls (play/pause/step/speed) at bottom-center",
+      "Step description overlaid on visualization in large readable font",
+      "Escape key or close button exits presentation mode",
+      "Keyboard shortcut F11 or Cmd+Shift+F toggles presentation mode",
+      "Works with all 7 visualization types"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/components/shared/workspace-layout.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "presentation",
+      "fullscreen",
+      "professor",
+      "lecture"
+    ]
+  },
+  {
+    "id": "ALG-266",
+    "epic": "ALG",
+    "title": "Add screen reader step narration via aria-live region for each algorithm step",
+    "description": "Accessibility gap: ALG-152 adds ARIA roles/labels to controls but does NOT address step-by-step narration for blind users. A blind user needs to HEAR 'Compare 5 and 3 \u2014 since 5 is greater, swap them' announced on every step change. Add: (1) An aria-live='polite' region in the visualization area that updates with step.description on every step change, (2) Screen reader announces each step automatically during playback, (3) During manual stepping, each step forward/backward triggers announcement, (4) On playback completion, announce 'Algorithm complete \u2014 N comparisons, M swaps'. This transforms the tool from 'inaccessible' to 'usable by screen reader' for algorithmic learning.",
+    "acceptanceCriteria": [
+      "aria-live='polite' region exists in the visualization area",
+      "Every step change updates the live region with current step.description",
+      "Screen readers (VoiceOver, NVDA, JAWS) announce each step as it plays",
+      "During auto-play, announcements are throttled to not overwhelm (every 2nd step at 2x+ speed)",
+      "On completion, announces summary: 'Bubble Sort complete. 45 comparisons, 12 swaps.'",
+      "Manual step forward/backward each trigger immediate announcement",
+      "Works alongside existing visual animations (visual users unaffected)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/components/canvas/overlays/ArrayVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "screen-reader",
+      "aria-live",
+      "narration",
+      "a11y"
+    ]
+  },
+  {
+    "id": "ALG-267",
+    "epic": "ALG",
+    "title": "Add algorithm history \u2014 recently viewed algorithms with one-click resume",
+    "description": "Retention gap: no task currently covers 'recently viewed algorithms'. When a user explores BFS, then Dijkstra, then switches to Quick Sort \u2014 there's no way to quickly go back to BFS. Add: (1) Store last 10 viewed algorithms in localStorage (algorithm ID + timestamp + last step index), (2) Show 'Recent' section at top of algorithm sidebar above the dropdown, (3) Each recent item shows: algorithm name, category badge, time ago, one-click to resume at last step. This reduces friction for users who explore multiple algorithms in a session and want to compare/revisit.",
+    "acceptanceCriteria": [
+      "Last 10 viewed algorithms stored in localStorage",
+      "Recent section visible at top of algorithm sidebar (above dropdown)",
+      "Each item shows: algorithm name, category color badge, '5m ago' timestamp",
+      "Clicking a recent item selects that algorithm and restores last step index",
+      "Recent list clears after 24 hours (stale data cleanup)",
+      "Clear history button available"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "history",
+      "recently-viewed",
+      "navigation"
+    ]
+  }
+]

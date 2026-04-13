@@ -1,0 +1,211 @@
+[
+  {
+    "id": "PLT-028",
+    "epic": "PLT",
+    "title": "Fix RecommendedBridges rendered with no context props — 30+ bridge rules never fire",
+    "description": "page.tsx:277 — RecommendedBridges rendered as <RecommendedBridges className='mx-2 my-3' /> with NO conceptId/algorithmId/topic props. The 30+ context-sensitive rules in bridge-rules.ts can never match. The entire contextual bridge recommendation system is silently broken. Fix: pass current module context (from each module's hook) into RecommendedBridges.",
+    "acceptanceCriteria": [
+      "RecommendedBridges receives context props from the active module",
+      "When viewing TCP in Networking, bridge rules for networking→system-design fire",
+      "When viewing BFS in Algorithms, bridge rules for algorithms→system-design fire",
+      "At least 5 different bridge rules demonstrably trigger across modules"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/app/page.tsx", "src/components/cross-module/RecommendedBridges.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "cross-module", "critical-bug"]
+  },
+  {
+    "id": "PLT-029",
+    "epic": "PLT",
+    "title": "Fix undefined CSS variables in cross-module UI components",
+    "description": "BridgePanel.tsx:34-43, ModuleContextBar.tsx:41-42, RecommendedBridges.tsx:63-67 reference --bg-primary, --bg-secondary, --text-primary which are NOT defined in globals.css. Design system uses --background, --surface, --foreground. Fix: replace with correct tokens.",
+    "acceptanceCriteria": [
+      "Zero references to --bg-primary, --bg-secondary, --bg-tertiary, --text-primary, --text-secondary, --text-tertiary",
+      "Bridge UI components render correctly in both dark and light themes"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/cross-module/BridgePanel.tsx", "src/components/cross-module/ModuleContextBar.tsx", "src/components/cross-module/RecommendedBridges.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "design-system", "critical-bug"]
+  },
+  {
+    "id": "PLT-030",
+    "epic": "PLT",
+    "title": "Add reverse bridges FROM system-design TO other modules",
+    "description": "bridge-rules.ts — All 30+ bridge rules flow TO system-design. Zero bridges go FROM system-design to other modules. Users in System Design see no recommendations. Fix: add 10+ reverse bridges (load balancer→distributed/consistent-hashing, database indexes→data-structures/B-tree, gRPC→networking, etc.).",
+    "acceptanceCriteria": [
+      "At least 10 reverse bridge rules from system-design to other modules",
+      "BridgePanel shows recommendations when viewing System Design",
+      "OS and ML Design modules also get bridge entries (currently zero)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/lib/cross-module/bridge-rules.ts", "src/lib/cross-module/bridge-registry.ts"],
+    "dependencies": ["PLT-028"],
+    "blockedBy": [],
+    "tags": ["platform", "cross-module", "bridges"]
+  },
+  {
+    "id": "PLT-031",
+    "epic": "PLT",
+    "title": "Add progress data export/import and localStorage-only warning",
+    "description": "All progress (XP, streaks, mastery, attempts) is localStorage-only. No sync, export, or warning. Fix: add Export/Import buttons in settings, show one-time warning toast, add partialize to progress-store to cap unbounded attempts growth.",
+    "acceptanceCriteria": [
+      "Settings panel has Export Progress (JSON download) and Import Progress (JSON upload)",
+      "First-time user sees toast about local-only persistence",
+      "progress-store uses partialize to limit stored data size"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/stores/progress-store.ts", "src/components/shared/settings-panel.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "progress", "data-safety"]
+  },
+  {
+    "id": "PLT-032",
+    "epic": "PLT",
+    "title": "Fix light theme missing visualization/tooltip token overrides in globals.css",
+    "description": "globals.css — html.light redefines core tokens but NOT --viz-* chart tokens or tooltip tokens. Dark-optimized colors like --viz-tooltip-bg produce dark tooltips on light backgrounds. Fix: add light theme overrides for all visualization and tooltip tokens.",
+    "acceptanceCriteria": [
+      "All --viz-* tokens have light theme overrides",
+      "Tooltips render correctly on light backgrounds",
+      "Chart colors maintain sufficient contrast in light theme"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/app/globals.css"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "design-system", "theming"]
+  },
+  {
+    "id": "PLT-033",
+    "epic": "PLT",
+    "title": "Add loading skeletons for all dynamic module imports",
+    "description": "page.tsx:36-91 — 14 dynamic imports have no loading fallback. User sees blank canvas during first module load. Fix: add { loading: () => <ModuleLoadingSkeleton /> } showing workspace chrome with pulse animation.",
+    "acceptanceCriteria": [
+      "Every dynamic import has a loading skeleton",
+      "Skeleton matches workspace layout structure",
+      "Smooth transition from skeleton to loaded module"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/app/page.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "performance", "ux"]
+  },
+  {
+    "id": "PLT-034",
+    "epic": "PLT",
+    "title": "Wire ErrorBoundary to analytics tracking (event type exists but unused)",
+    "description": "ErrorBoundary.tsx logs to console.error but doesn't report to analytics despite ERROR_BOUNDARY_HIT event type in analytics.ts:21. Fix: call trackEvent on componentDidCatch.",
+    "acceptanceCriteria": [
+      "ErrorBoundary reports errors to analytics provider",
+      "Error includes component stack trace"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/shared/ErrorBoundary.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "infrastructure", "analytics"]
+  },
+  {
+    "id": "PLT-035",
+    "epic": "PLT",
+    "title": "Fix landing page fake social proof and placeholder links",
+    "description": "LandingPage.tsx:549-574 has fake company logos and testimonials. Lines 931-947 have href='#' footer links. Line 649 says '12 modules' but 13 exist. Fix: remove fake testimonials, add real URLs or remove links, correct module count.",
+    "acceptanceCriteria": [
+      "No fake testimonials in production",
+      "No href='#' placeholder links",
+      "Module count matches reality (13)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/landing/LandingPage.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "landing", "credibility"]
+  },
+  {
+    "id": "PLT-036",
+    "epic": "PLT",
+    "title": "Expand settings panel beyond theme-only — add accessibility, data, and notification sections",
+    "description": "settings-panel.tsx only has theme toggle and about section. Missing: reduce motion preference, font size control, data management (export/import), notification preferences. All capabilities exist in stores but aren't exposed to users.",
+    "acceptanceCriteria": [
+      "Accessibility section with reduce-motion toggle and font size selector",
+      "Data section with Export/Import progress buttons",
+      "Notification section with toast duration and sound toggle",
+      "All settings persist via stores"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/shared/settings-panel.tsx", "src/stores/ui-store.ts"],
+    "dependencies": ["PLT-031"],
+    "blockedBy": [],
+    "tags": ["platform", "settings", "accessibility"]
+  },
+  {
+    "id": "PLT-037",
+    "epic": "PLT",
+    "title": "Fix dashboard 'Recommended Next' navigating to / instead of specific module",
+    "description": "dashboard/page.tsx:280 — handleGoToCanvas uses window.location.href = '/' regardless of recommended module. The module-specific navigation is lost. Fix: set activeModule before navigating.",
+    "acceptanceCriteria": [
+      "Clicking recommended module card opens that specific module",
+      "Module loads immediately without additional clicks"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/app/dashboard/page.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["platform", "navigation", "dashboard"]
+  }
+]

@@ -1,0 +1,110 @@
+{
+  "viewState": {
+    "panOffset": {"x": -4500, "y": -4600},
+    "scale": 0.7
+  },
+  "components": [
+    {
+      "id": "ingest-layer",
+      "type": "container",
+      "customName": "Ingestion Layer",
+      "position": {"x": 4550, "y": 4550},
+      "size": {"w": 400, "h": 220},
+      "config": {}
+    },
+    {
+      "id": "processing-layer",
+      "type": "container",
+      "customName": "Processing & Transformation",
+      "position": {"x": 5000, "y": 4550},
+      "size": {"w": 500, "h": 220},
+      "config": {}
+    },
+    {
+      "id": "storage-layer",
+      "type": "container",
+      "customName": "Long-term Data Storage",
+      "position": {"x": 4550, "y": 4820},
+      "size": {"w": 950, "h": 200},
+      "config": {}
+    },
+    {
+      "id": "events",
+      "type": "inputNode",
+      "customName": "App Events / Webhooks",
+      "position": {"x": 4710, "y": 4400},
+      "size": {"w": 80, "h": 64},
+      "config": {"capacity": 100000}
+    },
+    {
+      "id": "stream",
+      "type": "stream",
+      "customName": "Ingest Stream (Kafka)",
+      "position": {"x": 4600, "y": 4640},
+      "size": {"w": 300, "h": 60},
+      "parentContainerId": "ingest-layer",
+      "config": {"capacity": 500000}
+    },
+    {
+      "id": "etl",
+      "type": "etlPipeline",
+      "position": {"x": 5050, "y": 4640},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "processing-layer",
+      "config": {"instances": 4}
+    },
+    {
+      "id": "spark",
+      "type": "batchProcessor",
+      "customName": "Batch Processing (Spark)",
+      "position": {"x": 5250, "y": 4640},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "processing-layer",
+      "config": {"instances": 10}
+    },
+    {
+      "id": "data-lake",
+      "type": "dataLake",
+      "customName": "Raw Data Lake (S3)",
+      "position": {"x": 4650, "y": 4900},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "storage-layer",
+      "config": {"capacity": 1000000}
+    },
+    {
+      "id": "warehouse",
+      "type": "dataWarehouse",
+      "customName": "Data Warehouse (BigQuery)",
+      "position": {"x": 4850, "y": 4900},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "storage-layer",
+      "config": {"capacity": 500000}
+    },
+    {
+      "id": "schema-reg",
+      "type": "schemaRegistry",
+      "position": {"x": 5050, "y": 4900},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "storage-layer",
+      "config": {}
+    },
+    {
+      "id": "analytics-db",
+      "type": "timeSeriesDb",
+      "position": {"x": 5250, "y": 4900},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "storage-layer",
+      "config": {"capacity": 200000}
+    }
+  ],
+  "connections": [
+    {"id": "c1", "sourceId": "events", "targetId": "stream", "type": "async"},
+    {"id": "c2", "sourceId": "stream", "targetId": "data-lake", "type": "async", "label": "Archival"},
+    {"id": "c3", "sourceId": "stream", "targetId": "etl", "type": "async", "label": "Real-time Processing"},
+    {"id": "c4", "sourceId": "etl", "targetId": "schema-reg", "type": "request"},
+    {"id": "c5", "sourceId": "etl", "targetId": "warehouse", "type": "request", "label": "Upsert"},
+    {"id": "c6", "sourceId": "data-lake", "targetId": "spark", "type": "request", "label": "Batch Read"},
+    {"id": "c7", "sourceId": "spark", "targetId": "warehouse", "type": "request", "label": "Batch Load"},
+    {"id": "c8", "sourceId": "etl", "targetId": "analytics-db", "type": "request", "label": "Time-series Flow"}
+  ]
+}

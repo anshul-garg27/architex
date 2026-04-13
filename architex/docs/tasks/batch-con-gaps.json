@@ -1,0 +1,79 @@
+[
+  {
+    "id": "CON-237", "epic": "CON", "title": "Resolve cross-module content duplication: Concurrency semaphore vs OS thread-sync semaphore",
+    "description": "MISSED BY ALL 11 PROMPTS: The OS module (src/lib/os/thread-sync.ts) already has `simulateSemaphore()` (counting semaphore simulation, ~120 lines) with full SyncEvent step generation and visualization in OSModule.tsx. The curriculum audit (P2) created CON-092 to build semaphores FROM SCRATCH in the Concurrency module, unaware this exists.\n\nOptions:\n1. REUSE: Import simulateSemaphore from os/thread-sync.ts into Concurrency module (DRY, but creates cross-module dependency)\n2. DUPLICATE with differentiation: OS module shows semaphore as an OS primitive (scheduling context), Concurrency module shows it as a synchronization tool (application context) — different framing, different step descriptions, shared underlying concept\n3. MERGE: Move thread-sync.ts to a shared lib/concurrency-primitives/ directory used by both modules\n\nRecommendation: Option 2 (duplicate with differentiation) — the educational VALUE is in the framing, not the engine code. OS students need 'how the kernel manages permits.' Concurrency students need 'when to use a semaphore vs a mutex.'",
+    "acceptanceCriteria": [
+      "Decision documented: which option chosen and why",
+      "If option 2: CON-092 explicitly notes it's a different framing from OS module's semaphore",
+      "Cross-module bridge added connecting CON semaphore ↔ OS thread-sync semaphore",
+      "No user confusion: sidebar/properties clearly indicate the difference"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/os/thread-sync.ts", "src/lib/concurrency/semaphore.ts", "src/lib/cross-module/bridge-registry.ts"],
+    "dependencies": ["CON-092"], "blockedBy": [], "tags": ["cross-module", "duplication", "architecture-decision", "gap"]
+  },
+  {
+    "id": "CON-238", "epic": "CON", "title": "Resolve cross-module overlap: Concurrency readers-writers vs OS reader-writer-lock",
+    "description": "MISSED: The OS module has `simulateReaderWriterLock()` in thread-sync.ts while the Concurrency module has `simulateReadersWriters()` in readers-writers.ts. Both simulate the readers-writers problem. The OS version focuses on the lock primitive; the Concurrency version focuses on the coordination pattern.\n\nRecommend: keep both but add explicit cross-module bridge link and differentiated descriptions. The OS version should say 'How the RWLock primitive works at the kernel level.' The Concurrency version should say 'The readers-writers synchronization pattern and starvation policies.'",
+    "acceptanceCriteria": [
+      "Cross-module bridge added: concurrency readers-writers ↔ OS reader-writer-lock",
+      "Properties panel in both modules notes the other exists with different focus",
+      "No duplicate content in navigation (user doesn't see same concept twice without context)"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/cross-module/bridge-registry.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["cross-module", "duplication", "gap"]
+  },
+  {
+    "id": "CON-239", "epic": "CON", "title": "Resolve cross-module overlap: Concurrency deadlock-demo vs OS deadlock-detection",
+    "description": "MISSED: The OS module has a 'Deadlock Detection' demo (with detectDeadlock(), Banker's algorithm, resource allocation graph) while Concurrency has 'Deadlock Demo' (circular wait visualization) and 'Dining Philosophers'. These teach different aspects:\n- OS: detection algorithms (how does the system FIND deadlocks?)\n- CON: mechanism (how do deadlocks FORM?) and prevention (how to AVOID them?)\n\nRecommend: add cross-module bridge. Concurrency deadlock demo should say 'For deadlock DETECTION algorithms (Banker's, resource allocation graph), see OS Module → Deadlock Detection.' OS should link back to Concurrency for prevention strategies.",
+    "acceptanceCriteria": [
+      "Cross-module bridge added: CON deadlock-demo ↔ OS deadlock-detection",
+      "CON properties panel mentions detection algorithms live in OS module",
+      "OS module properties panel mentions prevention strategies live in CON module"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/cross-module/bridge-registry.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["cross-module", "bridge", "gap"]
+  },
+  {
+    "id": "CON-240", "epic": "CON", "title": "Add edge case handling: incognito mode graceful degradation (no localStorage)",
+    "description": "EDGE CASE MISSED: All retention features (CON-220 FSRS, CON-221 streaks, CON-222 achievements, CON-213 Show Me dismissed flag, CON-212 tour completed flag) rely on localStorage. In incognito/private mode, localStorage may be unavailable or cleared on close.\n\nAdd graceful degradation:\n1. Wrap ALL localStorage.getItem/setItem in try/catch (some browsers throw in private mode)\n2. If localStorage unavailable: show all onboarding features every time (no 'already seen' flag)\n3. Display a subtle notice: 'Using private browsing — your progress won't be saved'\n4. Features should WORK without persistence, just not REMEMBER",
+    "acceptanceCriteria": [
+      "All localStorage access wrapped in try/catch",
+      "Module functions correctly in incognito mode (no crashes)",
+      "Onboarding shows every time in incognito (no persistence)",
+      "Optional notice about private browsing mode"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["edge-case", "incognito", "localStorage", "gap"]
+  },
+  {
+    "id": "CON-241", "epic": "CON", "title": "Add edge case handling: browser zoom 150%+ layout verification",
+    "description": "EDGE CASE: No task addresses browser zoom beyond 100%. At 150%+ zoom, 10px text becomes 15px (fine), but layout issues emerge: Event Loop's grid-cols-4 becomes very cramped, SVG viewBox elements may clip, sidebar buttons may overflow. Verify and fix layout at 125%, 150%, and 200% zoom levels.",
+    "acceptanceCriteria": [
+      "All 12 demos render correctly at 150% browser zoom",
+      "No text overflow or clipping at 200% zoom",
+      "SVG elements scale proportionally (viewBox handles this)",
+      "Sidebar doesn't overflow or clip button text at 150%+"
+    ],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["edge-case", "zoom", "layout", "gap"]
+  },
+  {
+    "id": "CON-242", "epic": "CON", "title": "Add edge case handling: browser back/forward navigation between demos",
+    "description": "EDGE CASE: The module uses React state (useState) for active demo selection, not URL state. When user switches from Race Condition to Event Loop and presses browser Back, they navigate AWAY from the entire module (to the previous page) instead of back to Race Condition. This violates user expectation.\n\nFix: push demo selection to URL state (query param or hash). Browser back/forward should navigate between demos within the module. This also enables deep-linking and is a prerequisite for the share URL feature (CON-224).",
+    "acceptanceCriteria": [
+      "Switching demos updates URL (e.g., ?demo=event-loop)",
+      "Browser Back returns to the previous demo (not previous page)",
+      "Browser Forward navigates forward through demo history",
+      "Direct URL navigation (?demo=dining-philosophers) opens correct demo",
+      "URL state syncs with React state on both directions"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["edge-case", "routing", "navigation", "deep-linking", "gap"]
+  }
+]

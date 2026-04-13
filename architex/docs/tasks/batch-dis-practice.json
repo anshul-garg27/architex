@@ -1,0 +1,225 @@
+[
+  {
+    "id": "DIS-081",
+    "epic": "DIS",
+    "title": "Add prediction mode to all 11 distributed systems simulations",
+    "description": "The single most impactful practice feature. Before each step/action, prompt the user to predict the outcome. ZERO prediction features exist currently.\n\nExamples per simulation:\n- Raft: 'Which node will win the election?'\n- Consistent Hashing: 'How many keys will move?'\n- CAP: 'Will this write succeed in CP mode?'\n- Gossip: 'After this round, how many nodes will have the data?'\n- CRDTs: 'After merge, what will A's value be?'\n- 2PC: 'P2 voted NO. Commit or Abort?'\n\nAfter the action, show whether prediction was correct with brief explanation.",
+    "acceptanceCriteria": [
+      "At least 2 prediction prompts per simulation (22 minimum total)",
+      "Predictions appear BEFORE the action",
+      "Correct/incorrect feedback with brief WHY explanation",
+      "Prediction accuracy tracked per concept in progress system",
+      "User can disable predictions"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["practice", "prediction", "active-learning", "highest-impact", "p1"]
+  },
+  {
+    "id": "DIS-082",
+    "epic": "DIS",
+    "title": "Add manual tracing mode for top 5 concepts (user IS the algorithm)",
+    "description": "In manual tracing mode, the user performs the algorithm's operations by clicking/dragging, and the system validates.\n\n1. Raft Election: User clicks nodes to send RequestVote, validates majority.\n2. Consistent Hashing: User clicks the correct node on the ring for a given key.\n3. CRDT Merge: User fills in the merged vector.\n4. Gossip: User selects which peers to gossip to.\n5. 2PC Coordinator: User receives votes and decides Commit/Abort.\n\nEach exercise has 3 rounds of increasing complexity.",
+    "acceptanceCriteria": [
+      "5 manual tracing exercises (one per top concept)",
+      "Validation checks user's actions against protocol rules",
+      "Wrong actions show feedback",
+      "3 difficulty levels per exercise",
+      "Completion tracked in progress"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["practice", "manual-tracing", "active-learning", "p1"]
+  },
+  {
+    "id": "DIS-083",
+    "epic": "DIS",
+    "title": "Surface existing interview questions from concepts-data.ts in simulation properties panel",
+    "description": "concepts-data.ts has 4-5 interview questions per concept with model answers — already written, just not shown in the module. Surface as 'Test Your Understanding' expandable section.",
+    "acceptanceCriteria": [
+      "Interview questions visible for 6+ concepts",
+      "Questions expandable to reveal model answers",
+      "Styled consistently with properties panel"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx", "src/lib/seo/concepts-data.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["existing-content", "interview", "quick-win", "p1"]
+  },
+  {
+    "id": "DIS-084",
+    "epic": "DIS",
+    "title": "Fix module-progress.ts — only tracks 6 of 11 distributed concepts",
+    "description": "module-progress.ts:82-89 tracks: cap-theorem, consistent-hashing, raft-consensus, gossip-protocol, vector-clocks, crdt. Missing: two-phase-commit, saga-pattern, map-reduce, lamport-timestamps, paxos.",
+    "acceptanceCriteria": [
+      "All 11 distributed concepts in the progress array",
+      "IDs match SIMULATIONS array in DistributedModule.tsx"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/progress/module-progress.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["progress-tracking", "quick-win", "p1"]
+  },
+  {
+    "id": "DIS-085",
+    "epic": "DIS",
+    "title": "Add 5 comparison challenges: side-by-side protocol showdowns",
+    "description": "1. 'Raft vs Paxos: Same cluster, same failure. Which recovers faster?'\n2. 'Lamport vs Vector Clocks: Same events. Can Lamport detect concurrency?'\n3. '2PC vs Saga: Payment service crashes. Which blocks, which compensates?'\n4. 'CP vs AP: 1000 writes during partition. How many succeed?'\n5. 'Gossip fanout=1 vs fanout=3: How many rounds to convergence?'\n\nEach: scenario → user predicts → run both → show result → explain WHY.",
+    "acceptanceCriteria": [
+      "5 comparison challenges implemented",
+      "User predicts the outcome before seeing results",
+      "Explanation of WHY one protocol performs differently",
+      "Score tracked"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["practice", "comparison", "p2"]
+  },
+  {
+    "id": "DIS-086",
+    "epic": "DIS",
+    "title": "Add 5 scenario-based selection challenges (which protocol for this problem?)",
+    "description": "1. 'Chat app needing message ordering → Raft/Gossip/CRDTs?'\n2. '10M cache keys across auto-scaling servers → technique?'\n3. 'Three offline offices editing same doc → merge strategy?'\n4. 'Payment must charge card AND reserve inventory → protocol?'\n5. '100 servers detecting which are alive, no coordinator → technique?'",
+    "acceptanceCriteria": [
+      "5 scenario challenges implemented",
+      "Each has 3-4 protocol options",
+      "Feedback explains WHY correct AND WHY others don't fit",
+      "Score tracked"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["practice", "scenario", "interview-prep", "p2"]
+  },
+  {
+    "id": "DIS-087",
+    "epic": "DIS",
+    "title": "Add 3 debugging challenges: find the bug in this protocol",
+    "description": "1. Raft: 'Election timer not reset on valid heartbeat.' User identifies missing timer reset.\n2. CAP: 'CP mode accepts writes from minority partition.' User identifies missing majority check.\n3. CRDT: 'G-Counter merge uses SUM instead of MAX.' User identifies wrong merge op.\n\nEach: show buggy behavior → user identifies bug → reveal fix with explanation.",
+    "acceptanceCriteria": [
+      "3 debugging challenges implemented",
+      "Each shows visually broken behavior",
+      "User must identify the specific bug",
+      "Explanation shows what invariant the fix protects"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["practice", "debugging", "p2"]
+  },
+  {
+    "id": "DIS-088",
+    "epic": "DIS",
+    "title": "Connect existing gamification infrastructure to distributed module",
+    "description": "The platform has achievements, leaderboard, streak tracking, difficulty scaling — NONE connected to distributed module.\n\n1. streak-protector.ts → daily practice streak\n2. achievements.ts → 5 distributed achievements\n3. difficulty-scaling.ts → adaptive difficulty for predictions\n4. leaderboard.ts → score from practice activities",
+    "acceptanceCriteria": [
+      "At least 5 achievements specific to distributed module",
+      "Streak counter visible in module UI",
+      "Difficulty adapts based on prediction accuracy",
+      "Leaderboard entries from practice"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/lib/interview/achievements.ts",
+      "src/lib/innovation/streak-protector.ts",
+      "src/lib/interview/difficulty-scaling.ts",
+      "src/lib/interview/leaderboard.ts"
+    ],
+    "dependencies": ["DIS-081"],
+    "blockedBy": [],
+    "tags": ["gamification", "engagement", "p2"]
+  },
+  {
+    "id": "DIS-089",
+    "epic": "DIS",
+    "title": "Add distributed-specific weekly challenge and daily micro-challenge",
+    "description": "weekly-challenge.ts has only 1 distributed scenario. daily-challenge.ts has none.\n\nWeekly: 'Design system surviving 2 failures using Raft', 'Achieve gossip convergence in min rounds', 'Build CP system with quorum reads'\nDaily: 'Min quorum for 5-node cluster?', 'After 3 gossip rounds, how many nodes?', 'True/False: AP reads always return latest write?'",
+    "acceptanceCriteria": [
+      "3 weekly challenges",
+      "7 daily micro-challenges",
+      "Integrated into existing challenge framework"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/innovation/weekly-challenge.ts", "src/lib/interview/daily-challenge.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["practice", "daily-challenge", "p3"]
+  },
+  {
+    "id": "DIS-090",
+    "epic": "DIS",
+    "title": "Add Socratic Tutor integration for distributed simulations",
+    "description": "socratic-tutor.ts has dialogues for system design but NONE for distributed simulations. Add proactive prompts:\n- Raft (after election): 'What if TWO nodes start elections? Try crashing a different node.'\n- CAP (after partition): 'What would change in AP mode? Toggle and try.'\n- Gossip (after convergence): 'How many rounds did it take? Now kill a node.'",
+    "acceptanceCriteria": [
+      "At least 1 Socratic prompt per simulation",
+      "Prompts trigger after specific user actions",
+      "Prompts guide discovery, not give answers",
+      "User can dismiss/disable tutor"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/ai/socratic-tutor.ts", "src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["practice", "socratic-tutor", "p3"]
+  }
+]

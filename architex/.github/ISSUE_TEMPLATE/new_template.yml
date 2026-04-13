@@ -1,0 +1,78 @@
+name: New Template Submission
+description: Submit a new system design or architecture template for Architex
+title: "[Template]: "
+labels: ["template", "community-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing a template! Please provide the details below so we can review your submission.
+  - type: input
+    id: template-name
+    attributes:
+      label: Template name
+      description: The name of the template you are submitting.
+      placeholder: "e.g., Microservices Architecture, Event-Driven System, URL Shortener"
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: Which category does this template belong to?
+      options:
+        - System Design
+        - Low-Level Design
+        - Database Schema
+        - API Design
+        - Architecture Pattern
+        - Distributed System
+        - Cloud Infrastructure
+        - Data Pipeline
+        - ML System
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Complexity level
+      options:
+        - Beginner
+        - Intermediate
+        - Advanced
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear explanation of the template, what it models, and when to use it.
+    validations:
+      required: true
+  - type: textarea
+    id: components
+    attributes:
+      label: Components
+      description: List the key components/nodes in this template and their roles.
+      placeholder: |
+        - Load Balancer: Distributes incoming traffic
+        - API Gateway: Routes requests to services
+        - Cache Layer: Redis for frequently accessed data
+    validations:
+      required: true
+  - type: textarea
+    id: diagram
+    attributes:
+      label: Diagram or sketch
+      description: Provide a Mermaid diagram, screenshot, or ASCII sketch of the template layout.
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use cases
+      description: Real-world scenarios where this template would be applicable.
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Links to relevant resources, blog posts, or documentation.

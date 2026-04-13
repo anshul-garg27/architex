@@ -1,0 +1,130 @@
+[
+  {
+    "id": "CON-195", "epic": "CON", "title": "Extract shared ConcurrencyStep base interface from 7 inconsistent step/event types",
+    "description": "TYPE SMELL: The module has 7 different step/event types with no shared base, despite all sharing the pattern {tick: number, description: string, ...domain-specific}:\n\n- ThreadEvent: {tick, threadId, action, variable, value, description}\n- BufferEvent: {tick, actor, action, item?, bufferState, bufferSize, description}\n- PhilosopherEvent: {tick, philosopherId, state, forks, allForkStates, description, deadlock}\n- EventLoopStep: {tick, description, state, highlight}\n- GoroutineStep: {tick, goroutines, channels, description, action}\n- RWEvent: {tick, actor, action, readerCount, writerActive, description}\n- BarberEvent: {tick, barber, waitingRoom, capacity, customerAction, description}\n- DeadlockStep: {tick, threads, resources, description, isDeadlocked}\n- AsyncStep: {tick, pattern, promises, output?, description}\n- MutexStep: {tick, threads, lockState, description, cpuCycles}\n- PoolSnapshot: {tick, threads, queue, rejected, description}\n\nAll share {tick: number, description: string}. Extract:\n```typescript\ninterface ConcurrencyStep {\n  tick: number;\n  description: string;\n}\n\ninterface ThreadEvent extends ConcurrencyStep { threadId: string; action: ThreadAction; ... }\ninterface BufferEvent extends ConcurrencyStep { actor: string; action: BufferAction; ... }\n// etc.\n```\n\nThis enables generic playback utilities that work with any step type.",
+    "acceptanceCriteria": [
+      "ConcurrencyStep base interface with {tick, description} defined in a shared types file",
+      "All 11 step/event types extend ConcurrencyStep",
+      "Generic playback functions can accept ConcurrencyStep[] for step counting, description display, etc.",
+      "Zero breaking changes to existing engine code (extends is additive)"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/types.ts", "src/lib/concurrency/race-condition.ts", "src/lib/concurrency/producer-consumer.ts", "src/lib/concurrency/dining-philosophers.ts", "src/lib/concurrency/event-loop.ts", "src/lib/concurrency/goroutines.ts", "src/lib/concurrency/readers-writers.ts", "src/lib/concurrency/sleeping-barber.ts", "src/lib/concurrency/async-patterns.ts", "src/lib/concurrency/deadlock-demo.ts", "src/lib/concurrency/mutex-comparison.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "architecture", "shared-base", "extensibility"]
+  },
+  {
+    "id": "CON-196", "epic": "CON", "title": "Unify inconsistent naming: Event vs Step vs Snapshot across concurrency types",
+    "description": "NAMING INCONSISTENCY: The module uses 4 different naming conventions for the same concept (a single simulation tick's state):\n\n- 'Event' suffix: ThreadEvent, BufferEvent, PhilosopherEvent, RWEvent, BarberEvent (5 types)\n- 'Step' suffix: EventLoopStep, GoroutineStep, AsyncStep, MutexStep, DeadlockStep (5 types)\n- 'Snapshot' suffix: PoolSnapshot, MutexThreadSnapshot (2 types)\n- 'Entry' suffix: ThreadTimelineEntry (1 type)\n\nAll describe the same concept: the state at one tick. Convention should be unified. Recommendation: use 'Step' for all top-level per-tick types (matches the playback metaphor of 'stepping through') and 'Snapshot' for nested state captures.\n\n```typescript\n// BEFORE (inconsistent)\nThreadEvent, BufferEvent, PhilosopherEvent → ThreadStep, BufferStep, PhilosopherStep\nPoolSnapshot → ThreadPoolStep\nMutexThreadSnapshot → MutexThreadState (it's a per-thread state, not a full step)\n```",
+    "acceptanceCriteria": [
+      "All top-level per-tick types use 'Step' suffix consistently",
+      "Nested per-actor state types use 'State' or 'Snapshot' suffix",
+      "Deprecated type aliases exported for backwards compatibility during migration",
+      "All consuming code updated to new names"
+    ],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/race-condition.ts", "src/lib/concurrency/producer-consumer.ts", "src/lib/concurrency/dining-philosophers.ts", "src/lib/concurrency/readers-writers.ts", "src/lib/concurrency/sleeping-barber.ts", "src/lib/concurrency/mutex-comparison.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-195"], "blockedBy": [], "tags": ["types", "naming", "consistency"]
+  },
+  {
+    "id": "CON-197", "epic": "CON", "title": "Extract action union types from inline string literals across engines",
+    "description": "TYPE NARROWNESS: 6 engines use inline string literal unions for actions, but these are defined ONLY in the interface field — not as reusable named types:\n\n- ThreadEvent.action: 'read' | 'write' | 'lock' | 'unlock' | 'wait' | 'signal'\n- BufferEvent.action: 'produce' | 'consume' | 'wait-full' | 'wait-empty' | 'signal'\n- RWEvent.action: 'read-start' | 'read-end' | 'write-start' | 'write-end' | 'wait'\n- BarberEvent.customerAction: 'enter' | 'leave-full' | 'wake-barber' | 'sit-wait' | 'get-haircut' | 'done'\n- GoroutineStep.action: 'spawn' | 'send' | 'receive' | 'select' | 'done' | 'block'\n- PhilosopherEvent.state: 'thinking' | 'hungry' | 'eating' | 'waiting'\n\nExtract as named types:\n```typescript\nexport type ThreadAction = 'read' | 'write' | 'lock' | 'unlock' | 'wait' | 'signal';\nexport type BufferAction = 'produce' | 'consume' | 'wait-full' | 'wait-empty' | 'signal';\nexport type PhilosopherState = 'thinking' | 'hungry' | 'eating' | 'waiting';\n// etc.\n```\n\nThis enables: color maps keyed by action type, exhaustive switch statements, reuse in visualization components.",
+    "acceptanceCriteria": [
+      "Named type aliases exported for all 6 action/state union types",
+      "Interface fields reference the named types instead of inline literals",
+      "Color maps (PHILOSOPHER_STATES, RW_ACTION_COLORS, etc.) are typed with the named action types",
+      "Exhaustive switch/if-else is enabled by narrower types"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/race-condition.ts", "src/lib/concurrency/producer-consumer.ts", "src/lib/concurrency/dining-philosophers.ts", "src/lib/concurrency/readers-writers.ts", "src/lib/concurrency/sleeping-barber.ts", "src/lib/concurrency/goroutines.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "narrowness", "reusability"]
+  },
+  {
+    "id": "CON-198", "epic": "CON", "title": "Create discriminated union ConcurrencyDemoResult for type-safe demo switching",
+    "description": "TYPE SAFETY: The useConcurrencyModule hook (ConcurrencyModule.tsx:2353-3188) manages state for ALL 11 demos simultaneously via separate useState/useMemo calls. When the active demo switches, the canvas renders based on a switch statement that selects the correct viz component. But there's no TYPE-LEVEL guarantee that the right data goes to the right viz.\n\nCurrently:\n```typescript\n// No type connection between 'active' and the data passed to each viz\nconst active: ConcurrencyDemo = 'race-condition';\nconst unsafeDemo = useMemo(() => unsafeIncrement(3, 3), []);\nconst pcEvents = useMemo(() => simulateProducerConsumer(2, 2, 4, 8), []);\n// All computed simultaneously, switch selects which to render\n```\n\nProposed discriminated union:\n```typescript\ntype ActiveDemoData =\n  | { type: 'race-condition'; unsafe: RaceConditionDemo; safe: RaceConditionDemo; histogram: number[] }\n  | { type: 'producer-consumer'; events: BufferEvent[] }\n  | { type: 'dining-philosophers'; naive: PhilosopherEvent[]; ordered: PhilosopherEvent[] }\n  | { type: 'event-loop'; steps: EventLoopStep[]; demoId: EventLoopDemoId }\n  // ... etc\n```\n\nThis enables: (1) lazy computation of only the active demo's data, (2) TypeScript catches if you pass race-condition data to the producer-consumer viz, (3) cleaner switch exhaustiveness checking.",
+    "acceptanceCriteria": [
+      "ActiveDemoData discriminated union type defined with all 11 demo variants",
+      "Only the active demo's simulation data is computed (lazy evaluation)",
+      "TypeScript compiler catches mismatched data→viz connections",
+      "Switch statement on active demo is exhaustive (TS error if case missed)"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-014"], "blockedBy": [], "tags": ["types", "discriminated-union", "type-safety", "architecture"]
+  },
+  {
+    "id": "CON-199", "epic": "CON", "title": "Type the color constant maps with Record<ActionType, string> instead of Record<string, string>",
+    "description": "TYPE NARROWNESS: 8 color maps in ConcurrencyModule.tsx use Record<string, string> as their effective type, losing type safety:\n\n- PHILOSOPHER_STATES: Record<string, string> (should be Record<PhilosopherState, string>)\n- HIGHLIGHT_COLORS: Record<string, string> (should be Record<EventLoopStep['highlight'], string>)\n- GOROUTINE_STATE_COLORS: Record<Goroutine['state'], string> — GOOD, already typed ✅\n- RW_ACTION_COLORS: Record<string, string> (should be Record<RWAction, string>)\n- BARBER_ACTION_COLORS: Record<string, string> (should be Record<BarberAction, string>)\n- PROMISE_STATE_COLORS: Record<string, string> (should be Record<AsyncPromise['state'], string>)\n- DEADLOCK_THREAD_STATE_COLORS: Record<string, string> (should be Record<DeadlockThread['state'], string>)\n- MUTEX_STATE_COLORS: Record<string, string> (should be Record<MutexThreadState, string>)\n\nWith typed Records, adding a new state without adding its color becomes a TS compile error.",
+    "acceptanceCriteria": [
+      "All 8 color maps typed with the specific union type as key",
+      "Adding a new state to any union type produces a TS error if color map is not updated",
+      "GOROUTINE_STATE_COLORS pattern replicated across all maps"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-197"], "blockedBy": [], "tags": ["types", "narrowness", "exhaustiveness"]
+  },
+  {
+    "id": "CON-200", "epic": "CON", "title": "Replace PhilosopherEvent.allForkStates string[] with typed ForkState[]",
+    "description": "TYPE WEAKNESS: PhilosopherEvent.allForkStates is typed as string[] where values are 'free' | 'P0' | 'P1' | 'P2' | 'P3' | 'P4'. This string[] type loses all semantic meaning. Should be:\n\n```typescript\ntype ForkOwner = `P${number}` | 'free';\n// OR more precisely:\ntype ForkOwner = 'free' | 'P0' | 'P1' | 'P2' | 'P3' | 'P4';\n\ninterface PhilosopherEvent extends ConcurrencyStep {\n  allForkStates: ForkOwner[]; // was string[]\n  forks: [boolean, boolean];  // was boolean[] — always exactly 2 elements\n}\n```\n\nAlso: `forks: boolean[]` should be a tuple `[boolean, boolean]` since a philosopher always has exactly [left, right] — the array is always length 2.",
+    "acceptanceCriteria": [
+      "allForkStates typed with ForkOwner union instead of string[]",
+      "forks typed as tuple [boolean, boolean] instead of boolean[]",
+      "forkStateLabels helper function returns ForkOwner[] instead of string[]",
+      "Color lookup in visualization uses ForkOwner type"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/dining-philosophers.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "narrowness", "tuple"]
+  },
+  {
+    "id": "CON-201", "epic": "CON", "title": "Replace JSON.parse(JSON.stringify) deep clone with structuredClone in goroutines.ts",
+    "description": "CODE SMELL: goroutines.ts:103 uses `JSON.parse(JSON.stringify(obj))` for deep cloning. This is:\n1. Slow (serialization round-trip)\n2. Lossy (drops Date, Map, Set, undefined, functions, symbols)\n3. Not type-safe (returns any from JSON.parse)\n\nThe cloned data is simple (Goroutine[], Channel[]) with only primitives and arrays, so it works — but `structuredClone()` is available in all modern browsers and is both faster and type-safe:\n\n```typescript\n// BEFORE (goroutines.ts:103)\nfunction clone<T>(obj: T): T {\n  return JSON.parse(JSON.stringify(obj));\n}\n\n// AFTER\nfunction clone<T>(obj: T): T {\n  return structuredClone(obj);\n}\n```\n\nNote: structuredClone is available since Node 17 / all modern browsers.",
+    "acceptanceCriteria": [
+      "JSON.parse(JSON.stringify) replaced with structuredClone",
+      "Clone function retains generic <T> signature",
+      "All 5 goroutine demo functions still produce correct step sequences",
+      "No type assertion needed (structuredClone preserves types)"
+    ],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/goroutines.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "code-quality", "modernization"]
+  },
+  {
+    "id": "CON-202", "epic": "CON", "title": "Add exhaustive switch for ConcurrencyDemo type in useConcurrencyModule hook",
+    "description": "EXTENSIBILITY: The switch statement in useConcurrencyModule for `canvas` rendering (ConcurrencyModule.tsx:2545-2650) and for `maxSteps` computation (line 2441-2466) have NO default/exhaustive check. If a developer adds a new demo ID to the ConcurrencyDemo union type, TypeScript will NOT warn that the switch statement is incomplete.\n\nAdd exhaustive checking:\n```typescript\n// AFTER each switch statement:\ndefault: {\n  const _exhaustiveCheck: never = active;\n  throw new Error(`Unhandled demo: ${_exhaustiveCheck}`);\n}\n```\n\nThis makes adding a new demo type a compile error until all switch statements are updated.",
+    "acceptanceCriteria": [
+      "Both canvas switch and maxSteps switch have exhaustive never checks",
+      "Adding a new ConcurrencyDemo variant produces TypeScript compile errors in all relevant switches",
+      "Bottom panel switch also has exhaustive check"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "exhaustiveness", "extensibility", "safety"]
+  },
+  {
+    "id": "CON-203", "epic": "CON", "title": "Create shared DemoDef generic type for consistent demo definition across sub-demo systems",
+    "description": "TYPE DUPLICATION: Three sub-demo systems define similar but slightly different demo definition types:\n\n```typescript\n// event-loop.ts\ninterface EventLoopDemoDef { id: EventLoopDemoId; title: string; code: string; expectedOutput: string; }\n\n// goroutines.ts\ninterface GoroutineDemoDef { id: GoroutineDemoId; title: string; code: string; }\n\n// async-patterns.ts\ninterface AsyncPatternDef { id: AsyncPatternId; title: string; code: string; }\n\n// ConcurrencyModule.tsx\ninterface DemoDef { id: ConcurrencyDemo; name: string; description: string; }\n```\n\nFour different structures for the same concept. Extract a generic:\n```typescript\ninterface DemoDef<Id extends string> {\n  id: Id;\n  title: string;\n  code?: string;\n  description?: string;\n  expectedOutput?: string;\n}\n```",
+    "acceptanceCriteria": [
+      "Generic DemoDef<Id> type defined in shared types file",
+      "EventLoopDemoDef, GoroutineDemoDef, AsyncPatternDef all extend or use DemoDef",
+      "Top-level DemoDef in ConcurrencyModule uses the shared type",
+      "New sub-demo systems can reuse the pattern without defining a new type"
+    ],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/types.ts", "src/lib/concurrency/event-loop.ts", "src/lib/concurrency/goroutines.ts", "src/lib/concurrency/async-patterns.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-195"], "blockedBy": [], "tags": ["types", "generics", "deduplication"]
+  },
+  {
+    "id": "CON-204", "epic": "CON", "title": "Document data flow pipeline with inline JSDoc showing types at each transformation step",
+    "description": "DATA FLOW CLARITY: The complete data pipeline is:\n```\nUser clicks Play → handlePlayPause (ConcurrencyModule.tsx:2472)\n  → setInterval at 400ms → setStepIndex(s + 1)\n    → active demo data (useMemo) + stepIndex → renders viz component\n      → Viz reads events/steps[stepIndex] → renders SVG/DOM\n```\n\nThis flow is implicit — a new developer must trace through 3000+ lines to understand it. Add a JSDoc comment block at the top of useConcurrencyModule documenting:\n1. The complete data flow with types at each step\n2. Which state variables drive which UI sections\n3. How sub-demo changes (event loop tabs, goroutine tabs) interact with the main step counter\n4. The relationship between the 8 useState calls and the 15 useMemo computations",
+    "acceptanceCriteria": [
+      "JSDoc block at top of useConcurrencyModule documents the complete data flow",
+      "Each state variable annotated with what UI it drives",
+      "Sub-demo interaction pattern documented",
+      "A new developer can understand the module architecture from the JSDoc alone"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "documentation", "data-flow", "architecture"]
+  }
+]

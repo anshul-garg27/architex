@@ -1,0 +1,62 @@
+[
+  {
+    "id": "MLD-169",
+    "epic": "MLD",
+    "title": "Integrate ML Design with cross-module bridge system",
+    "description": "ML Design module has zero BridgeLink components despite the bridge system existing. Add bridge links for:\n- Feature Store → Database module (Redis/S3 architecture)\n- Pipeline Builder → System Design module (Kafka/Spark infrastructure)\n- A/B Testing → Algorithms module (statistical testing)\n- Neural Network → Data Structures module (matrix operations)\n- Model Serving → System Design module (load balancing, caching)\n- Bandits → Algorithms module (online learning, optimization)\n\nAlso add ML Design concepts to concept-module-map.ts (currently only 2 entries: feature-store and model-serving).",
+    "acceptanceCriteria": ["At least 8 BridgeLink instances across ML Design modes", "concept-module-map.ts updated with 6+ ML concepts", "Clicking a bridge link navigates to the target module with context", "RecommendedBridges panel shows relevant cross-module suggestions", "Bridge panel accessible from ML Design sidebar"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/cross-module/concept-module-map.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "cross-module", "bridge"]
+  },
+  {
+    "id": "MLD-170",
+    "epic": "MLD",
+    "title": "Connect ML Design to progress-store for XP and mastery tracking",
+    "description": "progress-store.ts has ChallengeAttempt tracking with XP, streaks, and scores. cross-module-store.ts tracks per-module mastery. ML Design uses neither.\n\nIntegrate:\n- Award XP when user completes a training run (10 XP)\n- Award XP when user switches modes (5 XP for exploring)\n- Track concept completion: mark 'neural-network' as visited, 'pipeline-builder' as visited, etc.\n- Update module mastery in cross-module-store: theory (from watching simulations) + practice (from future challenges)\n- Show mastery in sidebar header: 'ML Design — 2/6 modes explored'\n\nThis connects ML Design to the platform-wide progress system.",
+    "acceptanceCriteria": ["Visiting each mode updates cross-module-store conceptProgress", "XP awarded for training completion, mode exploration", "Module mastery updated in cross-module-store", "Progress visible in sidebar header", "SkillRadarChart shows ML Design mastery alongside other modules"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/stores/cross-module-store.ts", "src/stores/progress-store.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "progress", "gamification"]
+  },
+  {
+    "id": "MLD-171",
+    "epic": "MLD",
+    "title": "Add URL deep linking for ML Design modes and topics",
+    "description": "The app runs as a SPA at '/' with no URL routing per module/topic. For ML Design, add URL support:\n- /ml-design → opens ML Playground\n- /ml-design?mode=neural-network → opens NN mode\n- /ml-design?mode=ab-testing → opens A/B Testing mode\n- /ml-design?concept=feature-store → opens Feature Store (bridge system compatible)\n\nUse URL search params (not full routing) to avoid breaking the SPA architecture. Parse params on module load and set initial state accordingly.",
+    "acceptanceCriteria": ["URL params set initial mode when navigating to ML Design", "Sharing a URL with ?mode=pipeline-builder opens that mode directly", "Browser back/forward works for mode changes", "Bridge system paths (/ml-design?concept=feature-store) work", "URL updates when user switches modes (without full page reload)"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/app/page.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "navigation", "deep-linking"]
+  },
+  {
+    "id": "MLD-172",
+    "epic": "MLD",
+    "title": "Add ML Design concepts to command palette search",
+    "description": "The command palette (⌘K) searches modules and commands but not individual concepts within modules. Add ML Design concepts as searchable items:\n- 'Neural Network Training' → switches to ML Design, NN mode\n- 'A/B Testing' → switches to ML Design, A/B Testing mode\n- 'Feature Store' → switches to ML Design, Feature Store mode\n- 'Multi-Armed Bandit' → switches to ML Design, Experimentation mode\n- 'Pipeline Builder' → switches to ML Design, Pipeline mode\n- 'Model Serving' → switches to ML Design, Serving mode\n\nThis makes every ML concept discoverable via unified search.",
+    "acceptanceCriteria": ["Typing 'neural network' in command palette shows ML Design NN mode", "Typing 'bandit' shows Experimentation mode", "Typing 'A/B test' shows A/B Testing mode", "Selecting a result navigates to ML Design and sets the correct mode", "At least 6 ML concepts searchable in command palette"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/shared/command-palette.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "search", "discovery"]
+  },
+  {
+    "id": "MLD-173",
+    "epic": "MLD",
+    "title": "Extend onboarding overlay to introduce ML Design for first-time visitors",
+    "description": "The onboarding overlay (onboarding-overlay.tsx) has 5 steps focused on System Design (drag components, connect nodes, run simulation). When a user visits ML Design for the first time, there should be a module-specific onboarding:\n- Step 1: 'Welcome to ML Playground — train neural networks, simulate A/B tests, and explore ML systems.'\n- Step 2: 'Choose a mode from these tabs' (spotlight mode tabs)\n- Step 3: 'Adjust parameters and click Train' (spotlight NN sidebar)\n- Step 4: 'Watch the decision boundary form' (spotlight canvas)\n\nTrigger on first visit to ML Design (localStorage flag).",
+    "acceptanceCriteria": ["ML-Design-specific onboarding triggers on first visit", "4 steps covering: intro, mode tabs, parameters, run", "Spotlight highlights target elements correctly", "Dismissible at any step", "Not shown on subsequent visits (localStorage flag)", "Re-accessible via sidebar '?' button"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/shared/onboarding-overlay.tsx", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "onboarding", "first-time"]
+  },
+  {
+    "id": "MLD-174",
+    "epic": "MLD",
+    "title": "Add 'Continue where you left off' for ML Design on return visits",
+    "description": "When a user returns to ML Design after visiting another module, restore their last state:\n- Last active mode (e.g., if they were in A/B Testing, return to A/B Testing)\n- Last hyperparameter values (NN layers, neurons, learning rate)\n- Last training results (if trained, show the result — don't require re-training)\n\nUse localStorage via a dedicated ml-design-store (or extend ui-store partialize).",
+    "acceptanceCriteria": ["Returning to ML Design shows the last active mode", "NN hyperparameters restored from last session", "Trained network results shown if previously trained", "Works across page refreshes and module switches", "Graceful handling of corrupted localStorage (reset to defaults)"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "persistence", "ux"]
+  }
+]

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "CON-243", "epic": "CON", "title": "Add multi-primitive combo challenge levels (Deadlock Empire 'boss fight' style)",
+    "description": "GAP from Deadlock Empire comparison: DE's best levels (Dragonfire, Triple Danger, Boss Fight) combine multiple primitives in one challenge — e.g., mutex + semaphore + condition variable in one scenario. Our practice tasks (CON-161-163) each test ONE primitive. Add 3 'boss fight' levels that require understanding multiple primitives simultaneously:\n1. Level 1: Mutex + Condition Variable (bounded buffer with CV, not just wait/signal abstraction)\n2. Level 2: Semaphore + Barrier (N workers must all acquire permits AND reach barrier before proceeding)\n3. Level 3: Lock ordering + CAS + Thread Pool (realistic production scenario combining 3 concepts)\nSource: Deadlock Empire boss fight levels (GPL-2).",
+    "acceptanceCriteria": ["3 multi-primitive challenge levels available in practice mode", "Each level requires knowledge of 2+ primitives to solve", "Hint system references which primitive concepts to review", "Completion unlocks 'Boss Fight' achievement"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/combo-challenges.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-161", "CON-092", "CON-093"], "blockedBy": [], "tags": ["practice", "gamification", "competitor-gap", "Deadlock-Empire"]
+  },
+  {
+    "id": "CON-244", "epic": "CON", "title": "Add concurrent data structure internals demo (counter, linked list, hash table)",
+    "description": "GAP from OSTEP Ch28 + JCA: No demo shows HOW concurrent data structures work internally. Our Lock-Free DS task (CON-104) covers lock-free stack/queue, but OSTEP Ch28 teaches LOCKED data structures first: (1) concurrent counter with per-CPU partitioning, (2) concurrent linked list with hand-over-hand locking, (3) concurrent hash table with per-bucket locks. These are interview favorites at Databricks and Google.\nSource: OSTEP Ch28 'Lock-based Concurrent Data Structures', JCA ConcurrentHashMap animation.",
+    "acceptanceCriteria": ["New 'Concurrent Data Structures' demo with at least 2 sub-demos", "Concurrent counter shows naive (global lock) vs partitioned (per-CPU) approach", "Concurrent linked list shows hand-over-hand locking step-by-step", "Properties panel explains when to use lock-based vs lock-free DS"],
+    "priority": "P1", "effort": "XL", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/concurrent-ds.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-gap", "OSTEP", "interview-critical", "competitor-gap"]
+  },
+  {
+    "id": "CON-245", "epic": "CON", "title": "Add Amdahl's Law interactive calculator and visualization",
+    "description": "GAP from JCiP Ch11: Amdahl's Law is THE fundamental law of parallel computing — it determines the maximum speedup possible for any parallelizable workload. No demo covers it. Add an interactive calculator: user sets % parallelizable (slider 0-100%) and thread count (slider 1-64), sees the speedup curve.\nFormula: Speedup = 1 / ((1 - P) + P/N) where P = parallel fraction, N = processors.\nThe visualization should show diminishing returns: '90% parallelizable with 10 threads = 5.3x speedup, but 100 threads only gives 9.2x — that last 10% sequential code is the bottleneck.'\nSource: JCiP Ch11, Amdahl 1967.",
+    "acceptanceCriteria": ["Interactive Amdahl's Law calculator with sliders for parallelizable fraction and thread count", "Live speedup curve chart updates as sliders change", "Shows diminishing returns visually — curve flattens", "Properties panel explains practical implications for lock contention"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-gap", "JCiP", "fundamental", "interactive"]
+  },
+  {
+    "id": "CON-246", "epic": "CON", "title": "Add low-level lock implementation demos: ticket lock, test-and-set, fetch-and-add",
+    "description": "GAP from OSTEP Ch27: Our Lock Comparison (SpinLock/Mutex/TTAS) skips the underlying hardware primitives. OSTEP Ch27 teaches: (1) test-and-set (TAS) — the simplest atomic instruction, (2) compare-and-swap (CAS) — already in CON-095, (3) fetch-and-add — atomic increment, (4) ticket lock — fairness via turn-taking using fetch-and-add. Add these as sub-demos under Lock Comparison.\nSource: OSTEP Ch27 'Locks', Herlihy Ch7.",
+    "acceptanceCriteria": ["Test-and-set sub-demo showing the atomic read-modify-write in one step", "Fetch-and-add sub-demo showing atomic increment", "Ticket lock sub-demo showing FIFO fairness via ticket+turn numbers", "Properties panel compares fairness: TAS (unfair) vs ticket lock (fair) vs TTAS (reduced contention)"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/low-level-locks.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-gap", "OSTEP", "hardware-primitives"]
+  },
+  {
+    "id": "CON-247", "epic": "CON", "title": "Add volatile / safe publication / thread-confinement demo",
+    "description": "GAP from JCiP Ch3: Our Memory Model demo (CON-094) covers happens-before and memory barriers but NOT the three fundamental strategies for sharing objects safely: (1) volatile — guarantees visibility but not atomicity, (2) safe publication — using synchronization, final fields, or volatile to make object state visible to other threads, (3) thread confinement — keeping data on one thread (stack confinement, ThreadLocal). These are senior Java interview fundamentals.\nSource: JCiP Ch3 'Sharing Objects'.",
+    "acceptanceCriteria": ["Volatile demo shows visibility guarantee: Thread A sets flag=true, Thread B reads flag", "Safe publication demo shows unsafe vs safe object construction", "Thread confinement demo shows ThreadLocal pattern", "Properties panel explains when each strategy applies"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/sharing-objects.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-094"], "blockedBy": [], "tags": ["content-gap", "JCiP", "interview-critical"]
+  },
+  {
+    "id": "CON-248", "epic": "CON", "title": "Add thread pool sizing interactive calculator (Little's Law + practical heuristics)",
+    "description": "GAP from JCiP Ch8: No demo helps users SIZE their thread pools. Add an interactive calculator:\n- Input: avg task duration, target throughput, CPU count\n- Output: recommended pool size using formulas:\n  - CPU-bound: N_threads = N_cpus + 1\n  - I/O-bound: N_threads = N_cpus * (1 + wait_time/compute_time)\n  - Little's Law: N = throughput * latency\n- Visualization: show utilization curve as pool size increases\nSource: JCiP Ch8 'Sizing Thread Pools', Little's Law.",
+    "acceptanceCriteria": ["Interactive calculator with sliders for task duration, throughput, CPU count", "Shows CPU-bound vs I/O-bound recommendations", "Little's Law visualization with utilization curve", "Properties panel explains over-provisioning risks (context switch overhead)"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-gap", "JCiP", "production-tool", "interactive"]
+  },
+  {
+    "id": "CON-249", "epic": "CON", "title": "Add goroutine/resource leak visualization as a dedicated demo",
+    "description": "GAP from GoTrace: Our goroutine select demo MENTIONS the leak at step 6 ('sender-1 is leaked') but doesn't make it a TEACHING FOCUS. GoTrace has dedicated leak visualization. Add a 'Resource Leaks' demo showing: (1) goroutine leak: spawned goroutine blocked on channel with no reader, (2) timer leak: time.After in loop creating unreferenced timers, (3) connection leak: opened but never closed. Each with visual 'decay' animation showing the resource wasting away.\nSource: GoTrace leak visualization, Go blog 'Concurrency Patterns: Context'.",
+    "acceptanceCriteria": ["New 'Resource Leaks' demo with at least 2 leak scenarios", "Goroutine leak shows blocked goroutine with visual decay/dimming over time", "Properties panel explains detection strategies (runtime.NumGoroutine, pprof)", "Cross-reference to Go Goroutines select demo that already shows the leak"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/resource-leaks.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-gap", "GoTrace", "production-bugs"]
+  },
+  {
+    "id": "CON-250", "epic": "CON", "title": "Add colorblind-safe palette option for all concurrency state colors",
+    "description": "EDGE CASE GAP: All concurrency visualizations use red/green color pairs for state distinction (running=#22c55e vs blocked=#ef4444, hold-arrow=#22c55e vs wait-arrow=#ef4444, safe=green vs unsafe=red). These are indistinguishable for deuteranopia (8% of males) and protanopia.\nUse IBM's colorblind-safe palette (yellow #FFB000, blue #648FFF, orange #FE6100, purple #785EF0) or add pattern/shape backup. The platform batch-quality.json has a generic 'Colorblind-safe palette option' task but nothing concurrency-specific.\nReplace: green→blue, red→orange for ALL state maps when colorblind mode is active.",
+    "acceptanceCriteria": ["Colorblind toggle in settings or auto-detect from OS accessibility", "All state colors use IBM colorblind-safe palette when active", "Red/green pairs replaced with blue/orange or yellow/purple", "Shape/pattern backup on ALL 8 color-only state indicators (from CON-065)"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/concurrency-tokens.css"],
+    "dependencies": ["CON-182"], "blockedBy": [], "tags": ["a11y", "colorblind", "edge-case", "critical"]
+  },
+  {
+    "id": "CON-251", "epic": "CON", "title": "Implement light mode support for all concurrency visualizations",
+    "description": "EDGE CASE GAP: CON-182 creates CSS custom properties foundation but NEVER implements light mode. All 95 hex colors are designed for dark backgrounds (#1e293b, #334155). In light mode, these will be invisible or low-contrast. Need a complete light mode color set:\n- Dark bg fills → light bg fills\n- White text → dark text\n- Neon accent colors → muted accent colors\n- SVG stroke colors adjusted for light backgrounds\nDark mode remains default; light mode activates with platform theme toggle.",
+    "acceptanceCriteria": ["Light mode CSS variables defined for all concurrency state colors", "All SVG visualizations readable in light mode (text, fills, strokes)", "Toggle works via platform theme setting (ui-store theme preference)", "No visual regression in dark mode"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/concurrency/concurrency-tokens.css", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-182"], "blockedBy": ["CON-182"], "tags": ["visual", "light-mode", "theming", "edge-case"]
+  },
+  {
+    "id": "CON-252", "epic": "CON", "title": "Add print stylesheet for concurrency module — professors need printable diagrams",
+    "description": "EDGE CASE GAP: Zero @media print rules exist in the entire platform. Professors want to print concurrency diagrams for handouts. Currently printing produces: dark backgrounds wasting ink, invisible text, broken interactive controls, and SVG elements that may not render.\nAdd @media print rules:\n- White background, dark text\n- Hide playback controls, sidebar, activity bar\n- Show only: current visualization state + step description + concept name\n- SVG elements use high-contrast print colors\n- Each demo prints on one page (page-break-inside: avoid)",
+    "acceptanceCriteria": ["@media print stylesheet shows clean white-background visualization", "Playback controls, sidebar, and activity bar hidden in print", "SVG visualizations render with print-safe colors (black/gray, no neon)", "Each demo fits on one printed page"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/app/globals.css"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "print", "professor", "edge-case"]
+  },
+  {
+    "id": "CON-253", "epic": "CON", "title": "Add responsive breakpoints to ALL 11 remaining demos (not just Event Loop)",
+    "description": "EDGE CASE GAP: CON-185 adds responsive breakpoints to Event Loop's grid-cols-4 layout only. The other 11 demos have NO responsive handling. On iPad split-screen (~507px), Dining Philosophers SVG is tiny, Lock Comparison 3-column layout is cramped, and side-by-side demos (DiningPhilosophers naive+ordered, DeadlockDemo deadlock+prevention) stack poorly.\nAdd responsive breakpoints to all demos:\n- <640px: side-by-side layouts stack vertically, SVGs scale to full width\n- 640-1024px: side-by-side maintained with smaller gap\n- >1024px: current layout preserved",
+    "acceptanceCriteria": ["All side-by-side demos (Philosophers, Deadlock) stack vertically below 640px", "Lock Comparison 3-column layout adapts to 1-column below 640px", "SVG viewBoxes scale to full container width on narrow screens", "No horizontal scrolling at any viewport width down to 320px"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-014"], "blockedBy": [], "tags": ["responsive", "mobile", "tablet", "edge-case"]
+  }
+]

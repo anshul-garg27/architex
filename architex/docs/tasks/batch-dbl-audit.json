@@ -1,0 +1,1304 @@
+[
+  {
+    "id": "DBL-023",
+    "epic": "DBL",
+    "title": "Fix bridge buttons that log to console instead of acting",
+    "description": "ShardingSimulator.tsx:312 'Create Sharded Topology on Canvas' and QueryPlanSimulation.tsx:576 'Apply Index Strategy to Canvas' only console.log. Either implement canvas topology creation or replace with disabled state + tooltip explaining future feature.",
+    "acceptanceCriteria": [
+      "Both buttons either perform their described action or are visually marked as 'Coming Soon' with disabled state",
+      "No console.log-only onClick handlers remain in Learn panel components"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 1,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/ShardingSimulator.tsx",
+      "src/components/modules/database/QueryPlanSimulation.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "learn-panel",
+      "bridge-buttons"
+    ]
+  },
+  {
+    "id": "DBL-024",
+    "epic": "DBL",
+    "title": "Clear all animation timers on mode switch",
+    "description": "DatabaseModule.tsx:4065-4076 handleSelectMode only clears timerRef but not btreeTimerRef, hashTimerRef, or lsmTimerRef. Add cleanup for all 4 timer refs when switching modes to prevent background state mutation and CPU waste.",
+    "acceptanceCriteria": [
+      "Switching modes while B-tree/Hash/LSM animation is playing stops the animation immediately",
+      "No setInterval callbacks fire after mode switch for any engine"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 1,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "timer-leak",
+      "state-management"
+    ]
+  },
+  {
+    "id": "DBL-025",
+    "epic": "DBL",
+    "title": "Start B-Tree/Hash/LSM animations at step 0 instead of final state",
+    "description": "DatabaseModule.tsx:3767 setBtreeStepIndex(steps.length - 1) jumps to final state on insert. Same pattern for hash (:3857) and LSM (:3975). Users miss the step-by-step learning. Change to setBtreeStepIndex(0) so users see the animation from the beginning.",
+    "acceptanceCriteria": [
+      "After B-tree insert, step index is 0 and user must click Step or Play to advance",
+      "After Hash insert, step index is 0",
+      "After LSM write, step index is 0",
+      "Play button auto-advances from step 0 through all steps"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 1,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "learning",
+      "animation",
+      "cognitive-walkthrough"
+    ]
+  },
+  {
+    "id": "DBL-026",
+    "epic": "DBL",
+    "title": "Replace 50+ hardcoded hex colors with CSS variables in SVG canvases",
+    "description": "DatabaseModule.tsx lines 269-1435: ERDiagramCanvas, BTreeCanvas, HashIndexCanvas, QueryPlanCanvas use hardcoded colors like #64748b, #3b82f6, #0f172a, #fbbf24. Replace all with CSS variable references (var(--border), var(--primary), var(--foreground), etc.) to support theming. Also fix bg-[#0a0f1a] at line 3369.",
+    "acceptanceCriteria": [
+      "Zero hardcoded hex color values remain in DatabaseModule.tsx SVG elements",
+      "All canvases render correctly in both dark and light themes",
+      "Generated SQL panel uses themed background instead of #0a0f1a"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 1,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "theming",
+      "design-system",
+      "cross-module"
+    ]
+  },
+  {
+    "id": "DBL-027",
+    "epic": "DBL",
+    "title": "Fix ER diagram drag offset to account for container scroll",
+    "description": "DatabaseModule.tsx:228 uses evt.clientX - dragging.offsetX without accounting for the SVG container's scroll position. When the overflow-auto container at line 248 is scrolled, entities jump to wrong positions. Fix: use SVG.getScreenCTM() or subtract container.getBoundingClientRect() from clientX/Y.",
+    "acceptanceCriteria": [
+      "Entities can be dragged accurately when the ER canvas is scrolled horizontally or vertically",
+      "Drag position matches cursor position regardless of scroll offset"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 1,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "er-diagram",
+      "drag-drop"
+    ]
+  },
+  {
+    "id": "DBL-028",
+    "epic": "DBL",
+    "title": "Split DatabaseModule.tsx into 9+ focused files",
+    "description": "DatabaseModule.tsx is 4289 lines containing 7 canvas components, sidebar, properties, bottom panel, and hook. Split into: canvases/ERDiagramCanvas.tsx, canvases/BTreeCanvas.tsx, canvases/HashIndexCanvas.tsx, canvases/QueryPlanCanvas.tsx, canvases/LSMCanvas.tsx, DatabaseSidebar.tsx, DatabaseProperties.tsx, DatabaseBottomPanel.tsx, useDatabaseModule.ts.",
+    "acceptanceCriteria": [
+      "DatabaseModule.tsx is under 100 lines (just exports and re-exports)",
+      "Each extracted component is self-contained with its own imports",
+      "All 7 modes continue to function identically after split",
+      "No circular dependencies between extracted files"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "code-quality",
+      "maintainability"
+    ]
+  },
+  {
+    "id": "DBL-029",
+    "epic": "DBL",
+    "title": "Add animation speed control slider to all engines",
+    "description": "B-Tree, Hash Index, and LSM-Tree animations use hardcoded 800ms interval (DatabaseModule.tsx:3800,3901,4026). Transaction uses 900ms (:3710). Add a speed slider (0.5x-4x) consistent with AlgorithmModule's speed control.",
+    "acceptanceCriteria": [
+      "Speed slider appears in sidebar when any step-based mode is active",
+      "Slider adjusts playback speed from 0.5x (1600ms) to 4x (200ms)",
+      "Speed persists across mode switches within a session",
+      "Transaction isolation also respects speed setting"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "animation",
+      "cross-module-consistency"
+    ]
+  },
+  {
+    "id": "DBL-030",
+    "epic": "DBL",
+    "title": "Add ARIA labels and keyboard navigation to SVG canvases",
+    "description": "All SVG canvases (ER, BTree, Hash, QueryPlan, LSM) at DatabaseModule.tsx:249+ lack role, aria-label, aria-live attributes. ER entities have mouse handlers but no keyboard handlers (:370). Add: role='img' with aria-label on SVGs, aria-live='polite' on step description bars, tabindex and onKeyDown on interactive SVG elements.",
+    "acceptanceCriteria": [
+      "All 5 SVG canvases have role='img' and descriptive aria-label",
+      "Step description bars use aria-live='polite' so screen readers announce changes",
+      "ER entities are keyboard-reachable via Tab and activatable via Enter/Space",
+      "B-tree/Hash nodes can be focused for screen reader description"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/canvases/BTreeCanvas.tsx",
+      "src/components/modules/database/canvases/HashIndexCanvas.tsx",
+      "src/components/modules/database/canvases/ERDiagramCanvas.tsx",
+      "src/components/modules/database/canvases/QueryPlanCanvas.tsx",
+      "src/components/modules/database/canvases/LSMCanvas.tsx",
+      "src/components/modules/database/canvases/TransactionCanvas.tsx",
+      "src/components/modules/database/canvases/NormalizationCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "accessibility",
+      "aria",
+      "keyboard-navigation"
+    ]
+  },
+  {
+    "id": "DBL-031",
+    "epic": "DBL",
+    "title": "Add 'why' explanations to B-Tree and LSM-Tree step descriptions",
+    "description": "btree-viz.ts:112-155 descriptions say WHAT happened ('Inserted key 42 into leaf') but not WHY ('because 42 > 10 and the right child contains values > 10'). lsm-viz.ts has similar gaps. Add reasoning to each step description for all 3 operation types (insert, search, split in BTree; write, flush, compact, read in LSM).",
+    "acceptanceCriteria": [
+      "Every B-tree insert step explains WHY the algorithm descended to that child",
+      "Every B-tree split step explains WHY the split was triggered (node full)",
+      "Every LSM flush step explains WHY the flush happened (memtable capacity reached)",
+      "Every LSM compact step explains WHY compaction was triggered (level exceeds threshold)",
+      "Descriptions are in conversational tone, not CS jargon"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/btree-viz.ts",
+      "src/lib/database/lsm-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "educational",
+      "content-quality",
+      "learning"
+    ]
+  },
+  {
+    "id": "DBL-032",
+    "epic": "DBL",
+    "title": "Add non-color state encoding to all visualizers",
+    "description": "Multiple visualizers use color alone for state: NF badge (DatabaseModule.tsx:514-519 red/orange/green), query plan cost (lines 1359-1365 green/yellow/red), B-tree highlight (blue only). Add shape/text backup: NF badge already has text label (good), but cost colors need icon or label, and B-tree highlight needs a border or marker.",
+    "acceptanceCriteria": [
+      "Query plan cost nodes show text label ('Low'/'Med'/'High') in addition to color",
+      "B-tree highlighted node has a visible border pattern (not just color change)",
+      "Hash index highlighted bucket has a visible marker icon",
+      "All state distinctions pass WCAG 2.1 AA 1.4.1 Use of Color"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-026"
+    ],
+    "tags": [
+      "accessibility",
+      "color-blind",
+      "wcag"
+    ]
+  },
+  {
+    "id": "DBL-033",
+    "epic": "DBL",
+    "title": "Add undo/redo stack for ER diagram mutations",
+    "description": "ER diagram entity and attribute deletions (DatabaseModule.tsx:3496-3568) are permanent with no undo. Implement an undo/redo stack (15-20 entries) for entity add/delete, attribute add/delete/update, relationship add/delete, and entity move operations.",
+    "acceptanceCriteria": [
+      "Ctrl+Z undoes the last ER diagram mutation",
+      "Ctrl+Shift+Z or Ctrl+Y redoes",
+      "Undo/redo buttons visible in ER diagram sidebar",
+      "Stack depth of at least 15 operations",
+      "Entity position changes during drag are batched (one undo for entire drag, not per-pixel)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "ux",
+      "er-diagram",
+      "undo-redo"
+    ]
+  },
+  {
+    "id": "DBL-034",
+    "epic": "DBL",
+    "title": "Add confirmation dialog before ER entity deletion",
+    "description": "DatabaseModule.tsx:3496-3507 deletes entity and all relationships without confirmation. Show a confirmation dialog listing what will be deleted: the entity name and count of relationships that will be removed.",
+    "acceptanceCriteria": [
+      "Clicking 'Delete Entity' shows a confirmation dialog before deleting",
+      "Dialog shows entity name and number of affected relationships",
+      "Cancel returns to properties panel without deleting",
+      "Keyboard shortcut Delete also triggers confirmation"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "error-recovery",
+      "er-diagram"
+    ]
+  },
+  {
+    "id": "DBL-035",
+    "epic": "DBL",
+    "title": "Deduplicate er-to-sql.ts and schema-converter.ts",
+    "description": "er-to-sql.ts and schema-converter.ts contain identical TYPE_MAP, toSnake, indent functions. The module only uses generateSQL from er-to-sql.ts. Either: (a) remove er-to-sql.ts and use erToSQL from schema-converter.ts, or (b) extract shared helpers into a common file.",
+    "acceptanceCriteria": [
+      "No duplicated type maps, toSnake, or indent functions across files",
+      "generateSQL in DatabaseModule.tsx still works correctly",
+      "All 13 schema-converter tests still pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/er-to-sql.ts",
+      "src/lib/database/schema-converter.ts",
+      "src/lib/database/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "dedup",
+      "code-quality"
+    ]
+  },
+  {
+    "id": "DBL-036",
+    "epic": "DBL",
+    "title": "Add prefers-reduced-motion support to all animated components",
+    "description": "ConsistencyLevelDemo.tsx, ShardingSimulator.tsx, ReplicationLagVisualizer.tsx, QueryPlanSimulation.tsx use motion/react animations. TransactionStepCard uses animate-pulse (DatabaseModule.tsx:716). None check prefers-reduced-motion. Add useReducedMotion() hook and disable/reduce animations when user prefers reduced motion.",
+    "acceptanceCriteria": [
+      "All motion/react animations respect prefers-reduced-motion: reduced",
+      "CSS animate-pulse on TransactionStepCard respects media query",
+      "Functional behavior (step advancement, state updates) works identically with reduced motion"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/ConsistencyLevelDemo.tsx",
+      "src/components/modules/database/ShardingSimulator.tsx",
+      "src/components/modules/database/ReplicationLagVisualizer.tsx",
+      "src/components/modules/database/QueryPlanSimulation.tsx",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "reduced-motion",
+      "animation"
+    ]
+  },
+  {
+    "id": "DBL-037",
+    "epic": "DBL",
+    "title": "Add SVG entry animations for B-Tree, Hash, and LSM canvas state changes",
+    "description": "SVG canvases render state changes instantly \u2014 nodes appear/disappear with no visual transition. Add CSS/SVG transitions: new nodes fade in (opacity 0\u21921), moved nodes slide (transform), deleted nodes fade out. Use CSS transitions on SVG elements since these canvases don't use motion/react.",
+    "acceptanceCriteria": [
+      "B-tree node insertions animate (fade in over 200ms)",
+      "B-tree splits show the new node sliding into position",
+      "Hash index new entries highlight briefly then settle",
+      "LSM-tree SSTable creation animates (slide down from memtable position)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "animation",
+      "visual-quality",
+      "delight"
+    ]
+  },
+  {
+    "id": "DBL-038",
+    "epic": "DBL",
+    "title": "Add localStorage persistence for ER diagram and engine states",
+    "description": "All state is ephemeral useState. Add localStorage persistence for: ER entities/relationships (auto-save on change), active mode, normalization input, B-tree/hash/LSM engine state snapshots. Use a debounced save (500ms) and validate on load.",
+    "acceptanceCriteria": [
+      "ER diagram entities and relationships persist across tab refresh",
+      "Last active mode is restored on reload",
+      "Normalization input fields persist",
+      "B-tree, hash, LSM engine states are serializable and restored",
+      "Corrupt localStorage data is handled gracefully (fallback to defaults)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "persistence",
+      "ux",
+      "retention"
+    ]
+  },
+  {
+    "id": "DBL-039",
+    "epic": "DBL",
+    "title": "Cap normalization attribute count to prevent browser freeze",
+    "description": "normalization.ts:97 uses 1 << remaining.length for power-set enumeration. With 20+ attributes, this is 1M+ iterations that can freeze the browser. Add a guard: if remaining.length > 15, show a warning and fall back to a greedy heuristic instead of exhaustive search.",
+    "acceptanceCriteria": [
+      "Relations with 16+ non-core attributes show a warning about exponential complexity",
+      "Fallback heuristic produces correct (possibly incomplete) candidate keys",
+      "Relations with \u226415 non-core attributes continue to use exhaustive search",
+      "No browser freeze on any input"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/normalization.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "security",
+      "performance",
+      "input-validation"
+    ]
+  },
+  {
+    "id": "DBL-040",
+    "epic": "DBL",
+    "title": "Reduce DatabaseSidebar prop count using context or compound pattern",
+    "description": "DatabaseSidebar receives 75+ individual props (DatabaseModule.tsx:1854-1999). Extract mode-specific state into a DatabaseModeContext or use compound component pattern so each mode section only receives its relevant props.",
+    "acceptanceCriteria": [
+      "DatabaseSidebar receives \u226415 props",
+      "Mode-specific controls access state via context or scoped props",
+      "All sidebar functionality works identically after refactor"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "architecture",
+      "code-quality",
+      "prop-drilling"
+    ]
+  },
+  {
+    "id": "DBL-041",
+    "epic": "DBL",
+    "title": "Add responsive layout for SVG canvases on mobile",
+    "description": "ERDiagramCanvas uses minWidth: 900 (DatabaseModule.tsx:254) forcing horizontal scroll on mobile. B-Tree, Hash, LSM canvases also compute fixed SVG dimensions. Add responsive behavior: on viewport < 768px, use viewBox scaling and remove min-width constraints.",
+    "acceptanceCriteria": [
+      "ER canvas is usable on 375px wide viewport without horizontal scroll",
+      "B-Tree, Hash, LSM canvases scale to fit available width via viewBox",
+      "Touch targets in sidebar buttons meet 44x44px minimum on mobile"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "mobile",
+      "responsive",
+      "touch-targets"
+    ]
+  },
+  {
+    "id": "DBL-042",
+    "epic": "DBL",
+    "title": "Write unit tests for normalization, btree-viz, hash-index-viz, lsm-viz, query-plan engines",
+    "description": "Only schema-converter.test.ts exists (13 tests). Write comprehensive unit tests for the other 5 engines: normalization.ts (closure, keys, NF detection, decomposition), btree-viz.ts (insert, search, split), hash-index-viz.ts (insert, search, delete, resize, overflow), lsm-viz.ts (write, flush, compact, read), query-plan.ts (PK lookup, filter, JOIN, aggregate, ORDER BY, LIMIT).",
+    "acceptanceCriteria": [
+      "normalization.test.ts: \u22658 tests including edge cases (single attribute, already 3NF, BCNF detection)",
+      "btree-viz.test.ts: \u22656 tests including root split, search miss, duplicate key",
+      "hash-index-viz.test.ts: \u22658 tests including resize trigger, overflow chain, delete from chain",
+      "lsm-viz.test.ts: \u22658 tests including write overwrite, flush to L0, cascade compaction, read-through-levels",
+      "query-plan.test.ts: \u22656 tests including JOIN, PK lookup, unparseable SQL",
+      "All tests pass in CI"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/__tests__/normalization.test.ts",
+      "src/lib/database/__tests__/btree-viz.test.ts",
+      "src/lib/database/__tests__/hash-index-viz.test.ts",
+      "src/lib/database/__tests__/lsm-viz.test.ts",
+      "src/lib/database/__tests__/query-plan.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "unit-tests",
+      "coverage"
+    ]
+  },
+  {
+    "id": "DBL-043",
+    "epic": "DBL",
+    "title": "Add difficulty labels and learning path ordering to modes",
+    "description": "DatabaseModule.tsx:90-126 lists 7 modes with no difficulty labels or ordering hints. Add difficulty badges (Beginner/Intermediate/Advanced), reorder by complexity, and add 'Recommended next' links between related modes (ER \u2192 Normalization \u2192 Query Plans, B-Tree \u2192 Hash Index).",
+    "acceptanceCriteria": [
+      "Each mode shows a difficulty badge (Beginner/Intermediate/Advanced)",
+      "Modes are ordered: ER Diagram, Normalization, Transaction Isolation, B-Tree, Hash Index, Query Plans, LSM-Tree",
+      "After completing a mode's demo, a 'Try next' suggestion appears linking to the related mode",
+      "Optional: modes can be grouped by category in the sidebar"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "learning-path",
+      "content-strategy",
+      "ux"
+    ]
+  },
+  {
+    "id": "DBL-044",
+    "epic": "DBL",
+    "title": "Add inline normalization feedback to ER diagram mode",
+    "description": "When user has ER entities with attributes, analyze the implicit functional dependencies and show normalization hints inline. E.g., 'This table may have a partial dependency \u2014 click to see normalization analysis.' This bridges ER diagram mode and normalization mode, which no competitor tool offers.",
+    "acceptanceCriteria": [
+      "Entities with 3+ attributes show a subtle NF indicator (e.g., small badge: '2NF')",
+      "Clicking the indicator navigates to normalization mode pre-filled with that entity's attributes",
+      "Indicator updates as user adds/removes attributes"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/normalization.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "innovation",
+      "educational",
+      "cross-mode-integration"
+    ]
+  },
+  {
+    "id": "DBL-045",
+    "epic": "DBL",
+    "title": "Add 'Predict then verify' mode to B-Tree and Hash Index",
+    "description": "Before showing the result of an insert/search, ask the user 'Which child/bucket will this key go to?' Let them click a node/bucket, then reveal the correct answer with explanation. This transforms passive watching into active learning (germane cognitive load).",
+    "acceptanceCriteria": [
+      "Toggle in sidebar enables 'Predict Mode' for B-Tree and Hash Index",
+      "In Predict Mode, after entering a key, the visualization pauses and highlights clickable targets",
+      "User clicks their prediction; system reveals correct answer with green (correct) or red (incorrect) + explanation",
+      "Score counter tracks correct/incorrect predictions per session"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/btree-viz.ts",
+      "src/lib/database/hash-index-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028",
+      "DBL-025"
+    ],
+    "tags": [
+      "innovation",
+      "gamification",
+      "active-learning",
+      "engagement"
+    ]
+  },
+  {
+    "id": "DBL-046",
+    "epic": "DBL",
+    "title": "Add side-by-side comparison mode for transaction isolation levels",
+    "description": "Currently users must switch between isolation levels sequentially. Add a split-view where two isolation levels run the same scenario simultaneously, making it visually obvious which anomalies each level prevents.",
+    "acceptanceCriteria": [
+      "'Compare' button in transaction isolation sidebar enables split-view",
+      "User selects two isolation levels to compare",
+      "Both run the same scenario step-by-step in parallel columns",
+      "Anomaly differences are highlighted (one shows anomaly, other shows prevention)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/canvases/TransactionCanvas.tsx",
+      "src/components/modules/database/useDatabaseModule.ts",
+      "src/components/modules/database/DatabaseSidebar.tsx",
+      "src/lib/database/transaction-sim.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "innovation",
+      "educational",
+      "comparison-mode"
+    ]
+  },
+  {
+    "id": "DBL-047",
+    "epic": "DBL",
+    "title": "Connect query plan visualizer to index modes: show B-tree traversal for SQL queries",
+    "description": "When user writes a SQL query in query plan mode and the plan shows IndexScan, add a 'See index traversal' button that switches to B-Tree mode pre-loaded with sample data and highlights the search path for the query's WHERE value. No competitor bridges SQL \u2192 index internals.",
+    "acceptanceCriteria": [
+      "IndexScan nodes in query plan canvas show 'See traversal' link",
+      "Clicking link switches to B-Tree mode with a pre-built tree and auto-runs search for the query value",
+      "User can return to query plan mode with browser back or a 'Return to plan' button"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/query-plan.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028",
+      "DBL-031"
+    ],
+    "tags": [
+      "innovation",
+      "cross-mode-integration",
+      "sql-to-index"
+    ]
+  },
+  {
+    "id": "DBL-048",
+    "epic": "DBL",
+    "title": "Add sonification to B-Tree and sorting visualizations",
+    "description": "Map B-tree key comparisons to musical notes using Web Audio API. Higher keys = higher pitch. Each comparison during search plays a note, creating a descending melody as the tree narrows down. Each split creates a chord. This multi-sensory approach aids learning and is shareable content.",
+    "acceptanceCriteria": [
+      "Sound toggle button in B-Tree mode (off by default)",
+      "Key comparisons during search produce pitched notes via Web Audio API",
+      "Splits produce a distinct chord sound",
+      "Sound respects system mute and volume settings",
+      "No audio plays when sound is toggled off"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "innovation",
+      "sonification",
+      "delight",
+      "multi-sensory"
+    ]
+  },
+  {
+    "id": "DBL-049",
+    "epic": "DBL",
+    "title": "Add export-to-image for ER diagrams and visualizations",
+    "description": "Users cannot share or save their ER diagrams or visualization states. Add 'Export as PNG' button that captures the current canvas state using html-to-image or svg-to-png conversion. Include Architex branding watermark for shareability.",
+    "acceptanceCriteria": [
+      "Export button visible on ER diagram, B-Tree, Hash, Query Plan, LSM canvases",
+      "Clicking generates a PNG download of the current canvas state",
+      "Exported image includes a subtle Architex watermark/branding",
+      "Export works on desktop and mobile browsers"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "innovation",
+      "shareability",
+      "export",
+      "virality"
+    ]
+  },
+  {
+    "id": "DBL-050",
+    "epic": "DBL",
+    "title": "Add ORM code generation alongside SQL (Prisma, Drizzle, Django)",
+    "description": "The ER-to-SQL generator is useful but modern developers often use ORMs. Add export targets for Prisma schema, Drizzle ORM, and Django models. Users see their ER diagram as real-world code they'd write at their job. Research shows this is a top GitHub request (DrawDB #87, ChartDB #72).",
+    "acceptanceCriteria": [
+      "Generate SQL tab gains sub-tabs: SQL, Prisma, Drizzle, Django",
+      "Each ORM output correctly represents entities, PKs, FKs, and relationships",
+      "M:N relationships generate appropriate ORM patterns (Prisma relation tables, Django ManyToManyField)",
+      "Code output has syntax highlighting"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/schema-converter.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-035"
+    ],
+    "tags": [
+      "innovation",
+      "code-generation",
+      "orm",
+      "practical-value"
+    ]
+  },
+  {
+    "id": "DBL-051",
+    "epic": "DBL",
+    "title": "Add 'Worst Case Finder' mode: user crafts inputs that break algorithms",
+    "description": "Invert the learning relationship \u2014 instead of watching an algorithm succeed, challenge the user to BREAK it. 'Find the input sequence that makes this B-tree produce the most splits' or 'Find the hash keys that create the longest collision chain.' This teaches worst-case analysis through active exploration.",
+    "acceptanceCriteria": [
+      "Challenge mode toggle available for B-Tree and Hash Index",
+      "B-Tree challenge: 'Maximize splits in 10 insertions' with a split counter",
+      "Hash challenge: 'Create a chain of length 5 or more' with chain length indicator",
+      "Success state shows congratulations + explanation of worst-case complexity"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/btree-viz.ts",
+      "src/lib/database/hash-index-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "innovation",
+      "gamification",
+      "worst-case-analysis",
+      "active-learning"
+    ]
+  },
+  {
+    "id": "DBL-052",
+    "epic": "DBL",
+    "title": "Add pre-training tooltips and glossary for database terminology",
+    "description": "Terms like 'candidate key', 'functional dependency', 'memtable', 'SSTable', 'load factor' appear in the UI without explanation. Add hover tooltips on first occurrence and a '?' button linking to a glossary panel. This addresses Mayer's Pre-Training principle (D21 score: 1/5).",
+    "acceptanceCriteria": [
+      "Technical terms in the UI have hover tooltips with 1-sentence definitions",
+      "Glossary panel accessible via '?' button in each mode",
+      "Tooltips appear on first use only (don't annoy returning users)",
+      "At least 15 key terms have definitions"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "educational",
+      "onboarding",
+      "mayer-pre-training",
+      "cognitive-load"
+    ]
+  },
+  {
+    "id": "DBL-053",
+    "epic": "DBL",
+    "title": "Add before/after index impact comparison with animated cost delta",
+    "description": "QueryPlanSimulation.tsx already has index toggles and plan regeneration. Add: (1) snapshot the plan BEFORE toggle, (2) after toggle show both plans side-by-side, (3) animate cost number transition, (4) show delta badge ('-99.98% cost reduction'). All 3 validation agents rated this highest ROI.",
+    "acceptanceCriteria": [
+      "Toggling an index shows before/after plans side-by-side with cost numbers",
+      "Cost delta is displayed as a prominent badge (e.g., '-99.8%' in green or '+500%' in red)",
+      "Plan node type changes are highlighted (SeqScan\u2192IndexScan)",
+      "Works for all 5 sample queries in QueryPlanSimulation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/QueryPlanSimulation.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "validated",
+      "highest-roi",
+      "index-education"
+    ]
+  },
+  {
+    "id": "DBL-054",
+    "epic": "DBL",
+    "title": "Add auto-speed on interesting moments during animation playback",
+    "description": "In playback setInterval for B-Tree/Hash/LSM, check next step's operation type. If split/collision/resize/anomaly, use 1200ms delay instead of base speed. Add visible 'Slowed: split detected' indicator. Make it an opt-in 'Smart Speed' toggle. Engineer estimated 15-30 lines of code.",
+    "acceptanceCriteria": [
+      "Smart Speed toggle visible in playback controls (default: off)",
+      "When enabled, splits slow to 1200ms, collisions slow to 1000ms, normal steps use selected speed",
+      "Visual indicator shows WHY the speed changed ('Slowed: node split')",
+      "Works for B-Tree, Hash Index, LSM-Tree, and Transaction Isolation playback"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "validated",
+      "low-effort",
+      "ux",
+      "animation"
+    ]
+  },
+  {
+    "id": "DBL-055",
+    "epic": "DBL",
+    "title": "Add inline B-tree traversal mini-animation in query plan IndexScan nodes",
+    "description": "When query plan shows an IndexScan node, embed a small (200x120px) animated B-tree traversal illustration directly in the plan view. Synthesize 20-50 sample keys from the table's estimated rowCount, build a representative BTreeViz, auto-play search. No navigation needed \u2014 the insight is inline. Skeptic approved this reframing over a full navigation bridge.",
+    "acceptanceCriteria": [
+      "IndexScan nodes in QueryPlanSimulation show an expandable mini-visualization",
+      "Mini B-tree is auto-populated with representative sample keys",
+      "Clicking 'Show traversal' plays a 3-5 second search animation inline",
+      "Animation shows the search path from root to leaf with the filter value highlighted"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/QueryPlanSimulation.tsx",
+      "src/lib/database/btree-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "validated",
+      "sql-to-index-bridge",
+      "educational"
+    ]
+  },
+  {
+    "id": "DBL-056",
+    "epic": "DBL",
+    "title": "Add opt-in Challenge Mode with predict-then-verify for B-Tree search",
+    "description": "After user has performed 3+ operations, show a non-blocking tooltip: 'Want to test yourself? Enable Challenge Mode.' When enabled, before showing search result, pause and let user click the node they think contains the key. Compare prediction to actual BTreeStep.highlightNodeId. Track correct/incorrect score. User Researcher cites Roediger & Karpicke (2006) on retrieval practice.",
+    "acceptanceCriteria": [
+      "Challenge Mode toggle appears after 3+ B-tree operations",
+      "In Challenge Mode, search pauses with 'Click the node you think contains key X'",
+      "Correct prediction shows green checkmark, incorrect shows red X with correct answer highlighted",
+      "Running accuracy percentage displayed in info bar",
+      "Challenge Mode is OFF by default and does not affect normal operation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/btree-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-025",
+      "DBL-028"
+    ],
+    "tags": [
+      "innovation",
+      "validated",
+      "active-learning",
+      "retrieval-practice"
+    ]
+  },
+  {
+    "id": "DBL-057",
+    "epic": "DBL",
+    "title": "Add side-by-side transaction isolation comparison for 2 curated pairs",
+    "description": "Create 2 curated comparison scenarios: (1) Read Uncommitted vs Read Committed on dirty-read scenario, (2) Repeatable Read vs Serializable on phantom-read scenario. Write unified scenario generators that produce tick-aligned TransactionStep[] arrays for both levels. Render in two synchronized columns with divergence highlighting. Skeptic approved with scope restriction to curated pairs only.",
+    "acceptanceCriteria": [
+      "Compare button in Transaction Isolation sidebar enables split-view",
+      "Two curated pairs available: 'Dirty Read Prevention' and 'Phantom Read Prevention'",
+      "Both columns advance on shared tick counter, synchronized step-by-step",
+      "Anomaly differences visually highlighted (one column shows anomaly badge, other shows 'prevented')",
+      "User can step through or auto-play the comparison"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/transaction-sim.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "innovation",
+      "validated",
+      "comparison-mode",
+      "educational"
+    ]
+  },
+  {
+    "id": "DBL-058",
+    "epic": "DBL",
+    "title": "Add guided worst-case exploration with pre-built demo sequences",
+    "description": "Instead of a challenge/game, provide pre-built 'What happens when...' scenarios: (1) 'Insert sorted data [1,2,3,4,5,6,7] into order-3 B-tree \u2014 count the splits', (2) 'Insert keys that all hash to bucket 0 \u2014 watch the collision chain grow', (3) 'Compare random vs sequential LSM writes.' Skeptic reframed from competitive game to guided exploration. No scoring system needed.",
+    "acceptanceCriteria": [
+      "'Explore' section in B-Tree/Hash/LSM sidebars with 2-3 pre-built scenarios each",
+      "Clicking a scenario auto-loads the input and begins playback",
+      "Each scenario has a 1-sentence question ('How many splits happen?') and a reveal",
+      "No scoring or leaderboard \u2014 pure guided discovery"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/DatabaseSidebar.tsx",
+      "src/components/modules/database/useDatabaseModule.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-025"
+    ],
+    "tags": [
+      "innovation",
+      "validated",
+      "guided-exploration",
+      "low-effort"
+    ]
+  },
+  {
+    "id": "DBL-059",
+    "epic": "DBL",
+    "title": "Add shareable-state URLs for all visualization modes",
+    "description": "Encode current visualization state (ER entities, B-tree keys, hash entries, active mode) into URL query parameters or a short hash. User clicks 'Share' to get a copyable link. Opening the link restores the exact visualization state. This replaces the killed video-export feature with a lighter, more useful alternative. Research shows shareability is the #1 request in DrawDB and ChartDB GitHub issues.",
+    "acceptanceCriteria": [
+      "Share button visible in all 7 modes",
+      "Clicking generates a URL that encodes the current state",
+      "Opening the URL restores entities, relationships, tree keys, hash entries, etc.",
+      "URL is reasonably short (use base64 + compression for large states)",
+      "Works for ER diagrams (entities + relationships) and index modes (inserted keys)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-038"
+    ],
+    "tags": [
+      "innovation",
+      "validated",
+      "shareability",
+      "collaboration",
+      "virality"
+    ]
+  },
+  {
+    "id": "DBL-060",
+    "epic": "DBL",
+    "title": "Add presentation mode with keyboard shortcuts and large fonts",
+    "description": "Full-screen canvas mode for lecture use. F11 or dedicated button enters presentation mode: sidebar and properties panels hidden, canvas fills screen, fonts scaled up 1.5x, keyboard shortcuts active (Right Arrow = Step, Space = Play/Pause, R = Reset, Escape = exit). No mouse required for stepping. Addresses professor persona's need for lecture-ready tool.",
+    "acceptanceCriteria": [
+      "Presentation mode button visible in toolbar",
+      "Entering presentation mode hides sidebar and properties, expands canvas to full width",
+      "Font sizes in canvas scaled up by 1.5x for 200-seat lecture visibility",
+      "Keyboard shortcuts: \u2192 (Step), Space (Play/Pause), R (Reset), Esc (Exit presentation)",
+      "Works for all 7 modes"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 4,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "innovation",
+      "validated",
+      "presentation-mode",
+      "professor-persona"
+    ]
+  },
+  {
+    "id": "DBL-061",
+    "epic": "DBL",
+    "title": "Replace layout-triggering width animations with scaleX transforms",
+    "description": "ConsistencyLevelDemo.tsx:420-439, ShardingSimulator.tsx:250-254, ReplicationLagVisualizer.tsx:352-356 all animate 'width' property via motion/react, which triggers layout recalculation every frame. Replace with scaleX transform + transformOrigin:'left' for GPU-composited animation. 8 instances across 3 files.",
+    "acceptanceCriteria": [
+      "Zero animate={{ width: }} patterns remain in Learn panel sub-components",
+      "All progress bars use scaleX transform instead, visually identical",
+      "Animation is smoother on low-end devices (no layout thrashing)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/ConsistencyLevelDemo.tsx",
+      "src/components/modules/database/ShardingSimulator.tsx",
+      "src/components/modules/database/ReplicationLagVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "animation",
+      "layout-thrashing"
+    ]
+  },
+  {
+    "id": "DBL-062",
+    "epic": "DBL",
+    "title": "Add text labels to 7 icon-only action buttons",
+    "description": "B-Tree insert/search, Hash insert/search/delete, LSM write/read buttons at DatabaseModule.tsx:2152,2175,2207,2230,2253,2335,2357 show only Plus/Search/Trash2 icons with no text. Add short text labels ('Insert','Search','Delete','Write','Read') next to icons for clarity and accessibility.",
+    "acceptanceCriteria": [
+      "All 7 action buttons show both icon AND text label",
+      "Button width accommodates text without layout overflow",
+      "Screen readers announce the action via visible text (no separate aria-label needed)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "ux",
+      "button-labels"
+    ]
+  },
+  {
+    "id": "DBL-063",
+    "epic": "DBL",
+    "title": "Add error boundary around Learn panel lazy components",
+    "description": "DatabaseModule.tsx:3358-3366 wraps the 4 lazy-loaded Learn panel components in Suspense but no ErrorBoundary. If ConsistencyLevelDemo, ShardingSimulator, ReplicationLagVisualizer, or QueryPlanSimulation throws, it crashes the entire Database module. Add an inner ErrorBoundary with a per-tab fallback so other tabs remain usable.",
+    "acceptanceCriteria": [
+      "An error in any Learn panel component shows a localized error message in the Learn tab",
+      "Other tabs (Log, SQL) remain functional when Learn tab has an error",
+      "The main 7 modes (sidebar, canvas, properties) are unaffected by Learn tab errors",
+      "Error fallback shows a 'Retry' button that remounts the failed component"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "error-recovery",
+      "error-boundary",
+      "resilience"
+    ]
+  },
+  {
+    "id": "DBL-064",
+    "epic": "DBL",
+    "title": "Add step-backward capability to all step-based engines",
+    "description": "All 4 step-based engines (B-tree, Hash, LSM, Transaction) only support forward stepping via handleBtreeStepForward (DatabaseModule.tsx:3786) etc. There is no step-backward. If a student misses something, they must reset and replay from beginning. Add stepBack that decrements stepIndex (step data is already stored in the steps array).",
+    "acceptanceCriteria": [
+      "Step Back button (left arrow icon) appears next to Step Forward in all 4 engines",
+      "Clicking Step Back decrements stepIndex by 1 (minimum 0)",
+      "Canvas correctly renders the previous step state from the steps array",
+      "Step Back is disabled at step 0"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "learning",
+      "step-control",
+      "cognitive-load"
+    ]
+  },
+  {
+    "id": "DBL-065",
+    "epic": "DBL",
+    "title": "Add touch gesture support for mobile Learn panel interactions",
+    "description": "No onTouchStart, onTouchMove, or onPointerDown handlers exist in any module file. The ER diagram canvas uses mouse-only events (onMouseDown/onMouseMove/onMouseUp at DatabaseModule.tsx:370,256,257). Add pointer events (which handle both mouse and touch) for ER entity drag and add swipe-to-step for B-tree/Hash/LSM animations on mobile.",
+    "acceptanceCriteria": [
+      "ER diagram entities can be dragged via touch on mobile devices",
+      "Swipe right = step forward, swipe left = step back in animation modes",
+      "All mouse handlers replaced with pointer event equivalents (onPointerDown etc.)",
+      "Works on iOS Safari and Android Chrome"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/components/modules/database/ConsistencyLevelDemo.tsx",
+      "src/components/modules/database/ReplicationLagVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-027"
+    ],
+    "tags": [
+      "mobile",
+      "touch",
+      "gesture",
+      "pointer-events"
+    ]
+  }
+]

@@ -1,0 +1,133 @@
+{
+  "id": "bp-gaming-backend",
+  "name": "Real-Time Gaming Backend — Production Blueprint",
+  "description": "Multiplayer gaming backend with matchmaking, real-time state sync, leaderboards, inventory management, and anti-cheat. Supports millions of concurrent players with sub-50ms tick rate.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["gaming", "real-time", "matchmaking", "leaderboards", "multiplayer", "anti-cheat", "blueprint"],
+  "nodes": [
+    { "id": "game-client", "type": "client", "position": { "x": 0, "y": 250 }, "data": { "label": "Game Client", "category": "client", "componentType": "web-client", "icon": "Gamepad2", "config": { "concurrentPlayers": 5000000, "tickRateHz": 20, "protocolType": "udp" }, "state": "idle" } },
+    { "id": "lobby-service", "type": "api-gateway", "position": { "x": 200, "y": 100 }, "data": { "label": "Lobby Gateway", "category": "load-balancing", "componentType": "api-gateway", "icon": "Shield", "config": { "rateLimitRps": 200000, "authType": "jwt", "timeoutMs": 5000 }, "state": "idle" } },
+    { "id": "matchmaking", "type": "web-server", "position": { "x": 400, "y": 50 }, "data": { "label": "Matchmaking Engine", "category": "compute", "componentType": "web-server", "icon": "Users", "config": { "instances": 8, "matchTimeoutS": 60, "eloRangeExpansion": true, "poolSizes": 6 }, "state": "idle" } },
+    { "id": "game-server", "type": "web-server", "position": { "x": 400, "y": 200 }, "data": { "label": "Game Servers (Agones)", "category": "compute", "componentType": "web-server", "icon": "Server", "config": { "instances": 500, "playersPerServer": 100, "tickRateHz": 20, "maxLatencyMs": 50 }, "state": "idle" } },
+    { "id": "state-sync", "type": "web-server", "position": { "x": 400, "y": 350 }, "data": { "label": "State Sync Service", "category": "compute", "componentType": "web-server", "icon": "RefreshCw", "config": { "instances": 12, "deltaCompression": true, "interpolationEnabled": true }, "state": "idle" } },
+    { "id": "anti-cheat", "type": "web-server", "position": { "x": 400, "y": 500 }, "data": { "label": "Anti-Cheat Engine", "category": "compute", "componentType": "web-server", "icon": "ShieldAlert", "config": { "instances": 6, "detectionMethods": ["input-validation", "server-authority", "ml-anomaly"], "banThreshold": 0.95 }, "state": "idle" } },
+    { "id": "leaderboard-service", "type": "web-server", "position": { "x": 650, "y": 50 }, "data": { "label": "Leaderboard Service", "category": "compute", "componentType": "web-server", "icon": "Trophy", "config": { "instances": 4, "boardCount": 50, "updateIntervalS": 10 }, "state": "idle" } },
+    { "id": "inventory-service", "type": "web-server", "position": { "x": 650, "y": 200 }, "data": { "label": "Inventory & Economy", "category": "compute", "componentType": "web-server", "icon": "Coins", "config": { "instances": 6, "itemTypes": 5000, "transactionsPerSec": 10000 }, "state": "idle" } },
+    { "id": "session-cache", "type": "cache", "position": { "x": 650, "y": 350 }, "data": { "label": "Session Cache (Redis)", "category": "storage", "componentType": "redis", "icon": "Zap", "config": { "type": "redis", "memoryGB": 128, "shards": 16, "cacheHitRate": 0.98 }, "state": "idle" } },
+    { "id": "leaderboard-redis", "type": "cache", "position": { "x": 850, "y": 50 }, "data": { "label": "Leaderboard (Redis Sorted Sets)", "category": "storage", "componentType": "redis", "icon": "BarChart3", "config": { "type": "redis", "memoryGB": 32, "sortedSets": 50 }, "state": "idle" } },
+    { "id": "player-db", "type": "database", "position": { "x": 850, "y": 200 }, "data": { "label": "Player DB (PostgreSQL)", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 2000 }, "state": "idle" } },
+    { "id": "event-bus", "type": "message-queue", "position": { "x": 850, "y": 400 }, "data": { "label": "Kafka (Game Events)", "category": "messaging", "componentType": "kafka", "icon": "ArrowRightLeft", "config": { "partitions": 32, "retentionHours": 48, "throughputMbps": 1000 }, "state": "idle" } },
+    { "id": "analytics", "type": "web-server", "position": { "x": 850, "y": 550 }, "data": { "label": "Game Analytics", "category": "compute", "componentType": "web-server", "icon": "BarChart3", "config": { "instances": 4, "metricsCount": 500, "retentionDays": 90 }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-client-lobby", "source": "game-client", "target": "lobby-service", "type": "data-flow", "data": { "edgeType": "https", "latency": 20, "animated": true } },
+    { "id": "e-client-game", "source": "game-client", "target": "game-server", "type": "data-flow", "data": { "edgeType": "udp", "latency": 30, "animated": true } },
+    { "id": "e-lobby-match", "source": "lobby-service", "target": "matchmaking", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } },
+    { "id": "e-match-game", "source": "matchmaking", "target": "game-server", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 50, "animated": true } },
+    { "id": "e-game-sync", "source": "game-server", "target": "state-sync", "type": "data-flow", "data": { "edgeType": "udp", "latency": 1, "animated": true } },
+    { "id": "e-game-anticheat", "source": "game-server", "target": "anti-cheat", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 5, "animated": true } },
+    { "id": "e-game-session", "source": "game-server", "target": "session-cache", "type": "data-flow", "data": { "edgeType": "cache-write", "latency": 1, "animated": true } },
+    { "id": "e-game-kafka", "source": "game-server", "target": "event-bus", "type": "data-flow", "data": { "edgeType": "async", "latency": 3, "animated": true } },
+    { "id": "e-kafka-leaderboard", "source": "event-bus", "target": "leaderboard-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 20, "animated": true } },
+    { "id": "e-kafka-inventory", "source": "event-bus", "target": "inventory-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 10, "animated": true } },
+    { "id": "e-kafka-analytics", "source": "event-bus", "target": "analytics", "type": "data-flow", "data": { "edgeType": "stream", "latency": 100, "animated": false } },
+    { "id": "e-leaderboard-redis", "source": "leaderboard-service", "target": "leaderboard-redis", "type": "data-flow", "data": { "edgeType": "cache-write", "latency": 1, "animated": true } },
+    { "id": "e-inventory-db", "source": "inventory-service", "target": "player-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": false } },
+    { "id": "e-match-session", "source": "matchmaking", "target": "session-cache", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-game-server-crash", "name": "Game Server Crash Mid-Match", "description": "A game server process crashes, disconnecting 100 players from an active match", "targetNodes": ["game-server"], "faultType": "crash", "severity": 4, "expectedBehavior": "Match ends abruptly for affected players. Session state lost for that match. Matchmaking can immediately re-queue players. No XP or rewards from interrupted match.", "mitigationSteps": ["Agones allocator spins up replacement server", "Players auto-reconnect to new server if within timeout", "Match state checkpointed to Redis every 5s for recovery", "Compensate players for interrupted match"] },
+      { "id": "cs-matchmaking-overload", "name": "Matchmaking Queue Explosion", "description": "New game launch causes 10x player surge, overwhelming matchmaking", "targetNodes": ["matchmaking", "lobby-service"], "faultType": "resource-exhaustion", "severity": 3, "expectedBehavior": "Match wait times increase from 30s to 5min+. Queue depth grows. Some players abandon queue. Game server capacity saturates.", "mitigationSteps": ["Auto-scale matchmaking instances", "Expand ELO matching range to increase pool", "Pre-scale game server fleet before events", "Show estimated wait time to players"] },
+      { "id": "cs-leaderboard-redis-failure", "name": "Leaderboard Redis Failure", "description": "Redis sorted set cluster for leaderboards crashes", "targetNodes": ["leaderboard-redis"], "faultType": "crash", "severity": 2, "expectedBehavior": "Leaderboards show stale data. New score updates queued in Kafka. Game matches continue unaffected. Leaderboard UI shows 'updating' state.", "mitigationSteps": ["Redis failover to replica", "Replay score events from Kafka", "Show cached leaderboard until recovery", "Verify leaderboard consistency post-recovery"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 100000, "bottleneckNode": "game-server", "metric": "cpu", "description": "Game server CPU saturates from physics simulation and state updates", "resolution": "Optimize tick rate, reduce per-player computation, scale server fleet" },
+      { "rpsThreshold": 200000, "bottleneckNode": "session-cache", "metric": "memory", "description": "5M+ concurrent player sessions exhaust Redis memory", "resolution": "Add Redis shards, compress session data, shorter TTL for inactive sessions" },
+      { "rpsThreshold": 500000, "bottleneckNode": "matchmaking", "metric": "cpu", "description": "Matchmaking algorithm CPU-bound with large player pool", "resolution": "Shard matchmaking by skill tier, pre-compute candidate pools" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-cheating", "title": "Client-Side Cheat Exploits", "description": "Players modify game client to gain unfair advantages (speed hacks, aimbots)", "affectedNodes": ["anti-cheat", "game-server"], "likelihood": 5, "impact": 4, "mitigation": "Server-authoritative game state, input validation, ML anomaly detection, hardware bans" },
+      { "id": "ei-rubber-banding", "title": "Network Rubber-Banding", "description": "Players with high latency experience position corrections (rubber-banding)", "affectedNodes": ["state-sync", "game-server"], "likelihood": 4, "impact": 3, "mitigation": "Client-side prediction, server reconciliation, lag compensation, interpolation" },
+      { "id": "ei-item-duplication", "title": "Item Duplication Exploit", "description": "Race condition in inventory service allows item duplication", "affectedNodes": ["inventory-service", "player-db"], "likelihood": 2, "impact": 5, "mitigation": "Database-level pessimistic locking for trades, idempotent inventory operations, audit logging" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 150000,
+      "components": [
+        { "nodeId": "game-server", "label": "Game Servers (Agones)", "monthlyCostUsd": 50000, "costDriver": "500 dedicated game servers" },
+        { "nodeId": "session-cache", "label": "Session Cache (Redis)", "monthlyCostUsd": 18000, "costDriver": "128GB, 16 shards" },
+        { "nodeId": "state-sync", "label": "State Sync", "monthlyCostUsd": 12000, "costDriver": "12 instances, high bandwidth" },
+        { "nodeId": "event-bus", "label": "Kafka", "monthlyCostUsd": 10000, "costDriver": "6 brokers, 1Gbps" },
+        { "nodeId": "player-db", "label": "Player Database", "monthlyCostUsd": 8000, "costDriver": "Primary + 3 replicas" },
+        { "nodeId": "matchmaking", "label": "Matchmaking Engine", "monthlyCostUsd": 8000, "costDriver": "8 compute-optimized" },
+        { "nodeId": "anti-cheat", "label": "Anti-Cheat Engine", "monthlyCostUsd": 7000, "costDriver": "6 instances + ML models" },
+        { "nodeId": "inventory-service", "label": "Inventory & Economy", "monthlyCostUsd": 5000, "costDriver": "6 instances" },
+        { "nodeId": "analytics", "label": "Game Analytics", "monthlyCostUsd": 5000, "costDriver": "4 instances + storage" },
+        { "nodeId": "leaderboard-redis", "label": "Leaderboard Redis", "monthlyCostUsd": 3000, "costDriver": "32GB" },
+        { "nodeId": "leaderboard-service", "label": "Leaderboard Service", "monthlyCostUsd": 2000, "costDriver": "4 instances" },
+        { "nodeId": "lobby-service", "label": "Lobby Gateway", "monthlyCostUsd": 2000, "costDriver": "Gateway + WAF" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Indie (10K CCU)", "rps": 10000, "monthlyCostUsd": 15000 },
+        { "label": "Mid-tier (100K CCU)", "rps": 100000, "monthlyCostUsd": 50000 },
+        { "label": "AAA (1M CCU)", "rps": 500000, "monthlyCostUsd": 150000 },
+        { "label": "Massive (10M CCU)", "rps": 5000000, "monthlyCostUsd": 800000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 500000, "trafficProfile": "event-driven", "p50LatencyMs": 30, "p99LatencyMs": 80, "availabilityTarget": 99.9, "maxErrorRatePercent": 0.1, "throughputRps": 500000 },
+    "scalingPolicies": [
+      { "nodeId": "game-server", "metric": "server_utilization", "threshold": 80, "scaleUpStep": 50, "scaleDownStep": 20, "cooldownSeconds": 120, "minInstances": 100, "maxInstances": 2000 },
+      { "nodeId": "matchmaking", "metric": "queue_depth", "threshold": 10000, "scaleUpStep": 4, "scaleDownStep": 2, "cooldownSeconds": 60, "minInstances": 4, "maxInstances": 32 }
+    ],
+    "slaDefinitions": [
+      { "name": "Match Latency", "metric": "server_tick_latency_ms", "target": 50, "unit": "ms", "penalty": "Game tick completes within 50ms" },
+      { "name": "Matchmaking Time", "metric": "p95_queue_time_s", "target": 60, "unit": "s", "penalty": "95% of players matched within 60s" },
+      { "name": "Platform Uptime", "metric": "uptime_percent", "target": 99.9, "unit": "%", "penalty": "Maintenance windows excluded" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "tick_latency", "type": "histogram", "description": "Game server tick processing time", "nodeId": "game-server" },
+        { "name": "matchmaking_queue_depth", "type": "gauge", "description": "Players waiting in matchmaking queue", "nodeId": "matchmaking" },
+        { "name": "concurrent_players", "type": "gauge", "description": "Total concurrent connected players", "nodeId": "session-cache" },
+        { "name": "cheat_detection_rate", "type": "counter", "description": "Cheat detections per minute", "nodeId": "anti-cheat" },
+        { "name": "server_utilization", "type": "gauge", "description": "Percentage of game servers in use", "nodeId": "game-server" }
+      ],
+      "alerts": [
+        { "name": "Tick Rate Drop", "condition": "avg_tick_latency > 50ms for 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Match Queue Long", "condition": "queue_depth > 50000 for 5min", "severity": "warning", "channel": "slack-game-ops" },
+        { "name": "Server Capacity Low", "condition": "available_servers < 10%", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Cheat Wave Detected", "condition": "cheat_rate > 100/min for 10min", "severity": "warning", "channel": "slack-anticheat" }
+      ],
+      "dashboards": ["Game Operations", "Matchmaking", "Server Fleet", "Anti-Cheat", "Player Economy"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call Game SRE", "responseTimeMinutes": 3, "contacts": ["oncall-game-sre"] },
+        { "level": 2, "name": "Game Server Lead", "responseTimeMinutes": 10, "contacts": ["game-server-lead"] },
+        { "level": 3, "name": "VP Engineering + Community", "responseTimeMinutes": 20, "contacts": ["vp-eng", "community-manager"] }
+      ],
+      "runbooks": [
+        { "incident": "Mass game server crashes", "severity": "critical", "steps": ["Identify crash pattern (specific map/mode?)", "Scale up replacement servers via Agones", "Redirect players to healthy servers", "Investigate crash dump", "Hotfix if code bug, rollback if deployment issue"], "automatedRecovery": true },
+        { "incident": "Matchmaking failure", "severity": "critical", "steps": ["Check matchmaking service health", "Verify player pool data in Redis", "Restart matchmaking workers", "Expand ELO range if pool too thin", "Communicate wait times to players"], "automatedRecovery": true },
+        { "incident": "Economy exploit discovered", "severity": "critical", "steps": ["Disable affected transaction type immediately", "Identify all exploiting accounts", "Quantify economic damage", "Rollback exploited transactions", "Ban repeat offenders", "Deploy fix"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Server-Authoritative Game State", "context": "Client-authoritative game state is trivially exploitable by cheaters.", "decision": "All game state computed on the server. Clients send inputs, server validates and broadcasts state.", "consequences": ["Eliminates most client-side cheats", "Higher server CPU requirements", "Client-side prediction needed for responsiveness", "Server tick rate limits game responsiveness"] },
+      { "title": "Agones for Game Server Orchestration", "context": "Game servers are stateful, short-lived, and need fast scaling.", "decision": "Use Agones on Kubernetes for game server lifecycle management.", "consequences": ["Automated server allocation and shutdown", "Fleet auto-scaling based on demand", "Health monitoring and replacement", "Kubernetes operational complexity"] },
+      { "title": "Redis Sorted Sets for Leaderboards", "context": "Leaderboards need O(log N) rank lookups for millions of players.", "decision": "Use Redis sorted sets for real-time leaderboard ranking.", "consequences": ["O(log N) insert and rank lookup", "Supports millions of entries with sub-ms latency", "Memory-constrained: 50 boards x millions of entries"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Responsiveness vs Security", "choice": "Security with client prediction", "benefit": "Server authority prevents cheating while client prediction masks latency", "cost": "Rubber-banding when prediction diverges from server state" },
+      { "dimension": "Cost vs Player Experience", "choice": "Player Experience", "benefit": "Dedicated game servers provide consistent low latency", "cost": "Significantly higher compute cost vs peer-to-peer" },
+      { "dimension": "Freshness vs Performance", "choice": "Performance", "benefit": "Leaderboards update every 10s, not every score change", "cost": "Leaderboard positions may be up to 10s stale" }
+    ],
+    "alternatives": [
+      { "name": "Peer-to-Peer Networking", "description": "Players connect directly to each other instead of dedicated servers", "prosVsCons": "Pros: zero server cost. Cons: cheating trivial, NAT traversal issues, worst-player-latency determines experience", "whyNotChosen": "Competitive multiplayer requires server authority for fair play" },
+      { "name": "DynamoDB for Leaderboards", "description": "Use DynamoDB with GSI for leaderboard ranking", "prosVsCons": "Pros: managed, durable. Cons: GSI updates async, ranking query expensive at scale", "whyNotChosen": "Redis sorted sets provide O(log N) ranking operations that DynamoDB cannot match" }
+    ]
+  }
+}

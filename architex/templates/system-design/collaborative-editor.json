@@ -1,0 +1,192 @@
+{
+  "id": "collaborative-editor",
+  "name": "Collaborative Editor (Google Docs)",
+  "description": "Design a real-time collaborative document editor like Google Docs. Covers CRDT/OT conflict resolution, cursor presence, WebSocket communication, and document persistence.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["collaborative-editing", "crdt", "ot", "real-time", "websocket", "conflict-resolution"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Document Editor Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 1000000, "requestsPerSecond": 200000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Load Balancer (Sticky Sessions)",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "GitBranch",
+        "config": { "algorithm": "consistent-hash", "healthCheckIntervalMs": 5000, "maxConnectionsPerNode": 50000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Collaboration Server (WebSocket)",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 30, "cpuCores": 8, "memoryGB": 32, "processingTimeMs": 2 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 600, "y": 350 },
+      "data": {
+        "label": "Operation Sync Bus (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 64, "retentionHours": 168, "maxThroughputMBps": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "CRDT State Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 128, "evictionPolicy": "allkeys-lru", "ttlSeconds": 7200, "cacheHitRate": 0.95 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 800, "y": 200 },
+      "data": {
+        "label": "Document DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "storage",
+      "type": "storage",
+      "position": { "x": 800, "y": 400 },
+      "data": {
+        "label": "Revision Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 50000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "websocket", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "websocket", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-mq-app",
+      "source": "mq",
+      "target": "app-server",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-db-storage",
+      "source": "database",
+      "target": "storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 50, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Real-Time WebSocket Communication",
+      "description": "Clients maintain persistent WebSocket connections to the Collaboration Server. Each keystroke generates an operation (insert/delete at position) that is sent to the server in real-time. The Load Balancer uses consistent hashing on document ID to route all editors of the same document to the same server instance, reducing cross-server coordination.",
+      "highlightNodes": ["client", "lb", "app-server"],
+      "highlightEdges": ["e-client-lb", "e-lb-app"]
+    },
+    {
+      "title": "CRDT-Based Conflict Resolution",
+      "description": "The system uses a CRDT (Conflict-free Replicated Data Type) — specifically a sequence CRDT like Yjs or Automerge — to resolve concurrent edits without a central lock. Each character has a unique ID based on (clientID, sequence). Concurrent insertions at the same position are deterministically ordered by ID. The CRDT state is cached in Redis for fast document loads.",
+      "highlightNodes": ["app-server", "cache"],
+      "highlightEdges": ["e-app-cache"]
+    },
+    {
+      "title": "Cross-Server Operation Sync",
+      "description": "When a document has editors connected to different server instances (due to scaling or reconnects), operations must sync across servers. The Operation Sync Bus (Kafka) broadcasts operations for each document. Each server subscribes to topics for documents it is hosting, applies remote operations to its local CRDT state, and pushes updates to connected clients.",
+      "highlightNodes": ["mq", "app-server"],
+      "highlightEdges": ["e-app-mq", "e-mq-app"]
+    },
+    {
+      "title": "Document Persistence and Version History",
+      "description": "The CRDT state is periodically snapshotted to PostgreSQL (every N operations or every 30 seconds). Full document snapshots are stored in S3 for version history and recovery. PostgreSQL stores metadata (document ID, owner, permissions, last modified). On document open, the server loads the latest CRDT snapshot from Redis (cache hit) or PostgreSQL (cache miss), then replays any operations from Kafka since the snapshot.",
+      "highlightNodes": ["database", "storage", "cache"],
+      "highlightEdges": ["e-app-db", "e-db-storage", "e-app-cache"]
+    }
+  ]
+}

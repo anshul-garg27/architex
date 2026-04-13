@@ -1,0 +1,141 @@
+[
+  {
+    "id": "LLD-164",
+    "epic": "LLD",
+    "title": "Write 'How to Add a New Design Pattern' contributor guide",
+    "description": "DX AUDIT: CONTRIBUTING.md covers System Design nodes only — zero LLD guidance. A contributor wanting to add Abstract Factory (LLD-091) has no documentation. Create a step-by-step guide: (1) Copy an existing pattern in patterns.ts as template, (2) Fill all required fields (with field-by-field explanation), (3) Add UML classes with x/y positioning guidelines, (4) Write TS+Python code samples, (5) Test in dev mode, (6) Quality checklist. Include a worked example adding a complete pattern from scratch. Saves ~30 min per new contributor.",
+    "acceptanceCriteria": [
+      "Guide at docs/guides/add-new-pattern.md or in CONTRIBUTING.md under LLD section",
+      "Step-by-step instructions with exact file paths",
+      "Annotated template showing every DesignPattern field with explanation",
+      "x/y positioning guidelines for UML class layout",
+      "Quality checklist: hook? analogy? 3 examples? TS+Python code? whenToUse?",
+      "Worked example: adding Abstract Factory from scratch"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["docs/guides/add-new-pattern.md", "CONTRIBUTING.md"],
+    "dependencies": ["LLD-119"],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "contributor-guide", "unblocks-contributions"]
+  },
+  {
+    "id": "LLD-165",
+    "epic": "LLD",
+    "title": "Create pattern scaffolding script — pnpm scaffold:pattern",
+    "description": "DX AUDIT: No scaffolding exists. Adding a pattern requires: copy-pasting ~100 lines of nested objects, remembering all required fields, manually setting x/y positions, writing both TS+Python code. Create a Node.js script at scripts/scaffold-pattern.ts that: (1) accepts pattern name + category, (2) generates DesignPattern object with all required fields as TODO placeholders, (3) auto-generates deterministic IDs, (4) provides default x/y positions in a grid layout, (5) outputs to console for copy-paste or appends to patterns.ts. Saves ~15 min per pattern.",
+    "acceptanceCriteria": [
+      "pnpm scaffold:pattern 'Abstract Factory' --category creational works",
+      "Generates complete DesignPattern object with all 10+ fields",
+      "All fields have placeholder values (TODO comments for content)",
+      "Auto-generates class IDs and relationship IDs",
+      "Provides default grid-layout x/y positions for 4-6 classes",
+      "Output is valid TypeScript that compiles without errors",
+      "README in docs/guides/ explains usage"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["scripts/scaffold-pattern.ts", "package.json"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "scaffolding", "automation", "saves-time"]
+  },
+  {
+    "id": "LLD-166",
+    "epic": "LLD",
+    "title": "Add JSDoc documentation to all exported functions in lib/lld/",
+    "description": "DX AUDIT: bidirectional-sync.ts has excellent JSDoc (SyncManager class doc with usage example at line 183-191). But most other files have minimal or no JSDoc: patterns.ts exports (getPatternById, getPatternsByCategory) have zero doc. class-diagram-model.ts has one-line doc per function. codegen files have some doc but inconsistent. Add JSDoc to ALL exported functions with: purpose, parameters, return type, usage example for complex functions.",
+    "acceptanceCriteria": [
+      "Every exported function in lib/lld/ has JSDoc with @param and @returns",
+      "Complex functions (SyncManager methods, parseTypeScript, generateTypeScript) have @example",
+      "barrel export index.ts has module-level JSDoc comment explaining the library",
+      "IDE hover shows documentation for every import from @/lib/lld"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/class-diagram-model.ts", "src/lib/lld/codegen/diagram-to-typescript.ts", "src/lib/lld/codegen/diagram-to-python.ts", "src/lib/lld/codegen/code-to-diagram.ts", "src/lib/lld/index.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "JSDoc", "IDE-experience"]
+  },
+  {
+    "id": "LLD-167",
+    "epic": "LLD",
+    "title": "Add named constants for magic numbers in LLDModule.tsx and simulators",
+    "description": "DX AUDIT: Multiple magic numbers without explanation: CLASS_BOX_WIDTH=220 (line 95, why?), ROW_HEIGHT=18 (line 97, not on 4px grid), interval 400ms (PatternBehavioralSimulator.tsx:252), max requests 100 (line 254), SEQ_PARTICIPANT_GAP=180 (line 1855). Add comments explaining WHY each value was chosen, or extract to named constants with descriptive names. E.g.: `const SIMULATION_TICK_MS = 400; // Balances visual speed with comprehension`.",
+    "acceptanceCriteria": [
+      "All magic numbers in LLDModule.tsx have either a comment explaining WHY or are extracted to named constants",
+      "Constants have names that explain purpose (SIMULATION_TICK_MS, MAX_SIMULATION_REQUESTS)",
+      "ROW_HEIGHT changed to 20 (on 4px grid) or documented why 18 is intentional",
+      "PatternBehavioralSimulator magic numbers documented"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/components/modules/LLDModule.tsx", "src/components/modules/lld/PatternBehavioralSimulator.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "readability", "magic-numbers", "code-quality"]
+  },
+  {
+    "id": "LLD-168",
+    "epic": "LLD",
+    "title": "Write LLD module architecture overview with data flow diagram",
+    "description": "DX AUDIT: No architecture documentation exists for LLD. A new developer faces: 3463-line LLDModule.tsx, 2669-line patterns.ts, 6 codegen files, bidirectional sync engine, and 2 sub-components with zero overview of how they connect. Create: Mermaid data flow diagram showing User Action → Hook → State → Canvas/Properties/BottomPanel. Component tree diagram. File responsibility map. 'Where is X?' quick reference.",
+    "acceptanceCriteria": [
+      "Architecture doc at docs/architecture/lld-module.md",
+      "Mermaid data flow diagram: user action → useLLDModule hook → state → UI panels",
+      "Component tree showing all 27+ components and their relationships",
+      "File responsibility table: 'Looking for X? Check Y file at line Z'",
+      "'Where is X?' quick reference for top 10 common questions"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["docs/architecture/lld-module.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "architecture", "onboarding"]
+  },
+  {
+    "id": "LLD-169",
+    "epic": "LLD",
+    "title": "Add developer-facing error messages for common LLD contribution mistakes",
+    "description": "DX AUDIT: When a contributor makes a mistake (duplicate class name, invalid stereotype, missing relationship target), feedback ranges from silent failure to cryptic runtime error. Add development-mode validation: (1) validateDiagram() at class-diagram-model.ts:182 already validates — wire it to run on pattern load in dev mode and console.warn results, (2) Add pattern content validation that checks all required fields, (3) Log helpful messages: 'Pattern \"X\" has relationship referencing non-existent class \"Y\". Check patterns.ts.'",
+    "acceptanceCriteria": [
+      "Dev mode: validateDiagram() runs on every pattern load and console.warns issues",
+      "Dev mode: content validation checks all required fields on module init",
+      "Warning format: 'LLD Content Warning: Pattern \"X\" — [specific issue]. Fix in patterns.ts.'",
+      "Validation disabled in production (no performance impact)",
+      "At least 5 common mistakes detected: missing class ID, invalid stereotype, orphan relationship, empty description, missing code sample"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/class-diagram-model.ts", "src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "error-messages", "developer-feedback", "validation"]
+  }
+]

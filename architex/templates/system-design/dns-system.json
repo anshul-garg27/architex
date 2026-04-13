@@ -1,0 +1,161 @@
+{
+  "id": "dns-system",
+  "name": "DNS Resolution System",
+  "description": "Design a DNS resolution system. Covers recursive resolution, hierarchical caching, TTL-based invalidation, the root/TLD/authoritative server hierarchy, and DNS-based load balancing.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": ["dns", "resolution", "caching", "networking", "nameserver", "domain"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client (Browser/App)",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 1000000, "requestsPerSecond": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "dns-resolver",
+      "type": "dns",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Recursive DNS Resolver",
+        "category": "networking",
+        "componentType": "dns",
+        "icon": "Globe",
+        "config": { "provider": "custom", "ttlSeconds": 300, "failoverEnabled": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "dns-cache",
+      "type": "cache",
+      "position": { "x": 250, "y": 425 },
+      "data": {
+        "label": "DNS Cache",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 32, "evictionPolicy": "volatile-ttl", "ttlSeconds": 300, "cacheHitRate": 0.90 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "root-server",
+      "type": "web-server",
+      "position": { "x": 500, "y": 50 },
+      "data": {
+        "label": "Root Name Server (.)",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 13, "maxConnections": 1000000, "processingTimeMs": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "tld-server",
+      "type": "web-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "TLD Name Server (.com/.org)",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 100, "maxConnections": 500000, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "auth-server",
+      "type": "web-server",
+      "position": { "x": 500, "y": 350 },
+      "data": {
+        "label": "Authoritative Name Server",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 4, "maxConnections": 100000, "processingTimeMs": 5 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-resolver",
+      "source": "client",
+      "target": "dns-resolver",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "udp", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-resolver-cache",
+      "source": "dns-resolver",
+      "target": "dns-cache",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-resolver-root",
+      "source": "dns-resolver",
+      "target": "root-server",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "udp", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-resolver-tld",
+      "source": "dns-resolver",
+      "target": "tld-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "udp", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-resolver-auth",
+      "source": "dns-resolver",
+      "target": "auth-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "udp", "latency": 20, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Recursive Resolution Process",
+      "description": "When a client queries 'www.example.com', the recursive resolver checks its local cache first. On a miss, it queries the Root Name Server, which responds with the .com TLD server address. The resolver then queries the TLD server, which responds with example.com's authoritative server address. Finally, the authoritative server returns the actual IP address. Each response includes a TTL dictating how long to cache it.",
+      "highlightNodes": ["client", "dns-resolver", "root-server", "tld-server", "auth-server"],
+      "highlightEdges": ["e-client-resolver", "e-resolver-root", "e-resolver-tld", "e-resolver-auth"]
+    },
+    {
+      "title": "Hierarchical Caching Strategy",
+      "description": "DNS relies on aggressive caching at every level. The resolver caches responses with their TTL (typically 300s for A records, 86400s for NS records). Root and TLD responses are cached for days since they rarely change, while authoritative records use shorter TTLs for flexibility. A 90% cache hit rate means only 10% of queries trigger the full resolution chain, reducing latency from ~70ms to ~1ms for cached entries.",
+      "highlightNodes": ["dns-resolver", "dns-cache"],
+      "highlightEdges": ["e-resolver-cache"]
+    },
+    {
+      "title": "The Root Server Infrastructure",
+      "description": "There are 13 logical root server clusters (A through M), operated by 12 independent organizations. Each cluster uses Anycast routing, so hundreds of physical servers worldwide respond to the same IP addresses. A client's query goes to the geographically nearest root server. This design provides both fault tolerance and low latency. Root servers only store pointers to TLD servers, not actual domain records.",
+      "highlightNodes": ["root-server", "tld-server"],
+      "highlightEdges": ["e-resolver-root", "e-resolver-tld"]
+    },
+    {
+      "title": "DNS-Based Load Balancing and Failover",
+      "description": "Authoritative servers can return multiple A records for round-robin load balancing, or use weighted records to distribute traffic unevenly. TTLs are set low (30-60s) for services requiring fast failover. Health-checked DNS (Route 53, Cloudflare) removes unhealthy endpoints from responses automatically. GeoDNS returns different IPs based on the resolver's location, routing users to the nearest data center.",
+      "highlightNodes": ["auth-server", "dns-resolver"],
+      "highlightEdges": ["e-resolver-auth"]
+    }
+  ]
+}

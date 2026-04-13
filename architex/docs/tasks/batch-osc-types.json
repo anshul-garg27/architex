@@ -1,0 +1,161 @@
+[
+  {
+    "id": "OSC-197",
+    "epic": "OSC",
+    "title": "Separate Process into ProcessInput and ProcessResult — stop conflating input with computed output",
+    "description": "scheduling.ts:16 Process type has input fields (id, name, arrivalTime, burstTime, priority) mixed with runtime state (remainingTime) and computed output (startTime?, completionTime?, waitTime?, turnaroundTime?, responseTime?). A developer creating a Process for fcfs() must set remainingTime (a runtime concept) in the input. Separate into ProcessInput (what user provides) and ProcessResult (what engine computes).",
+    "acceptanceCriteria": [
+      "ProcessInput type: id, name, arrivalTime, burstTime, priority",
+      "ProcessResult extends ProcessInput with NON-optional: startTime, completionTime, waitTime, turnaroundTime, responseTime",
+      "Engine functions accept ProcessInput[], return ScheduleResult with processes: ProcessResult[]",
+      "OSModule.tsx creates ProcessInput[] (no remainingTime)",
+      "No optional computed fields in result — they're always filled after run"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/lib/os/scheduling.ts", "src/lib/os/mlfq-scheduler.ts", "src/components/modules/OSModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "architecture", "separation-of-concerns"]
+  },
+  {
+    "id": "OSC-198",
+    "epic": "OSC",
+    "title": "Create shared BaseOSEvent type for all step/event types",
+    "description": "6 different step types (ScheduleEvent, PageEvent, SyncEvent, MemoryAllocStep, AddressTranslation, BankersStep) all have tick and description but with no shared base. Step discriminant field varies: type vs action vs boolean flags. Create BaseOSEvent with tick+description, extend all step types from it. Create OSEvent discriminated union for the Event Log.",
+    "acceptanceCriteria": [
+      "BaseOSEvent interface: { tick: number; description: string }",
+      "All 6 step types extend BaseOSEvent",
+      "OSEvent discriminated union: { concept: OSConcept; event: ScheduleEvent | PageEvent | ... }",
+      "Event Log component uses OSEvent union instead of 6-branch if/else",
+      "DeadlockResult.events uses named DeadlockEvent type instead of inline anonymous type"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/lib/os/scheduling.ts", "src/lib/os/page-replacement.ts", "src/lib/os/deadlock.ts", "src/lib/os/memory.ts", "src/lib/os/memory-alloc.ts", "src/lib/os/thread-sync.ts", "src/lib/os/bankers-algorithm.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "architecture", "consistency"]
+  },
+  {
+    "id": "OSC-199",
+    "epic": "OSC",
+    "title": "Add exhaustive switch pattern to all algorithm selection branches",
+    "description": "runScheduling (OSModule.tsx:2117), runPageReplacement (2165), runAllocSimulation (2307), and runThreadSync (2060) use switch statements without exhaustive checks. Adding a new algorithm to SchedulingAlgo union won't cause a TypeScript error if you forget to add the case. Add `default: { const _exhaustive: never = algo; throw new Error(...) }` to all switches.",
+    "acceptanceCriteria": [
+      "All algorithm switch statements have exhaustive default with never check",
+      "Adding a new value to SchedulingAlgo causes TypeScript error in runScheduling",
+      "Adding a new value to PageAlgo causes TypeScript error in runPageReplacement",
+      "Adding a new value to AllocAlgo causes TypeScript error in runAllocSimulation",
+      "Adding a new value to SyncPrimitive causes TypeScript error in runThreadSync"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/components/modules/OSModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "safety", "extensibility"]
+  },
+  {
+    "id": "OSC-200",
+    "epic": "OSC",
+    "title": "Type-narrow ScheduleResult.algorithm from string to SchedulingAlgo union",
+    "description": "ScheduleResult.algorithm is typed as `string` (scheduling.ts:39) but it only ever holds values like 'FCFS', 'SJF', 'SRTF', 'Round Robin', 'Priority', 'MLFQ'. These are set by the finalise() function as hardcoded strings. Type should be a union of known algorithm names for type safety in consumers.",
+    "acceptanceCriteria": [
+      "ScheduleResult.algorithm typed as SchedulingAlgorithmName union",
+      "type SchedulingAlgorithmName = 'FCFS' | 'SJF' | 'SRTF' | 'Round Robin' | ...",
+      "Same pattern for PageResult.algorithm and other result types",
+      "No string casts needed in consumers"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/lib/os/scheduling.ts", "src/lib/os/page-replacement.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "narrowing"]
+  },
+  {
+    "id": "OSC-201",
+    "epic": "OSC",
+    "title": "Create ScheduleEventType enum for the 9-value event type union",
+    "description": "ScheduleEvent.type is a 9-value string union: 'start' | 'resume' | 'preempt' | 'complete' | 'arrive' | 'idle' | 'demote' | 'boost' | 'io-return'. This appears in event creation (scheduling.ts, mlfq-scheduler.ts) and event rendering (OSModule.tsx:3788). An enum provides autocomplete, refactoring safety, and exhaustive checking.",
+    "acceptanceCriteria": [
+      "enum ScheduleEventType { Start, Resume, Preempt, Complete, Arrive, Idle, Demote, Boost, IOReturn }",
+      "All event creation uses the enum, not string literals",
+      "Event log coloring uses switch(event.type) with exhaustive check",
+      "Same pattern for SyncEvent.action and BankersStep.action"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/lib/os/scheduling.ts", "src/lib/os/thread-sync.ts", "src/lib/os/bankers-algorithm.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "enum", "refactoring"]
+  },
+  {
+    "id": "OSC-202",
+    "epic": "OSC",
+    "title": "Group related useState calls in useOSModule into typed state objects",
+    "description": "useOSModule has 38 individual useState calls. Related state is scattered: allocSteps, allocStep, allocCompare, allocAlgo, allocTotalMem, allocRequests are 6 separate states for one concept. Group into typed state objects per concept: SchedulingState, PageReplacementState, DeadlockState, MemoryState, AllocState, SyncState.",
+    "acceptanceCriteria": [
+      "Each concept's state grouped into a typed interface",
+      "SchedulingState: { algo, processes, result, comparisonResults }",
+      "AllocState: { algo, totalMem, requests, steps, step, compare }",
+      "Total useState calls reduced from 38 to ~10-12",
+      "Type safety: changing algo auto-suggests valid state fields",
+      "No functional regression"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/components/modules/OSModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "state", "architecture"]
+  },
+  {
+    "id": "OSC-203",
+    "epic": "OSC",
+    "title": "Extract named DeadlockEvent type from anonymous inline type in DeadlockResult",
+    "description": "DeadlockResult.events at deadlock.ts:39-50 uses an anonymous inline type: Array<{ tick, type, processId, resourceId, description }>. This should be a named DeadlockEvent interface for reusability, readability, and consistency with other event types (ScheduleEvent, PageEvent, etc.).",
+    "acceptanceCriteria": [
+      "New interface DeadlockEvent { tick, type: DeadlockEventType, processId, resourceId, description }",
+      "DeadlockResult.events typed as DeadlockEvent[]",
+      "DeadlockEvent exported from deadlock.ts and re-exported from index.ts",
+      "OSModule.tsx imports DeadlockEvent type"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/lib/os/deadlock.ts", "src/lib/os/index.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "naming"]
+  }
+]

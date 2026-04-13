@@ -1,0 +1,561 @@
+{
+  "id": "url-shortener",
+  "name": "URL Shortener (TinyURL)",
+  "description": "Design a URL shortening service like TinyURL or bit.ly. Covers key generation, caching, and redirect flow at scale.",
+  "difficulty": 2,
+  "category": "classic",
+  "tags": [
+    "url-shortener",
+    "caching",
+    "key-generation",
+    "redirect",
+    "read-heavy"
+  ],
+  "nodes": [
+    {
+      "id": "web-client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Web Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": {
+          "concurrentUsers": 10000,
+          "requestsPerSecond": 1000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": {
+          "rateLimitRps": 10000,
+          "authType": "jwt",
+          "timeoutMs": 30000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "web-server",
+      "type": "web-server",
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "data": {
+        "label": "URL Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 3,
+          "maxConnections": 10000,
+          "processingTimeMs": 5
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": {
+        "x": 750,
+        "y": 50
+      },
+      "data": {
+        "label": "URL Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 16,
+          "evictionPolicy": "lru",
+          "ttlSeconds": 86400,
+          "cacheHitRate": 0.85
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": {
+        "x": 750,
+        "y": 350
+      },
+      "data": {
+        "label": "URL DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 2,
+          "maxConnections": 200,
+          "storageGB": 500
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": {
+        "x": 500,
+        "y": 450
+      },
+      "data": {
+        "label": "CDN (301 Cache)",
+        "category": "load-balancing",
+        "componentType": "reverse-proxy",
+        "icon": "Globe2",
+        "config": {
+          "cacheHitRate": 0.7,
+          "ttlSeconds": 3600,
+          "edgeLocations": 50
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "web-client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 50,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-gw-server",
+      "source": "api-gw",
+      "target": "web-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-server-cache",
+      "source": "web-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-server-db",
+      "source": "web-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-cache-db",
+      "source": "cache",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-server-cdn",
+      "source": "web-server",
+      "target": "cdn",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 10,
+        "animated": false
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Key Generation Strategy",
+      "description": "The URL Service generates unique short keys using Base62 encoding of an auto-incrementing ID or a pre-generated key pool. A 7-character Base62 key gives ~3.5 trillion unique URLs. Using a KGS (Key Generation Service) avoids collisions under high concurrency.",
+      "highlightNodes": [
+        "web-server"
+      ],
+      "highlightEdges": []
+    },
+    {
+      "title": "Cache-Aside Pattern",
+      "description": "On a redirect request (GET /{shortKey}), the service first checks Redis. With an 85% cache hit rate, most reads never touch the database. On a cache miss, the service queries PostgreSQL, caches the result, then redirects. This is the cache-aside (lazy-loading) pattern.",
+      "highlightNodes": [
+        "cache",
+        "database"
+      ],
+      "highlightEdges": [
+        "e-server-cache",
+        "e-cache-db"
+      ]
+    },
+    {
+      "title": "301 vs 302 Redirect Flow",
+      "description": "The CDN layer can cache 301 (permanent) redirects at edge locations, reducing load on origin servers. However, 302 (temporary) redirects allow analytics tracking per click. The trade-off is between performance (301 + CDN) and analytics granularity (302 + origin).",
+      "highlightNodes": [
+        "cdn",
+        "web-client"
+      ],
+      "highlightEdges": [
+        "e-server-cdn",
+        "e-client-gw"
+      ]
+    },
+    {
+      "title": "Scaling for Read-Heavy Workload",
+      "description": "URL shorteners are extremely read-heavy (100:1 read:write). Scaling strategy: multiple read replicas on PostgreSQL, a large Redis cluster for hot URLs, and CDN caching for the most popular links. The API Gateway handles rate limiting to protect against abuse.",
+      "highlightNodes": [
+        "api-gw",
+        "cache",
+        "database"
+      ],
+      "highlightEdges": [
+        "e-gw-server",
+        "e-server-cache",
+        "e-server-db"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-cache-failure",
+        "name": "Redis Cache Failure",
+        "description": "Complete Redis failure forcing all reads to hit database",
+        "targetNodes": [
+          "cache"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Read latency increases 10x. DB connection pool saturates. Error rate spikes before circuit breaker activates.",
+        "mitigationSteps": [
+          "Circuit breaker routes to DB directly",
+          "Auto-failover to Redis standby",
+          "Gradually warm cache"
+        ]
+      },
+      {
+        "id": "cs-db-failover",
+        "name": "Database Failover",
+        "description": "Primary PostgreSQL crashes triggering replica promotion",
+        "targetNodes": [
+          "database"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Writes fail for 15-30s during failover. Reads served from cache unaffected.",
+        "mitigationSteps": [
+          "Automatic replica promotion",
+          "Application retries with backoff",
+          "Verify data consistency post-failover"
+        ]
+      },
+      {
+        "id": "cs-cdn-stampede",
+        "name": "CDN Cache Stampede",
+        "description": "Mass CDN cache eviction causes origin overload",
+        "targetNodes": [
+          "cdn",
+          "web-server"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Origin receives 10x traffic. Rate limiting activates.",
+        "mitigationSteps": [
+          "Request coalescing at CDN",
+          "Stale-while-revalidate headers",
+          "Auto-scale web servers"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "PostgreSQL connection pool saturates",
+        "resolution": "Add read replicas and increase pool size"
+      },
+      {
+        "rpsThreshold": 10000,
+        "bottleneckNode": "cache",
+        "metric": "memory",
+        "description": "Redis memory pressure increases eviction rate",
+        "resolution": "Add shards, increase memory"
+      },
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "api-gw",
+        "metric": "cpu",
+        "description": "API gateway CPU saturates from TLS termination",
+        "resolution": "Horizontal scale, offload TLS to CDN"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hot-keys",
+        "title": "Hot Key Concentration",
+        "description": "Viral URLs create hot keys in Redis",
+        "affectedNodes": [
+          "cache"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Local cache, CDN pinning for viral content"
+      },
+      {
+        "id": "ei-key-collision",
+        "title": "Key Generation Collision",
+        "description": "Base62 key collision under high write load",
+        "affectedNodes": [
+          "web-server",
+          "database"
+        ],
+        "likelihood": 2,
+        "impact": 3,
+        "mitigation": "Pre-generated key pool or collision retry"
+      },
+      {
+        "id": "ei-abuse",
+        "title": "Malicious URL Abuse",
+        "description": "Service used for phishing links",
+        "affectedNodes": [
+          "web-server"
+        ],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "URL scanning, rate limiting per API key"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 3500,
+      "components": [
+        {
+          "nodeId": "cache",
+          "label": "Redis",
+          "monthlyCostUsd": 800,
+          "costDriver": "16GB instance"
+        },
+        {
+          "nodeId": "database",
+          "label": "PostgreSQL",
+          "monthlyCostUsd": 1200,
+          "costDriver": "db.r6g.large + 500GB"
+        },
+        {
+          "nodeId": "web-server",
+          "label": "URL Service",
+          "monthlyCostUsd": 600,
+          "costDriver": "3 instances"
+        },
+        {
+          "nodeId": "cdn",
+          "label": "CDN",
+          "monthlyCostUsd": 500,
+          "costDriver": "Data transfer"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 400,
+          "costDriver": "Request volume"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 1000,
+          "monthlyCostUsd": 1500
+        },
+        {
+          "label": "Medium",
+          "rps": 10000,
+          "monthlyCostUsd": 3500
+        },
+        {
+          "label": "High",
+          "rps": 100000,
+          "monthlyCostUsd": 12000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 10000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 5,
+      "p99LatencyMs": 50,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 10000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "web-server",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 1,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Redirect Latency",
+        "metric": "p99_redirect_ms",
+        "target": 50,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "redirect_latency",
+          "type": "histogram",
+          "description": "URL redirect time",
+          "nodeId": "web-server"
+        },
+        {
+          "name": "cache_hit_rate",
+          "type": "gauge",
+          "description": "Redis cache hit rate",
+          "nodeId": "cache"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 100ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Cache Miss Spike",
+          "condition": "hit_rate < 0.7 for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "URL Service Overview",
+        "Cache Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Cache failure",
+          "severity": "critical",
+          "steps": [
+            "Failover Redis",
+            "Monitor hit rate"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Cache-Aside Pattern",
+        "context": "Read-heavy workload (100:1 read/write)",
+        "decision": "Check cache first, fallback to DB on miss",
+        "consequences": [
+          "85% cache hit rate",
+          "DB handles only 15% of reads"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Performance",
+        "choice": "Performance",
+        "benefit": "Sub-ms reads from cache",
+        "cost": "Brief staleness window on updates"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Write-Through Cache",
+        "description": "Update cache on every write",
+        "prosVsCons": "Lower miss rate but higher write latency",
+        "whyNotChosen": "Write path is not latency-sensitive for URL shortener"
+      }
+    ]
+  }
+}

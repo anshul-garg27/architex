@@ -1,0 +1,223 @@
+[
+  {
+    "id": "PLT-028",
+    "epic": "PLT",
+    "title": "Wire ConceptModuleLinks into all 11 interactive module components",
+    "description": "The cross-module link system (40+ concepts mapped in concept-module-map.ts, ConceptModuleLinks rendering component) exists but is NEVER imported by any module component. Only concepts/[slug]/page.tsx uses it. Add ConceptModuleLinks to properties panels or Learn tabs of all modules, connecting the learning experience across the platform.",
+    "acceptanceCriteria": [
+      "Each module's properties panel or Learn tab shows related concepts from other modules",
+      "ConceptModuleLinks imported and rendered in OSModule, AlgorithmModule, DatabaseModule, etc.",
+      "Clicking a cross-module link navigates to the target module with the relevant concept selected",
+      "At least 5 cross-module connections visible per module"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/cross-module/ConceptModuleLinks.tsx", "src/lib/cross-module/concept-module-map.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["cross-module", "navigation", "learning"]
+  },
+  {
+    "id": "PLT-029",
+    "epic": "PLT",
+    "title": "Wire useProgressStore into all modules — track concept exploration and award XP",
+    "description": "Progress store tracks XP, streaks, challenge attempts but only InterviewModule uses it. Wire into all modules: simulation run = 10 XP, Compare All = 25 XP, step completion = 50 XP, new concept visit = 15 XP. Streak updates on activity in ANY module.",
+    "acceptanceCriteria": [
+      "Running a simulation in any module awards XP",
+      "Progress dashboard shows accurate per-module stats",
+      "Streak updates when user is active in ANY module",
+      "Activity log entries created for significant actions"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/stores/progress-store.ts", "src/lib/progress/module-progress.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["progress", "engagement"]
+  },
+  {
+    "id": "PLT-030",
+    "epic": "PLT",
+    "title": "Wire cross-module bridge UI (RecommendedBridges, BridgePanel) into module properties panels",
+    "description": "Bridge system (registry, handlers, BridgePanel, RecommendedBridges, BridgeConsumer) is fully built but modules don't render bridge UI. Add RecommendedBridges to properties panels showing contextual suggestions. E.g., LRU in OS → bridge to LRU Cache in Data Structures.",
+    "acceptanceCriteria": [
+      "RecommendedBridges renders in properties panel of all modules",
+      "Bridges change based on active concept within the module",
+      "Clicking a bridge navigates to target module with payload applied",
+      "Breadcrumb shows navigation path"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/cross-module/BridgePanel.tsx", "src/lib/cross-module/bridge-registry.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["cross-module", "bridge"]
+  },
+  {
+    "id": "PLT-031",
+    "epic": "PLT",
+    "title": "Connect PostHog analytics — install SDK, set env var, verify event pipeline",
+    "description": "PostHog infrastructure is production-grade (analytics.ts, posthog.ts, consent.ts, 14 event types) but not connected. Install posthog-js, set NEXT_PUBLIC_POSTHOG_KEY, verify MODULE_VIEWED fires on module switch.",
+    "acceptanceCriteria": [
+      "posthog-js installed",
+      "NEXT_PUBLIC_POSTHOG_KEY configured",
+      "MODULE_VIEWED event fires on module switch",
+      "Consent banner appears for new users",
+      "PostHog dashboard shows real events"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/lib/analytics/posthog.ts", "src/components/providers/AnalyticsProvider.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["analytics", "infrastructure"]
+  },
+  {
+    "id": "PLT-032",
+    "epic": "PLT",
+    "title": "Connect Sentry error tracking — install SDK, configure DSN",
+    "description": "Sentry framework exists (error-tracking.ts with PII scrubbing, breadcrumbs) but is a stub. Install @sentry/nextjs, configure DSN, verify error capture from module renders.",
+    "acceptanceCriteria": [
+      "@sentry/nextjs installed and configured",
+      "Module render errors captured in Sentry",
+      "PII scrubbing active",
+      "Source maps uploaded for production"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/lib/analytics/error-tracking.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["error-tracking", "infrastructure"]
+  },
+  {
+    "id": "PLT-033",
+    "epic": "PLT",
+    "title": "Migrate all modules to shared UI components (Button, Input, Select, Label)",
+    "description": "32 shared UI components with CVA variants + Radix primitives exist, but only NetworkingModule imports any. AlgorithmModule, OSModule, DatabaseModule use raw HTML. When global theme updates, modules diverge visually.",
+    "acceptanceCriteria": [
+      "All module buttons use shared Button",
+      "All module inputs use shared Input",
+      "All module selects use shared Select",
+      "Visual consistency verified across all modules"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/ui/"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["design-system", "consistency"]
+  },
+  {
+    "id": "PLT-034",
+    "epic": "PLT",
+    "title": "Wire motion constants into all module animations — replace raw motion.div with named springs",
+    "description": "motion.ts defines 5 springs, 100+ named animations. Modules either have zero animation or use raw motion.div defaults. Wire springs.smooth for content entrance, springs.snappy for interactions, stagger.listItems for lists.",
+    "acceptanceCriteria": [
+      "All module content transitions use named springs",
+      "No raw motion.div without spring reference in any module",
+      "GCPauseLatencyVisualizer uses springs.smooth",
+      "Consistent animation feel across all 13 modules"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/lib/constants/motion.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["animation", "consistency"]
+  },
+  {
+    "id": "PLT-035",
+    "epic": "PLT",
+    "title": "Add per-module Suspense fallback skeletons for dynamic module loading",
+    "description": "All 13 modules loaded with dynamic({ ssr: false }) but NO loading fallback specified. Blank area shown during module switch. App-level loading.tsx exists but only for initial page load.",
+    "acceptanceCriteria": [
+      "Each dynamic module import has a loading component",
+      "Skeleton mimics sidebar + canvas + properties layout",
+      "Uses animate-pulse matching app-level loading.tsx",
+      "Module switch feels instant — skeleton shows immediately"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/app/page.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["loading", "ux"]
+  },
+  {
+    "id": "PLT-036",
+    "epic": "PLT",
+    "title": "Create shared visualization color utility mapping to CSS tokens across all modules",
+    "description": "globals.css defines chart-1 through chart-6 colors, state colors, node-type colors. But modules define local color arrays (BAR_COLORS, PROCESS_COLORS, THREAD_COLORS, levelColor). Create vizColors utility: vizColors.process(i) → var(--chart-${i}), vizColors.state.success → var(--state-success).",
+    "acceptanceCriteria": [
+      "vizColors utility maps visualization semantics to CSS tokens",
+      "All module color arrays refactored to use vizColors",
+      "Colors change correctly on theme switch",
+      "No hardcoded hex values in any module visualization"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/lib/visualization/colors.ts", "src/app/globals.css"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["design-system", "colors"]
+  },
+  {
+    "id": "PLT-037",
+    "epic": "PLT",
+    "title": "Add ErrorBoundary wrapping to all module visualizers and simulators",
+    "description": "ErrorBoundary and ModuleErrorBoundary exist but only wrap system-design nodes. If a visualizer throws (GanttChart, RAG SVG, ThreadSync), error propagates uncaught. Wrap each major visualizer in ErrorBoundary.",
+    "acceptanceCriteria": [
+      "Each major visualizer wrapped in ErrorBoundary",
+      "Fallback: 'Visualization error — try refreshing' with retry button",
+      "Other panels remain functional during canvas error",
+      "Error logged to Sentry when connected"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": ["src/components/shared/ErrorBoundary.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["error-handling", "reliability"]
+  }
+]

@@ -1,0 +1,148 @@
+{
+  "id": "distributed-cache",
+  "name": "Distributed Cache (Redis Cluster)",
+  "description": "Design a distributed caching layer using Redis Cluster. Covers consistent hashing, cache-aside/write-through patterns, cluster topology, replication, and failover.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": ["cache", "redis", "distributed", "consistent-hashing", "replication", "cluster"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 50000, "requestsPerSecond": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckInterval": 10, "maxConnections": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "web-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Application Server",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 10, "maxConnections": 20000, "processingTimeMs": 15 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache-cluster",
+      "type": "cache",
+      "position": { "x": 750, "y": 100 },
+      "data": {
+        "label": "Redis Cluster (6 nodes)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis-cluster", "memoryGB": 128, "evictionPolicy": "allkeys-lru", "ttlSeconds": 3600, "shards": 3, "replicasPerShard": 1 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 750, "y": 350 },
+      "data": {
+        "label": "Primary DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 500, "storageGB": 2000 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache-cluster",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 10, "animated": false }
+    },
+    {
+      "id": "e-cache-db",
+      "source": "cache-cluster",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 10, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Cache-Aside (Lazy Loading) Pattern",
+      "description": "The Application Server first checks Redis for the requested key. On a cache hit (~95%), data is returned in under 1ms. On a cache miss, the server queries PostgreSQL, writes the result into Redis with a TTL, and returns it. This lazy-loading approach ensures only actively-accessed data occupies cache memory. The tradeoff is that the first request for any key incurs a full DB round-trip.",
+      "highlightNodes": ["app-server", "cache-cluster", "database"],
+      "highlightEdges": ["e-app-cache", "e-app-db"]
+    },
+    {
+      "title": "Consistent Hashing and Slot Assignment",
+      "description": "Redis Cluster partitions the keyspace into 16,384 hash slots distributed across 3 master shards. Each key is hashed (CRC16) to determine its slot and thus its shard. When a node is added or removed, only the slots migrating to/from that node are affected, minimizing cache invalidation. Clients use cluster-aware drivers that maintain a slot-to-node mapping and redirect automatically on MOVED responses.",
+      "highlightNodes": ["cache-cluster", "app-server"],
+      "highlightEdges": ["e-app-cache"]
+    },
+    {
+      "title": "Replication and Automatic Failover",
+      "description": "Each of the 3 master shards has 1 replica, forming a 6-node cluster. Replicas asynchronously replicate from their master. If a master fails, the cluster's gossip protocol detects it within seconds, and the replica is promoted to master (automatic failover). During failover, writes to that shard's slots may fail briefly, so the application retries with exponential backoff. Read replicas can serve stale reads for lower latency in read-heavy workloads.",
+      "highlightNodes": ["cache-cluster"],
+      "highlightEdges": ["e-app-cache", "e-cache-db"]
+    },
+    {
+      "title": "Cache Invalidation Strategies",
+      "description": "Three common strategies: (1) TTL-based expiry -- keys expire after a fixed time, trading freshness for simplicity. (2) Write-through -- on every DB write, the app also updates Redis, keeping cache consistent but adding write latency. (3) Event-driven invalidation -- DB changes emit events that trigger cache deletes, using eventual consistency. Choosing the right strategy depends on how stale data tolerance vs write complexity trade off for each use case.",
+      "highlightNodes": ["app-server", "cache-cluster", "database"],
+      "highlightEdges": ["e-app-cache", "e-app-db", "e-cache-db"]
+    }
+  ]
+}

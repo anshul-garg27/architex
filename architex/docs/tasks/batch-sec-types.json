@@ -1,0 +1,175 @@
+[
+  {
+    "id": "SEC-181",
+    "epic": "SEC",
+    "title": "Rename AttackStep to WebAttackStep (name collision with JWTAttackStep)",
+    "description": "web-attacks.ts:18 exports `AttackStep`. jwt-attacks.ts:19 exports `JWTAttackStep`. SecurityModule.tsx:69 already aliases: `import type { AttackStep as WebAttackStep }`. Rename at source to avoid confusion. This is a compile-safe refactor.",
+    "acceptanceCriteria": [
+      "web-attacks.ts exports `WebAttackStep` (not `AttackStep`)",
+      "All imports updated (SecurityModule.tsx, index.ts, tests)",
+      "No functional change — pure rename"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/lib/security/web-attacks.ts", "src/components/modules/SecurityModule.tsx", "src/lib/security/index.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "naming", "consistency"]
+  },
+  {
+    "id": "SEC-182",
+    "epic": "SEC",
+    "title": "Narrow actor fields from string to union literals in OAuthStep, DHStep, EncryptionStep",
+    "description": "OAuthStep.actor is `string` but only takes 4 values ('User Agent','Client','Auth Server','Resource Server'). DHStep.actor is `string` but only takes 4 values. EncryptionStep.actor is `string` but only takes 4 values. AttackStep already uses a proper union — follow its pattern. Narrow to: `actor: 'User Agent' | 'Client' | 'Auth Server' | 'Resource Server'` etc. This makes oauthActorToColumn() and similar functions type-safe.",
+    "acceptanceCriteria": [
+      "OAuthStep.actor uses 4-member union literal",
+      "DHStep.actor uses 4-member union literal ('Public'|'Alice'|'Bob'|'Both')",
+      "EncryptionStep.actor uses 4-member union literal ('Alice'|'Bob'|'Network'|'Both')",
+      "oauthActorToColumn() and similar functions type-check without string comparison"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/lib/security/oauth-flows.ts", "src/lib/security/diffie-hellman.ts", "src/lib/security/encryption-comparison.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "narrowing", "type-safety"]
+  },
+  {
+    "id": "SEC-183",
+    "epic": "SEC",
+    "title": "Narrow OAuthStep.httpMethod from string to union literal",
+    "description": "OAuthStep.httpMethod is `string?` but only takes values 'GET','POST','302','200','400'. Narrow to `httpMethod?: 'GET' | 'POST' | '302' | '200' | '400'`. This prevents typos and enables exhaustive pattern matching in the visualizer.",
+    "acceptanceCriteria": [
+      "httpMethod uses 5-member union literal",
+      "All OAuthStep instances in oauth-flows.ts and device-auth.ts type-check",
+      "No string comparison needed in rendering code"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/lib/security/oauth-flows.ts", "src/lib/security/device-auth.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "narrowing"]
+  },
+  {
+    "id": "SEC-184",
+    "epic": "SEC",
+    "title": "Refactor SecurityPropertiesContextValue from 60-field flat interface to discriminated union",
+    "description": "SecurityModule.tsx:2843-2911 defines SecurityPropertiesContextValue with 60+ fields for all 11 topics. Adding a new topic requires adding 5-10 fields to this interface, the provider value, and the consumer destructure. Refactor to discriminated union: `type SecurityPropertiesCtx = { active: 'oauth'; steps: OAuthStep[]; ... } | { active: 'jwt'; header: string; ... } | ...`. Each topic's properties component only sees its own fields — type-safe and extensible.",
+    "acceptanceCriteria": [
+      "SecurityPropertiesContextValue is a discriminated union on `active`",
+      "Each topic's SecurityProperties case only destructures its own fields",
+      "Adding a new topic only requires adding a new union member",
+      "TypeScript catches if a topic's properties panel accesses wrong fields"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "architecture", "discriminated-union", "extensibility"]
+  },
+  {
+    "id": "SEC-185",
+    "epic": "SEC",
+    "title": "Add exhaustive switch check (assertNever) to canvas topic switch",
+    "description": "SecurityModule.tsx canvas switch at ~line 4880 has a `default:` case showing a placeholder. This means adding a new SecurityTopic member does NOT cause a compile error — the default silently catches it. Replace default with assertNever(active) exhaustive check. TypeScript will then flag any new topic that isn't handled in the switch.",
+    "acceptanceCriteria": [
+      "Canvas switch statement has no default case",
+      "assertNever(active) at the end causes compile error for unhandled topics",
+      "Adding 'ssrf' to SecurityTopic union causes compile error until canvas case is added",
+      "Same pattern applied to SecurityProperties and SecurityBottomPanel switches"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "exhaustive-check", "extensibility"]
+  },
+  {
+    "id": "SEC-186",
+    "epic": "SEC",
+    "title": "Add parseHex validation with Result type instead of silent zero-fill",
+    "description": "aes-engine.ts parseHex returns number[] but silently converts invalid hex to 0. Add a Result type: `function parseHex(hex: string): { ok: true; bytes: number[] } | { ok: false; error: string; position: number }`. Callers must check the result. This is a type-level fix for the runtime bug found in mega audit (SEC-023/SEC-146).",
+    "acceptanceCriteria": [
+      "parseHex returns a discriminated Result type",
+      "Invalid hex characters produce an error with position info",
+      "AES properties panel shows the error when parseHex fails",
+      "Valid hex still produces correct number[]"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/lib/security/aes-engine.ts", "src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "validation", "result-type"]
+  },
+  {
+    "id": "SEC-187",
+    "epic": "SEC",
+    "title": "Standardize step index naming across all topics",
+    "description": "Step indices use inconsistent names: `stepIndex` (OAuth/DH/HTTPS), `aesStateIndex` (AES), `attackStepIndex` (JWT Attacks), `encryptionStepIndex` (Encryption). Standardize to a consistent pattern. Options: (a) all use `stepIndex` with topic-qualified context, (b) all use `{topic}StepIndex` consistently. The current mix makes the useSecurityModule hook harder to read and maintain.",
+    "acceptanceCriteria": [
+      "All step index variables follow a consistent naming pattern",
+      "Pattern documented for future topics",
+      "No functional change — pure rename"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "naming", "consistency"]
+  },
+  {
+    "id": "SEC-188",
+    "epic": "SEC",
+    "title": "Extract BaseSecurityStep interface shared across all step types",
+    "description": "All 12 step types have `description: string`. Many share `actor`, `tick`, or other fields. Extract a base: `interface BaseSecurityStep { description: string; }` and have each step type extend it. This enables generic step rendering and shared step utilities without losing per-type specificity.",
+    "acceptanceCriteria": [
+      "BaseSecurityStep interface defined with shared fields (at minimum: description)",
+      "At least 6 step types extend BaseSecurityStep",
+      "Generic step rendering utility works with BaseSecurityStep",
+      "Per-type fields preserved via intersection or extension"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/lib/security/oauth-flows.ts", "src/lib/security/diffie-hellman.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "architecture", "shared-base"]
+  }
+]

@@ -1,0 +1,132 @@
+[
+  {
+    "id": "MLD-156",
+    "epic": "MLD",
+    "title": "Add spring-physics entry animations to ScatterPlot data points",
+    "description": "ScatterPlot (MLDesignModule.tsx:1011-1027) renders all 200 data points instantly with zero animation. When dataset changes, points should: (1) fade out old points with opacity transition, (2) new points appear with a staggered spring animation (each point pops in 10-20ms apart with overshoot). Use framer-motion or CSS spring keyframes.\n\nReference: Josh Comeau's spring physics guide shows how to create organic entry animations. TF Playground data points appear with a subtle bounce.\n\nCurrent: Static SVG circles. No transition on dataset change.\nTarget: Points stagger in with spring physics, creating a 'rain of data' effect that draws attention.",
+    "acceptanceCriteria": ["Data points animate in with staggered timing (10-20ms apart)", "Each point uses spring easing with slight overshoot", "Old points fade out before new ones appear", "Animation completes within 500ms total", "No jank at 200 points (test performance)", "Can be disabled via prefers-reduced-motion"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "spring-physics"]
+  },
+  {
+    "id": "MLD-157",
+    "epic": "MLD",
+    "title": "Upgrade DecisionBoundary to smooth morphing between training states",
+    "description": "DecisionBoundary (MLDesignModule.tsx:1159-1196) redraws the entire canvas per epoch batch with no interpolation. The boundary snaps between states. Should: interpolate the heatmap grid values between epochs so the boundary appears to 'morph' smoothly.\n\nTechnique: Store previous grid values, lerp toward new values over 3-4 frames. This creates the 'boundary evolving' effect that makes TF Playground so satisfying to watch.\n\nAlso: increase alpha from 0.35 to 0.6 for visibility. Add contour line at the 0.5 decision boundary.",
+    "acceptanceCriteria": ["Decision boundary morphs smoothly between epoch updates", "No snapping or flickering during training", "Alpha increased to 0.6 for better visibility", "0.5 contour line drawn as a subtle white dashed line", "Morphing completes within 200ms per epoch batch", "30×30 grid interpolation doesn't cause frame drops"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "decision-boundary", "high-impact"]
+  },
+  {
+    "id": "MLD-158",
+    "epic": "MLD",
+    "title": "Add weight-change animation to NetworkDiagram during training",
+    "description": "NetworkDiagram (MLDesignModule.tsx:1038-1142) redraws with no transition when weights change. Should: animate edge colors/thickness transitioning smoothly between epoch states. Edges that change significantly should 'pulse' briefly to draw attention.\n\nAlso add neuron activation coloring (referenced in MLD-132): neurons glow brighter based on their activation value, matching 3Blue1Brown's approach.\n\nCurrent: Static redraw per epoch batch.\nTarget: Edges smoothly transition color/thickness. Active neurons glow. The network feels 'alive' during training.",
+    "acceptanceCriteria": ["Edge colors/thickness transition smoothly between training updates", "Edges with large weight changes pulse briefly (scale up 1.5x then settle)", "Neuron fill color maps to activation value (dark=0, bright=1)", "Transitions use CSS transition or requestAnimationFrame interpolation", "Animation duration: 300ms per epoch batch", "No frame drops with 4 layers × 8 neurons"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-132"], "blockedBy": [], "tags": ["visual", "animation", "neural-network"]
+  },
+  {
+    "id": "MLD-159",
+    "epic": "MLD",
+    "title": "Add hover states and click feedback to all SVG interactive elements",
+    "description": "Zero SVG elements have hover effects or click feedback:\n- Pipeline stages (line 1803): Should glow/elevate on hover, scale slightly on click\n- Mode tabs (line 966): Already have basic bg-color change but no transition-transform\n- Bandit bars: Should brighten on hover with tooltip showing arm details\n- Feature store nodes: Should brighten on hover\n- CNN grid cells: Should show value tooltip on hover\n\nAdd consistent micro-interactions: `transition: all 150ms ease-out` on interactive SVG groups. Hover: subtle brightness increase + cursor change. Click: brief scale(0.97) then scale(1) for tactile feedback.",
+    "acceptanceCriteria": ["All clickable SVG elements have hover:brightness(1.2) effect", "Pipeline stages scale slightly on hover (transform: scale(1.03))", "Click feedback: brief scale(0.97) press then bounce back", "Cursor changes to pointer on hoverable elements", "Transitions are 150ms ease-out, consistent everywhere", "No hover effects on non-interactive elements"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "micro-interaction", "polish"]
+  },
+  {
+    "id": "MLD-160",
+    "epic": "MLD",
+    "title": "Make all visualizations responsive — adapt to container size",
+    "description": "Every visualization has hardcoded pixel dimensions:\n- ScatterPlot: 220×220 (line 1638)\n- NetworkDiagram: 260×220 (line 1647)\n- DecisionBoundary: 220×220 (line 1659)\n- PipelineCanvas: calculated from stage count (~820×152)\n- ServingCanvas: 700×300 (line 1879)\n- BanditCanvas: 660×300 (line 2684)\n- FeatureStoreCanvas: 820×420 (line 2927-2928)\n\nAll scored 0/3 on VA7. Fix: Use a ResizeObserver or container query to measure available space and scale SVG viewBox accordingly. Min-width to prevent elements becoming unreadable.",
+    "acceptanceCriteria": ["All visualizations adapt to their container dimensions", "viewBox scales proportionally — no stretching or distortion", "Minimum size enforced (no unreadable elements below 300px wide)", "Elements resize gracefully (text stays readable, spacing adjusts)", "Mobile (375px): visualizations stack vertically and fill width", "Ultrawide (2560px): visualizations use available space proportionally"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "responsive", "layout"]
+  },
+  {
+    "id": "MLD-161",
+    "epic": "MLD",
+    "title": "Add gradient fills and depth to all visualization elements",
+    "description": "All SVG elements use flat fill colors — no gradients, no shadows, no depth cues. This makes everything look flat and 'school project' quality.\n\nFix per element type:\n- Bars (bandit): Linear gradient from color/80 to color/40 top-to-bottom\n- Nodes (pipeline, feature store): Subtle radial gradient from center (lighter) to edge (darker)\n- Circles (neurons, data points): Radial gradient with highlight at top-left (3D sphere effect)\n- Boxes (serving models, users): Drop shadow via SVG filter (`<feDropShadow>`)\n- Active elements: Glow via `<feGaussianBlur>` filter\n\nReference: Apple keynote visualizations use subtle gradients on every element. NYT graphics use gradient fills for charts.",
+    "acceptanceCriteria": ["Bars have vertical linear gradient (lighter top, darker bottom)", "Node circles have radial gradient for 3D sphere effect", "Boxes have subtle drop shadow (2px offset, 4px blur, 10% opacity)", "Active/selected elements have outer glow effect", "Gradients use CSS custom properties for theme-awareness", "Visual quality noticeably improved — looks professional, not flat"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-030"], "blockedBy": ["MLD-030"], "tags": ["visual", "polish", "depth"]
+  },
+  {
+    "id": "MLD-162",
+    "epic": "MLD",
+    "title": "Add bar growth animation to BanditCanvas with spring easing",
+    "description": "BanditCanvas bars (MLDesignModule.tsx:2710-2760) snap to new heights instantly each round. Should: animate bar height changes with spring easing (overshoot + settle). The selected arm's bar should have a more pronounced animation (scale pulse + glow).\n\nTechnique: Store previous bar heights, lerp toward target with spring physics per frame. Use requestAnimationFrame for smooth 60fps interpolation.\n\nReference: D3.js bar chart transitions with `.transition().duration(300).ease(d3.easeCubicOut)`",
+    "acceptanceCriteria": ["Bar heights animate smoothly between rounds", "Spring easing: slight overshoot then settle", "Selected arm bar has extra visual emphasis (glow + scale pulse)", "Animation duration ~200ms per round update", "New bars (first pull) grow from 0 with bounce", "No performance issues with 8 bars × 200 rounds"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "spring-physics"]
+  },
+  {
+    "id": "MLD-163",
+    "epic": "MLD",
+    "title": "Add dataset transition animation — points morph between shapes",
+    "description": "When switching datasets (Circle→XOR→Spiral→Gaussian), all 200 points disappear and reappear instantly. Should: morph existing points from old positions to new positions. Points that change class color should fade through white midpoint.\n\nTechnique: Since both old and new datasets have 200 points, animate point[i] from old[i].position to new[i].position over 400ms. Color transitions via HSL interpolation.\n\nThis creates a mesmerizing 'data shape-shifting' effect that's never been seen in any ML visualization tool — it would be genuinely screenshot-worthy.",
+    "acceptanceCriteria": ["Switching datasets morphs points from old to new positions", "Points that change class color transition via HSL interpolation", "Morphing animation takes ~400ms with cubic-bezier easing", "No flash of empty canvas during transition", "Works for all 4 dataset pairs (any→any)", "Performance: 200 points animating simultaneously at 60fps"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "distinctive", "screenshot-worthy"]
+  },
+  {
+    "id": "MLD-164",
+    "epic": "MLD",
+    "title": "Add axis labels, tick marks, and grid lines to all chart visualizations",
+    "description": "ScatterPlot has zero axis labels. DecisionBoundary has zero labels. BanditCanvas has Y-axis ticks but no axis titles. ABTestingCanvas has no axis labels.\n\nAdd to all chart-type visualizations:\n- X-axis label (what the axis represents)\n- Y-axis label (rotated 90°)\n- Tick marks at regular intervals with values\n- Subtle grid lines (opacity 0.1) for value estimation\n- Title text above chart\n\nReference: NYT data visualization standard — every chart has clearly labeled axes.",
+    "acceptanceCriteria": ["ScatterPlot has X: 'Feature 1', Y: 'Feature 2' axis labels", "DecisionBoundary has axis labels matching scatter plot", "BanditCanvas has Y: 'Estimated Value', X: 'Arms' axis titles", "ABTestingCanvas has Y: 'Conversion Rate' axis label", "Grid lines at major tick intervals (opacity 0.08)", "Font size appropriate (10px for labels, 8px for ticks)"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "typography", "labels"]
+  },
+  {
+    "id": "MLD-165",
+    "epic": "MLD",
+    "title": "Create shared visualization style guide and component primitives",
+    "description": "Each visualizer implements its own colors, spacing, font sizes, stroke widths, and shapes independently. No shared visual language. Create a shared visualization config:\n\n- Color tokens: `--viz-class-0`, `--viz-class-1`, `--viz-active`, `--viz-selected`, `--viz-muted`\n- Consistent stroke widths: thin=1, medium=1.5, thick=2.5\n- Consistent font sizes: label=10, value=11, title=12, tiny=8\n- Consistent spacing: padding=20, elementGap=8\n- Consistent radius: node=14, box=8, bar=3\n- Shared SVG filter definitions: glow, drop-shadow, blur\n\nAll visualizers should import from this shared config. This is the 'design system' for visualizations.",
+    "acceptanceCriteria": ["Shared viz config file with all tokens", "All 9 active visualizers import from shared config", "Color tokens are CSS custom properties (theme-aware)", "Zero hardcoded values in visualizer rendering code", "Shared SVG `<defs>` block with filters (glow, shadow)", "Visual consistency across all visualizers when viewed together"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/viz-config.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-030"], "blockedBy": ["MLD-030"], "tags": ["visual", "design-system", "consistency"]
+  },
+  {
+    "id": "MLD-166",
+    "epic": "MLD",
+    "title": "Add PipelineCanvas click transition — stage details slide in with spring",
+    "description": "Clicking a pipeline stage instantly changes the properties panel content (zero transition). Should: properties panel content slides in from the right with spring easing. Old content fades out, new content springs in. Stage box on canvas pulses briefly to confirm selection.\n\nAlso add: hover preview — hovering a stage shows a truncated tooltip with the first 50 chars of description.",
+    "acceptanceCriteria": ["Clicking a stage triggers slide-in animation for properties content", "Old content fades out (200ms), new content springs in from right (300ms)", "Stage box on canvas pulses briefly (scale 1→1.05→1 over 200ms)", "Hover shows tooltip with truncated description", "Transition feels tactile and purposeful", "Deselecting (clicking same stage) slides content out"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "micro-interaction"]
+  },
+  {
+    "id": "MLD-167",
+    "epic": "MLD",
+    "title": "Upgrade FeatureStoreCanvas — add data flow particle system",
+    "description": "The FeatureStoreCanvas already has the best animation (glow nodes + dots). Elevate it to world-class:\n- Replace single dots with particle streams (3-5 particles per edge)\n- Particles follow the edge path with slight random offset for organic feel\n- Particle speed varies (some fast, some slow) for visual interest\n- Add a subtle 'trail' effect (particle leaves fading path)\n- Active nodes have inner radial pulse animation\n\nThis would make the Feature Store visualization genuinely Apple-keynote-worthy — the kind of thing someone screenshots and shares.",
+    "acceptanceCriteria": ["Multiple particles (3-5) flow along each active edge", "Particles have slight random offset from edge center line", "Variable speed particles for organic feel", "Subtle trail effect behind moving particles", "Active nodes have inner radial pulse (not just outer glow)", "Performance: <16ms frame time with all animations active"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "animation", "world-class", "screenshot-worthy"]
+  },
+  {
+    "id": "MLD-168",
+    "epic": "MLD",
+    "title": "Add A/B Testing confidence interval visualization",
+    "description": "ABTestingCanvas (MLDesignModule.tsx:2394-2499) shows bars and a significance badge but no confidence intervals — the most important visual in A/B testing.\n\nAdd: dot-and-whisker plot above the bars showing:\n- Point estimate (dot) for each group's conversion rate\n- 95% confidence interval (horizontal line/whisker)\n- Zero line (no difference) clearly marked\n- If CIs don't overlap → visually obvious significance\n\nReference: CXL A/B test visualization guide recommends forest-style difference plots. This is how professional data scientists communicate A/B results.",
+    "acceptanceCriteria": ["Confidence interval whiskers shown for both control and treatment", "Difference plot showing treatment effect with CI centered at zero line", "Non-overlapping CIs clearly communicate significance visually", "CI width narrows as sample size increases (interactive)", "Professional quality matching data science reporting standards"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/ab-testing.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual", "data-viz", "professional"]
+  }
+]

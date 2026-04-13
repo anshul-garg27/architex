@@ -1,0 +1,131 @@
+{
+  "id": "bp-chat-system",
+  "name": "Chat & Messaging System — Production Blueprint",
+  "description": "Real-time messaging platform supporting 1:1 chats, group conversations, media sharing, read receipts, and presence indicators. Handles billions of messages daily with guaranteed delivery.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["chat", "messaging", "real-time", "websocket", "presence", "blueprint"],
+  "nodes": [
+    { "id": "mobile-client", "type": "client", "position": { "x": 0, "y": 200 }, "data": { "label": "Mobile App", "category": "client", "componentType": "mobile-client", "icon": "Smartphone", "config": { "concurrentUsers": 5000000, "requestsPerSecond": 100000 }, "state": "idle" } },
+    { "id": "web-client", "type": "client", "position": { "x": 0, "y": 400 }, "data": { "label": "Web Client", "category": "client", "componentType": "web-client", "icon": "Monitor", "config": { "concurrentUsers": 2000000, "requestsPerSecond": 50000 }, "state": "idle" } },
+    { "id": "ws-gateway", "type": "api-gateway", "position": { "x": 250, "y": 300 }, "data": { "label": "WebSocket Gateway", "category": "load-balancing", "componentType": "api-gateway", "icon": "Radio", "config": { "maxConnections": 2000000, "heartbeatIntervalMs": 30000, "authType": "jwt" }, "state": "idle" } },
+    { "id": "chat-service", "type": "web-server", "position": { "x": 450, "y": 150 }, "data": { "label": "Chat Service", "category": "compute", "componentType": "web-server", "icon": "MessageCircle", "config": { "instances": 20, "maxConnections": 50000, "processingTimeMs": 5 }, "state": "idle" } },
+    { "id": "presence-service", "type": "web-server", "position": { "x": 450, "y": 300 }, "data": { "label": "Presence Service", "category": "compute", "componentType": "web-server", "icon": "Activity", "config": { "instances": 8, "heartbeatTimeoutS": 60, "statusUpdateIntervalS": 30 }, "state": "idle" } },
+    { "id": "group-service", "type": "web-server", "position": { "x": 450, "y": 450 }, "data": { "label": "Group Service", "category": "compute", "componentType": "web-server", "icon": "Users", "config": { "instances": 6, "maxGroupSize": 1024, "processingTimeMs": 10 }, "state": "idle" } },
+    { "id": "message-queue", "type": "message-queue", "position": { "x": 450, "y": 600 }, "data": { "label": "Kafka (Messages)", "category": "messaging", "componentType": "kafka", "icon": "ArrowRightLeft", "config": { "partitions": 32, "retentionHours": 168, "throughputMbps": 500 }, "state": "idle" } },
+    { "id": "message-db", "type": "database", "position": { "x": 700, "y": 100 }, "data": { "label": "Message Store (Cassandra)", "category": "storage", "componentType": "nosql-db", "icon": "Database", "config": { "type": "cassandra", "nodes": 9, "replicationFactor": 3, "storageGB": 20000 }, "state": "idle" } },
+    { "id": "session-cache", "type": "cache", "position": { "x": 700, "y": 250 }, "data": { "label": "Session & Presence (Redis)", "category": "storage", "componentType": "redis", "icon": "Zap", "config": { "type": "redis", "memoryGB": 64, "shards": 8, "cacheHitRate": 0.95 }, "state": "idle" } },
+    { "id": "user-db", "type": "database", "position": { "x": 700, "y": 400 }, "data": { "label": "User DB (PostgreSQL)", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 1000 }, "state": "idle" } },
+    { "id": "media-storage", "type": "database", "position": { "x": 700, "y": 550 }, "data": { "label": "Media Storage (S3)", "category": "storage", "componentType": "object-storage", "icon": "Image", "config": { "type": "s3", "storageTB": 500, "cdnEnabled": true }, "state": "idle" } },
+    { "id": "notification-service", "type": "web-server", "position": { "x": 900, "y": 300 }, "data": { "label": "Push Notifications", "category": "compute", "componentType": "web-server", "icon": "Bell", "config": { "instances": 8, "channels": ["apns", "fcm", "web-push"], "deliveryLatencyMs": 200 }, "state": "idle" } },
+    { "id": "search-service", "type": "web-server", "position": { "x": 900, "y": 500 }, "data": { "label": "Message Search (ES)", "category": "compute", "componentType": "web-server", "icon": "Search", "config": { "instances": 4, "indexSizeGB": 2000, "searchLatencyMs": 50 }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-mobile-ws", "source": "mobile-client", "target": "ws-gateway", "type": "data-flow", "data": { "edgeType": "websocket", "latency": 20, "animated": true } },
+    { "id": "e-web-ws", "source": "web-client", "target": "ws-gateway", "type": "data-flow", "data": { "edgeType": "websocket", "latency": 15, "animated": true } },
+    { "id": "e-ws-chat", "source": "ws-gateway", "target": "chat-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 1, "animated": true } },
+    { "id": "e-ws-presence", "source": "ws-gateway", "target": "presence-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 1, "animated": true } },
+    { "id": "e-ws-group", "source": "ws-gateway", "target": "group-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 1, "animated": false } },
+    { "id": "e-chat-kafka", "source": "chat-service", "target": "message-queue", "type": "data-flow", "data": { "edgeType": "async", "latency": 2, "animated": true } },
+    { "id": "e-chat-cassandra", "source": "chat-service", "target": "message-db", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 3, "animated": true } },
+    { "id": "e-chat-redis", "source": "chat-service", "target": "session-cache", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true } },
+    { "id": "e-presence-redis", "source": "presence-service", "target": "session-cache", "type": "data-flow", "data": { "edgeType": "cache-write", "latency": 1, "animated": true } },
+    { "id": "e-group-userdb", "source": "group-service", "target": "user-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": false } },
+    { "id": "e-kafka-notify", "source": "message-queue", "target": "notification-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 20, "animated": true } },
+    { "id": "e-kafka-search", "source": "message-queue", "target": "search-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 100, "animated": false } },
+    { "id": "e-chat-media", "source": "chat-service", "target": "media-storage", "type": "data-flow", "data": { "edgeType": "s3-put", "latency": 50, "animated": false } },
+    { "id": "e-notify-ws", "source": "notification-service", "target": "ws-gateway", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-ws-gateway-crash", "name": "WebSocket Gateway Node Failure", "description": "A WebSocket gateway node crashes, disconnecting 250K connected clients", "targetNodes": ["ws-gateway"], "faultType": "crash", "severity": 4, "expectedBehavior": "250K clients disconnect and reconnect to other gateway nodes. Messages sent during reconnection window are queued in Kafka for delivery.", "mitigationSteps": ["Clients auto-reconnect with exponential backoff", "Load balancer removes failed node", "Queued messages delivered on reconnection", "Monitor reconnection storm on remaining nodes"] },
+      { "id": "cs-cassandra-partition", "name": "Cassandra Network Partition", "description": "Network partition between Cassandra nodes causes write failures in one datacenter", "targetNodes": ["message-db"], "faultType": "partition", "severity": 4, "expectedBehavior": "Messages written with LOCAL_QUORUM succeed in unaffected DC. Cross-DC reads may return stale data until partition heals.", "mitigationSteps": ["Route writes to healthy datacenter", "Cassandra hinted handoff queues missed writes", "Monitor repair progress after partition heals", "Verify message consistency post-recovery"] },
+      { "id": "cs-notification-overload", "name": "Notification Storm", "description": "Large group message triggers push notifications to 100K members simultaneously", "targetNodes": ["notification-service"], "faultType": "resource-exhaustion", "severity": 3, "expectedBehavior": "Push notification delivery delayed. APNS/FCM rate limits hit. Some notifications delivered late.", "mitigationSteps": ["Batch notifications for large groups", "Implement smart notification deduplication", "Respect device-level quiet hours", "Scale notification workers"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 50000, "bottleneckNode": "ws-gateway", "metric": "connections", "description": "WebSocket connections saturate per-node limits", "resolution": "Add gateway nodes, implement connection-aware load balancing" },
+      { "rpsThreshold": 100000, "bottleneckNode": "message-db", "metric": "disk-io", "description": "Cassandra write throughput saturates disk I/O", "resolution": "Add Cassandra nodes, use NVMe SSDs, tune compaction" },
+      { "rpsThreshold": 200000, "bottleneckNode": "session-cache", "metric": "memory", "description": "Redis memory pressure from millions of session/presence entries", "resolution": "Add Redis shards, compress session data" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-message-ordering", "title": "Message Ordering in Groups", "description": "Concurrent messages from different group members may arrive out of order", "affectedNodes": ["chat-service", "message-db"], "likelihood": 4, "impact": 2, "mitigation": "Timestamp-based ordering with Lamport clocks, client-side reordering" },
+      { "id": "ei-offline-queue", "title": "Offline Message Queue Growth", "description": "Long-offline users accumulate large message queues that cause slow reconnection", "affectedNodes": ["message-db", "chat-service"], "likelihood": 3, "impact": 2, "mitigation": "Page offline messages, deliver recent first, lazy-load older messages" },
+      { "id": "ei-read-receipt-storm", "title": "Read Receipt Fanout in Groups", "description": "Each message read in a 1000-member group generates 1000 read receipt events", "affectedNodes": ["chat-service", "ws-gateway"], "likelihood": 4, "impact": 2, "mitigation": "Aggregate read receipts, batch updates, send count instead of individual receipts" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 95000,
+      "components": [
+        { "nodeId": "ws-gateway", "label": "WebSocket Gateways", "monthlyCostUsd": 18000, "costDriver": "High-memory instances for 2M connections" },
+        { "nodeId": "message-db", "label": "Cassandra Cluster", "monthlyCostUsd": 20000, "costDriver": "9 nodes, 20TB, NVMe" },
+        { "nodeId": "session-cache", "label": "Redis Cluster", "monthlyCostUsd": 12000, "costDriver": "64GB across 8 shards" },
+        { "nodeId": "chat-service", "label": "Chat Service", "monthlyCostUsd": 12000, "costDriver": "20 instances" },
+        { "nodeId": "message-queue", "label": "Kafka", "monthlyCostUsd": 8000, "costDriver": "6 brokers" },
+        { "nodeId": "notification-service", "label": "Push Notifications", "monthlyCostUsd": 8000, "costDriver": "APNS/FCM at scale" },
+        { "nodeId": "media-storage", "label": "Media Storage", "monthlyCostUsd": 7000, "costDriver": "500TB S3 + CDN" },
+        { "nodeId": "search-service", "label": "Elasticsearch", "monthlyCostUsd": 5000, "costDriver": "2TB index" },
+        { "nodeId": "user-db", "label": "User Database", "monthlyCostUsd": 3000, "costDriver": "PostgreSQL + replicas" },
+        { "nodeId": "presence-service", "label": "Presence Service", "monthlyCostUsd": 2000, "costDriver": "8 instances" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Startup (100K DAU)", "rps": 5000, "monthlyCostUsd": 12000 },
+        { "label": "Growth (5M DAU)", "rps": 50000, "monthlyCostUsd": 40000 },
+        { "label": "Scale (50M DAU)", "rps": 200000, "monthlyCostUsd": 95000 },
+        { "label": "Global (500M DAU)", "rps": 1000000, "monthlyCostUsd": 400000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 200000, "trafficProfile": "diurnal", "p50LatencyMs": 30, "p99LatencyMs": 100, "availabilityTarget": 99.99, "maxErrorRatePercent": 0.01, "throughputRps": 200000 },
+    "scalingPolicies": [
+      { "nodeId": "ws-gateway", "metric": "connection_count", "threshold": 1500000, "scaleUpStep": 2, "scaleDownStep": 1, "cooldownSeconds": 300, "minInstances": 4, "maxInstances": 32 },
+      { "nodeId": "chat-service", "metric": "cpu_utilization", "threshold": 70, "scaleUpStep": 4, "scaleDownStep": 2, "cooldownSeconds": 120, "minInstances": 10, "maxInstances": 60 }
+    ],
+    "slaDefinitions": [
+      { "name": "Message Delivery", "metric": "p99_delivery_latency_ms", "target": 100, "unit": "ms", "penalty": "Credit for delayed message delivery" },
+      { "name": "Availability", "metric": "uptime_percent", "target": 99.99, "unit": "%", "penalty": "25% credit per 0.01% below" },
+      { "name": "Message Durability", "metric": "message_loss_rate", "target": 0, "unit": "messages", "penalty": "Zero tolerance for message loss" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "message_delivery_latency", "type": "histogram", "description": "End-to-end message delivery time", "nodeId": "chat-service" },
+        { "name": "active_connections", "type": "gauge", "description": "Total active WebSocket connections", "nodeId": "ws-gateway" },
+        { "name": "messages_per_second", "type": "counter", "description": "Messages processed per second", "nodeId": "chat-service" },
+        { "name": "online_users", "type": "gauge", "description": "Users currently shown as online", "nodeId": "presence-service" },
+        { "name": "undelivered_messages", "type": "gauge", "description": "Messages queued for offline users", "nodeId": "message-db" }
+      ],
+      "alerts": [
+        { "name": "High Delivery Latency", "condition": "p99_delivery > 200ms for 2min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Connection Drop Rate", "condition": "disconnect_rate > 5%/min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Cassandra Write Failures", "condition": "write_error_rate > 0.1% for 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Kafka Consumer Lag", "condition": "consumer_lag > 10000 for 5min", "severity": "warning", "channel": "slack-eng" }
+      ],
+      "dashboards": ["Message Pipeline", "Connection Health", "Presence & Sessions", "Storage Performance", "Notification Delivery"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call SRE", "responseTimeMinutes": 2, "contacts": ["oncall-chat-sre"] },
+        { "level": 2, "name": "Messaging Team Lead", "responseTimeMinutes": 10, "contacts": ["messaging-lead"] },
+        { "level": 3, "name": "VP Engineering", "responseTimeMinutes": 20, "contacts": ["vp-eng"] }
+      ],
+      "runbooks": [
+        { "incident": "WebSocket gateway crash", "severity": "critical", "steps": ["Load balancer auto-removes failed node", "Monitor client reconnection rate", "Scale gateway fleet if reconnection storm", "Verify message delivery for reconnected users"], "automatedRecovery": true },
+        { "incident": "Cassandra write timeout", "severity": "critical", "steps": ["Check node health and disk space", "Verify replication status", "Route writes to healthy nodes", "Run repair after recovery"], "automatedRecovery": true },
+        { "incident": "Push notification backlog", "severity": "medium", "steps": ["Check APNS/FCM service status", "Scale notification workers", "Prioritize 1:1 over group notifications", "Monitor delivery rate recovery"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "WebSocket for Real-Time Delivery", "context": "Chat requires sub-100ms message delivery. HTTP polling too slow, SSE is unidirectional.", "decision": "Use persistent WebSocket connections with a dedicated gateway layer for real-time bidirectional messaging.", "consequences": ["Sub-50ms delivery for online users", "High memory usage per connection (each WS holds state)", "Need connection-aware load balancing"] },
+      { "title": "Cassandra for Message Storage", "context": "Need to store billions of messages with high write throughput and time-range queries.", "decision": "Use Cassandra with partition key = conversation_id, clustering key = timestamp for efficient message history retrieval.", "consequences": ["Linear write scalability", "Efficient time-range queries per conversation", "Eventual consistency requires careful handling of ordering"] },
+      { "title": "Kafka as Message Bus", "context": "Multiple downstream consumers need message events: notifications, search indexing, analytics.", "decision": "Publish all messages to Kafka, allowing independent consumers to process at their own pace.", "consequences": ["Decoupled consumers", "Message replay for search re-indexing", "Guaranteed at-least-once delivery"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Latency vs Durability", "choice": "Both (optimistic delivery)", "benefit": "Message delivered via WebSocket immediately, persisted to Cassandra async", "cost": "Rare edge case: message shown as delivered but not yet persisted" },
+      { "dimension": "Simplicity vs Scalability", "choice": "Scalability", "benefit": "Separate services for chat, presence, groups allow independent scaling", "cost": "More services to deploy and maintain" },
+      { "dimension": "Storage Cost vs Search Quality", "choice": "Search Quality", "benefit": "Full-text search via Elasticsearch for message history", "cost": "Dual-write to Cassandra + ES increases storage costs" }
+    ],
+    "alternatives": [
+      { "name": "HTTP Long Polling", "description": "Use HTTP long polling instead of WebSockets", "prosVsCons": "Pros: simpler infrastructure, works through all proxies. Cons: higher latency, more server overhead per client", "whyNotChosen": "WebSocket provides significantly lower latency and reduced server overhead for persistent connections" },
+      { "name": "MongoDB for Messages", "description": "Store messages in MongoDB instead of Cassandra", "prosVsCons": "Pros: flexible schema, easier ops. Cons: less predictable write performance at extreme scale", "whyNotChosen": "Cassandra's linear scalability and predictable latency are essential at billions of messages/day" }
+    ]
+  }
+}

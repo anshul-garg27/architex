@@ -1,0 +1,2308 @@
+[
+  {
+    "id": "SDS-001",
+    "epic": "SDS",
+    "title": "Implement 9 base node types for system design canvas",
+    "description": "Create WebServerNode, LoadBalancerNode, DatabaseNode, CacheNode, MessageQueueNode, APIGatewayNode, CDNNode, ClientNode, and StorageNode extending BaseNode with unique icons, handles, and default configs.",
+    "acceptanceCriteria": [
+      "All 9 node types render correctly on the ReactFlow canvas with distinct icons and colors",
+      "Each node exposes correct source/target handles for edge connections",
+      "BaseNode provides shared layout, status indicator, and selection styling"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/BaseNode.tsx",
+      "src/components/canvas/nodes/system-design/WebServerNode.tsx",
+      "src/components/canvas/nodes/system-design/LoadBalancerNode.tsx",
+      "src/components/canvas/nodes/system-design/DatabaseNode.tsx",
+      "src/components/canvas/nodes/system-design/CacheNode.tsx",
+      "src/components/canvas/nodes/system-design/MessageQueueNode.tsx",
+      "src/components/canvas/nodes/system-design/APIGatewayNode.tsx",
+      "src/components/canvas/nodes/system-design/CDNNode.tsx",
+      "src/components/canvas/nodes/system-design/ClientNode.tsx",
+      "src/components/canvas/nodes/system-design/StorageNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["nodes", "canvas", "reactflow", "foundation"]
+  },
+  {
+    "id": "SDS-002",
+    "epic": "SDS",
+    "title": "Implement DataFlowEdge with 9 protocol styles",
+    "description": "Create a custom ReactFlow edge component supporting HTTP, gRPC, WebSocket, TCP, UDP, AMQP, Redis, SQL, and GraphQL protocol visual styles with animated dashes and color coding.",
+    "acceptanceCriteria": [
+      "DataFlowEdge renders with protocol-specific color and dash pattern",
+      "Edge labels display protocol name and optional latency annotation",
+      "Animated mode toggles dash-offset animation for active traffic visualization"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/edges/DataFlowEdge.tsx",
+      "src/components/canvas/edges/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["edges", "canvas", "reactflow", "protocols"]
+  },
+  {
+    "id": "SDS-003",
+    "epic": "SDS",
+    "title": "Build ComponentPalette with 35+ draggable items",
+    "description": "Create a sidebar palette component with categorized system design components supporting drag-and-drop onto the canvas via ReactFlow's onDragStart/onDrop integration.",
+    "acceptanceCriteria": [
+      "Palette displays 35+ components organized by category (compute, storage, networking, etc.)",
+      "Drag-and-drop creates the correct node type at the drop position on the canvas",
+      "Search/filter input narrows the component list in real time"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/ComponentPalette.tsx"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["palette", "drag-drop", "sidebar", "ux"]
+  },
+  {
+    "id": "SDS-004",
+    "epic": "SDS",
+    "title": "Build PropertiesPanel with config editing",
+    "description": "Create a right-side properties panel that displays and edits the selected node's configuration fields (replicas, latency, capacity, etc.) with real-time updates to canvas-store.",
+    "acceptanceCriteria": [
+      "Panel shows config fields for the currently selected node type",
+      "Editing a field updates the canvas-store node data immediately",
+      "Panel shows empty state when no node is selected"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/PropertiesPanel.tsx"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["properties", "panel", "config", "editing"]
+  },
+  {
+    "id": "SDS-005",
+    "epic": "SDS",
+    "title": "Build BottomPanel framework with metrics/timeline/code/console tabs",
+    "description": "Create a collapsible bottom panel with tab navigation for metrics, timeline, code generation, and console output views. Integrates with ui-store bottomPanelTab state.",
+    "acceptanceCriteria": [
+      "Bottom panel toggles open/closed via ui-store",
+      "Four tabs (metrics, timeline, code, console) switch content areas",
+      "Panel is resizable by dragging the top edge"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bottom-panel", "tabs", "layout", "framework"]
+  },
+  {
+    "id": "SDS-006",
+    "epic": "SDS",
+    "title": "Implement TrafficSimulator with 5 patterns and Poisson sampling",
+    "description": "Create a traffic generation engine supporting constant, sine-wave, spike, ramp, and random patterns with configurable distribution (uniform, Poisson, normal) for request generation per tick.",
+    "acceptanceCriteria": [
+      "All 5 traffic patterns produce correct request counts per tick",
+      "Poisson distribution sampling matches expected lambda parameter",
+      "TrafficConfig from simulation-store drives pattern selection"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/traffic-simulator.ts",
+      "src/lib/simulation/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "traffic", "poisson", "engine"]
+  },
+  {
+    "id": "SDS-007",
+    "epic": "SDS",
+    "title": "Implement QueuingModel with M/M/1, M/M/c, Little's Law, Erlang-C",
+    "description": "Create queuing theory calculation module supporting M/M/1 and M/M/c queue models, Little's Law for queue length estimation, and Erlang-C for wait probability calculation.",
+    "acceptanceCriteria": [
+      "M/M/1 model computes correct utilization, avg queue length, and avg wait time",
+      "M/M/c model handles multi-server scenarios with Erlang-C probability",
+      "Little's Law validates L = lambda * W relationship"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/queuing-model.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "queuing-theory", "math", "engine"]
+  },
+  {
+    "id": "SDS-008",
+    "epic": "SDS",
+    "title": "Implement MetricsCollector with sliding window and percentiles",
+    "description": "Create a metrics collection module that maintains sliding window buffers for latency samples and computes p50/p90/p95/p99 percentiles, throughput, and error rates.",
+    "acceptanceCriteria": [
+      "Sliding window maintains configurable buffer size with FIFO eviction",
+      "Percentile calculations (p50, p90, p95, p99) are accurate within 1% tolerance",
+      "Throughput and error rate computed from window samples"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/metrics-collector.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "metrics", "percentiles", "engine"]
+  },
+  {
+    "id": "SDS-009",
+    "epic": "SDS",
+    "title": "Implement ChaosEngine with 30 event types across 5 categories",
+    "description": "Create a chaos engineering module with 30 fault injection event types organized into 5 categories (node, network, resource, data, dependency) with configurable duration and severity.",
+    "acceptanceCriteria": [
+      "30 distinct chaos event types are defined across 5 categories",
+      "Each event type specifies affected metrics (latency, error rate, throughput)",
+      "Events can be activated/deactivated on specific node IDs"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/chaos-engine.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "chaos", "fault-injection", "engine"]
+  },
+  {
+    "id": "SDS-010",
+    "epic": "SDS",
+    "title": "Implement CapacityPlanner with estimateCapacity and formatEstimate",
+    "description": "Create a capacity planning calculator that estimates required resources (servers, storage, bandwidth) based on traffic volume, data model, and growth projections.",
+    "acceptanceCriteria": [
+      "estimateCapacity computes servers, storage GB, and bandwidth from input parameters",
+      "formatEstimate renders human-readable summaries with units",
+      "Growth projection supports 1-year and 5-year extrapolation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/capacity-planner.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "capacity", "planning", "engine"]
+  },
+  {
+    "id": "SDS-011",
+    "epic": "SDS",
+    "title": "Create 10 JSON system design templates",
+    "description": "Author 10 pre-built system design templates (URL Shortener, Twitter, Chat System, Notification Service, Rate Limiter, Key-Value Store, News Feed, Uber, Netflix, Instagram) as JSON node/edge definitions.",
+    "acceptanceCriteria": [
+      "All 10 templates load valid nodes and edges onto the canvas",
+      "Each template includes appropriate node types, edge protocols, and default configs",
+      "Templates are registered in the template index for gallery display"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/index.ts",
+      "src/lib/templates/types.ts"
+    ],
+    "dependencies": ["SDS-001", "SDS-002"],
+    "blockedBy": [],
+    "tags": ["templates", "content", "system-design"]
+  },
+  {
+    "id": "SDS-012",
+    "epic": "SDS",
+    "title": "Define latency, throughput, and system-numbers constants",
+    "description": "Create constant modules with well-known system performance numbers: latency reference table (L1 cache to cross-continent), throughput baselines, and system capacity numbers (QPS, storage, bandwidth).",
+    "acceptanceCriteria": [
+      "Latency constants cover L1 cache through cross-continent round-trip",
+      "Throughput numbers include disk, network, and database baselines",
+      "All constants are typed and exported for use in simulation and UI"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/constants/latency-numbers.ts",
+      "src/lib/constants/throughput-numbers.ts",
+      "src/lib/constants/system-numbers.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["constants", "reference", "numbers"]
+  },
+  {
+    "id": "SDS-013",
+    "epic": "SDS",
+    "title": "Create SimulationOrchestrator class bridging all simulation subsystems",
+    "description": "Implement a ~300-line SimulationOrchestrator class that coordinates TrafficSimulator, topology graph, QueuingModel, MetricsCollector, and ChaosEngine. Runs a tick loop, routes requests through the topology, applies chaos modifiers, collects metrics, and pushes state to stores.",
+    "acceptanceCriteria": [
+      "Orchestrator initializes all subsystems from canvas-store topology and simulation-store config",
+      "Tick loop generates traffic, routes requests through nodes, computes queuing metrics, and collects results",
+      "Chaos events are applied as modifiers during request processing",
+      "Metrics are pushed to simulation-store after each tick"
+    ],
+    "priority": "P0",
+    "effort": "XL",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts"
+    ],
+    "dependencies": ["SDS-006", "SDS-007", "SDS-008", "SDS-009"],
+    "blockedBy": [],
+    "tags": ["simulation", "orchestrator", "core", "wiring"]
+  },
+  {
+    "id": "SDS-014",
+    "epic": "SDS",
+    "title": "Wire simulation-store play/pause/stop actions to orchestrator",
+    "description": "Connect simulation-store's play(), pause(), and stop() actions to SimulationOrchestrator start/pause/stop methods. Play creates an orchestrator instance (if needed) and starts the tick loop; pause suspends it; stop destroys it and resets state.",
+    "acceptanceCriteria": [
+      "Clicking Play in the UI starts the orchestrator tick loop and sets status to 'running'",
+      "Clicking Pause suspends the tick loop and sets status to 'paused'",
+      "Clicking Stop destroys the orchestrator, resets metrics, and sets status to 'idle'"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/stores/simulation-store.ts",
+      "src/lib/simulation/simulation-orchestrator.ts"
+    ],
+    "dependencies": ["SDS-013"],
+    "blockedBy": ["SDS-013"],
+    "tags": ["simulation", "store", "wiring", "lifecycle"]
+  },
+  {
+    "id": "SDS-015",
+    "epic": "SDS",
+    "title": "Build topology graph from canvas nodes and edges",
+    "description": "Implement a buildTopology() function that reads canvas-store nodes/edges and produces an adjacency list representation with entry node detection (nodes with no incoming edges). Used by the orchestrator to route requests.",
+    "acceptanceCriteria": [
+      "Adjacency list correctly represents all node connections from canvas edges",
+      "Entry nodes (zero in-degree) are detected and returned as simulation entry points",
+      "Topology rebuilds when canvas nodes or edges change"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/topology-builder.ts",
+      "src/lib/simulation/simulation-orchestrator.ts"
+    ],
+    "dependencies": ["SDS-013"],
+    "blockedBy": ["SDS-013"],
+    "tags": ["simulation", "topology", "graph", "wiring"]
+  },
+  {
+    "id": "SDS-016",
+    "epic": "SDS",
+    "title": "Implement request routing through topology via BFS traversal",
+    "description": "Implement BFS-based request routing in the orchestrator that walks each generated request through the topology graph. Each node applies its simulateNode() logic (queuing delay, processing time, error probability) before forwarding to downstream nodes.",
+    "acceptanceCriteria": [
+      "Requests traverse the topology from entry nodes to leaf nodes via BFS",
+      "Each node's simulateNode applies queuing model to compute delay and success/failure",
+      "Load balancer nodes distribute requests across downstream nodes according to configured algorithm"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/lib/simulation/node-simulator.ts"
+    ],
+    "dependencies": ["SDS-015", "SDS-007"],
+    "blockedBy": ["SDS-015"],
+    "tags": ["simulation", "routing", "bfs", "wiring"]
+  },
+  {
+    "id": "SDS-017",
+    "epic": "SDS",
+    "title": "Implement utilization-to-state mapping for node visual states",
+    "description": "Map each node's computed utilization percentage to a visual state: idle (0-20%), active (20-70%), warning (70-90%), error (90%+). The state drives BaseNode's border color and status indicator.",
+    "acceptanceCriteria": [
+      "Utilization thresholds correctly map to idle/active/warning/error states",
+      "Node visual state updates in real time during simulation",
+      "Threshold values are configurable per node type"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/components/canvas/nodes/system-design/BaseNode.tsx"
+    ],
+    "dependencies": ["SDS-016"],
+    "blockedBy": ["SDS-016"],
+    "tags": ["simulation", "visualization", "state", "wiring"]
+  },
+  {
+    "id": "SDS-018",
+    "epic": "SDS",
+    "title": "Push per-node metrics to canvas-store during simulation ticks",
+    "description": "After each simulation tick, push computed per-node metrics (utilization, queue depth, latency, error count) to canvas-store node data so that individual nodes can display their real-time stats.",
+    "acceptanceCriteria": [
+      "Each canvas node receives updated metrics data after every simulation tick",
+      "Metrics include utilization percentage, queue depth, avg latency, and error count",
+      "PropertiesPanel displays live per-node metrics when a node is selected during simulation"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/stores/canvas-store.ts"
+    ],
+    "dependencies": ["SDS-016", "SDS-017"],
+    "blockedBy": ["SDS-016"],
+    "tags": ["simulation", "metrics", "canvas", "wiring"]
+  },
+  {
+    "id": "SDS-019",
+    "epic": "SDS",
+    "title": "Update edge animations during simulation based on traffic flow",
+    "description": "During simulation, set the animated flag on DataFlowEdge instances that have active traffic. Update edge labels with real-time latency values. Edges with no traffic remain static.",
+    "acceptanceCriteria": [
+      "Edges carrying traffic show animated dash-offset during simulation",
+      "Edge labels update with measured latency values per tick",
+      "Edges with zero traffic remain in static (non-animated) state"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/components/canvas/edges/DataFlowEdge.tsx",
+      "src/stores/canvas-store.ts"
+    ],
+    "dependencies": ["SDS-016", "SDS-002"],
+    "blockedBy": ["SDS-016"],
+    "tags": ["simulation", "animation", "edges", "wiring"]
+  },
+  {
+    "id": "SDS-020",
+    "epic": "SDS",
+    "title": "Reset all node states and edge animations on simulation stop",
+    "description": "When simulation stops (via stop action or completion), reset all node visual states to idle, clear all edge animations, remove latency labels, and clear per-node metrics from canvas-store.",
+    "acceptanceCriteria": [
+      "All nodes return to idle visual state when simulation stops",
+      "All edge animations are disabled and latency labels cleared",
+      "Per-node metrics in canvas-store are reset to initial values"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/stores/canvas-store.ts",
+      "src/stores/simulation-store.ts"
+    ],
+    "dependencies": ["SDS-014", "SDS-018", "SDS-019"],
+    "blockedBy": ["SDS-014"],
+    "tags": ["simulation", "reset", "cleanup", "wiring"]
+  },
+  {
+    "id": "SDS-021",
+    "epic": "SDS",
+    "title": "Implement chaos modifier application in simulation loop",
+    "description": "Apply active chaos events as modifiers during the simulation tick. node-crash sets node state to error and drops all requests; node-slow divides serviceRate by 5; network-partition drops edges; latency-spike multiplies latency.",
+    "acceptanceCriteria": [
+      "node-crash chaos event sets target node to error state and rejects 100% of requests",
+      "node-slow chaos event reduces target node's service rate by 5x",
+      "network-partition chaos event disables traffic on affected edges",
+      "latency-spike chaos event multiplies edge latency by configured multiplier"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/lib/simulation/chaos-engine.ts"
+    ],
+    "dependencies": ["SDS-013", "SDS-009"],
+    "blockedBy": ["SDS-013"],
+    "tags": ["simulation", "chaos", "modifiers", "wiring"]
+  },
+  {
+    "id": "SDS-022",
+    "epic": "SDS",
+    "title": "Throttle canvas-store updates with batching and tick-cycle control",
+    "description": "Batch node state updates to canvas-store to avoid excessive re-renders. Node updates are batched per tick; edge animation updates run on a 5-tick cycle. Use requestAnimationFrame or similar scheduling.",
+    "acceptanceCriteria": [
+      "Node state updates are batched into a single canvas-store update per tick",
+      "Edge animation updates occur every 5th tick to reduce render overhead",
+      "Canvas maintains 30+ FPS during simulation with 20+ nodes"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/stores/canvas-store.ts"
+    ],
+    "dependencies": ["SDS-018", "SDS-019"],
+    "blockedBy": ["SDS-018"],
+    "tags": ["simulation", "performance", "throttle", "wiring"]
+  },
+  {
+    "id": "SDS-023",
+    "epic": "SDS",
+    "title": "Handle simulation completion when all ticks are processed",
+    "description": "Detect when currentTick reaches totalTicks and transition simulation status to 'completed'. Generate a summary of final metrics, log completion to console, and stop the tick loop cleanly.",
+    "acceptanceCriteria": [
+      "Simulation status transitions to 'completed' when currentTick equals totalTicks",
+      "Final metrics summary is computed and stored in simulation-store",
+      "Tick loop stops cleanly without dangling timers or intervals"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/stores/simulation-store.ts"
+    ],
+    "dependencies": ["SDS-014"],
+    "blockedBy": ["SDS-014"],
+    "tags": ["simulation", "lifecycle", "completion", "wiring"]
+  },
+  {
+    "id": "SDS-024",
+    "epic": "SDS",
+    "title": "Add Chaos tab to BottomPanel with category sections and inject/remove buttons",
+    "description": "Add a 'chaos' tab to the BottomPanel with collapsible sections for each chaos category (node, network, resource, data, dependency). Each event type shows an inject/remove button targeting selected nodes.",
+    "acceptanceCriteria": [
+      "Chaos tab appears in BottomPanel tab bar and renders collapsible category sections",
+      "Each chaos event type displays a button to inject or remove the event",
+      "Inject requires at least one node to be selected; shows warning otherwise"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx",
+      "src/components/canvas/panels/ChaosTab.tsx",
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": ["SDS-005", "SDS-009"],
+    "blockedBy": [],
+    "tags": ["chaos", "ui", "bottom-panel", "tabs"]
+  },
+  {
+    "id": "SDS-025",
+    "epic": "SDS",
+    "title": "Wire chaos injection from UI to orchestrator",
+    "description": "Connect the ChaosTab inject/remove buttons to the SimulationOrchestrator's chaos event activation/deactivation methods. Update simulation-store activeChaosEvents array in sync.",
+    "acceptanceCriteria": [
+      "Clicking inject activates the chaos event on the orchestrator for selected nodes",
+      "Clicking remove deactivates the chaos event and restores normal behavior",
+      "simulation-store.activeChaosEvents reflects all currently active events"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/ChaosTab.tsx",
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/stores/simulation-store.ts"
+    ],
+    "dependencies": ["SDS-024", "SDS-021"],
+    "blockedBy": ["SDS-021"],
+    "tags": ["chaos", "wiring", "ui", "orchestrator"]
+  },
+  {
+    "id": "SDS-026",
+    "epic": "SDS",
+    "title": "Add top 8 chaos event commands to command palette",
+    "description": "Register the 8 most common chaos events (node-crash, node-slow, network-partition, latency-spike, memory-pressure, cpu-spike, disk-full, connection-pool-exhaustion) as command palette commands.",
+    "acceptanceCriteria": [
+      "All 8 chaos commands appear in the command palette search results",
+      "Executing a chaos command injects the event on the currently selected nodes",
+      "Commands are disabled when simulation is not running"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/command-palette.tsx"
+    ],
+    "dependencies": ["SDS-025"],
+    "blockedBy": [],
+    "tags": ["chaos", "command-palette", "commands"]
+  },
+  {
+    "id": "SDS-027",
+    "epic": "SDS",
+    "title": "Add chaos-active visual indicator on BaseNode",
+    "description": "When a node has an active chaos event, display a pulsing red/orange border and a small lightning bolt icon badge on the BaseNode. Different chaos categories use different indicator colors.",
+    "acceptanceCriteria": [
+      "Nodes with active chaos events display a pulsing border animation",
+      "A lightning bolt icon badge appears on affected nodes",
+      "Indicator color varies by chaos category (red for node, orange for network, yellow for resource)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/BaseNode.tsx"
+    ],
+    "dependencies": ["SDS-021"],
+    "blockedBy": [],
+    "tags": ["chaos", "visual", "nodes", "animation"]
+  },
+  {
+    "id": "SDS-028",
+    "epic": "SDS",
+    "title": "Show active chaos events in PropertiesPanel",
+    "description": "When a node with active chaos events is selected, display the list of active events in the PropertiesPanel with event name, category, severity, and a remove button for each.",
+    "acceptanceCriteria": [
+      "PropertiesPanel shows an 'Active Chaos Events' section when chaos events are present",
+      "Each event displays its name, category, and severity level",
+      "Remove button deactivates the specific chaos event from the node"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/PropertiesPanel.tsx"
+    ],
+    "dependencies": ["SDS-025"],
+    "blockedBy": [],
+    "tags": ["chaos", "properties-panel", "ui"]
+  },
+  {
+    "id": "SDS-029",
+    "epic": "SDS",
+    "title": "Add Capacity tab to BottomPanel with form inputs and results grid",
+    "description": "Add a 'capacity' tab to the BottomPanel with input fields (DAU, requests/user, data per request, read/write ratio, growth rate) and a results grid showing computed servers, storage, bandwidth, and cost estimates.",
+    "acceptanceCriteria": [
+      "Capacity tab appears in BottomPanel and renders input form with labeled fields",
+      "Submitting the form calls CapacityPlanner.estimateCapacity and displays results",
+      "Results grid shows servers, storage, bandwidth, and projected growth at 1yr and 5yr"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx",
+      "src/components/canvas/panels/CapacityTab.tsx",
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": ["SDS-005", "SDS-010"],
+    "blockedBy": [],
+    "tags": ["capacity", "ui", "bottom-panel", "planning"]
+  },
+  {
+    "id": "SDS-030",
+    "epic": "SDS",
+    "title": "Add capacity planner link in PropertiesPanel empty state",
+    "description": "When no node is selected, show a call-to-action in PropertiesPanel linking to the Capacity tab in the BottomPanel, inviting users to estimate their system's capacity requirements.",
+    "acceptanceCriteria": [
+      "PropertiesPanel empty state includes a 'Plan Capacity' CTA button",
+      "Clicking the CTA opens the BottomPanel and switches to the capacity tab",
+      "CTA includes a brief description of what capacity planning does"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/PropertiesPanel.tsx"
+    ],
+    "dependencies": ["SDS-029"],
+    "blockedBy": [],
+    "tags": ["capacity", "properties-panel", "ux", "cta"]
+  },
+  {
+    "id": "SDS-031",
+    "epic": "SDS",
+    "title": "Add exportDialogOpen and templateGalleryOpen flags to ui-store",
+    "description": "Add boolean state fields exportDialogOpen and templateGalleryOpen to the ui-store with toggle/set actions, so that ExportDialog and TemplateGallery overlays can be controlled from anywhere in the app.",
+    "acceptanceCriteria": [
+      "ui-store includes exportDialogOpen and templateGalleryOpen boolean fields",
+      "setExportDialogOpen and setTemplateGalleryOpen actions are available",
+      "Both fields default to false and persist correctly"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["store", "ui", "dialog", "state"]
+  },
+  {
+    "id": "SDS-032",
+    "epic": "SDS",
+    "title": "Mount ExportDialog in AppShell (page.tsx)",
+    "description": "Import and render the ExportDialog component in the main page layout, controlled by ui-store exportDialogOpen flag. Dialog appears as a modal overlay with backdrop.",
+    "acceptanceCriteria": [
+      "ExportDialog renders as a modal when exportDialogOpen is true",
+      "Dialog closes when clicking backdrop or pressing Escape",
+      "ExportDialog is only mounted once at the app shell level, not per-page"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/app/page.tsx",
+      "src/components/shared/export-dialog.tsx"
+    ],
+    "dependencies": ["SDS-031"],
+    "blockedBy": ["SDS-031"],
+    "tags": ["export", "dialog", "mounting", "layout"]
+  },
+  {
+    "id": "SDS-033",
+    "epic": "SDS",
+    "title": "Mount TemplateGallery as overlay dialog",
+    "description": "Import and render the TemplateGallery component as a full-screen overlay dialog controlled by ui-store templateGalleryOpen flag, with a grid of template cards.",
+    "acceptanceCriteria": [
+      "TemplateGallery renders as an overlay when templateGalleryOpen is true",
+      "Gallery displays template cards in a responsive grid layout",
+      "Overlay closes when clicking backdrop, pressing Escape, or selecting a template"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/app/page.tsx",
+      "src/components/shared/template-gallery.tsx"
+    ],
+    "dependencies": ["SDS-031"],
+    "blockedBy": ["SDS-031"],
+    "tags": ["templates", "gallery", "dialog", "mounting"]
+  },
+  {
+    "id": "SDS-034",
+    "epic": "SDS",
+    "title": "Add Templates and Export buttons to ComponentPalette footer",
+    "description": "Add two action buttons at the bottom of the ComponentPalette sidebar: 'Browse Templates' (opens TemplateGallery) and 'Export Design' (opens ExportDialog).",
+    "acceptanceCriteria": [
+      "Two buttons appear in the ComponentPalette footer area",
+      "'Browse Templates' button sets templateGalleryOpen to true",
+      "'Export Design' button sets exportDialogOpen to true"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/ComponentPalette.tsx"
+    ],
+    "dependencies": ["SDS-031"],
+    "blockedBy": ["SDS-031"],
+    "tags": ["palette", "buttons", "templates", "export"]
+  },
+  {
+    "id": "SDS-035",
+    "epic": "SDS",
+    "title": "Wire template selection to load nodes and edges into canvas",
+    "description": "When a user selects a template from the gallery, deserialize its JSON definition and load nodes/edges into the canvas-store, replacing or merging with existing content after confirmation.",
+    "acceptanceCriteria": [
+      "Selecting a template loads its nodes and edges into canvas-store",
+      "User is prompted to confirm if the canvas already has content (replace vs. merge)",
+      "Loaded template positions nodes correctly and connects all edges"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/template-gallery.tsx",
+      "src/stores/canvas-store.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-033", "SDS-011"],
+    "blockedBy": ["SDS-033"],
+    "tags": ["templates", "loading", "canvas", "wiring"]
+  },
+  {
+    "id": "SDS-036",
+    "epic": "SDS",
+    "title": "Add Export and Template commands to command palette",
+    "description": "Register 'Export Design' and 'Browse Templates' as searchable commands in the command palette, triggering the respective dialog opens.",
+    "acceptanceCriteria": [
+      "'Export Design' and 'Browse Templates' commands appear in command palette search",
+      "Executing each command opens the corresponding dialog",
+      "Commands show appropriate icons and descriptions"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/command-palette.tsx"
+    ],
+    "dependencies": ["SDS-031"],
+    "blockedBy": [],
+    "tags": ["command-palette", "export", "templates", "commands"]
+  },
+  {
+    "id": "SDS-037",
+    "epic": "SDS",
+    "title": "Add Cmd+E and Cmd+T keyboard shortcuts for Export and Templates",
+    "description": "Register Cmd+E (export) and Cmd+T (templates) keyboard shortcuts in the use-keyboard-shortcuts hook, toggling the respective dialog open states.",
+    "acceptanceCriteria": [
+      "Cmd+E (Mac) / Ctrl+E (Windows) opens the Export dialog",
+      "Cmd+T (Mac) / Ctrl+T (Windows) opens the Template gallery",
+      "Shortcuts are disabled when an input field is focused"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/hooks/use-keyboard-shortcuts.ts"
+    ],
+    "dependencies": ["SDS-031"],
+    "blockedBy": [],
+    "tags": ["keyboard", "shortcuts", "export", "templates"]
+  },
+  {
+    "id": "SDS-038",
+    "epic": "SDS",
+    "title": "Add consoleMessages array to simulation-store",
+    "description": "Add a consoleMessages array to simulation-store with typed message objects (timestamp, level, source, text) and addConsoleMessage/clearConsoleMessages actions.",
+    "acceptanceCriteria": [
+      "simulation-store includes a consoleMessages array of typed message objects",
+      "addConsoleMessage action appends a new message with timestamp and level",
+      "clearConsoleMessages action empties the array (called on simulation stop/reset)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/stores/simulation-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["console", "store", "messages", "logging"]
+  },
+  {
+    "id": "SDS-039",
+    "epic": "SDS",
+    "title": "Wire console logging in orchestrator for simulation events",
+    "description": "Add console message emission in the SimulationOrchestrator at key lifecycle points: simulation start, chaos event injection, node errors, high utilization warnings, and simulation completion.",
+    "acceptanceCriteria": [
+      "Simulation start logs an info message with traffic config and total ticks",
+      "Chaos event injection logs a warning with event type and target node(s)",
+      "Node errors and high utilization (>90%) log appropriate warning/error messages",
+      "Simulation completion logs a summary with final metrics"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/stores/simulation-store.ts"
+    ],
+    "dependencies": ["SDS-013", "SDS-038"],
+    "blockedBy": ["SDS-013", "SDS-038"],
+    "tags": ["console", "logging", "orchestrator", "wiring"]
+  },
+  {
+    "id": "SDS-040",
+    "epic": "SDS",
+    "title": "Build ConsoleTab UI with scrollable, color-coded output",
+    "description": "Implement the ConsoleTab component for the BottomPanel displaying simulation-store consoleMessages with color-coded levels (info=cyan, warn=yellow, error=red), timestamps, and auto-scroll to bottom.",
+    "acceptanceCriteria": [
+      "Console tab renders messages with color coding by level (info, warn, error)",
+      "Messages auto-scroll to show the latest entry as new messages arrive",
+      "A clear button empties the console display"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx",
+      "src/components/canvas/panels/ConsoleTab.tsx"
+    ],
+    "dependencies": ["SDS-005", "SDS-038"],
+    "blockedBy": ["SDS-038"],
+    "tags": ["console", "ui", "bottom-panel", "tabs"]
+  },
+  {
+    "id": "SDS-041",
+    "epic": "SDS",
+    "title": "Add metrics history sparklines to MetricsTab",
+    "description": "Enhance the MetricsTab in the BottomPanel with small inline sparkline charts showing the recent history (last 60 ticks) for latency, throughput, error rate, and utilization using lightweight SVG rendering.",
+    "acceptanceCriteria": [
+      "Sparklines render for latency, throughput, error rate, and utilization metrics",
+      "Each sparkline shows the last 60 data points from metricsHistory",
+      "Sparklines update in real time during simulation without performance degradation"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx",
+      "src/components/canvas/panels/MetricsTab.tsx"
+    ],
+    "dependencies": ["SDS-005"],
+    "blockedBy": [],
+    "tags": ["metrics", "sparklines", "visualization", "bottom-panel"]
+  },
+  {
+    "id": "SDS-042",
+    "epic": "SDS",
+    "title": "Create AppServerNode (Business logic, threads config)",
+    "description": "Implement an AppServerNode extending BaseNode representing a generic application server with configurable thread pool size, heap memory, and processing latency parameters.",
+    "acceptanceCriteria": [
+      "AppServerNode renders with a distinct server icon and 'App Server' label",
+      "PropertiesPanel shows thread count, heap size, and latency config fields",
+      "Node registers in ComponentPalette under the Compute category"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/AppServerNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "compute", "app-server"]
+  },
+  {
+    "id": "SDS-043",
+    "epic": "SDS",
+    "title": "Create ServerlessFunctionNode (cold start, memory, timeout)",
+    "description": "Implement a ServerlessFunctionNode extending BaseNode representing a serverless function (Lambda/Cloud Functions) with cold start latency, memory allocation, and timeout configuration.",
+    "acceptanceCriteria": [
+      "Node renders with a lambda/function icon and 'Serverless Function' label",
+      "Config fields include cold start ms, memory MB, timeout seconds, and concurrency limit",
+      "Cold start latency is factored into simulation processing time for first invocations"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/ServerlessFunctionNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "compute", "serverless", "lambda"]
+  },
+  {
+    "id": "SDS-044",
+    "epic": "SDS",
+    "title": "Create WorkerServiceNode (concurrency, poll interval)",
+    "description": "Implement a WorkerServiceNode extending BaseNode representing a background worker/consumer with configurable concurrency, poll interval, and batch size for processing queue messages.",
+    "acceptanceCriteria": [
+      "Node renders with a worker/gear icon and 'Worker Service' label",
+      "Config fields include concurrency, poll interval ms, and batch size",
+      "Node is designed to connect downstream from MessageQueueNode"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/WorkerServiceNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "compute", "worker", "async"]
+  },
+  {
+    "id": "SDS-045",
+    "epic": "SDS",
+    "title": "Create DocumentDBNode (MongoDB -- shards, replica set)",
+    "description": "Implement a DocumentDBNode extending BaseNode representing MongoDB or similar document databases with configurable shard count, replica set size, and read/write concern levels.",
+    "acceptanceCriteria": [
+      "Node renders with a document/leaf icon and 'Document DB' label",
+      "Config fields include shard count, replica set size, read concern, and write concern",
+      "Node appears in ComponentPalette under the Storage/Database category"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/DocumentDBNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "database", "mongodb", "document-db"]
+  },
+  {
+    "id": "SDS-046",
+    "epic": "SDS",
+    "title": "Create WideColumnNode (Cassandra -- replication factor, consistency)",
+    "description": "Implement a WideColumnNode extending BaseNode representing Cassandra or similar wide-column stores with configurable replication factor, consistency level, and compaction strategy.",
+    "acceptanceCriteria": [
+      "Node renders with a column/table icon and 'Wide Column DB' label",
+      "Config fields include replication factor, consistency level (ONE/QUORUM/ALL), and compaction strategy",
+      "Node appears in ComponentPalette under the Storage/Database category"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/WideColumnNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "database", "cassandra", "wide-column"]
+  },
+  {
+    "id": "SDS-047",
+    "epic": "SDS",
+    "title": "Create SearchEngineNode (Elasticsearch -- shards, replicas)",
+    "description": "Implement a SearchEngineNode extending BaseNode representing Elasticsearch or similar search engines with configurable primary shards, replica count, and index refresh interval.",
+    "acceptanceCriteria": [
+      "Node renders with a magnifying-glass icon and 'Search Engine' label",
+      "Config fields include primary shards, replicas, refresh interval, and heap size",
+      "Node appears in ComponentPalette under the Storage/Database category"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/SearchEngineNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "database", "elasticsearch", "search"]
+  },
+  {
+    "id": "SDS-048",
+    "epic": "SDS",
+    "title": "Create TimeSeriesDBNode (InfluxDB -- retention, aggregation)",
+    "description": "Implement a TimeSeriesDBNode extending BaseNode representing InfluxDB or similar time-series databases with configurable retention policy, aggregation window, and write throughput.",
+    "acceptanceCriteria": [
+      "Node renders with a chart/clock icon and 'Time Series DB' label",
+      "Config fields include retention period, aggregation window, and max write points/sec",
+      "Node appears in ComponentPalette under the Storage/Database category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/TimeSeriesDBNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "database", "influxdb", "time-series"]
+  },
+  {
+    "id": "SDS-049",
+    "epic": "SDS",
+    "title": "Create GraphDBNode (Neo4j -- nodes, relationships)",
+    "description": "Implement a GraphDBNode extending BaseNode representing Neo4j or similar graph databases with configurable max nodes, max relationships, and query cache size.",
+    "acceptanceCriteria": [
+      "Node renders with a graph/network icon and 'Graph DB' label",
+      "Config fields include max nodes, max relationships, query cache size, and heap size",
+      "Node appears in ComponentPalette under the Storage/Database category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/GraphDBNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "database", "neo4j", "graph-db"]
+  },
+  {
+    "id": "SDS-050",
+    "epic": "SDS",
+    "title": "Create PubSubNode (SNS -- subscriptions)",
+    "description": "Implement a PubSubNode extending BaseNode representing AWS SNS or similar pub/sub services with configurable topic count, max subscriptions per topic, and message size limit.",
+    "acceptanceCriteria": [
+      "Node renders with a broadcast/megaphone icon and 'Pub/Sub' label",
+      "Config fields include topic count, max subscriptions, message size limit, and delivery retry policy",
+      "Node appears in ComponentPalette under the Messaging category"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/PubSubNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "messaging", "pubsub", "sns"]
+  },
+  {
+    "id": "SDS-051",
+    "epic": "SDS",
+    "title": "Create EventBusNode (rules, targets)",
+    "description": "Implement an EventBusNode extending BaseNode representing AWS EventBridge or similar event bus services with configurable rules count, target services, and event pattern matching.",
+    "acceptanceCriteria": [
+      "Node renders with a bus/arrow icon and 'Event Bus' label",
+      "Config fields include rules count, targets, max event size, and retry policy",
+      "Node appears in ComponentPalette under the Messaging category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/EventBusNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "messaging", "eventbridge", "event-bus"]
+  },
+  {
+    "id": "SDS-052",
+    "epic": "SDS",
+    "title": "Create StreamProcessorNode (Flink -- parallelism, windowing)",
+    "description": "Implement a StreamProcessorNode extending BaseNode representing Apache Flink or Kafka Streams with configurable parallelism, window type (tumbling/sliding/session), and checkpoint interval.",
+    "acceptanceCriteria": [
+      "Node renders with a stream/wave icon and 'Stream Processor' label",
+      "Config fields include parallelism, window type, window size, and checkpoint interval",
+      "Node appears in ComponentPalette under the Processing category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/StreamProcessorNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "processing", "flink", "streaming"]
+  },
+  {
+    "id": "SDS-053",
+    "epic": "SDS",
+    "title": "Create BatchProcessorNode (batch size, schedule)",
+    "description": "Implement a BatchProcessorNode extending BaseNode representing batch processing jobs (Spark, MapReduce) with configurable batch size, schedule interval, and max concurrent jobs.",
+    "acceptanceCriteria": [
+      "Node renders with a stack/layers icon and 'Batch Processor' label",
+      "Config fields include batch size, schedule (cron expression), and max concurrent jobs",
+      "Node appears in ComponentPalette under the Processing category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/BatchProcessorNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "processing", "batch", "spark"]
+  },
+  {
+    "id": "SDS-054",
+    "epic": "SDS",
+    "title": "Create MLInferenceNode (model size, batch, latency target)",
+    "description": "Implement an MLInferenceNode extending BaseNode representing an ML model serving endpoint with configurable model size, batch inference support, latency target, and GPU memory.",
+    "acceptanceCriteria": [
+      "Node renders with a brain/AI icon and 'ML Inference' label",
+      "Config fields include model size MB, batch size, latency target ms, and GPU memory GB",
+      "Node appears in ComponentPalette under the AI/ML category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/MLInferenceNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "ai-ml", "inference", "serving"]
+  },
+  {
+    "id": "SDS-055",
+    "epic": "SDS",
+    "title": "Create DNSNode (TTL, failover)",
+    "description": "Implement a DNSNode extending BaseNode representing a DNS service (Route 53) with configurable record TTL, failover policy, and routing policy (simple, weighted, latency-based, geolocation).",
+    "acceptanceCriteria": [
+      "Node renders with a globe/DNS icon and 'DNS' label",
+      "Config fields include TTL seconds, routing policy, and failover enabled flag",
+      "Node appears in ComponentPalette under the Networking category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/DNSNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "networking", "dns", "route53"]
+  },
+  {
+    "id": "SDS-056",
+    "epic": "SDS",
+    "title": "Create FirewallNode (rules, rate limit)",
+    "description": "Implement a FirewallNode extending BaseNode representing a WAF or firewall with configurable rule count, rate limit threshold, and allowed/blocked IP ranges.",
+    "acceptanceCriteria": [
+      "Node renders with a shield icon and 'Firewall / WAF' label",
+      "Config fields include rule count, rate limit requests/sec, and block list size",
+      "Node appears in ComponentPalette under the Security category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/FirewallNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "security", "firewall", "waf"]
+  },
+  {
+    "id": "SDS-057",
+    "epic": "SDS",
+    "title": "Create MobileClientNode (platform, request rate)",
+    "description": "Implement a MobileClientNode extending BaseNode representing mobile app clients with configurable platform (iOS/Android), average request rate, and connection type (WiFi/4G/5G).",
+    "acceptanceCriteria": [
+      "Node renders with a smartphone icon and 'Mobile Client' label",
+      "Config fields include platform, request rate, and connection type with latency impact",
+      "Node appears in ComponentPalette under the Clients category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/MobileClientNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "clients", "mobile", "platform"]
+  },
+  {
+    "id": "SDS-058",
+    "epic": "SDS",
+    "title": "Create IoTDeviceNode (device count, message frequency)",
+    "description": "Implement an IoTDeviceNode extending BaseNode representing IoT device fleets with configurable device count, message frequency, payload size, and protocol (MQTT/CoAP/HTTP).",
+    "acceptanceCriteria": [
+      "Node renders with a chip/sensor icon and 'IoT Device' label",
+      "Config fields include device count, message frequency Hz, payload bytes, and protocol",
+      "Total traffic is computed as device count multiplied by message frequency"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/IoTDeviceNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "clients", "iot", "devices"]
+  },
+  {
+    "id": "SDS-059",
+    "epic": "SDS",
+    "title": "Create ThirdPartyAPINode (rate limit, latency, error rate)",
+    "description": "Implement a ThirdPartyAPINode extending BaseNode representing external API dependencies with configurable rate limit, average latency, error rate percentage, and timeout.",
+    "acceptanceCriteria": [
+      "Node renders with an external-link/plug icon and 'Third Party API' label",
+      "Config fields include rate limit req/sec, avg latency ms, error rate %, and timeout ms",
+      "Simulation applies configured error rate as random request failure probability"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/ThirdPartyAPINode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "external", "api", "third-party"]
+  },
+  {
+    "id": "SDS-060",
+    "epic": "SDS",
+    "title": "Create MetricsCollectorNode (Prometheus -- scrape interval)",
+    "description": "Implement a MetricsCollectorNode extending BaseNode representing Prometheus or similar monitoring services with configurable scrape interval, retention days, and target count.",
+    "acceptanceCriteria": [
+      "Node renders with a gauge/chart icon and 'Metrics Collector' label",
+      "Config fields include scrape interval seconds, retention days, and target count",
+      "Node appears in ComponentPalette under the Observability category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/MetricsCollectorNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "observability", "prometheus", "monitoring"]
+  },
+  {
+    "id": "SDS-061",
+    "epic": "SDS",
+    "title": "Create LogAggregatorNode (ELK -- retention)",
+    "description": "Implement a LogAggregatorNode extending BaseNode representing ELK stack or similar log aggregation services with configurable retention days, index shards, and ingestion rate.",
+    "acceptanceCriteria": [
+      "Node renders with a file-text/scroll icon and 'Log Aggregator' label",
+      "Config fields include retention days, index shards, and max ingestion rate GB/day",
+      "Node appears in ComponentPalette under the Observability category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/LogAggregatorNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "observability", "elk", "logging"]
+  },
+  {
+    "id": "SDS-062",
+    "epic": "SDS",
+    "title": "Create DistributedTracerNode (Jaeger -- sample rate)",
+    "description": "Implement a DistributedTracerNode extending BaseNode representing Jaeger or Zipkin distributed tracing with configurable sample rate, storage backend, and max trace duration.",
+    "acceptanceCriteria": [
+      "Node renders with a route/trace icon and 'Distributed Tracer' label",
+      "Config fields include sample rate (0-1), storage backend type, and max trace duration ms",
+      "Node appears in ComponentPalette under the Observability category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/DistributedTracerNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "observability", "jaeger", "tracing"]
+  },
+  {
+    "id": "SDS-063",
+    "epic": "SDS",
+    "title": "Create AuthServiceNode (OAuth/JWT -- token TTL)",
+    "description": "Implement an AuthServiceNode extending BaseNode representing an authentication service (Auth0, Keycloak) with configurable auth protocol (OAuth2/JWT/SAML), token TTL, and max concurrent sessions.",
+    "acceptanceCriteria": [
+      "Node renders with a lock/key icon and 'Auth Service' label",
+      "Config fields include auth protocol, access token TTL, refresh token TTL, and max sessions",
+      "Node appears in ComponentPalette under the Security category"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/AuthServiceNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "security", "auth", "oauth"]
+  },
+  {
+    "id": "SDS-064",
+    "epic": "SDS",
+    "title": "Create RateLimiterNode (algorithm, limit, window)",
+    "description": "Implement a RateLimiterNode extending BaseNode representing a rate limiting service with configurable algorithm (token bucket, sliding window, fixed window, leaky bucket), limit, and window duration.",
+    "acceptanceCriteria": [
+      "Node renders with a speedometer/gauge icon and 'Rate Limiter' label",
+      "Config fields include algorithm type, limit per window, and window duration seconds",
+      "Simulation drops requests exceeding the configured rate limit"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/RateLimiterNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "security", "rate-limiter", "throttle"]
+  },
+  {
+    "id": "SDS-065",
+    "epic": "SDS",
+    "title": "Create SecretManagerNode (Vault -- rotation days)",
+    "description": "Implement a SecretManagerNode extending BaseNode representing HashiCorp Vault or AWS Secrets Manager with configurable rotation period, encryption algorithm, and max secrets count.",
+    "acceptanceCriteria": [
+      "Node renders with a vault/safe icon and 'Secret Manager' label",
+      "Config fields include rotation period days, encryption algorithm, and max secrets",
+      "Node appears in ComponentPalette under the Security category"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/SecretManagerNode.tsx",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["nodes", "security", "vault", "secrets"]
+  },
+  {
+    "id": "SDS-066",
+    "epic": "SDS",
+    "title": "Create ParticleLayer.tsx Canvas 2D overlay for traffic animation",
+    "description": "Implement a ParticleLayer component using HTML Canvas 2D that overlays the ReactFlow viewport. Renders up to 2000 particles at 60fps using requestAnimationFrame, with particles representing request traffic flowing along edges.",
+    "acceptanceCriteria": [
+      "Canvas overlay aligns pixel-perfectly with ReactFlow viewport (pan/zoom sync)",
+      "Particle rendering maintains 60fps with up to 2000 active particles",
+      "Particle pool uses object recycling to avoid GC pressure"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ParticleLayer.tsx"
+    ],
+    "dependencies": ["SDS-002"],
+    "blockedBy": [],
+    "tags": ["particles", "animation", "canvas-2d", "performance"]
+  },
+  {
+    "id": "SDS-067",
+    "epic": "SDS",
+    "title": "Implement particle path following along edge bezier curves",
+    "description": "Calculate particle positions along the bezier curve paths defined by DataFlowEdge geometry. Particles interpolate from source handle to target handle position using cubic bezier math.",
+    "acceptanceCriteria": [
+      "Particles follow the exact bezier curve path of their assigned edge",
+      "Particle position is computed via cubic bezier interpolation (t=0 to t=1)",
+      "Path calculations handle edge reconnections and viewport transforms"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ParticleLayer.tsx"
+    ],
+    "dependencies": ["SDS-066"],
+    "blockedBy": ["SDS-066"],
+    "tags": ["particles", "bezier", "math", "animation"]
+  },
+  {
+    "id": "SDS-068",
+    "epic": "SDS",
+    "title": "Implement throughput encoding via particle density",
+    "description": "Map edge throughput values to particle emission rate: higher throughput produces more particles on that edge. Configurable min/max particle count per edge to prevent visual overload.",
+    "acceptanceCriteria": [
+      "Edges with higher throughput display proportionally more particles",
+      "Particle count per edge is clamped between configurable min (1) and max (50) values",
+      "Particle density updates dynamically as throughput changes during simulation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ParticleLayer.tsx"
+    ],
+    "dependencies": ["SDS-067"],
+    "blockedBy": ["SDS-067"],
+    "tags": ["particles", "throughput", "density", "encoding"]
+  },
+  {
+    "id": "SDS-069",
+    "epic": "SDS",
+    "title": "Implement error particles with red color and pulse animation",
+    "description": "Failed requests generate red error particles that are larger than normal particles and display a pulsing size animation as they travel along the edge to their failure point.",
+    "acceptanceCriteria": [
+      "Error particles render in red color, 2x the size of normal particles",
+      "Error particles display a pulsing scale animation (1x to 1.5x oscillation)",
+      "Error particles fade out at the failure point rather than reaching the target"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ParticleLayer.tsx"
+    ],
+    "dependencies": ["SDS-067"],
+    "blockedBy": ["SDS-067"],
+    "tags": ["particles", "error", "animation", "visual"]
+  },
+  {
+    "id": "SDS-070",
+    "epic": "SDS",
+    "title": "Implement particle fade-in at source and fade-out at target",
+    "description": "Particles smoothly fade in (alpha 0 to 1) during the first 10% of their path and fade out (alpha 1 to 0) during the last 10% of their path for polished visual transitions.",
+    "acceptanceCriteria": [
+      "Particles fade in from alpha 0 to 1 during t=0.0 to t=0.1 of the path",
+      "Particles fade out from alpha 1 to 0 during t=0.9 to t=1.0 of the path",
+      "Fade animation is smooth with no visible popping or flickering"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ParticleLayer.tsx"
+    ],
+    "dependencies": ["SDS-067"],
+    "blockedBy": ["SDS-067"],
+    "tags": ["particles", "fade", "animation", "polish"]
+  },
+  {
+    "id": "SDS-071",
+    "epic": "SDS",
+    "title": "Create Discord system design template",
+    "description": "Author a pre-built system design template for Discord covering real-time messaging, voice channels, presence system, and media CDN with appropriate node types and edge protocols (WebSocket, gRPC, HTTP).",
+    "acceptanceCriteria": [
+      "Template includes Client, API Gateway, WebSocket server, voice server, message store, presence service, and CDN nodes",
+      "Edges use correct protocols (WebSocket for real-time, gRPC for internal, HTTP for REST)",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/discord.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "discord", "real-time", "content"]
+  },
+  {
+    "id": "SDS-072",
+    "epic": "SDS",
+    "title": "Create Spotify system design template",
+    "description": "Author a pre-built system design template for Spotify covering music streaming, recommendation engine, playlist service, search, and offline sync with appropriate nodes and protocols.",
+    "acceptanceCriteria": [
+      "Template includes Client, CDN, streaming server, recommendation ML service, search engine, playlist DB, and user service nodes",
+      "Edges use correct protocols (HTTP for API, TCP for streaming, gRPC for internal)",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/spotify.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "spotify", "streaming", "content"]
+  },
+  {
+    "id": "SDS-073",
+    "epic": "SDS",
+    "title": "Create Dropbox system design template",
+    "description": "Author a pre-built system design template for Dropbox covering file sync, block storage, deduplication, sharing, and notification services with appropriate nodes and protocols.",
+    "acceptanceCriteria": [
+      "Template includes Client, API Gateway, sync service, block storage, metadata DB, notification service, and dedup engine nodes",
+      "Edges use correct protocols (HTTP for API, TCP for block transfer, WebSocket for sync notifications)",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/dropbox.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "dropbox", "file-sync", "content"]
+  },
+  {
+    "id": "SDS-074",
+    "epic": "SDS",
+    "title": "Create Slack system design template",
+    "description": "Author a pre-built system design template for Slack covering real-time messaging, channels, search, file sharing, and bot integration with appropriate nodes and protocols.",
+    "acceptanceCriteria": [
+      "Template includes Client, API Gateway, WebSocket server, channel service, search engine, file storage, and bot framework nodes",
+      "Edges use correct protocols (WebSocket for real-time, HTTP for REST, AMQP for async)",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/slack.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "slack", "messaging", "content"]
+  },
+  {
+    "id": "SDS-075",
+    "epic": "SDS",
+    "title": "Create YouTube system design template",
+    "description": "Author a pre-built system design template for YouTube covering video upload, transcoding pipeline, CDN delivery, recommendation engine, and comment system with appropriate nodes and protocols.",
+    "acceptanceCriteria": [
+      "Template includes Client, upload service, transcoding workers, CDN, video metadata DB, recommendation ML, and comment service nodes",
+      "Edges use correct protocols (HTTP for upload/API, TCP for streaming, AMQP for transcoding queue)",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/youtube.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "youtube", "video", "content"]
+  },
+  {
+    "id": "SDS-076",
+    "epic": "SDS",
+    "title": "Create Google Search system design template",
+    "description": "Author a pre-built system design template for Google Search covering web crawling, indexing, ranking, query processing, and ad serving with appropriate nodes and protocols.",
+    "acceptanceCriteria": [
+      "Template includes Client, DNS, LB, query processor, index servers, crawler, ranking service, cache, and ad server nodes",
+      "Edges use correct protocols (HTTP for query, gRPC for internal, TCP for crawler)",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/google-search.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "google", "search", "content"]
+  },
+  {
+    "id": "SDS-077",
+    "epic": "SDS",
+    "title": "Create Distributed Key-Value Store system design template",
+    "description": "Author a pre-built system design template for a distributed KV store (like DynamoDB/Riak) covering consistent hashing, replication, gossip protocol, and read/write quorum with appropriate nodes.",
+    "acceptanceCriteria": [
+      "Template includes Client, coordinator node, storage nodes (3+), gossip protocol edges, and read-repair service",
+      "Edges represent consistent hashing ring topology and replication paths",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/distributed-kv-store.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "kv-store", "distributed", "content"]
+  },
+  {
+    "id": "SDS-078",
+    "epic": "SDS",
+    "title": "Create Web Crawler system design template",
+    "description": "Author a pre-built system design template for a web crawler covering URL frontier, fetcher workers, content parser, deduplication, and storage with appropriate nodes and protocols.",
+    "acceptanceCriteria": [
+      "Template includes URL frontier queue, fetcher workers, content parser, dedup bloom filter, robots.txt checker, and document store nodes",
+      "Edges represent the crawl pipeline from URL discovery through storage",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/web-crawler.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "crawler", "pipeline", "content"]
+  },
+  {
+    "id": "SDS-079",
+    "epic": "SDS",
+    "title": "Create Typeahead/Autocomplete system design template",
+    "description": "Author a pre-built system design template for a typeahead/autocomplete service covering trie data structure, ranking service, data collection pipeline, and cache layer with appropriate nodes.",
+    "acceptanceCriteria": [
+      "Template includes Client, API Gateway, trie service, ranking service, data collector, cache, and analytics nodes",
+      "Edges represent the query path (Client to trie) and data pipeline (collector to trie update)",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/typeahead.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "typeahead", "autocomplete", "content"]
+  },
+  {
+    "id": "SDS-080",
+    "epic": "SDS",
+    "title": "Create CI/CD Pipeline system design template",
+    "description": "Author a pre-built system design template for a CI/CD pipeline covering source control webhook, build workers, test runners, artifact storage, deployment orchestrator, and monitoring with appropriate nodes.",
+    "acceptanceCriteria": [
+      "Template includes webhook receiver, build queue, build workers, test runners, artifact storage, deploy orchestrator, and monitoring nodes",
+      "Edges represent the pipeline stages from source push through deployment",
+      "Template loads cleanly and all connections are valid"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "content",
+    "files": [
+      "src/lib/templates/cicd-pipeline.ts",
+      "src/lib/templates/index.ts"
+    ],
+    "dependencies": ["SDS-011"],
+    "blockedBy": [],
+    "tags": ["templates", "cicd", "pipeline", "content"]
+  },
+  {
+    "id": "SDS-081",
+    "epic": "SDS",
+    "title": "Implement Level-of-Detail (LOD) rendering based on zoom level",
+    "description": "Add three rendering levels to BaseNode based on viewport zoom: full detail (>60% zoom) shows all labels/icons/handles, simplified (30-60%) shows icon and name only, and dot mode (<30%) renders a colored circle with no text.",
+    "acceptanceCriteria": [
+      "Nodes render full detail (icon, label, status, handles) above 60% zoom",
+      "Nodes render simplified (icon and name only) between 30% and 60% zoom",
+      "Nodes render as colored dots below 30% zoom for maximum performance"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/BaseNode.tsx",
+      "src/stores/viewport-store.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["canvas", "lod", "zoom", "performance"]
+  },
+  {
+    "id": "SDS-082",
+    "epic": "SDS",
+    "title": "Implement node grouping/zones with dashed rectangles",
+    "description": "Add the ability to create named group zones on the canvas (dashed rectangles with colored semi-transparent backgrounds and labels). Nodes inside a zone visually belong to that group (e.g., 'VPC', 'Region', 'Service Mesh').",
+    "acceptanceCriteria": [
+      "Users can create named group zones via the palette or right-click menu",
+      "Zones render as dashed rectangles with a colored semi-transparent background and label",
+      "Dragging a zone moves all contained nodes together"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/GroupZoneNode.tsx",
+      "src/components/canvas/DesignCanvas.tsx",
+      "src/stores/canvas-store.ts"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["canvas", "grouping", "zones", "organization"]
+  },
+  {
+    "id": "SDS-083",
+    "epic": "SDS",
+    "title": "Implement right-click context menu on nodes",
+    "description": "Add a right-click context menu on canvas nodes with actions: Cut, Copy, Paste, Delete, Duplicate, Configure (opens properties), and Inject Chaos (submenu). Built with Radix UI ContextMenu.",
+    "acceptanceCriteria": [
+      "Right-clicking a node opens a context menu with all specified actions",
+      "Cut/Copy/Paste/Delete/Duplicate actions work correctly on the selected node",
+      "Configure action opens the PropertiesPanel focused on the clicked node"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/menus/NodeContextMenu.tsx",
+      "src/components/canvas/DesignCanvas.tsx"
+    ],
+    "dependencies": ["SDS-001"],
+    "blockedBy": [],
+    "tags": ["canvas", "context-menu", "right-click", "ux"]
+  },
+  {
+    "id": "SDS-084",
+    "epic": "SDS",
+    "title": "Implement right-click context menu on canvas background",
+    "description": "Add a right-click context menu on the canvas background with actions: Paste, Add Component (submenu of categories), Select All, Fit View, Clear Canvas, and Load Template.",
+    "acceptanceCriteria": [
+      "Right-clicking the canvas background opens a context menu with all specified actions",
+      "Add Component submenu shows categories and creates the selected node at click position",
+      "Fit View action centers and zooms to fit all nodes"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/menus/CanvasContextMenu.tsx",
+      "src/components/canvas/DesignCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["canvas", "context-menu", "right-click", "ux"]
+  },
+  {
+    "id": "SDS-085",
+    "epic": "SDS",
+    "title": "Implement smart alignment guides when dragging nodes",
+    "description": "Show alignment guide lines when dragging a node near the horizontal or vertical center/edge of another node. Guides snap the dragged node into alignment at configurable snap distance (default 5px).",
+    "acceptanceCriteria": [
+      "Horizontal and vertical alignment guides appear when a dragged node aligns with another",
+      "Node position snaps to the guide line within configurable snap distance",
+      "Guides disappear immediately when the node moves away from alignment"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/AlignmentGuides.tsx",
+      "src/components/canvas/DesignCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["canvas", "alignment", "guides", "ux"]
+  },
+  {
+    "id": "SDS-086",
+    "epic": "SDS",
+    "title": "Add canvas empty state card with onboarding CTA",
+    "description": "When the canvas has zero nodes, display a centered card with the message 'Start by dragging components or load a template' with two CTA buttons: 'Browse Components' (opens palette) and 'Load Template' (opens gallery).",
+    "acceptanceCriteria": [
+      "Empty state card appears centered on canvas when no nodes exist",
+      "'Browse Components' button opens/focuses the ComponentPalette",
+      "'Load Template' button opens the TemplateGallery overlay",
+      "Card disappears as soon as the first node is added"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/EmptyStateCard.tsx",
+      "src/components/canvas/DesignCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["canvas", "empty-state", "onboarding", "ux"]
+  },
+  {
+    "id": "EXP-001",
+    "epic": "EXP",
+    "title": "Implement JSON export for canvas designs",
+    "description": "Export the current canvas design (nodes, edges, metadata) as a downloadable JSON file with a standardized schema for re-import.",
+    "acceptanceCriteria": [
+      "Export produces valid JSON containing all nodes, edges, and design metadata",
+      "Downloaded file uses the design name as filename with .json extension",
+      "JSON schema is documented and versioned for forward compatibility"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-json.ts",
+      "src/lib/export/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["export", "json", "download"]
+  },
+  {
+    "id": "EXP-002",
+    "epic": "EXP",
+    "title": "Implement Mermaid diagram export",
+    "description": "Export the current canvas design as a Mermaid flowchart/graph diagram syntax that can be rendered by any Mermaid-compatible tool.",
+    "acceptanceCriteria": [
+      "Export produces valid Mermaid graph syntax with correct node shapes and edge labels",
+      "Node types map to appropriate Mermaid shapes (database=cylinder, etc.)",
+      "Output renders correctly in Mermaid Live Editor"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-mermaid.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["export", "mermaid", "diagram"]
+  },
+  {
+    "id": "EXP-003",
+    "epic": "EXP",
+    "title": "Implement PlantUML export",
+    "description": "Export the current canvas design as PlantUML component diagram syntax.",
+    "acceptanceCriteria": [
+      "Export produces valid PlantUML component diagram syntax",
+      "Node types map to appropriate PlantUML stereotypes and shapes",
+      "Output renders correctly in PlantUML online server"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-plantuml.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["export", "plantuml", "diagram"]
+  },
+  {
+    "id": "EXP-004",
+    "epic": "EXP",
+    "title": "Implement Terraform HCL export",
+    "description": "Export the current canvas design as Terraform HCL configuration representing the infrastructure components (AWS/GCP resources) corresponding to each node type.",
+    "acceptanceCriteria": [
+      "Export produces valid Terraform HCL with resource blocks for each node",
+      "Node types map to appropriate cloud provider resources (e.g., DatabaseNode to aws_rds_instance)",
+      "Generated HCL passes terraform validate"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-terraform.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["export", "terraform", "iac", "infrastructure"]
+  },
+  {
+    "id": "EXP-005",
+    "epic": "EXP",
+    "title": "Implement URL sharing with compressed state encoding",
+    "description": "Encode the current canvas state into a compressed, URL-safe string that can be shared as a link. Recipient can load the full design from the URL without authentication.",
+    "acceptanceCriteria": [
+      "Canvas state is compressed and encoded into a shareable URL parameter",
+      "Loading the URL reconstructs the full canvas with all nodes and edges",
+      "URL length stays under 2000 characters for typical 10-node designs"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-url.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["export", "sharing", "url", "compression"]
+  },
+  {
+    "id": "EXP-006",
+    "epic": "EXP",
+    "title": "Implement PNG export via html-to-image",
+    "description": "Add PNG image export to the ExportDialog using the html-to-image library. Captures the current canvas viewport (or full design) as a high-resolution PNG file with transparent or white background.",
+    "acceptanceCriteria": [
+      "PNG export captures all visible nodes and edges at 2x resolution for retina displays",
+      "User can choose between viewport crop and full-design capture modes",
+      "Exported PNG includes node labels, edge labels, and status indicators"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-png.ts",
+      "src/lib/export/index.ts",
+      "src/components/shared/export-dialog.tsx"
+    ],
+    "dependencies": ["EXP-001"],
+    "blockedBy": [],
+    "tags": ["export", "png", "image", "html-to-image"]
+  },
+  {
+    "id": "EXP-007",
+    "epic": "EXP",
+    "title": "Implement SVG export with embedded fonts",
+    "description": "Add SVG export to the ExportDialog that produces a standalone SVG file with all fonts embedded as base64 data URIs so the design renders correctly on any system.",
+    "acceptanceCriteria": [
+      "SVG export produces a valid SVG file containing all nodes and edges",
+      "Fonts are embedded as base64 within the SVG for portability",
+      "SVG scales cleanly at any resolution without quality loss"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-svg.ts",
+      "src/lib/export/index.ts",
+      "src/components/shared/export-dialog.tsx"
+    ],
+    "dependencies": ["EXP-001"],
+    "blockedBy": [],
+    "tags": ["export", "svg", "vector", "fonts"]
+  },
+  {
+    "id": "EXP-008",
+    "epic": "EXP",
+    "title": "Implement PDF export via jsPDF",
+    "description": "Add PDF export to the ExportDialog using jsPDF. Renders the canvas design as a multi-page PDF with a title page, design diagram, and optional component legend.",
+    "acceptanceCriteria": [
+      "PDF export generates a downloadable file with the design diagram on the first content page",
+      "Large designs auto-scale or split across pages to avoid cropping",
+      "PDF includes a title header with design name and generation date"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-pdf.ts",
+      "src/lib/export/index.ts",
+      "src/components/shared/export-dialog.tsx"
+    ],
+    "dependencies": ["EXP-006"],
+    "blockedBy": [],
+    "tags": ["export", "pdf", "jspdf", "document"]
+  },
+  {
+    "id": "EXP-009",
+    "epic": "EXP",
+    "title": "Implement draw.io XML import and export",
+    "description": "Add draw.io (diagrams.net) XML format support for both import and export. Export converts canvas nodes/edges to draw.io mxGraph XML; import parses draw.io XML and creates corresponding canvas nodes.",
+    "acceptanceCriteria": [
+      "Export produces valid draw.io XML that opens correctly in diagrams.net",
+      "Import parses draw.io XML files and creates corresponding nodes and edges on the canvas",
+      "Round-trip (export then import) preserves node types and connections"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-drawio.ts",
+      "src/lib/export/from-drawio.ts",
+      "src/lib/export/index.ts",
+      "src/components/shared/export-dialog.tsx"
+    ],
+    "dependencies": ["EXP-001"],
+    "blockedBy": [],
+    "tags": ["export", "import", "drawio", "interop"]
+  },
+  {
+    "id": "EXP-010",
+    "epic": "EXP",
+    "title": "Implement GIF recording of simulation via MediaRecorder API",
+    "description": "Add GIF recording capability that captures the canvas during a simulation run using the MediaRecorder API on a canvas element. Users can start/stop recording and download the result as an animated GIF.",
+    "acceptanceCriteria": [
+      "Record button appears in the simulation controls toolbar during active simulation",
+      "Recording captures canvas content at 15fps and converts to GIF format on stop",
+      "Downloaded GIF shows the full simulation with node state changes and edge animations"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "backlog",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/to-gif.ts",
+      "src/lib/export/index.ts",
+      "src/components/shared/export-dialog.tsx",
+      "src/components/canvas/overlays/RecordingControls.tsx"
+    ],
+    "dependencies": ["SDS-013", "EXP-006"],
+    "blockedBy": [],
+    "tags": ["export", "gif", "recording", "animation", "mediarecorder"]
+  }
+]

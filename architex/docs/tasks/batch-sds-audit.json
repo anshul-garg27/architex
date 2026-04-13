@@ -1,0 +1,846 @@
+[
+  {
+    "id": "SDS-087",
+    "epic": "SDS",
+    "title": "Fix 4 palette-to-nodeType mismatches causing invisible nodes",
+    "description": "4 palette items (reverse-proxy, object-storage, web-client, auth-service) have type strings that don't match any key in systemDesignNodeTypes (index.ts:264-351). When dragged onto canvas, ReactFlow renders blank default nodes. Root cause: palette-items.ts types don't match index.ts keys. Fix by aligning the strings — either rename palette types to match existing registry keys (storage, client) or add new registry entries.",
+    "acceptanceCriteria": [
+      "All 67 palette items render visually correct nodes when dragged onto canvas",
+      "No blank/invisible nodes appear for any palette item",
+      "Dead nodeType entries (cdn, client, storage) are either mapped to palette items or removed",
+      "Console shows no React warnings about unknown node types"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/palette-items.ts",
+      "src/components/canvas/nodes/system-design/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["p0", "bug", "palette", "nodes", "silent-failure"]
+  },
+  {
+    "id": "SDS-088",
+    "epic": "SDS",
+    "title": "Add error feedback when node type is unregistered on drop",
+    "description": "When a node type is not found in systemDesignNodeTypes, the drop silently succeeds but renders nothing. DesignCanvas.tsx:270-287 creates the node without checking if the type is registered. Add validation after creating newNode: if type not in nodeTypes, show a toast/console error and abort. Also update ComponentPalette.tsx aria-live announcer (line 172) to announce failures.",
+    "acceptanceCriteria": [
+      "Dropping an unregistered node type shows visible error toast",
+      "Screen reader aria-live region announces the failure",
+      "Node is NOT added to canvas if type is invalid",
+      "Console.warn logs the unregistered type name"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/DesignCanvas.tsx",
+      "src/components/canvas/panels/ComponentPalette.tsx"
+    ],
+    "dependencies": ["SDS-087"],
+    "blockedBy": [],
+    "tags": ["error-handling", "a11y", "ux", "validation"]
+  },
+  {
+    "id": "SDS-089",
+    "epic": "SDS",
+    "title": "Prevent simulation-driven updateNodeData from flooding undo stack",
+    "description": "canvas-store.ts:159 calls pushSnapshot on every updateNodeData. During simulation, orchestrator calls updateNodeData for every node every 10 ticks. 100 nodes * 100 ticks = 1000 undo snapshots polluting history. Add a skipUndo parameter to updateNodeData or create updateNodeDataSilent that bypasses undo. Update simulation-orchestrator to use the silent variant.",
+    "acceptanceCriteria": [
+      "Running simulation does NOT add entries to undo stack",
+      "Manual user edits to node properties still push undo snapshots",
+      "Undo/redo works correctly after simulation completes",
+      "Memory usage stays flat during simulation (no undo stack growth)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/stores/canvas-store.ts",
+      "src/lib/simulation/simulation-orchestrator.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["performance", "state", "undo", "simulation"]
+  },
+  {
+    "id": "SDS-090",
+    "epic": "SDS",
+    "title": "Fix seekTo race condition with running tickLoop",
+    "description": "simulation-orchestrator.ts:370-395 seekTo() mutates currentTick and updates canvas store without pausing first. If simulation is 'running', tickLoop() overwrites the seek on next frame. Fix: auto-pause before seeking, then optionally resume after applying the frame.",
+    "acceptanceCriteria": [
+      "Seeking while simulation runs pauses playback automatically",
+      "Sought-to tick state is correctly applied to all nodes",
+      "User can resume from the sought position",
+      "No visual glitch when seeking during running simulation"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug", "simulation", "race-condition"]
+  },
+  {
+    "id": "SDS-091",
+    "epic": "SDS",
+    "title": "Fix S3/object-storage cost estimate (4000x too high)",
+    "description": "cost-engine.ts object storage calculator uses static $3.50/million rates from old pricing. Actual S3 pricing: $0.0007/GET, $0.000007/PUT. For 1M GETs + 100K PUTs, current formula outputs ~$3,540/mo; actual is ~$0.77/mo. Update cost constants to current AWS pricing and revise the calculation formula.",
+    "acceptanceCriteria": [
+      "Object storage cost for 1M GETs + 100K PUTs is under $5/mo",
+      "Storage cost scales correctly with storageTB config value",
+      "Cost breakdown shows separate request and storage line items",
+      "Tooltip or note explains pricing assumptions"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/cost/cost-engine.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug", "cost", "data-accuracy"]
+  },
+  {
+    "id": "SDS-092",
+    "epic": "SDS",
+    "title": "Rebuild topology when canvas changes during simulation",
+    "description": "simulation-orchestrator.ts buildTopology() (line 157) only called from start() (line 212). Adding/removing nodes mid-simulation doesn't update traffic propagation. Subscribe to canvas store changes during running simulation and call buildTopology() when nodes/edges change. Debounce to avoid per-frame rebuilds.",
+    "acceptanceCriteria": [
+      "Adding a node during running simulation includes it in traffic flow within 2 ticks",
+      "Removing a node during simulation removes it from traffic propagation",
+      "Adding an edge during simulation routes traffic through new connection",
+      "Topology rebuild is debounced (max once per 500ms)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "topology", "live-updates"]
+  },
+  {
+    "id": "SDS-093",
+    "epic": "SDS",
+    "title": "Cap BFS queue depth and clamp chaos escalation",
+    "description": "Two simulation safety issues: (1) simulation-orchestrator.ts:551-678 BFS propagation has unbounded queue depth in dense graphs. Add max queue depth of 10,000. (2) chaos-engine.ts escalation rate is unbounded — 1.05^50 = 11.5x. Clamp all escalated amplification values to [0, 1] range.",
+    "acceptanceCriteria": [
+      "BFS queue never exceeds 10,000 entries; logs warning if capped",
+      "Chaos escalation values are clamped to [0, 1]",
+      "Dense graph (50+ nodes, 200+ edges) doesn't hang browser",
+      "Long-running chaos events (100+ ticks) produce reasonable amplification"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/simulation-orchestrator.ts",
+      "src/lib/simulation/chaos-engine.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "safety", "performance"]
+  },
+  {
+    "id": "SDS-094",
+    "epic": "SDS",
+    "title": "Fix MetricsCollector percentile off-by-one and O(n^2) insert",
+    "description": "metrics-collector.ts:133 uses Math.floor(percentile * length) which is off-by-one for p95/p99. Fix: Math.ceil(percentile * length) - 1. Also, SortedLatencyArray.insert() at line 120 uses binary search + splice = O(n) per insert. Replace with bucketed histogram for O(1) amortized insert and O(1) percentile lookup.",
+    "acceptanceCriteria": [
+      "p95 with 100 samples returns the 95th element, not the 96th",
+      "Percentile calculation is accurate within 1% for all sample sizes",
+      "Insert performance is O(1) amortized (no O(n) array shifts)",
+      "Memory usage stays bounded regardless of request count"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/metrics-collector.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug", "performance", "metrics", "algorithm"]
+  },
+  {
+    "id": "SDS-095",
+    "epic": "SDS",
+    "title": "Fix SLADashboard crash when availability is exactly 1.0",
+    "description": "SLADashboard.tsx:46-48 computes precision with Math.log10(1 - availability). When availability = 1.0 exactly, this becomes Math.log10(0) = -Infinity, crashing the display. Add guard: if availability >= 1.0 display 'Infinity nines' or '100%' with special formatting.",
+    "acceptanceCriteria": [
+      "SLADashboard renders correctly when all components have 100% availability",
+      "Displays '100%' or '∞ nines' gracefully, no NaN or Infinity in UI",
+      "Dashboard still works for normal values (99.9%, 99.99%, etc.)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/SLADashboard.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug", "crash", "edge-case"]
+  },
+  {
+    "id": "SDS-096",
+    "epic": "SDS",
+    "title": "Fix data transfer cost oversimplification in cost engine",
+    "description": "cost-engine.ts:389-398 estimateDataTransferCost() assumes flat 100GB/mo per edge regardless of actual data volume. 10 edges = $1000 transfer cost even for a tiny system. Fix: estimate transfer per edge from source node throughput * average payload size. Fallback to conservative estimate if no payload info available.",
+    "acceptanceCriteria": [
+      "Data transfer cost reflects actual node throughput and payload sizes",
+      "Transfer cost for a simple 3-node system is under $50/mo (not $300)",
+      "Cross-AZ vs cross-region pricing applies based on edge metadata",
+      "Cost tooltip explains the estimation method"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/cost/cost-engine.ts"
+    ],
+    "dependencies": ["SDS-091"],
+    "blockedBy": [],
+    "tags": ["cost", "data-accuracy", "estimation"]
+  },
+  {
+    "id": "SDS-097",
+    "epic": "SDS",
+    "title": "Fix addNodeAtCenter always placing at (500,350)",
+    "description": "ComponentPalette.tsx:163 places clicked nodes at hardcoded position {x: 500, y: 350}. Multiple clicks stack nodes on same pixel. Fix: read current viewport center via useCanvasStore's viewport data or useReactFlow, add random jitter for multiple additions.",
+    "acceptanceCriteria": [
+      "Clicking a palette item places node at current viewport center",
+      "Successive clicks offset nodes by ~50px to avoid stacking",
+      "Node is visible in current view without scrolling"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/ComponentPalette.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "palette", "positioning"]
+  },
+  {
+    "id": "SDS-098",
+    "epic": "SDS",
+    "title": "Fix EmptyState Cmd+K shortcut for cross-platform",
+    "description": "EmptyState.tsx:28 hardcodes 'Cmd+K' macOS shortcut. Should show 'Ctrl+K' on Windows/Linux. Detect platform via navigator.userAgent or navigator.platform and render appropriate modifier key.",
+    "acceptanceCriteria": [
+      "Shows 'Cmd+K' on macOS",
+      "Shows 'Ctrl+K' on Windows and Linux",
+      "Keyboard shortcut symbol is styled consistently with rest of app"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/EmptyState.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "cross-platform", "a11y"]
+  },
+  {
+    "id": "SDS-099",
+    "epic": "SDS",
+    "title": "Add ARIA tabpanel attributes to BottomPanel tabs",
+    "description": "BottomPanel.tsx:1121-1132 tab content panels lack role='tabpanel', aria-labelledby, and tabindex='0'. Tab buttons at line 1104 lack role='tab' and aria-selected. Implement WAI-ARIA tabs pattern for full keyboard and screen reader support.",
+    "acceptanceCriteria": [
+      "Tab buttons have role='tab' and aria-selected",
+      "Tab panels have role='tabpanel' and aria-labelledby matching tab button id",
+      "Arrow keys navigate between tabs",
+      "Screen reader announces tab name and selected state"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["a11y", "aria", "tabs"]
+  },
+  {
+    "id": "SDS-100",
+    "epic": "SDS",
+    "title": "Add aria-labels to SimulationDashboard, ChaosQuickBar, HeatmapOverlay",
+    "description": "Multiple overlay components use interactive elements without ARIA labels: SimulationDashboard.tsx:165 range input has no aria-label, ChaosQuickBar.tsx:148 buttons have no aria-labels, HeatmapOverlay.tsx uses color-only communication. Add appropriate ARIA attributes to each.",
+    "acceptanceCriteria": [
+      "SimulationDashboard traffic slider has aria-label, aria-valuemin, aria-valuemax",
+      "ChaosQuickBar category buttons have aria-label with category name",
+      "HeatmapOverlay boxes have aria-label with metric name and value",
+      "Screen reader can navigate all simulation controls"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/SimulationDashboard.tsx",
+      "src/components/canvas/overlays/ChaosQuickBar.tsx",
+      "src/components/canvas/overlays/HeatmapOverlay.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["a11y", "aria", "overlays"]
+  },
+  {
+    "id": "SDS-101",
+    "epic": "SDS",
+    "title": "Fix SVG font variable resolution in AlignmentGuides and GroupZone",
+    "description": "AlignmentGuides.tsx:294 and GroupZone.tsx:89 use CSS variables in SVG fontFamily attributes. CSS variables don't resolve in SVG element attributes. Fix: either hardcode font values, use <style> elements inside SVG, or use <foreignObject> with HTML text.",
+    "acceptanceCriteria": [
+      "Alignment guide distance labels render in correct font",
+      "Group zone labels render in correct font",
+      "Font matches the rest of the app design",
+      "Works in both light and dark themes"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/AlignmentGuides.tsx",
+      "src/components/canvas/overlays/GroupZone.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual", "svg", "fonts"]
+  },
+  {
+    "id": "SDS-102",
+    "epic": "SDS",
+    "title": "Add null guards to ParticleLayer and RequestTrace canvas contexts",
+    "description": "ParticleLayer.tsx:256,370 and RequestTrace.tsx:402-405 call getContext('2d') without null checks. If WebGL context limit is reached or canvas is unavailable, this returns null causing runtime crash. Add null guards with graceful fallback.",
+    "acceptanceCriteria": [
+      "No crash if canvas context is null",
+      "Animation gracefully degrades (stops) if context unavailable",
+      "Console.warn logs the context failure for debugging"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ParticleLayer.tsx",
+      "src/components/canvas/overlays/RequestTrace.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug", "null-safety", "canvas"]
+  },
+  {
+    "id": "SDS-103",
+    "epic": "SDS",
+    "title": "Validate imported JSON in DiffPanel and drag data in DesignCanvas",
+    "description": "DiffPanel.tsx:132-145 casts JSON.parse result to DiagramJSON without validation. DesignCanvas.tsx:262-265 parses drag data without schema validation. Add Zod or manual validation to prevent malformed data from creating invalid nodes or crashing the app.",
+    "acceptanceCriteria": [
+      "Importing invalid JSON shows user-friendly error message",
+      "Importing valid JSON with wrong schema shows 'Invalid diagram format' error",
+      "Drag data with unexpected shape is rejected with console warning",
+      "No XSS possible via node labels in imported JSON"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/DiffPanel.tsx",
+      "src/components/canvas/DesignCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["security", "validation", "import"]
+  },
+  {
+    "id": "SDS-104",
+    "epic": "SDS",
+    "title": "Debounce CanvasDescription and throttle AlignmentGuides calculation",
+    "description": "CanvasDescription.tsx:168 regenerates full topology description on every node/edge change (fires every simulation tick). AlignmentGuides.tsx:36-97 runs O(n^2) alignment check on every mousemove during drag. Debounce CanvasDescription to 500ms and throttle AlignmentGuides to every 3rd frame.",
+    "acceptanceCriteria": [
+      "CanvasDescription updates at most every 500ms during simulation",
+      "AlignmentGuides calculation runs at most every 3 animation frames",
+      "Dragging 100+ node canvas stays above 30fps",
+      "Alignment snap-to behavior still feels responsive"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/CanvasDescription.tsx",
+      "src/components/canvas/overlays/AlignmentGuides.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["performance", "debounce", "throttle"]
+  },
+  {
+    "id": "SDS-105",
+    "epic": "SDS",
+    "title": "Persist viewport-store state across page refreshes",
+    "description": "viewport-store.ts has no persist middleware. Canvas nodes/edges persist (canvas-store uses persist) but viewport position/zoom is lost on refresh. User zoomed into a detail area loses their position. Add zustand persist middleware with same localStorage approach as canvas-store.",
+    "acceptanceCriteria": [
+      "Viewport position and zoom survive page refresh",
+      "Viewport state is stored in localStorage under 'architex-viewport'",
+      "Reset viewport action clears persisted state"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/stores/viewport-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["state", "persistence", "viewport"]
+  },
+  {
+    "id": "SDS-106",
+    "epic": "SDS",
+    "title": "Fix latency budget edge latency to support cross-region",
+    "description": "latency-budget.ts:95 EDGE_LATENCY_MS = 0.5ms represents in-rack latency only. Cross-AZ is 1-5ms, cross-region 50-200ms. Allow edges to specify latency via edge data, or infer from edge protocol type. Also fix Kahn's algorithm cycle handling at line 187-189 to warn user about cycles.",
+    "acceptanceCriteria": [
+      "Edges with explicit latency in data use that value",
+      "Default edge latency varies by protocol type (http=2ms, grpc=1ms, etc.)",
+      "Cyclic architectures show warning instead of silently using first node",
+      "Latency budget calculation matches realistic network latencies"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/latency-budget.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "latency", "accuracy"]
+  },
+  {
+    "id": "SDS-107",
+    "epic": "SDS",
+    "title": "Split BottomPanel into individual tab files",
+    "description": "BottomPanel.tsx at 1136 lines contains 7 tab components plus the shell. Extract ChaosTab (~155 lines), CapacityTab (~165 lines), CostTab (~143 lines), ConsoleTab (~76 lines), and CodeTab into separate files under panels/tabs/. Keep TimelineTab and MetricsTab as they're smaller.",
+    "acceptanceCriteria": [
+      "Each extracted tab is its own file in panels/tabs/",
+      "BottomPanel.tsx is under 400 lines",
+      "All tabs still render correctly",
+      "No circular import dependencies"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["architecture", "refactor", "code-quality"]
+  },
+  {
+    "id": "SDS-108",
+    "epic": "SDS",
+    "title": "Remove dead code: unused imports and unreachable nodeType entries",
+    "description": "BaseNode.tsx:4 imports unused AnimatePresence. DataFlowEdge.tsx:3 imports unused useMemo. index.ts:272-274 registers cdn/client/storage nodeTypes that no palette item generates. ChaosQuickBar.tsx:76 has unused popoverRef. Clean up all dead code.",
+    "acceptanceCriteria": [
+      "No unused imports in any module file",
+      "No unreachable nodeType registrations (or they're documented as template-only)",
+      "No unused refs or variables",
+      "TypeScript strict mode passes without warnings"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/BaseNode.tsx",
+      "src/components/canvas/edges/DataFlowEdge.tsx",
+      "src/components/canvas/nodes/system-design/index.ts",
+      "src/components/canvas/overlays/ChaosQuickBar.tsx"
+    ],
+    "dependencies": ["SDS-087"],
+    "blockedBy": [],
+    "tags": ["cleanup", "dead-code", "lint"]
+  },
+  {
+    "id": "SDS-109",
+    "epic": "SDS",
+    "title": "Remove duplicate auth-service palette entry",
+    "description": "palette-items.ts has both auth-service (line 361) and auth-service-v2 (line 480) in the palette. auth-service has no matching nodeType registration, making it broken (see SDS-087). After SDS-087 fix, decide: either consolidate into one entry or differentiate them clearly in the UI.",
+    "acceptanceCriteria": [
+      "Only one auth service entry in palette, or two with clear differentiation",
+      "No confusion between v1 and v2 auth services for users",
+      "Both entries (if kept) map to valid nodeTypes"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/palette-items.ts"
+    ],
+    "dependencies": ["SDS-087"],
+    "blockedBy": [],
+    "tags": ["cleanup", "palette", "dedup"]
+  },
+  {
+    "id": "SDS-110",
+    "epic": "SDS",
+    "title": "Give load-balancing category its own distinct color",
+    "description": "palette-items.ts:57,60 maps both load-balancing and networking to var(--node-networking). They're visually indistinguishable in the palette. Create a new CSS variable --node-load-balancing and assign it a distinct color.",
+    "acceptanceCriteria": [
+      "Load-balancing and networking categories have visually distinct colors",
+      "New color token defined in CSS variables for both themes",
+      "BaseNode renders load-balancing nodes in the new color",
+      "Palette category dots show different colors"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/palette-items.ts",
+      "src/app/globals.css"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual", "design-tokens", "color"]
+  },
+  {
+    "id": "SDS-111",
+    "epic": "SDS",
+    "title": "Improve empty state with suggested starter architectures",
+    "description": "EmptyState.tsx:7-48 shows a minimal icon + text. Replace with an inspiring empty state that includes: (1) 3 starter architecture thumbnails (e.g., 'Web App', 'Microservices', 'Data Pipeline') that one-click-load a template, (2) animated hint showing drag-from-palette, (3) warm copy like 'Design something amazing'.",
+    "acceptanceCriteria": [
+      "Empty canvas shows 3 clickable starter architecture cards",
+      "Clicking a starter loads the template and populates the canvas",
+      "Animated hint shows drag gesture from palette to canvas",
+      "Copy is warm and encouraging, not robotic"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/EmptyState.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "empty-state", "onboarding", "delight"]
+  },
+  {
+    "id": "SDS-112",
+    "epic": "SDS",
+    "title": "Add narrative explanations to simulation timeline",
+    "description": "The NarrativeEngine already exists in the orchestrator but is not surfaced in the UI. TimelineTab (BottomPanel.tsx:56-298) shows raw metrics without context. Add a 'What Happened' pane below the sparkline that uses NarrativeEngine to explain events in plain English: 'At tick 23, traffic spike overloaded the API Gateway. Queue depth exceeded threshold, causing 15% of requests to time out.'",
+    "acceptanceCriteria": [
+      "Timeline tab shows narrative text below sparkline chart",
+      "Narratives reference specific nodes and metrics by name",
+      "Incident markers link to narrative explanations",
+      "Narratives update in real-time during simulation"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx",
+      "src/lib/simulation/simulation-orchestrator.ts"
+    ],
+    "dependencies": ["SDS-089"],
+    "blockedBy": [],
+    "tags": ["education", "narrative", "simulation", "world-class"]
+  },
+  {
+    "id": "SDS-113",
+    "epic": "SDS",
+    "title": "Add 'How this was calculated' expandable sections to Capacity and Cost tabs",
+    "description": "CapacityTab and CostTab show final numbers without explaining formulas. Add expandable disclosure triangles under each result that show the calculation: e.g., 'Peak RPS = 10M DAU * 50 req/user / 86,400 sec * 3x peak ratio = 17,361 RPS'. Reference capacity-planner.ts and cost-engine.ts formulas.",
+    "acceptanceCriteria": [
+      "Each capacity result has expandable formula section",
+      "Each cost line item has expandable pricing breakdown",
+      "Formulas reference actual input values used",
+      "Collapsed by default to keep UI clean"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx",
+      "src/lib/simulation/capacity-planner.ts",
+      "src/lib/cost/cost-engine.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["education", "transparency", "ux"]
+  },
+  {
+    "id": "SDS-114",
+    "epic": "SDS",
+    "title": "Add sonification — make algorithms/traffic SOUND different",
+    "description": "No existing tool lets you HEAR the difference between O(n) and O(n^2) or healthy vs overloaded traffic. Add optional audio: (1) Each node type has a distinct tone pitch. (2) Request flow generates notes as packets traverse edges. (3) Errors play dissonant chords. (4) Traffic spike sounds like crescendo. Use Web Audio API with gain nodes for smooth transitions. Toggle via toolbar button.",
+    "acceptanceCriteria": [
+      "Toggle button in CanvasToolbar enables/disables sonification",
+      "Each node category has a distinct pitch (e.g., compute=C, storage=E, messaging=G)",
+      "Traffic flow generates audible notes proportional to RPS",
+      "Error events produce distinct dissonant tones",
+      "Respects user's system volume and mute settings",
+      "Reduced motion preference also disables sound"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/simulation/sonification-engine.ts",
+      "src/components/canvas/overlays/CanvasToolbar.tsx"
+    ],
+    "dependencies": ["SDS-089"],
+    "blockedBy": [],
+    "tags": ["innovation", "audio", "world-class", "accessibility"]
+  },
+  {
+    "id": "SDS-115",
+    "epic": "SDS",
+    "title": "Add 'Speed Run' mode — timed architecture challenges",
+    "description": "Persona: interview candidate and CS student. Add a mode where user is given a prompt ('Design URL shortener for 100M DAU') and a timer. They build the architecture within time limit, then simulation auto-runs to score their design on latency, cost, availability. Leaderboard shows best designs. Entry: 'Speed Run' button on toolbar or command palette.",
+    "acceptanceCriteria": [
+      "Command palette shows 'Speed Run' option with 5+ challenge prompts",
+      "Timer counts down (5/10/15 min options)",
+      "Auto-simulation scores design on 5 metrics when timer ends",
+      "Score card shows rating (S/A/B/C/D) with specific feedback",
+      "Shareable score card with architecture thumbnail"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 4,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/innovation/speed-run.ts",
+      "src/components/canvas/overlays/SpeedRunOverlay.tsx",
+      "src/components/canvas/overlays/CanvasToolbar.tsx"
+    ],
+    "dependencies": ["SDS-089", "SDS-092"],
+    "blockedBy": [],
+    "tags": ["innovation", "gamification", "interview-prep", "world-class"]
+  },
+  {
+    "id": "SDS-116",
+    "epic": "SDS",
+    "title": "Add 'Explain Mode' — click any node to see educational deep-dive",
+    "description": "Persona: CS student and self-taught developer. When enabled, clicking a node opens an educational panel explaining: (1) What this component does in plain English, (2) When to use it vs alternatives, (3) Real-world examples (e.g., 'Netflix uses CDN for 17,000 titles'), (4) Common mistakes, (5) Interview talking points. Content defined in a data file per node type.",
+    "acceptanceCriteria": [
+      "Toggle button in toolbar enables Explain Mode",
+      "Clicking any node in Explain Mode opens educational side panel",
+      "Each of the 67 node types has explanation content",
+      "Content includes plain English explanation, use cases, examples, and pitfalls",
+      "Panel has 'Copy as interview answer' button"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 4,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/education/node-explanations.ts",
+      "src/components/canvas/overlays/ExplainPanel.tsx",
+      "src/components/canvas/overlays/CanvasToolbar.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["innovation", "education", "world-class", "content"]
+  },
+  {
+    "id": "SDS-117",
+    "epic": "SDS",
+    "title": "Add 'Presentation Mode' for lectures and demos",
+    "description": "Persona: Professor/TA. Add a full-screen presentation mode that: (1) Hides all chrome (sidebar, properties, bottom panel), (2) Shows large component labels readable at 200-person lecture hall distance, (3) Has step-by-step animation that builds the architecture one node at a time, (4) Large readable annotations for each step, (5) Keyboard-driven (arrow keys advance steps).",
+    "acceptanceCriteria": [
+      "Presentation mode activated via toolbar or keyboard shortcut",
+      "All UI chrome hidden, canvas fills viewport",
+      "Node labels are 2x normal size",
+      "Step-through mode adds nodes/edges one at a time with annotations",
+      "Arrow keys advance/retreat steps",
+      "Escape exits presentation mode"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/PresentationMode.tsx",
+      "src/hooks/use-presentation-mode.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["innovation", "education", "presentation", "teaching"]
+  },
+  {
+    "id": "SDS-118",
+    "epic": "SDS",
+    "title": "Add 'Architecture Review' AI assistant panel",
+    "description": "Persona: Engineering manager. Add a panel that analyzes the current architecture and provides feedback: (1) Single points of failure detected, (2) Missing redundancy, (3) Over-provisioned components, (4) Security gaps (no firewall, no auth), (5) Suggested improvements with one-click apply. Uses rule-based analysis (no LLM needed for v1).",
+    "acceptanceCriteria": [
+      "Review panel accessible from toolbar",
+      "Detects 10+ architecture anti-patterns (SPOF, missing cache, no LB, etc.)",
+      "Each finding links to the specific node(s) involved",
+      "One-click 'Fix' button adds the suggested component",
+      "Findings update in real-time as architecture changes"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/analysis/architecture-reviewer.ts",
+      "src/components/canvas/overlays/ArchitectureReviewPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["innovation", "analysis", "world-class", "ai"]
+  },
+  {
+    "id": "SDS-119",
+    "epic": "SDS",
+    "title": "Add haptic/touch gestures for tablet users",
+    "description": "Persona: Curious kid, self-taught developer. Add touch-optimized interactions: (1) Pinch to zoom (already via ReactFlow), (2) Long-press node to see quick info tooltip, (3) Two-finger swipe to switch tabs, (4) Shake device to trigger random chaos event (fun demo mode). Use Navigator Vibration API for haptic feedback on node creation.",
+    "acceptanceCriteria": [
+      "Long-press on node shows tooltip with label and state",
+      "Haptic feedback (vibration) on node creation and edge connection",
+      "Shake gesture triggers fun 'chaos mode' easter egg",
+      "All gestures are optional and don't interfere with standard touch nav"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/hooks/use-touch-gestures.ts",
+      "src/components/canvas/DesignCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["innovation", "touch", "mobile", "delight"]
+  },
+  {
+    "id": "SDS-120",
+    "epic": "SDS",
+    "title": "Add 'Failure Story' mode — play real-world outage scenarios",
+    "description": "Persona: All. Pre-built scenarios based on famous outages: (1) 'AWS us-east-1 2017' — cascading DNS failure, (2) 'GitHub 2018' — database failover loop, (3) 'Cloudflare 2019' — regex CPU spike, (4) 'Facebook 2021' — BGP withdrawal. User loads scenario, watches it unfold on their architecture, learns what would break in their design.",
+    "acceptanceCriteria": [
+      "5+ real-world failure scenarios pre-built with chaos event sequences",
+      "Each scenario includes educational narration of what happened",
+      "User's architecture is scored on resilience to the scenario",
+      "After scenario, shows which components survived and which failed",
+      "Links to post-mortem articles for further reading"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/innovation/failure-stories.ts",
+      "src/components/canvas/overlays/FailureStoryPlayer.tsx"
+    ],
+    "dependencies": ["SDS-093"],
+    "blockedBy": [],
+    "tags": ["innovation", "education", "world-class", "chaos"]
+  }
+]

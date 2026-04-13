@@ -1,0 +1,473 @@
+{
+  "id": "bp-ridesharing",
+  "name": "Ridesharing Platform — Production Blueprint",
+  "description": "Real-time ridesharing platform with geospatial matching, dynamic pricing, ETA computation, and driver dispatch. Handles millions of concurrent rides with sub-second matching.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["ridesharing", "geospatial", "real-time", "matching", "dynamic-pricing", "blueprint"],
+  "nodes": [
+    {
+      "id": "rider-app",
+      "type": "client",
+      "position": { "x": 0, "y": 100 },
+      "data": {
+        "label": "Rider Mobile App",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "concurrentUsers": 2000000, "requestsPerSecond": 50000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "driver-app",
+      "type": "client",
+      "position": { "x": 0, "y": 400 },
+      "data": {
+        "label": "Driver Mobile App",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "concurrentUsers": 500000, "locationUpdateHz": 4 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gateway",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 250 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 200000, "authType": "jwt", "timeoutMs": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "matching-service",
+      "type": "web-server",
+      "position": { "x": 500, "y": 100 },
+      "data": {
+        "label": "Matching Engine",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "GitMerge",
+        "config": { "instances": 12, "matchTimeoutMs": 3000, "radiusKm": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "pricing-service",
+      "type": "web-server",
+      "position": { "x": 500, "y": 250 },
+      "data": {
+        "label": "Dynamic Pricing",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "DollarSign",
+        "config": { "instances": 6, "surgeMultiplierMax": 5.0, "priceUpdateIntervalS": 30 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "location-service",
+      "type": "web-server",
+      "position": { "x": 500, "y": 400 },
+      "data": {
+        "label": "Location Tracker",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "MapPin",
+        "config": { "instances": 20, "updateRateHz": 4, "geohashPrecision": 7 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "eta-service",
+      "type": "web-server",
+      "position": { "x": 500, "y": 550 },
+      "data": {
+        "label": "ETA Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Clock",
+        "config": { "instances": 8, "routingEngine": "osrm", "cacheHitRate": 0.6 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "geospatial-index",
+      "type": "cache",
+      "position": { "x": 750, "y": 300 },
+      "data": {
+        "label": "Geospatial Index (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Map",
+        "config": { "type": "redis", "memoryGB": 128, "geoCommands": true, "shards": 12 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "ride-db",
+      "type": "database",
+      "position": { "x": 750, "y": 100 },
+      "data": {
+        "label": "Ride DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 3000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "event-stream",
+      "type": "message-queue",
+      "position": { "x": 750, "y": 500 },
+      "data": {
+        "label": "Kafka (Ride Events)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 48, "retentionHours": 72, "throughputMbps": 1000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "payment-service",
+      "type": "web-server",
+      "position": { "x": 1000, "y": 100 },
+      "data": {
+        "label": "Payment Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "CreditCard",
+        "config": { "instances": 4, "paymentProviders": ["stripe", "paypal"], "timeoutMs": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "notification-service",
+      "type": "web-server",
+      "position": { "x": 1000, "y": 350 },
+      "data": {
+        "label": "Push Notifications",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Bell",
+        "config": { "instances": 6, "channels": ["push", "sms"], "deliveryLatencyMs": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "analytics-store",
+      "type": "database",
+      "position": { "x": 1000, "y": 550 },
+      "data": {
+        "label": "Analytics (ClickHouse)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "BarChart3",
+        "config": { "type": "clickhouse", "storageGB": 2000, "retentionDays": 180 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-rider-gw",
+      "source": "rider-app",
+      "target": "api-gateway",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-driver-gw",
+      "source": "driver-app",
+      "target": "api-gateway",
+      "type": "data-flow",
+      "data": { "edgeType": "websocket", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-gw-matching",
+      "source": "api-gateway",
+      "target": "matching-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-gw-pricing",
+      "source": "api-gateway",
+      "target": "pricing-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-gw-location",
+      "source": "api-gateway",
+      "target": "location-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-matching-geo",
+      "source": "matching-service",
+      "target": "geospatial-index",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-location-geo",
+      "source": "location-service",
+      "target": "geospatial-index",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-write", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-matching-db",
+      "source": "matching-service",
+      "target": "ride-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-matching-eta",
+      "source": "matching-service",
+      "target": "eta-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-pricing-geo",
+      "source": "pricing-service",
+      "target": "geospatial-index",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": false }
+    },
+    {
+      "id": "e-matching-kafka",
+      "source": "matching-service",
+      "target": "event-stream",
+      "type": "data-flow",
+      "data": { "edgeType": "async", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-kafka-payment",
+      "source": "event-stream",
+      "target": "payment-service",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-kafka-notify",
+      "source": "event-stream",
+      "target": "notification-service",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-kafka-analytics",
+      "source": "event-stream",
+      "target": "analytics-store",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 100, "animated": false }
+    },
+    {
+      "id": "e-payment-db",
+      "source": "payment-service",
+      "target": "ride-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-geo-index-crash",
+        "name": "Geospatial Index Failure",
+        "description": "Redis geospatial cluster crashes, losing all real-time driver positions",
+        "targetNodes": ["geospatial-index"],
+        "faultType": "crash",
+        "severity": 5,
+        "expectedBehavior": "All matching requests fail. No new rides can be dispatched. Active rides continue with last-known positions. Location updates queue in Kafka.",
+        "mitigationSteps": ["Failover to Redis standby cluster", "Replay driver location events from Kafka to rebuild index", "Gradually resume matching as index warms", "Manual dispatch for in-progress rides"]
+      },
+      {
+        "id": "cs-matching-overload",
+        "name": "Matching Engine Overload",
+        "description": "Concert event causes 10x surge in ride requests in a single city zone",
+        "targetNodes": ["matching-service", "pricing-service"],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Match latency increases to 10s+. Dynamic pricing activates 3-5x surge. Driver supply shifts toward surge zone. Some riders see 'no drivers available'.",
+        "mitigationSteps": ["Auto-scale matching instances", "Activate surge pricing to balance supply/demand", "Expand search radius", "Push notifications to nearby idle drivers"]
+      },
+      {
+        "id": "cs-payment-timeout",
+        "name": "Payment Provider Timeout",
+        "description": "Stripe API experiences widespread latency, causing payment processing to stall",
+        "targetNodes": ["payment-service"],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "Ride completion delayed. Riders charged asynchronously. Payment retries queue in Kafka. Rides still dispatchable with deferred billing.",
+        "mitigationSteps": ["Switch to backup payment provider", "Queue failed charges for retry", "Allow rides to complete with deferred billing", "Notify riders of delayed charge"]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "geospatial-index",
+        "metric": "memory",
+        "description": "Redis memory pressure from 500K+ concurrent driver positions with frequent updates",
+        "resolution": "Add Redis shards, implement geohash-based partitioning"
+      },
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "matching-service",
+        "metric": "cpu",
+        "description": "Matching algorithm CPU-bound when evaluating optimal driver assignment across large candidate pools",
+        "resolution": "Pre-filter candidates by geohash cell, batch matching requests"
+      },
+      {
+        "rpsThreshold": 200000,
+        "bottleneckNode": "event-stream",
+        "metric": "network",
+        "description": "Kafka broker network bandwidth saturates from high-frequency location updates",
+        "resolution": "Compress location updates, increase partition count, add brokers"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-stale-location",
+        "title": "Stale Driver Locations",
+        "description": "Driver location updates delayed due to poor mobile connectivity, causing phantom available drivers",
+        "affectedNodes": ["location-service", "geospatial-index"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "TTL on driver positions in Redis (30s), mark drivers as 'stale' if no update for 15s"
+      },
+      {
+        "id": "ei-surge-oscillation",
+        "title": "Surge Pricing Oscillation",
+        "description": "Surge pricing causes drivers to rush to an area, oversupplying it, which kills the surge, causing them to leave",
+        "affectedNodes": ["pricing-service"],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Dampening factor in surge algorithm, gradual ramp-down, predictive demand modeling"
+      },
+      {
+        "id": "ei-gps-spoofing",
+        "title": "GPS Spoofing by Drivers",
+        "description": "Drivers spoofing GPS to appear in surge zones or complete phantom rides",
+        "affectedNodes": ["location-service", "matching-service"],
+        "likelihood": 3,
+        "impact": 4,
+        "mitigation": "Anomaly detection on location trajectories, cross-reference with cell tower data, speed/acceleration sanity checks"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 85000,
+      "components": [
+        { "nodeId": "geospatial-index", "label": "Redis Geo Cluster", "monthlyCostUsd": 18000, "costDriver": "128GB across 12 shards" },
+        { "nodeId": "matching-service", "label": "Matching Engine", "monthlyCostUsd": 15000, "costDriver": "12 compute-optimized instances" },
+        { "nodeId": "location-service", "label": "Location Tracker", "monthlyCostUsd": 12000, "costDriver": "20 instances for 2M updates/s" },
+        { "nodeId": "event-stream", "label": "Kafka Cluster", "monthlyCostUsd": 10000, "costDriver": "9 brokers, 48 partitions" },
+        { "nodeId": "ride-db", "label": "Ride DB", "monthlyCostUsd": 8000, "costDriver": "Primary + 3 replicas" },
+        { "nodeId": "eta-service", "label": "ETA Service", "monthlyCostUsd": 6000, "costDriver": "8 instances + OSRM routing data" },
+        { "nodeId": "pricing-service", "label": "Dynamic Pricing", "monthlyCostUsd": 4000, "costDriver": "6 instances" },
+        { "nodeId": "analytics-store", "label": "ClickHouse Analytics", "monthlyCostUsd": 5000, "costDriver": "2TB storage" },
+        { "nodeId": "notification-service", "label": "Push Notifications", "monthlyCostUsd": 4000, "costDriver": "APNS/FCM at scale" },
+        { "nodeId": "payment-service", "label": "Payment Service", "monthlyCostUsd": 3000, "costDriver": "4 instances + Stripe fees separate" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Small City (10K rides/day)", "rps": 5000, "monthlyCostUsd": 25000 },
+        { "label": "Metro (100K rides/day)", "rps": 50000, "monthlyCostUsd": 55000 },
+        { "label": "Multi-City (1M rides/day)", "rps": 200000, "monthlyCostUsd": 85000 },
+        { "label": "Global (10M rides/day)", "rps": 1000000, "monthlyCostUsd": 350000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 200000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 100,
+      "p99LatencyMs": 500,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.05,
+      "throughputRps": 200000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "matching-service",
+        "metric": "match_latency_p99",
+        "threshold": 2000,
+        "scaleUpStep": 4,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 60,
+        "minInstances": 8,
+        "maxInstances": 64
+      },
+      {
+        "nodeId": "location-service",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 5,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 120,
+        "minInstances": 10,
+        "maxInstances": 100
+      }
+    ],
+    "slaDefinitions": [
+      { "name": "Match Latency", "metric": "p99_match_latency_ms", "target": 5000, "unit": "ms", "penalty": "Rider credit for matches > 5min" },
+      { "name": "ETA Accuracy", "metric": "eta_accuracy_percent", "target": 85, "unit": "%", "penalty": "Fare adjustment if actual > 2x estimated" },
+      { "name": "Platform Availability", "metric": "uptime_percent", "target": 99.99, "unit": "%", "penalty": "Driver compensation for platform downtime" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "match_latency", "type": "histogram", "description": "Time from ride request to driver assignment", "nodeId": "matching-service" },
+        { "name": "active_drivers", "type": "gauge", "description": "Number of drivers with fresh location in Redis", "nodeId": "geospatial-index" },
+        { "name": "surge_multiplier", "type": "gauge", "description": "Current surge pricing multiplier per zone", "nodeId": "pricing-service" },
+        { "name": "location_updates_per_sec", "type": "counter", "description": "Driver location updates ingested per second", "nodeId": "location-service" },
+        { "name": "ride_completion_rate", "type": "gauge", "description": "Percentage of requested rides that complete", "nodeId": "ride-db" }
+      ],
+      "alerts": [
+        { "name": "Match Failure Rate High", "condition": "match_failure_rate > 10% for 5min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Geo Index Lag", "condition": "driver_position_staleness > 30s for 2min", "severity": "warning", "channel": "slack-eng" },
+        { "name": "Surge > 4x", "condition": "surge_multiplier > 4.0 for 10min", "severity": "warning", "channel": "slack-ops" },
+        { "name": "Payment Failures", "condition": "payment_failure_rate > 5% for 3min", "severity": "critical", "channel": "pagerduty" }
+      ],
+      "dashboards": ["Ride Operations", "Driver Supply", "Matching Performance", "Pricing & Surge", "Payment Pipeline"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call SRE", "responseTimeMinutes": 2, "contacts": ["oncall-rideshare-sre"] },
+        { "level": 2, "name": "Matching Team Lead", "responseTimeMinutes": 10, "contacts": ["matching-team-lead"] },
+        { "level": 3, "name": "VP Engineering", "responseTimeMinutes": 20, "contacts": ["vp-eng", "cto"] }
+      ],
+      "runbooks": [
+        { "incident": "Geospatial index failure", "severity": "critical", "steps": ["Trigger Redis failover", "Replay last 5min of location events from Kafka", "Monitor index rebuild progress", "Resume matching when >80% drivers re-indexed"], "automatedRecovery": true },
+        { "incident": "Mass match failures in a city", "severity": "critical", "steps": ["Check driver supply in affected zones", "Verify geo index health", "Check matching service logs for errors", "If supply issue: push notifications to drivers"], "automatedRecovery": false },
+        { "incident": "Surge pricing stuck", "severity": "high", "steps": ["Check pricing service health", "Verify demand/supply data freshness", "Force surge recalculation", "If persistent: set manual pricing override"], "automatedRecovery": true }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Redis for Geospatial Index", "context": "Need sub-millisecond geo-proximity queries for matching nearby drivers to riders.", "decision": "Use Redis GEOSEARCH commands with geohash-based sharding across 12 nodes.", "consequences": ["Sub-millisecond proximity queries", "High memory cost for maintaining all driver positions", "Need careful TTL management for stale positions"] },
+      { "title": "Supply-Demand Based Dynamic Pricing", "context": "Fixed pricing leads to supply shortages during peak demand.", "decision": "Implement zone-based surge pricing that adjusts every 30 seconds based on real-time supply/demand ratio.", "consequences": ["Better driver utilization during peaks", "Higher rider costs during surge", "Complex pricing model to maintain fairness"] },
+      { "title": "Kafka for Event Backbone", "context": "Multiple downstream services need ride lifecycle events: payments, notifications, analytics.", "decision": "Publish all ride events to Kafka topics, with each downstream service consuming independently.", "consequences": ["Loose coupling between services", "Replay capability for rebuilding state", "Operational complexity of managing Kafka cluster at scale"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Match Quality vs Speed", "choice": "Speed with good-enough quality", "benefit": "Riders matched within 5 seconds in most cases", "cost": "May not always find the globally optimal driver" },
+      { "dimension": "Freshness vs Bandwidth", "choice": "Freshness", "benefit": "4Hz location updates give accurate driver positions", "cost": "2M updates/second requires significant infrastructure" },
+      { "dimension": "Availability vs Consistency", "choice": "Availability", "benefit": "Matching continues even during partial failures", "cost": "Possible edge cases with double-dispatch requiring conflict resolution" }
+    ],
+    "alternatives": [
+      { "name": "PostgreSQL PostGIS for Geospatial", "description": "Use PostgreSQL with PostGIS extension instead of Redis for geo queries", "prosVsCons": "Pros: persistent storage, SQL queries. Cons: 10-100x slower for proximity queries at this scale", "whyNotChosen": "Latency requirements for matching demand sub-millisecond geo queries" },
+      { "name": "Fixed Pricing with Wait Times", "description": "Keep prices fixed and show estimated wait times instead of surge pricing", "prosVsCons": "Pros: simpler, no user backlash. Cons: driver supply doesn't increase during peak demand", "whyNotChosen": "Dynamic pricing is essential for incentivizing driver supply when demand spikes" }
+    ]
+  }
+}

@@ -1,0 +1,264 @@
+[
+  {
+    "id": "DST-181",
+    "epic": "DST",
+    "title": "Make DSResult generic \u2014 DSResult<T> to eliminate 102 unchecked snapshot casts",
+    "description": "DSResult.snapshot is typed as `unknown` (types.ts:53). Every consumer does `result.snapshot as BSTNode | null` \u2014 102 unchecked casts across DataStructuresModule.tsx. This is the foundational type-safety hole.\n\nFix: Make DSResult generic:\n```typescript\nexport interface DSResult<T = unknown> {\n  steps: DSStep[];\n  snapshot: T;\n}\n```\nThen type each engine: `dsBstInsert(...): DSResult<BSTNode | null>`. All 102 `as` casts become unnecessary \u2014 TypeScript infers the snapshot type.\n\nThis is the single highest-impact type change possible.",
+    "acceptanceCriteria": [
+      "DSResult<T> generic in types.ts",
+      "All 33 engine functions return typed DSResult<ConcreteState>",
+      "Zero `snapshot as` casts in DataStructuresModule.tsx",
+      "TypeScript compiles with no errors",
+      "createSegmentTree/createFenwickTree return concrete state, not DSResult wrapper"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/avl-ds.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "generics",
+      "type-safety",
+      "snapshot",
+      "foundational"
+    ]
+  },
+  {
+    "id": "DST-182",
+    "epic": "DST",
+    "title": "Derive ActiveDS from DS_CATALOG using const assertion \u2014 auto-track new DS",
+    "description": "ActiveDS at DataStructuresModule.tsx:235 is a manually maintained 33-member string union. Adding a new DS to DS_CATALOG does NOT update ActiveDS \u2014 TypeScript gives no error. handleOperation/handleRandom/handleReset switches have `default: return prev` which silently swallows missing cases.\n\nFix:\n```typescript\n// index.ts\nexport const DS_CATALOG = [...] as const satisfies readonly DSConfig[];\n// types.ts or module\ntype ActiveDS = typeof DS_CATALOG[number]['id'];\n```\nAlso change switch defaults from `return prev` to `const _exhaustive: never = prev.activeDS; return prev;` to catch missing cases at compile time.\n\nExtensibility test: currently 1/9 steps caught by TypeScript. After fix: 9/9.",
+    "acceptanceCriteria": [
+      "ActiveDS derived from DS_CATALOG, not manually maintained",
+      "Adding a DS to DS_CATALOG without updating switches causes compile error",
+      "All switch statements use exhaustive never check",
+      "DSCategory also derived from DS_CATALOG"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "extensibility",
+      "const-assertion",
+      "exhaustive-switch"
+    ]
+  },
+  {
+    "id": "DST-183",
+    "epic": "DST",
+    "title": "Replace global singleton _stepId/_nodeIdCounter with local step recorder",
+    "description": "All 33 engine files use module-level `let _stepId = 0` with `resetStepId()`. The vector-clock chain at DataStructuresModule.tsx:5841-5846 calls vectorClockSend then vectorClockReceive without reset between them \u2014 step IDs collide. This is an ACTIVE bug, not theoretical.\n\nFix: Create a pure step recorder factory:\n```typescript\nexport function createStepRecorder() {\n  let id = 0;\n  return {\n    step(desc: string, mutations: DSMutation[]): DSStep {\n      return { id: id++, description: desc, mutations };\n    }\n  };\n}\n```\nEach operation creates its own recorder. No global state, no reset ceremony, safe for chained calls.",
+    "acceptanceCriteria": [
+      "Zero module-level _stepId variables in any engine file",
+      "Each operation function creates a local step recorder",
+      "Vector-clock send+receive chain has correct sequential step IDs",
+      "All existing tests pass",
+      "No resetStepId() function needed"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/vector-clock-ds.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "singleton",
+      "concurrency",
+      "step-recorder",
+      "bug"
+    ]
+  },
+  {
+    "id": "DST-184",
+    "epic": "DST",
+    "title": "Remove layout coordinates x?/y? from domain node types (BST, AVL, RB)",
+    "description": "BSTNode, AVLNode, and RBNode carry `x?: number; y?: number` fields that belong in the layout layer (PositionedNode), not the domain model. These fields are only set by tree-layout.ts and pollute cloneBST/cloneAVL. FibNode, SplayNode, TreapNode correctly have NO layout fields.\n\nFix: Remove x?/y? from BSTNode (bst-ds.ts:15-16), AVLNode (avl-ds.ts:17-18), RBNode (red-black-ds.ts:21-22). The layout engine maps domain nodes \u2192 PositionedNode which already holds x/y as required fields.\n\nUpdate canvas components to use PositionedNode from layout output, not node.x/node.y.",
+    "acceptanceCriteria": [
+      "BSTNode, AVLNode, RBNode have no x/y fields",
+      "PositionedNode has required x, y (not optional)",
+      "Canvas components read x, y from layout output",
+      "cloneBST/cloneAVL no longer copy layout coordinates",
+      "All visualizations render identically"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/avl-ds.ts",
+      "src/lib/data-structures/red-black-ds.ts",
+      "src/lib/data-structures/tree-layout.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "separation-of-concerns",
+      "domain-model",
+      "layout"
+    ]
+  },
+  {
+    "id": "DST-185",
+    "epic": "DST",
+    "title": "Add discriminated union to MerkleNode matching BPlusNode pattern",
+    "description": "MerkleNode uses optional fields (data?, left?, right?) instead of a discriminated union. BPlusNode correctly uses `kind: 'leaf' | 'internal'` \u2014 the only well-typed tree node in the module.\n\nFix MerkleNode to match:\n```typescript\ninterface MerkleLeafNode { id: string; kind: 'leaf'; hash: string; data: string; }\ninterface MerkleInternalNode { id: string; kind: 'internal'; hash: string; left: MerkleNode; right: MerkleNode; }\ntype MerkleNode = MerkleLeafNode | MerkleInternalNode;\n```\nConsumers use `if (node.kind === 'leaf')` with full narrowing instead of null checks.",
+    "acceptanceCriteria": [
+      "MerkleNode is a discriminated union with kind: 'leaf' | 'internal'",
+      "Leaf nodes have required data field",
+      "Internal nodes have required left/right children",
+      "All merkle-tree.ts functions updated to use discriminant narrowing",
+      "MerkleTreeCanvas visualization unchanged"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/merkle-tree.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "discriminated-union",
+      "merkle-tree",
+      "pattern-consistency"
+    ]
+  },
+  {
+    "id": "DST-186",
+    "epic": "DST",
+    "title": "Create typed highlight state union replacing unguarded string in DS_COLORS",
+    "description": "DS_COLORS at DataStructuresModule.tsx:402 is `Record<string, string>`. getHighlight at :419 returns `string`. Engines emit highlight values like 'visiting', 'inserting', 'deleting' as unguarded strings in DSMutation.to. If an engine emits a typo ('inserrting'), the canvas gets undefined color silently.\n\nFix: Define a typed union:\n```typescript\ntype DSHighlightState = 'default' | 'comparing' | 'visiting' | 'visited' | 'inserting' | 'done' | 'deleting' | 'shifting' | 'found' | 'hashing' | 'already-set' | 'setting' | 'not-found' | 'updating';\nconst DS_COLORS: Record<DSHighlightState, string> = { ... };\n```\nUpdate DSMutation.to to use this union. TypeScript catches typos at compile time.",
+    "acceptanceCriteria": [
+      "DSHighlightState union type defined with all valid states",
+      "DS_COLORS typed as Record<DSHighlightState, string>",
+      "DSMutation uses DSHighlightState for highlight property values",
+      "getHighlight returns DSHighlightState, not string",
+      "Engine files get compile errors on misspelled highlight states"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "type-safety",
+      "highlight",
+      "colors",
+      "compile-time"
+    ]
+  },
+  {
+    "id": "DST-187",
+    "epic": "DST",
+    "title": "Standardize function naming convention across all 33 engine files",
+    "description": "Four distinct naming patterns exist across engine files:\n- ds prefix: dsBstInsert, dsAvlDelete, dsRbSearch\n- No prefix: hashInsert, heapInsert, bloomInsert\n- Short prefix: llInsertHead, cbEnqueue, cmsInsert\n- CRDT-name prefix: gCounterIncrement, pnCounterDecrement\n\nPick ONE convention and apply consistently. Recommendation: `{dsName}{Operation}` pattern (e.g., bstInsert, avlDelete, hashInsert, trieSearch). Drop the `ds` prefix \u2014 it's redundant since all files are in lib/data-structures/.\n\nThis is a breaking API change for the barrel export \u2014 use search-and-replace across all consumers.",
+    "acceptanceCriteria": [
+      "All engine functions follow {dsName}{Operation} naming convention",
+      "Barrel export in index.ts updated with new names",
+      "DataStructuresModule.tsx imports updated",
+      "All test files updated",
+      "Zero TypeScript compilation errors"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/avl-ds.ts",
+      "src/lib/data-structures/red-black-ds.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "naming",
+      "consistency",
+      "refactor"
+    ]
+  },
+  {
+    "id": "DST-188",
+    "epic": "DST",
+    "title": "Convert DSModuleState to useReducer with typed action discriminated union",
+    "description": "DSModuleState has 46 fields in a single useState. handleOperation is a 580-line switch that repeats the same state-merge pattern 102 times. The dead `applyResult` callback at line 5311 shows the developer tried to abstract this but abandoned it.\n\nConvert to useReducer with typed actions:\n```typescript\ntype DSAction = \n  | { type: 'SELECT_DS'; ds: ActiveDS }\n  | { type: 'OPERATION'; ds: 'bst'; op: 'insert'; value: number }\n  | { type: 'OPERATION'; ds: 'hash-table'; op: 'insert'; key: string; value: number }\n  | { type: 'RANDOM'; ds: ActiveDS }\n  | { type: 'RESET' }\n  | { type: 'STEP_FORWARD' };\n```\nEach action handler knows the concrete types \u2014 no `snapshot as` casts needed. The reducer is a pure function, testable in isolation. Eliminates duplicate switch logic across handleOperation/handleRandom/handleReset.",
+    "acceptanceCriteria": [
+      "State managed by useReducer, not useState",
+      "Actions are discriminated union with per-DS operation types",
+      "Zero `snapshot as` casts in reducer (each case knows concrete type)",
+      "handleOperation/handleRandom/handleReset consolidated into single reducer",
+      "Dead `applyResult` callback removed",
+      "Reducer is unit-testable in isolation"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-181",
+      "DST-182"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "useReducer",
+      "state-management",
+      "architecture"
+    ]
+  }
+]

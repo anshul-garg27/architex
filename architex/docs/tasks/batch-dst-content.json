@@ -1,0 +1,561 @@
+[
+  {
+    "id": "DST-124",
+    "epic": "DST",
+    "title": "Add LRU Cache data structure with hash map + doubly linked list visualization",
+    "description": "LRU Cache is THE #1 most asked data structure interview question across all FAANG companies (source: InterviewBit 2026 Guide, NeetCode 150). It combines a hash map for O(1) lookup with a doubly linked list for O(1) eviction ordering. No DS visualizer tool offers this as a standalone interactive visualization.\n\nImplement: LRU Cache with configurable capacity. Operations: get(key), put(key, value). Visualization shows both the hash map and the doubly linked list simultaneously, with arrows showing the mapping. On eviction, animate the tail node being removed.\n\nSource: CLRS 4th Ed Ch 10, LeetCode #146 (most solved problem of all time).",
+    "acceptanceCriteria": [
+      "LRU Cache appears in sidebar under new 'Composite' or 'Interview' category",
+      "get(key) highlights hash lookup then DLL node move to front",
+      "put(key, value) shows insertion at head and optional eviction at tail",
+      "Capacity configurable (default 4)",
+      "Step descriptions explain WHY the evicted element was chosen",
+      "Complexity shown: get O(1), put O(1), space O(capacity)"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/lru-cache.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-125"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential-missing",
+      "interview",
+      "composite-ds"
+    ]
+  },
+  {
+    "id": "DST-125",
+    "epic": "DST",
+    "title": "Add Doubly Linked List as separate data structure with bidirectional visualization",
+    "description": "Doubly Linked List is a fundamental data structure covered in MIT 6.006, CLRS Ch 10, and required for LRU Cache. Currently we only have singly linked list. Every competitor (VisuAlgo, CS 1332, DSA Visualizer) has DLL as a separate topic.\n\nImplement: DLL with operations insertHead, insertTail, insertAt, deleteByValue, deleteAt, search, reverse. Visualization shows bidirectional arrows between nodes. Highlight prev/next pointers distinctly.\n\nSource: CLRS 4th Ed Ch 10 'Elementary Data Structures', VisuAlgo /en/list.",
+    "acceptanceCriteria": [
+      "Doubly Linked List appears in sidebar under Linear category",
+      "Nodes show both forward and backward arrows",
+      "Insert at head/tail/position operations available",
+      "Delete and search with step-by-step highlighting",
+      "Complexity: Insert Head O(1), Insert Tail O(1), Search O(n), Delete O(n)",
+      "Description explains trade-offs vs singly linked list"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/doubly-linked-list.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential-missing",
+      "linear",
+      "interview"
+    ]
+  },
+  {
+    "id": "DST-126",
+    "epic": "DST",
+    "title": "Add Graph Representation structures (Adjacency List, Adjacency Matrix, Edge List)",
+    "description": "Graph representations are foundation for ALL graph algorithms. MIT 6.006 Lectures 9-14 depend on them. 20-30% of FAANG interview questions involve graphs. VisuAlgo has a dedicated /graphds page. We have ZERO graph structures.\n\nImplement three representations as one DS entry with sub-tabs: Adjacency List (default), Adjacency Matrix, Edge List. Operations: addVertex, addEdge, removeVertex, removeEdge, getNeighbors, BFS, DFS. Show all three representations updating simultaneously when edges are added.\n\nSource: MIT 6.006 Lecture 9, CLRS Ch 22, VisuAlgo /en/graphds.",
+    "acceptanceCriteria": [
+      "Graph DS appears in sidebar under new 'Graph' category",
+      "Three representation tabs: Adj List, Adj Matrix, Edge List",
+      "Add vertex/edge operations with step-by-step highlighting",
+      "Visual shows graph diagram + selected representation simultaneously",
+      "Directed and undirected graph toggle",
+      "Complexity comparison table for all three representations"
+    ],
+    "priority": "P0",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/graph-ds.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential-missing",
+      "graph",
+      "interview",
+      "academic"
+    ]
+  },
+  {
+    "id": "DST-127",
+    "epic": "DST",
+    "title": "Add Priority Queue as explicit interface wrapping binary heap",
+    "description": "Interview questions frame problems as 'priority queue' not 'heap.' Every standard library has PQ (Java PriorityQueue, Python heapq, C++ priority_queue). Dijkstra's algorithm uses PQ. NeetCode 150 has a 'Heap / Priority Queue' category.\n\nImplement: Priority Queue with operations enqueue(element, priority), dequeue(), peek(), changePriority(). Visualization shows the heap AND the queue-like interface simultaneously. Step descriptions use PQ terminology.\n\nSource: NeetCode 150 category, Java Collections Framework, CLRS Ch 6.",
+    "acceptanceCriteria": [
+      "Priority Queue appears in sidebar under Heap category",
+      "Operations use PQ terminology: enqueue, dequeue, peek",
+      "Visualization shows both PQ interface view and underlying heap",
+      "Min-PQ and Max-PQ toggle",
+      "Description explains PQ as abstract interface backed by heap",
+      "Links to existing Heap topic for implementation details"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/priority-queue.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential-missing",
+      "heap",
+      "interview"
+    ]
+  },
+  {
+    "id": "DST-128",
+    "epic": "DST",
+    "title": "Add Open Addressing hash table variants (linear probing, quadratic, double hashing)",
+    "description": "Current hash table only shows separate chaining. CLRS Ch 11 covers open addressing extensively. Stanford CS166 2025 covers cuckoo hashing. VisuAlgo shows linear probing, quadratic probing, and double hashing.\n\nAdd sub-tabs to Hash Table: Separate Chaining (current), Linear Probing, Quadratic Probing, Double Hashing. Show the probing sequence visually when collisions occur.\n\nSource: CLRS 4th Ed Ch 11.4, Stanford CS166 Week 7, VisuAlgo /en/hashtable.",
+    "acceptanceCriteria": [
+      "Hash Table has sub-tabs for collision resolution strategies",
+      "Linear Probing shows sequential slot scanning on collision",
+      "Quadratic Probing shows quadratic offset scanning",
+      "Double Hashing shows second hash function determining step size",
+      "Clustering visualization for linear probing (show why it's problematic)",
+      "Load factor and resize threshold displayed"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/hash-table-open.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important-missing",
+      "hash",
+      "academic"
+    ]
+  },
+  {
+    "id": "DST-129",
+    "epic": "DST",
+    "title": "Add Interval Tree data structure for scheduling/calendar interval queries",
+    "description": "Interval Tree is an augmented BST from CLRS Ch 17 that supports interval overlap queries. Frequently asked in FAANG interviews for calendar/scheduling problems (e.g., 'find all meetings overlapping with a given time range').\n\nImplement: Interval Tree with operations insert(low, high), delete, overlapSearch(low, high), allOverlaps(low, high). Visualization shows intervals as horizontal bars with the BST structure overlaid.\n\nSource: CLRS 4th Ed Ch 17 'Augmenting Data Structures', LeetCode Meeting Rooms II (#253).",
+    "acceptanceCriteria": [
+      "Interval Tree appears under Tree category",
+      "Intervals visualized as horizontal bars on a timeline",
+      "BST structure shown alongside interval bars",
+      "overlapSearch highlights all overlapping intervals",
+      "Max endpoint augmentation visible in tree nodes",
+      "Description explains calendar/scheduling use case"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/interval-tree.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important-missing",
+      "tree",
+      "interview",
+      "augmented"
+    ]
+  },
+  {
+    "id": "DST-130",
+    "epic": "DST",
+    "title": "Add HNSW data structure for vector similarity search (2026 AI essential)",
+    "description": "HNSW (Hierarchical Navigable Small World) is the core index structure in every major vector database (Pinecone, Weaviate, Qdrant, pgvector). In 2025-2026, every AI/ML engineer needs to understand how vector search works. No educational tool visualizes HNSW.\n\nImplement: HNSW with layers. Operations: insert(vector), search(query, k). Visualization shows multi-layer graph with long-range links in upper layers and short-range in lower layers. Greedy search animation traverses layers top-down.\n\nSource: Pinecone HNSW tutorial, Wikipedia 'Hierarchical navigable small world', original 2016 paper by Malkov & Yashunin.",
+    "acceptanceCriteria": [
+      "HNSW appears under new 'AI/ML' or 'Probabilistic' category",
+      "Multi-layer graph visualization with distinct layer colors",
+      "Insert shows which layer the new node enters",
+      "Search animates greedy traversal from top layer down",
+      "Distance metric configurable (Euclidean, Cosine)",
+      "Description explains use in vector databases and RAG systems"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/hnsw.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging-2026",
+      "ai-ml",
+      "vector-search",
+      "first-in-world"
+    ]
+  },
+  {
+    "id": "DST-131",
+    "epic": "DST",
+    "title": "Add Cuckoo Hashing with two-table visualization",
+    "description": "Cuckoo Hashing achieves O(1) worst-case lookup (not just amortized). Covered in Stanford CS166 2025 Week 7. Increasingly popular in interviews and production systems (e.g., used in DPDK, MemC3).\n\nImplement: Two hash tables with two hash functions. Insert displaces existing elements to the other table. Visualization shows both tables side by side with arrows showing displacement chains. Cycle detection triggers rehash.\n\nSource: Stanford CS166 Spring 2025 Week 7, Pagh & Rodler 2004 paper.",
+    "acceptanceCriteria": [
+      "Cuckoo Hashing appears under Hash category",
+      "Two tables visualized side by side",
+      "Insert shows 'cuckoo' displacement animation",
+      "Cycle detection triggers rehash visualization",
+      "Complexity: Lookup O(1) worst-case, Insert O(1) amortized",
+      "Description explains advantage over open addressing"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/cuckoo-hash.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging",
+      "hash",
+      "academic",
+      "stanford"
+    ]
+  },
+  {
+    "id": "DST-132",
+    "epic": "DST",
+    "title": "Add Monotonic Stack and Monotonic Queue structures",
+    "description": "Monotonic Stack/Queue is an emerging interview pattern in 2025-2026. Used for 'next greater element', 'sliding window maximum', and stock span problems. NeetCode and Grokking patterns list these as key patterns.\n\nImplement: Monotonic Stack (maintains decreasing/increasing order) and Monotonic Queue (maintains order with deque). Operations: push (with automatic pops to maintain order), pop, peek, getMin/getMax. Step descriptions explain WHY elements are popped.\n\nSource: LeetCode 'Next Greater Element' (#496, #503), 'Sliding Window Maximum' (#239), Grokking patterns.",
+    "acceptanceCriteria": [
+      "Monotonic Stack and Monotonic Queue under Linear category",
+      "Push shows automatic removal of elements violating monotone property",
+      "Visual clearly shows maintained order (arrows or color gradient)",
+      "Step descriptions explain 'popped because X > current, breaking decreasing order'",
+      "Both increasing and decreasing variants available",
+      "Description links to specific interview problems where this is used"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/monotonic-stack.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging-2026",
+      "interview",
+      "pattern"
+    ]
+  },
+  {
+    "id": "DST-133",
+    "epic": "DST",
+    "title": "Add LFU Cache data structure (companion to LRU)",
+    "description": "LFU (Least Frequently Used) Cache is asked alongside LRU at Meta and Google. Uses hash map + frequency buckets (often doubly linked lists per frequency). More complex than LRU, demonstrates multi-structure design.\n\nSource: LeetCode #460 'LFU Cache' (Hard), asked at Meta, Google, Amazon.",
+    "acceptanceCriteria": [
+      "LFU Cache in 'Composite' or 'Interview' category",
+      "Visualization shows frequency buckets with items per frequency",
+      "get() increases frequency and moves item to next bucket",
+      "put() evicts from lowest-frequency bucket (LRU within ties)",
+      "Step descriptions explain frequency tracking and eviction policy"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/lfu-cache.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-124"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important-missing",
+      "interview",
+      "cache"
+    ]
+  },
+  {
+    "id": "DST-134",
+    "epic": "DST",
+    "title": "Add pseudocode panel for all 34 existing data structures",
+    "description": "Zero topics have pseudocode. VisuAlgo shows pseudocode for every algorithm/DS. Pseudocode bridges 'I see the animation' to 'I can code this.' This is the single largest content gap.\n\nFor each DS, add a pseudocode tab in the bottom panel showing Python-style pseudocode for each operation. Highlight the current line during step-through playback (like a debugger).\n\nSource: VisuAlgo pseudocode panel, CLRS textbook pseudocode style.",
+    "acceptanceCriteria": [
+      "Pseudocode tab in bottom panel for every DS",
+      "Pseudocode available for insert, delete, search operations minimum",
+      "Current step highlights corresponding pseudocode line",
+      "Python-style syntax (readable, not language-specific)",
+      "Line numbers visible",
+      "Copy-to-clipboard button for pseudocode"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/pseudocode.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth",
+      "pseudocode",
+      "education"
+    ]
+  },
+  {
+    "id": "DST-135",
+    "epic": "DST",
+    "title": "Add 'When to Use' comparison guides for each DS category",
+    "description": "Students' #1 struggle is choosing the right DS for a problem (source: GeeksforGeeks, AfterAcademy). Currently no comparison guidance exists.\n\nAdd a comparison table/guide per category:\n- Linear: Array vs Linked List vs Deque vs Circular Buffer\n- Tree: BST vs AVL vs RB vs B-Tree \u2014 when to use each\n- Hash: Chaining vs Open Addressing vs Cuckoo\n- Heap: Binary Heap vs Fibonacci Heap vs Binomial Heap\n- System: LSM Tree vs B+ Tree (read vs write optimized)\n\nShow as a tab in the bottom panel or as a modal from a 'Compare' button.",
+    "acceptanceCriteria": [
+      "Comparison guide accessible for each category",
+      "Table format: DS | Best For | Worst For | Complexity | Real-World Use",
+      "Decision tree: 'Do you need sorted order? \u2192 BST family. O(1) lookup? \u2192 Hash Table'",
+      "Available from sidebar category header or bottom panel tab"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth",
+      "comparison",
+      "education"
+    ]
+  },
+  {
+    "id": "DST-136",
+    "epic": "DST",
+    "title": "Add real-world application context for each data structure",
+    "description": "Most DS descriptions mention generic use cases. Need specific production system references:\n- Hash Table: Redis, Python dict, JavaScript Map\n- B+ Tree: PostgreSQL indexes, ext4 filesystem\n- LSM Tree: LevelDB, RocksDB, Cassandra\n- Bloom Filter: Amazon ElastiCache (40% memory savings in production), Chrome Safe Browsing\n- Skip List: Redis sorted sets\n- Consistent Hash: Amazon DynamoDB, Apache Cassandra\n- Trie: Autocomplete in search engines, IP routing tables\n- etc.\n\nAdd as a 'Real World' expandable section in the properties panel.\n\nSource: AWS re:Invent 2025 talks, engineering blogs from Google/Meta/Amazon.",
+    "acceptanceCriteria": [
+      "Every DS has at least 2 real-world system references",
+      "References include specific product/company names",
+      "Expandable section in properties panel",
+      "Links to source engineering blogs where possible"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth",
+      "real-world",
+      "production"
+    ]
+  },
+  {
+    "id": "DST-137",
+    "epic": "DST",
+    "title": "Add interview tips section per data structure",
+    "description": "NeetCode, InterviewBit, and Grokking all provide interview context. Our DS module has zero interview guidance.\n\nFor each DS, add an 'Interview Tips' section:\n- What companies ask about this DS and why\n- Common interview patterns involving this DS\n- Typical follow-up questions\n- Time/space complexity gotchas interviewers check\n- 'If you see X in a problem, think about Y'\n\nSource: NeetCode 150 patterns, InterviewBit 2026 guide, Grokking the Coding Interview.",
+    "acceptanceCriteria": [
+      "Interview Tips section in properties panel for each DS",
+      "At least 3 tips per DS",
+      "Tips reference specific problem patterns",
+      "Tips mention which companies commonly ask"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth",
+      "interview",
+      "tips"
+    ]
+  },
+  {
+    "id": "DST-138",
+    "epic": "DST",
+    "title": "Add Suffix Array data structure for string processing",
+    "description": "Suffix Array is covered in Stanford CS166 2025 Weeks 8-9. Essential for string processing, text search, and bioinformatics. More space-efficient than Suffix Tree. Used in tools like grep, genome sequence alignment.\n\nImplement: Build suffix array from string. Operations: search pattern, LCP array construction, longest repeated substring. Visualization shows sorted suffixes with positions and LCP values.\n\nSource: Stanford CS166 Spring 2025 'Suffix and LCP Arrays', CLRS 4th Ed, K\u00e4rkk\u00e4inen & Sanders 2003.",
+    "acceptanceCriteria": [
+      "Suffix Array under Tree or new 'String' category",
+      "Build from input string with step-by-step suffix sorting",
+      "Pattern search with binary search animation",
+      "LCP array shown alongside suffix array",
+      "Description explains advantage over suffix tree (space)"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/suffix-array.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important-missing",
+      "string",
+      "academic",
+      "stanford"
+    ]
+  },
+  {
+    "id": "DST-139",
+    "epic": "DST",
+    "title": "Add difficulty tags and prerequisite metadata to all DS catalog entries",
+    "description": "No DS has difficulty indication. A beginner seeing 'Fibonacci Heap' next to 'Array' is intimidated. No prerequisites stated.\n\nAdd to DSConfig: difficulty ('beginner' | 'intermediate' | 'advanced' | 'expert'), prerequisites (list of DS ids), relatedTopics (list of DS ids), interviewFrequency (0-5).\n\nTags should render as colored badges in sidebar. Prerequisites shown in properties panel.\n\nSource: University syllabi ordering, NeetCode difficulty ratings, Codeforces topic ratings.",
+    "acceptanceCriteria": [
+      "Every DS has difficulty tag visible in sidebar",
+      "Color-coded badges: green=beginner, blue=intermediate, orange=advanced, red=expert",
+      "Prerequisites listed in properties panel with clickable links",
+      "Related topics shown as 'See Also' section",
+      "Interview frequency shown as 1-5 fire icons"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "difficulty",
+      "prerequisites"
+    ]
+  },
+  {
+    "id": "DST-140",
+    "epic": "DST",
+    "title": "Implement FAANG Interview Prep learning path (4-week guided curriculum)",
+    "description": "55% of our content matches what FAANG interviews need, but there's no guided path. Build a structured 4-week learning path based on 2026 interview patterns from NeetCode 150, Grokking, and Reddit r/cscareerquestions.\n\nWeek 1: Arrays, Hash Maps, Stacks, Queues, Priority Queue\nWeek 2: Linked Lists, DLL, BST, Trie, LRU Cache\nWeek 3: Heaps, Graphs, Union-Find, Monotonic Stack\nWeek 4: Segment Tree, Interval Tree, Advanced patterns\n\nShow progress per week, completion checkmarks, estimated time per topic.",
+    "acceptanceCriteria": [
+      "Learning path accessible from sidebar or dedicated tab",
+      "4-week structure with daily topics",
+      "Progress tracking (completed / in progress / not started)",
+      "Each topic links directly to the DS visualization",
+      "Estimated time shown per topic",
+      "Path completion percentage visible"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-124",
+      "DST-125",
+      "DST-126",
+      "DST-127"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "interview-prep",
+      "learning-path"
+    ]
+  }
+]

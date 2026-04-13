@@ -1,0 +1,129 @@
+{
+  "metadata": {
+    "systemName": "Emergency SOS Response",
+    "domain": "safety",
+    "version": "1.0.0"
+  },
+  "components": {
+    "user_app": {
+      "id": "user_app",
+      "name": "UserApp",
+      "type": "rectangle",
+      "position": {"x": 5140, "y": 4320},
+      "size": {"w": 280, "h": 144},
+      "capacity": {"instances": 1, "maxRPSPerInstance": 1500},
+      "scaling": {"autoScale": false, "minInstances": 1, "maxInstances": 1},
+      "properties": {
+        "simulatesAs": "client",
+        "bodyText": "+triggerSOS()\n+cancelSOS()\n+shareLiveLocation()"
+      }
+    },
+    "sos_gateway": {
+      "id": "sos_gateway",
+      "name": "SOSGateway",
+      "type": "rectangle",
+      "position": {"x": 5160, "y": 4580},
+      "size": {"w": 420, "h": 198},
+      "capacity": {"instances": 2, "maxRPSPerInstance": 2500},
+      "scaling": {"autoScale": true, "minInstances": 1, "maxInstances": 4},
+      "properties": {
+        "simulatesAs": "apiGateway",
+        "bodyText": "+receiveSignal(userId, tripId, location)\n+validateRequest(token)\n+routeToRegion(lat, long)"
+      }
+    },
+    "sos_orchestrator": {
+      "id": "sos_orchestrator",
+      "name": "SOSOrchestrator",
+      "type": "rectangle",
+      "position": {"x": 5160, "y": 4880},
+      "size": {"w": 430, "h": 230},
+      "capacity": {"instances": 3, "maxRPSPerInstance": 2200},
+      "scaling": {"autoScale": true, "minInstances": 2, "maxInstances": 8},
+      "properties": {
+        "simulatesAs": "appServer",
+        "bodyText": "+processEmergency(sosId)\n+notifyEmergencyContacts(userId)\n+notifyLawEnforcement(location)\n+notifySafetyTeam(sosId)"
+      }
+    },
+    "postgres_db": {
+      "id": "postgres_db",
+      "name": "<<PostgreSQL>> Database",
+      "type": "rectangle",
+      "position": {"x": 4320, "y": 5560},
+      "size": {"w": 300, "h": 212},
+      "capacity": {"instances": 1, "maxRPSPerInstance": 1200},
+      "scaling": {"autoScale": false, "minInstances": 1, "maxInstances": 1},
+      "properties": {
+        "simulatesAs": "database",
+        "bodyText": "+UserProfiles\n+EmergencyContacts\n+TripHistory\n+SOSLogs"
+      }
+    },
+    "location_service": {
+      "id": "location_service",
+      "name": "LocationService",
+      "type": "rectangle",
+      "position": {"x": 4710, "y": 5560},
+      "size": {"w": 390, "h": 206},
+      "capacity": {"instances": 2, "maxRPSPerInstance": 1800},
+      "scaling": {"autoScale": true, "minInstances": 1, "maxInstances": 5},
+      "properties": {
+        "simulatesAs": "appServer",
+        "bodyText": "+getRealTimeCoordinates(tripId)\n+getNearbyPoliceStations(lat, long)\n+streamToSafetyTeam(tripId)"
+      }
+    },
+    "notification_service": {
+      "id": "notification_service",
+      "name": "NotificationService",
+      "type": "rectangle",
+      "position": {"x": 5180, "y": 5560},
+      "size": {"w": 390, "h": 206},
+      "capacity": {"instances": 2, "maxRPSPerInstance": 2000},
+      "scaling": {"autoScale": true, "minInstances": 1, "maxInstances": 6},
+      "properties": {
+        "simulatesAs": "notificationService",
+        "bodyText": "+sendSMS(phoneNumber, message)\n+pushNotification(deviceId, payload)\n+initiateAutomatedCall(phoneNumber)"
+      }
+    },
+    "law_enforcement_api": {
+      "id": "law_enforcement_api",
+      "name": "LawEnforcementAPI",
+      "type": "rectangle",
+      "position": {"x": 5640, "y": 5560},
+      "size": {"w": 320, "h": 170},
+      "capacity": {"instances": 2, "maxRPSPerInstance": 1500},
+      "scaling": {"autoScale": true, "minInstances": 1, "maxInstances": 4},
+      "properties": {
+        "simulatesAs": "appServer",
+        "bodyText": "+dispatchUnit(location, severity)\n+updateStatus(caseId)"
+      }
+    },
+    "safety_dashboard": {
+      "id": "safety_dashboard",
+      "name": "SafetyDashboard",
+      "type": "rectangle",
+      "position": {"x": 6070, "y": 5560},
+      "size": {"w": 350, "h": 210},
+      "capacity": {"instances": 2, "maxRPSPerInstance": 1600},
+      "scaling": {"autoScale": true, "minInstances": 1, "maxInstances": 4},
+      "properties": {
+        "simulatesAs": "appServer",
+        "bodyText": "+activeEmergenciesList\n+viewLiveStream(tripId)\n+assignAgent(sosId)\n+resolveCase(sosId)"
+      }
+    }
+  },
+  "connections": [
+    {"id": "c1", "from": "user_app", "to": "sos_gateway", "protocol": "HTTPS", "label": "triggers"},
+    {"id": "c2", "from": "user_app", "to": "location_service", "protocol": "HTTPS", "label": "poll location"},
+    {"id": "c3", "from": "sos_gateway", "to": "sos_orchestrator", "protocol": "HTTPS", "label": "forwards event"},
+    {"id": "c4", "from": "sos_orchestrator", "to": "postgres_db", "protocol": "TCP", "label": "fetch user & contact info"},
+    {"id": "c5", "from": "sos_orchestrator", "to": "location_service", "protocol": "HTTPS", "label": "request tracking"},
+    {"id": "c6", "from": "sos_orchestrator", "to": "notification_service", "protocol": "ASYNC", "sync": false, "label": "dispatch alerts"},
+    {"id": "c7", "from": "sos_orchestrator", "to": "law_enforcement_api", "protocol": "HTTPS", "label": "external integration"},
+    {"id": "c8", "from": "sos_orchestrator", "to": "safety_dashboard", "protocol": "HTTPS", "label": "real-time updates"},
+    {"id": "c9", "from": "safety_dashboard", "to": "sos_orchestrator", "protocol": "HTTPS", "label": "agent actions"},
+    {"id": "c10", "from": "location_service", "to": "safety_dashboard", "protocol": "ASYNC", "sync": false, "label": "stream tracking"}
+  ],
+  "viewState": {
+    "panOffset": {"x": -2450, "y": -2350},
+    "scale": 0.6
+  }
+}

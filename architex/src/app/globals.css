@@ -1,0 +1,1010 @@
+@import "tailwindcss";
+
+/* ───────────────────────────────────────────────────────────────
+   Architex Design System — Theme Tokens
+   Based on Linear/VS Code dark aesthetic with violet accent
+   ─────────────────────────────────────────────────────────────── */
+
+:root,
+.dark {
+  /* Background layers (4-layer system) — 4-5% lightness steps for visual distinction */
+  --background: hsl(228 15% 7%);
+  --surface: hsl(228 15% 11%);
+  --surface-elevated: hsl(228 15% 16%);
+  --elevated: hsl(228 15% 13%);
+  --overlay: hsl(228 15% 19%);
+
+  /* Foreground */
+  --foreground: hsl(220 14% 90%);
+  --foreground-muted: hsl(220 10% 50%);
+  --foreground-subtle: hsl(220 10% 55%);
+
+  /* Card / Popover */
+  --card: hsl(228 15% 10%);
+  --card-foreground: hsl(220 14% 90%);
+  --popover: hsl(228 15% 12%);
+  --popover-foreground: hsl(220 14% 90%);
+
+  /* Primary — Violet accent (Linear-inspired) */
+  --primary: hsl(252 87% 67%);
+  --primary-foreground: hsl(0 0% 100%);
+  --primary-hover: hsl(252 87% 60%);
+
+  /* Secondary */
+  --secondary: hsl(228 15% 15%);
+  --secondary-foreground: hsl(220 14% 90%);
+
+  /* Muted */
+  --muted: hsl(228 15% 18%);
+  --muted-foreground: var(--foreground-muted);
+
+  /* Accent */
+  --accent: hsl(228 15% 15%);
+  --accent-foreground: hsl(220 14% 90%);
+
+  /* Destructive */
+  --destructive: hsl(0 72% 51%);
+  --destructive-foreground: hsl(0 0% 100%);
+
+  /* Border & Ring */
+  --border: hsl(228 15% 16%);
+  --input: hsl(228 15% 16%);
+  --ring: hsl(252 87% 67%);
+
+  /* Radius */
+  --radius: 0.5rem;
+
+  /* ── Data Structure Visualization Colors ── */
+  --ds-default: #6b7280;
+  --ds-comparing: #3b82f6;
+  --ds-visiting: #f59e0b;
+  --ds-visited: #86efac;
+  --ds-inserting: #a855f7;
+  --ds-done: #22c55e;
+  --ds-deleting: #ef4444;
+  --ds-shifting: #f97316;
+  --ds-found: #06b6d4;
+  --ds-hashing: #ec4899;
+  --ds-already-set: #6b7280;
+  --ds-setting: #a855f7;
+  --ds-not-found: #ef4444;
+  --ds-updating: #f59e0b;
+  --ds-node-fill: #1f2937;
+  --ds-rb-red-fill: #dc2626;
+  --ds-rb-red-stroke: #dc2626;
+  --ds-rb-red-text: #ffffff;
+  --ds-rb-black-fill: #1f2937;
+  --ds-rb-black-stroke: #9ca3af;
+  --ds-rb-black-text: #e5e7eb;
+
+  /* ── Simulation Semantic State Colors ── */
+  --state-idle: hsl(220 9% 42%);
+  --state-active: hsl(217 91% 60%);
+  --state-success: hsl(142 71% 45%);
+  --state-warning: hsl(38 92% 50%);
+  --state-error: hsl(0 72% 51%);
+  --state-processing: hsl(271 81% 56%);
+
+  /* ── Node Type Colors ── */
+  --node-compute: hsl(217 91% 60%);
+  --node-storage: hsl(142 71% 45%);
+  --node-messaging: hsl(25 95% 53%);
+  --node-networking: hsl(271 81% 56%);
+  --node-security: hsl(0 72% 51%);
+  --node-observability: hsl(38 92% 50%);
+  --node-client: hsl(199 89% 48%);
+  --node-processing: hsl(340 82% 52%);
+  --node-services: hsl(160 84% 39%);
+  --node-fintech: hsl(38 92% 50%);
+  --node-data-engineering: hsl(258 90% 66%);
+  --node-ai-llm: hsl(330 81% 60%);
+  --node-db-internals: hsl(239 84% 67%);
+
+  /* ── Severity Tokens ── */
+  --severity-critical: var(--state-error);
+  --severity-high: hsl(25 95% 53%);
+  --severity-medium: var(--state-warning);
+  --severity-low: var(--state-success);
+  --severity-info: var(--state-active);
+
+  /* ── Difficulty Tokens ── */
+  --difficulty-easy: var(--state-success);
+  --difficulty-medium: var(--state-warning);
+  --difficulty-hard: hsl(25 95% 53%);
+  --difficulty-expert: var(--state-error);
+
+  /* ── Visualization Charts (dark theme) ── */
+  --viz-seq-low: hsl(142 71% 45%);
+  --viz-seq-mid: hsl(38 92% 50%);
+  --viz-seq-high: hsl(25 95% 53%);
+  --viz-seq-critical: hsl(0 72% 51%);
+  --viz-p50: hsl(142 71% 50%);
+  --viz-p90: hsl(48 96% 53%);
+  --viz-p95: hsl(25 95% 58%);
+  --viz-p99: hsl(0 84% 60%);
+  --viz-throughput-line: hsl(217 91% 65%);
+  --viz-throughput-fill: hsl(217 91% 65%);
+  --viz-error-fill: hsl(0 72% 55%);
+  --viz-error-line: hsl(0 84% 60%);
+  --viz-error-threshold: hsl(38 92% 55%);
+  --viz-grid: hsla(220 14% 90% / 0.08);
+  --viz-axis-text: hsla(220 14% 90% / 0.4);
+  --viz-tooltip-bg: hsl(228 15% 14%);
+  --viz-tooltip-text: hsl(220 14% 90%);
+  --viz-tooltip-border: hsl(228 15% 22%);
+  --viz-anomaly: hsl(38 92% 55%);
+  --viz-cache-hit: hsl(142 71% 50%);
+  --viz-cache-miss: hsl(220 9% 35%);
+
+  /* ── Sidebar / Panel ── */
+  --sidebar: hsl(228 15% 8%);
+  --sidebar-foreground: hsl(220 14% 90%);
+  --sidebar-border: hsl(228 15% 14%);
+  --sidebar-accent: hsl(228 15% 13%);
+
+  /* ── Canvas ── */
+  --canvas-bg: hsl(228 15% 6%);
+  --canvas-dot: hsl(228 15% 14%);
+  --canvas-selection: hsla(252 87% 67% / 0.15);
+
+  /* ── LLD Canvas (UML diagrams) ── */
+  --lld-canvas-bg: #2F353B;
+  --lld-canvas-bg-deep: #0f0f1a;
+  --lld-canvas-text: #e2e8f0;
+  --lld-canvas-text-muted: #94a3b8;
+  --lld-canvas-text-subtle: #64748b;
+  --lld-canvas-border: #6b7280;
+  --lld-canvas-edge: #9ca3af;
+  --lld-canvas-selected: #60a5fa;
+  --lld-canvas-abstract: #c4b5fd;
+  --lld-canvas-lifeline: #4b5563;
+  --lld-canvas-activation: #2d3748;
+  --lld-canvas-actor-bg: #1e3a5f;
+
+  /* ── LLD Stereotype Colors ── */
+  --lld-stereo-interface: #3b82f6;
+  --lld-stereo-abstract: #a855f7;
+  --lld-stereo-enum: #22c55e;
+  --lld-stereo-class: #6b7280;
+
+  /* ── LLD SOLID Principle Colors ── */
+  --lld-solid-srp: #f59e0b;
+  --lld-solid-ocp: #3b82f6;
+  --lld-solid-lsp: #22c55e;
+  --lld-solid-isp: #a855f7;
+  --lld-solid-dip: #ef4444;
+
+  /* ── LLD Difficulty Colors ── */
+  --lld-diff-easy: #22c55e;
+  --lld-diff-medium: #f59e0b;
+  --lld-diff-hard: #ef4444;
+  --lld-diff-expert: #dc2626;
+
+  /* ── LLD Sequence Message Colors ── */
+  --lld-seq-sync: #60a5fa;
+  --lld-seq-async: #34d399;
+  --lld-seq-return: #9ca3af;
+  --lld-seq-self: #f59e0b;
+
+  /* ── Status Bar ── */
+  --statusbar: hsl(228 15% 8%);
+  --statusbar-foreground: hsl(220 10% 50%);
+
+  /* ── Gray Scale (Radix-style 12-step) ── */
+  /* 1=background, 2=subtle bg, 3-5=component, 6-8=border, 9-10=solid, 11-12=text */
+  --gray-1: hsl(228 15% 7%);
+  --gray-2: hsl(228 15% 9%);
+  --gray-3: hsl(228 15% 11%);
+  --gray-4: hsl(228 15% 13%);
+  --gray-5: hsl(228 15% 15%);
+  --gray-6: hsl(228 14% 18%);
+  --gray-7: hsl(228 13% 22%);
+  --gray-8: hsl(228 12% 28%);
+  --gray-9: hsl(220 10% 40%);
+  --gray-10: hsl(220 10% 46%);
+  --gray-11: hsl(220 10% 63%);
+  --gray-12: hsl(220 14% 90%);
+
+  /* ── Violet Accent Scale (12-step) ── */
+  --violet-1: hsl(252 40% 8%);
+  --violet-2: hsl(252 50% 11%);
+  --violet-3: hsl(252 55% 15%);
+  --violet-4: hsl(252 60% 19%);
+  --violet-5: hsl(252 65% 24%);
+  --violet-6: hsl(252 70% 30%);
+  --violet-7: hsl(252 75% 38%);
+  --violet-8: hsl(252 80% 48%);
+  --violet-9: hsl(252 87% 67%);
+  --violet-10: hsl(252 87% 60%);
+  --violet-11: hsl(252 90% 76%);
+  --violet-12: hsl(252 95% 92%);
+
+  /* ── Semantic State Tokens ── */
+  --success-bg: hsl(142 40% 12%);
+  --success-text: hsl(142 71% 55%);
+  --success-border: hsl(142 50% 25%);
+
+  --warning-bg: hsl(38 50% 12%);
+  --warning-text: hsl(38 92% 60%);
+  --warning-border: hsl(38 60% 28%);
+
+  --error-bg: hsl(0 40% 12%);
+  --error-text: hsl(0 72% 60%);
+  --error-border: hsl(0 50% 25%);
+
+  --info-bg: hsl(217 45% 12%);
+  --info-text: hsl(217 91% 70%);
+  --info-border: hsl(217 55% 28%);
+
+  /* ── Border Variants ── */
+  --border-subtle: hsl(228 15% 12%);
+  --border-default: hsl(228 15% 16%);
+  --border-strong: hsl(228 14% 24%);
+  --border-focus: hsl(252 87% 67%);
+
+  /* ── Shadow System ── */
+  --shadow-sm: 0 1px 2px 0 hsla(0 0% 0% / 0.3);
+  --shadow-md: 0 4px 6px -1px hsla(0 0% 0% / 0.4), 0 2px 4px -2px hsla(0 0% 0% / 0.3);
+  --shadow-lg: 0 10px 15px -3px hsla(0 0% 0% / 0.4), 0 4px 6px -4px hsla(0 0% 0% / 0.3);
+  --shadow-xl: 0 20px 25px -5px hsla(0 0% 0% / 0.5), 0 8px 10px -6px hsla(0 0% 0% / 0.4);
+  --shadow-inner: inset 0 2px 4px 0 hsla(0 0% 0% / 0.3);
+
+  /* ── Opacity Tokens ── */
+  --opacity-dim: 0.5;
+  --opacity-disabled: 0.38;
+  --opacity-hover: 0.08;
+  --opacity-pressed: 0.12;
+
+  /* ── Z-Index Scale ── */
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-popover: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+
+  /* ── Typography Scale (aligned with Tailwind defaults) ── */
+  --font-xs: 0.75rem;
+  --font-sm: 0.875rem;
+  --font-base: 1rem;
+  --font-lg: 1.125rem;
+  --font-xl: 1.25rem;
+  --font-2xl: 1.5rem;
+  --font-3xl: 1.875rem;
+  --font-4xl: 2.25rem;
+
+  /* Font weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Line heights */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+
+  /* ── Spacing Scale (4px base) ── */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+  --space-14: 56px;
+  --space-16: 64px;
+
+  /* ── Breakpoints ── */
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
+
+  /* ── Transition Presets ── */
+  --transition-fast: 150ms;
+  --transition-normal: 200ms;
+  --transition-slow: 300ms;
+
+  /* ── Motion Design System ── */
+  /* Duration tokens (source of truth: lib/constants/motion.ts) */
+  --motion-duration-instant: 0ms;
+  --motion-duration-quick: 100ms;
+  --motion-duration-fast: 150ms;
+  --motion-duration-normal: 200ms;
+  --motion-duration-moderate: 300ms;
+  --motion-duration-slow: 500ms;
+  --motion-duration-deliberate: 800ms;
+
+  /* Easing tokens */
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --motion-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --motion-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Spring reference values (stiffness / damping / mass) */
+  /* Springs are computed in JS via motion/react — these are for documentation only */
+  --motion-spring-snappy: 300 / 30 / 0.8;
+  --motion-spring-smooth: 200 / 25 / 1.0;
+  --motion-spring-bouncy: 400 / 20 / 0.5;
+  --motion-spring-stiff: 500 / 35 / 1.0;
+  --motion-spring-gentle: 150 / 20 / 1.2;
+}
+
+/* ── Light Theme ── */
+/* Scoped to html.light to prevent React Flow's internal .light class from triggering */
+html.light {
+  /* ── Data Structure Visualization Colors (light) ── */
+  --ds-default: #6b7280;
+  --ds-comparing: #2563eb;
+  --ds-visiting: #d97706;
+  --ds-visited: #4ade80;
+  --ds-inserting: #9333ea;
+  --ds-done: #16a34a;
+  --ds-deleting: #dc2626;
+  --ds-shifting: #ea580c;
+  --ds-found: #0891b2;
+  --ds-hashing: #db2777;
+  --ds-already-set: #6b7280;
+  --ds-setting: #9333ea;
+  --ds-not-found: #dc2626;
+  --ds-updating: #d97706;
+  --ds-node-fill: #f3f4f6;
+  --ds-rb-red-fill: #dc2626;
+  --ds-rb-red-stroke: #dc2626;
+  --ds-rb-red-text: #ffffff;
+  --ds-rb-black-fill: #374151;
+  --ds-rb-black-stroke: #6b7280;
+  --ds-rb-black-text: #f3f4f6;
+
+  --background: hsl(228 5% 99%);
+  --surface: hsl(228 5% 97%);
+  --surface-elevated: hsl(228 5% 95%);
+  --elevated: hsl(228 5% 96%);
+  --overlay: hsl(228 5% 94%);
+
+  --foreground: hsl(228 15% 10%);
+  --foreground-muted: hsl(220 10% 40%);
+  --foreground-subtle: hsl(220 10% 60%);
+
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(228 15% 10%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(228 15% 10%);
+
+  --primary: hsl(252 87% 55%);
+  --primary-foreground: hsl(0 0% 100%);
+  --primary-hover: hsl(252 87% 48%);
+
+  --secondary: hsl(220 14% 96%);
+  --secondary-foreground: hsl(228 15% 10%);
+
+  --muted: hsl(220 14% 96%);
+  --muted-foreground: var(--foreground-muted);
+
+  --accent: hsl(220 14% 96%);
+  --accent-foreground: hsl(228 15% 10%);
+
+  --destructive: hsl(0 72% 51%);
+  --destructive-foreground: hsl(0 0% 100%);
+
+  --border: hsl(220 13% 91%);
+  --input: hsl(220 13% 91%);
+  --ring: hsl(252 87% 55%);
+
+  --state-idle: hsl(220 9% 60%);
+  --state-active: hsl(217 91% 50%);
+  --state-success: hsl(142 71% 35%);
+  --state-warning: hsl(38 92% 45%);
+  --state-error: hsl(0 72% 45%);
+  --state-processing: hsl(271 81% 50%);
+
+  /* ── Node Type Colors (darkened for light bg contrast) ── */
+  --node-compute: hsl(217 91% 42%);
+  --node-storage: hsl(142 71% 30%);
+  --node-messaging: hsl(25 95% 38%);
+  --node-networking: hsl(271 81% 40%);
+  --node-security: hsl(0 72% 40%);
+  --node-observability: hsl(38 92% 35%);
+  --node-client: hsl(199 89% 35%);
+  --node-processing: hsl(340 82% 38%);
+  --node-services: hsl(160 84% 28%);
+  --node-fintech: hsl(38 92% 35%);
+  --node-data-engineering: hsl(258 90% 48%);
+  --node-ai-llm: hsl(330 81% 45%);
+  --node-db-internals: hsl(239 84% 50%);
+
+  /* ── Severity Tokens (light) ── */
+  --severity-critical: var(--state-error);
+  --severity-high: hsl(25 95% 38%);
+  --severity-medium: var(--state-warning);
+  --severity-low: var(--state-success);
+  --severity-info: var(--state-active);
+
+  /* ── Difficulty Tokens (light) ── */
+  --difficulty-easy: var(--state-success);
+  --difficulty-medium: var(--state-warning);
+  --difficulty-hard: hsl(25 95% 38%);
+  --difficulty-expert: var(--state-error);
+
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(228 15% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-accent: hsl(220 14% 96%);
+
+  --canvas-bg: hsl(0 0% 99%);
+  --canvas-dot: hsl(220 13% 88%);
+  --canvas-selection: hsla(252 87% 55% / 0.1);
+
+  --statusbar: hsl(0 0% 97%);
+  --statusbar-foreground: hsl(220 10% 40%);
+
+  /* ── Visualization Charts (light theme) ── */
+  --viz-seq-low: hsl(142 71% 35%);
+  --viz-seq-mid: hsl(38 92% 42%);
+  --viz-seq-high: hsl(25 95% 45%);
+  --viz-seq-critical: hsl(0 72% 45%);
+  --viz-p50: hsl(142 71% 38%);
+  --viz-p90: hsl(48 96% 42%);
+  --viz-p95: hsl(25 95% 48%);
+  --viz-p99: hsl(0 84% 50%);
+  --viz-throughput-line: hsl(217 91% 50%);
+  --viz-throughput-fill: hsl(217 91% 50%);
+  --viz-error-fill: hsl(0 72% 50%);
+  --viz-error-line: hsl(0 84% 48%);
+  --viz-error-threshold: hsl(38 92% 45%);
+  --viz-grid: hsla(228 15% 10% / 0.1);
+  --viz-axis-text: hsla(228 15% 10% / 0.5);
+  --viz-tooltip-bg: hsl(0 0% 100%);
+  --viz-tooltip-text: hsl(228 15% 10%);
+  --viz-tooltip-border: hsl(220 13% 88%);
+  --viz-anomaly: hsl(38 92% 45%);
+  --viz-cache-hit: hsl(142 71% 38%);
+  --viz-cache-miss: hsl(220 9% 70%);
+
+  /* ── Gray Scale (Radix-style 12-step, light) ── */
+  --gray-1: hsl(228 5% 99%);
+  --gray-2: hsl(228 5% 97%);
+  --gray-3: hsl(228 5% 95%);
+  --gray-4: hsl(228 5% 93%);
+  --gray-5: hsl(228 5% 91%);
+  --gray-6: hsl(228 5% 88%);
+  --gray-7: hsl(228 5% 83%);
+  --gray-8: hsl(228 5% 73%);
+  --gray-9: hsl(228 5% 55%);
+  --gray-10: hsl(228 5% 50%);
+  --gray-11: hsl(228 5% 39%);
+  --gray-12: hsl(228 5% 13%);
+
+  /* ── Violet Accent Scale (12-step, light) ── */
+  --violet-1: hsl(252 100% 99%);
+  --violet-2: hsl(252 100% 97%);
+  --violet-3: hsl(252 95% 94%);
+  --violet-4: hsl(252 90% 90%);
+  --violet-5: hsl(252 85% 85%);
+  --violet-6: hsl(252 80% 78%);
+  --violet-7: hsl(252 75% 68%);
+  --violet-8: hsl(252 80% 58%);
+  --violet-9: hsl(252 87% 55%);
+  --violet-10: hsl(252 87% 48%);
+  --violet-11: hsl(252 75% 42%);
+  --violet-12: hsl(252 60% 22%);
+
+  /* ── Semantic State Tokens (light) ── */
+  --success-bg: hsl(142 50% 94%);
+  --success-text: hsl(142 71% 28%);
+  --success-border: hsl(142 45% 78%);
+
+  --warning-bg: hsl(38 60% 94%);
+  --warning-text: hsl(38 92% 30%);
+  --warning-border: hsl(38 55% 72%);
+
+  --error-bg: hsl(0 50% 95%);
+  --error-text: hsl(0 72% 40%);
+  --error-border: hsl(0 45% 80%);
+
+  --info-bg: hsl(217 55% 95%);
+  --info-text: hsl(217 91% 38%);
+  --info-border: hsl(217 50% 80%);
+
+  /* ── Border Variants (light) ── */
+  --border-subtle: hsl(220 13% 94%);
+  --border-default: hsl(220 13% 91%);
+  --border-strong: hsl(220 12% 80%);
+  --border-focus: hsl(252 87% 55%);
+
+  /* ── Shadow System (light) ── */
+  --shadow-sm: 0 1px 2px 0 hsla(0 0% 0% / 0.05);
+  --shadow-md: 0 4px 6px -1px hsla(0 0% 0% / 0.1), 0 2px 4px -2px hsla(0 0% 0% / 0.1);
+  --shadow-lg: 0 10px 15px -3px hsla(0 0% 0% / 0.1), 0 4px 6px -4px hsla(0 0% 0% / 0.1);
+  --shadow-xl: 0 20px 25px -5px hsla(0 0% 0% / 0.1), 0 8px 10px -6px hsla(0 0% 0% / 0.1);
+  --shadow-inner: inset 0 2px 4px 0 hsla(0 0% 0% / 0.06);
+}
+
+/* ── Tailwind v4 Theme Integration ── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-elevated: var(--elevated);
+  --color-overlay: var(--overlay);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Simulation states */
+  --color-state-idle: var(--state-idle);
+  --color-state-active: var(--state-active);
+  --color-state-success: var(--state-success);
+  --color-state-warning: var(--state-warning);
+  --color-state-error: var(--state-error);
+  --color-state-processing: var(--state-processing);
+
+  /* Node types */
+  --color-node-compute: var(--node-compute);
+  --color-node-storage: var(--node-storage);
+  --color-node-messaging: var(--node-messaging);
+  --color-node-networking: var(--node-networking);
+  --color-node-security: var(--node-security);
+  --color-node-observability: var(--node-observability);
+  --color-node-client: var(--node-client);
+  --color-node-processing: var(--node-processing);
+  --color-node-services: var(--node-services);
+  --color-node-fintech: var(--node-fintech);
+  --color-node-data-engineering: var(--node-data-engineering);
+  --color-node-ai-llm: var(--node-ai-llm);
+  --color-node-db-internals: var(--node-db-internals);
+
+  /* Severity tokens */
+  --color-severity-critical: var(--severity-critical);
+  --color-severity-high: var(--severity-high);
+  --color-severity-medium: var(--severity-medium);
+  --color-severity-low: var(--severity-low);
+  --color-severity-info: var(--severity-info);
+
+  /* Difficulty tokens */
+  --color-difficulty-easy: var(--difficulty-easy);
+  --color-difficulty-medium: var(--difficulty-medium);
+  --color-difficulty-hard: var(--difficulty-hard);
+  --color-difficulty-expert: var(--difficulty-expert);
+
+  /* Layout */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+
+  --color-canvas-bg: var(--canvas-bg);
+  --color-canvas-dot: var(--canvas-dot);
+  --color-canvas-selection: var(--canvas-selection);
+
+  --color-statusbar: var(--statusbar);
+  --color-statusbar-foreground: var(--statusbar-foreground);
+
+  /* Visualization */
+  --color-viz-p50: var(--viz-p50);
+  --color-viz-p90: var(--viz-p90);
+  --color-viz-p95: var(--viz-p95);
+  --color-viz-p99: var(--viz-p99);
+  --color-viz-throughput-line: var(--viz-throughput-line);
+  --color-viz-error-fill: var(--viz-error-fill);
+  --color-viz-anomaly: var(--viz-anomaly);
+  --color-viz-cache-hit: var(--viz-cache-hit);
+  --color-viz-cache-miss: var(--viz-cache-miss);
+
+  /* Gray scale */
+  --color-gray-1: var(--gray-1);
+  --color-gray-2: var(--gray-2);
+  --color-gray-3: var(--gray-3);
+  --color-gray-4: var(--gray-4);
+  --color-gray-5: var(--gray-5);
+  --color-gray-6: var(--gray-6);
+  --color-gray-7: var(--gray-7);
+  --color-gray-8: var(--gray-8);
+  --color-gray-9: var(--gray-9);
+  --color-gray-10: var(--gray-10);
+  --color-gray-11: var(--gray-11);
+  --color-gray-12: var(--gray-12);
+
+  /* Violet accent scale */
+  --color-violet-1: var(--violet-1);
+  --color-violet-2: var(--violet-2);
+  --color-violet-3: var(--violet-3);
+  --color-violet-4: var(--violet-4);
+  --color-violet-5: var(--violet-5);
+  --color-violet-6: var(--violet-6);
+  --color-violet-7: var(--violet-7);
+  --color-violet-8: var(--violet-8);
+  --color-violet-9: var(--violet-9);
+  --color-violet-10: var(--violet-10);
+  --color-violet-11: var(--violet-11);
+  --color-violet-12: var(--violet-12);
+
+  /* Semantic state colors */
+  --color-success-bg: var(--success-bg);
+  --color-success-text: var(--success-text);
+  --color-success-border: var(--success-border);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-text: var(--warning-text);
+  --color-warning-border: var(--warning-border);
+  --color-error-bg: var(--error-bg);
+  --color-error-text: var(--error-text);
+  --color-error-border: var(--error-border);
+  --color-info-bg: var(--info-bg);
+  --color-info-text: var(--info-text);
+  --color-info-border: var(--info-border);
+
+  /* Border variants */
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-border-focus: var(--border-focus);
+
+  /* Shadow system: removed from @theme inline to avoid overriding
+     the light/dark-aware --shadow-* variables defined in :root and html.light.
+     Components should use var(--shadow-sm) etc. directly. */
+
+  /* Opacity tokens */
+  --opacity-dim: var(--opacity-dim);
+  --opacity-disabled: var(--opacity-disabled);
+  --opacity-hover: var(--opacity-hover);
+  --opacity-pressed: var(--opacity-pressed);
+
+  /* Z-index scale */
+  --z-base: var(--z-base);
+  --z-dropdown: var(--z-dropdown);
+  --z-sticky: var(--z-sticky);
+  --z-overlay: var(--z-overlay);
+  --z-modal: var(--z-modal);
+  --z-popover: var(--z-popover);
+  --z-toast: var(--z-toast);
+  --z-tooltip: var(--z-tooltip);
+
+  /* Typography scale */
+  --font-size-xs: var(--font-xs);
+  --font-size-sm: var(--font-sm);
+  --font-size-base: var(--font-base);
+  --font-size-lg: var(--font-lg);
+  --font-size-xl: var(--font-xl);
+  --font-size-2xl: var(--font-2xl);
+  --font-size-3xl: var(--font-3xl);
+  --font-size-4xl: var(--font-4xl);
+
+  /* Line heights */
+  --leading-tight: var(--leading-tight);
+  --leading-normal: var(--leading-normal);
+  --leading-relaxed: var(--leading-relaxed);
+
+  /* Spacing scale */
+  --spacing-0-5: var(--space-0-5);
+  --spacing-1: var(--space-1);
+  --spacing-1-5: var(--space-1-5);
+  --spacing-2: var(--space-2);
+  --spacing-2-5: var(--space-2-5);
+  --spacing-3: var(--space-3);
+  --spacing-3-5: var(--space-3-5);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+  --spacing-9: var(--space-9);
+  --spacing-10: var(--space-10);
+  --spacing-11: var(--space-11);
+  --spacing-12: var(--space-12);
+  --spacing-14: var(--space-14);
+  --spacing-16: var(--space-16);
+
+  /* Transition presets */
+  --transition-duration-fast: var(--transition-fast);
+  --transition-duration-normal: var(--transition-normal);
+  --transition-duration-slow: var(--transition-slow);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ── Base Styles ── */
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+/* ── React Flow Overrides ── */
+.react-flow__background {
+  background-color: var(--canvas-bg) !important;
+}
+
+.react-flow__minimap {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+.react-flow__controls {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+.react-flow__controls button {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+}
+
+.react-flow__controls button:hover {
+  background-color: var(--elevated) !important;
+}
+
+.react-flow__edge-path {
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+@keyframes tab-indicator-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes architex-dash-flow {
+  to { stroke-dashoffset: -20; }
+}
+
+.react-flow__edge-path-animated {
+  animation: architex-dash-flow 0.6s linear infinite;
+}
+
+.react-flow__handle {
+  background-color: var(--primary) !important;
+  border: 2px solid var(--surface) !important;
+  width: 8px !important;
+  height: 8px !important;
+}
+
+/* ── Selection ── */
+.react-flow__selection {
+  background: var(--canvas-selection) !important;
+  border: 1px solid var(--primary) !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground-subtle);
+}
+
+/* ── Reduced Motion ── */
+/* Per motion design system spec: all animations snap to final state,
+   particle flow shows static dots, celebrations show static badges. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Override motion duration tokens to instant */
+  :root {
+    --motion-duration-quick: 0ms;
+    --motion-duration-fast: 0ms;
+    --motion-duration-normal: 0ms;
+    --motion-duration-moderate: 0ms;
+    --motion-duration-slow: 0ms;
+    --motion-duration-deliberate: 0ms;
+  }
+
+  /* Disable edge particle flow animation */
+  .react-flow__edge-path {
+    animation: none !important;
+  }
+
+  /* Disable celebration confetti canvas */
+  [data-confetti-canvas] {
+    display: none !important;
+  }
+
+  /* Disable glow/pulse effects */
+  [data-motion-pulse] {
+    box-shadow: none !important;
+  }
+}
+
+/* ── Toast Slide-in Animation ── */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ── Focus Visible (Keyboard Navigation) ── */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ── Windows High Contrast Mode (A11-025) ── */
+/* Forced-colors mode overrides all author-defined colors with system colors.
+   These rules ensure Architex remains usable in Windows High Contrast mode. */
+@media (forced-colors: active) {
+  /* Ensure all borders use system-visible border color */
+  *,
+  *::before,
+  *::after {
+    border-color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  /* Allow the browser to adjust most elements automatically */
+  body {
+    forced-color-adjust: auto;
+  }
+
+  /* React Flow nodes need visible borders in forced-colors */
+  .react-flow__node {
+    border: 2px solid ButtonText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  /* React Flow edges must use system text color */
+  .react-flow__edge-path {
+    stroke: ButtonText;
+    stroke-width: 2;
+  }
+
+  /* Handles must be visible against forced-color backgrounds */
+  .react-flow__handle {
+    background-color: Highlight !important;
+    border: 2px solid ButtonText !important;
+  }
+
+  /* Selection outlines */
+  .react-flow__selection {
+    border: 2px solid Highlight !important;
+    background: transparent !important;
+  }
+
+  /* Focus indicators use the system Highlight color */
+  :focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  /* Buttons and interactive elements */
+  button,
+  [role="button"],
+  a[href],
+  input,
+  select,
+  textarea {
+    border: 1px solid ButtonText;
+    forced-color-adjust: none;
+  }
+
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a[href]:focus-visible {
+    outline: 3px solid Highlight;
+  }
+
+  /* Disabled elements use GrayText */
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    color: GrayText;
+    border-color: GrayText;
+  }
+
+  /* Scrollbar tracks and thumbs */
+  ::-webkit-scrollbar-thumb {
+    background: ButtonText;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: Canvas;
+  }
+
+  /* Minimap and controls */
+  .react-flow__minimap {
+    border: 2px solid ButtonText !important;
+    background-color: Canvas !important;
+  }
+
+  .react-flow__controls {
+    border: 2px solid ButtonText !important;
+  }
+
+  .react-flow__controls button {
+    border: 1px solid ButtonText !important;
+    color: ButtonText !important;
+    background: Canvas !important;
+  }
+
+  /* State indicators: use underline/border instead of color alone */
+  [data-state="active"] {
+    outline: 2px solid Highlight;
+  }
+
+  [data-state="error"] {
+    outline: 2px dashed LinkText;
+  }
+}

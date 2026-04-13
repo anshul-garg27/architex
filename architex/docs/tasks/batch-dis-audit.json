@@ -1,0 +1,457 @@
+[
+  {
+    "id": "DIS-021",
+    "epic": "DIS",
+    "title": "Wire 'Simulate This' button in TopologyAwareFailureModes (currently console.log)",
+    "description": "TopologyAwareFailureModes.tsx:508-510 — the 'Simulate This' button handler only does console.log. Wire it to handleSimulate(selectedFailure) or remove the button.",
+    "acceptanceCriteria": [
+      "Button triggers cascade animation for selected failure mode",
+      "No console.log remains"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "ready",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/distributed/TopologyAwareFailureModes.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["stub", "p0"]
+  },
+  {
+    "id": "DIS-022",
+    "epic": "DIS",
+    "title": "Show feedback when Raft Submit CMD is dropped (no leader exists)",
+    "description": "raft.ts:355-356 silently drops commands when no leader. DistributedModule.tsx:3674 calls it with no result check. User clicks Submit CMD, nothing happens.\nFix: return boolean from submitCommand, show toast or disable button when no leader.",
+    "acceptanceCriteria": [
+      "submitCommand returns false when no leader",
+      "UI shows visible feedback when command dropped"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "ready",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/raft.ts", "src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["silent-failure", "p0"]
+  },
+  {
+    "id": "DIS-023",
+    "epic": "DIS",
+    "title": "Fix module-progress.ts — only tracks 6 of 11 distributed concepts",
+    "description": "module-progress.ts:82-89 tracks: cap-theorem, consistent-hashing, raft-consensus, gossip-protocol, vector-clocks, crdt. Missing: two-phase-commit, saga-pattern, map-reduce, lamport-timestamps, paxos.",
+    "acceptanceCriteria": [
+      "All 11 distributed concepts in the progress array",
+      "IDs match SIMULATIONS array in DistributedModule.tsx"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "ready",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/progress/module-progress.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["progress", "quick-win", "p0"]
+  },
+  {
+    "id": "DIS-024",
+    "epic": "DIS",
+    "title": "Split DistributedModule.tsx (4904 lines) into focused files",
+    "description": "4904-line god file with 11 canvases, 3 panels, 1 hook with 45 state vars. Extract: hooks/useDistributedModule.ts, 11 canvas files, sidebar, properties, bottom panel. This unblocks every other UI task.",
+    "acceptanceCriteria": [
+      "No file exceeds 500 lines",
+      "All 11 simulations work identically",
+      "Each canvas independently importable"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["architecture", "god-file", "p1"]
+  },
+  {
+    "id": "DIS-025",
+    "epic": "DIS",
+    "title": "Replace inline canvases with orphaned accessible visualizers (or port their ARIA)",
+    "description": "887 lines of dead code at components/visualization/distributed/ (RaftVisualizer, ConsistentHashRingVisualizer, VectorClockDiagram) have proper ARIA roles, labels, framer-motion animations, and IBM colorblind-safe palette. The active inline canvases have zero accessibility. Either integrate the orphaned versions or port their ARIA. Then delete the dead code.",
+    "acceptanceCriteria": [
+      "SVGs have role='img' with aria-label",
+      "Individual nodes have aria-labels",
+      "No orphaned unused files remain",
+      "prefers-reduced-motion respected"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DistributedModule.tsx",
+      "src/components/visualization/distributed/RaftVisualizer.tsx",
+      "src/components/visualization/distributed/ConsistentHashRingVisualizer.tsx",
+      "src/components/visualization/distributed/VectorClockDiagram.tsx"
+    ],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["accessibility", "dead-code", "p1"]
+  },
+  {
+    "id": "DIS-026",
+    "epic": "DIS",
+    "title": "Replace 60+ hardcoded hex colors with design tokens",
+    "description": "10+ color maps (ROLE_COLORS, NODE_COLORS, MSG_COLORS, etc.) at DistributedModule.tsx:132-2664 plus inline SVG attributes. The Learn panel and orphaned visualizers correctly use CSS variables and IBM_COLORBLIND from @/lib/visualization/colors. Migrate everything to the shared system.",
+    "acceptanceCriteria": [
+      "Zero hardcoded hex in canvas components",
+      "All colors use CSS custom properties or shared palette",
+      "Visual appearance matches current design"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["design-tokens", "p1"]
+  },
+  {
+    "id": "DIS-027",
+    "epic": "DIS",
+    "title": "Cap event log at 500 entries (currently grows unbounded)",
+    "description": "setEvents((prev) => [...prev, ...mapped]) at 8+ locations. Raft auto-play at 100ms = ~6000 events after 10 min. Bottom panel caps display at 100 but state array keeps growing. Fix: ring buffer or slice(-500).",
+    "acceptanceCriteria": [
+      "Event array never exceeds 500",
+      "Most recent events preserved",
+      "No visible behavior change for normal sessions"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["performance", "memory", "p1"]
+  },
+  {
+    "id": "DIS-028",
+    "epic": "DIS",
+    "title": "Rewrite all content: problem-first hooks, WHY steps, real-world applications, summaries",
+    "description": "ALL 11 concepts score F or D on teaching quality. The root cause is one systemic issue: content is definition-first, steps say WHAT not WHY, no real-world context, no memorable summaries.\n\nThis is ONE content strategy task, not 11 separate rewrites. Apply this pattern to every concept:\n\n1. HOOK: Problem statement, not definition. 'Five servers need to agree...' not 'Raft is a consensus algorithm...'\n2. INTUITION: Analogy before formalism. 'Think of gossip spreading through a school' not 'Epidemic-style information dissemination'\n3. WHY STEPS: Add reason field to events. 'Because it hasn't heard from a leader' not just 'election timeout'\n4. REAL-WORLD: 'Used by etcd, CockroachDB, TiKV' per concept\n5. SUMMARY: 3 bullet flashcard-ready takeaway\n6. COMMON MISTAKES: 1-2 per concept (CAP 'pick 2' myth, Raft heartbeat confusion, etc.)\n\nSample rewrites provided in the audit for Raft, Consistent Hashing, Gossip, CAP, Paxos.",
+    "acceptanceCriteria": [
+      "All 11 descriptions start with a problem, not a definition",
+      "All 11 have intuition analogies",
+      "At least 5 event types per engine include WHY in description",
+      "All 11 have 'Used By' real-world section in properties",
+      "All 11 have 3-bullet summary",
+      "Top 5 have 'Common Mistakes' section"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DistributedModule.tsx",
+      "src/lib/distributed/raft.ts",
+      "src/lib/distributed/gossip.ts",
+      "src/lib/distributed/cap-theorem.ts",
+      "src/lib/distributed/paxos.ts",
+      "src/lib/distributed/two-phase-commit.ts",
+      "src/lib/distributed/saga.ts",
+      "src/lib/distributed/map-reduce.ts"
+    ],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["teaching-quality", "content-strategy", "p1"]
+  },
+  {
+    "id": "DIS-029",
+    "epic": "DIS",
+    "title": "Add pseudocode panels for all 11 simulations",
+    "description": "Zero pseudocode anywhere. This is the single biggest gap for an educational platform. Write academic-style pseudocode (Raft paper Figure 2 style, not TypeScript) that maps to each engine. Add toggleable panel with current-line highlighting during step-through.",
+    "acceptanceCriteria": [
+      "All 11 engines have pseudocode",
+      "Academic notation, not TypeScript syntax",
+      "Current line highlights during simulation",
+      "Pseudocode matches implementation logic"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["pseudocode", "teaching", "p1"]
+  },
+  {
+    "id": "DIS-030",
+    "epic": "DIS",
+    "title": "Add prediction mode: 'What happens next?' before each step",
+    "description": "The single most impactful practice feature. Testing effect research: retrieval practice = 50-70% better retention than passive review. Before key actions, prompt user to predict the outcome.\n\nExamples:\n- Raft: 'Which node will win the election? Click your prediction.'\n- CAP: 'Will this write succeed in CP mode during partition?'\n- CRDTs: 'After merge, what will A's value be?'\n- 2PC: 'P2 voted NO. Commit or Abort?'\n- Gossip: 'After this round, how many nodes have the data?'\n\nShow correct/incorrect with brief WHY. User can disable predictions.",
+    "acceptanceCriteria": [
+      "At least 2 prediction prompts per simulation",
+      "Prompts appear BEFORE the action",
+      "Feedback explains WHY correct/incorrect",
+      "Predictions can be toggled off",
+      "Accuracy tracked in progress"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["practice", "prediction", "highest-impact-practice", "p1"]
+  },
+  {
+    "id": "DIS-031",
+    "epic": "DIS",
+    "title": "Surface existing interview questions from concepts-data.ts in module UI",
+    "description": "concepts-data.ts has 4-5 interview questions per concept with model answers for CAP, Consistent Hashing, Gossip, Raft, 2PC, Saga — already written, just not shown in the distributed module. Surface as 'Interview Questions' section in properties panel. Expandable to reveal answers.",
+    "acceptanceCriteria": [
+      "Interview questions visible for 6+ concepts",
+      "Questions expandable to reveal model answers",
+      "Styled consistently with properties panel"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx", "src/lib/seo/concepts-data.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["existing-content", "interview", "quick-win", "p1"]
+  },
+  {
+    "id": "DIS-032",
+    "epic": "DIS",
+    "title": "Add Consistency Models interactive simulation (CRITICAL curriculum gap)",
+    "description": "The #1 missing topic. In MIT 6.5840 LEC 8, DDIA Ch 9, and top-5 interview topic. Build: same read/write operations shown under 4 models (Linearizable, Sequential, Causal, Eventual) with visual diff of outcomes.",
+    "acceptanceCriteria": [
+      "Engine supports 4 consistency models",
+      "User toggles between models, sees SAME operations produce DIFFERENT results",
+      "Properties panel explains each model with real database examples"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/consistency-models.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["new-simulation", "critical-gap", "p1"]
+  },
+  {
+    "id": "DIS-033",
+    "epic": "DIS",
+    "title": "Add Replication simulation (SEO content exists, needs interactive sim)",
+    "description": "concepts-data.ts (slug: 'replication') already has 3-paragraph explanation + 4 interview questions. Build: Leader-Follower (sync/async toggle showing lag), Multi-Leader (write conflicts), Leaderless (adjustable NWR quorum).",
+    "acceptanceCriteria": [
+      "3 replication modes interactive",
+      "Quorum mode has N, W, R sliders",
+      "Links to existing SEO content"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/replication.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["new-simulation", "critical-gap", "content-ready", "p1"]
+  },
+  {
+    "id": "DIS-034",
+    "epic": "DIS",
+    "title": "Add Sharding simulation (SEO content exists, needs interactive sim)",
+    "description": "concepts-data.ts (slug: 'sharding') has rich content. Build: range-based (show hot spots), hash-based (show distribution), directory-based. Let user add/remove shards and see redistribution. Natural link to existing Consistent Hashing sim.",
+    "acceptanceCriteria": [
+      "3 sharding strategies interactive",
+      "Hot spot visible in range-based mode",
+      "Cross-reference to Consistent Hashing in properties"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/sharding.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["new-simulation", "critical-gap", "content-ready", "p1"]
+  },
+  {
+    "id": "DIS-035",
+    "epic": "DIS",
+    "title": "Add Leader Election simulation (Bully, Ring, Lease-based)",
+    "description": "Foundational to Raft/Paxos but never shown independently. MIT 6.5840, Cornell CS5414 cover it. Show how Raft's randomized timeout is a specific instance.",
+    "acceptanceCriteria": [
+      "3 election algorithms interactive",
+      "User can crash leader and watch re-election",
+      "Properties explains connection to Raft"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/leader-election.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["new-simulation", "critical-gap", "p1"]
+  },
+  {
+    "id": "DIS-036",
+    "epic": "DIS",
+    "title": "Write tests for 4 untested engines + expand 4 minimal test files",
+    "description": "Lamport, Saga, MapReduce, CRDTs — zero dedicated tests. Gossip (28 lines), CAP (23), 2PC (24), Paxos (25) are smoke tests only.\n\nKey tests needed:\n- Lamport: receive rule max(local, received)+1\n- Saga: compensation reverse order, fail-at-step-1 boundary\n- MapReduce: empty input, special char stripping\n- CRDTs: OR-Set concurrent add/remove, LWW tie-breaking, GCounter non-negative\n- Gossip: convergence with killed node\n- CAP: minority write rejection in CP mode",
+    "acceptanceCriteria": [
+      "4 new test files with 6+ cases each",
+      "4 expanded test files with 6+ cases each",
+      "All tests pass"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/distributed/lamport-timestamps.test.ts",
+      "src/__tests__/lib/distributed/saga.test.ts",
+      "src/__tests__/lib/distributed/map-reduce.test.ts",
+      "src/__tests__/lib/distributed/crdt.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["testing", "p1"]
+  },
+  {
+    "id": "DIS-037",
+    "epic": "DIS",
+    "title": "Complete existing simulations: Gossip variants, Saga orchestration, PACELC, Multi-Paxos",
+    "description": "4 simulations have important missing variants that the SEO content already describes:\n1. Gossip: only push implemented. SEO mentions push/pull/push-pull. Add toggle.\n2. Saga: only choreography. SEO explains orchestration. Add mode.\n3. CAP: SEO mentions PACELC (line 131,139) but not simulated. Add latency-consistency toggle for non-partition state.\n4. Paxos: single-decree only. Multi-Paxos (stable leader optimization) needed for real-world relevance.\n\nOne task because these are all 'add variant X to simulation Y' — same pattern, same effort profile.",
+    "acceptanceCriteria": [
+      "Gossip has push/pull/push-pull toggle",
+      "Saga has choreography/orchestration toggle",
+      "CAP has PACELC mode for non-partition state",
+      "Paxos has Multi-Paxos mode with leader optimization"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/lib/distributed/gossip.ts",
+      "src/lib/distributed/saga.ts",
+      "src/lib/distributed/cap-theorem.ts",
+      "src/lib/distributed/paxos.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["enhancement", "variants", "p2"]
+  },
+  {
+    "id": "DIS-038",
+    "epic": "DIS",
+    "title": "Fix visual accuracy: Raft log truncation, hidden virtual nodes, missing legends",
+    "description": "Three visual lies in one task (same pattern: visualization hides information):\n1. DistributedModule.tsx:387 — node.log.slice(-3) hides entries with no truncation indicator\n2. ConsistentHashCanvas never renders virtual nodes despite engine having 50 per physical node — the core reason distribution works is invisible\n3. Six canvases have no legend (Consistent Hash, Saga, Raft, CAP, 2PC, Paxos) — user must guess what colors mean\n\nFix all three: show full log (or '+N more'), add vnode toggle, add legends to all canvases.",
+    "acceptanceCriteria": [
+      "Raft: all log entries visible or truncation indicated",
+      "Consistent Hashing: virtual nodes toggleable",
+      "All 11 canvases have visible legends"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["visual-accuracy", "p2"]
+  },
+  {
+    "id": "DIS-039",
+    "epic": "DIS",
+    "title": "Reorder sidebar + add difficulty tags and prerequisite indicators",
+    "description": "Current order is ad-hoc. Optimal learning path: CAP → Lamport → Vector Clocks → Consistent Hashing → Gossip → CRDTs → 2PC → Saga → Raft → Paxos → MapReduce.\n\nAdd difficulty badges (Beginner/Intermediate/Advanced) and prerequisite hints ('Learn Lamport Timestamps first').",
+    "acceptanceCriteria": [
+      "SIMULATIONS array reordered by learning prerequisite order",
+      "Difficulty badge visible per item",
+      "Prerequisites shown as subtle text"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["curriculum", "learning-path", "p2"]
+  },
+  {
+    "id": "DIS-040",
+    "epic": "DIS",
+    "title": "Connect existing gamification infrastructure to distributed module",
+    "description": "The platform has achievements, leaderboard, streak tracking, difficulty scaling, Socratic tutor, daily/weekly challenges — NONE connected to distributed module.\n\nMinimum viable connection:\n1. streak-protector.ts → daily practice streak\n2. achievements.ts → 5 distributed-specific achievements\n3. socratic-tutor.ts → 1 guided prompt per simulation\n4. weekly-challenge.ts → 3 distributed scenarios",
+    "acceptanceCriteria": [
+      "At least 5 achievements for distributed module",
+      "Streak counter visible in module",
+      "At least 1 Socratic prompt per simulation",
+      "At least 3 weekly challenges"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/lib/interview/achievements.ts",
+      "src/lib/innovation/streak-protector.ts",
+      "src/lib/ai/socratic-tutor.ts",
+      "src/lib/innovation/weekly-challenge.ts"
+    ],
+    "dependencies": ["DIS-030"],
+    "blockedBy": [],
+    "tags": ["gamification", "engagement", "p2"]
+  }
+]

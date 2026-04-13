@@ -1,0 +1,213 @@
+[
+  {
+    "id": "DIS-071",
+    "epic": "DIS",
+    "title": "Add pseudocode display for all 11 distributed systems engines",
+    "description": "I6 (Pseudocode Faithfulness) scores 0/3 for ALL 11 engines. This is the highest-impact implementation improvement. For each engine, write academic-style pseudocode that maps line-by-line to the implementation. Use standard textbook notation (CLRS/Raft paper style). Add a toggleable 'Pseudocode' panel in the UI that highlights the current line as the simulation advances.",
+    "acceptanceCriteria": [
+      "All 11 engines have corresponding pseudocode",
+      "Pseudocode uses academic notation (not TypeScript syntax)",
+      "Pseudocode panel highlights current line during step-through",
+      "Each pseudocode has line numbers that can be cross-referenced",
+      "Pseudocode matches implementation logic"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["pseudocode", "teaching", "implementation", "p1"]
+  },
+  {
+    "id": "DIS-072",
+    "epic": "DIS",
+    "title": "Fix Raft log visualization truncation — show all entries or indicate truncation",
+    "description": "Visual lie: At DistributedModule.tsx:387, node.log.slice(-3) shows only the last 3 log entries. A student with 5+ entries sees an incomplete picture with no indication.",
+    "acceptanceCriteria": [
+      "All log entries visible or truncation clearly indicated",
+      "Student knows when entries are hidden"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual-accuracy", "raft", "p1"]
+  },
+  {
+    "id": "DIS-073",
+    "epic": "DIS",
+    "title": "Show virtual nodes in Consistent Hashing canvas visualization",
+    "description": "Visual lie: ConsistentHashCanvas never renders virtual node positions despite the engine having 50 vnodes per physical node. The student cannot see WHY distribution is even. The orphaned ConsistentHashRingVisualizer.tsx:141-159 correctly renders vnodes as dotted circles.",
+    "acceptanceCriteria": [
+      "Virtual node positions visible when toggled on",
+      "Toggle defaults to off to avoid clutter",
+      "Color of vnode dots matches their physical node"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual-accuracy", "consistent-hashing", "p1"]
+  },
+  {
+    "id": "DIS-074",
+    "epic": "DIS",
+    "title": "Add per-participant vote steps to 2PC visualization",
+    "description": "Visual lie: At two-phase-commit.ts:95-101, all participant votes are computed in a single loop and displayed as one step. In real 2PC, the coordinator receives votes asynchronously. Generate per-participant vote steps.",
+    "acceptanceCriteria": [
+      "Each participant's vote is a separate step",
+      "Coordinator 'waits' between votes (visual pause)",
+      "Step count increases from ~5 to ~7-8"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/two-phase-commit.ts", "src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual-accuracy", "2pc", "step-generation", "p2"]
+  },
+  {
+    "id": "DIS-075",
+    "epic": "DIS",
+    "title": "Add key redistribution narration to Consistent Hashing",
+    "description": "Consistent Hashing generates no step narration. When a node is added/removed, keys silently redistribute. The core concept — 'only 1/N keys move' — is invisible. Add narration: 'Adding Node 3... Key user:42 moved from Node 1 to Node 3. Total: 34 keys moved out of 100 (34%).'",
+    "acceptanceCriteria": [
+      "Adding a node generates narration showing how many keys moved",
+      "At least 3 example key moves shown",
+      "Total redistribution percentage displayed"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/consistent-hash.ts", "src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["step-generation", "consistent-hashing", "teaching", "p2"]
+  },
+  {
+    "id": "DIS-076",
+    "epic": "DIS",
+    "title": "Add educational 'why' comments to Raft message handler implementations",
+    "description": "The handleRequestVote (line 578), handleAppendEntries (line 654), and advanceCommitIndex (line 765) implement Raft's safety guarantees but lack 'why' comments. Add comments explaining the INVARIANT being maintained, referencing Raft paper section numbers.",
+    "acceptanceCriteria": [
+      "At least 8 'why' comments in core Raft message handlers",
+      "Each comment references the Raft paper section",
+      "Comments explain the INVARIANT, not just the operation"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/raft.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["documentation", "teaching", "raft", "p2"]
+  },
+  {
+    "id": "DIS-077",
+    "epic": "DIS",
+    "title": "Add legends to all canvas visualizations missing them",
+    "description": "V4 (Legend Completeness) scores 0-1 for 6 of 11 visualizers. ConsistentHashCanvas (0), SagaCanvas (0), RaftCanvas (1), CAPCanvas (1), TwoPCCanvas (1), MapReduceCanvas (1), PaxosCanvas (1).",
+    "acceptanceCriteria": [
+      "All 11 canvas visualizations have visible legends",
+      "Legends explain every color/state that appears",
+      "Consistent placement (bottom of canvas)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["legend", "visual-accuracy", "accessibility", "p2"]
+  },
+  {
+    "id": "DIS-078",
+    "epic": "DIS",
+    "title": "Add Raft step descriptions that explain state transitions",
+    "description": "Event descriptions show post-mutation state without narrating the transition. 'starting election for term 1' should be 'Node-0 hasn't heard from a leader for 250ms. It increments its term from 0→1 and becomes a candidate.'",
+    "acceptanceCriteria": [
+      "Election events explain WHY the timeout fired",
+      "Vote events explain the majority logic",
+      "Each event description includes BEFORE→AFTER transition"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/raft.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["step-generation", "teaching", "raft", "p2"]
+  },
+  {
+    "id": "DIS-079",
+    "epic": "DIS",
+    "title": "Restructure Paxos implementation for teaching clarity",
+    "description": "The single simulatePaxos function (paxos.ts:58-227) uses a large if/else at line 75. Split into: (1) simulatePaxosSingleProposer() — happy path, (2) simulatePaxosCompetingProposers() — conflict scenario. Add comment explaining why competing proposers are the interesting case.",
+    "acceptanceCriteria": [
+      "Two clearly named functions or modes",
+      "Each has header comment explaining the scenario",
+      "Comment at competing-proposer section explains 'why two phases exist'"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/paxos.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["code-structure", "teaching", "paxos", "p3"]
+  },
+  {
+    "id": "DIS-080",
+    "epic": "DIS",
+    "title": "Add Python display code for top 5 distributed systems engines",
+    "description": "I7 (Multi-Language Readiness) scores 0/3 for all engines. Create Python equivalents for: (1) Raft election logic, (2) Consistent Hashing ring, (3) Vector Clock merge rule, (4) G-Counter + PNCounter, (5) Lamport timestamp rules.",
+    "acceptanceCriteria": [
+      "Python display code for 5 engines viewable in UI",
+      "Python code matches TypeScript implementation logic",
+      "Syntax highlighted with line numbers"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-071"],
+    "blockedBy": ["DIS-071"],
+    "tags": ["multi-language", "python", "teaching", "p3"]
+  }
+]

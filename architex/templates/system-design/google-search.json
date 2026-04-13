@@ -1,0 +1,214 @@
+{
+  "id": "google-search",
+  "name": "Google Search (Simplified)",
+  "description": "Design a simplified Google Search engine. Covers web crawling, inverted index construction, PageRank scoring, and query serving at massive scale.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["search", "inverted-index", "pagerank", "crawling", "ranking", "indexing"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Search Client (Browser)",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 100000000, "requestsPerSecond": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckIntervalMs": 3000, "maxConnectionsPerNode": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "web-server",
+      "type": "web-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Query Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 100, "maxConnections": 50000, "processingTimeMs": 50 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 500, "y": 0 },
+      "data": {
+        "label": "Query Cache (Memcached)",
+        "category": "storage",
+        "componentType": "memcached",
+        "icon": "Zap",
+        "config": { "type": "memcached", "memoryGB": 512, "evictionPolicy": "lru", "ttlSeconds": 300, "cacheHitRate": 0.6 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "search",
+      "type": "search-engine",
+      "position": { "x": 750, "y": 200 },
+      "data": {
+        "label": "Inverted Index (Serving Shards)",
+        "category": "storage",
+        "componentType": "search-engine",
+        "icon": "Search",
+        "config": { "shards": 10000, "replicas": 3, "indexSizeGB": 1000000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 750, "y": 400 },
+      "data": {
+        "label": "Document Store (Bigtable)",
+        "category": "storage",
+        "componentType": "bigtable",
+        "icon": "Database",
+        "config": { "type": "bigtable", "replicas": 3, "maxConnections": 5000, "storageGB": 5000000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "batch-proc",
+      "type": "batch-processor",
+      "position": { "x": 500, "y": 400 },
+      "data": {
+        "label": "Indexer / PageRank (MapReduce)",
+        "category": "compute",
+        "componentType": "batch-processor",
+        "icon": "Layers",
+        "config": { "batchSizeRecords": 10000000, "intervalSeconds": 86400, "parallelism": 10000, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "storage",
+      "type": "storage",
+      "position": { "x": 250, "y": 400 },
+      "data": {
+        "label": "Web Page Storage (GFS)",
+        "category": "storage",
+        "componentType": "gfs",
+        "icon": "HardDrive",
+        "config": { "type": "gfs", "storageGB": 100000000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-lb-server",
+      "source": "lb",
+      "target": "web-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-server-cache",
+      "source": "web-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-server-search",
+      "source": "web-server",
+      "target": "search",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "search-query", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-search-db",
+      "source": "search",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "doc-fetch", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-batch-search",
+      "source": "batch-proc",
+      "target": "search",
+      "sourceHandle": "right",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "index-write", "latency": 1000, "animated": false }
+    },
+    {
+      "id": "e-batch-storage",
+      "source": "batch-proc",
+      "target": "storage",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "blob-read", "latency": 50, "animated": false }
+    },
+    {
+      "id": "e-batch-db",
+      "source": "batch-proc",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-write", "latency": 20, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Inverted Index Architecture",
+      "description": "The core of search is the inverted index: a mapping from every word to the list of documents containing it, along with positions and TF-IDF scores. The index is sharded across thousands of machines by document ID. Each query fans out to all shards in parallel, and results are merged by relevance score.",
+      "highlightNodes": ["search", "web-server"],
+      "highlightEdges": ["e-server-search"]
+    },
+    {
+      "title": "PageRank and Offline Indexing",
+      "description": "The Indexer runs as a massive MapReduce job. It reads crawled web pages from GFS, extracts text/links, builds the inverted index, and computes PageRank scores iteratively. PageRank models the web as a graph — a page's rank is proportional to the sum of ranks of pages linking to it, divided by their outbound link count.",
+      "highlightNodes": ["batch-proc", "storage"],
+      "highlightEdges": ["e-batch-storage", "e-batch-search", "e-batch-db"]
+    },
+    {
+      "title": "Query Serving and Caching",
+      "description": "The Query Service first checks the cache for recent identical queries (~30% hit rate for popular queries). On a miss, it parses the query, fans out to index shards, merges results, applies ranking (PageRank + freshness + user signals), and generates snippets. Results are cached for 5 minutes.",
+      "highlightNodes": ["web-server", "cache"],
+      "highlightEdges": ["e-server-cache", "e-server-search"]
+    },
+    {
+      "title": "Document Retrieval",
+      "description": "After the index returns document IDs, the Query Service fetches document metadata (title, URL, snippet candidates) from Bigtable. This two-phase approach (index lookup then doc fetch) keeps the index compact. Bigtable stores the forward index: document ID to full content and metadata.",
+      "highlightNodes": ["search", "database"],
+      "highlightEdges": ["e-search-db"]
+    }
+  ]
+}

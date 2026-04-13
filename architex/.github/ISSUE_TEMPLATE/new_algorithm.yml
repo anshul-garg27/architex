@@ -1,0 +1,86 @@
+name: New Algorithm Submission
+description: Submit a new algorithm visualization or implementation for Architex
+title: "[Algorithm]: "
+labels: ["algorithm", "community-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing an algorithm! Please provide the details below so we can review your submission.
+  - type: input
+    id: algorithm-name
+    attributes:
+      label: Algorithm name
+      description: The name of the algorithm you are submitting.
+      placeholder: "e.g., Dijkstra's Shortest Path, Merge Sort, A* Search"
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: Which category does this algorithm belong to?
+      options:
+        - Sorting
+        - Searching
+        - Graph
+        - Tree
+        - Dynamic Programming
+        - Greedy
+        - Backtracking
+        - Divide and Conquer
+        - String
+        - Math
+        - Hashing
+        - Bit Manipulation
+        - Geometry
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Difficulty
+      options:
+        - Easy
+        - Medium
+        - Hard
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear explanation of the algorithm, its purpose, and time/space complexity.
+      placeholder: |
+        Describe the algorithm, what problem it solves, and its complexity:
+        - Time complexity: O(...)
+        - Space complexity: O(...)
+    validations:
+      required: true
+  - type: textarea
+    id: pseudocode
+    attributes:
+      label: Pseudocode or implementation
+      description: Provide pseudocode or a TypeScript implementation.
+      render: typescript
+    validations:
+      required: true
+  - type: textarea
+    id: visualization-notes
+    attributes:
+      label: Visualization notes
+      description: How should this algorithm be visualized? Describe step-by-step animations or diagram ideas.
+  - type: textarea
+    id: test-cases
+    attributes:
+      label: Test cases
+      description: Provide example inputs and expected outputs.
+      placeholder: |
+        Input: [5, 3, 8, 1, 2]
+        Expected Output: [1, 2, 3, 5, 8]
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Links to relevant resources, papers, or articles.

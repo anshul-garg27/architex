@@ -1,0 +1,98 @@
+{
+  "viewState": {
+    "panOffset": {"x": -4500, "y": -4600},
+    "scale": 0.8
+  },
+  "components": [
+    {
+      "id": "ai-orchestration",
+      "type": "container",
+      "customName": "AI Orchestration Layer",
+      "position": {"x": 4650, "y": 4550},
+      "size": {"w": 700, "h": 220},
+      "config": {}
+    },
+    {
+      "id": "knowledge-layer",
+      "type": "container",
+      "customName": "Knowledge & Context Layer",
+      "position": {"x": 4650, "y": 4820},
+      "size": {"w": 700, "h": 200},
+      "config": {}
+    },
+    {
+      "id": "client",
+      "type": "client",
+      "customName": "User Request",
+      "position": {"x": 4960, "y": 4400},
+      "size": {"w": 80, "h": 64},
+      "config": {"capacity": 5000}
+    },
+    {
+      "id": "llm-gw",
+      "type": "llmGateway",
+      "position": {"x": 4720, "y": 4640},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "ai-orchestration",
+      "config": {"costPerHour": 0.5}
+    },
+    {
+      "id": "orchestrator",
+      "type": "agentOrchestrator",
+      "position": {"x": 4900, "y": 4640},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "ai-orchestration",
+      "config": {"instances": 2}
+    },
+    {
+      "id": "safety",
+      "type": "safetyMesh",
+      "position": {"x": 5100, "y": 4640},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "ai-orchestration",
+      "config": {}
+    },
+    {
+      "id": "vector-db",
+      "type": "vectorDb",
+      "position": {"x": 4720, "y": 4900},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "knowledge-layer",
+      "config": {"capacity": 1000000}
+    },
+    {
+      "id": "graph-db",
+      "type": "graphDb",
+      "position": {"x": 4870, "y": 4900},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "knowledge-layer",
+      "config": {"capacity": 500000}
+    },
+    {
+      "id": "tool-reg",
+      "type": "toolRegistry",
+      "position": {"x": 5020, "y": 4900},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "knowledge-layer",
+      "config": {}
+    },
+    {
+      "id": "mem-fabric",
+      "type": "memoryFabric",
+      "position": {"x": 5170, "y": 4900},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "knowledge-layer",
+      "config": {}
+    }
+  ],
+  "connections": [
+    {"id": "c1", "sourceId": "client", "targetId": "llm-gw", "type": "request"},
+    {"id": "c2", "sourceId": "llm-gw", "targetId": "orchestrator", "type": "request"},
+    {"id": "c3", "sourceId": "orchestrator", "targetId": "safety", "type": "request"},
+    {"id": "c4", "sourceId": "orchestrator", "targetId": "vector-db", "type": "request"},
+    {"id": "c5", "sourceId": "orchestrator", "targetId": "graph-db", "type": "request"},
+    {"id": "c6", "sourceId": "orchestrator", "targetId": "tool-reg", "type": "request"},
+    {"id": "c7", "sourceId": "orchestrator", "targetId": "mem-fabric", "type": "request"},
+    {"id": "c8", "sourceId": "safety", "targetId": "llm-gw", "type": "request", "label": "audit log"}
+  ]
+}

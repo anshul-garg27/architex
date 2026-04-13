@@ -1,0 +1,203 @@
+[
+  {
+    "id": "SDS-248",
+    "epic": "SDS",
+    "title": "Fix chaos event expiry to use simulation time instead of wall-clock time",
+    "description": "simulation-orchestrator.ts calls chaosEngine.expireEvents(Date.now()) which uses wall-clock time. At 2x simulation speed, events expire at half the intended simulation duration. At 0.5x speed, events last twice as long. Fix: use simulation time (currentTick * tickMs) for event expiry. This is a correctness bug that makes chaos behavior unpredictable at non-1x speeds.",
+    "acceptanceCriteria": [
+      "Chaos events expire based on simulation ticks, not wall-clock time",
+      "At 2x speed, events last the same number of simulation ticks as at 1x",
+      "At 0.5x speed, events don't persist for double the intended duration",
+      "Unit test verifies expiry consistency across different simulation speeds"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/lib/simulation/simulation-orchestrator.ts", "src/lib/simulation/chaos-engine.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["implementation", "correctness", "chaos", "timing"]
+  },
+  {
+    "id": "SDS-249",
+    "epic": "SDS",
+    "title": "Fix ParticleLayer throughput cap deception — use logarithmic scaling",
+    "description": "ParticleLayer caps at MAX_PARTICLES_PER_EDGE=8, making 800 RPS and 10,000 RPS edges look identical. This is a VISUAL LIE: students can't distinguish high-throughput edges. Fix: replace linear cap with logarithmic scaling. Formula: targetCount = Math.ceil(Math.log10(Math.max(throughput, 1)) * 3). This gives: 100 RPS→6, 1000 RPS→9, 10000 RPS→12 particles. Also update MAX_PARTICLES_PER_EDGE from 8 to 15.",
+    "acceptanceCriteria": [
+      "Edges with 1000 RPS are visually distinguishable from edges with 500 RPS",
+      "Logarithmic scaling means 10x throughput difference is visible but not overwhelming",
+      "Performance remains smooth at 15 particles per edge across 50+ edges",
+      "No cap deception: relative throughput differences are always visible"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/overlays/ParticleLayer.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visualization", "visual-lie", "accuracy", "particles"]
+  },
+  {
+    "id": "SDS-250",
+    "epic": "SDS",
+    "title": "Fix DataFlowEdge width cap deception — use logarithmic scaling",
+    "description": "DataFlowEdge caps width at 5px (computedWidth = Math.min(baseWidth + throughput/200, 5)), making 600 RPS and 10,000 RPS edges identical width. Visual lie. Fix: use logarithmic scaling. Formula: computedWidth = baseWidth + Math.log10(Math.max(throughput, 1)) * 0.8. This gives: 100→3.1px, 1000→3.9px, 10000→4.7px — visible difference without overwhelming the canvas.",
+    "acceptanceCriteria": [
+      "Edges with 1000 RPS are visibly wider than edges with 100 RPS",
+      "Width difference is proportional to log(throughput)",
+      "Maximum width is reasonable (under 6px) to avoid visual clutter",
+      "Width changes smoothly during simulation (no jumps at threshold)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/edges/DataFlowEdge.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visualization", "visual-lie", "accuracy", "edges"]
+  },
+  {
+    "id": "SDS-251",
+    "epic": "SDS",
+    "title": "Fix RequestTrace path-finding — remove cache bias and overload-error conflation",
+    "description": "RequestTrace has two visual lies: (1) Happy path ALWAYS routes through cache (+10 score bonus for cache nodes) — false for architectures where cache doesn't help. (2) Error path routes through high-utilization nodes — conflates 'errors are slow' when real errors often fail-fast. Fix: (1) Happy path should follow the most common/shortest path based on edge weights, not cache-biased. (2) Error path should fail at any node based on error rate configuration, not just overloaded ones. Add new trace types: 'timeout' (slow failure) and 'circuit-breaker' (fast failure).",
+    "acceptanceCriteria": [
+      "Happy path follows shortest/most-common path without cache bias",
+      "Error path can fail at any node with configured error rate, not just overloaded nodes",
+      "New trace type 'timeout' shows slow failure pattern (5x latency)",
+      "New trace type 'circuit-breaker' shows fast failure pattern (immediate rejection)",
+      "Waterfall panel accurately reflects actual path taken for all trace types"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/overlays/RequestTrace.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visualization", "visual-lie", "accuracy", "request-trace"]
+  },
+  {
+    "id": "SDS-252",
+    "epic": "SDS",
+    "title": "Add persistent visual legend for ParticleLayer and DataFlowEdge",
+    "description": "ParticleLayer has NO legend explaining: what particle colors mean (edge protocol type), what particle speed represents (inverse of latency), what particle count indicates (throughput), what red pulsing particles are (errors). DataFlowEdge has NO legend for protocol colors (must hover each edge). Create a collapsible legend overlay that explains all visual encodings. Should be visible during simulation, positioned bottom-right or as a panel tab.",
+    "acceptanceCriteria": [
+      "Legend shows all 9 edge type colors with names (HTTP, gRPC, GraphQL, etc.)",
+      "Legend explains: particle count = throughput, particle speed = latency, red pulse = error",
+      "Legend explains: edge width = relative throughput, dash pattern = async vs sync",
+      "Legend collapsible to minimize screen space",
+      "Legend automatically visible on first simulation run, remembers collapse state"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/overlays/VisualizationLegend.tsx", "src/components/canvas/DesignCanvas.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visualization", "legend", "accessibility", "education"]
+  },
+  {
+    "id": "SDS-253",
+    "epic": "SDS",
+    "title": "Add metric bounds validation to SimMetricsBus write operations",
+    "description": "SimMetricsBus accepts any value for metrics including negative utilization, >1.0 error rates, and NaN. Bad data propagates to HeatmapOverlay (wrong colors), NodeMetricsOverlay (wrong state), and SimulationDashboard (misleading numbers). Fix: clamp all values on write: utilization [0,1], errorRate [0,1], cacheHitRate [0,1], throughput [0, Infinity), latency [0, Infinity), queueDepth [0, Infinity). Log warning when clamping occurs.",
+    "acceptanceCriteria": [
+      "Utilization, errorRate, cacheHitRate clamped to [0, 1] on write",
+      "Throughput, latency, queueDepth clamped to [0, Infinity) on write",
+      "NaN values rejected with console.warn",
+      "All downstream visualizations receive valid data",
+      "No performance regression from bounds checking (inline clamp, no branching)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/lib/simulation/sim-metrics-bus.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["implementation", "validation", "correctness"]
+  },
+  {
+    "id": "SDS-254",
+    "epic": "SDS",
+    "title": "Add SimMetricsBus buffer overflow warning instead of silent drop",
+    "description": "SimMetricsBus silently drops metrics when nextSlot >= MAX_NODES (512). Large architectures lose metrics with no indication. Fix: add console.warn on first overflow per session, include the dropped nodeId and current count. Consider dynamic resize: if approaching 90% capacity, double the buffer (reallocate Float64Array).",
+    "acceptanceCriteria": [
+      "Warning logged when buffer reaches capacity with dropped nodeId",
+      "Warning fires only once per node (not every tick) to avoid console spam",
+      "Optional: dynamic resize when approaching capacity (90% threshold)",
+      "Existing behavior for < 512 nodes unchanged"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/lib/simulation/sim-metrics-bus.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["implementation", "error-handling", "silent-failure"]
+  },
+  {
+    "id": "SDS-255",
+    "epic": "SDS",
+    "title": "Add 'Design Rationale' comments to top 5 simulation engine files",
+    "description": "Implementation audit found code structure and naming are excellent (avg 2.9/3) but pedagogical documentation is weak (avg 2.5/3). Code explains HOW but never WHY. Add a 'DESIGN RATIONALE' comment block at the top of each file explaining: why this component exists, why this architecture over alternatives, why these specific parameters/thresholds, and what's simplified vs real production. Files: chaos-engine.ts, latency-budget.ts, sim-metrics-bus.ts, simulation-orchestrator.ts, cost-model.ts.",
+    "acceptanceCriteria": [
+      "Each file has a DESIGN RATIONALE block at the top (after imports)",
+      "Rationale explains: purpose, architecture choice, parameter justification, simplifications",
+      "A student reading just the rationale would understand the component's role",
+      "Cost-model.ts rationale explicitly states what's simplified vs AWS reality"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/lib/simulation/chaos-engine.ts", "src/lib/simulation/latency-budget.ts", "src/lib/simulation/sim-metrics-bus.ts", "src/lib/simulation/simulation-orchestrator.ts", "src/lib/simulation/cost-model.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["implementation", "documentation", "education"]
+  },
+  {
+    "id": "SDS-256",
+    "epic": "SDS",
+    "title": "Add cost model documentation explaining simplifications vs real AWS pricing",
+    "description": "cost-model.ts uses linear utilization scaling (0.8x at 0% util, 1.2x at 100% util) which doesn't match real AWS pricing (reserved instances are 30-40% cheaper, spot instances 70% cheaper, volume discounts exist). Students learn a simplified cost model without knowing it's simplified. Fix: add detailed comments explaining each simplification, and add a 'Cost Model Accuracy' info panel in the UI that lists what the model includes and excludes (no RI discounts, no spot pricing, no volume discounts, no regional variation).",
+    "acceptanceCriteria": [
+      "cost-model.ts has inline comments explaining each simplification",
+      "UI shows 'Simplified Model' label near cost displays",
+      "Info panel lists what's included and excluded from the model",
+      "Base cost table includes source/reference for each price point"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/lib/simulation/cost-model.ts", "src/components/canvas/overlays/CostMonitor.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["implementation", "documentation", "accuracy", "cost"]
+  }
+]

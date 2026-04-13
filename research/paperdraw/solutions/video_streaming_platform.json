@@ -1,0 +1,132 @@
+{
+  "viewState": {
+    "panOffset": {"x": -4500, "y": -4650},
+    "scale": 0.75
+  },
+  "components": [
+    {
+      "id": "ingest-layer",
+      "type": "container",
+      "customName": "Ingestion & Processing",
+      "position": {"x": 4550, "y": 4550},
+      "size": {"w": 400, "h": 480},
+      "config": {}
+    },
+    {
+      "id": "serving-layer",
+      "type": "container",
+      "customName": "Delivery & CDN Layer",
+      "position": {"x": 5000, "y": 4550},
+      "size": {"w": 500, "h": 180},
+      "config": {}
+    },
+    {
+      "id": "data-layer",
+      "type": "container",
+      "customName": "Media & Metadata Storage",
+      "position": {"x": 5000, "y": 4800},
+      "size": {"w": 500, "h": 230},
+      "config": {}
+    },
+    {
+      "id": "client",
+      "type": "client",
+      "customName": "Viewers & Creators",
+      "position": {"x": 4800, "y": 4400},
+      "size": {"w": 80, "h": 64},
+      "config": {"capacity": 200000}
+    },
+    {
+      "id": "dns",
+      "type": "dns",
+      "position": {"x": 5050, "y": 4620},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "serving-layer",
+      "config": {"capacity": 1000000}
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": {"x": 5200, "y": 4620},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "serving-layer",
+      "config": {"capacity": 1000000}
+    },
+    {
+      "id": "lb",
+      "type": "loadBalancer",
+      "position": {"x": 5350, "y": 4620},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "serving-layer",
+      "config": {"instances": 5}
+    },
+    {
+      "id": "ingest-api",
+      "type": "apiGateway",
+      "customName": "Upload API",
+      "position": {"x": 4650, "y": 4620},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "ingest-layer",
+      "config": {"rateLimiting": true}
+    },
+    {
+      "id": "ingest-queue",
+      "type": "queue",
+      "customName": "Transcoding Jobs",
+      "position": {"x": 4600, "y": 4750},
+      "size": {"w": 300, "h": 60},
+      "parentContainerId": "ingest-layer",
+      "config": {"capacity": 50000}
+    },
+    {
+      "id": "processor",
+      "type": "mediaProcessor",
+      "customName": "Video Transcoder",
+      "position": {"x": 4650, "y": 4900},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "ingest-layer",
+      "config": {"instances": 10, "autoScale": true}
+    },
+    {
+      "id": "s3-raw",
+      "type": "objectStore",
+      "customName": "Raw Assets",
+      "position": {"x": 5050, "y": 4880},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "data-layer",
+      "config": {"regions": ["us-east-1"]}
+    },
+    {
+      "id": "s3-final",
+      "type": "objectStore",
+      "customName": "Final Streams (HLS/DASH)",
+      "position": {"x": 5200, "y": 4880},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "data-layer",
+      "config": {"regions": ["us-east-1", "eu-west-1", "ap-south-1"]}
+    },
+    {
+      "id": "metadata-db",
+      "type": "database",
+      "customName": "Video Metadata",
+      "position": {"x": 5360, "y": 4880},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "data-layer",
+      "config": {"replication": true}
+    }
+  ],
+  "connections": [
+    {"id": "c1", "sourceId": "client", "targetId": "dns", "type": "request"},
+    {"id": "c2", "sourceId": "client", "targetId": "ingest-api", "type": "request", "label": "Upload"},
+    {"id": "c3", "sourceId": "dns", "targetId": "cdn", "type": "request"},
+    {"id": "c4", "sourceId": "cdn", "targetId": "lb", "type": "request"},
+    {"id": "c5", "sourceId": "ingest-api", "targetId": "s3-raw", "type": "request"},
+    {"id": "c6", "sourceId": "ingest-api", "targetId": "ingest-queue", "type": "async"},
+    {"id": "c7", "sourceId": "ingest-queue", "targetId": "processor", "type": "async"},
+    {"id": "c8", "sourceId": "processor", "targetId": "s3-raw", "type": "request", "label": "Read"},
+    {"id": "c9", "sourceId": "processor", "targetId": "s3-final", "type": "request", "label": "Write"},
+    {"id": "c10", "sourceId": "processor", "targetId": "metadata-db", "type": "request"},
+    {"id": "c11", "sourceId": "lb", "targetId": "metadata-db", "type": "request"},
+    {"id": "c12", "sourceId": "cdn", "targetId": "s3-final", "type": "request", "label": "Origin Fetch"}
+  ]
+}

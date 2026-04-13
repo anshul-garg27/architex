@@ -1,0 +1,401 @@
+[
+  {
+    "id": "DBL-129",
+    "epic": "DBL",
+    "title": "Add prediction mode for B-Tree: 'which child will this key go to?'",
+    "description": "The single most impactful practice feature per learning science (Roediger & Karpicke 2006: active recall retains 80% vs 34% passive). Before the B-Tree algorithm shows the next step, pause and ask: 'Key 35 is being searched. Root has [20, 40]. Which child?' User clicks a node. System reveals whether correct. Track score. Implementation: add predictionMode boolean to useDatabaseModule, pause step advancement, render clickable node targets in BTreeCanvas, compare click against next step's highlightNodeId.",
+    "acceptanceCriteria": [
+      "Prediction Mode toggle in B-Tree sidebar (off by default)",
+      "When enabled, search pauses before each traversal step with prompt: 'Click the node key 35 will go to'",
+      "Correct: green flash + 'Correct! 35 > 20 and 35 < 40, so middle child.' explanation",
+      "Wrong: red flash + 'Not quite. 35 > 20, so not the left child.' + show correct path",
+      "Score counter: X/Y correct predictions this session",
+      "Works for both search and insert operations"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/btree-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "practice",
+      "prediction",
+      "active-recall",
+      "bloom-apply",
+      "btree"
+    ]
+  },
+  {
+    "id": "DBL-130",
+    "epic": "DBL",
+    "title": "Add prediction mode for Hash Index: 'which bucket will this key hash to?'",
+    "description": "Before hash insert shows the bucket, ask: 'Key alice, hash=2741, 4 buckets. Which bucket?' User clicks a bucket or enters a number. Feedback explains the modulo arithmetic. Also: 'Bucket 2 has 3 entries (max 3). What happens?' \u2192 overflow chain / resize. Source: testing effect research \u2014 active computation > passive watching.",
+    "acceptanceCriteria": [
+      "Prediction Mode toggle in Hash Index sidebar",
+      "Hash computation prediction: user calculates bucket number from hash value",
+      "Collision prediction: 'Is this bucket full? What happens next?'",
+      "Correct/wrong feedback with explanation of the modulo arithmetic",
+      "Score counter per session"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/hash-index-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "practice",
+      "prediction",
+      "active-recall",
+      "bloom-apply",
+      "hash-index"
+    ]
+  },
+  {
+    "id": "DBL-131",
+    "epic": "DBL",
+    "title": "Add prediction mode for Transaction Isolation: 'what will this read return?'",
+    "description": "Before revealing the anomaly step, ask: 'T1 reads balance. T2 wrote 500 but hasn't committed. At READ UNCOMMITTED, what does T1 see?' User chooses: 500 (uncommitted) or 1000 (committed). Feedback: 'Correct! At READ UNCOMMITTED, T1 sees the uncommitted value. This is a dirty read.' Works for all 4 isolation levels \u00d7 their anomaly steps.",
+    "acceptanceCriteria": [
+      "Prediction prompt appears BEFORE each anomaly step in all 4 isolation levels",
+      "For dirty read: 'What value will T2 read?' \u2192 500 (dirty) or 1000 (committed)",
+      "For non-repeatable: 'Will T1's second read match the first?' \u2192 Yes/No",
+      "For phantom: 'How many rows will T1's second COUNT return?' \u2192 3 or 4",
+      "For serializable: 'Will T2's UPDATE succeed immediately?' \u2192 Yes/No (blocked)",
+      "Correct/wrong feedback explains the isolation level's behavior"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/canvases/TransactionCanvas.tsx",
+      "src/components/modules/database/useDatabaseModule.ts",
+      "src/components/modules/database/DatabaseSidebar.tsx",
+      "src/lib/database/transaction-sim.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "prediction",
+      "active-recall",
+      "bloom-apply",
+      "transactions"
+    ]
+  },
+  {
+    "id": "DBL-132",
+    "epic": "DBL",
+    "title": "Add manual normalization tracing: drag columns to decompose",
+    "description": "Instead of automatic decomposeTo3NF, let the student manually decompose by DRAGGING columns between table cards. System validates in real-time: 'This decomposition is lossless? Yes/No. Dependency-preserving? Yes/No. Normal form of each table: [NF].' Uses existing computeClosure and determineNormalForm for validation. Transforms Bloom's Apply \u2192 Create.",
+    "acceptanceCriteria": [
+      "Manual Decompose toggle in Normalization sidebar",
+      "Drag-and-drop column pills between table cards",
+      "Real-time validation: lossless (green/red), dependency-preserving (green/red), NF per table",
+      "If user creates a valid 3NF decomposition: success celebration + comparison with automatic result",
+      "If stuck: 'Show Hint' button reveals one FD violation to fix"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/normalization.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "practice",
+      "manual-tracing",
+      "bloom-create",
+      "normalization",
+      "drag-drop"
+    ]
+  },
+  {
+    "id": "DBL-133",
+    "epic": "DBL",
+    "title": "Add LSM-Tree read path prediction: 'where does the search go next?'",
+    "description": "During LSM read, after each level check: 'Key x not in memtable. Where does the search go next?' User picks: immutable memtable / L0 newest SSTable / L1 / not found. Teaches the top-to-bottom search priority that defines LSM read amplification.",
+    "acceptanceCriteria": [
+      "Prediction prompt after each 'not found' step during LSM read",
+      "Options match the actual next search location from LSMTreeViz.read()",
+      "Correct: 'Right! LSM reads check memtable first, then L0 (newest to oldest), then L1, L2.'",
+      "Wrong: 'Not quite. After memtable, we check the IMMUTABLE memtable (if it exists) before L0.'",
+      "Score tracked per read operation"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/lsm-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "practice",
+      "prediction",
+      "bloom-apply",
+      "lsm-tree"
+    ]
+  },
+  {
+    "id": "DBL-134",
+    "epic": "DBL",
+    "title": "Add comparison challenges: B-Tree vs Hash, LSM vs B-Tree, SQL vs NoSQL",
+    "description": "5 scenario-based comparison questions testing Bloom's Analyze level: (1) 'Range query needed. B-Tree or Hash?' (2) '95% writes. LSM or B-Tree?' (3) 'Banking app consistency. Strong or Eventual?' (4) 'Date range sharding. Hash or Range?' (5) '3NF vs BCNF: need dependency preservation.' Each shows a scenario, user picks, system explains WHY the answer is correct using the module's existing visualizations as evidence.",
+    "acceptanceCriteria": [
+      "Comparison Challenges section accessible from sidebar or bottom panel",
+      "At least 5 scenario questions with multiple-choice answers",
+      "Each question has context scenario, 2-3 options, and detailed explanation",
+      "Explanation LINKS to the relevant visualization: 'See B-Tree range scan in the B-Tree mode'",
+      "Score tracked separately: 'Comparison Skills: 4/5'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "comparison",
+      "bloom-analyze",
+      "scenario-based"
+    ]
+  },
+  {
+    "id": "DBL-135",
+    "epic": "DBL",
+    "title": "Add debugging challenges: find the bug in B-Tree/Hash/Transaction code",
+    "description": "3 debugging challenges testing Bloom's Evaluate level: (1) B-Tree insert that doesn't check root-full before insert \u2014 show buggy pseudocode + visualization of tree growing without splits, student identifies the missing condition. (2) Hash table that resizes at 0.5 instead of 0.75 \u2014 student identifies wrong threshold. (3) App using READ COMMITTED for a bank transfer \u2014 student identifies the lost update anomaly. Each shows buggy code + wrong behavior, student finds the bug.",
+    "acceptanceCriteria": [
+      "3 debugging challenges accessible from a 'Challenges' tab or section",
+      "Each challenge: buggy pseudocode on left, broken visualization on right",
+      "Student identifies the bug by clicking the wrong line or selecting from options",
+      "Correct: 'You found it! Line 5 should check if root is full before inserting.'",
+      "Wrong: 'Look at the tree \u2014 it keeps growing but never splits. What condition is missing?'",
+      "Hint system: 3 progressive hints per challenge"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-125"
+    ],
+    "tags": [
+      "practice",
+      "debugging",
+      "bloom-evaluate",
+      "challenges"
+    ]
+  },
+  {
+    "id": "DBL-136",
+    "epic": "DBL",
+    "title": "Add scenario-based interview prep questions for database design",
+    "description": "5-10 real-world scenarios that test Bloom's Evaluate and Create: (1) 'Design the schema for Uber rides' (2) 'Your query takes 5s \u2014 EXPLAIN shows SeqScan on 10M rows \u2014 fix it' (3) 'Social media feed: normalize or denormalize?' (4) 'Payment + shipping must both succeed or both fail \u2014 what pattern?' (5) 'Choose: PostgreSQL or Cassandra for a write-heavy IoT system'. Each has guided answer framework, reference solution, and comparison with user's answer.",
+    "acceptanceCriteria": [
+      "Interview Prep section with 5+ scenario questions",
+      "Each scenario: problem statement, guided answer framework ('Consider: data model, indexes, consistency'), reference solution",
+      "User can write their answer (text area) before seeing reference",
+      "Reference solution explains trade-offs, not just 'the right answer'",
+      "Framing: 'Asked at Google/Amazon/Meta' per scenario"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "scenario",
+      "bloom-evaluate",
+      "bloom-create",
+      "interview-prep"
+    ]
+  },
+  {
+    "id": "DBL-137",
+    "epic": "DBL",
+    "title": "Add query plan prediction: 'will this query use an index?'",
+    "description": "Before generating the query plan, ask: 'SELECT * FROM orders WHERE user_id=42. Index on user_id exists. What plan will the optimizer choose?' \u2192 SeqScan / IndexScan / HashJoin. Then reveal the actual plan. This is THE most practical prediction for working engineers \u2014 it's exactly what they need to do when writing SQL. Uses existing QueryPlanSimulation with added prediction layer.",
+    "acceptanceCriteria": [
+      "Prediction prompt before query plan generation in QueryPlanSimulation",
+      "User predicts the root plan node type: SeqScan, IndexScan, HashJoin, Sort, Aggregate",
+      "After prediction: plan reveals with 'Correct! The optimizer chose IndexScan because user_id has an index.'",
+      "Wrong: 'The optimizer chose SeqScan because there is NO index on status. Add one and try again.'",
+      "Works for all 5 sample queries"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/QueryPlanSimulation.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "prediction",
+      "bloom-apply",
+      "query-plans",
+      "interview"
+    ]
+  },
+  {
+    "id": "DBL-138",
+    "epic": "DBL",
+    "title": "Add scoring system with XP, streaks, and per-concept mastery stars",
+    "description": "Duolingo-inspired scoring: +10 XP per correct prediction (+5 speed bonus if <5s). Streak counter for consecutive correct. Per-concept mastery: 0-5 stars based on accuracy across difficulty levels. Dashboard: 'B-Tree \u2605\u2605\u2605\u2606\u2606 (60%), Hash \u2605\u2606\u2606\u2606\u2606 (20%), Transactions \u2605\u2605\u2605\u2605\u2606 (80%)'. Weakness detection: 'You struggle with Hash Index \u2014 practice more.' Persisted to localStorage. Source: Duolingo case study \u2014 streaks boost engagement 60%.",
+    "acceptanceCriteria": [
+      "XP counter visible when any practice mode is active",
+      "Streak counter with multiplier: 2x after 3 correct, 3x after 5",
+      "Per-concept mastery: 0-5 stars visible on each mode in sidebar",
+      "Progress dashboard accessible from module header",
+      "Weakness identification: 'Suggested practice: Hash Index (lowest mastery)'",
+      "All scores persisted to localStorage and restored on reload"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-129"
+    ],
+    "tags": [
+      "practice",
+      "gamification",
+      "scoring",
+      "streaks",
+      "mastery",
+      "duolingo"
+    ]
+  },
+  {
+    "id": "DBL-139",
+    "epic": "DBL",
+    "title": "Add 3-level hint system for all practice challenges",
+    "description": "Wrong answers need GUIDANCE, not just 'incorrect'. 3-level progressive hints: (1) Rephrase the question: 'Think about how B-Trees decide which child to visit.' (2) Give a clue: 'Compare 35 against each key in the root: [20, 40].' (3) Show partial answer: '35 > 20, so it's NOT the left child. Now compare with 40.' Each hint costs points (-3 XP per hint used). Source: Brilliant.org hint system design.",
+    "acceptanceCriteria": [
+      "Hint button appears after wrong answer on any prediction/challenge",
+      "3 progressive hints per question, each more specific",
+      "Hint 1: rephrase/reframe the question",
+      "Hint 2: algorithmic clue relevant to the specific step",
+      "Hint 3: partial solution showing the first reasoning step",
+      "Each hint used deducts 3 XP from the question's score"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-129"
+    ],
+    "tags": [
+      "practice",
+      "hints",
+      "feedback",
+      "scaffolding",
+      "brilliant"
+    ]
+  },
+  {
+    "id": "DBL-140",
+    "epic": "DBL",
+    "title": "Add spaced repetition: resurface concepts after increasing intervals",
+    "description": "Concepts the student has practiced should resurface at increasing intervals (1 day, 3 days, 7 days, 14 days) per spaced repetition research (Ebbinghaus + Leitner system). When student returns: 'Quick review: Which bucket does key alice hash to? (Last practiced 3 days ago)'. Concepts answered correctly get longer intervals. Wrong answers reset to 1-day interval. Persisted to localStorage with timestamps. Source: Anki algorithm, Duolingo spaced repetition.",
+    "acceptanceCriteria": [
+      "On module load: check for concepts due for review (based on last practice + interval)",
+      "If concepts due: show 'Quick Review' prompt with 3-5 questions from due concepts",
+      "Correct: interval doubles (1\u21923\u21927\u219214\u219230 days)",
+      "Wrong: interval resets to 1 day",
+      "Review history persisted to localStorage with timestamps",
+      "Skip option available (but shown as 'Skip review \u2014 streak paused')"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-138"
+    ],
+    "tags": [
+      "practice",
+      "spaced-repetition",
+      "retention",
+      "anki",
+      "long-term-memory"
+    ]
+  }
+]

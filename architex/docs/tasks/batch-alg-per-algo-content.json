@@ -1,0 +1,2172 @@
+[
+  {
+    "id": "ALG-268",
+    "epic": "ALG",
+    "title": "Upgrade Bubble Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Bubble Sort (sorting, beginner). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Bubble Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Bubble Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Bubble Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/bubble-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "beginner",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-269",
+    "epic": "ALG",
+    "title": "Upgrade Insertion Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Insertion Sort (sorting, beginner). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Insertion Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Insertion Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Insertion Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/insertion-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "beginner",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-270",
+    "epic": "ALG",
+    "title": "Upgrade Selection Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Selection Sort (sorting, beginner). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Selection Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Selection Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Selection Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/selection-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "beginner",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-271",
+    "epic": "ALG",
+    "title": "Upgrade Merge Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Merge Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Merge Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Merge Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Merge Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/merge-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-272",
+    "epic": "ALG",
+    "title": "Upgrade Quick Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Quick Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Quick Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Quick Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Quick Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-273",
+    "epic": "ALG",
+    "title": "Upgrade Heap Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Heap Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Heap Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Heap Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Heap Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/heap-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-274",
+    "epic": "ALG",
+    "title": "Upgrade Shell Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Shell Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Shell Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Shell Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Shell Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/shell-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-275",
+    "epic": "ALG",
+    "title": "Upgrade Counting Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Counting Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Counting Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Counting Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Counting Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/counting-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-276",
+    "epic": "ALG",
+    "title": "Upgrade Radix Sort (LSD) content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Radix Sort (LSD) (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Radix Sort (LSD) specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Radix Sort (LSD)",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Radix Sort (LSD)",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/radix-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-277",
+    "epic": "ALG",
+    "title": "Upgrade Bucket Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Bucket Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Bucket Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Bucket Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Bucket Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/bucket-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-278",
+    "epic": "ALG",
+    "title": "Upgrade Tim Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Tim Sort (sorting, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Tim Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Tim Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Tim Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/tim-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-279",
+    "epic": "ALG",
+    "title": "Upgrade Cocktail Shaker Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Cocktail Shaker Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Cocktail Shaker Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Cocktail Shaker Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Cocktail Shaker Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/cocktail-shaker-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-280",
+    "epic": "ALG",
+    "title": "Upgrade Comb Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Comb Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Comb Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Comb Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Comb Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/comb-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-281",
+    "epic": "ALG",
+    "title": "Upgrade Pancake Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Pancake Sort (sorting, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Pancake Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Pancake Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Pancake Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/pancake-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-282",
+    "epic": "ALG",
+    "title": "Upgrade Bogo Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Bogo Sort (sorting, beginner). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Bogo Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Bogo Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Bogo Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/bogo-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "beginner",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-283",
+    "epic": "ALG",
+    "title": "Upgrade Radix Sort (MSD) content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Radix Sort (MSD) (sorting, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Radix Sort (MSD) specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Radix Sort (MSD)",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Radix Sort (MSD)",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/radix-sort-msd.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "sorting",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-284",
+    "epic": "ALG",
+    "title": "Upgrade Breadth-First Search content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Breadth-First Search (graph, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Breadth-First Search specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Breadth-First Search",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Breadth-First Search",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/bfs.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-285",
+    "epic": "ALG",
+    "title": "Upgrade Depth-First Search content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Depth-First Search (graph, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Depth-First Search specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Depth-First Search",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Depth-First Search",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/dfs.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-286",
+    "epic": "ALG",
+    "title": "Upgrade Dijkstra's Algorithm content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Dijkstra's Algorithm (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Dijkstra's Algorithm specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Dijkstra's Algorithm",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Dijkstra's Algorithm",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/dijkstra.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-287",
+    "epic": "ALG",
+    "title": "Upgrade Kruskal's MST content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Kruskal's MST (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Kruskal's MST specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Kruskal's MST",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Kruskal's MST",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/kruskal.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-288",
+    "epic": "ALG",
+    "title": "Upgrade Topological Sort content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Topological Sort (graph, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Topological Sort specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Topological Sort",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Topological Sort",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/topological-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-289",
+    "epic": "ALG",
+    "title": "Upgrade Bellman-Ford content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Bellman-Ford (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Bellman-Ford specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Bellman-Ford",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Bellman-Ford",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/bellman-ford.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-290",
+    "epic": "ALG",
+    "title": "Upgrade A* Search content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for A* Search (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For A* Search specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for A* Search",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to A* Search",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/a-star.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-291",
+    "epic": "ALG",
+    "title": "Upgrade Tarjan SCC content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Tarjan SCC (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Tarjan SCC specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Tarjan SCC",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Tarjan SCC",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/tarjan-scc.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-292",
+    "epic": "ALG",
+    "title": "Upgrade Prim's MST content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Prim's MST (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Prim's MST specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Prim's MST",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Prim's MST",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/prims.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-293",
+    "epic": "ALG",
+    "title": "Upgrade Floyd-Warshall content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Floyd-Warshall (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Floyd-Warshall specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Floyd-Warshall",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Floyd-Warshall",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/floyd-warshall.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-294",
+    "epic": "ALG",
+    "title": "Upgrade Bipartite Check content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Bipartite Check (graph, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Bipartite Check specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Bipartite Check",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Bipartite Check",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/bipartite.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-295",
+    "epic": "ALG",
+    "title": "Upgrade Cycle Detection content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Cycle Detection (graph, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Cycle Detection specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Cycle Detection",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Cycle Detection",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/cycle-detection.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-296",
+    "epic": "ALG",
+    "title": "Upgrade Euler Path content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Euler Path (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Euler Path specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Euler Path",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Euler Path",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/euler-path.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-297",
+    "epic": "ALG",
+    "title": "Upgrade Ford-Fulkerson content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Ford-Fulkerson (graph, expert). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Ford-Fulkerson specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Ford-Fulkerson",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Ford-Fulkerson",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/ford-fulkerson.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "expert",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-298",
+    "epic": "ALG",
+    "title": "Upgrade Articulation Points content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Articulation Points (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Articulation Points specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Articulation Points",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Articulation Points",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/articulation-points.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-299",
+    "epic": "ALG",
+    "title": "Upgrade Bridge Finding content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Bridge Finding (graph, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Bridge Finding specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Bridge Finding",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Bridge Finding",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/graph/bridges.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "graph",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-300",
+    "epic": "ALG",
+    "title": "Upgrade BST Insert/Search/Delete content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for BST Insert/Search/Delete (tree, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For BST Insert/Search/Delete specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for BST Insert/Search/Delete",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to BST Insert/Search/Delete",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/tree/bst-operations.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "tree",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-301",
+    "epic": "ALG",
+    "title": "Upgrade AVL Tree content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for AVL Tree (tree, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For AVL Tree specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for AVL Tree",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to AVL Tree",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/tree/avl-tree.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "tree",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-302",
+    "epic": "ALG",
+    "title": "Upgrade Tree Traversals content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Tree Traversals (tree, beginner). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Tree Traversals specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Tree Traversals",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Tree Traversals",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/tree/tree-traversals.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "tree",
+      "beginner",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-303",
+    "epic": "ALG",
+    "title": "Upgrade Heap Operations content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Heap Operations (tree, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Heap Operations specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Heap Operations",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Heap Operations",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/tree/heap-operations.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "tree",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-304",
+    "epic": "ALG",
+    "title": "Upgrade Red-Black Tree content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Red-Black Tree (tree, expert). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Red-Black Tree specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Red-Black Tree",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Red-Black Tree",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/tree/red-black-tree.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "tree",
+      "expert",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-305",
+    "epic": "ALG",
+    "title": "Upgrade B-Tree content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for B-Tree (tree, expert). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For B-Tree specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for B-Tree",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to B-Tree",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/tree/b-tree.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "tree",
+      "expert",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-306",
+    "epic": "ALG",
+    "title": "Upgrade Huffman Encoding content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Huffman Encoding (tree, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Huffman Encoding specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Huffman Encoding",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Huffman Encoding",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/tree/huffman-tree.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "tree",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-307",
+    "epic": "ALG",
+    "title": "Upgrade Trie Operations content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Trie Operations (tree, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Trie Operations specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Trie Operations",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Trie Operations",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/tree/trie-operations.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "tree",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-308",
+    "epic": "ALG",
+    "title": "Upgrade Fibonacci DP content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Fibonacci DP (dp, beginner). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Fibonacci DP specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Fibonacci DP",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Fibonacci DP",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/fibonacci-dp.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "beginner",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-309",
+    "epic": "ALG",
+    "title": "Upgrade LCS content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for LCS (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For LCS specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for LCS",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to LCS",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/lcs.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-310",
+    "epic": "ALG",
+    "title": "Upgrade Edit Distance content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Edit Distance (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Edit Distance specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Edit Distance",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Edit Distance",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/edit-distance.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-311",
+    "epic": "ALG",
+    "title": "Upgrade 0/1 Knapsack content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for 0/1 Knapsack (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For 0/1 Knapsack specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for 0/1 Knapsack",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to 0/1 Knapsack",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/knapsack.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-312",
+    "epic": "ALG",
+    "title": "Upgrade Coin Change content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Coin Change (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Coin Change specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Coin Change",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Coin Change",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/coin-change.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-313",
+    "epic": "ALG",
+    "title": "Upgrade LIS content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for LIS (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For LIS specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for LIS",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to LIS",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/lis.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-314",
+    "epic": "ALG",
+    "title": "Upgrade Matrix Chain content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Matrix Chain (dp, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Matrix Chain specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Matrix Chain",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Matrix Chain",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/matrix-chain.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-315",
+    "epic": "ALG",
+    "title": "Upgrade Rod Cutting content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Rod Cutting (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Rod Cutting specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Rod Cutting",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Rod Cutting",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/rod-cutting.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-316",
+    "epic": "ALG",
+    "title": "Upgrade Subset Sum content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Subset Sum (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Subset Sum specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Subset Sum",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Subset Sum",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/subset-sum.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-317",
+    "epic": "ALG",
+    "title": "Upgrade Longest Palindrome content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Longest Palindrome (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Longest Palindrome specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Longest Palindrome",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Longest Palindrome",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/longest-palindrome.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-318",
+    "epic": "ALG",
+    "title": "Upgrade Catalan Numbers content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Catalan Numbers (dp, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Catalan Numbers specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Catalan Numbers",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Catalan Numbers",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/dp/index.ts",
+      "src/lib/algorithms/dp/catalan.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "dp",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-319",
+    "epic": "ALG",
+    "title": "Upgrade KMP String Search content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for KMP String Search (string, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For KMP String Search specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for KMP String Search",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to KMP String Search",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/string/index.ts",
+      "src/lib/algorithms/string/kmp.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "string",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-320",
+    "epic": "ALG",
+    "title": "Upgrade Rabin-Karp content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Rabin-Karp (string, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Rabin-Karp specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Rabin-Karp",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Rabin-Karp",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/string/index.ts",
+      "src/lib/algorithms/string/rabin-karp.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "string",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-321",
+    "epic": "ALG",
+    "title": "Upgrade Boyer-Moore content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Boyer-Moore (string, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Boyer-Moore specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Boyer-Moore",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Boyer-Moore",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/string/index.ts",
+      "src/lib/algorithms/string/boyer-moore.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "string",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-322",
+    "epic": "ALG",
+    "title": "Upgrade Z-Algorithm content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Z-Algorithm (string, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Z-Algorithm specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Z-Algorithm",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Z-Algorithm",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/string/index.ts",
+      "src/lib/algorithms/string/z-algorithm.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "string",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-323",
+    "epic": "ALG",
+    "title": "Upgrade N-Queens content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for N-Queens (backtracking, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For N-Queens specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for N-Queens",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to N-Queens",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/backtracking/index.ts",
+      "src/lib/algorithms/backtracking/n-queens.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "backtracking",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-324",
+    "epic": "ALG",
+    "title": "Upgrade Sudoku Solver content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Sudoku Solver (backtracking, intermediate). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Sudoku Solver specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Sudoku Solver",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Sudoku Solver",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/backtracking/index.ts",
+      "src/lib/algorithms/backtracking/sudoku.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "backtracking",
+      "intermediate",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-325",
+    "epic": "ALG",
+    "title": "Upgrade Knight's Tour content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Knight's Tour (backtracking, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Knight's Tour specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Knight's Tour",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Knight's Tour",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/backtracking/index.ts",
+      "src/lib/algorithms/backtracking/knights-tour.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "backtracking",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-326",
+    "epic": "ALG",
+    "title": "Upgrade Subset Generation content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Subset Generation (backtracking, beginner). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Subset Generation specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Subset Generation",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Subset Generation",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/backtracking/index.ts",
+      "src/lib/algorithms/backtracking/subset-generation.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "backtracking",
+      "beginner",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-327",
+    "epic": "ALG",
+    "title": "Upgrade Convex Hull content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Convex Hull (geometry, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Convex Hull specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Convex Hull",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Convex Hull",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/geometry/index.ts",
+      "src/lib/algorithms/geometry/convex-hull.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "geometry",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-328",
+    "epic": "ALG",
+    "title": "Upgrade Closest Pair content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Closest Pair (geometry, advanced). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Closest Pair specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Closest Pair",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Closest Pair",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/geometry/index.ts",
+      "src/lib/algorithms/geometry/closest-pair.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "geometry",
+      "advanced",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  },
+  {
+    "id": "ALG-329",
+    "epic": "ALG",
+    "title": "Upgrade Line Intersection content to A-grade \u2014 hook, WHY steps, complexity intuition, real-world, summary",
+    "description": "Per-algorithm content upgrade for Line Intersection (geometry, expert). Apply the world-class content template from docs/guides/algorithm-content-style.md: (1) Rewrite description with Hook + Intuition + Mechanism + When-to-Use + Real-World + Key-Insight, (2) Add WHY to first occurrence of each step type in engine (compare/swap/select/merge/visit/etc.), (3) Add complexityIntuition field explaining what the Big-O MEANS with concrete numbers, (4) Add 2+ real-world application examples, (5) Add 2 common mistakes, (6) Add 3-bullet flashcard summary. Reference: docs/guides/world-class-algorithm-content.md has complete examples for top 10 algorithms. For Line Intersection specifically: research '[algo_name] real world applications' and '[algo_name] common mistakes students'.",
+    "acceptanceCriteria": [
+      "Description rewritten with Hook (question/scenario, NOT definition) for Line Intersection",
+      "Intuition analogy that a 15-year-old would understand",
+      "First compare/swap/visit/fill step in engine has full WHY explanation",
+      "complexityIntuition field added with concrete scaling numbers (10\u2192100\u21921000 elements)",
+      "2+ real-world applications with specific systems/companies cited",
+      "2 common mistakes specific to Line Intersection",
+      "3-bullet flashcard summary in config"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/geometry/index.ts",
+      "src/lib/algorithms/geometry/line-intersection.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-per-algo",
+      "geometry",
+      "expert",
+      "description",
+      "why-steps",
+      "real-world"
+    ]
+  }
+]

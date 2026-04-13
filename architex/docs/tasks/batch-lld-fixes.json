@@ -1,0 +1,754 @@
+[
+  {
+    "id": "LLD-031",
+    "epic": "LLD",
+    "title": "Add inline class editing capabilities to UML canvas",
+    "description": "The UML class diagram is read-only (LLDModule.tsx:1243-1466, LLDProperties). Users see class details but cannot edit anything — no input fields, no edit buttons exist. Properties panel renders attribute names/types/visibility as plain text. Implement: double-click class name to rename, '+' buttons to add attribute/method, '-' to remove, dropdowns for visibility/type changes. Wire to existing class-diagram-model.ts CRUD functions (addClass, updateClass, addAttribute, removeAttribute, etc.) which are fully built at class-diagram-model.ts:36-223 but currently unused.",
+    "acceptanceCriteria": [
+      "Double-clicking a class name opens inline text input for renaming",
+      "Properties panel shows + button to add new attribute or method to selected class",
+      "Each attribute/method has a delete (x) button",
+      "Visibility can be changed via dropdown (+, -, #, ~) per attribute/method",
+      "Stereotype can be changed via dropdown (class, interface, abstract, enum)",
+      "Changes update the canvas SVG and GeneratedCodePanel in real-time",
+      "class-diagram-model.ts updateClass/addAttribute/removeAttribute/addMethod/removeMethod are used for mutations"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/class-diagram-model.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["editing", "interactivity", "class-diagram", "core-feature"]
+  },
+  {
+    "id": "LLD-032",
+    "epic": "LLD",
+    "title": "Add relationship creation UI between classes on canvas",
+    "description": "No relationship creation exists (LLDModule.tsx:240-534). UMLClassBox only has onSelect and onDrag handlers (line 243-246). No connection handles, no click-to-connect UI. Only pre-defined relationships from patterns/problems/code-parsing render. Implement: show connection handle dots on class edges on hover, click-drag from handle to target class, show relationship type picker dropdown (inheritance, realization, composition, aggregation, association, dependency) matching existing SVG markers in RelationshipDefs (line 156-236).",
+    "acceptanceCriteria": [
+      "Hovering a class shows 4 connection handle dots (top, bottom, left, right)",
+      "Clicking and dragging from a handle shows a preview line following cursor",
+      "Dropping on another class opens a relationship type picker",
+      "New relationship renders with correct SVG marker per type",
+      "Relationship label and cardinality can be set in picker or properties panel",
+      "GeneratedCodePanel updates to reflect new relationships"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["editing", "interactivity", "relationship", "core-feature"]
+  },
+  {
+    "id": "LLD-033",
+    "epic": "LLD",
+    "title": "Add delete functionality for classes and relationships",
+    "description": "No delete exists (LLDModule.tsx:3200-3464). No handleDeleteClass, no handleDeleteRelationship, no onKeyDown for Delete key. Only clearAllModes() at line 3221 wipes everything. Implement: (1) Delete/Backspace key removes selected class + connected relationships, (2) Delete button in properties panel, (3) Hover 'x' on relationship edges. Use removeClass/removeRelationship from class-diagram-model.ts.",
+    "acceptanceCriteria": [
+      "Pressing Delete/Backspace with a class selected removes it and all connected relationships",
+      "Delete button appears in properties panel for selected class",
+      "Hovering a relationship edge shows a delete indicator; clicking removes it",
+      "GeneratedCodePanel updates after deletion",
+      "Canvas re-renders correctly with remaining elements"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/class-diagram-model.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["editing", "interactivity", "delete", "core-feature"]
+  },
+  {
+    "id": "LLD-034",
+    "epic": "LLD",
+    "title": "Replace 50+ hardcoded hex colors with CSS custom properties in LLDModule",
+    "description": "LLDModule.tsx uses hardcoded hex in SVG fill/stroke: #1e1e2e (line 334), #e2e8f0 (line 375), #94a3b8 (line 400), #9ca3af (line 169), #6b7280 (line 486), #60a5fa (line 335), #c4b5fd (line 427), #64748b (line 404). Also STEREOTYPE_BORDER_COLOR (lines 74-78), PRINCIPLE_COLORS (lines 645-650), DIFFICULTY_COLORS (lines 709-714). Meanwhile, PatternBehavioralSimulator.tsx already uses var(--primary), var(--foreground), var(--gray-3) etc. Align the main module to the same CSS variable approach.",
+    "acceptanceCriteria": [
+      "No hardcoded hex colors remain in SVG fill/stroke attributes in LLDModule.tsx",
+      "All colors use CSS custom properties matching the platform's theme system",
+      "STEREOTYPE_BORDER_COLOR, PRINCIPLE_COLORS, DIFFICULTY_COLORS use CSS variables",
+      "Visual appearance unchanged in default dark theme",
+      "Colors update correctly if platform theme changes"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual", "theming", "css-variables", "design-tokens"]
+  },
+  {
+    "id": "LLD-035",
+    "epic": "LLD",
+    "title": "Add zoom/pan controls to all 3 SVG canvases",
+    "description": "All 3 SVG canvases lack zoom/pan: LLDCanvas (line 1194), SequenceDiagramCanvas (line 1993), StateMachineCanvas (line 2712). Currently use viewBox with overflow-auto on parent div. No onWheel zoom, no background drag-to-pan. Implement: (1) scroll-wheel zoom centered on cursor, (2) drag-on-background pan, (3) zoom toolbar (zoom in/out, fit-to-view, reset percentage), (4) SVG viewBox or CSS transform manipulation.",
+    "acceptanceCriteria": [
+      "Scroll wheel zooms in/out centered on cursor position",
+      "Click-and-drag on background pans the view",
+      "Zoom toolbar with +, -, fit-to-view, and 100% reset buttons",
+      "Zoom level percentage displayed (e.g., '150%')",
+      "Works on all 3 canvas types",
+      "Class dragging still works correctly when zoomed/panned"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["interactivity", "zoom", "pan", "canvas", "ux"]
+  },
+  {
+    "id": "LLD-036",
+    "epic": "LLD",
+    "title": "Add 15 missing LLD problem starter diagrams to match SEO data",
+    "description": "lld-problems-data.ts defines 25 SEO problem pages but problems.ts only has 10 starter diagrams. Missing 15: movie-ticket-booking, restaurant-management, airline-booking, tic-tac-toe, card-game, notification-service, logging-framework, cache-system, task-scheduler, pub-sub-system, rate-limiter, url-shortener, social-media-feed, spreadsheet, stock-exchange, music-streaming. Each needs starterClasses (3-5 UML classes with attributes/methods), starterRelationships, requirements (4-5), and hints (3).",
+    "acceptanceCriteria": [
+      "problems.ts exports 25 LLD problems matching all SEO slugs",
+      "Each new problem has 3-5 starter UML classes with realistic attributes and methods",
+      "Each has typed relationships (composition, inheritance, etc.)",
+      "Each has 4-5 functional requirements",
+      "Each has 3 progressive hints with design pattern suggestions",
+      "All 25 appear in ProblemsBrowser sidebar and load starter diagrams"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["content", "problems", "completeness"]
+  },
+  {
+    "id": "LLD-037",
+    "epic": "LLD",
+    "title": "Split LLDModule.tsx monolith into separate component files",
+    "description": "LLDModule.tsx is 3463 lines containing 27+ memoized components. Split into: (1) lld/canvas/LLDCanvas.tsx (UMLClassBox, UMLEdge, RelationshipDefs, helpers), (2) lld/canvas/SequenceDiagramCanvas.tsx, (3) lld/canvas/StateMachineCanvas.tsx, (4) lld/sidebar/LLDSidebar.tsx + individual browsers, (5) lld/panels/LLDProperties.tsx + variants, (6) lld/panels/GeneratedCodePanel.tsx, (7) lld/panels/LLDBottomPanelTabs.tsx, (8) hooks/useLLDModule.ts. Keep shared constants in lld/constants.ts.",
+    "acceptanceCriteria": [
+      "LLDModule.tsx reduced to under 200 lines (re-exports hook + barrel)",
+      "Each new file under 500 lines",
+      "All existing functionality works identically",
+      "No circular dependencies",
+      "All memo() wrappers preserved",
+      "Clean imports via barrel index"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/components/modules/lld/constants.ts",
+      "src/components/modules/lld/index.ts",
+      "src/components/modules/lld/canvas/LLDCanvas.tsx",
+      "src/components/modules/lld/canvas/SequenceDiagramCanvas.tsx",
+      "src/components/modules/lld/canvas/StateMachineCanvas.tsx",
+      "src/components/modules/lld/sidebar/LLDSidebar.tsx",
+      "src/components/modules/lld/panels/LLDProperties.tsx",
+      "src/components/modules/lld/panels/LLDBottomPanels.tsx",
+      "src/components/modules/lld/panels/PatternQuiz.tsx",
+      "src/components/modules/lld/panels/SOLIDQuiz.tsx",
+      "src/components/modules/lld/panels/InterviewPractice.tsx",
+      "src/components/modules/lld/hooks/useLLDModule.ts",
+      "src/components/modules/lld/hooks/useLLDModuleImpl.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["architecture", "refactor", "code-organization"]
+  },
+  {
+    "id": "LLD-038",
+    "epic": "LLD",
+    "title": "Fix clipboard copy to handle non-secure contexts",
+    "description": "At LLDModule.tsx:2493, navigator.clipboard.writeText(code).then(() => { setCopied(true) }) has no .catch(). In HTTP contexts or with denied clipboard permission, this throws an unhandled promise rejection. Add catch handler with fallback (execCommand or error toast).",
+    "acceptanceCriteria": [
+      "Copy button works in HTTPS context",
+      "Copy button shows error message in HTTP context (no unhandled rejection)",
+      "Error state shows brief message like 'Copy failed — use Ctrl+C'",
+      "No unhandled promise rejections in browser console"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug-fix", "clipboard", "error-handling"]
+  },
+  {
+    "id": "LLD-039",
+    "epic": "LLD",
+    "title": "Fix circuit breaker open→half-open transition using step counter",
+    "description": "At PatternBehavioralSimulator.tsx:180, the open→half-open transition uses `totalRequests % 5 === 0` which checks cumulative request count modulo. If totalRequests doesn't happen to be divisible by 5 during any step, the circuit stays open permanently. Replace with a step-counter-since-opened approach: track when circuit opened, transition to half-open after N steps.",
+    "acceptanceCriteria": [
+      "Circuit breaker reliably transitions from open to half-open after configured cooldown steps",
+      "Half-open state allows probe requests through as designed",
+      "State machine visualization at line 378-404 correctly reflects all transitions",
+      "Works across all 3 scenarios (Normal, Degraded, Outage)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/lld/PatternBehavioralSimulator.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug-fix", "simulation", "circuit-breaker"]
+  },
+  {
+    "id": "LLD-040",
+    "epic": "LLD",
+    "title": "Fix 'Modern' pattern category starting collapsed in PatternBrowser",
+    "description": "At LLDModule.tsx:547-550, PatternBrowser initializes expanded state as { creational: true, structural: true, behavioral: true } but omits 'modern'. The Repository pattern (the only modern pattern) starts hidden while all other categories start expanded. Add modern: true to initial state.",
+    "acceptanceCriteria": [
+      "All 4 pattern categories start expanded on initial render",
+      "Repository pattern is visible without clicking to expand",
+      "Collapse/expand toggle still works for all categories"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug-fix", "ui", "pattern-browser"]
+  },
+  {
+    "id": "LLD-041",
+    "epic": "LLD",
+    "title": "Add undo/redo system for diagram editing",
+    "description": "No undo/redo exists (LLDModule.tsx:3200-3464). handleDragClass at line 3317 mutates position with no revert path. Implement: undo/redo stack capturing {classes, relationships} snapshots. Ctrl+Z to undo, Ctrl+Shift+Z to redo. Toolbar buttons. Limit to 50 entries. Reset stack on pattern/problem switch.",
+    "acceptanceCriteria": [
+      "Ctrl+Z undoes last diagram change (drag, add, delete, edit)",
+      "Ctrl+Shift+Z or Ctrl+Y redoes",
+      "Undo/redo buttons appear in canvas toolbar",
+      "Stack limited to 50 entries",
+      "Switching patterns/problems resets undo stack"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": ["LLD-031", "LLD-032", "LLD-033"],
+    "blockedBy": [],
+    "tags": ["undo-redo", "editing", "ux", "history"]
+  },
+  {
+    "id": "LLD-042",
+    "epic": "LLD",
+    "title": "Remove orphaned canvas node/edge components (~840 lines dead code)",
+    "description": "canvas/nodes/lld/ClassNode.tsx and canvas/edges/lld/*.tsx (6 edge types) are never imported by LLDModule.tsx (confirmed by grep). Only reference is from canvas/panels/ClassPropertiesPanel.tsx (line 28) which is itself never imported. LLDModule has its own inline UMLClassBox (line 249) and UMLEdge (line 448). Remove the orphaned files or, if migrating to React Flow later, mark them clearly as future-use.",
+    "acceptanceCriteria": [
+      "canvas/nodes/lld/ directory removed or marked as future-use with clear comments",
+      "canvas/edges/lld/ directory removed or marked",
+      "canvas/panels/ClassPropertiesPanel.tsx removed if referencing only orphaned code",
+      "No broken imports after cleanup",
+      "All LLD module functionality unchanged"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/lld/ClassNode.tsx",
+      "src/components/canvas/nodes/lld/index.ts",
+      "src/components/canvas/edges/lld/InheritanceEdge.tsx",
+      "src/components/canvas/edges/lld/RealizationEdge.tsx",
+      "src/components/canvas/edges/lld/CompositionEdge.tsx",
+      "src/components/canvas/edges/lld/AggregationEdge.tsx",
+      "src/components/canvas/edges/lld/AssociationEdge.tsx",
+      "src/components/canvas/edges/lld/DependencyEdge.tsx",
+      "src/components/canvas/edges/lld/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dead-code", "cleanup", "architecture"]
+  },
+  {
+    "id": "LLD-043",
+    "epic": "LLD",
+    "title": "Add comprehensive ARIA attributes and keyboard navigation",
+    "description": "LLDModule.tsx (3463 lines) has zero aria-label, aria-role, or aria-live attributes (verified by grep). SVG canvases at lines 1195, 1993, 2712 have no role='img' or aria-label. Interactive elements (UMLClassBox line 249, sequence messages line 2123, state nodes line 2828) have no tabIndex or onKeyDown handlers. Add: role/aria-label on canvases, tabIndex/onKeyDown on interactive elements, aria-live on properties panel, visible focus indicators.",
+    "acceptanceCriteria": [
+      "SVG canvases have role='img' and aria-label describing the diagram",
+      "All interactive SVG elements have tabIndex and aria-label",
+      "Tab key navigates between canvas elements",
+      "Arrow keys navigate between classes/messages/states within canvas",
+      "Enter/Space activates focused element",
+      "Properties panel has aria-live='polite' for selection changes",
+      "Visible focus rings on all interactive elements"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["accessibility", "aria", "keyboard", "a11y"]
+  },
+  {
+    "id": "LLD-044",
+    "epic": "LLD",
+    "title": "Add confirmation dialog on destructive context switches",
+    "description": "handleSelectPattern (line 3234) calls clearAllModes() then overwrites classes/relationships. If user manually added classes from palette or dragged positions, work is silently lost. Same for handleSelectDemo (3242), handleSelectProblem (3264), handleSelectSequence (3271), handleSelectStateMachine (3276). Add dirty flag tracking user modifications; show confirmation dialog when switching while dirty.",
+    "acceptanceCriteria": [
+      "Dirty flag set when user adds class, drags class, edits attribute/method",
+      "Switching patterns/problems/demos when dirty shows 'Discard changes?' dialog",
+      "Dialog offers 'Discard' and 'Cancel' options",
+      "Cancel keeps current diagram; Discard proceeds with switch",
+      "Switching when NOT dirty proceeds immediately"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "confirmation", "data-loss-prevention"]
+  },
+  {
+    "id": "LLD-045",
+    "epic": "LLD",
+    "title": "Add canvas entry animations for diagram elements",
+    "description": "Classes and relationships at LLDModule.tsx:1220-1237 render instantly with no animation. PatternBehavioralSimulator and SequenceDiagramLatencyOverlay already use motion/react (imported at their line 4). Add: staggered fade-in + scale-up for classes on pattern load, edge draw-in animation, smooth morph on SOLID before/after toggle. Respect prefers-reduced-motion.",
+    "acceptanceCriteria": [
+      "Classes fade in with staggered delay when loading a pattern",
+      "Relationships animate drawing from source to target",
+      "SOLID before/after toggle shows smooth transition",
+      "Animations complete within 300-500ms total",
+      "prefers-reduced-motion disables all animations"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["animation", "polish", "visual", "motion"]
+  },
+  {
+    "id": "LLD-046",
+    "epic": "LLD",
+    "title": "Optimize UMLEdge with Map lookup instead of linear search",
+    "description": "At LLDModule.tsx:449-450, UMLEdge does classes.find(c => c.id === rel.source) per edge per render = O(C*R). Fix: in LLDCanvas, build Map<string, UMLClass> via useMemo, pass as prop to UMLEdge. Lookup becomes O(1).",
+    "acceptanceCriteria": [
+      "UMLEdge receives classMap: Map<string, UMLClass> prop",
+      "Lookup is O(1) via classMap.get()",
+      "LLDCanvas creates Map once via useMemo([classes])",
+      "Visual rendering unchanged"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["performance", "optimization"]
+  },
+  {
+    "id": "LLD-047",
+    "epic": "LLD",
+    "title": "Memoize layoutStateMachine computation in StateMachineCanvas",
+    "description": "At LLDModule.tsx:2662, layoutStateMachine(data) is called in render body of StateMachineCanvas without useMemo. Recalculates grid layout on every render. Wrap in useMemo(() => layoutStateMachine(data), [data]).",
+    "acceptanceCriteria": [
+      "layoutStateMachine wrapped in useMemo with [data] dependency",
+      "Layout recalculates only when data reference changes",
+      "Visual rendering unchanged"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["performance", "useMemo"]
+  },
+  {
+    "id": "LLD-048",
+    "epic": "LLD",
+    "title": "Add error boundary around LLD canvas components",
+    "description": "No error boundary wraps any canvas. A rendering error in SVG (missing class ref in UMLEdge at line 449-451 returns null gracefully, but unexpected NaN coordinates or other errors would crash the module). Add ErrorBoundary around each canvas variant with 'Reset Diagram' recovery button.",
+    "acceptanceCriteria": [
+      "Each canvas (LLDCanvas, SequenceDiagramCanvas, StateMachineCanvas) wrapped in error boundary",
+      "Rendering error shows fallback UI with 'Something went wrong' and Reset button",
+      "Reset calls clearAllModes() to restore clean state",
+      "Normal rendering unaffected"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["error-handling", "resilience"]
+  },
+  {
+    "id": "LLD-049",
+    "epic": "LLD",
+    "title": "Redesign sidebar tabs for 7 modes without overflow",
+    "description": "LLDModule.tsx:844-851 has 7 tabs ('Patterns', 'SOLID', 'Problems', 'Sequence', 'State Machine', 'Code', 'Palette') at text-[11px] with flex-1. 'State Machine' is 13 chars. On narrow sidebars (<400px), these overflow. Redesign: use icon-only tabs with tooltips, or a dropdown selector, or grouped categories.",
+    "acceptanceCriteria": [
+      "All 7 modes accessible at sidebar widths down to 240px",
+      "No text truncation or overflow",
+      "Active mode clearly indicated",
+      "Mode labels readable (tooltips if icon-only)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "responsive", "sidebar"]
+  },
+  {
+    "id": "LLD-050",
+    "epic": "LLD",
+    "title": "Show class diagram legend even when no pattern is selected",
+    "description": "At LLDModule.tsx:1172, the legend is inside {patternName && (...)}. When user adds classes from Palette without selecting a pattern, canvasTitle is null (line 3347), so legend doesn't appear. Fix: show legend whenever classes.length > 0, not just when patternName is truthy.",
+    "acceptanceCriteria": [
+      "Legend showing stereotype colors visible whenever any classes are on canvas",
+      "Legend still shows pattern name when a pattern is selected",
+      "Legend hidden only when canvas is empty"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "legend", "visual"]
+  },
+  {
+    "id": "LLD-051",
+    "epic": "LLD",
+    "title": "Add sequence diagram message playback animation",
+    "description": "Sequence diagram messages render statically. Add playback: (1) Play button animates messages appearing one by one in order, (2) Pause/resume, (3) Step forward/backward, (4) Speed control (0.5x, 1x, 2x), (5) Current message highlighted with glow. This makes sequence diagrams come alive for learning.",
+    "acceptanceCriteria": [
+      "Play button starts messages appearing one by one with draw-in animation",
+      "Current message highlighted with glow/pulse effect",
+      "Pause/resume and step forward/backward controls work",
+      "Speed selector offers 0.5x, 1x, 2x",
+      "Playback auto-stops at last message"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["animation", "playback", "sequence-diagram", "educational"]
+  },
+  {
+    "id": "LLD-052",
+    "epic": "LLD",
+    "title": "Add state machine step-through simulation",
+    "description": "State machine canvas is static. Add interactive step-through: (1) 'Simulate' button highlights initial state, (2) Available transitions shown as clickable buttons, (3) Clicking transition animates state change with entry/exit action display, (4) History of visited states, (5) Guard condition evaluation shown.",
+    "acceptanceCriteria": [
+      "Simulate button activates interactive mode highlighting initial state",
+      "Available transitions from current state shown as clickable buttons",
+      "Clicking transition animates: exit action → path highlight → entry action → new state",
+      "Guard conditions shown with pass/fail indicator",
+      "History panel shows sequence of visited states",
+      "Reset button returns to initial state"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/state-machine.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["simulation", "state-machine", "interactive", "educational"]
+  },
+  {
+    "id": "LLD-053",
+    "epic": "LLD",
+    "title": "Add animated pattern construction walkthrough",
+    "description": "When a pattern is loaded, offer 'Step by Step' mode that builds the pattern incrementally: (1) Start empty canvas, (2) Add first class with narration, (3) Add subsequent classes with explanations, (4) Draw relationships with descriptions, (5) Show complete pattern. Transforms static viewing into guided learning.",
+    "acceptanceCriteria": [
+      "'Step by Step' toggle appears when pattern loaded",
+      "Walkthrough starts with empty canvas",
+      "Each step adds one class or relationship with text explanation",
+      "Steps advance via Next/Previous or auto-play (3s intervals)",
+      "At least 3 patterns have full walkthroughs",
+      "User can exit to see full pattern anytime"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/patterns.ts"
+    ],
+    "dependencies": ["LLD-045"],
+    "blockedBy": [],
+    "tags": ["educational", "walkthrough", "animation", "world-class"]
+  },
+  {
+    "id": "LLD-054",
+    "epic": "LLD",
+    "title": "Add deep-linkable URLs for patterns, problems, and demos",
+    "description": "No way to link to a specific pattern/problem/demo. Add URL query params: ?lld=pattern:observer, ?lld=solid:srp, ?lld=problem:parking-lot, ?lld=sequence:oauth-login, ?lld=state:tcp-connection. Parse on load to auto-select. Update URL on selection via pushState.",
+    "acceptanceCriteria": [
+      "URL param ?lld=pattern:{id} loads specified pattern",
+      "URL param ?lld=solid:{principle} loads SOLID demo",
+      "URL param ?lld=problem:{id} loads LLD problem",
+      "Selecting an item updates URL without page reload",
+      "Sharing URL loads exact same view",
+      "Invalid IDs gracefully fall back to empty state"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["deep-linking", "url", "sharing"]
+  },
+  {
+    "id": "LLD-055",
+    "epic": "LLD",
+    "title": "Add export as PNG/SVG for diagrams",
+    "description": "No diagram export exists. Add export dropdown to canvas toolbar: (1) Export as SVG (serialize SVG element), (2) Export as PNG (render to canvas, download), (3) Copy to clipboard as image. Works for all 3 canvas types.",
+    "acceptanceCriteria": [
+      "Export dropdown in canvas title bar",
+      "SVG export produces valid .svg download",
+      "PNG export produces high-res .png download",
+      "Works for class diagrams, sequence diagrams, and state machines",
+      "Exported image includes title and legend"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["export", "png", "svg", "sharing"]
+  },
+  {
+    "id": "LLD-056",
+    "epic": "LLD",
+    "title": "Replace module-level mutable ID counters with deterministic or UUID generation",
+    "description": "Five files use module-level mutable counters: patterns.ts:14 (_relId), problems.ts:27 (_rid), solid-demos.ts:32 (_rid), code-to-diagram.ts:13 (_parseId), class-diagram-model.ts:19 (_counter). These accumulate across HMR. Replace with: deterministic content-based IDs for static data, crypto.randomUUID() for runtime IDs.",
+    "acceptanceCriteria": [
+      "No module-level mutable counters remain",
+      "Static data uses deterministic IDs (e.g., 'singleton-rel-0')",
+      "Runtime IDs use crypto.randomUUID()",
+      "All tests pass",
+      "No ID collisions"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/patterns.ts",
+      "src/lib/lld/problems.ts",
+      "src/lib/lld/solid-demos.ts",
+      "src/lib/lld/codegen/code-to-diagram.ts",
+      "src/lib/lld/class-diagram-model.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["code-quality", "id-generation"]
+  },
+  {
+    "id": "LLD-057",
+    "epic": "LLD",
+    "title": "Wire bidirectional-sync.ts for live code↔diagram synchronization",
+    "description": "bidirectional-sync.ts (325 lines) exports SyncManager, syncDiagramToCode, syncCodeToDiagram — none used by any component. Currently CodeToDiagramPanel parses code one-way. Wire SyncManager to enable: editing code in CodeToDiagramPanel triggers live diagram updates; editing diagram triggers live code updates in GeneratedCodePanel.",
+    "acceptanceCriteria": [
+      "Editing code in CodeToDiagramPanel updates diagram in real-time",
+      "Editing diagram (class name, attribute, etc.) updates code in GeneratedCodePanel",
+      "SyncManager diff detection (added/removed/modified) works correctly",
+      "No infinite sync loops between diagram↔code updates"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/bidirectional-sync.ts"
+    ],
+    "dependencies": ["LLD-031"],
+    "blockedBy": [],
+    "tags": ["integration", "sync", "bidirectional"]
+  },
+  {
+    "id": "LLD-058",
+    "epic": "LLD",
+    "title": "Add Zustand store for LLD module state management",
+    "description": "The LLD module uses 12 local useState hooks in useLLDModule() (lines 3207-3218) while other modules use Zustand stores. This prevents state persistence, cross-component sharing, and devtools inspection. Create useLLDStore with all current state plus actions. Enables future features like URL persistence and undo/redo.",
+    "acceptanceCriteria": [
+      "Zustand store replaces all 12 useState hooks",
+      "All state transitions work identically",
+      "Store actions match current useCallback handlers",
+      "State accessible from any child without prop drilling",
+      "All existing functionality unchanged"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": ["LLD-037"],
+    "blockedBy": [],
+    "tags": ["architecture", "zustand", "state-management"]
+  },
+  {
+    "id": "LLD-059",
+    "epic": "LLD",
+    "title": "Fix actor indicator overlap and state machine label width estimation",
+    "description": "Two minor visual bugs: (1) At LLDModule.tsx:2067-2074, actor Unicode glyph at x+8 overlaps centered participant name for short names. Fix by offsetting name or placing indicator above. (2) At line 2807-2810, label background width estimated as label.length*5.6 which breaks for variable-width characters. Fix by using getBBox() measurement or consistent padding.",
+    "acceptanceCriteria": [
+      "Actor indicator and participant name never overlap regardless of name length",
+      "State machine transition labels fully covered by background rect",
+      "Background has consistent padding around text for all label lengths"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual", "bug-fix"]
+  }
+]

@@ -1,0 +1,459 @@
+[
+  {
+    "id": "DIS-021",
+    "epic": "DIS",
+    "title": "Wire TopologyAwareFailureModes 'Simulate This' button to handleSimulate",
+    "description": "At TopologyAwareFailureModes.tsx:508-510, the 'Simulate This' button handler only does console.log. Wire it to the existing handleSimulate callback passing the selected failure mode ID, or remove the button until the feature is implemented.",
+    "acceptanceCriteria": [
+      "Clicking 'Simulate This' triggers the cascade animation for the selected failure mode",
+      "No console.log remains in the handler"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/distributed/TopologyAwareFailureModes.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["stub", "learn-panel", "p0"]
+  },
+  {
+    "id": "DIS-022",
+    "epic": "DIS",
+    "title": "Show feedback when Submit CMD is dropped due to no leader in Raft",
+    "description": "At raft.ts:355-356, submitCommand silently returns void when no leader exists. At DistributedModule.tsx:3674, the UI calls it without checking the result. Users click 'Submit CMD' and see nothing happen. Fix: return a boolean from submitCommand; show a toast/badge in the UI when false.",
+    "acceptanceCriteria": [
+      "submitCommand returns false when no leader exists",
+      "UI shows visible feedback (toast, red flash, or disabled button) when command is dropped",
+      "Existing tests continue to pass"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/raft.ts", "src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["silent-failure", "ux", "p0"]
+  },
+  {
+    "id": "DIS-023",
+    "epic": "DIS",
+    "title": "Split DistributedModule.tsx (4904 lines) into ~15 focused files",
+    "description": "DistributedModule.tsx is a 4904-line god file containing 11 canvas components, 3 panel components, and a hook with 45 state variables. Extract: (1) hooks/useDistributedModule.ts, (2) canvas/RaftCanvas.tsx through canvas/PaxosCanvas.tsx (11 files), (3) DistributedSidebar.tsx, (4) DistributedProperties.tsx, (5) DistributedBottomPanel.tsx. Keep the barrel export in DistributedModule.tsx.",
+    "acceptanceCriteria": [
+      "No file exceeds 500 lines",
+      "All 11 simulations still work identically",
+      "Each canvas component is independently importable",
+      "The hook is testable in isolation"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["architecture", "god-file", "p1"]
+  },
+  {
+    "id": "DIS-024",
+    "epic": "DIS",
+    "title": "Replace inline canvas components with orphaned accessible visualizers",
+    "description": "Three standalone visualizers exist at components/visualization/distributed/ (RaftVisualizer 391 lines, ConsistentHashRingVisualizer 244 lines, VectorClockDiagram 252 lines) with proper ARIA roles, labels, and framer-motion animations. The main module uses inferior inline equivalents with zero accessibility. Either: (A) replace RaftCanvas/ConsistentHashCanvas/VectorClockCanvas with the standalone versions, adapting props as needed, or (B) port all ARIA attributes from standalone to inline. Option A preferred.",
+    "acceptanceCriteria": [
+      "SVG elements have role='img' with descriptive aria-label",
+      "Individual nodes have aria-label attributes",
+      "Event log has role='log' with aria-label",
+      "Screen reader can identify all interactive elements",
+      "At least 3 canvases use the accessible pattern"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DistributedModule.tsx",
+      "src/components/visualization/distributed/RaftVisualizer.tsx",
+      "src/components/visualization/distributed/ConsistentHashRingVisualizer.tsx",
+      "src/components/visualization/distributed/VectorClockDiagram.tsx"
+    ],
+    "dependencies": ["DIS-023"],
+    "blockedBy": ["DIS-023"],
+    "tags": ["accessibility", "dead-code", "p1"]
+  },
+  {
+    "id": "DIS-025",
+    "epic": "DIS",
+    "title": "Replace 60+ hardcoded hex colors with design tokens/CSS variables",
+    "description": "DistributedModule.tsx contains 10+ color maps (ROLE_COLORS, NODE_COLORS, MSG_COLORS, PROCESS_COLORS, REPLICA_COLORS, PHASE_COLORS, etc.) with 60+ hardcoded hex values at lines 132-147, 152-157, 561-564, 1011-1012, 1701-1706, 1910-1915, 2109-2115, 2418, 2658-2664. Plus inline SVG attributes throughout. The Learn panel and standalone visualizers correctly use CSS variables (var(--primary), etc.) and IBM_COLORBLIND from @/lib/visualization/colors. Migrate all hex values to the shared token system.",
+    "acceptanceCriteria": [
+      "Zero hardcoded hex values remain in any canvas component",
+      "All colors reference CSS custom properties or the shared color palette",
+      "Theme switching (if supported) correctly changes canvas colors",
+      "Visual appearance matches current design"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["design-tokens", "theme", "p1"]
+  },
+  {
+    "id": "DIS-026",
+    "epic": "DIS",
+    "title": "Add prefers-reduced-motion support to all canvas animations",
+    "description": "Zero canvas components check prefers-reduced-motion (confirmed by grep). The Raft RAF animation loop at DistributedModule.tsx:244-276, CRDT merge SVG animate elements at 1123-1188, gossip exchange arrows, and all other animations run unconditionally. Add a useReducedMotion() hook that: (1) disables the Raft RAF animation loop, (2) reduces CRDT merge animation to instant state change, (3) removes gossip arrow animations, (4) skips any transition durations above 100ms.",
+    "acceptanceCriteria": [
+      "With prefers-reduced-motion: reduce, all animations complete instantly or are hidden",
+      "Raft simulation still functions correctly without animation",
+      "No motion-sensitive content displayed without user consent"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["accessibility", "reduced-motion", "p1"]
+  },
+  {
+    "id": "DIS-027",
+    "epic": "DIS",
+    "title": "Delete or integrate orphaned standalone visualizers (887 lines dead code)",
+    "description": "RaftVisualizer.tsx (391 lines), ConsistentHashRingVisualizer.tsx (244 lines), VectorClockDiagram.tsx (252 lines) in components/visualization/distributed/ are never imported. If DIS-024 integrates them, this task becomes 'delete the inline versions'. If DIS-024 ports ARIA to inline versions, this task becomes 'delete the standalone versions'. Either way, 887 lines of dead code must be resolved.",
+    "acceptanceCriteria": [
+      "No unused component files remain in components/visualization/distributed/",
+      "No broken imports after deletion"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/components/visualization/distributed/RaftVisualizer.tsx",
+      "src/components/visualization/distributed/ConsistentHashRingVisualizer.tsx",
+      "src/components/visualization/distributed/VectorClockDiagram.tsx"
+    ],
+    "dependencies": ["DIS-024"],
+    "blockedBy": ["DIS-024"],
+    "tags": ["dead-code", "cleanup", "p1"]
+  },
+  {
+    "id": "DIS-028",
+    "epic": "DIS",
+    "title": "Cap event log array at 500 entries to prevent memory leak",
+    "description": "At DistributedModule.tsx:3628-3634 (and 8+ other locations), setEvents appends without limit: setEvents((prev) => [...prev, ...mapped]). Raft auto-play at 100ms generates ~10 events/second. After 10 minutes: ~6000 events. The bottom panel caps display at 100 (line 3461) but the state array grows unboundedly. Fix: use prev.slice(-(500 - mapped.length)) before spreading.",
+    "acceptanceCriteria": [
+      "Event array never exceeds 500 entries",
+      "Most recent events are preserved (ring buffer behavior)",
+      "UI event log continues to display correctly",
+      "No visible behavior change for sessions under 5 minutes"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["performance", "memory", "p1"]
+  },
+  {
+    "id": "DIS-029",
+    "epic": "DIS",
+    "title": "Write dedicated test suites for 4 untested engines",
+    "description": "These engines have zero dedicated tests: (1) Lamport timestamps — test receive rule max(local, received)+1, edge case local > received. (2) Saga pattern — test compensation reverse order, fail at step 1 boundary. (3) MapReduce — test empty input, single word, special character stripping. (4) CRDT — test OR-Set concurrent add/remove, LWW tie-breaking by replica ID, PNCounter negative values, GCounter non-negative constraint. Additionally, gossip.test.ts (28 lines), cap-theorem.test.ts (23 lines), two-phase-commit.test.ts (24 lines), paxos.test.ts (25 lines) are minimal and should be expanded.",
+    "acceptanceCriteria": [
+      "lamport-timestamps.test.ts exists with >= 8 test cases",
+      "saga.test.ts exists with >= 6 test cases",
+      "map-reduce.test.ts exists with >= 6 test cases",
+      "crdt.test.ts exists with >= 12 test cases (3 per CRDT type)",
+      "All tests pass"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/distributed/lamport-timestamps.test.ts",
+      "src/__tests__/lib/distributed/saga.test.ts",
+      "src/__tests__/lib/distributed/map-reduce.test.ts",
+      "src/__tests__/lib/distributed/crdt.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["testing", "coverage", "p1"]
+  },
+  {
+    "id": "DIS-030",
+    "epic": "DIS",
+    "title": "Add 'WHY' explanations to step descriptions in all engines",
+    "description": "All 11 engines produce step descriptions that say WHAT happened but never WHY. For example, raft.ts:427-432 says 'starting election for term 1' but not 'because no heartbeat received within timeout'. map-reduce.ts:95 says 'emit 3 pairs' but not 'each word becomes a (word,1) pair for aggregation'. Add an optional 'insight' or 'reason' field to event types and populate it with beginner-friendly WHY explanations. Display in a tooltip or dedicated panel section.",
+    "acceptanceCriteria": [
+      "At least 5 event types per engine include a 'reason' or 'insight' field",
+      "Insights use plain English, no jargon without definition",
+      "UI displays insights (tooltip, expandable section, or side panel)",
+      "A beginner can understand WHY each step occurred"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/lib/distributed/raft.ts",
+      "src/lib/distributed/consistent-hash.ts",
+      "src/lib/distributed/vector-clock.ts",
+      "src/lib/distributed/gossip.ts",
+      "src/lib/distributed/crdt.ts",
+      "src/lib/distributed/cap-theorem.ts",
+      "src/lib/distributed/two-phase-commit.ts",
+      "src/lib/distributed/saga.ts",
+      "src/lib/distributed/map-reduce.ts",
+      "src/lib/distributed/lamport-timestamps.ts",
+      "src/lib/distributed/paxos.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["education", "teaching", "p1"]
+  },
+  {
+    "id": "DIS-031",
+    "epic": "DIS",
+    "title": "Add contextual empty state guidance per simulation",
+    "description": "Currently, 2PC/Saga/Paxos show bare 'Run the simulation to see X' messages. Raft shows a static diagram with no hint of interactivity. Add per-simulation empty states with: (1) a brief 'what you'll learn' sentence, (2) a pulsing or highlighted call-to-action pointing to the first button to click, (3) an optional illustration or simplified preview animation.",
+    "acceptanceCriteria": [
+      "Each of the 11 simulations has a unique empty state message",
+      "At least the primary action button is visually highlighted on first load",
+      "A beginner knows what to click within 3 seconds of seeing the module"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["ux", "onboarding", "empty-state", "p2"]
+  },
+  {
+    "id": "DIS-032",
+    "epic": "DIS",
+    "title": "Fix SVG font sizes below 11px minimum (25+ instances)",
+    "description": "Throughout DistributedModule.tsx, SVG text elements use fontSize='8', '9', '10' — at least 25 instances. At lines 360, 378, 770, 787, 932 and throughout all canvas components. Set minimum fontSize='11' for all SVG text. For truly small labels (e.g., term badges), consider using a tooltip on hover instead.",
+    "acceptanceCriteria": [
+      "No SVG text element has fontSize below 11",
+      "All labels remain readable at default zoom",
+      "Layout doesn't overflow due to larger text"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual", "readability", "p2"]
+  },
+  {
+    "id": "DIS-033",
+    "epic": "DIS",
+    "title": "Increase sidebar touch targets to 44px minimum for mobile",
+    "description": "Sidebar simulation buttons at DistributedModule.tsx:2952-2966 use py-2.5 px-3 (~36px height), under the 44x44px WCAG touch target minimum. Increase to py-3 for 44px.",
+    "acceptanceCriteria": [
+      "All sidebar buttons meet 44px minimum height",
+      "Control panel buttons also meet 44px minimum",
+      "Touch interaction works on mobile without mis-taps"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["mobile", "touch-target", "accessibility", "p2"]
+  },
+  {
+    "id": "DIS-034",
+    "epic": "DIS",
+    "title": "Extract duplicate SeededRandom class to shared utility",
+    "description": "Identical xorshift32 SeededRandom class exists in both raft.ts:118-139 and gossip.ts:43-64. Extract to src/lib/utils/seeded-random.ts and import from both locations.",
+    "acceptanceCriteria": [
+      "Single SeededRandom class in src/lib/utils/",
+      "Both raft.ts and gossip.ts import from shared location",
+      "All existing tests pass unchanged"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/raft.ts", "src/lib/distributed/gossip.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["duplication", "cleanup", "p2"]
+  },
+  {
+    "id": "DIS-035",
+    "epic": "DIS",
+    "title": "Add end-of-simulation feedback for step-based sims",
+    "description": "At DistributedModule.tsx:4038,4088,4138,4226 — step-based sims (2PC, Saga, MapReduce, Paxos) silently clamp at last step via Math.min. User clicks Step repeatedly with no indication they've reached the end. Add visible 'Simulation complete' badge and/or disable the Step button.",
+    "acceptanceCriteria": [
+      "Visible indication when simulation reaches final step",
+      "Step button is disabled or shows 'Complete' state",
+      "Auto-play stops naturally at end with clear feedback"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "feedback", "p2"]
+  },
+  {
+    "id": "DIS-036",
+    "epic": "DIS",
+    "title": "Lazy-instantiate engine classes on first sim selection",
+    "description": "At DistributedModule.tsx:3513-3607, all 7 stateful engine classes are instantiated at mount (RaftCluster, ConsistentHashRing, VectorClockSimulation, GossipProtocol, CRDTSimulation, CAPCluster, LamportSimulation). Wrap each in a lazy ref pattern that instantiates on first access.",
+    "acceptanceCriteria": [
+      "Engine classes are not instantiated until their sim is first selected",
+      "Switching to a new sim for the first time creates the engine without delay",
+      "Memory usage at mount is reduced"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-023"],
+    "blockedBy": [],
+    "tags": ["performance", "lazy-init", "p3"]
+  },
+  {
+    "id": "DIS-037",
+    "epic": "DIS",
+    "title": "Remove console.log from TopologyAwareFailureModes production code",
+    "description": "At TopologyAwareFailureModes.tsx:509, a console.log statement is left in the click handler. Remove it.",
+    "acceptanceCriteria": [
+      "No console.log in TopologyAwareFailureModes.tsx",
+      "ESLint no-console rule passes"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/distributed/TopologyAwareFailureModes.tsx"],
+    "dependencies": ["DIS-021"],
+    "blockedBy": [],
+    "tags": ["cleanup", "lint", "p3"]
+  },
+  {
+    "id": "DIS-038",
+    "epic": "DIS",
+    "title": "Reorder sidebar simulations for optimal learning path",
+    "description": "Current order is ad-hoc. Optimal learning order based on prerequisite dependencies: (1) CAP Theorem (framework), (2) Lamport Timestamps (simple ordering), (3) Vector Clocks (extends Lamport), (4) Consistent Hashing, (5) Gossip Protocol, (6) CRDTs, (7) Two-Phase Commit, (8) Saga Pattern, (9) Raft, (10) Paxos, (11) MapReduce. Reorder the SIMULATIONS array at DistributedModule.tsx:72-128 and add difficulty tags.",
+    "acceptanceCriteria": [
+      "SIMULATIONS array is reordered by learning prerequisite order",
+      "Each simulation entry has a 'difficulty' field (beginner/intermediate/advanced)",
+      "Sidebar displays difficulty indicator (color dot or tag)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["learning-path", "curriculum", "p2"]
+  },
+  {
+    "id": "DIS-039",
+    "epic": "DIS",
+    "title": "Add Linearizability & Consistency Models interactive simulation",
+    "description": "Critical curriculum gap: No coverage of consistency models (Linearizability, Sequential, Causal, Eventual). This is in MIT 6.5840 LEC 8, DDIA Ch 9, and top-5 interview topics. Build an interactive simulation that shows the same set of read/write operations producing different outcomes under each consistency model. Users toggle between models and see how the same operations resolve differently.",
+    "acceptanceCriteria": [
+      "New engine in src/lib/distributed/consistency-models.ts",
+      "Supports at least 4 models: Linearizable, Sequential, Causal, Eventual",
+      "Visual shows 3 nodes with read/write operations and different outcomes per model",
+      "Properties panel explains each model with real-world database examples"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/lib/distributed/consistency-models.ts",
+      "src/components/modules/DistributedModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["new-simulation", "curriculum-gap", "p1"]
+  },
+  {
+    "id": "DIS-040",
+    "epic": "DIS",
+    "title": "Add Replication simulation (Leader-Follower, Multi-Leader, Leaderless/Quorum)",
+    "description": "Critical curriculum gap: No simulation for replication strategies despite having excellent written content in concepts-data.ts (slug: 'replication'). MIT 6.5840 core topic, DDIA Ch 5 entire chapter, universal interview topic. Build: (1) Leader-Follower with sync/async toggle showing replication lag, (2) Multi-Leader showing write conflicts, (3) Leaderless with adjustable NWR quorum sliders. SEO content already covers the theory — this adds the interactive experience.",
+    "acceptanceCriteria": [
+      "Engine in src/lib/distributed/replication.ts supports 3 modes",
+      "Quorum mode lets user adjust N, W, R with sliders and see success/failure",
+      "Multi-leader mode shows conflict detection and resolution",
+      "Leader-follower shows replication lag visual (async) vs blocking (sync)",
+      "Properties panel links to existing SEO content for replication"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/replication.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["new-simulation", "curriculum-gap", "p1"]
+  }
+]

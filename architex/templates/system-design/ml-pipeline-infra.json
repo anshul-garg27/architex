@@ -1,0 +1,223 @@
+{
+  "id": "ml-pipeline-infra",
+  "name": "ML Pipeline Infrastructure (MLOps)",
+  "description": "Design an end-to-end ML pipeline infrastructure. Covers data ingestion, feature engineering, model training, model registry, serving infrastructure, and monitoring.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["ml", "mlops", "pipeline", "training", "serving", "model-registry", "infrastructure"],
+  "nodes": [
+    {
+      "id": "data-processor",
+      "type": "batch-processor",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Data Ingestion (Spark)",
+        "category": "compute",
+        "componentType": "batch-processor",
+        "icon": "Layers",
+        "config": { "jobType": "spark", "scheduleCron": "0 0 * * *", "clusterSize": 30, "timeoutMinutes": 240 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "data-lake",
+      "type": "storage",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Data Lake (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 1000000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "feature-store",
+      "type": "cache",
+      "position": { "x": 250, "y": 425 },
+      "data": {
+        "label": "Feature Store (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 256, "evictionPolicy": "allkeys-lru", "ttlSeconds": 86400, "cacheHitRate": 0.95 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "training-cluster",
+      "type": "ml-inference",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Training Cluster (GPU)",
+        "category": "compute",
+        "componentType": "ml-inference",
+        "icon": "Brain",
+        "config": { "modelType": "deep-learning", "batchSize": 256, "latencyMs": 0, "gpuEnabled": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "model-registry",
+      "type": "storage",
+      "position": { "x": 500, "y": 425 },
+      "data": {
+        "label": "Model Registry (S3 + Metadata DB)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 50000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "serving-app",
+      "type": "app-server",
+      "position": { "x": 750, "y": 200 },
+      "data": {
+        "label": "Model Serving API",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 10, "cpuCores": 8, "memoryGB": 32, "processingTimeMs": 20 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "inference-engine",
+      "type": "ml-inference",
+      "position": { "x": 750, "y": 425 },
+      "data": {
+        "label": "Inference Engine (GPU)",
+        "category": "compute",
+        "componentType": "ml-inference",
+        "icon": "Brain",
+        "config": { "modelType": "deep-learning", "batchSize": 32, "latencyMs": 15, "gpuEnabled": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "metrics",
+      "type": "metrics-collector",
+      "position": { "x": 500, "y": 50 },
+      "data": {
+        "label": "Model Metrics (Prometheus)",
+        "category": "observability",
+        "componentType": "metrics-collector",
+        "icon": "BarChart",
+        "config": { "scrapeIntervalSeconds": 15, "retentionDays": 90 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-ingest-lake",
+      "source": "data-processor",
+      "target": "data-lake",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 100, "animated": true }
+    },
+    {
+      "id": "e-ingest-features",
+      "source": "data-processor",
+      "target": "feature-store",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-lake-train",
+      "source": "data-lake",
+      "target": "training-cluster",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "read", "latency": 200, "animated": true }
+    },
+    {
+      "id": "e-train-registry",
+      "source": "training-cluster",
+      "target": "model-registry",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 500, "animated": false }
+    },
+    {
+      "id": "e-registry-serve",
+      "source": "model-registry",
+      "target": "serving-app",
+      "sourceHandle": "right",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "read", "latency": 1000, "animated": false }
+    },
+    {
+      "id": "e-serve-inference",
+      "source": "serving-app",
+      "target": "inference-engine",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 15, "animated": true }
+    },
+    {
+      "id": "e-features-inference",
+      "source": "feature-store",
+      "target": "inference-engine",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-train-metrics",
+      "source": "training-cluster",
+      "target": "metrics",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "metrics", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-serve-metrics",
+      "source": "serving-app",
+      "target": "metrics",
+      "sourceHandle": "top",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "metrics", "latency": 1, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Data Ingestion and Feature Engineering",
+      "description": "The Data Ingestion pipeline (Spark) runs daily, pulling raw data from upstream sources, cleaning and transforming it, and writing curated datasets to the Data Lake (S3) as Parquet files partitioned by date. It also computes and materializes features into the Feature Store (Redis) for low-latency online serving. Feature engineering logic is versioned and tested alongside model code to ensure reproducibility.",
+      "highlightNodes": ["data-processor", "data-lake", "feature-store"],
+      "highlightEdges": ["e-ingest-lake", "e-ingest-features"]
+    },
+    {
+      "title": "Model Training and Experimentation",
+      "description": "The Training Cluster reads curated datasets from S3 and trains models on GPU instances. Hyperparameter tuning runs multiple experiments in parallel. Training metrics (loss, accuracy, AUC) are tracked by Prometheus and logged to an experiment tracker. Once a model meets quality thresholds, it is serialized (ONNX/TorchScript) and pushed to the Model Registry with metadata (training data version, hyperparameters, metrics).",
+      "highlightNodes": ["data-lake", "training-cluster", "model-registry", "metrics"],
+      "highlightEdges": ["e-lake-train", "e-train-registry", "e-train-metrics"]
+    },
+    {
+      "title": "Model Serving and Inference",
+      "description": "The Model Serving API loads the latest approved model from the Registry on startup. It receives prediction requests, fetches real-time features from the Feature Store, and delegates to the Inference Engine (GPU) for computation. Batch requests are dynamically grouped for GPU efficiency. Blue-green deployment ensures zero-downtime model updates. The Serving API supports A/B testing by routing traffic percentages to different model versions.",
+      "highlightNodes": ["model-registry", "serving-app", "inference-engine", "feature-store"],
+      "highlightEdges": ["e-registry-serve", "e-serve-inference", "e-features-inference"]
+    },
+    {
+      "title": "Monitoring and Model Drift Detection",
+      "description": "Prometheus collects serving metrics (latency, throughput, error rate) and model quality metrics (prediction distribution, feature drift scores). Data drift is detected by comparing live feature distributions against training data statistics. When drift exceeds thresholds, alerts trigger and the pipeline can automatically kick off retraining. This closed loop ensures models stay accurate as real-world data evolves over time.",
+      "highlightNodes": ["serving-app", "metrics", "training-cluster"],
+      "highlightEdges": ["e-serve-metrics", "e-train-metrics"]
+    }
+  ]
+}

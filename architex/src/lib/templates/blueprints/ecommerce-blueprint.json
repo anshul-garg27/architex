@@ -1,0 +1,138 @@
+{
+  "id": "bp-ecommerce",
+  "name": "E-Commerce Platform — Production Blueprint",
+  "description": "Full-featured e-commerce platform with product catalog, search, cart, checkout, inventory management, and order fulfillment. Handles flash sales and seasonal traffic spikes.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["ecommerce", "checkout", "inventory", "search", "payments", "blueprint"],
+  "nodes": [
+    { "id": "web-client", "type": "client", "position": { "x": 0, "y": 200 }, "data": { "label": "Web Storefront", "category": "client", "componentType": "web-client", "icon": "Monitor", "config": { "concurrentUsers": 2000000, "requestsPerSecond": 100000 }, "state": "idle" } },
+    { "id": "mobile-client", "type": "client", "position": { "x": 0, "y": 400 }, "data": { "label": "Mobile App", "category": "client", "componentType": "mobile-client", "icon": "Smartphone", "config": { "concurrentUsers": 1000000, "requestsPerSecond": 50000 }, "state": "idle" } },
+    { "id": "cdn", "type": "cdn", "position": { "x": 200, "y": 100 }, "data": { "label": "CDN (Static + Images)", "category": "load-balancing", "componentType": "reverse-proxy", "icon": "Globe2", "config": { "cacheHitRate": 0.90, "edgeLocations": 100 }, "state": "idle" } },
+    { "id": "api-gateway", "type": "api-gateway", "position": { "x": 200, "y": 300 }, "data": { "label": "API Gateway", "category": "load-balancing", "componentType": "api-gateway", "icon": "Shield", "config": { "rateLimitRps": 200000, "authType": "jwt", "timeoutMs": 10000 }, "state": "idle" } },
+    { "id": "product-service", "type": "web-server", "position": { "x": 450, "y": 100 }, "data": { "label": "Product Catalog", "category": "compute", "componentType": "web-server", "icon": "Package", "config": { "instances": 10, "totalProducts": 10000000, "processingTimeMs": 10 }, "state": "idle" } },
+    { "id": "search-service", "type": "web-server", "position": { "x": 450, "y": 250 }, "data": { "label": "Search (Elasticsearch)", "category": "compute", "componentType": "web-server", "icon": "Search", "config": { "instances": 6, "indexSizeGB": 500, "searchLatencyMs": 20 }, "state": "idle" } },
+    { "id": "cart-service", "type": "web-server", "position": { "x": 450, "y": 400 }, "data": { "label": "Cart Service", "category": "compute", "componentType": "web-server", "icon": "ShoppingCart", "config": { "instances": 8, "cartTtlHours": 72, "processingTimeMs": 5 }, "state": "idle" } },
+    { "id": "order-service", "type": "web-server", "position": { "x": 450, "y": 550 }, "data": { "label": "Order Service", "category": "compute", "componentType": "web-server", "icon": "ClipboardList", "config": { "instances": 10, "sagaTimeoutMs": 30000, "processingTimeMs": 50 }, "state": "idle" } },
+    { "id": "inventory-service", "type": "web-server", "position": { "x": 700, "y": 400 }, "data": { "label": "Inventory Service", "category": "compute", "componentType": "web-server", "icon": "Warehouse", "config": { "instances": 6, "reservationTtlMinutes": 15, "processingTimeMs": 10 }, "state": "idle" } },
+    { "id": "payment-service", "type": "web-server", "position": { "x": 700, "y": 550 }, "data": { "label": "Payment Service", "category": "compute", "componentType": "web-server", "icon": "CreditCard", "config": { "instances": 6, "providers": ["stripe", "paypal"], "timeoutMs": 15000 }, "state": "idle" } },
+    { "id": "product-db", "type": "database", "position": { "x": 700, "y": 50 }, "data": { "label": "Product DB (PostgreSQL)", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "postgresql", "replicas": 4, "maxConnections": 500, "storageGB": 2000 }, "state": "idle" } },
+    { "id": "redis-cache", "type": "cache", "position": { "x": 700, "y": 200 }, "data": { "label": "Cache (Redis)", "category": "storage", "componentType": "redis", "icon": "Zap", "config": { "type": "redis", "memoryGB": 64, "shards": 8, "cacheHitRate": 0.90 }, "state": "idle" } },
+    { "id": "order-db", "type": "database", "position": { "x": 950, "y": 450 }, "data": { "label": "Order DB (PostgreSQL)", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "postgresql", "replicas": 2, "maxConnections": 300, "storageGB": 3000 }, "state": "idle" } },
+    { "id": "event-bus", "type": "message-queue", "position": { "x": 950, "y": 250 }, "data": { "label": "Kafka (Order Events)", "category": "messaging", "componentType": "kafka", "icon": "ArrowRightLeft", "config": { "partitions": 24, "retentionHours": 168, "throughputMbps": 200 }, "state": "idle" } },
+    { "id": "notification-service", "type": "web-server", "position": { "x": 950, "y": 100 }, "data": { "label": "Notification Service", "category": "compute", "componentType": "web-server", "icon": "Bell", "config": { "instances": 4, "channels": ["email", "push", "sms"], "processingTimeMs": 100 }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-web-cdn", "source": "web-client", "target": "cdn", "type": "data-flow", "data": { "edgeType": "https", "latency": 10, "animated": true } },
+    { "id": "e-web-gw", "source": "web-client", "target": "api-gateway", "type": "data-flow", "data": { "edgeType": "https", "latency": 20, "animated": true } },
+    { "id": "e-mobile-gw", "source": "mobile-client", "target": "api-gateway", "type": "data-flow", "data": { "edgeType": "https", "latency": 30, "animated": true } },
+    { "id": "e-gw-product", "source": "api-gateway", "target": "product-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } },
+    { "id": "e-gw-search", "source": "api-gateway", "target": "search-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } },
+    { "id": "e-gw-cart", "source": "api-gateway", "target": "cart-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 1, "animated": true } },
+    { "id": "e-gw-order", "source": "api-gateway", "target": "order-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } },
+    { "id": "e-product-db", "source": "product-service", "target": "product-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": false } },
+    { "id": "e-product-cache", "source": "product-service", "target": "redis-cache", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true } },
+    { "id": "e-cart-cache", "source": "cart-service", "target": "redis-cache", "type": "data-flow", "data": { "edgeType": "cache-write", "latency": 1, "animated": true } },
+    { "id": "e-order-inventory", "source": "order-service", "target": "inventory-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 5, "animated": true } },
+    { "id": "e-order-payment", "source": "order-service", "target": "payment-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 10, "animated": true } },
+    { "id": "e-order-db", "source": "order-service", "target": "order-db", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 5, "animated": true } },
+    { "id": "e-inventory-db", "source": "inventory-service", "target": "product-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": false } },
+    { "id": "e-order-kafka", "source": "order-service", "target": "event-bus", "type": "data-flow", "data": { "edgeType": "async", "latency": 3, "animated": true } },
+    { "id": "e-kafka-notify", "source": "event-bus", "target": "notification-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 50, "animated": true } },
+    { "id": "e-search-db", "source": "search-service", "target": "product-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 20, "animated": false } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-flash-sale", "name": "Flash Sale Traffic Spike", "description": "Black Friday flash sale generates 20x normal traffic in 60 seconds", "targetNodes": ["api-gateway", "cart-service", "inventory-service"], "faultType": "resource-exhaustion", "severity": 4, "expectedBehavior": "Cart service overwhelmed. Inventory overselling possible without proper locking. API gateway rate limits activated.", "mitigationSteps": ["Pre-scale all services before sale", "Enable queue-based checkout flow", "Use Redis distributed locks for inventory", "Virtual waiting room for excess traffic"] },
+      { "id": "cs-payment-failure", "name": "Payment Provider Outage", "description": "Stripe API returns 500 errors for all payment attempts", "targetNodes": ["payment-service"], "faultType": "crash", "severity": 4, "expectedBehavior": "All checkout attempts fail at payment step. Orders stuck in 'pending_payment' state. Inventory remains reserved.", "mitigationSteps": ["Failover to backup provider (PayPal)", "Queue failed payments for retry", "Extend inventory reservation timeout", "Notify users of delayed processing"] },
+      { "id": "cs-inventory-desync", "name": "Inventory Count Desync", "description": "Cache and database inventory counts diverge due to race condition", "targetNodes": ["inventory-service", "redis-cache", "product-db"], "faultType": "data-corruption", "severity": 3, "expectedBehavior": "Some products appear in stock but are actually out of stock. Orders fail at fulfillment stage.", "mitigationSteps": ["Periodic inventory reconciliation job", "Use database as source of truth for checkout", "Invalidate cache on inventory change", "Compensating transactions for oversold items"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 50000, "bottleneckNode": "search-service", "metric": "cpu", "description": "Elasticsearch CPU saturates from complex faceted search queries", "resolution": "Add search replicas, cache popular search results, optimize query complexity" },
+      { "rpsThreshold": 100000, "bottleneckNode": "inventory-service", "metric": "connections", "description": "Inventory lock contention on hot products during sales", "resolution": "Implement optimistic locking, shard inventory by product category" },
+      { "rpsThreshold": 200000, "bottleneckNode": "order-db", "metric": "disk-io", "description": "Order write throughput saturates during peak checkout", "resolution": "Shard order database by user_id, use write-ahead buffering" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-overselling", "title": "Inventory Overselling", "description": "Concurrent checkouts for last-few-items products can oversell without distributed locking", "affectedNodes": ["inventory-service", "product-db"], "likelihood": 4, "impact": 4, "mitigation": "Redis distributed lock with TTL for checkout, database-level pessimistic lock as fallback" },
+      { "id": "ei-cart-abandonment", "title": "Cart Abandonment Spike", "description": "Slow checkout flow during peak traffic causes cart abandonment above 70%", "affectedNodes": ["cart-service", "order-service"], "likelihood": 4, "impact": 3, "mitigation": "Pre-warm checkout path, async inventory check, recovery emails for abandoned carts" },
+      { "id": "ei-search-stale", "title": "Search Index Staleness", "description": "Product updates take minutes to reflect in search results", "affectedNodes": ["search-service", "product-db"], "likelihood": 3, "impact": 2, "mitigation": "Near-real-time indexing via Kafka CDC, cache popular searches, show 'out of stock' overlay" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 55000,
+      "components": [
+        { "nodeId": "product-db", "label": "Product DB", "monthlyCostUsd": 8000, "costDriver": "Primary + 4 replicas, 2TB" },
+        { "nodeId": "search-service", "label": "Elasticsearch", "monthlyCostUsd": 7000, "costDriver": "6 nodes, 500GB index" },
+        { "nodeId": "redis-cache", "label": "Redis Cache", "monthlyCostUsd": 6000, "costDriver": "64GB across 8 shards" },
+        { "nodeId": "order-service", "label": "Order Service", "monthlyCostUsd": 5000, "costDriver": "10 instances" },
+        { "nodeId": "cdn", "label": "CDN", "monthlyCostUsd": 5000, "costDriver": "Image + static asset delivery" },
+        { "nodeId": "order-db", "label": "Order DB", "monthlyCostUsd": 4500, "costDriver": "Primary + 2 replicas, 3TB" },
+        { "nodeId": "event-bus", "label": "Kafka", "monthlyCostUsd": 4000, "costDriver": "3 brokers" },
+        { "nodeId": "product-service", "label": "Product Service", "monthlyCostUsd": 4000, "costDriver": "10 instances" },
+        { "nodeId": "cart-service", "label": "Cart Service", "monthlyCostUsd": 3000, "costDriver": "8 instances" },
+        { "nodeId": "inventory-service", "label": "Inventory Service", "monthlyCostUsd": 3000, "costDriver": "6 instances" },
+        { "nodeId": "payment-service", "label": "Payment Service", "monthlyCostUsd": 3000, "costDriver": "6 instances + gateway fees" },
+        { "nodeId": "notification-service", "label": "Notifications", "monthlyCostUsd": 2500, "costDriver": "Email + push delivery" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Startup (10K orders/day)", "rps": 5000, "monthlyCostUsd": 12000 },
+        { "label": "Growth (100K orders/day)", "rps": 50000, "monthlyCostUsd": 30000 },
+        { "label": "Scale (1M orders/day)", "rps": 200000, "monthlyCostUsd": 55000 },
+        { "label": "Enterprise (10M orders/day)", "rps": 1000000, "monthlyCostUsd": 200000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 200000, "trafficProfile": "event-driven", "p50LatencyMs": 50, "p99LatencyMs": 300, "availabilityTarget": 99.99, "maxErrorRatePercent": 0.01, "throughputRps": 200000 },
+    "scalingPolicies": [
+      { "nodeId": "cart-service", "metric": "cpu_utilization", "threshold": 65, "scaleUpStep": 4, "scaleDownStep": 2, "cooldownSeconds": 60, "minInstances": 4, "maxInstances": 40 },
+      { "nodeId": "order-service", "metric": "queue_depth", "threshold": 1000, "scaleUpStep": 5, "scaleDownStep": 2, "cooldownSeconds": 120, "minInstances": 6, "maxInstances": 50 }
+    ],
+    "slaDefinitions": [
+      { "name": "Search Latency", "metric": "p99_search_latency_ms", "target": 100, "unit": "ms", "penalty": "10% credit for degraded search" },
+      { "name": "Checkout Success", "metric": "checkout_success_rate", "target": 99, "unit": "%", "penalty": "Revenue loss per failed checkout" },
+      { "name": "Availability", "metric": "uptime_percent", "target": 99.99, "unit": "%", "penalty": "SLA credit per minute of downtime" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "checkout_latency", "type": "histogram", "description": "End-to-end checkout processing time", "nodeId": "order-service" },
+        { "name": "search_latency", "type": "histogram", "description": "Product search query time", "nodeId": "search-service" },
+        { "name": "cart_conversion_rate", "type": "gauge", "description": "Cart to purchase conversion rate", "nodeId": "cart-service" },
+        { "name": "inventory_reservation_rate", "type": "counter", "description": "Inventory reservations per second", "nodeId": "inventory-service" },
+        { "name": "payment_success_rate", "type": "gauge", "description": "Payment processing success rate", "nodeId": "payment-service" }
+      ],
+      "alerts": [
+        { "name": "Checkout Failure Spike", "condition": "checkout_failure_rate > 2% for 2min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Payment Provider Down", "condition": "payment_error_rate > 10% for 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Inventory Oversell", "condition": "oversell_count > 0", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Search Degraded", "condition": "search_p99 > 200ms for 5min", "severity": "warning", "channel": "slack-eng" }
+      ],
+      "dashboards": ["Checkout Funnel", "Product Search", "Inventory Health", "Payment Pipeline", "Order Fulfillment"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call SRE", "responseTimeMinutes": 3, "contacts": ["oncall-commerce-sre"] },
+        { "level": 2, "name": "Commerce Team Lead", "responseTimeMinutes": 10, "contacts": ["commerce-lead"] },
+        { "level": 3, "name": "VP Engineering + Business", "responseTimeMinutes": 15, "contacts": ["vp-eng", "head-of-commerce"] }
+      ],
+      "runbooks": [
+        { "incident": "Flash sale overload", "severity": "critical", "steps": ["Activate virtual waiting room", "Scale all services to peak capacity", "Enable checkout queue mode", "Monitor inventory lock contention", "Disable non-essential features"], "automatedRecovery": true },
+        { "incident": "Payment provider outage", "severity": "critical", "steps": ["Failover to backup provider", "Queue pending payments for retry", "Extend inventory reservations", "Notify users of delayed processing"], "automatedRecovery": true },
+        { "incident": "Inventory overselling", "severity": "high", "steps": ["Pause checkouts for affected products", "Run inventory reconciliation", "Contact affected customers", "Issue refunds or backorder notifications"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Saga Pattern for Checkout", "context": "Checkout involves multiple services (inventory, payment, order) that must be coordinated.", "decision": "Implement choreography-based saga with compensating transactions for checkout flow.", "consequences": ["No distributed transactions needed", "Each service independently compensates on failure", "Complex failure handling logic across services"] },
+      { "title": "Redis for Cart Storage", "context": "Shopping carts are temporary, high-read/write, and need low latency.", "decision": "Store carts in Redis with TTL-based expiration instead of a relational database.", "consequences": ["Sub-millisecond cart operations", "Carts lost on Redis failure (acceptable trade-off)", "Simple data model fits Redis key-value paradigm"] },
+      { "title": "Elasticsearch for Product Search", "context": "Product search requires full-text search, faceted filtering, and relevance ranking.", "decision": "Use Elasticsearch as a read-optimized search index, synced from PostgreSQL via Kafka CDC.", "consequences": ["Rich search capabilities with sub-100ms latency", "Near-real-time index updates", "Additional infrastructure to maintain"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Consistency vs Throughput", "choice": "Throughput with eventual consistency", "benefit": "Search index and cache are eventually consistent, enabling high throughput", "cost": "Brief windows where search results or prices may be slightly stale" },
+      { "dimension": "Cost vs Resilience", "choice": "Resilience", "benefit": "Multi-provider payment fallback prevents checkout failures", "cost": "Integration and maintenance of multiple payment providers" },
+      { "dimension": "UX vs Correctness", "choice": "Correctness", "benefit": "Pessimistic inventory locking prevents overselling", "cost": "Checkout may be slightly slower due to lock acquisition" }
+    ],
+    "alternatives": [
+      { "name": "Monolithic Checkout", "description": "Single service handling entire checkout in one transaction", "prosVsCons": "Pros: simpler, ACID guarantees. Cons: scaling bottleneck, single point of failure", "whyNotChosen": "Cannot independently scale inventory, payment, and order processing" },
+      { "name": "Pre-Computed Inventory Counts", "description": "Cache inventory counts and only check DB at final checkout", "prosVsCons": "Pros: faster browse experience. Cons: higher overselling risk", "whyNotChosen": "Overselling has direct financial and customer satisfaction impact" }
+    ]
+  }
+}

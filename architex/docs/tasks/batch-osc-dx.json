@@ -1,0 +1,163 @@
+[
+  {
+    "id": "OSC-204",
+    "epic": "OSC",
+    "title": "Write 'How to Add a New OS Concept' contributor guide with step-by-step instructions",
+    "description": "No documentation exists for adding a new concept to the OS module. A contributor must reverse-engineer the pattern from a 3933-line file. Write a guide covering: (1) which files to create (engine in src/lib/os/), (2) which engine contract to follow (input→events→result), (3) the 7 registration points in OSModule.tsx (type union, CONCEPTS array, state, callback, canvas, properties, event log), (4) how to test, (5) checklist before PR. This saves 4-6 hours per new contributor.",
+    "acceptanceCriteria": [
+      "Guide exists at src/lib/os/README.md or docs/os-concepts/CONTRIBUTING.md",
+      "Step-by-step: create engine → add types → register in UI → add tests",
+      "Lists ALL 7 registration points in OSModule.tsx with line numbers",
+      "Includes annotated template for a minimal engine file",
+      "Includes minimal test template",
+      "Checklist: 'New OS Concept Checklist' with 10+ items"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/lib/os/README.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "contributor"]
+  },
+  {
+    "id": "OSC-205",
+    "epic": "OSC",
+    "title": "Create OS concept scaffolding script — pnpm scaffold:os-concept",
+    "description": "No scaffolding exists. Adding a new concept requires creating an engine file, updating index.ts, updating 7 places in OSModule.tsx, and creating tests. Build a script that generates the boilerplate: `pnpm scaffold:os-concept --name disk-scheduling --algorithms sstf,scan,cscan,look`. Creates engine file with template, updates index.ts, prints remaining manual steps.",
+    "acceptanceCriteria": [
+      "Script at scripts/scaffold-os-concept.ts",
+      "Creates src/lib/os/{name}.ts with engine boilerplate",
+      "Creates src/__tests__/lib/os/{name}.test.ts with test boilerplate",
+      "Updates src/lib/os/index.ts with new exports",
+      "Prints checklist of manual steps (UI registration points)",
+      "Available via: pnpm scaffold:os-concept --name disk-scheduling"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["scripts/scaffold-os-concept.ts", "package.json"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "tooling", "automation"]
+  },
+  {
+    "id": "OSC-206",
+    "epic": "OSC",
+    "title": "Add JSDoc to all exported functions in src/lib/os/ — @param, @returns, @example",
+    "description": "JSDoc coverage: memory.ts has 9 tags, most files have 0. Add @param, @returns, and @example to every exported function. This enables IDE tooltips, auto-generated API docs, and helps contributors understand the engine contract without reading implementation. 19 total @param/@returns instances is woefully insufficient for 8 engine files with 30+ exported functions.",
+    "acceptanceCriteria": [
+      "Every exported function has @param for each parameter",
+      "Every exported function has @returns describing return type",
+      "At least 10 functions have @example with runnable code",
+      "JSDoc visible in IDE tooltips when hovering over imports",
+      "Function-level doc comments explain the algorithm in 1-2 sentences"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/lib/os/scheduling.ts", "src/lib/os/page-replacement.ts", "src/lib/os/deadlock.ts", "src/lib/os/memory.ts", "src/lib/os/memory-alloc.ts", "src/lib/os/thread-sync.ts", "src/lib/os/mlfq-scheduler.ts", "src/lib/os/bankers-algorithm.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "jsdoc"]
+  },
+  {
+    "id": "OSC-207",
+    "epic": "OSC",
+    "title": "Consolidate test locations — move all OS tests to src/lib/os/__tests__/",
+    "description": "OS tests are split between src/__tests__/lib/os/ (scheduling, page-replacement, deadlock, mlfq-scheduler) and src/lib/os/__tests__/ (bankers-algorithm). A contributor doesn't know which location to use. Consolidate all to src/lib/os/__tests__/ to co-locate tests with source.",
+    "acceptanceCriteria": [
+      "All OS test files in src/lib/os/__tests__/",
+      "src/__tests__/lib/os/ directory removed or empty",
+      "Vitest config still finds tests",
+      "CI pipeline passes"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/__tests__/lib/os/", "src/lib/os/__tests__/"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "organization"]
+  },
+  {
+    "id": "OSC-208",
+    "epic": "OSC",
+    "title": "Write architecture overview document for OS module with data flow diagram",
+    "description": "No architecture documentation exists. A new contributor has no map of the 16-file, 8553-line module. Write an architecture overview covering: (1) file inventory with purposes, (2) data flow from user input to rendering, (3) how concepts are composed (sidebar+canvas+properties+bottomPanel), (4) engine contract (what engines must return), (5) how to extend.",
+    "acceptanceCriteria": [
+      "Architecture doc at src/lib/os/ARCHITECTURE.md",
+      "File inventory: each file, its purpose, line count",
+      "Data flow diagram (Mermaid): user input → engine → result → rendering",
+      "Engine contract: what every engine function must accept and return",
+      "Extension guide: how adding a new concept flows through the architecture"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["src/lib/os/ARCHITECTURE.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "architecture"]
+  },
+  {
+    "id": "OSC-209",
+    "epic": "OSC",
+    "title": "Add pre-commit hooks with lint, typecheck, and test-changed for OS module",
+    "description": "No pre-commit hooks exist (no husky or lint-staged). Broken code can be committed and push to CI to fail. Add: lint-staged with ESLint + Prettier on staged .ts/.tsx files, tsc --noEmit type check, and vitest related on changed files. This catches issues before they reach CI.",
+    "acceptanceCriteria": [
+      "husky + lint-staged installed and configured",
+      "Pre-commit: eslint --fix on staged files",
+      "Pre-commit: prettier --write on staged files",
+      "Pre-push: tsc --noEmit (full type check)",
+      "Pre-push: vitest related (tests for changed files only)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": ["package.json", ".husky/"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "tooling", "quality-gate"]
+  },
+  {
+    "id": "OSC-210",
+    "epic": "OSC",
+    "title": "Create PR review checklist for OS module contributions",
+    "description": "No quality criteria exist for new OS concept contributions. Different concepts have wildly different quality levels (Belady's Anomaly = excellent, Mutex = minimal). Create a PR review checklist that defines done: config metadata, engine registered, step descriptions explain WHY, tests exist, edge cases handled, no TypeScript any, complexity verified.",
+    "acceptanceCriteria": [
+      "Checklist in .github/PULL_REQUEST_TEMPLATE/os-concepts.md",
+      "Minimum 12 checkboxes covering: engine, types, UI, tests, content quality",
+      "Auto-applied when PR modifies src/lib/os/ or src/components/modules/os/",
+      "Key items: 'Step descriptions explain WHY, not just WHAT', 'No any types', 'Edge cases: empty, single, max'"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [".github/PULL_REQUEST_TEMPLATE/os-concepts.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "quality", "process"]
+  }
+]

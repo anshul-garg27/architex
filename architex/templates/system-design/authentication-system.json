@@ -1,0 +1,183 @@
+{
+  "id": "authentication-system",
+  "name": "Authentication Service",
+  "description": "Design a centralized authentication service handling login, session management, token issuance, and account security. Covers session caching, password hashing, MFA, and async email verification workflows.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": ["auth", "authentication", "session", "jwt", "oauth", "mfa", "security"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client Application",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 200000, "requestsPerSecond": 20000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "Scale",
+        "config": { "algorithm": "round-robin", "maxConnectionsPerServer": 30000, "healthCheckIntervalMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "auth-server",
+      "type": "app-server",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Auth Server",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 6, "cpuCores": 4, "memoryGB": 8, "processingTimeMs": 25 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "Session Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 32, "evictionPolicy": "volatile-ttl", "ttlSeconds": 86400, "cacheHitRate": 0.95 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 600, "y": 350 },
+      "data": {
+        "label": "User DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 200, "storageGB": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 400, "y": 450 },
+      "data": {
+        "label": "Notification Queue (SQS)",
+        "category": "messaging",
+        "componentType": "sqs",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 8, "retentionHours": 72, "maxThroughputMBps": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "email-worker",
+      "type": "worker",
+      "position": { "x": 200, "y": 450 },
+      "data": {
+        "label": "Email Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 4, "concurrencyPerInstance": 10, "retryAttempts": 5 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-lb-auth",
+      "source": "lb",
+      "target": "auth-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-auth-cache",
+      "source": "auth-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-auth-db",
+      "source": "auth-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-auth-mq",
+      "source": "auth-server",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-worker",
+      "source": "mq",
+      "target": "email-worker",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Login Flow and Token Issuance",
+      "description": "The client sends credentials (email + password) over HTTPS to the Auth Server via the Load Balancer. The Auth Server queries PostgreSQL for the user record, verifies the password against bcrypt/argon2 hash, checks MFA status, and issues a signed JWT access token (short-lived, 15 min) plus a refresh token (long-lived, 7 days). The refresh token is stored in Redis for revocation capability.",
+      "highlightNodes": ["client", "lb", "auth-server", "database"],
+      "highlightEdges": ["e-client-lb", "e-lb-auth", "e-auth-db"]
+    },
+    {
+      "title": "Session Management with Redis",
+      "description": "Active sessions are stored in Redis with a TTL matching the refresh token expiry. On each API request, downstream services validate the JWT signature locally (no network call). When a token refresh is needed, the Auth Server checks Redis to ensure the session hasn't been revoked. This design enables instant logout (delete from Redis) while keeping token validation fast and distributed.",
+      "highlightNodes": ["auth-server", "cache"],
+      "highlightEdges": ["e-auth-cache"]
+    },
+    {
+      "title": "Async Email Notifications",
+      "description": "Security-sensitive events (new login, password change, MFA enrollment) trigger email notifications. The Auth Server publishes events to SQS, and Email Workers consume and send via SES/SendGrid. This decoupling ensures login latency isn't affected by email delivery. Workers retry transient failures with exponential backoff.",
+      "highlightNodes": ["auth-server", "mq", "email-worker"],
+      "highlightEdges": ["e-auth-mq", "e-mq-worker"]
+    },
+    {
+      "title": "Security Hardening",
+      "description": "The system implements defense-in-depth: rate limiting at the LB (brute force protection), bcrypt with high cost factor for password hashing, account lockout after N failed attempts (tracked in Redis), TOTP/WebAuthn for MFA, and refresh token rotation on each use. PostgreSQL stores an audit log of all authentication events for compliance and incident response.",
+      "highlightNodes": ["lb", "auth-server", "cache", "database"],
+      "highlightEdges": ["e-client-lb", "e-auth-cache", "e-auth-db"]
+    }
+  ]
+}

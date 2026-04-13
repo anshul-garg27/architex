@@ -1,0 +1,192 @@
+{
+  "id": "workflow-engine",
+  "name": "Workflow Orchestrator",
+  "description": "Design a general-purpose workflow engine like Temporal or Airflow. Covers workflow definition, task scheduling, durable execution with retry, and state persistence for long-running business processes.",
+  "difficulty": 4,
+  "category": "infrastructure",
+  "tags": ["workflow", "orchestration", "task-scheduling", "durable-execution", "state-machine"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client / Trigger",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 10000, "requestsPerSecond": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 5000, "authType": "api-key", "timeoutMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "workflow-service",
+      "type": "app-server",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Workflow Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 6, "cpuCores": 4, "memoryGB": 16, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 600, "y": 200 },
+      "data": {
+        "label": "Task Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 32, "retentionHours": 168, "maxThroughputMBps": 50 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "worker-pool",
+      "type": "worker",
+      "position": { "x": 800, "y": 200 },
+      "data": {
+        "label": "Worker Pool",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 20, "concurrencyPerInstance": 10, "retryAttempts": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 400, "y": 400 },
+      "data": {
+        "label": "Workflow DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 300, "storageGB": 1000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "storage",
+      "type": "storage",
+      "position": { "x": 800, "y": 400 },
+      "data": {
+        "label": "Artifact Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 50000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-workflow",
+      "source": "api-gw",
+      "target": "workflow-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-workflow-mq",
+      "source": "workflow-service",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-workers",
+      "source": "mq",
+      "target": "worker-pool",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-workflow-db",
+      "source": "workflow-service",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-workers-db",
+      "source": "worker-pool",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-workers-storage",
+      "source": "worker-pool",
+      "target": "storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 50, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Workflow Definition and Scheduling",
+      "description": "Clients submit workflow definitions (DAGs of tasks) or trigger existing workflows via the API. The Workflow Service parses the DAG, validates dependencies, creates a workflow execution record in PostgreSQL, and schedules the first set of ready tasks (those with no unmet dependencies) by publishing them to Kafka. Cron-triggered workflows use a scheduler that polls for due executions.",
+      "highlightNodes": ["client", "api-gw", "workflow-service", "database"],
+      "highlightEdges": ["e-client-gw", "e-gw-workflow", "e-workflow-db"]
+    },
+    {
+      "title": "Durable Task Execution",
+      "description": "Workers pull tasks from Kafka, execute the associated logic (HTTP calls, data transforms, shell commands), and report results back. Each task heartbeats to indicate liveness. If a worker crashes, the task is re-delivered after a visibility timeout. Task inputs/outputs are persisted in PostgreSQL, enabling the Workflow Service to resume from exactly where it left off after any failure.",
+      "highlightNodes": ["mq", "worker-pool", "database"],
+      "highlightEdges": ["e-mq-workers", "e-workers-db"]
+    },
+    {
+      "title": "DAG Progression and Branching",
+      "description": "When a task completes, the Workflow Service evaluates the DAG to determine which downstream tasks are now ready. It supports conditional branches (if/else), parallel fan-out, fan-in (wait for all), and retry with exponential backoff. The entire workflow state machine is transactionally updated in PostgreSQL, ensuring consistency even under concurrent task completions.",
+      "highlightNodes": ["workflow-service", "mq", "database"],
+      "highlightEdges": ["e-workflow-mq", "e-workflow-db"]
+    },
+    {
+      "title": "Artifact Management and Observability",
+      "description": "Large task outputs (data files, reports, model artifacts) are stored in S3 with references in PostgreSQL. The Workflow Service provides APIs to query execution history, task logs, and DAG visualizations. Failed workflows can be retried from the point of failure rather than from scratch, saving compute. Metrics (task duration, failure rates, queue depth) drive auto-scaling decisions for the worker pool.",
+      "highlightNodes": ["worker-pool", "storage", "workflow-service"],
+      "highlightEdges": ["e-workers-storage", "e-workflow-db"]
+    }
+  ]
+}

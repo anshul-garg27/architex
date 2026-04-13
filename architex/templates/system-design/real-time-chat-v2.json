@@ -1,0 +1,214 @@
+{
+  "id": "real-time-chat-v2",
+  "name": "Real-Time Chat (Slack-style)",
+  "description": "Design a Slack-style team messaging platform. Covers channels, threads, presence indicators, message search, file sharing, and push notifications with WebSocket delivery.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["chat", "slack", "messaging", "real-time", "channels", "threads", "collaboration"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client (Web/Desktop/Mobile)",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 500000, "requestsPerSecond": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": { "algorithm": "least-connections", "healthCheckInterval": 5, "maxConnections": 500000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "chat-app",
+      "type": "app-server",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Chat Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 20, "cpuCores": 8, "memoryGB": 16, "processingTimeMs": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "presence-cache",
+      "type": "cache",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "Presence + Session Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "evictionPolicy": "volatile-lru", "ttlSeconds": 300, "cacheHitRate": 0.97 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 600, "y": 200 },
+      "data": {
+        "label": "Message DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 400, "y": 425 },
+      "data": {
+        "label": "Event Bus (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": { "type": "kafka", "partitions": 32, "replicationFactor": 3, "retentionHours": 168 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "push-worker",
+      "type": "worker",
+      "position": { "x": 200, "y": 425 },
+      "data": {
+        "label": "Push Notification Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 8, "concurrencyPerInstance": 50, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "file-storage",
+      "type": "storage",
+      "position": { "x": 600, "y": 425 },
+      "data": {
+        "label": "File Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 100000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "websocket", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "chat-app",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "websocket", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "chat-app",
+      "target": "presence-cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "chat-app",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "chat-app",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-mq-push",
+      "source": "mq",
+      "target": "push-worker",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-app-storage",
+      "source": "chat-app",
+      "target": "file-storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 25, "animated": false }
+    },
+    {
+      "id": "e-mq-storage",
+      "source": "mq",
+      "target": "file-storage",
+      "sourceHandle": "right",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "event-stream", "latency": 50, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "WebSocket Connection and Message Delivery",
+      "description": "Clients maintain persistent WebSocket connections through the Load Balancer (least-connections for sticky sessions). The Chat Service maps userId -> connectionId in Redis for O(1) message routing. When a user sends a message, it is persisted to PostgreSQL, published to Kafka, and fanned out to all online channel members via their WebSocket connections. Messages are sequenced with server-assigned timestamps to resolve ordering.",
+      "highlightNodes": ["client", "lb", "chat-app", "database"],
+      "highlightEdges": ["e-client-lb", "e-lb-app", "e-app-db"]
+    },
+    {
+      "title": "Presence and Typing Indicators",
+      "description": "User presence (online/away/offline) is tracked in Redis with a 5-minute TTL. Clients send heartbeats every 30 seconds; missed heartbeats auto-expire the key. Typing indicators are ephemeral events published directly through Kafka to relevant channel subscribers -- they are never persisted. Redis Pub/Sub broadcasts presence changes to Chat Service instances that hold WebSocket connections for channel members.",
+      "highlightNodes": ["chat-app", "presence-cache", "mq"],
+      "highlightEdges": ["e-app-cache", "e-app-mq"]
+    },
+    {
+      "title": "Push Notifications for Offline Users",
+      "description": "When a message targets an offline user (no Redis presence entry), the Chat Service publishes a push notification event to Kafka. The Push Notification Worker consumes these events, batches them by user (to avoid notification storms), and sends via APNs (iOS) or FCM (Android). Notification preferences (mute channel, DND schedule) are checked against Redis. Workers retry failed deliveries with exponential backoff up to 3 attempts.",
+      "highlightNodes": ["mq", "push-worker", "presence-cache"],
+      "highlightEdges": ["e-mq-push", "e-app-cache"]
+    },
+    {
+      "title": "File Sharing and Storage",
+      "description": "File uploads use pre-signed S3 URLs: the Chat Service generates a pre-signed PUT URL, the client uploads directly to S3 (bypassing the service), and a message with the file reference is created. Kafka triggers async processing (thumbnail generation for images, virus scanning, preview extraction for documents). Files are stored with workspace-level partitioning in S3 for easy lifecycle management and compliance deletion.",
+      "highlightNodes": ["chat-app", "file-storage", "mq"],
+      "highlightEdges": ["e-app-storage", "e-mq-storage"]
+    }
+  ]
+}

@@ -1,0 +1,302 @@
+[
+  {
+    "id": "MLD-084",
+    "epic": "MLD",
+    "title": "Add Linear Regression interactive mode with gradient descent visualization",
+    "description": "CRITICAL GAP: Linear regression is the foundation of all ML — every CS229/6.390 course starts here. Add a mode with: interactive data point placement, fit line via animated gradient descent, cost function J(θ) shown as a curve with current position, learning rate slider showing convergence speed. Sources: CS229 Week 1, CMU 10-301 Lecture 4, every ML interview guide.",
+    "acceptanceCriteria": ["User can click to add data points on 2D canvas", "Regression line fits via animated gradient descent steps", "Cost function curve shown with current θ position", "Learning rate slider demonstrates convergence vs divergence", "R² score displayed after fitting"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/regression.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "essential", "P0-gap"]
+  },
+  {
+    "id": "MLD-085",
+    "epic": "MLD",
+    "title": "Add Logistic Regression mode with sigmoid decision boundary",
+    "description": "CRITICAL GAP: Logistic regression is the #1 'simple model' FAANG interview question. Add mode showing: sigmoid function visualization, binary classification on 2D data, decision boundary line updating during training, probability output heatmap. Sources: CS229, CMU 10-301, datainterview.com top-100-ML-questions.",
+    "acceptanceCriteria": ["Sigmoid function curve shown alongside data", "Decision boundary updates during gradient descent", "Probability heatmap shows classification confidence", "Comparison toggle: linear vs logistic on same data", "Properties panel explains log-odds and maximum likelihood"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/logistic-regression.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-084"], "blockedBy": ["MLD-084"], "tags": ["content", "curriculum", "essential", "P0-gap"]
+  },
+  {
+    "id": "MLD-086",
+    "epic": "MLD",
+    "title": "Add Bias-Variance Tradeoff interactive demonstration",
+    "description": "CRITICAL GAP: #1 interview fundamental per EVERY guide (datainterview.com, Exponent, InterviewQuery). Add visualization showing: model complexity slider (polynomial degree), train vs val loss curves diverging, clear visual of underfitting → good fit → overfitting, interactive dart-board analogy for bias vs variance. Sources: CS229, MLU-Explain bias-variance article, 3Blue1Brown approach.",
+    "acceptanceCriteria": ["Complexity slider shows underfitting → good → overfitting progression", "Train and validation loss curves shown simultaneously", "Current regime labeled (high bias / balanced / high variance)", "Dart-board analogy animation for intuition", "Sidebar explains tradeoff in beginner terms"],
+    "priority": "P0", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/bias-variance.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "essential", "P0-gap", "student-pain"]
+  },
+  {
+    "id": "MLD-087",
+    "epic": "MLD",
+    "title": "Add Decision Tree visualization with split-by-split animation",
+    "description": "CRITICAL GAP: Decision trees are in every syllabus (CS229, CMU 10-301, UC Berkeley CS189) and every interview guide. MLU-Explain has an interactive decision tree article — we need parity. Add: animated tree growing split by split, Gini/entropy at each node, decision boundary overlay on 2D data, depth slider showing overfitting. Sources: MLU-Explain, CLRS, Skiena.",
+    "acceptanceCriteria": ["Tree grows split by split with animation", "Gini impurity or entropy shown at each node", "Decision boundary updates on 2D canvas as splits are made", "Depth slider demonstrates overfitting (deep tree = jagged boundary)", "Random Forest toggle shows ensemble of trees with majority vote"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/decision-tree.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "essential", "P0-gap"]
+  },
+  {
+    "id": "MLD-088",
+    "epic": "MLD",
+    "title": "Add Evaluation Metrics dashboard (Confusion Matrix, Precision/Recall/F1, ROC/AUC)",
+    "description": "CRITICAL GAP: 'High AUC but low precision — explain' is a recurring FAANG trap question. MLU-Explain has ROC, precision/recall, and confusion matrix articles — we have none. After training any classifier, show: interactive confusion matrix, precision/recall/F1 computed per class, ROC curve with AUC, threshold slider updating all metrics. Sources: MLU-Explain, datainterview.com, every ML interview guide.",
+    "acceptanceCriteria": ["Confusion matrix heatmap appears after NN training", "Precision, recall, F1 computed and displayed with definitions", "ROC curve plotted with AUC score", "Threshold slider updates all metrics in real-time", "Bottom panel tab shows metric comparison table"],
+    "priority": "P0", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/evaluation-metrics.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "essential", "P0-gap"]
+  },
+  {
+    "id": "MLD-089",
+    "epic": "MLD",
+    "title": "Add K-Means Clustering step-by-step visualization",
+    "description": "CRITICAL GAP: Most visual unsupervised algorithm, universally taught (CS229, CMU, Berkeley). Add: random/click-to-place data, step-by-step assign→update centroid animation, Voronoi boundaries, K slider with elbow method chart. Sources: CS229 unsupervised learning, every ML textbook.",
+    "acceptanceCriteria": ["User can click to place data points or use preset datasets", "Step-by-step: assign to nearest centroid → update centroids → repeat", "Voronoi-style boundaries shown around clusters", "Elbow method chart for choosing K in properties panel", "Animation shows centroids moving to new positions"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/clustering.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "essential", "P0-gap"]
+  },
+  {
+    "id": "MLD-090",
+    "epic": "MLD",
+    "title": "Add Cross-Validation (k-fold) interactive visualization",
+    "description": "CRITICAL GAP: Core model selection technique. MLU-Explain has an interactive k-fold article — we have nothing. Add: dataset split into k folds, animated rotation of train/val sets, aggregated score with variance, comparison of k=3 vs k=5 vs k=10. Sources: MLU-Explain, CS229, CMU 10-301.",
+    "acceptanceCriteria": ["Dataset visually split into k colored folds", "Each fold rotation animated: highlight current val fold", "Per-fold and aggregated accuracy/loss shown", "k slider (3-10) with performance vs computation tradeoff", "Sidebar explains why k-fold > single split"],
+    "priority": "P0", "effort": "M", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/cross-validation.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "essential", "P0-gap"]
+  },
+  {
+    "id": "MLD-091",
+    "epic": "MLD",
+    "title": "Add L1/L2 Regularization with geometric visualization",
+    "description": "CRITICAL GAP: L1 vs L2 is asked in every ML interview. Dropout exists but L1/L2 are missing — incomplete regularization story. Add: weight space 2D plot showing L1 diamond vs L2 circle constraint, loss contour overlay, animation showing how L1 produces sparsity. Sources: CS229, Bishop PRML Ch.3, every interview guide.",
+    "acceptanceCriteria": ["2D weight space with loss contours + L1 diamond / L2 circle", "Animation shows optimization path constrained by regularization", "L1 produces sparse weights (hitting diamond corners)", "Lambda slider shows effect: more regularization → more shrinkage", "Toggle between L1 and L2 to compare geometry"],
+    "priority": "P0", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/regularization.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "essential", "P0-gap", "student-pain"]
+  },
+  {
+    "id": "MLD-092",
+    "epic": "MLD",
+    "title": "Add Transformer / Self-Attention interactive visualization",
+    "description": "CRITICAL GAP: #1 trending architecture. Every 2026 syllabus (CS224n, CS231n, CMU 10-301), every interview guide, every competitor (Transformer Explainer, ML Visualized) has this. Add: token embedding visualization, self-attention matrix heatmap for user-typed sentence, multi-head attention, positional encoding, layer-by-layer step-through. Sources: CS224n 2026, Transformer Explainer (PoloClub).",
+    "acceptanceCriteria": ["User types a short sentence (or uses preset)", "Self-attention weight matrix shown as interactive heatmap", "Step-by-step: embed → attention → feedforward → output", "Multi-head attention shows different heads attending to different patterns", "Positional encoding visualized as color-coded positions", "Sidebar explains Q/K/V in beginner terms"],
+    "priority": "P0", "effort": "XL", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/transformer.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "essential", "P0-gap", "student-pain", "trending"]
+  },
+  {
+    "id": "MLD-093",
+    "epic": "MLD",
+    "title": "Expose activation function visualizations in UI",
+    "description": "Activation functions (ReLU, Sigmoid, Tanh, Leaky ReLU, Softmax) exist in activations.ts but are invisible to users — just button labels. Add: interactive plot showing each function's curve, derivative curve, range annotation, 'when to use' guidance. Show the vanishing gradient problem visually for sigmoid/tanh.",
+    "acceptanceCriteria": ["Activation function curves plotted with interactive x-axis hover", "Derivative curves shown alongside (toggle)", "Vanishing gradient demonstrated: sigmoid derivative near 0 at extremes", "All 5 activations selectable with comparison view", "Sidebar explains when to use each (ReLU for hidden, Sigmoid for output, etc.)"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/activations.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "completion", "existing-improvement"]
+  },
+  {
+    "id": "MLD-094",
+    "epic": "MLD",
+    "title": "Expose loss function visualizations and comparison in UI",
+    "description": "Loss functions (MSE, BCE, Categorical CE) exist in loss-functions.ts but are only used internally. Add: interactive loss curve plots, comparison of MSE vs BCE for classification, visualization of why BCE works better for classification (gradient flow near 0/1). Sources: Goodfellow et al. Ch.6.",
+    "acceptanceCriteria": ["Loss function curves plotted with prediction value on x-axis", "MSE vs BCE comparison on same classification problem", "Gradient magnitude visualization (BCE has stronger gradient near 0/1)", "Selectable in NN mode as loss function choice", "Sidebar explains cross-entropy intuition (information theory connection)"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/loss-functions.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "completion", "existing-improvement"]
+  },
+  {
+    "id": "MLD-095",
+    "epic": "MLD",
+    "title": "Add backpropagation step-by-step visualization with real gradient values",
+    "description": "#1 student pain point across all sources (Reddit, Quora, Hugging Face forums). Currently backprop is implemented but invisible. Add: network diagram with gradient values shown on each edge, step-by-step backward pass animation, 'chain rule at work' callouts. Sources: 3Blue1Brown neural networks series (250M+ views), Karpathy micrograd approach.",
+    "acceptanceCriteria": ["After training one step, gradient values shown on each weight edge", "Step-by-step backward pass: output → hidden → input with highlighted path", "Each step shows the chain rule computation explicitly", "Gradient magnitude shown as edge thickness/color", "Toggle between forward pass visualization and backward pass"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/neural-net.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "completion", "student-pain", "education"]
+  },
+  {
+    "id": "MLD-096",
+    "epic": "MLD",
+    "title": "Add PCA dimensionality reduction visualization",
+    "description": "IMPORTANT GAP: PCA is in every syllabus (CS229, CMU, Berkeley CS189) and interviews. Add: 2D/3D data with principal component vectors overlaid, eigenvalue bar chart (explained variance), interactive projection to lower dimensions, scree plot for choosing number of components. Sources: UC Berkeley CS189, Bishop PRML Ch.12.",
+    "acceptanceCriteria": ["Data plotted in 2D/3D with principal component arrows", "Eigenvalue/explained variance bar chart shown", "Interactive slider: project from 3D to 2D to 1D", "Scree plot for choosing number of components", "Sidebar explains variance preservation in beginner terms"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/pca.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "important", "student-pain"]
+  },
+  {
+    "id": "MLD-097",
+    "epic": "MLD",
+    "title": "Add Gradient Boosting (XGBoost/LightGBM) visualization",
+    "description": "IMPORTANT GAP: Most-used ML algorithm in production (Kaggle, FAANG). Add: sequential tree building animation, residual fitting visualization, comparison vs single decision tree vs random forest, feature importance display. Sources: CMU 10-301, Kaggle competitions, FAANG interviews.",
+    "acceptanceCriteria": ["Sequential tree building: each tree fits residuals from previous", "Decision boundary evolves as trees are added", "Comparison toggle: single tree vs random forest vs boosting", "Feature importance bar chart", "Learning rate and n_estimators sliders show effect"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/gradient-boosting.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-087"], "blockedBy": ["MLD-087"], "tags": ["content", "curriculum", "important"]
+  },
+  {
+    "id": "MLD-098",
+    "epic": "MLD",
+    "title": "Add RAG (Retrieval-Augmented Generation) pipeline visualization",
+    "description": "EMERGING GAP: Mandatory in every 2026 ML interview (Amazon, Google, startups). Add: animated pipeline showing query → embed → vector search → retrieve → augment prompt → generate, vector similarity visualization, chunking strategy comparison. Sources: CS224n 2026, Exponent ML system design guide, Techment RAG 2026.",
+    "acceptanceCriteria": ["Animated RAG pipeline: query → embed → search → retrieve → generate", "Vector similarity shown as distance in embedding space", "Chunking strategy comparison (fixed vs semantic vs recursive)", "Top-K retrieval with relevance scores", "Sidebar explains why RAG reduces hallucination"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/rag.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "emerging", "trending"]
+  },
+  {
+    "id": "MLD-099",
+    "epic": "MLD",
+    "title": "Add HNSW / Vector Search algorithm visualization",
+    "description": "EMERGING GAP: Underpins every AI search product in 2026. HNSW is the default in Pinecone, Weaviate, Qdrant. Add: navigable small world graph building step by step, multi-layer structure with long-range links, query search animation traversing layers, recall vs speed tradeoff slider. Sources: Pinecone HNSW guide, Wikipedia HNSW.",
+    "acceptanceCriteria": ["HNSW graph builds layer by layer with animation", "Query search animates: start at top layer → greedy traversal → lower layers", "Recall vs speed tradeoff slider (ef parameter)", "Comparison with brute-force search on same dataset", "Sidebar explains graph-based ANN concept"],
+    "priority": "P1", "effort": "XL", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/vector-search.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "emerging", "trending"]
+  },
+  {
+    "id": "MLD-100",
+    "epic": "MLD",
+    "title": "Add KNN classifier interactive visualization",
+    "description": "IMPORTANT GAP: KNN is a foundational algorithm in every syllabus. Add: click-to-classify with K slider, Voronoi decision boundaries, distance metric selector (Euclidean/Manhattan), demonstration of K's effect on decision boundary smoothness. Sources: CMU 10-301, UC Berkeley CS189.",
+    "acceptanceCriteria": ["Click on canvas to classify a new point", "K slider shows boundary from K=1 (jagged) to K=20 (smooth)", "Voronoi boundaries shown for current K", "Distance metric toggle (Euclidean vs Manhattan)", "Properties panel shows classification result with K nearest highlighted"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/knn.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "important"]
+  },
+  {
+    "id": "MLD-101",
+    "epic": "MLD",
+    "title": "Add Naive Bayes classifier visualization with probability breakdown",
+    "description": "IMPORTANT GAP: Asked in interviews as the simplest probabilistic classifier. Add: feature likelihood visualization per class, posterior probability computation step by step, comparison with logistic regression on same data. Sources: CMU 10-301, CS229.",
+    "acceptanceCriteria": ["Feature distributions shown per class (Gaussian bell curves)", "Posterior probability computed step by step for a test point", "Decision boundary shown on 2D data", "Comparison toggle: Naive Bayes vs Logistic Regression", "Sidebar explains the 'naive' conditional independence assumption"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/naive-bayes.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "important"]
+  },
+  {
+    "id": "MLD-102",
+    "epic": "MLD",
+    "title": "Add LoRA / Fine-Tuning concepts visualization",
+    "description": "EMERGING GAP: Core skill for AI practitioners in 2026. QLoRA enables fine-tuning 70B models on consumer hardware. Add: visualization of frozen base weights + low-rank adapters, parameter count comparison (full fine-tune vs LoRA), rank slider showing capacity vs efficiency tradeoff. Sources: CS224n 2026, Introl fine-tuning guide, Hugging Face PEFT.",
+    "acceptanceCriteria": ["Network diagram showing frozen weights (gray) and trainable adapters (colored)", "Parameter count comparison bar: full model vs LoRA at different ranks", "Rank slider showing tradeoff: low rank = fewer params but less capacity", "Sidebar explains why LoRA works (low-rank structure of weight updates)", "Comparison with full fine-tuning on same task"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/fine-tuning.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "emerging", "trending"]
+  },
+  {
+    "id": "MLD-103",
+    "epic": "MLD",
+    "title": "Add Diffusion Model step-through visualization",
+    "description": "EMERGING GAP: Powers all image/video generation (Stable Diffusion, DALL-E, Sora). ML Visualized covers it, we don't. Add: forward noise process animation (clean → noisy), reverse denoising process, U-Net architecture diagram, classifier-free guidance explanation. Sources: CS231n 2026, Lil'Log diffusion models, ML Visualized.",
+    "acceptanceCriteria": ["Forward process: image gradually gains noise over T steps", "Reverse process: noisy image gradually denoises step by step", "Noise schedule visualization (linear vs cosine)", "Simplified architecture diagram (U-Net or Transformer backbone)", "Sidebar explains the denoising score matching objective simply"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/diffusion.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "emerging"]
+  },
+  {
+    "id": "MLD-104",
+    "epic": "MLD",
+    "title": "Add Mixture of Experts (MoE) gating visualization",
+    "description": "EMERGING GAP: Dominant architecture for frontier LLMs (DeepSeek-R1, Kimi K2, Mistral Large 3). Add: expert network grid, gating network animation showing token routing, load balancing visualization, sparse vs dense activation comparison. Sources: NVIDIA MoE blog, Hugging Face MoE explained.",
+    "acceptanceCriteria": ["Expert networks shown as parallel blocks", "Gating network animates: token → top-K expert routing", "Load balancing shown across experts (bar chart of token counts)", "Sparse activation explained: only 2/8 experts active per token", "Parameter count: total vs active comparison"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/mixture-of-experts.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-092"], "blockedBy": ["MLD-092"], "tags": ["content", "curriculum", "emerging"]
+  },
+  {
+    "id": "MLD-105",
+    "epic": "MLD",
+    "title": "Add RLHF / DPO alignment pipeline visualization",
+    "description": "EMERGING GAP: Primary method for aligning LLMs (ChatGPT, Claude). CS224n 2026 has a full lecture on it. Add: animated pipeline showing SFT → reward model training → PPO optimization, preference pair comparison, DPO as simpler alternative. Sources: CS224n 2026, CMU RLHF tutorial.",
+    "acceptanceCriteria": ["3-stage pipeline animated: SFT → Reward Model → PPO", "Preference pair visualization: chosen vs rejected responses", "Reward model scoring shown for sample responses", "DPO comparison: same result without reward model", "Sidebar explains why alignment is necessary (safety, helpfulness)"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/rlhf.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "emerging"]
+  },
+  {
+    "id": "MLD-106",
+    "epic": "MLD",
+    "title": "Add RNN / LSTM / Sequence Model visualization",
+    "description": "IMPORTANT GAP: Still asked in interviews as comparison to Transformers. Add: RNN unrolled over time steps, LSTM cell gate visualization (forget/input/output), vanishing gradient demonstration (long sequences), comparison with Transformer on same sequence task. Sources: CS231n, CS224n, Goodfellow Ch.10.",
+    "acceptanceCriteria": ["RNN unrolled over T time steps with animation", "LSTM cell diagram with gate activations highlighted", "Vanishing gradient demo: gradient magnitude fades over long sequences", "Hidden state evolution visualization", "Comparison toggle: RNN vs LSTM vs Transformer on same task"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/rnn.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-028"], "blockedBy": ["MLD-028"], "tags": ["content", "curriculum", "important"]
+  },
+  {
+    "id": "MLD-107",
+    "epic": "MLD",
+    "title": "Add Data Drift / Model Monitoring dashboard",
+    "description": "EMERGING GAP: Production ML baseline knowledge in 2026. Add: feature distribution comparison (training vs production), PSI (Population Stability Index) calculation, alert simulation when distribution shifts, retraining trigger visualization. Sources: Exponent ML system design, MLOps roadmap 2026.",
+    "acceptanceCriteria": ["Feature distribution histograms: training vs production overlay", "PSI score computed with green/yellow/red threshold", "Drift simulation: gradually shift production data, watch PSI climb", "Alert triggered when PSI exceeds threshold", "Sidebar explains why drift matters (model accuracy degrades)"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/data-drift.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "emerging", "mlops"]
+  },
+  {
+    "id": "MLD-108",
+    "epic": "MLD",
+    "title": "Add real-world application context to every existing topic",
+    "description": "Every existing topic (NN, CNN, Dropout, A/B Testing, Bandits, Feature Store, Pipelines, Serving) lacks 'where is this used in the real world' context. Add: 1-2 sentence real-world application for each topic in the sidebar, company examples (e.g., 'Netflix uses A/B testing to decide which thumbnails to show'). Sources: production ML blogs, tech company engineering blogs.",
+    "acceptanceCriteria": ["Every mode has a 'Real-World' section in sidebar", "At least 2 company examples per mode", "Examples are specific (not generic 'used in industry')", "Neural Network: 'Used at Tesla for self-driving perception'", "Feature Store: 'Uber uses Michelangelo feature store for ETA prediction'"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "completion", "real-world"]
+  },
+  {
+    "id": "MLD-109",
+    "epic": "MLD",
+    "title": "Add interview tips section to each existing mode",
+    "description": "No mode has interview-specific guidance. Add: 'Interview Tips' collapsible section in sidebar for each mode. Include: what companies ask about this topic, common follow-up questions, key vocabulary to use, time complexity to mention. Sources: datainterview.com, Exponent, InterviewQuery.",
+    "acceptanceCriteria": ["Each mode has a collapsible 'Interview Tips' section", "Tips include: what's asked, follow-ups, vocabulary, gotchas", "A/B Testing: 'Amazon asks: How would you determine sample size?'", "Bandits: 'Meta asks: When would you use bandits vs A/B testing?'", "Feature Store: 'Ask about point-in-time correctness to show depth'"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "completion", "interview-prep"]
+  },
+  {
+    "id": "MLD-110",
+    "epic": "MLD",
+    "title": "Add difficulty tags (beginner/intermediate/advanced) to all topics",
+    "description": "No difficulty indicators exist anywhere in the module. Add: visual difficulty tag (color-coded badge) on each mode tab, each sub-topic, and each dataset. Beginner = green, Intermediate = yellow, Advanced = red. Based on CS229/CMU prerequisite mapping.",
+    "acceptanceCriteria": ["Each mode tab shows a difficulty badge", "Dataset options show difficulty (Circle=beginner, Spiral=advanced)", "Bandit strategies labeled (ε-greedy=beginner, Thompson=advanced)", "Pipeline templates labeled (Fraud=intermediate, Spotify=advanced)", "Properties panel shows difficulty context"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "difficulty"]
+  },
+  {
+    "id": "MLD-111",
+    "epic": "MLD",
+    "title": "Add prerequisite graph showing topic dependencies",
+    "description": "No prerequisite guidance exists. Add: visual dependency graph (viewable from sidebar or welcome screen) showing: Linear Regression → Logistic Regression → Neural Networks → CNN → Transformer. Regularization branches off from Overfitting. A/B Testing → Bandits → Model Serving is a separate path. Sources: CS229 course structure.",
+    "acceptanceCriteria": ["Visual dependency graph accessible from module sidebar", "Nodes are clickable — navigate to that mode", "Completed topics shown as filled nodes", "Clear two paths: ML Fundamentals track and MLOps track", "Graph uses React Flow or SVG with pan/zoom"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-060"], "blockedBy": [], "tags": ["content", "curriculum", "learning-path"]
+  },
+  {
+    "id": "MLD-112",
+    "epic": "MLD",
+    "title": "Add 'when to use which' comparison guides per category",
+    "description": "No comparison guidance exists anywhere. Add: for each category of algorithms, a comparison table/chart showing when to use which. Classification: logistic reg vs SVM vs decision tree vs NN (data size, interpretability, linearity). Optimization: SGD vs Adam vs RMSProp. Regularization: L1 vs L2 vs Dropout. Sources: Scikit-learn algorithm cheat sheet, production ML blogs.",
+    "acceptanceCriteria": ["Comparison chart accessible from each relevant mode", "Axes: data size, interpretability, training speed, accuracy", "Each algorithm positioned on the chart", "Interactive: hover for details about each algorithm's strengths", "At least 3 comparison guides: classifiers, optimizers, regularizers"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "curriculum", "comparison"]
+  },
+  {
+    "id": "MLD-113",
+    "epic": "MLD",
+    "title": "Add cross-module links from ML topics to other Architex modules",
+    "description": "ML topics connect to other modules but no links exist. Add navigation links: NN backprop → Algorithms module (gradient computation), Feature Store → Database module (Redis/S3), Pipeline → System Design module (Kafka/Spark architecture), A/B Testing → Statistics concepts, Bandits → Algorithms (exploration strategies).",
+    "acceptanceCriteria": ["At least 10 cross-module links added across all modes", "Links appear as 'Related in [Module]' section in sidebar", "Clicking a link navigates to the connected module/topic", "Links are bidirectional (other modules link back to ML)", "Connection reason explained in 1 sentence"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content", "cross-module", "navigation"]
+  }
+]

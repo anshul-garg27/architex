@@ -1,0 +1,325 @@
+[
+  {
+    "id": "ALG-221",
+    "epic": "ALG",
+    "title": "Rename variables in sorting engines for self-documenting readability",
+    "description": "I3 audit: sorting engines use competitive-programmer variable names (a, i, j, n, temp) that obscure meaning for learning. Rename in all 6 runnable sorting engines: a\u2192array or items, i\u2192passIndex, j\u2192compareIndex, n\u2192arrayLength, temp\u2192swapTemp. Also rename in step descriptions for consistency. Graph engines (bfs.ts, dijkstra.ts) already use better names (color, dist, queue) \u2014 sorting should match that standard. Keep pseudocode unchanged (pseudocode traditionally uses short names).",
+    "acceptanceCriteria": [
+      "bubble-sort.ts: a\u2192array, n\u2192length, i\u2192pass, j\u2192comparePos",
+      "quick-sort.ts: a\u2192array, pivot\u2192pivotValue, i\u2192partitionBoundary",
+      "merge-sort.ts: a\u2192array, leftArr\u2192leftHalf, rightArr\u2192rightHalf",
+      "Step descriptions updated to use new names",
+      "Pseudocode remains unchanged (traditional notation)",
+      "All tests still pass after rename"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts",
+      "src/lib/algorithms/sorting/merge-sort.ts",
+      "src/lib/algorithms/sorting/heap-sort.ts",
+      "src/lib/algorithms/sorting/insertion-sort.ts",
+      "src/lib/algorithms/sorting/selection-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "readability",
+      "variable-naming",
+      "teaching"
+    ]
+  },
+  {
+    "id": "ALG-222",
+    "epic": "ALG",
+    "title": "Add Hoare partition variant for Quick Sort alongside existing Lomuto",
+    "description": "I8 audit: every algorithm has exactly ONE variant. Quick Sort is the most important to show variants for \u2014 Lomuto (current, simpler) vs Hoare (faster, used in production). Add a variant selector: 'Partition Scheme: Lomuto | Hoare'. Hoare implementation processes from both ends toward middle. Step descriptions should highlight the difference: 'Hoare uses two pointers converging from both ends \u2014 fewer swaps than Lomuto but harder to implement correctly.'",
+    "acceptanceCriteria": [
+      "Variant selector visible when Quick Sort is selected",
+      "Hoare partition produces correct sorted output",
+      "Step descriptions explain the two-pointer convergence approach",
+      "Comparison note: 'Lomuto: ~n/2 swaps avg. Hoare: ~n/3 swaps avg. Hoare is faster but harder to implement.'",
+      "Both variants share the same config/metadata but different engines"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/quick-sort-hoare.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-142"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "variant",
+      "quick-sort",
+      "teaching"
+    ]
+  },
+  {
+    "id": "ALG-223",
+    "epic": "ALG",
+    "title": "Add iterative DFS variant alongside existing recursive DFS",
+    "description": "I8 audit: DFS only has recursive implementation. Iterative DFS using an explicit stack shows students HOW the call stack works \u2014 making the implicit explicit. Add variant selector: 'Style: Recursive | Iterative'. Iterative version uses a stack array with push/pop. Step descriptions should highlight: 'Notice the stack mirrors what the recursive version does with the call stack. Each pop is like a function return.'",
+    "acceptanceCriteria": [
+      "Variant selector visible when DFS is selected",
+      "Iterative DFS produces same traversal order as recursive",
+      "Stack visualization shown alongside graph (or stack contents in step description)",
+      "Step descriptions explain: 'Pop node X from stack (equivalent to recursive DFS returning from X)'",
+      "Comparison note at end: 'Both visit the same nodes in the same order. Iterative avoids stack overflow on deep graphs.'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/dfs-iterative.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "variant",
+      "dfs",
+      "teaching"
+    ]
+  },
+  {
+    "id": "ALG-224",
+    "epic": "ALG",
+    "title": "Add bottom-up Merge Sort variant alongside existing top-down",
+    "description": "I8 audit: Merge Sort only has top-down recursive variant. Bottom-up (iterative) Merge Sort avoids recursion entirely \u2014 important for students who struggle with recursion. Add variant selector. Bottom-up starts with pairs, merges into groups of 4, then 8, etc. Step descriptions: 'No recursion here \u2014 we start with the smallest pieces and build up. This is the bottom-up approach.'",
+    "acceptanceCriteria": [
+      "Variant selector: 'Style: Top-Down (Recursive) | Bottom-Up (Iterative)'",
+      "Bottom-up produces same sorted output",
+      "Step descriptions explain the iterative merging strategy",
+      "Comparison: 'Same O(n log n) performance, but bottom-up uses O(1) extra space for recursion (only O(n) for merge buffer).'"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/merge-sort-bottom-up.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "variant",
+      "merge-sort",
+      "non-recursive"
+    ]
+  },
+  {
+    "id": "ALG-225",
+    "epic": "ALG",
+    "title": "Add educational inline comments to top 10 algorithm engine files",
+    "description": "I10 audit: most comments restate code ('// swap elements') or are absent. Educational comments explain WHY: '// Lomuto invariant: everything in arr[low..i] is \u2264 pivot. This makes correctness easy to prove.' Add 5-10 educational comments per engine file for top 10 algorithms. Comments should form a NARRATIVE \u2014 reading just the comments should teach the algorithm. Reference: Sedgewick's 'Algorithms' textbook uses this approach.",
+    "acceptanceCriteria": [
+      "Each of top 10 engine files has 5+ educational comments",
+      "Comments explain WHY, not WHAT (no '// swap elements')",
+      "Key decision points have comments: why this pivot? why this data structure? why this order?",
+      "Comments reference the algorithm's invariant where applicable",
+      "Reading ONLY the comments gives a coherent explanation of the algorithm"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts",
+      "src/lib/algorithms/sorting/merge-sort.ts",
+      "src/lib/algorithms/graph/bfs.ts",
+      "src/lib/algorithms/graph/dijkstra.ts",
+      "src/lib/algorithms/dp/knapsack.ts",
+      "src/lib/algorithms/tree/avl.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "documentation",
+      "teaching",
+      "comments"
+    ]
+  },
+  {
+    "id": "ALG-226",
+    "epic": "ALG",
+    "title": "Add Python display code for top 10 algorithms (matching TypeScript implementation)",
+    "description": "I7 audit: zero display code in any language. Students want to see algorithms in THEIR language. Add a 'View Code' panel that shows clean, readable Python implementation for each algorithm. Python chosen because: (1) most CS courses use it, (2) most readable for beginners, (3) LeetCode/NeetCode solutions are mostly Python. Code should match the TypeScript implementation's logic exactly. Display with syntax highlighting in a togglable panel.",
+    "acceptanceCriteria": [
+      "View Code button visible in properties panel for top 10 algorithms",
+      "Python code displayed with syntax highlighting",
+      "Code logic matches the TypeScript engine exactly (same variant, same steps)",
+      "Code is clean, PEP 8 compliant, with educational comments",
+      "Copy-to-clipboard button for code"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/display-code/python/bubble-sort.py",
+      "src/lib/algorithms/display-code/python/quick-sort.py",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "multi-language",
+      "python",
+      "display-code"
+    ]
+  },
+  {
+    "id": "ALG-227",
+    "epic": "ALG",
+    "title": "Add 'Textbook vs Production' comparison for top 5 algorithms",
+    "description": "I9 audit: zero connection to real-world implementations. Add a comparison panel showing: our teaching version vs the REAL production version. For Merge Sort: our clean recursive version vs Python's Timsort (hybrid with insertion sort for small runs). For Dijkstra: our priority queue version vs Google Maps' contraction hierarchies. For Quick Sort: our Lomuto vs C stdlib's introsort (quicksort + heapsort fallback). Show the GAP between textbook and production, and explain WHY production versions are different.",
+    "acceptanceCriteria": [
+      "Comparison accessible from a 'Real-World' tab in properties panel",
+      "For 5 algorithms: shows 'Textbook Version' vs 'Production Version'",
+      "Each comparison explains WHY the production version differs",
+      "Merge Sort: mentions Timsort (Python/Java), explains hybrid approach",
+      "Dijkstra: mentions contraction hierarchies (Google Maps), explains preprocessing",
+      "Quick Sort: mentions introsort (C++), explains fallback to heapsort"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/real-world-comparisons.ts",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "real-world",
+      "production",
+      "teaching"
+    ]
+  },
+  {
+    "id": "ALG-228",
+    "epic": "ALG",
+    "title": "Fix DP table cumulative state \u2014 previously computed cells should stay colored",
+    "description": "V1 audit: DPVisualizer.tsx:90-111 computes cell states from ONLY the current step's mutations. Previously computed cells revert to 'default' between steps. A cell that was 'computed' (gray-600) should STAY 'computed' in subsequent steps, not disappear. The visualizer needs to maintain cumulative state across all steps up to the current one, not just the current step's mutations. [NEEDS-RUNTIME-VERIFICATION \u2014 observed from code analysis of DPVisualizer useMemo that only reads step.mutations]",
+    "acceptanceCriteria": [
+      "DP cells marked 'computed' in step N remain visually 'computed' in steps N+1, N+2, ...",
+      "Only the current 'computing' cell pulses/scales",
+      "The 'optimal' path cells highlighted during backtracking stay highlighted",
+      "Cumulative state tracked either in visualizer or via accumulated mutations from PlaybackController"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/DPVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "visualization-accuracy",
+      "dp",
+      "visual-lie"
+    ]
+  },
+  {
+    "id": "ALG-229",
+    "epic": "ALG",
+    "title": "Fix post-mutation step descriptions in bubble-sort, quick-sort, and heap-sort",
+    "description": "P0 VISUAL LIE found by implementation audit agent: In 3 sorting engines, step descriptions are generated AFTER the in-place swap, causing displayed values to be post-swap (inverted). bubble-sort.ts:86-88 swaps, then line 126 reads a[j] and a[j+1] which now hold swapped values. Same pattern in quick-sort.ts:130-132\u2192138 and heap-sort.ts:160-162\u2192168. Fix: capture const preSwapLeft = a[j], preSwapRight = a[j+1] BEFORE the swap, use those in description strings. Merge Sort does NOT have this bug because it uses immutable snapshots (leftArr, rightArr) from a.slice().",
+    "acceptanceCriteria": [
+      "bubble-sort.ts: swap description shows pre-swap values, not post-swap",
+      "quick-sort.ts: partition swap description shows pre-swap values",
+      "heap-sort.ts: heapify swap and extract swap descriptions show pre-swap values",
+      "Verified by tracing with [5,3,8,1,9]: every step description matches the visual state BEFORE the operation",
+      "Unit test added: verify step description values match pre-mutation array state"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts",
+      "src/lib/algorithms/sorting/heap-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "bug",
+      "p0",
+      "visual-lie",
+      "step-accuracy"
+    ]
+  },
+  {
+    "id": "ALG-230",
+    "epic": "ALG",
+    "title": "Fix Dijkstra complexity claim OR replace array-sort with real min-heap",
+    "description": "P0 found by implementation audit: dijkstra.ts CONFIG claims O((V+E) log V) time complexity but the actual implementation uses pq.sort() per iteration (line 112) giving O(V\u00b2 log V). This is TEACHING WRONG COMPLEXITY to students. Either: (A) Replace pq.sort()+shift() with a proper binary min-heap to match the O((V+E) log V) claim, OR (B) Change CONFIG to O(V\u00b2) and add note 'This simplified version uses array scanning. Production versions use a binary heap for O((V+E) log V).' Option A is better for teaching \u2014 students should see the algorithm they'll use in interviews.",
+    "acceptanceCriteria": [
+      "Dijkstra's time complexity claim in AlgorithmConfig matches the actual implementation",
+      "If option A: min-heap implemented with O(log V) extract-min and decrease-key",
+      "If option B: complexity changed to O(V\u00b2 + E) with explanation in description",
+      "Step descriptions mention the priority queue operation being performed",
+      "Existing tests still pass"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/dijkstra.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "bug",
+      "p0",
+      "accuracy",
+      "complexity-lie"
+    ]
+  }
+]

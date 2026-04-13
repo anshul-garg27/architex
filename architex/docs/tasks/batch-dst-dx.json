@@ -1,0 +1,197 @@
+[
+  {
+    "id": "DST-189",
+    "epic": "DST",
+    "title": "Write 'Adding a Data Structure' contributor guide with 9-step walkthrough",
+    "description": "DX AUDIT: Every other contribution type has a guide (adding-an-algorithm.md rated 5/5, adding-a-module.md rated 5/5). The DS module \u2014 with the MOST complex registration process (9 locations vs 5 for algorithms) \u2014 has ZERO documentation. A developer literally cannot know where to start.\n\nWrite `docs/guides/adding-a-data-structure.md` covering:\n1. Prerequisites\n2. Create engine file (with template code block)\n3. Register in index.ts (exports + DS_CATALOG entry)\n4. ALL 9 DataStructuresModule.tsx locations with line numbers\n5. Canvas visualization component guidelines\n6. Test requirements (with test template)\n7. Content quality checklist (step descriptions must explain WHY)\n8. Common mistakes and how to avoid them\n9. PR review checklist\n\nReference heap-ds.ts as gold standard engine, adding-an-algorithm.md as format reference.\n\nEvidence: DX audit confirmed 0/5 documentation quality. Time savings: 60-120min \u2192 5min for 'where to start'.",
+    "acceptanceCriteria": [
+      "Guide exists at docs/guides/adding-a-data-structure.md",
+      "Covers all 9 mandatory change locations with file:line references",
+      "Includes copyable template code for engine file and test file",
+      "Includes quality checklist with minimum requirements",
+      "References heap-ds.ts as the gold standard implementation",
+      "CONTRIBUTING.md updated to mention DS contributions",
+      "A developer can follow guide to add a DS without asking questions"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "docs/guides/adding-a-data-structure.md",
+      "CONTRIBUTING.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "documentation",
+      "contributor-guide",
+      "onboarding"
+    ]
+  },
+  {
+    "id": "DST-190",
+    "epic": "DST",
+    "title": "Add exhaustive never checks to all 3 critical switch statements",
+    "description": "DX AUDIT: handleOperation, handleRandom, and DSCanvas if-chain have default: return prev that silently swallow missing cases. TypeScript catches 2 of 9 required edits when adding a new DS \u2014 the other 7 are invisible. This is why developers ship broken DS that silently no-op.\n\nAdd exhaustive never assertion to each switch:\n```typescript\ndefault: {\n  const _exhaustive: never = prev.activeDS;\n  return prev;\n}\n```\nNow adding a DS to ActiveDS without handling it in ALL switches causes a compile error.\n\nRequires DST-182 first (derive ActiveDS from DS_CATALOG) for the never check to be meaningful.\n\nEvidence: DX audit error message table \u2014 5 of 6 common mistakes produce zero feedback.",
+    "acceptanceCriteria": [
+      "handleOperation switch has never exhaustiveness check",
+      "handleRandom switch has never exhaustiveness check",
+      "handleReset has never exhaustiveness check",
+      "DSCanvas if-chain converted to switch with never check",
+      "DSProperties switch has never exhaustiveness check",
+      "Adding a new DS to ActiveDS without handling it in ANY switch causes compile error"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-182"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "type-safety",
+      "exhaustive-switch",
+      "never",
+      "compile-time"
+    ]
+  },
+  {
+    "id": "DST-191",
+    "epic": "DST",
+    "title": "Extract shared step recorder utility \u2014 eliminate 33 copies of _stepId boilerplate",
+    "description": "DX AUDIT: Every one of 33 engine files duplicates `let _stepId = 0`, `function step()`, `function resetStepId()` \u2014 ~6 lines each, 198 lines total of identical boilerplate. If the step format needs to change (e.g., add timestamp field), all 33 files need manual updates.\n\nExtract into types.ts:\n```typescript\nexport function createStepRecorder() {\n  let id = 0;\n  return {\n    step(desc: string, mutations: DSMutation[]): DSStep {\n      return { id: id++, description: desc, mutations };\n    }\n  };\n}\n```\nEach engine function creates a local recorder. Eliminates global mutable state AND the duplication.\n\nThis is a superset of DST-183 (which fixes the bug) \u2014 this task also standardizes the pattern.\n\nEvidence: DX audit confirmed 33 copies of identical boilerplate. Agent grep found _stepId in all 33 files.",
+    "acceptanceCriteria": [
+      "createStepRecorder() exported from types.ts",
+      "All 33 engine files use the shared utility",
+      "Zero module-level _stepId variables remain",
+      "Zero module-level resetStepId() functions remain",
+      "All existing tests pass"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/array-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/bst-ds.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "deduplication",
+      "shared-utility",
+      "boilerplate"
+    ]
+  },
+  {
+    "id": "DST-192",
+    "epic": "DST",
+    "title": "Add pre-commit hooks with lint-staged for format + typecheck",
+    "description": "DX AUDIT: No pre-commit hooks exist. Prettier has no config file (.prettierrc absent). A developer can commit unformatted code, and CI catches it late (after push, not before commit).\n\nAdd:\n1. `.prettierrc` with explicit config (printWidth: 100, singleQuote: true, trailingComma: 'all')\n2. `husky` + `lint-staged` pre-commit hook running: prettier --check, eslint --fix, tsc --noEmit on staged files\n3. Add `format:check` to CI pipeline\n\nThis catches style and type issues BEFORE commit, saving CI round-trips.",
+    "acceptanceCriteria": [
+      ".prettierrc exists with explicit configuration",
+      "husky pre-commit hook runs lint-staged",
+      "lint-staged runs prettier + eslint on staged .ts/.tsx files",
+      "Unformatted code cannot be committed",
+      "CI runs format:check as a quality gate"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      ".prettierrc",
+      ".husky/pre-commit",
+      "package.json"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "pre-commit",
+      "formatting",
+      "lint-staged",
+      "tooling"
+    ]
+  },
+  {
+    "id": "DST-193",
+    "epic": "DST",
+    "title": "Remove 3 orphaned visualizer files that confuse contributors",
+    "description": "DX AUDIT: src/components/data-structures/ contains AVLTreeVisualizer.tsx, RedBlackTreeVisualizer.tsx, TreeCanvas.tsx \u2014 none are used by DataStructuresModule.tsx (which has inline AVLCanvas and RBTreeCanvas). A developer studying the codebase will spend time reading these files assuming they are the real implementation.\n\nEither: (A) Delete them if truly unused, or (B) refactor DataStructuresModule to USE them instead of inline canvases.\n\nOption A is recommended as the first step; option B is part of the monolith split (DST-069/070).\n\nEvidence: DX audit codebase navigability section \u2014 'orphaned components cause confusion'.",
+    "acceptanceCriteria": [
+      "No orphaned visualizer files in src/components/data-structures/",
+      "Either deleted or actively used by DataStructuresModule",
+      "No references to deleted files remain in imports",
+      "TypeScript compiles cleanly"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/data-structures/AVLTreeVisualizer.tsx",
+      "src/components/data-structures/RedBlackTreeVisualizer.tsx",
+      "src/components/data-structures/TreeCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "dead-code",
+      "cleanup",
+      "navigability"
+    ]
+  },
+  {
+    "id": "DST-194",
+    "epic": "DST",
+    "title": "Add GitHub issue template for new data structure contributions",
+    "description": "DX AUDIT: GitHub issue templates exist for new_algorithm.yml and new_template.yml but NOT for new data structures. Contributors cannot file a structured request for a new DS.\n\nCreate .github/ISSUE_TEMPLATE/new_data_structure.yml with fields:\n- DS name\n- Category (linear/tree/hash/heap/probabilistic/system)\n- Operations to support\n- Complexity values\n- Real-world applications\n- Why this DS matters (motivation)\n- References (CLRS chapter, Wikipedia link)",
+    "acceptanceCriteria": [
+      "new_data_structure.yml exists in .github/ISSUE_TEMPLATE/",
+      "Template has all required fields for a complete DS proposal",
+      "GitHub issue creation shows the DS template as an option",
+      "Template references the adding-a-data-structure.md guide"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      ".github/ISSUE_TEMPLATE/new_data_structure.yml"
+    ],
+    "dependencies": [
+      "DST-189"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "github",
+      "issue-template",
+      "contributor"
+    ]
+  }
+]

@@ -1,0 +1,223 @@
+{
+  "id": "uber-dispatch",
+  "name": "Uber Ride Dispatch",
+  "description": "Design Uber's ride dispatch system. Covers geospatial indexing, real-time driver matching, surge pricing, and trip state management.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["uber", "ride-sharing", "geospatial", "dispatch", "real-time", "matching"],
+  "nodes": [
+    {
+      "id": "mobile-client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Mobile Client",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "requestsPerSecond": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 50000, "authType": "jwt", "timeoutMs": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "load-balancer",
+      "type": "load-balancer",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckInterval": 5, "maxConnections": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "dispatch-service",
+      "type": "web-server",
+      "position": { "x": 750, "y": 100 },
+      "data": {
+        "label": "Dispatch Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 20, "maxConnections": 10000, "processingTimeMs": 50 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "location-service",
+      "type": "web-server",
+      "position": { "x": 750, "y": 350 },
+      "data": {
+        "label": "Location Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 15, "maxConnections": 20000, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 1000, "y": 350 },
+      "data": {
+        "label": "Location Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "evictionPolicy": "volatile-lru", "ttlSeconds": 30, "cacheHitRate": 0.98 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 1000, "y": 100 },
+      "data": {
+        "label": "Trip DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "message-queue",
+      "type": "message-queue",
+      "position": { "x": 500, "y": 450 },
+      "data": {
+        "label": "Event Bus (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": { "type": "kafka", "partitions": 24, "replicationFactor": 3, "retentionHours": 72 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "mobile-client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-lb",
+      "source": "api-gw",
+      "target": "load-balancer",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-lb-dispatch",
+      "source": "load-balancer",
+      "target": "dispatch-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-lb-location",
+      "source": "load-balancer",
+      "target": "location-service",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-dispatch-db",
+      "source": "dispatch-service",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-location-cache",
+      "source": "location-service",
+      "target": "cache",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-dispatch-location",
+      "source": "dispatch-service",
+      "target": "location-service",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-dispatch-kafka",
+      "source": "dispatch-service",
+      "target": "message-queue",
+      "sourceHandle": "left",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-location-kafka",
+      "source": "location-service",
+      "target": "message-queue",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 5, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Geospatial Matching with S2/H3",
+      "description": "The Location Service uses geospatial indexing (Google S2 or Uber H3) to map driver locations to grid cells. Redis stores driver positions with GEOADD/GEORADIUS commands. When a rider requests, the Dispatch Service queries nearby cells for available drivers within expanding radius rings until a match is found.",
+      "highlightNodes": ["location-service", "cache"],
+      "highlightEdges": ["e-location-cache", "e-dispatch-location"]
+    },
+    {
+      "title": "Surge Pricing & Supply-Demand",
+      "description": "The Dispatch Service calculates surge multipliers per H3 cell based on the ratio of ride requests to available drivers. Kafka streams real-time supply/demand events. The pricing algorithm uses a sliding window over recent requests and driver availability to set dynamic multipliers.",
+      "highlightNodes": ["dispatch-service", "message-queue"],
+      "highlightEdges": ["e-dispatch-kafka", "e-location-kafka"]
+    },
+    {
+      "title": "Trip State Machine",
+      "description": "Each trip follows a strict state machine: REQUESTED -> MATCHED -> DRIVER_EN_ROUTE -> ARRIVED -> IN_PROGRESS -> COMPLETED (or CANCELLED at any stage). The Trip DB stores the current state with optimistic locking. All state transitions are published to Kafka for downstream services (billing, analytics, ETA).",
+      "highlightNodes": ["dispatch-service", "database", "message-queue"],
+      "highlightEdges": ["e-dispatch-db", "e-dispatch-kafka"]
+    },
+    {
+      "title": "Real-Time Location Updates",
+      "description": "Drivers send GPS updates every 3-4 seconds via the mobile client. The Location Service writes to Redis with a 30-second TTL (drivers who stop sending are auto-removed). With 98% cache hit rate and 64GB Redis, the system tracks millions of active drivers. Location updates also flow to Kafka for trip ETA and analytics.",
+      "highlightNodes": ["mobile-client", "location-service", "cache"],
+      "highlightEdges": ["e-client-gw", "e-lb-location", "e-location-cache"]
+    }
+  ]
+}

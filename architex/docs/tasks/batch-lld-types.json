@@ -1,0 +1,162 @@
+[
+  {
+    "id": "LLD-157",
+    "epic": "LLD",
+    "title": "Unify duplicate SequenceMessage types — merge sequence-diagram.ts and LatencyOverlay types",
+    "description": "TYPE AUDIT T1+T4: Two separate types exist for the same concept: SequenceMessage (sequence-diagram.ts:11) has {id, from, to, label, type, order} and SeqMessage (SequenceDiagramLatencyOverlay.tsx:15) has {id, from, to, label, latencyMs, isReturn?}. Similarly, SequenceParticipant (name field) vs Participant (label field). These should be ONE base type extended. Create: BaseSequenceMessage with shared fields, extend for each use case. Also unify participant naming.",
+    "acceptanceCriteria": [
+      "Single BaseSequenceMessage type with {id, from, to, label}",
+      "SequenceMessage extends Base with {type, order}",
+      "LatencyMessage extends Base with {latencyMs, isReturn?}",
+      "Single SequenceParticipant type with {id, name, type?} — 'label' renamed to 'name'",
+      "Both components import from shared type file",
+      "Zero duplicate type definitions for same concept"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/types.ts", "src/lib/lld/sequence-diagram.ts", "src/components/modules/lld/SequenceDiagramLatencyOverlay.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "deduplication", "T1", "consistency"]
+  },
+  {
+    "id": "LLD-158",
+    "epic": "LLD",
+    "title": "Make UMLAttribute.id and UMLMethod.id required (not optional)",
+    "description": "TYPE AUDIT T2: UMLAttribute.id and UMLMethod.id are typed as optional (string?) at types.ts:6 and types.ts:13. But class-diagram-model.ts:92 filters by a.id (undefined comparison), and code-to-diagram.ts never generates IDs for parsed attributes. This causes: attributes without IDs can't be individually selected or deleted. Make id required and always generate on creation. class-diagram-model.ts:79 already generates IDs — ensure all code paths do too.",
+    "acceptanceCriteria": [
+      "UMLAttribute.id changed from 'id?: string' to 'id: string'",
+      "UMLMethod.id changed from 'id?: string' to 'id: string'",
+      "code-to-diagram.ts generates unique IDs for every parsed attribute and method",
+      "Pattern data in patterns.ts has IDs for all attributes/methods (or generates on load)",
+      "TypeScript compiler shows zero errors after change"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/types.ts", "src/lib/lld/codegen/code-to-diagram.ts", "src/lib/lld/patterns.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "required-fields", "T2", "correctness"]
+  },
+  {
+    "id": "LLD-159",
+    "epic": "LLD",
+    "title": "Extract UMLVisibility type alias and separate UMLClass position from data",
+    "description": "TYPE AUDIT T2: (1) Visibility '+'|'-'|'#'|'~' is repeated inline in UMLAttribute and UMLMethod — extract to shared type alias. (2) UMLClass mixes identity data (id, name, stereotype) with spatial layout (x, y). This violates SoC — when you clone a pattern, you must manually handle x/y separately. Consider: extract position to a ClassLayout map, or at minimum extract the visibility type.",
+    "acceptanceCriteria": [
+      "type UMLVisibility = '+' | '-' | '#' | '~' exported from types.ts",
+      "UMLAttribute.visibility and UMLMethod.visibility use UMLVisibility type",
+      "VISIBILITY_ICON, VISIBILITY_KEYWORD constants reference UMLVisibility keys",
+      "Optional: UMLClass position extracted to separate concern (ClassPositionMap)"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/types.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "DRY", "T2", "separation-of-concerns"]
+  },
+  {
+    "id": "LLD-160",
+    "epic": "LLD",
+    "title": "Fix autoLayout mutation — should return new array, not mutate in place",
+    "description": "TYPE AUDIT DATA FLOW: autoLayout() at code-to-diagram.ts:24-33 MUTATES input UMLClass[] in place (classes[i].x = ..., classes[i].y = ...). This violates the immutability contract that class-diagram-model.ts carefully maintains (every function returns new objects). If the same array is referenced elsewhere, this mutation corrupts it. Fix: return a new array with updated positions.",
+    "acceptanceCriteria": [
+      "autoLayout returns a new UMLClass[] with updated x/y (does NOT mutate input)",
+      "parseTypeScript and parsePython call autoLayout and use the returned value",
+      "Original parsed classes array is not modified",
+      "Unit tests verify input array is unchanged after autoLayout call"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/codegen/code-to-diagram.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "immutability", "data-flow", "mutation-bug"]
+  },
+  {
+    "id": "LLD-161",
+    "epic": "LLD",
+    "title": "Unify ID generation — single strategy for all LLD identifiers",
+    "description": "TYPE AUDIT T4 CONSISTENCY: Three different ID generation strategies coexist: (1) uid('cls') with Date.now()+counter in class-diagram-model.ts:23, (2) nextId('ts') with simple counter in code-to-diagram.ts:14, (3) crypto.randomUUID().slice(0,8) in LLDModule.tsx:3203. These have different collision properties and formats. Unify to one strategy: crypto.randomUUID() for runtime IDs (already in the module), deterministic content-based IDs for static data (patterns, problems).",
+    "acceptanceCriteria": [
+      "Single generateId() function exported from a shared utility",
+      "All runtime ID generation (class creation, attribute addition) uses it",
+      "Static data (patterns, problems) uses deterministic IDs ('singleton-cls-0')",
+      "Module-level mutable counters (_counter, _relId, etc.) removed",
+      "No ID collisions in any scenario"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/class-diagram-model.ts", "src/lib/lld/codegen/code-to-diagram.ts", "src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "id-generation", "consistency", "T4"]
+  },
+  {
+    "id": "LLD-162",
+    "epic": "LLD",
+    "title": "Make DesignPattern.code extensible for additional languages",
+    "description": "TYPE AUDIT T2 EXTENSIBILITY: DesignPattern.code is typed as { typescript: string; python: string } — hardcoded to exactly 2 languages. Adding Java, Go, or Mermaid export (LLD-077) requires changing the type. Change to: code: Record<string, string> with a CodeLanguage type alias, OR code: { language: string; source: string }[]. This makes adding new languages a data change, not a type change.",
+    "acceptanceCriteria": [
+      "DesignPattern.code typed as Record<CodeLanguage, string> where CodeLanguage is extensible",
+      "Existing 'typescript' and 'python' entries preserved",
+      "Adding 'mermaid' or 'java' doesn't require type changes",
+      "GeneratedCodePanel language toggle adapts to available languages dynamically",
+      "TypeScript compiler shows zero errors"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/types.ts", "src/lib/lld/patterns.ts", "src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "extensibility", "T2", "multi-language"]
+  },
+  {
+    "id": "LLD-163",
+    "epic": "LLD",
+    "title": "Move SidebarMode, LLDBottomTab, and component prop types to shared types file",
+    "description": "TYPE AUDIT T1 ORGANIZATION: SidebarMode (line 825) and LLDBottomTab (line 3145) are defined inline in the 3463-line LLDModule.tsx. 27 *Props interfaces are also inline. When LLD-037 splits the monolith, these types need a shared home. Pre-emptively extract all UI-level type definitions to src/lib/lld/ui-types.ts or src/lib/lld/types.ts.",
+    "acceptanceCriteria": [
+      "SidebarMode and LLDBottomTab exported from types.ts or ui-types.ts",
+      "All *Props interfaces remain colocated with their components (standard React pattern)",
+      "LLDModule.tsx imports types from shared file",
+      "No circular dependencies created",
+      "Prepares clean split for LLD-037 monolith refactor"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 4,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/lib/lld/types.ts", "src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["types", "organization", "T1", "refactor-prep"]
+  }
+]

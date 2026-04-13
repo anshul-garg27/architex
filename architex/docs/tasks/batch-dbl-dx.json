@@ -1,0 +1,163 @@
+[
+  {
+    "id": "DBL-171",
+    "epic": "DBL",
+    "title": "Write 'How to Add a New Database Mode' contributor guide",
+    "description": "No guide exists for adding a new mode (like MVCC, WAL, Buffer Pool) to the Database module. Contributors must reverse-engineer the pattern from the 4289-line monolith. Write: (1) Prerequisites, (2) Files to create (engine + tests), (3) Files to modify in DatabaseModule.tsx (7 places, with line numbers), (4) Engine pattern template (annotated BTreeViz-style class), (5) UI integration steps, (6) Quality checklist, (7) Common mistakes. Save to docs/guides/adding-a-database-mode.md. This unblocks ALL future DB content additions.",
+    "acceptanceCriteria": [
+      "Guide exists at docs/guides/adding-a-database-mode.md",
+      "Lists ALL files that need to be created and modified with line numbers",
+      "Includes annotated engine class template showing the step-production pattern",
+      "Includes quality checklist with at least 12 items",
+      "A developer unfamiliar with the codebase can add a mode following only this guide",
+      "Estimated time savings: 4-8 hours per new contributor"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": ["docs/guides/adding-a-database-mode.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "contributor-guide", "unblocks-content"]
+  },
+  {
+    "id": "DBL-172",
+    "epic": "DBL",
+    "title": "Write Database module architecture overview with data flow diagram",
+    "description": "No architecture documentation for the DB module. Contributors can't understand the data pipeline: input → engine → steps → canvas. Write: (1) Module overview (what it does, 7 modes), (2) File map (which file does what), (3) Data flow diagram: user input → engine class → Step[] → useState → Canvas component → SVG, (4) State management pattern (useState + useRef for engines), (5) How the Learn panel sub-components connect. Use Mermaid diagrams. Save to docs/architecture/database-module.md.",
+    "acceptanceCriteria": [
+      "Architecture doc exists at docs/architecture/database-module.md",
+      "Includes Mermaid diagram showing input → engine → steps → canvas data flow",
+      "Explains the useState + useRef pattern for engine state management",
+      "Maps all 24 files to their roles (engine, canvas, sidebar, etc.)",
+      "Explains the Learn panel lazy-loading architecture",
+      "A developer can understand the module's architecture in under 15 minutes by reading this doc"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": ["docs/architecture/database-module.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "architecture", "data-flow"]
+  },
+  {
+    "id": "DBL-173",
+    "epic": "DBL",
+    "title": "Add JSDoc to all exported functions and classes in src/lib/database/",
+    "description": "Engine files have file-level JSDoc headers but function-level documentation is sparse. computeClosure, findCandidateKeys, BTreeViz.insert, HashIndexViz.search, etc. lack @param and @returns documentation. A contributor reading the code can't tell what parameters are expected or what the return value means without reading the implementation. Add JSDoc with @param, @returns, @example for every exported function and public class method.",
+    "acceptanceCriteria": [
+      "Every exported function in src/lib/database/*.ts has JSDoc with @param and @returns",
+      "Every public method in BTreeViz, HashIndexViz, LSMTreeViz has JSDoc",
+      "At least 5 functions have @example showing usage",
+      "JSDoc descriptions explain WHAT the function does, not just restating the name",
+      "IDE hover shows useful documentation for all exports"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": ["src/lib/database/btree-viz.ts", "src/lib/database/hash-index-viz.ts", "src/lib/database/lsm-viz.ts", "src/lib/database/normalization.ts", "src/lib/database/query-plan.ts", "src/lib/database/transaction-sim.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "jsdoc", "api-docs"]
+  },
+  {
+    "id": "DBL-174",
+    "epic": "DBL",
+    "title": "Create DB mode scaffolding script: pnpm scaffold:db-mode",
+    "description": "Adding a new DB mode requires creating 2 files and modifying 1, with zero automation. Create a scaffolding script that: (1) Creates engine file from template (class with getState/reset/operation→Step[] pattern), (2) Creates test file with 3 starter tests, (3) Updates barrel export in index.ts, (4) Prints next steps with file paths and line numbers. Script at scripts/scaffold-db-mode.ts, runnable via package.json script.",
+    "acceptanceCriteria": [
+      "pnpm scaffold:db-mode --name mvcc creates src/lib/database/mvcc-viz.ts from template",
+      "Template includes: class skeleton, Step interface, getState(), reset(), one sample operation",
+      "Creates test file with 3 starter tests (normal, edge, step-count)",
+      "Updates src/lib/database/index.ts with new exports",
+      "Prints clear next-steps checklist in terminal",
+      "Validates: name doesn't conflict with existing engines"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": ["scripts/scaffold-db-mode.ts", "package.json"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "scaffolding", "automation", "developer-tooling"]
+  },
+  {
+    "id": "DBL-175",
+    "epic": "DBL",
+    "title": "Add type-check npm script and run in CI",
+    "description": "No 'type-check' script exists in package.json. A contributor can introduce TypeScript errors that aren't caught until deployment. Add: (1) 'type-check': 'tsc --noEmit' to package.json scripts, (2) Run as part of CI pipeline (if exists), (3) Document in CONTRIBUTING.md: 'Run pnpm type-check before submitting PR'. This catches type errors early and builds confidence in changes.",
+    "acceptanceCriteria": [
+      "package.json has 'type-check': 'tsc --noEmit' script",
+      "pnpm type-check runs without errors on current codebase",
+      "CI pipeline (if exists) runs type-check on PRs",
+      "CONTRIBUTING.md mentions type-check as pre-PR requirement"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": ["package.json"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "type-safety", "ci", "developer-tooling"]
+  },
+  {
+    "id": "DBL-176",
+    "epic": "DBL",
+    "title": "Create PR review checklist template for Database module contributions",
+    "description": "No review checklist for DB module PRs. Reviewers don't know what to check. Create a .github/PULL_REQUEST_TEMPLATE/database-mode.md (or docs/checklists/database-mode-pr.md) with: Engine quality (step descriptions, edge cases, tests), UI integration (all 7 places updated), Content quality (problem-first description, real-world connection), Visual quality (no hardcoded colors, themed). Based on findings from all 8 audits.",
+    "acceptanceCriteria": [
+      "PR checklist template exists with at least 15 items across 4 categories",
+      "Categories: Engine Quality, UI Integration, Content Quality, Testing",
+      "Each item is specific and verifiable (not vague 'looks good')",
+      "Can be copy-pasted into a PR description as a markdown checklist"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": ["docs/checklists/database-mode-pr.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "review-process", "quality-gate", "checklist"]
+  },
+  {
+    "id": "DBL-177",
+    "epic": "DBL",
+    "title": "Remove orphaned React Flow canvas node/edge components from database directory",
+    "description": "src/components/canvas/nodes/database/ has EntityNode.tsx (307 lines), WeakEntityNode.tsx (245 lines), RelationshipDiamond.tsx (213 lines) and src/components/canvas/edges/database/ has CrowsFootEdge.tsx (225 lines) — 790 lines of well-built React Flow components that are COMPLETELY UNUSED by the Database module. The module uses a hand-rolled SVG canvas instead. These orphaned files confuse new contributors who think they're part of the active codebase. Either: (a) integrate them into the ER diagram mode (replacing the custom SVG), or (b) move to an 'unused' directory with a README explaining they're for future use.",
+    "acceptanceCriteria": [
+      "Orphaned components are either integrated into the ER diagram mode OR moved to a clearly labeled location",
+      "If moved: README.md in the directory explains their status and future plans",
+      "If integrated: ER diagram mode uses React Flow with EntityNode/WeakEntityNode/RelationshipDiamond",
+      "No contributor confusion about whether these files are active code"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": ["src/components/canvas/nodes/database/", "src/components/canvas/edges/database/"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "dead-code", "cleanup", "contributor-confusion"]
+  }
+]

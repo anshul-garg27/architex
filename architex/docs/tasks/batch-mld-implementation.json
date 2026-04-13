@@ -1,0 +1,142 @@
+[
+  {
+    "id": "MLD-128",
+    "epic": "MLD",
+    "title": "Fix NaN loss on empty input array in neural-net.ts:213",
+    "description": "neural-net.ts:213 computes `totalLoss / inputs.length` which produces NaN when inputs is empty (division by 0). The accuracy computation on line 214 IS guarded (`inputs.length > 0 ? ... : 0`) but loss is not.\n\nFix: Add same guard for loss: `loss: inputs.length > 0 ? totalLoss / inputs.length : 0`",
+    "acceptanceCriteria": ["train() with empty inputs array returns loss=0, accuracy=0", "Existing training behavior unchanged for non-empty inputs", "Add unit test: NeuralNetwork.train([], [], 0.1, 5, callback) produces loss=0"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/neural-net.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["implementation", "bug", "edge-case"]
+  },
+  {
+    "id": "MLD-129",
+    "epic": "MLD",
+    "title": "Fix epsilon-greedy initial arm bias — always picks Arm 0 first",
+    "description": "multi-armed-bandit.ts:98-107: When all arms are unpulled (pulls[i]=0), the exploit branch sets `est = Infinity` for all arms. The loop picks the FIRST arm with Infinity, which is always Arm 0. This creates a systematic bias toward the first arm. UCB1 avoids this by cycling through unpulled arms (line 143-145).\n\nFix: When exploiting and all arms tied, randomize selection among tied arms. Or: force one pull per arm before any exploitation (like UCB1 does).",
+    "acceptanceCriteria": ["First N rounds (where N = arm count) pull each arm once in random order", "Or: when multiple arms tied at best value, randomly select among them", "After initial exploration, exploit branch works as before", "Seeded randomness preserved for reproducibility"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/multi-armed-bandit.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["implementation", "bug", "correctness"]
+  },
+  {
+    "id": "MLD-130",
+    "epic": "MLD",
+    "title": "Fix ServingCanvas visual lie — dots animate continuously but simulation is discrete",
+    "description": "MLDesignModule.tsx:1926: `const phase = ((animTick * 0.12 + d * 0.2) % 1)` creates continuously flowing dots regardless of simulation step. The dots suggest constant traffic flow, but the simulation produces discrete batched steps. This is a visual lie — students may think traffic is flowing when the simulation is between steps.\n\nFix: Tie dot animation to the current step's request count. Between steps, dots should pause. During a step transition, dots should flow from router to model boxes and then stop.",
+    "acceptanceCriteria": ["Dots only animate during step transitions, not continuously", "Between simulation steps, the visualization is static", "Number of dots proportional to the current step's traffic count", "Animation pauses when simulation is paused or complete"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visualization", "accuracy", "visual-lie"]
+  },
+  {
+    "id": "MLD-131",
+    "epic": "MLD",
+    "title": "Add missing legends to all 7 visualizers that lack them",
+    "description": "V4 Legend scored 0 for 7 of 9 visualizers. No legend for: ScatterPlot (blue=class 0, orange=class 1), NetworkDiagram (blue edge=positive weight, orange=negative, thickness=magnitude), DecisionBoundary (color scale from class 0 to class 1), CNN Demo (blue=active window, yellow=current output cell), FeatureStoreCanvas (node colors by type, glow=active), DropoutDemo (blue=active, dashed=dropped). Only PipelineCanvas has a partial legend.\n\nAdd compact legends to each visualizer, either as a small overlay in the bottom-left corner or as a sidebar section.",
+    "acceptanceCriteria": ["ScatterPlot has legend: blue circle = class 0, orange circle = class 1", "NetworkDiagram has legend: blue line = positive weight, orange = negative, thickness = magnitude", "DecisionBoundary has gradient color bar from blue to orange", "CNN Demo has legend: blue highlight = current window, yellow = output cell", "FeatureStoreCanvas has legend for node types and glow meaning", "All legends use consistent styling and don't obscure the visualization"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visualization", "legend", "accessibility"]
+  },
+  {
+    "id": "MLD-132",
+    "epic": "MLD",
+    "title": "Add neuron activation coloring to NetworkDiagram",
+    "description": "NetworkDiagram at MLDesignModule.tsx:1104-1119 shows all neurons as the same fill color (#1e293b) regardless of their activation values. The activation data IS available (returned in `lastActivations` from onEpoch) but never used to color neurons.\n\nFix: After training, color each neuron's fill based on its activation value (0=dark, 1=bright). This would let students SEE which neurons 'fire' for different inputs — a key insight for understanding how neural networks decompose features.\n\nReference: 3Blue1Brown's NN visualization uses exactly this technique (neurons glow brighter with higher activation).",
+    "acceptanceCriteria": ["Neuron fill color maps to activation value: 0=dark (base), 1=bright blue/orange", "Input layer neurons colored by input feature values", "Hidden layer neurons colored by their activation after forward pass", "Output neuron colored by prediction value", "Colors update after training completes", "Brightness mapping makes it immediately obvious which neurons are 'active'"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visualization", "accuracy", "teaching-quality"]
+  },
+  {
+    "id": "MLD-133",
+    "epic": "MLD",
+    "title": "Increase DecisionBoundary heatmap opacity for better visibility",
+    "description": "DecisionBoundary at MLDesignModule.tsx:1179 uses rgba with 0.35 alpha for the heatmap. This makes the decision boundary very faint — students may not notice the boundary forming during training. The data points (drawn on top at full opacity) dominate the visual.\n\nFix: Increase heatmap alpha to 0.6-0.7. Or use a two-pass approach: heatmap at 0.5 alpha, then data points with white stroke for contrast.",
+    "acceptanceCriteria": ["Decision boundary heatmap is clearly visible against background", "Data points still readable on top of the heatmap", "Boundary between classes is visually obvious", "Color transition from blue to orange is smooth and educational"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visualization", "visibility"]
+  },
+  {
+    "id": "MLD-134",
+    "epic": "MLD",
+    "title": "Add pseudocode display for neural network forward pass and backpropagation",
+    "description": "ZERO concepts in the module have pseudocode. For a learning platform, pseudocode is how students translate visual understanding into implementable knowledge. The NN forward pass and backprop are the most important algorithms to show.\n\nAdd pseudocode panel (bottom panel tab or toggle) showing:\n\nFORWARD PASS:\n```\nfor each layer l:\n  for each neuron j in layer l:\n    z_j = bias_j + Σ(input_i × weight_ij)\n    activation_j = f(z_j)  // f = ReLU, sigmoid, etc.\n  output = activations of last layer\n```\n\nBACKPROPAGATION:\n```\nfor each layer l (in reverse):\n  delta_j = error × f'(activation_j)\n  for each weight:\n    weight -= learning_rate × delta_j × input_i\n```\n\nHighlight the current line during training step-through (when/if step-through mode is added).",
+    "acceptanceCriteria": ["Pseudocode panel accessible from bottom panel tab or sidebar toggle", "Forward pass pseudocode matches neural-net.ts:98-117 logic", "Backprop pseudocode matches neural-net.ts:163-208 logic", "Pseudocode uses standard mathematical notation (Σ, f(), f'())", "Pseudocode is syntax-highlighted and readable at small sizes"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["implementation", "pseudocode", "multi-representation"]
+  },
+  {
+    "id": "MLD-135",
+    "epic": "MLD",
+    "title": "Add pseudocode display for A/B test z-test and bandit strategies",
+    "description": "Add pseudocode for the statistical and bandit algorithms:\n\nZ-TEST:\n```\np_pool = (rate_A × n + rate_B × n) / (2n)\nSE = sqrt(p_pool × (1 - p_pool) × (2/n))\nz = (rate_B - rate_A) / SE\np_value = 2 × (1 - Φ(|z|))  // Φ = normal CDF\nsignificant = p_value < 0.05\n```\n\nEPSILON-GREEDY:\n```\nif random() < ε:\n  arm = random_arm()  // explore\nelse:\n  arm = argmax(estimated_values)  // exploit\nreward = pull(arm)\nupdate estimate: est[arm] = total_reward / pulls\n```\n\nUCB1:\n```\nfor each arm:\n  UCB = avg_reward + sqrt(2 × ln(t) / pulls)\narm = argmax(UCB)  // optimism under uncertainty\n```",
+    "acceptanceCriteria": ["Pseudocode panel for A/B testing mode shows z-test formula step by step", "Pseudocode for each bandit strategy visible in Experimentation mode", "Formulas use standard notation (Σ, argmax, sqrt)", "Variables match the implementation names where possible", "Each line has a brief inline comment explaining the purpose"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-134"], "blockedBy": [], "tags": ["implementation", "pseudocode", "multi-representation"]
+  },
+  {
+    "id": "MLD-136",
+    "epic": "MLD",
+    "title": "Rename neural-net.ts variables for educational clarity",
+    "description": "neural-net.ts uses short variable names that prioritize brevity over teaching:\n- `s` for sample index (line 141) → rename to `sampleIdx`\n- `l` for layer index (line 181, 198) → rename to `layerIdx`\n- `j` for neuron index → rename to `neuronIdx` (or keep j but add comment)\n- `outIdx` is good (descriptive)\n- `layerAct` is good\n\nAlso add inline 'why' comments:\n- Line 175: `// Clip gradient to [-5, 5] to prevent exploding gradients`\n- Line 203: `// weight update: w -= lr * delta * input (gradient descent step)`\n- Line 109: `// Guard against NaN from weight corruption — output 0 as safe fallback`\n\nThis makes the code serve as a readable reference implementation for students.",
+    "acceptanceCriteria": ["Loop variables have descriptive names or explanatory comments", "Every non-obvious line has an inline comment explaining WHY", "Comments reference the algorithm concept (gradient descent, chain rule)", "Code still passes all existing tests", "Variable names don't conflict with existing API (layers, weights, etc.)"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/neural-net.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["implementation", "readability", "teaching-code"]
+  },
+  {
+    "id": "MLD-137",
+    "epic": "MLD",
+    "title": "Add Karpathy-style micrograd variant alongside existing NN implementation",
+    "description": "Karpathy's micrograd (94 lines) is the gold standard for teaching neural networks from scratch. Our neural-net.ts (230 lines) is a matrix-based implementation — correct but harder to follow the chain rule through.\n\nAdd a scalar-valued autograd implementation inspired by micrograd:\n- Value class with .data, .grad, .backward()\n- Operations (+, *, tanh, exp) that build a computation graph\n- .backward() traces the graph to compute gradients\n\nThis teaches backpropagation as graph traversal (how it actually works) rather than as matrix multiplications (an optimization). Show both implementations side-by-side.\n\nSource: github.com/karpathy/micrograd",
+    "acceptanceCriteria": ["Autograd Value class with data, grad, and backward() method", "Basic operations (+, *, relu, sigmoid) build computation graph", "backward() computes gradients via topological sort of graph", "Can train a simple classifier on Circle/XOR datasets", "Side-by-side toggle: 'Matrix implementation' vs 'Scalar autograd' in NN mode"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/autograd.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["implementation", "variant", "teaching-code", "innovation"]
+  },
+  {
+    "id": "MLD-138",
+    "epic": "MLD",
+    "title": "Add complexity counters to NN training (operations, multiply-adds, memory)",
+    "description": "Zero concepts show complexity metrics (scored 0/3 on T5 across every concept). For NN training, add live counters:\n- Forward pass: multiply-add operations per sample (neurons × inputs per layer)\n- Backward pass: gradient computations (same count)\n- Total FLOPs per epoch: 2 × forward_ops × num_samples\n- Memory: parameter count × 4 bytes (float32)\n- Wall-clock time per epoch\n\nShow these in the properties panel alongside loss/accuracy. This helps students develop intuition for WHY larger networks train slower.",
+    "acceptanceCriteria": ["Properties panel shows: operations per forward pass, total FLOPs per epoch, parameter memory", "Counters update when network architecture changes", "Tooltip explains what FLOPs means and why it matters", "Comparison text: 'Our network: 17 params. GPT-4: ~1.8 trillion params'", "Wall-clock time per epoch shown for tangible reference"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/neural-net.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["implementation", "complexity", "metrics"]
+  },
+  {
+    "id": "MLD-139",
+    "epic": "MLD",
+    "title": "Add cumulative regret visualization to bandit simulation",
+    "description": "The bandit visualization shows estimated arm values but not cumulative regret — the key metric for comparing bandit strategies. Regret = total reward from always playing the best arm minus total reward from the strategy.\n\nAdd: line chart below the bar chart showing cumulative regret over rounds. When comparing strategies (future MLD-033), overlay regret curves for visual comparison. This is how the CSE442 interactive tutorial (cse442-17f.github.io/LinUCB/) presents bandit results — regret comparison is the standard pedagogical tool.\n\nSource: CSE442 Interactive Bandit Tutorial",
+    "acceptanceCriteria": ["Cumulative regret line chart shown below or alongside arm value bars", "Regret = (best_arm_true_prob × rounds) - total_reward_received", "Chart updates in real-time during animation", "X-axis = round number, Y-axis = cumulative regret", "Tooltip explains what regret means and why lower is better"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/multi-armed-bandit.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["visualization", "metrics", "teaching-quality"]
+  },
+  {
+    "id": "MLD-140",
+    "epic": "MLD",
+    "title": "Add displayable Python code for key algorithms",
+    "description": "Zero concepts have displayable real code. Add a 'Code' tab in the bottom panel showing the algorithm in Python (the lingua franca of ML). Code should be clean, educational, and runnable:\n\nNN Forward Pass (Python):\n```python\ndef forward(self, x):\n    for W, b, activation in self.layers:\n        x = activation(x @ W + b)  # matrix multiply + bias + activation\n    return x\n```\n\nBackpropagation (Python):\n```python\ndef backward(self, y_true, y_pred):\n    delta = y_pred - y_true  # output error\n    for layer in reversed(self.layers):\n        delta = delta * activation_derivative(layer.output)\n        layer.weight_grad = layer.input.T @ delta\n        delta = delta @ layer.weights.T  # propagate error backward\n```\n\nShow Python alongside the TypeScript implementation so students can see both.",
+    "acceptanceCriteria": ["Bottom panel has a 'Code' tab showing Python implementation", "Python code is clean, runnable, and matches the TypeScript logic", "At least 3 algorithms have Python code: forward pass, backprop, z-test", "Code is syntax-highlighted", "Copy-to-clipboard button on the code block"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["implementation", "multi-language", "multi-representation"]
+  },
+  {
+    "id": "MLD-141",
+    "epic": "MLD",
+    "title": "Add step-by-step forward pass mode with per-neuron computation display",
+    "description": "Currently training runs as a batch — user clicks Train and sees the end result. There's no way to see a SINGLE forward pass through the network on a SINGLE data point with computations shown.\n\nAdd a 'Step Through' mode:\n1. User selects a data point (click on scatter plot)\n2. Forward pass animates: input values → weighted sum → activation → next layer\n3. Each neuron shows its computation: z = 0.3×0.5 + (-0.2)×0.8 + 0.1 = 0.05, a = sigmoid(0.05) = 0.512\n4. Final output shown with classification result\n5. Optional: backward pass shows gradient flow back through the same path\n\nThis is the single most requested feature for understanding neural networks (3Blue1Brown approach, Karpathy approach). Source: 3Blue1Brown 'What is a Neural Network?' — the neuron-by-neuron forward pass animation is what made it click for millions.",
+    "acceptanceCriteria": ["User can click a data point to trigger step-through mode", "Forward pass animates layer by layer, neuron by neuron", "Each neuron shows its weighted sum and activation computation", "Output neuron shows classification result with confidence", "User can step forward/backward through the computation", "Optional backward pass shows gradient values on each connection"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/neural-net.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["implementation", "visualization", "teaching-quality", "high-impact"]
+  }
+]

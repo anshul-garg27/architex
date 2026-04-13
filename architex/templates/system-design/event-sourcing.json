@@ -1,0 +1,214 @@
+{
+  "id": "event-sourcing",
+  "name": "Event Sourcing / CQRS Architecture",
+  "description": "Design an event-sourced system with CQRS (Command Query Responsibility Segregation). Covers command handling, event store, read model projection, eventual consistency, and event replay.",
+  "difficulty": 4,
+  "category": "advanced",
+  "tags": ["event-sourcing", "cqrs", "architecture", "commands", "projections", "eventual-consistency"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client Application",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 100000, "requestsPerSecond": 20000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 30000, "authType": "jwt", "timeoutMs": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "command-service",
+      "type": "app-server",
+      "position": { "x": 500, "y": 100 },
+      "data": {
+        "label": "Command Service (Write)",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 6, "cpuCores": 4, "memoryGB": 8, "processingTimeMs": 20 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "event-store",
+      "type": "database",
+      "position": { "x": 750, "y": 100 },
+      "data": {
+        "label": "Event Store (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 300, "storageGB": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "event-bus",
+      "type": "message-queue",
+      "position": { "x": 500, "y": 300 },
+      "data": {
+        "label": "Event Bus (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": { "type": "kafka", "partitions": 24, "replicationFactor": 3, "retentionHours": 2160 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "read-service",
+      "type": "app-server",
+      "position": { "x": 500, "y": 450 },
+      "data": {
+        "label": "Read Service (Query)",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 10, "cpuCores": 4, "memoryGB": 16, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "read-cache",
+      "type": "cache",
+      "position": { "x": 750, "y": 350 },
+      "data": {
+        "label": "Read Model Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "evictionPolicy": "allkeys-lru", "ttlSeconds": 600, "cacheHitRate": 0.96 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "read-db",
+      "type": "database",
+      "position": { "x": 750, "y": 500 },
+      "data": {
+        "label": "Read Model DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 500, "storageGB": 1000 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-command",
+      "source": "api-gw",
+      "target": "command-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-gw-read",
+      "source": "api-gw",
+      "target": "read-service",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-command-store",
+      "source": "command-service",
+      "target": "event-store",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-command-bus",
+      "source": "command-service",
+      "target": "event-bus",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-bus-read",
+      "source": "event-bus",
+      "target": "read-service",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-read-cache",
+      "source": "read-service",
+      "target": "read-cache",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-read-db",
+      "source": "read-service",
+      "target": "read-db",
+      "sourceHandle": "right",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Command Handling and Event Generation",
+      "description": "Write operations arrive as commands (e.g., PlaceOrder, UpdateInventory) routed to the Command Service. It loads the aggregate's current state by replaying events from the Event Store, validates the command against business rules, and appends new events (OrderPlaced, InventoryUpdated). Events are immutable facts -- the append-only Event Store never updates or deletes. Optimistic concurrency uses aggregate version numbers to prevent write conflicts.",
+      "highlightNodes": ["client", "api-gw", "command-service", "event-store"],
+      "highlightEdges": ["e-client-gw", "e-gw-command", "e-command-store"]
+    },
+    {
+      "title": "Event Publication and Transactional Outbox",
+      "description": "After persisting events, the Command Service publishes them to Kafka using the transactional outbox pattern: events are written to an outbox table in the same DB transaction as the event store, then a CDC connector (Debezium) streams them to Kafka. This guarantees no events are lost even if the service crashes after the DB write. Kafka retains 90 days of events for full system replay.",
+      "highlightNodes": ["command-service", "event-store", "event-bus"],
+      "highlightEdges": ["e-command-store", "e-command-bus"]
+    },
+    {
+      "title": "Read Model Projection",
+      "description": "The Read Service consumes events from Kafka and builds denormalized read models optimized for specific queries (e.g., a materialized view of order summaries, a user's activity feed). These projections are written to a separate Read Model DB and cached in Redis. Because read and write models are separate, each can be optimized independently -- the write side for consistency, the read side for query performance.",
+      "highlightNodes": ["event-bus", "read-service", "read-cache", "read-db"],
+      "highlightEdges": ["e-bus-read", "e-read-cache", "e-read-db"]
+    },
+    {
+      "title": "Eventual Consistency and Event Replay",
+      "description": "Reads are eventually consistent: there is a small delay (typically 50-200ms) between a command being accepted and the read model being updated. The API Gateway routes writes to the Command Service and reads to the Read Service. If a read model becomes corrupted or a new projection is needed, events can be replayed from the Event Store from any point in time to rebuild the read model from scratch. Snapshots every N events optimize aggregate loading.",
+      "highlightNodes": ["api-gw", "command-service", "read-service"],
+      "highlightEdges": ["e-gw-command", "e-gw-read", "e-bus-read"]
+    }
+  ]
+}

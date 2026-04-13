@@ -1,0 +1,214 @@
+{
+  "id": "ticket-booking",
+  "name": "Event Ticket Booking (BookMyShow)",
+  "description": "Design an event ticket booking platform like BookMyShow or Ticketmaster. Covers seat locking, high-concurrency flash sales, payment processing, and waitlists.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["ticket-booking", "seat-locking", "flash-sale", "concurrency", "payment", "inventory"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Web / Mobile Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 500000, "requestsPerSecond": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckIntervalMs": 5000, "maxConnectionsPerNode": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Booking Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 20, "cpuCores": 8, "memoryGB": 32, "processingTimeMs": 15 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 750, "y": 50 },
+      "data": {
+        "label": "Seat Lock Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "evictionPolicy": "volatile-ttl", "ttlSeconds": 600, "cacheHitRate": 0.95 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 750, "y": 350 },
+      "data": {
+        "label": "Booking DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 500, "y": 400 },
+      "data": {
+        "label": "Payment Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 32, "retentionHours": 72, "maxThroughputMBps": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "payment-worker",
+      "type": "worker",
+      "position": { "x": 750, "y": 500 },
+      "data": {
+        "label": "Payment Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 10, "concurrencyPerInstance": 30, "retryAttempts": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "third-party",
+      "type": "third-party-api",
+      "position": { "x": 1000, "y": 500 },
+      "data": {
+        "label": "Payment Gateway (Stripe)",
+        "category": "external",
+        "componentType": "third-party-api",
+        "icon": "ExternalLink",
+        "config": { "provider": "stripe", "timeoutMs": 30000, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-worker",
+      "source": "mq",
+      "target": "payment-worker",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-worker-stripe",
+      "source": "payment-worker",
+      "target": "third-party",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 200, "animated": true }
+    },
+    {
+      "id": "e-worker-db",
+      "source": "payment-worker",
+      "target": "database",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Temporary Seat Locking with Redis TTL",
+      "description": "When a user selects seats, the Booking Service acquires a distributed lock in Redis using SET NX with a 10-minute TTL. This temporarily reserves the seats while the user completes payment. If payment fails or times out, the TTL auto-releases the seats — no manual cleanup needed. This prevents overselling during flash sales.",
+      "highlightNodes": ["app-server", "cache"],
+      "highlightEdges": ["e-app-cache"]
+    },
+    {
+      "title": "Flash Sale Concurrency Control",
+      "description": "During high-demand events (concert launches), hundreds of thousands of users compete for limited seats. The Load Balancer distributes traffic across 20+ app instances. Redis handles the seat-locking hotspot. PostgreSQL uses row-level locking on the final commit. A virtual waiting room (queue) can throttle inbound requests to prevent system overload.",
+      "highlightNodes": ["lb", "app-server", "cache"],
+      "highlightEdges": ["e-client-lb", "e-lb-app", "e-app-cache"]
+    },
+    {
+      "title": "Asynchronous Payment Processing",
+      "description": "After seats are locked, a payment job is published to Kafka. The Payment Worker processes it asynchronously — calling Stripe, handling 3D-Secure flows, and retrying on transient failures. On success, the booking is confirmed in PostgreSQL and the Redis lock is released. On failure, seats are automatically freed for others.",
+      "highlightNodes": ["mq", "payment-worker", "third-party"],
+      "highlightEdges": ["e-app-mq", "e-mq-worker", "e-worker-stripe"]
+    },
+    {
+      "title": "Consistency Between Lock and Booking State",
+      "description": "The system must handle the edge case where payment succeeds but the DB write fails (or vice versa). The Payment Worker uses an outbox pattern: it writes the booking confirmation and a 'payment succeeded' event to PostgreSQL in a single transaction, then a relay publishes the event. This ensures exactly-once semantics between payment and booking state.",
+      "highlightNodes": ["payment-worker", "database"],
+      "highlightEdges": ["e-worker-db", "e-worker-stripe"]
+    }
+  ]
+}

@@ -1,0 +1,1698 @@
+[
+  {
+    "id": "DST-069",
+    "epic": "DST",
+    "title": "Split 6379-line DataStructuresModule.tsx into focused component files",
+    "description": "DataStructuresModule.tsx contains 28+ canvas components, DSSidebar, DSControls, DSProperties, DSBottomPanel, DSCanvas, and the useDataStructuresModule hook in a single file. This makes navigation, code review, and maintenance nearly impossible.\n\nSplit into:\n- canvases/ directory: ArrayCanvas.tsx, BSTCanvas.tsx, AVLCanvas.tsx, etc. (one per DS)\n- DSSidebar.tsx\n- DSControls.tsx\n- DSProperties.tsx\n- DSBottomPanel.tsx\n- DSCanvas.tsx (the switch/router)\n- useDataStructuresModule.ts (the hook + handlers)\n- ds-colors.ts (DS_COLORS + getHighlight)\n- types.ts (ActiveDS, DSModuleState)\n\nRoot cause: Organic growth without refactoring gates.",
+    "acceptanceCriteria": [
+      "No single file exceeds 500 lines",
+      "All existing functionality works identically after split",
+      "TypeScript compiles with no new errors",
+      "Imports resolve correctly across all new files"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "code-quality"
+    ]
+  },
+  {
+    "id": "DST-070",
+    "epic": "DST",
+    "title": "Deduplicate 5 identical tree layout functions using existing tree-layout.ts",
+    "description": "BST (DataStructuresModule.tsx:772), AVL (:935), RB (:1105), Splay (:4045), and Treap (:4376) each have nearly identical layout functions (depth calc + recursive spread/2 positioning). Meanwhile, src/lib/data-structures/tree-layout.ts exports layoutTree, layoutAVLTree, layoutRBTree that are NOT used.\n\nAdditionally, 3 standalone visualizer components exist in src/components/data-structures/ (AVLTreeVisualizer.tsx, RedBlackTreeVisualizer.tsx, TreeCanvas.tsx) that duplicate the inline canvases.\n\nFix: Refactor all tree canvases to use layoutTree from tree-layout.ts. Remove standalone visualizers if confirmed unused.",
+    "acceptanceCriteria": [
+      "All tree visualizations use shared layout function from tree-layout.ts",
+      "No duplicate layout code remains in DataStructuresModule",
+      "Tree visualizations render identically before/after refactor",
+      "Unused standalone visualizer files removed or marked deprecated"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/data-structures/tree-layout.ts",
+      "src/components/data-structures/AVLTreeVisualizer.tsx",
+      "src/components/data-structures/RedBlackTreeVisualizer.tsx",
+      "src/components/data-structures/TreeCanvas.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "refactor",
+      "deduplication",
+      "tree"
+    ]
+  },
+  {
+    "id": "DST-071",
+    "epic": "DST",
+    "title": "Add step-back and auto-play controls to step-through playback",
+    "description": "handleStepForward at DataStructuresModule.tsx:6334 only increments stepIdx. No step-back. No auto-play timer. For a learning tool, students need to review steps they missed.\n\nAdd:\n1. Step Back button (decrement stepIdx, disable at 0)\n2. Auto-play toggle with speed control (0.5x, 1x, 2x, 4x)\n3. Play/Pause button\n4. Progress bar showing step position\n5. Keyboard shortcuts: Left=back, Right=forward, Space=play/pause",
+    "acceptanceCriteria": [
+      "Step Back button decrements stepIdx and is disabled at step 0",
+      "Auto-play advances steps at configurable speed",
+      "Play/Pause toggle works",
+      "Progress bar reflects current step position visually",
+      "Arrow keys and space bar work for step navigation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "playback",
+      "ux",
+      "learning",
+      "keyboard"
+    ]
+  },
+  {
+    "id": "DST-072",
+    "epic": "DST",
+    "title": "Expose WAL truncate/checkpoint/crash/recover operations in UI",
+    "description": "WAL engine (wal.ts) exports walTruncate, walCheckpoint, walCrash, walRecover but the DS catalog at index.ts:644-656 only lists insert and search. The handleOperation case at DataStructuresModule.tsx:5633-5644 only wires append and read.\n\nThese are the most educational operations for WAL \u2014 crash+recovery demonstrates durability guarantees.\n\nFix: Add Checkpoint, Crash, Recover, Truncate buttons to WAL controls. Update DS_CATALOG operations list.",
+    "acceptanceCriteria": [
+      "WAL has Append, Read, Checkpoint, Crash, Recover buttons",
+      "Checkpoint marks entries as checkpointed with visual indicator",
+      "Crash sets crashed state with red banner",
+      "Recover replays un-checkpointed entries with step-by-step animation",
+      "DS_CATALOG operations list updated for WAL"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/data-structures/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "data-structures",
+      "wal",
+      "operations",
+      "completeness"
+    ]
+  },
+  {
+    "id": "DST-073",
+    "epic": "DST",
+    "title": "Expose LSM Tree flush and compact operations in UI",
+    "description": "LSM engine exports lsmFlush and lsmCompact but the catalog at index.ts:546-558 only lists insert and search. Flush (memtable\u2192L0) and compact (merge SSTables) are the core learning points of LSM trees.\n\nFix: Add Flush and Compact buttons. Wire them through handleOperation.",
+    "acceptanceCriteria": [
+      "LSM Tree has Insert, Search, Flush, Compact buttons",
+      "Flush moves memtable entries to L0 with animation",
+      "Compact merges SSTables at selected level",
+      "Step descriptions explain flush/compaction process"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/data-structures/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "data-structures",
+      "lsm-tree",
+      "operations"
+    ]
+  },
+  {
+    "id": "DST-074",
+    "epic": "DST",
+    "title": "Add CRDT type selector to expose PN-Counter, LWW-Register, OR-Set",
+    "description": "CRDT engine (crdt-ds.ts:527 lines) implements G-Counter, PN-Counter, LWW-Register, and OR-Set. But DataStructuresModule.tsx:5808-5828 only wires G-Counter. Three CRDT types are inaccessible.\n\nFix: Add a sub-type selector (dropdown or tabs) within the CRDT view. Each sub-type gets its own canvas and operation buttons.",
+    "acceptanceCriteria": [
+      "CRDT view shows type selector with G-Counter, PN-Counter, LWW-Register, OR-Set",
+      "Each type has appropriate operations (increment/decrement for PN, set for LWW, add/remove for OR-Set)",
+      "Each type has its own visualization",
+      "Merge operation works for all types"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/data-structures/crdt-ds.ts",
+      "src/lib/data-structures/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "data-structures",
+      "crdt",
+      "feature"
+    ]
+  },
+  {
+    "id": "DST-075",
+    "epic": "DST",
+    "title": "Fix misleading Search buttons on Heap, Fibonacci Heap, Binomial Heap",
+    "description": "Three heap variants misuse the Search button:\n- Heap (DataStructuresModule.tsx:5470): Search calls heapBuild instead of searching\n- Fibonacci Heap (:5700): Search calls fibDecreaseKey on a random node\n- Binomial Heap (:5882): Search calls binomialDecreaseKey on a random node\n\nFix: Rename/replace buttons. Add proper search (linear scan with highlighting) for Heap. Rename Search to 'Decrease Key' for Fib/Binomial and add a separate Search.",
+    "acceptanceCriteria": [
+      "Heap has separate Search (linear scan) and Build buttons",
+      "Fibonacci Heap has Search and Decrease Key as separate operations",
+      "Binomial Heap has Search and Decrease Key as separate operations",
+      "Search buttons perform actual search with step-by-step highlighting"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/lib/data-structures/fibonacci-heap.ts",
+      "src/lib/data-structures/binomial-heap-ds.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bugfix",
+      "ux",
+      "heap"
+    ]
+  },
+  {
+    "id": "DST-076",
+    "epic": "DST",
+    "title": "Replace all hardcoded hex colors with CSS custom properties",
+    "description": "DS_COLORS at DataStructuresModule.tsx:402-417 uses 17 hardcoded hex values. All tree canvases use hardcoded dark-mode-only fills (#1f2937 at :899, :1059, :1237, :1548 and 20+ more locations). RB_NODE_COLORS at :1142 hardcodes #dc2626/#1f2937. SVG arrows at :669, :719, :747 hardcode #6b7280.\n\nThis breaks in light mode and prevents theming.\n\nFix: Define CSS custom properties in the theme (e.g. --ds-node-fill, --ds-edge-stroke, --ds-highlight-comparing, etc.) and reference them throughout.",
+    "acceptanceCriteria": [
+      "Zero hardcoded hex values in canvas components",
+      "All colors defined as CSS custom properties in theme",
+      "Visualizations render correctly in both light and dark modes",
+      "DS_COLORS uses CSS variable references"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "theming",
+      "css",
+      "visual"
+    ]
+  },
+  {
+    "id": "DST-077",
+    "epic": "DST",
+    "title": "Add ARIA labels, roles, and keyboard navigation to all canvases",
+    "description": "Zero SVG visualizations have role='img' or aria-label. Zero buttons in DSControls have aria-label. Input fields at :2572 lack label elements. Dynamic step content at :5196 lacks aria-live. Color-only state encoding throughout (comparing=blue, found=cyan) with no shape/text backup.\n\nFix: Add aria-label to all buttons, role='img' + aria-label to all SVGs, aria-live='polite' to step description, tabIndex + keyboard handlers, and shape/pattern backup for color states.",
+    "acceptanceCriteria": [
+      "All buttons have aria-label attributes",
+      "All SVG canvases have role='img' and aria-label",
+      "Step descriptions use aria-live='polite'",
+      "Input fields have associated label elements",
+      "Color states have secondary encoding (shape, border pattern, or text badge)"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "aria"
+    ]
+  },
+  {
+    "id": "DST-078",
+    "epic": "DST",
+    "title": "Add prefers-reduced-motion support to all framer-motion animations",
+    "description": "All 28+ canvas components use framer-motion with transition={{ duration: 0.3 }} but none check prefers-reduced-motion. Users with vestibular disorders or motion sensitivity see constant animations.\n\nFix: Create a useReducedMotion hook (or use framer-motion's built-in). When reduced motion is preferred, replace all transitions with instant state changes (duration: 0).",
+    "acceptanceCriteria": [
+      "Animations disabled when prefers-reduced-motion is set",
+      "State changes still occur (colors update) but without transition",
+      "No layout shift when toggling reduced motion",
+      "Works across all 28+ canvas components"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "animation",
+      "reduced-motion"
+    ]
+  },
+  {
+    "id": "DST-079",
+    "epic": "DST",
+    "title": "Pre-populate all data structures with example data on load",
+    "description": "12 data structures start empty showing only 'X is empty' (BST, AVL, RB, Splay, Treap, Linked List, Trie, Union-Find, etc.). This creates a dead first impression \u2014 new users see nothing and don't know what to do.\n\nFix: Use the existing handleRandom logic to pre-populate all DS in INITIAL_STATE at :347. Every DS should show meaningful example data on first load.",
+    "acceptanceCriteria": [
+      "All 33 data structures show example data on initial load",
+      "No 'X is empty' state on first visit",
+      "Example data is educational (demonstrates key properties of the structure)",
+      "Reset returns to initial populated state, not empty"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "onboarding",
+      "empty-states"
+    ]
+  },
+  {
+    "id": "DST-080",
+    "epic": "DST",
+    "title": "Add explanatory WHY reasoning to all engine step descriptions",
+    "description": "All 33 engines produce step descriptions that say WHAT happened but never WHY. E.g., array-ds.ts:40 says 'Shift arr[3] = 42 to index 4' but not 'We need to make room for the new element'. hash-table.ts:78 says 'hash(alpha) = 3' but not 'We use the hash to find which bucket to store in'.\n\nThis is the #1 educational gap. Fix by adding a WHY clause to key steps in each engine. Target the first 2-3 steps of each operation.",
+    "acceptanceCriteria": [
+      "First step of every operation includes WHY reasoning",
+      "Key comparison/decision steps explain the logic",
+      "Descriptions are beginner-friendly (no assumed knowledge)",
+      "At least 50% of all steps include a WHY clause"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/array-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/avl-ds.ts",
+      "src/lib/data-structures/red-black-ds.ts",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/lib/data-structures/trie-ds.ts",
+      "src/lib/data-structures/linked-list.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "content",
+      "step-descriptions"
+    ]
+  },
+  {
+    "id": "DST-081",
+    "epic": "DST",
+    "title": "Show input validation errors instead of silent NaN-to-0 fallback",
+    "description": "handleOperation at DataStructuresModule.tsx:5324 does `parseFloat(value)` which returns NaN for non-numeric input. Line 5335 silently converts: `isNaN(numVal) ? 0 : numVal`. User types 'abc' into number field \u2192 0 gets inserted with no explanation.\n\nFix: Validate input before dispatching. Show inline error message below input for 2 seconds. Don't execute operation on invalid input.",
+    "acceptanceCriteria": [
+      "Non-numeric input to numeric fields shows error message",
+      "Error message is visible for 2 seconds, then fades",
+      "Operation is NOT executed with invalid input",
+      "Empty input shows helpful placeholder hint"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "validation",
+      "error-handling"
+    ]
+  },
+  {
+    "id": "DST-082",
+    "epic": "DST",
+    "title": "Add error boundary around canvas components",
+    "description": "No ErrorBoundary wraps any canvas component. If a visualization throws (e.g., bad data passed to layout function), the entire module crashes with React's white screen of death. User must refresh page.\n\nFix: Wrap DSCanvas in an ErrorBoundary that shows a friendly error message with a Reset button.",
+    "acceptanceCriteria": [
+      "Canvas errors show friendly error message instead of crash",
+      "Error boundary includes Reset button to recover",
+      "Error is logged to console for debugging",
+      "Other module panels (sidebar, properties) remain functional"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "error-handling",
+      "resilience"
+    ]
+  },
+  {
+    "id": "DST-083",
+    "epic": "DST",
+    "title": "Move step description next to visualization to fix split-attention effect",
+    "description": "Current step description is in the properties panel (right sidebar), 300px+ from the visualization in the center canvas. Users must look back and forth between description and visual, violating Mayer's spatial contiguity principle and Sweller's split-attention effect.\n\nFix: Add a step description overlay or banner directly below/above the visualization in the canvas area. Keep the properties panel version as supplementary.",
+    "acceptanceCriteria": [
+      "Current step description visible directly adjacent to visualization",
+      "Step description updates with each step change",
+      "Description does not obscure the visualization",
+      "Works on all 33 data structure visualizations"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "education",
+      "mayer",
+      "spatial-contiguity"
+    ]
+  },
+  {
+    "id": "DST-084",
+    "epic": "DST",
+    "title": "Add difficulty tags and recommended learning path to sidebar",
+    "description": "All 33 DS appear equally in the sidebar with no difficulty indication. A beginner seeing Fibonacci Heap next to Array is intimidating. No prerequisites, no linking between related DS.\n\nFix:\n1. Add difficulty badge (Beginner/Intermediate/Advanced) to each catalog entry and sidebar item\n2. Add recommended order within categories\n3. Add 'Next: Try X' suggestion after completing operations on a DS\n4. Add prerequisite hints ('Learn BST first' on AVL)",
+    "acceptanceCriteria": [
+      "Each DS shows difficulty badge in sidebar",
+      "DS are ordered by difficulty within each category",
+      "Related DS linked via 'Next' suggestion",
+      "Prerequisites stated for advanced structures"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "education",
+      "learning-path",
+      "sidebar"
+    ]
+  },
+  {
+    "id": "DST-085",
+    "epic": "DST",
+    "title": "Increase minimum font size to 11px across all visualizations",
+    "description": "90+ instances of text-[6px], text-[7px], text-[8px], text-[9px] across all canvas components. Text at 6-7px is unreadable for many users and fails WCAG guidelines.\n\nSpecific violations:\n- text-[6px]: DataStructuresModule.tsx:3591, 3995, 4337\n- text-[7px]: :593, 663, 1691, 2804, 3500, 3748, 3981, 4337, 4552 (20+ instances)\n- text-[8px]: :468, 644, 1080, 2204, 2264, 2296, 3047 (30+ instances)\n\nFix: Set minimum font size to text-[10px] (10px) for decorative labels, text-xs (12px) for readable content.",
+    "acceptanceCriteria": [
+      "No text element uses a font size below 10px",
+      "Index labels, annotations use minimum text-[10px]",
+      "Readable content uses minimum text-xs (12px)",
+      "Visualizations still fit without overflow after size increase"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "typography",
+      "visual"
+    ]
+  },
+  {
+    "id": "DST-086",
+    "epic": "DST",
+    "title": "Add click feedback animation to all operation buttons",
+    "description": "Operation buttons at DataStructuresModule.tsx:2608-2616 have only hover:bg-accent styling. No press feedback, no success/failure indication, no visual confirmation that the operation executed.\n\nFix: Add whileTap={{ scale: 0.95 }} to operation buttons. Flash button green on success, red on error. Show brief toast or inline feedback.",
+    "acceptanceCriteria": [
+      "All operation buttons show press animation",
+      "Successful operations flash green briefly",
+      "Failed operations (empty structure pop, not found) flash red with message",
+      "Feedback appears within 100ms of click"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "feedback",
+      "animation"
+    ]
+  },
+  {
+    "id": "DST-087",
+    "epic": "DST",
+    "title": "Replace global mutable _stepId with local counter in all engines",
+    "description": "All 33 engine files use module-scoped `let _stepId = 0` with `resetStepId()`. This is a mutable global that could cause issues in React Strict Mode (double-invoked updaters) or concurrent mode.\n\nFix: Pass step counter as local variable through each engine function or use a closure.",
+    "acceptanceCriteria": [
+      "No module-level mutable _stepId variable in any engine file",
+      "Step IDs are generated locally within each function call",
+      "All existing tests pass",
+      "Step descriptions unchanged"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/array-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/linked-list.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/bloom-filter.ts",
+      "src/lib/data-structures/skip-list.ts",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/lib/data-structures/trie-ds.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "code-quality",
+      "concurrency",
+      "react"
+    ]
+  },
+  {
+    "id": "DST-088",
+    "epic": "DST",
+    "title": "Add input maxLength and array size guards to prevent memory exhaustion",
+    "description": "Text input at DataStructuresModule.tsx:2572 has no maxLength. Repeated operations can grow data structures unboundedly \u2014 inserting 100K elements creates 100K DOM nodes.\n\nFix: Add maxLength=100 to text inputs. Cap data structure sizes (array: 100, tree: 200, etc.) and show warning when limit reached.",
+    "acceptanceCriteria": [
+      "Text inputs have maxLength attribute",
+      "Data structures refuse insert when at capacity with warning",
+      "Warning message explains the limit",
+      "Existing data is not corrupted when limit reached"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "security",
+      "input-validation",
+      "guard"
+    ]
+  },
+  {
+    "id": "DST-089",
+    "epic": "DST",
+    "title": "Make touch targets 44px minimum and add responsive layout for mobile",
+    "description": "Control buttons use h-7 (28px) and inputs use h-7 w-20 \u2014 below the 44px minimum for touch targets. SVG visualizations have fixed widths (600px for trees, 400px for rings) that overflow on mobile.\n\nFix: Increase button/input height to h-11 (44px) on mobile via responsive classes. Add viewport-responsive SVG sizing. Stack controls vertically on small screens.",
+    "acceptanceCriteria": [
+      "All interactive elements are 44px minimum on mobile viewports",
+      "SVG visualizations scale to viewport width",
+      "Controls stack vertically below 640px",
+      "Module is usable on 375px viewport"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "mobile",
+      "responsive",
+      "touch"
+    ]
+  },
+  {
+    "id": "DST-090",
+    "epic": "DST",
+    "title": "Add comparison/swap counters to engine step generation",
+    "description": "No engine tracks operation counts (comparisons, swaps, reads, writes). The AlgorithmModule has rich metrics (comparisons, swaps, reads, writes per step) but DataStructures has none.\n\nFix: Add a metrics accumulator to DSResult type. Increment comparison/swap/read/write counts in key engine operations. Display in properties panel and bottom panel.",
+    "acceptanceCriteria": [
+      "DSResult type includes metrics field",
+      "At least linear, tree, and hash engines track comparisons",
+      "Metrics displayed in properties panel",
+      "Metrics update per step during playback"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/array-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "metrics",
+      "counters"
+    ]
+  },
+  {
+    "id": "DST-091",
+    "epic": "DST",
+    "title": "Wire bridge buttons in SystemRoleSelector and P95LatencyCalculator",
+    "description": "SystemRoleSelector.tsx:402-409 'Open in System Canvas' button only console.logs. P95LatencyCalculator.tsx:325-340 same. WriteAmplificationVisualizer.tsx:330-342 same.\n\nThese buttons promise cross-module navigation but deliver nothing.\n\nFix: Wire to cross-module bridge system (if exists) or remove buttons and replace with inline content.",
+    "acceptanceCriteria": [
+      "Bridge buttons navigate to system design canvas OR are replaced with useful inline action",
+      "No console.log-only buttons remain",
+      "User sees meaningful result from clicking bridge button"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/data-structures/SystemRoleSelector.tsx",
+      "src/components/modules/data-structures/P95LatencyCalculator.tsx",
+      "src/components/modules/data-structures/WriteAmplificationVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "cross-module",
+      "bridge",
+      "navigation"
+    ]
+  },
+  {
+    "id": "DST-092",
+    "epic": "DST",
+    "title": "Add unit tests for 21 untested engine files",
+    "description": "Only 12 of 33 engines have tests. Missing: array-ds, linked-list, bst-ds, avl-ds, red-black-ds, disjoint-set, lsm-tree, consistent-hash-ring, merkle-tree, count-min-sketch, hyperloglog, deque, circular-buffer, wal, rope, r-tree, quadtree, fibonacci-heap, segment-tree-ds, btree-ds, bst-interactive.\n\nZero component tests exist for any canvas or panel.\n\nFix: Add at least basic insert/delete/search + edge case tests for each untested engine. Priority: array, linked-list, bst, avl, red-black (core structures).",
+    "acceptanceCriteria": [
+      "All 33 engines have at least basic operation tests",
+      "Edge cases tested: empty structure, single element, boundary values",
+      "Tests verify step descriptions contain expected keywords",
+      "Test coverage > 60% for all engine files"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/__tests__/array-linkedlist.test.ts",
+      "src/lib/data-structures/__tests__/bst-avl-rb.test.ts",
+      "src/lib/data-structures/__tests__/system-ds.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "coverage",
+      "quality"
+    ]
+  },
+  {
+    "id": "DST-093",
+    "epic": "DST",
+    "title": "Add context-aware empty states with helpful prompts for all DS",
+    "description": "DataStructuresModule uses generic 'X is empty' text for empty states. AlgorithmModule has 7 context-specific empty states with icons, titles, and actionable prompts.\n\nFix: Create context-aware empty states for each DS category (linear, tree, hash, heap, probabilistic, system) with:\n- Category-appropriate icon\n- Descriptive title\n- Actionable prompt ('Click Insert to add your first element' or 'Click Random to see an example')\n- Visual hint showing expected outcome",
+    "acceptanceCriteria": [
+      "Each DS category has a unique empty state with icon and prompt",
+      "Empty state includes actionable guidance",
+      "Consistent with AlgorithmModule empty state pattern",
+      "Empty state disappears as soon as data is present"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "empty-states",
+      "cross-module-consistency"
+    ]
+  },
+  {
+    "id": "DST-094",
+    "epic": "DST",
+    "title": "Add exit animations for element removal across all canvases",
+    "description": "All canvas components have entry animations (motion.div fade in) but zero exit animations. When elements are deleted (pop from stack, delete from BST, dequeue), they disappear instantly.\n\nFix: Add AnimatePresence wrapper and exit={{ opacity: 0, scale: 0.8 }} transitions to removable elements in key canvases (Array, LinkedList, BST, Heap, Trie).",
+    "acceptanceCriteria": [
+      "Deleted elements animate out (fade + scale)",
+      "Exit animation duration matches entry (0.3s)",
+      "AnimatePresence wraps element lists",
+      "Reduced motion check disables exit animations"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-078"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "animation",
+      "polish",
+      "visual"
+    ]
+  },
+  {
+    "id": "DST-095",
+    "epic": "DST",
+    "title": "Derive ActiveDS type from DS_CATALOG to prevent manual sync",
+    "description": "ActiveDS union type at DataStructuresModule.tsx:236-269 manually lists all 33 DS IDs. Adding a new DS requires updating this type AND catalog AND switch case AND canvas. The type and catalog can desync.\n\nFix: Derive ActiveDS from DS_CATALOG: `type ActiveDS = typeof DS_CATALOG[number]['id']`",
+    "acceptanceCriteria": [
+      "ActiveDS type is derived from DS_CATALOG",
+      "Adding a new DS to catalog automatically adds it to ActiveDS",
+      "TypeScript compiler catches missing switch cases",
+      "No manual ActiveDS maintenance needed"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/data-structures/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "typescript",
+      "type-safety",
+      "code-quality"
+    ]
+  },
+  {
+    "id": "DST-096",
+    "epic": "DST",
+    "title": "Add undo capability with operation history stack",
+    "description": "Once an operation is performed, the only recovery is Reset (which clears everything). No undo, no operation history.\n\nFix: Maintain a state history stack (last 20 states). Add Undo button (Ctrl+Z shortcut) that restores previous state. Show operation history in bottom panel.",
+    "acceptanceCriteria": [
+      "Undo button restores previous state",
+      "Ctrl+Z keyboard shortcut works",
+      "History stack holds last 20 states",
+      "Undo is disabled when history is empty"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "undo",
+      "history"
+    ]
+  },
+  {
+    "id": "DST-097",
+    "epic": "DST",
+    "title": "Add side-by-side comparison mode for two data structures",
+    "description": "AlgorithmModule supports comparison mode with split canvas. DataStructuresModule has no comparison capability. Students benefit from seeing BST vs AVL or HashMap vs SkipList side by side.\n\nFix: Add comparison mode toggle. Split canvas into two halves. Run same operations on both DS simultaneously. Show metric differences.",
+    "acceptanceCriteria": [
+      "Toggle enables split-canvas comparison view",
+      "User can select two different data structures",
+      "Same operation runs on both simultaneously",
+      "Step counts and metrics shown for both"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "comparison",
+      "education"
+    ]
+  },
+  {
+    "id": "DST-098",
+    "epic": "DST",
+    "title": "Add lazy loading via dynamic imports for each DS engine",
+    "description": "DataStructuresModule.tsx:34-200 eagerly imports ~150 functions from all 33 engines. Even viewing only Array loads all tree, heap, probabilistic, and system engines.\n\nFix: Use dynamic import() for each engine, loaded when the user selects that DS. Split canvases into separate chunks via React.lazy.",
+    "acceptanceCriteria": [
+      "Each DS engine loaded only when selected",
+      "Initial bundle size reduced by at least 40%",
+      "Loading indicator shown during lazy load",
+      "No flash of empty content during load"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "bundle",
+      "lazy-loading"
+    ]
+  },
+  {
+    "id": "DST-099",
+    "epic": "DST",
+    "title": "Add progress tracking with completion markers per data structure",
+    "description": "No accomplishment signals exist. Engagement audit score 0/5 on accomplishment. Users have no sense of progress.\n\nFix: Track which DS the user has explored (performed at least 3 operations). Show checkmark in sidebar. Add progress bar at top ('12/33 explored'). Persist in localStorage.",
+    "acceptanceCriteria": [
+      "Sidebar shows checkmark for explored DS",
+      "Progress indicator shows X/33 explored",
+      "State persists across page refreshes via localStorage",
+      "Exploration defined as 3+ operations on a DS"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engagement",
+      "gamification",
+      "progress"
+    ]
+  },
+  {
+    "id": "DST-100",
+    "epic": "DST",
+    "title": "Fix tree overlap on deep trees by implementing Reingold-Tilford layout",
+    "description": "All tree canvases (BST, AVL, RB, Splay, Treap) use spread/2 at each level (e.g., DataStructuresModule.tsx:782). Trees deeper than ~6 levels cause node overlap because exponential division exhausts space.\n\nFix: Replace the spread/2 algorithm with Reingold-Tilford (or use the existing layoutTree from tree-layout.ts which likely handles this better). The tree-layout.ts already has overlap-free positioning logic.",
+    "acceptanceCriteria": [
+      "Trees with 20+ nodes render without overlap",
+      "Deep skewed trees render correctly",
+      "Viewbox auto-adjusts to tree extents",
+      "Performance acceptable for trees up to 100 nodes"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/data-structures/tree-layout.ts"
+    ],
+    "dependencies": [
+      "DST-070"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "visualization",
+      "tree",
+      "layout"
+    ]
+  },
+  {
+    "id": "DST-101",
+    "epic": "DST",
+    "title": "Add Web Audio API sonification toggle for all data structure operations",
+    "description": "Research (ACM SIGCSE 2022) shows sonification improves long-term recall of algorithm speeds. Sorting-with-sound videos go viral on TikTok. No data structure visualizer currently offers sonification for non-sorting DS.\n\nImplement: OscillatorNode per element value. On each operation step, play a tone proportional to the element being accessed (low values = low pitch, high values = high pitch). Different operation types get different timbres (insert = sine, delete = sawtooth, search = triangle). Muted by default with a speaker icon toggle in the toolbar.\n\nInspiration: The Sound of Sorting (panthema.net), TikTok @sort_everything176",
+    "acceptanceCriteria": [
+      "Speaker icon toggle in controls bar, muted by default",
+      "Each step plays a tone at pitch proportional to element value",
+      "Different operation types have distinct timbres",
+      "Volume slider available",
+      "Respects prefers-reduced-motion (auto-mute)",
+      "Works across Array, BST, Heap, Hash Table at minimum"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "sonification",
+      "engagement",
+      "accessibility"
+    ]
+  },
+  {
+    "id": "DST-102",
+    "epic": "DST",
+    "title": "Add quiz/challenge mode with auto-generated questions per data structure",
+    "description": "VisuAlgo's quiz mode is its killer feature \u2014 forces active recall (3x more effective than passive watching). No other DS tool generates questions dynamically.\n\nImplement: 'Challenge' button shows a question based on current DS state. E.g., for BST: 'If we insert 42 into this tree, which node will be its parent?' User selects/types answer, tool verifies and shows correct answer with explanation. Auto-generate questions from: insert predictions, search path predictions, deletion consequences, complexity questions.\n\nQuestion types per category: linear (predict index), tree (predict parent/path), hash (predict bucket), heap (predict position), system (predict behavior).",
+    "acceptanceCriteria": [
+      "Challenge button available for every data structure",
+      "At least 3 question types per DS category",
+      "Questions dynamically generated from current DS state",
+      "Immediate feedback with correct answer + explanation",
+      "Score tracking per session",
+      "Wrong answers trigger step-by-step replay of correct behavior"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "quiz",
+      "active-learning",
+      "engagement"
+    ]
+  },
+  {
+    "id": "DST-103",
+    "epic": "DST",
+    "title": "Add one-click video/GIF export of operation sequences via MediaRecorder",
+    "description": "Content creators, professors, and students need clean algorithm animations for YouTube, presentations, and blog posts. Currently they must use screen recording software which captures UI chrome.\n\nImplement: Record button captures canvas-only output via MediaRecorder API. User clicks Record \u2192 performs operations \u2192 clicks Stop \u2192 downloads MP4/GIF. Optionally include step descriptions as subtitles. Offer resolution options (720p, 1080p).\n\nNote: Safari has limited MediaRecorder codec support \u2014 use WebM for Chrome/Firefox, fallback to canvas-to-GIF library for Safari.",
+    "acceptanceCriteria": [
+      "Record/Stop button in toolbar",
+      "Exports clean canvas-only video without UI chrome",
+      "MP4 or WebM format with download prompt",
+      "GIF export option for shorter sequences",
+      "Optional subtitle overlay with step descriptions",
+      "Works in Chrome and Firefox at minimum"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "export",
+      "content-creation",
+      "sharing"
+    ]
+  },
+  {
+    "id": "DST-104",
+    "epic": "DST",
+    "title": "Add 'You Are The Algorithm' manual trace mode with scoring",
+    "description": "Active learning is 3x more effective than passive watching. In this mode, instead of the algorithm executing automatically, the USER performs each step manually.\n\nFor BST insert: 'Where should 42 go? Click the correct node.' For array insert: 'Which elements need to shift? Click them in order.' For heap: 'After insert, which elements swap during bubble-up? Click the pair.'\n\nTool scores correctness, shows hints after wrong answers, and replays the correct sequence.\n\nInspiration: Duolingo's 'translate this sentence' exercises \u2014 testing, not showing.",
+    "acceptanceCriteria": [
+      "Manual trace toggle available for BST, Array, Heap, Hash Table at minimum",
+      "User clicks/drags to perform each algorithm step",
+      "Correct moves highlighted green, wrong moves red with explanation",
+      "Score displayed (correct/total steps)",
+      "After completion, auto-replay shows optimal execution",
+      "Difficulty levels: Easy (hints shown), Medium (no hints), Hard (timed)"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "active-learning",
+      "gamification",
+      "first-in-world"
+    ]
+  },
+  {
+    "id": "DST-105",
+    "epic": "DST",
+    "title": "Add 'Break It' adversarial mode \u2014 find worst-case inputs",
+    "description": "Adversarial thinking deepens understanding. In this mode, the user's goal is to BREAK the data structure \u2014 find inputs that cause worst-case behavior.\n\nFor BST: 'Find an insertion order that creates a degenerate tree (height = n-1).' For Hash Table: 'Find 3 keys that all hash to the same bucket.' For Quick Sort (if applicable): 'Find an array where this pivot choice produces O(n\u00b2).'\n\nTool measures degeneracy/performance and scores the user's adversarial creativity.\n\nThis mode teaches edge cases and worst-case analysis more effectively than any lecture.",
+    "acceptanceCriteria": [
+      "Break It mode available for BST, Hash Table, Skip List at minimum",
+      "Clear objective displayed (e.g., 'Maximize tree height')",
+      "Real-time scoring showing current degeneracy metric",
+      "Leaderboard showing best (worst-case) score achieved",
+      "Explanation shown after user achieves worst case (why this is pathological)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "adversarial",
+      "education",
+      "gamification"
+    ]
+  },
+  {
+    "id": "DST-106",
+    "epic": "DST",
+    "title": "Add 'Reverse Engineering' mode \u2014 deduce operations from final state",
+    "description": "Novel puzzle mode: given the FINAL state of a data structure, the user must figure out what sequence of operations produced it.\n\nFor Heap: 'This heap contains [3, 5, 7, 12, 8]. What insertion order produced it? There may be multiple valid answers.' For BST: 'This tree has shape X. Which insertion order(s) produce this exact shape?'\n\nTests deep structural understanding. Multiple valid answers accepted. Tool shows step-by-step validation of user's proposed sequence.",
+    "acceptanceCriteria": [
+      "Reverse mode available for BST, Heap, and Array at minimum",
+      "User enters proposed operation sequence",
+      "Tool replays the sequence and compares final state",
+      "Match/mismatch clearly shown with diff highlighting",
+      "Multiple valid answers accepted and acknowledged",
+      "Hints available showing partial operation history"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "puzzle",
+      "reverse-engineering",
+      "education"
+    ]
+  },
+  {
+    "id": "DST-107",
+    "epic": "DST",
+    "title": "Add daily challenge with streak system for retention",
+    "description": "Duolingo proved streaks drive 4x retention. Add a daily challenge system.\n\nEach day, auto-generate a fresh puzzle: 'Today: Predict the shape of this BST after inserting [7, 3, 11, 1, 5].' User attempts \u2192 gets score \u2192 streak counter increments. Streak visible in sidebar. localStorage persistence.\n\nChallenge types rotate: predict-state, find-worst-case, reverse-engineer, speed-run, quiz. Different DS each day ensures breadth of practice.",
+    "acceptanceCriteria": [
+      "Daily challenge banner shown on module load",
+      "New challenge generated each UTC day",
+      "Challenge types rotate across: predict, break-it, quiz, speed-run",
+      "Streak counter persisted in localStorage",
+      "Streak displayed in sidebar with current count + longest streak",
+      "Missed day resets current streak (longest preserved)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "gamification",
+      "retention",
+      "streak"
+    ]
+  },
+  {
+    "id": "DST-108",
+    "epic": "DST",
+    "title": "Add code view toggle showing implementation alongside visualization",
+    "description": "Python Tutor's success shows that bridging code and visualization is powerful. Add a split-pane view showing the actual TypeScript/Python implementation of the current operation, with the current step's line highlighted.\n\nFor each engine function (e.g., hashInsert), maintain a readable code string. As the user steps through, highlight the corresponding code line. This bridges 'I see it' to 'I can code it.'\n\nStart with TypeScript. Add Python pseudo-code as secondary language option.",
+    "acceptanceCriteria": [
+      "Code View toggle in toolbar",
+      "Split pane: visualization left, code right",
+      "Current step highlights corresponding code line",
+      "Code is readable and well-commented (not raw engine code)",
+      "TypeScript shown by default; Python option available",
+      "Available for at least linear, tree, and hash DS categories"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "code-view",
+      "education",
+      "python-tutor"
+    ]
+  },
+  {
+    "id": "DST-109",
+    "epic": "DST",
+    "title": "Add algorithm autobiography \u2014 first-person narration of each step",
+    "description": "Personification reduces abstraction anxiety. Each step gets a first-person narration from the algorithm's perspective.\n\nInstead of: 'Compare node 25 with 42'\nShow: 'I look at node 25. My search value 42 is bigger, so I must go right \u2014 the right subtree has all values greater than 25.'\n\nThis is a content-only change \u2014 add an `autobiographyDescription` field to DSStep alongside the existing `description`. Toggle between 'Technical' and 'Story' mode in the bottom panel.",
+    "acceptanceCriteria": [
+      "Toggle between Technical and Story mode for step descriptions",
+      "Story mode uses first-person narration from algorithm's perspective",
+      "Every step explains WHY (motivation for the action)",
+      "Tone is conversational, not formal",
+      "Available for BST, Array, Hash Table, Heap, Trie at minimum",
+      "Story descriptions are beginner-friendly (no assumed CS knowledge)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/array-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/lib/data-structures/trie-ds.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "narration",
+      "education",
+      "personification"
+    ]
+  },
+  {
+    "id": "DST-110",
+    "epic": "DST",
+    "title": "Add completion badges and shareable progress certificate",
+    "description": "Zero accomplishment signals exist (Octalysis Drive 2 scored 0/5). Users have no visible progress or achievement.\n\nImplement: SVG badge per DS category (6 badges: linear, tree, hash, heap, probabilistic, system). Each unlocked after exploring all DS in that category. Final 'Master' badge for all 33. Shareable certificate image generated client-side: 'Mastered 33 Data Structures in Architex' with user name and date. Download as PNG or share to Twitter/LinkedIn.\n\nInspiration: GitHub contribution graph, Duolingo achievements, freeCodeCamp certificates.",
+    "acceptanceCriteria": [
+      "6 category badges displayed in sidebar or profile section",
+      "Badges unlock after exploring all DS in category (3+ operations each)",
+      "Master badge for completing all 33 DS",
+      "Shareable certificate generated as PNG image",
+      "Certificate includes user name (from input prompt) and completion date",
+      "Share buttons for Twitter and LinkedIn with pre-filled text"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-099"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "gamification",
+      "badges",
+      "sharing",
+      "accomplishment"
+    ]
+  },
+  {
+    "id": "DST-111",
+    "epic": "DST",
+    "title": "Add 'Fix the Bug' mode with broken implementations to debug",
+    "description": "Debugging is the most practical programming skill. In this mode, the visualization runs a BUGGY implementation \u2014 the user must identify what went wrong by observing the incorrect behavior.\n\nExamples:\n- BST insert that doesn't handle duplicates (inserts duplicate \u2192 user spots it)\n- Heap that forgets to bubble-up after insert (heap property violated \u2192 user identifies which element is wrong)\n- Hash table that uses wrong hash function (skewed distribution \u2192 user notices one bucket is overloaded)\n\nAfter user identifies the bug, show the correct vs buggy code side-by-side.",
+    "acceptanceCriteria": [
+      "Fix the Bug mode available for BST, Heap, Hash Table at minimum",
+      "Each DS has at least 2 different bugs to discover",
+      "Buggy behavior is visible in the visualization",
+      "User can select which step/element they think is wrong",
+      "After identification, correct vs buggy code shown side-by-side",
+      "Explanation of the bug and why it matters"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "debugging",
+      "education",
+      "critical-thinking"
+    ]
+  },
+  {
+    "id": "DST-112",
+    "epic": "DST",
+    "title": "Add annotation layer for presentations \u2014 draw on live visualizations",
+    "description": "Professors presenting in 200-seat lectures need to annotate visualizations in real-time \u2014 circle a node, draw an arrow, write 'this is the pivot'. No algorithm visualizer currently supports this.\n\nImplement: Pen tool overlay on canvas. Toggle between interact mode (operate DS) and annotate mode (draw on top). Color picker. Eraser. Clear annotations. Annotations persist across steps but can be toggled on/off.\n\nAlso add 'Lecture Mode': fullscreen, larger fonts, clean background, no sidebar.",
+    "acceptanceCriteria": [
+      "Pen tool toggle in toolbar switches to annotation mode",
+      "Draw freehand, circles, arrows, text on visualization",
+      "Color picker for annotation color",
+      "Eraser and clear-all options",
+      "Lecture Mode: fullscreen, 2x font sizes, no sidebar",
+      "Annotations visible during video export (DST-103)"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "presentation",
+      "professor",
+      "annotation"
+    ]
+  },
+  {
+    "id": "DST-113",
+    "epic": "DST",
+    "title": "Add memory layout visualization showing how DS lives in actual memory",
+    "description": "Senior devs and systems programmers want to understand how data structures map to real memory. No educational tool shows this.\n\nSplit-pane: left = abstract visualization (current), right = memory layout showing:\n- Array: contiguous cells with addresses\n- Linked List: scattered nodes with pointer arrows crossing memory\n- BST: heap-allocated nodes with left/right pointers\n- Hash Table: bucket array + chained nodes\n- Stack: growing/shrinking contiguous region\n\nHighlight cache-friendly (contiguous) vs cache-hostile (pointer-chasing) patterns. Show L1 cache line boundaries.",
+    "acceptanceCriteria": [
+      "Memory view toggle showing abstract + memory side-by-side",
+      "Array shows contiguous memory cells with index offsets",
+      "Linked List shows scattered nodes with pointer arrows",
+      "BST shows heap-allocated nodes with left/right pointer values",
+      "Cache line boundaries visible (64-byte blocks)",
+      "Available for Array, Linked List, BST, Hash Table, Heap at minimum"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "memory-layout",
+      "systems",
+      "first-in-world"
+    ]
+  },
+  {
+    "id": "DST-114",
+    "epic": "DST",
+    "title": "Add speed-aware auto-play that slows on interesting moments",
+    "description": "Current playback has no auto-play at all. When added (DST-071), make it intelligent: auto-detect 'interesting' steps (rotations, rebalancing, collisions, splits) and slow down. Auto-detect 'boring' steps (simple traversal) and speed up.\n\nTag each DSStep with an `importance` field: 'routine' | 'interesting' | 'critical'. Auto-play uses fast speed (100ms) for routine, medium (400ms) for interesting, slow (800ms) for critical. User can override with manual speed slider.",
+    "acceptanceCriteria": [
+      "DSStep type extended with optional importance field",
+      "Engine functions tag key steps as interesting/critical",
+      "Auto-play varies speed based on step importance",
+      "Visual indicator shows current speed level",
+      "User can override with manual speed slider",
+      "At minimum: tree rotations, hash collisions, heap swaps tagged as interesting"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/avl-ds.ts",
+      "src/lib/data-structures/red-black-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-071"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "auto-play",
+      "pacing",
+      "cognitive-load"
+    ]
+  },
+  {
+    "id": "DST-115",
+    "epic": "DST",
+    "title": "Add drag-to-manipulate mode for hands-on tactile learning",
+    "description": "Physical manipulation builds understanding. In this mode, users can drag elements to manually perform operations:\n\n- Array: drag elements to reorder (be the sorting algorithm)\n- BST: drag a new value and drop it at the correct position in the tree\n- Heap: drag elements up/down to manually bubble\n- Stack: drag elements on/off the top\n\nThe tool validates each move: green flash for correct, red flash for incorrect with explanation.\n\nInspiration: Physical Rubik's cube understanding, Desmos drag-to-explore.",
+    "acceptanceCriteria": [
+      "Drag-and-drop mode toggle available",
+      "Array elements can be dragged to reorder",
+      "BST accepts drag-drop of new nodes at correct position",
+      "Correct drops flash green; incorrect flash red with explanation",
+      "Touch-friendly (works on mobile with 44px drag handles)",
+      "Available for Array, BST, Heap at minimum"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "drag-drop",
+      "tactile",
+      "manipulation"
+    ]
+  },
+  {
+    "id": "DST-116",
+    "epic": "DST",
+    "title": "Fix 8 operation button labels that mismatch actual behavior",
+    "description": "8 data structures have operation buttons that don't match what they do:\n- WAL: 'Insert' does append, 'Search' does read (DataStructuresModule.tsx:5633-5644)\n- Heap: 'Search' builds heap (:5470)\n- Fib/Binomial Heap: 'Search' decreases random key (:5700, :5882)\n- Rope: 'Insert' does concat (:5649)\n- Segment Tree: 'Insert' does point update (:5746)\n- Fenwick Tree: 'Insert' does point update (:5778)\n\nRoot cause: DSConfig.operations uses generic names (insert/delete/search) for all DS. Fix by allowing DSConfig.operations to be objects with {id, label} pairs, then update DSControls to render the custom label.",
+    "acceptanceCriteria": [
+      "WAL buttons say Append and Read",
+      "Heap has Build button instead of misleading Search",
+      "Rope button says Concat instead of Insert",
+      "Segment/Fenwick say Point Update instead of Insert",
+      "DSConfig.operations supports custom display labels"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/types.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "terminology",
+      "nielsen",
+      "labels"
+    ]
+  },
+  {
+    "id": "DST-117",
+    "epic": "DST",
+    "title": "Replace native number input spinners with custom styled controls",
+    "description": "The value/index inputs at DataStructuresModule.tsx:2572 use <input type='number'> which shows browser-default up/down arrow spinners. These look inconsistent with the dark custom theme.\n\nFix: Add appearance-none CSS and optionally switch to type='text' with inputMode='numeric' and custom validation.",
+    "acceptanceCriteria": [
+      "No native browser spinner arrows visible on number inputs",
+      "Inputs accept numeric values correctly",
+      "Theme-consistent with rest of controls"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "native-controls",
+      "theming"
+    ]
+  },
+  {
+    "id": "DST-118",
+    "epic": "DST",
+    "title": "Switch step description font from monospace to sans-serif",
+    "description": "Step descriptions at DataStructuresModule.tsx:5204 use font-mono class. Step text is natural language ('Insert 42 as right child of 60') not code. Monospace font reduces readability for natural language by removing variable letter spacing and word-shape cues.\n\nAlso at :5277, the operation log entries use font-mono for the same natural language.\n\nFix: Change font-mono to font-sans for step description text. Keep font-mono only for numeric values and code snippets within descriptions.",
+    "acceptanceCriteria": [
+      "Step descriptions use sans-serif font",
+      "Operation log entries use sans-serif for description text",
+      "Numeric values within descriptions can optionally stay monospace via inline span",
+      "Readability improved for natural language content"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "typography",
+      "readability",
+      "education"
+    ]
+  },
+  {
+    "id": "DST-119",
+    "epic": "DST",
+    "title": "Add structural health metrics to all tree visualizations",
+    "description": "Princeton's Algorithms textbook BST visualization shows key meta-stats: N (size), max depth, avg depth, optimal depth. These help students understand WHY balanced trees matter.\n\nCurrently: AVL shows balance factor per node (good) but no tree-wide stats. BST, RB, Splay, Treap, B-Tree, B+ Tree show no structural metrics.\n\nAdd a stats bar below each tree visualization showing: height, avg depth, optimal height (log2(n)), balance ratio (height / optimal), number of rotations (for self-balancing trees).",
+    "acceptanceCriteria": [
+      "All tree visualizations show height, avg depth, optimal height stats",
+      "Balance ratio displayed (height / ceil(log2(n+1)))",
+      "Self-balancing trees (AVL, RB) show cumulative rotation count",
+      "Stats update in real-time after each operation",
+      "Stats help illustrate degenerate vs balanced trees"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "metrics",
+      "tree",
+      "visualization"
+    ]
+  },
+  {
+    "id": "DST-120",
+    "epic": "DST",
+    "title": "Remove dead import of Circle icon from lucide-react",
+    "description": "DataStructuresModule.tsx:26 imports Circle from lucide-react but it is never used anywhere in the 6379-line file. Dead import bloats the bundle.\n\nFix: Remove the Circle import.",
+    "acceptanceCriteria": [
+      "Circle import removed from DataStructuresModule.tsx",
+      "No TypeScript compilation errors",
+      "No visual regressions"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dead-code",
+      "cleanup",
+      "bundle"
+    ]
+  },
+  {
+    "id": "DST-121",
+    "epic": "DST",
+    "title": "Add call-stack visualization for recursive DS operations",
+    "description": "Medium articles about 'finally understanding recursion' go viral because recursion is the #1 concept students struggle with. No DS tool visualizes the CALL STACK alongside the data structure during recursive operations (BST insert, BST search, tree traversals, trie operations).\n\nAdd a collapsible 'Call Stack' panel that shows the current recursive call chain: which function called which, what parameters were passed, and what's about to return. Highlight the current frame. This bridges the gap between 'I see the tree changing' and 'I understand HOW the code does it.'\n\nInspiration: VS Code debugger call stack, Python Tutor stack frames.",
+    "acceptanceCriteria": [
+      "Call stack panel visible during BST insert/search/delete",
+      "Shows function name, parameters, and current return value",
+      "Current active frame highlighted",
+      "Stack grows/shrinks as recursion goes deeper/returns",
+      "Collapsible panel to avoid clutter when not needed"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/avl-ds.ts",
+      "src/lib/data-structures/trie-ds.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "recursion",
+      "call-stack",
+      "education",
+      "first-in-world"
+    ]
+  },
+  {
+    "id": "DST-122",
+    "epic": "DST",
+    "title": "Add sidebar collapse/hamburger for mobile viewport support",
+    "description": "Live browser testing at 375px confirmed the sidebar fills 100% of the viewport width, making the canvas, controls, and properties panel completely invisible. The module is entirely unusable on mobile.\n\nFix: Add a hamburger button that collapses the sidebar on viewports below 768px. The sidebar should overlay as a drawer on mobile, dismissible by clicking outside or pressing a close button. The canvas should be the primary view on mobile.",
+    "acceptanceCriteria": [
+      "Sidebar collapses to hamburger icon below 768px",
+      "Hamburger opens sidebar as overlay drawer",
+      "Clicking outside or close button dismisses sidebar",
+      "Canvas and controls visible as primary content on mobile",
+      "Properties panel accessible via a separate toggle on mobile"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "mobile",
+      "responsive",
+      "sidebar",
+      "hamburger"
+    ]
+  },
+  {
+    "id": "DST-123",
+    "epic": "DST",
+    "title": "Fix keyboard tab order to include DS sidebar and canvas controls",
+    "description": "Live browser testing confirmed pressing Tab 3 times from the DS module only reaches module-level navigation (Settings button). The DS sidebar items, value input, operation buttons, Random, Reset, and Step buttons are all unreachable via Tab key.\n\nRoot cause: The sidebar buttons and controls are not in the natural DOM tab order relative to the module navigation, or they have tabIndex issues.\n\nFix: Ensure all interactive elements in DSSidebar and DSControls are keyboard-reachable in logical order: sidebar categories \u2192 DS items \u2192 value input \u2192 operation buttons \u2192 Random \u2192 Reset \u2192 Step.",
+    "acceptanceCriteria": [
+      "Tab key reaches DS sidebar items from the module",
+      "Tab continues to value input, then operation buttons",
+      "Enter key activates focused sidebar items and buttons",
+      "Tab order follows logical left-to-right, top-to-bottom flow",
+      "Focus indicators visible on all focusable elements"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "keyboard",
+      "tab-order",
+      "a11y"
+    ]
+  }
+]

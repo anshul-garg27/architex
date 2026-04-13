@@ -1,0 +1,132 @@
+{
+  "id": "bp-cicd-pipeline",
+  "name": "CI/CD Pipeline — Production Blueprint",
+  "description": "Enterprise CI/CD platform with build orchestration, artifact management, multi-environment deployments, canary releases, and compliance gates. Supports 1000+ daily deployments.",
+  "difficulty": 4,
+  "category": "infrastructure",
+  "tags": ["cicd", "devops", "deployment", "canary", "pipeline", "blueprint"],
+  "nodes": [
+    { "id": "developer", "type": "client", "position": { "x": 0, "y": 250 }, "data": { "label": "Developer (Git Push)", "category": "client", "componentType": "web-client", "icon": "User", "config": { "developerCount": 500, "dailyPushes": 2000 }, "state": "idle" } },
+    { "id": "git-server", "type": "web-server", "position": { "x": 200, "y": 250 }, "data": { "label": "Git Server (GitHub)", "category": "compute", "componentType": "web-server", "icon": "GitBranch", "config": { "repos": 500, "webhooksPerDay": 5000 }, "state": "idle" } },
+    { "id": "pipeline-orchestrator", "type": "web-server", "position": { "x": 400, "y": 250 }, "data": { "label": "Pipeline Orchestrator", "category": "compute", "componentType": "web-server", "icon": "Workflow", "config": { "instances": 4, "maxConcurrentPipelines": 200, "timeoutMinutes": 60 }, "state": "idle" } },
+    { "id": "build-cluster", "type": "web-server", "position": { "x": 600, "y": 100 }, "data": { "label": "Build Cluster (K8s)", "category": "compute", "componentType": "web-server", "icon": "Hammer", "config": { "workerNodes": 20, "maxPods": 200, "cpuCoresTotal": 160 }, "state": "idle" } },
+    { "id": "test-runner", "type": "web-server", "position": { "x": 600, "y": 250 }, "data": { "label": "Test Runner", "category": "compute", "componentType": "web-server", "icon": "TestTube", "config": { "instances": 12, "parallelism": 48, "testTypes": ["unit", "integration", "e2e"] }, "state": "idle" } },
+    { "id": "security-scanner", "type": "web-server", "position": { "x": 600, "y": 400 }, "data": { "label": "Security Scanner", "category": "compute", "componentType": "web-server", "icon": "ShieldAlert", "config": { "instances": 4, "scanTypes": ["sast", "dast", "dependency", "container"], "scanTimeoutMin": 30 }, "state": "idle" } },
+    { "id": "artifact-registry", "type": "database", "position": { "x": 800, "y": 100 }, "data": { "label": "Artifact Registry (ECR)", "category": "storage", "componentType": "object-storage", "icon": "Package", "config": { "type": "ecr", "imageCount": 50000, "storageTB": 5, "scanOnPush": true }, "state": "idle" } },
+    { "id": "config-store", "type": "database", "position": { "x": 800, "y": 250 }, "data": { "label": "Config Store (Vault)", "category": "storage", "componentType": "nosql-db", "icon": "Lock", "config": { "secretCount": 10000, "policyCount": 200, "auditEnabled": true }, "state": "idle" } },
+    { "id": "deploy-controller", "type": "web-server", "position": { "x": 800, "y": 400 }, "data": { "label": "Deploy Controller (ArgoCD)", "category": "compute", "componentType": "web-server", "icon": "Rocket", "config": { "instances": 3, "targetClusters": 5, "syncIntervalS": 30 }, "state": "idle" } },
+    { "id": "staging-cluster", "type": "web-server", "position": { "x": 1000, "y": 150 }, "data": { "label": "Staging Cluster", "category": "compute", "componentType": "web-server", "icon": "Server", "config": { "nodes": 10, "namespaces": 20, "autoScaling": true }, "state": "idle" } },
+    { "id": "production-cluster", "type": "web-server", "position": { "x": 1000, "y": 350 }, "data": { "label": "Production Cluster", "category": "compute", "componentType": "web-server", "icon": "Server", "config": { "nodes": 50, "namespaces": 30, "canaryEnabled": true }, "state": "idle" } },
+    { "id": "monitoring", "type": "web-server", "position": { "x": 1000, "y": 500 }, "data": { "label": "Deploy Monitor", "category": "compute", "componentType": "web-server", "icon": "BarChart3", "config": { "instances": 3, "metricsRetentionDays": 30, "rollbackThreshold": 5 }, "state": "idle" } },
+    { "id": "notification-service", "type": "web-server", "position": { "x": 400, "y": 450 }, "data": { "label": "Notifications (Slack)", "category": "compute", "componentType": "web-server", "icon": "Bell", "config": { "instances": 2, "channels": ["slack", "email", "pagerduty"] }, "state": "idle" } },
+    { "id": "pipeline-db", "type": "database", "position": { "x": 400, "y": 100 }, "data": { "label": "Pipeline DB (PostgreSQL)", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "postgresql", "replicas": 1, "storageGB": 200 }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-dev-git", "source": "developer", "target": "git-server", "type": "data-flow", "data": { "edgeType": "git-push", "latency": 1000, "animated": true } },
+    { "id": "e-git-pipeline", "source": "git-server", "target": "pipeline-orchestrator", "type": "data-flow", "data": { "edgeType": "webhook", "latency": 100, "animated": true } },
+    { "id": "e-pipeline-build", "source": "pipeline-orchestrator", "target": "build-cluster", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 50, "animated": true } },
+    { "id": "e-pipeline-test", "source": "pipeline-orchestrator", "target": "test-runner", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 50, "animated": true } },
+    { "id": "e-pipeline-security", "source": "pipeline-orchestrator", "target": "security-scanner", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 100, "animated": true } },
+    { "id": "e-build-artifact", "source": "build-cluster", "target": "artifact-registry", "type": "data-flow", "data": { "edgeType": "docker-push", "latency": 5000, "animated": true } },
+    { "id": "e-pipeline-db", "source": "pipeline-orchestrator", "target": "pipeline-db", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 5, "animated": false } },
+    { "id": "e-deploy-config", "source": "deploy-controller", "target": "config-store", "type": "data-flow", "data": { "edgeType": "vault-read", "latency": 10, "animated": true } },
+    { "id": "e-deploy-staging", "source": "deploy-controller", "target": "staging-cluster", "type": "data-flow", "data": { "edgeType": "k8s-apply", "latency": 5000, "animated": true } },
+    { "id": "e-deploy-prod", "source": "deploy-controller", "target": "production-cluster", "type": "data-flow", "data": { "edgeType": "k8s-apply", "latency": 5000, "animated": true } },
+    { "id": "e-artifact-deploy", "source": "artifact-registry", "target": "deploy-controller", "type": "data-flow", "data": { "edgeType": "image-pull", "latency": 2000, "animated": true } },
+    { "id": "e-prod-monitor", "source": "production-cluster", "target": "monitoring", "type": "data-flow", "data": { "edgeType": "metrics", "latency": 10, "animated": true } },
+    { "id": "e-monitor-deploy", "source": "monitoring", "target": "deploy-controller", "type": "data-flow", "data": { "edgeType": "rollback-signal", "latency": 100, "animated": false } },
+    { "id": "e-pipeline-notify", "source": "pipeline-orchestrator", "target": "notification-service", "type": "data-flow", "data": { "edgeType": "async", "latency": 50, "animated": false } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-build-cluster-full", "name": "Build Cluster Capacity Exhaustion", "description": "Peak push hour exhausts all build worker pods", "targetNodes": ["build-cluster"], "faultType": "resource-exhaustion", "severity": 3, "expectedBehavior": "New builds queue. Pipeline wait times increase from seconds to minutes. No data loss—builds eventually complete.", "mitigationSteps": ["Auto-scale worker nodes", "Prioritize main branch builds", "Cache build layers aggressively", "Queue overflow notification to devs"] },
+      { "id": "cs-bad-canary", "name": "Bad Canary Deployment", "description": "Canary release introduces a regression that increases error rate", "targetNodes": ["production-cluster", "monitoring"], "faultType": "error", "severity": 4, "expectedBehavior": "Canary receives 5% of traffic. Error rate for canary exceeds threshold. Deploy monitor triggers automatic rollback within 5 minutes.", "mitigationSteps": ["Automated canary analysis detects regression", "Automatic rollback to previous version", "Block promotion to full rollout", "Alert deploying team with error details"] },
+      { "id": "cs-vault-unavailable", "name": "Vault Secret Store Unavailable", "description": "HashiCorp Vault becomes unreachable during deployment", "targetNodes": ["config-store"], "faultType": "crash", "severity": 4, "expectedBehavior": "Deployments that need secret injection fail. Running services continue with cached secrets. New deployments blocked.", "mitigationSteps": ["Vault auto-unseal and failover", "Cached secrets serve running pods", "Queue deployments until Vault recovers", "Emergency break-glass procedure for critical deploys"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 100, "bottleneckNode": "build-cluster", "metric": "cpu", "description": "Build pod CPU exhausted during compilation-heavy projects", "resolution": "Add worker nodes, implement build caching, use remote build cache" },
+      { "rpsThreshold": 200, "bottleneckNode": "test-runner", "metric": "connections", "description": "Integration test database connections exhausted", "resolution": "Use ephemeral test databases, increase parallelism, test sharding" },
+      { "rpsThreshold": 500, "bottleneckNode": "artifact-registry", "metric": "network", "description": "Docker image push/pull bandwidth saturates", "resolution": "Enable registry mirroring, layer caching, multi-arch manifest lists" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-flaky-tests", "title": "Flaky Test False Failures", "description": "Intermittent test failures block deployments and erode developer trust", "affectedNodes": ["test-runner", "pipeline-orchestrator"], "likelihood": 5, "impact": 3, "mitigation": "Automatic retry for flaky tests, quarantine known flaky tests, track flake rate per test" },
+      { "id": "ei-secret-leak", "title": "Secret Leak in Build Logs", "description": "Build process accidentally logs secrets to pipeline output", "affectedNodes": ["build-cluster", "pipeline-db"], "likelihood": 3, "impact": 5, "mitigation": "Secret masking in all pipeline logs, credential scanning in outputs, Vault dynamic secrets" },
+      { "id": "ei-deploy-drift", "title": "Configuration Drift", "description": "Manual changes to production diverge from Git-declared state", "affectedNodes": ["production-cluster", "deploy-controller"], "likelihood": 3, "impact": 3, "mitigation": "ArgoCD drift detection, periodic reconciliation, block kubectl direct access" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 35000,
+      "components": [
+        { "nodeId": "build-cluster", "label": "Build Workers (K8s)", "monthlyCostUsd": 8000, "costDriver": "20 worker nodes (spot)" },
+        { "nodeId": "production-cluster", "label": "Production Cluster", "monthlyCostUsd": 6000, "costDriver": "50 nodes (separate from app cost)" },
+        { "nodeId": "test-runner", "label": "Test Runners", "monthlyCostUsd": 5000, "costDriver": "12 instances, 48 parallel" },
+        { "nodeId": "artifact-registry", "label": "Artifact Registry", "monthlyCostUsd": 3000, "costDriver": "5TB image storage" },
+        { "nodeId": "staging-cluster", "label": "Staging Cluster", "monthlyCostUsd": 3000, "costDriver": "10 nodes" },
+        { "nodeId": "security-scanner", "label": "Security Scanners", "monthlyCostUsd": 3000, "costDriver": "4 instances + license" },
+        { "nodeId": "config-store", "label": "Vault", "monthlyCostUsd": 2500, "costDriver": "HA cluster" },
+        { "nodeId": "deploy-controller", "label": "ArgoCD", "monthlyCostUsd": 1500, "costDriver": "3 instances" },
+        { "nodeId": "monitoring", "label": "Deploy Monitoring", "monthlyCostUsd": 1500, "costDriver": "3 instances" },
+        { "nodeId": "pipeline-orchestrator", "label": "Pipeline Orchestrator", "monthlyCostUsd": 1500, "costDriver": "4 instances" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Small Team (50 devs)", "rps": 50, "monthlyCostUsd": 10000 },
+        { "label": "Mid Team (200 devs)", "rps": 200, "monthlyCostUsd": 20000 },
+        { "label": "Large Org (500 devs)", "rps": 500, "monthlyCostUsd": 35000 },
+        { "label": "Enterprise (2000 devs)", "rps": 2000, "monthlyCostUsd": 100000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 500, "trafficProfile": "bursty", "p50LatencyMs": 300000, "p99LatencyMs": 900000, "availabilityTarget": 99.9, "maxErrorRatePercent": 1, "throughputRps": 500 },
+    "scalingPolicies": [
+      { "nodeId": "build-cluster", "metric": "pending_pods", "threshold": 10, "scaleUpStep": 5, "scaleDownStep": 2, "cooldownSeconds": 120, "minInstances": 10, "maxInstances": 50 },
+      { "nodeId": "test-runner", "metric": "queue_depth", "threshold": 20, "scaleUpStep": 4, "scaleDownStep": 2, "cooldownSeconds": 60, "minInstances": 4, "maxInstances": 32 }
+    ],
+    "slaDefinitions": [
+      { "name": "Build Time", "metric": "p90_build_duration_min", "target": 10, "unit": "minutes", "penalty": "Builds complete within 10min for 90% of pipelines" },
+      { "name": "Deploy Frequency", "metric": "deploys_per_day", "target": 50, "unit": "deploys", "penalty": "Platform supports 50+ production deploys/day" },
+      { "name": "Rollback Time", "metric": "rollback_duration_min", "target": 5, "unit": "minutes", "penalty": "Automated rollback within 5 minutes" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "build_duration", "type": "histogram", "description": "Time from trigger to build complete", "nodeId": "build-cluster" },
+        { "name": "test_pass_rate", "type": "gauge", "description": "Percentage of test runs that pass", "nodeId": "test-runner" },
+        { "name": "deploy_success_rate", "type": "gauge", "description": "Percentage of deployments that succeed", "nodeId": "deploy-controller" },
+        { "name": "canary_error_rate", "type": "gauge", "description": "Error rate of canary vs baseline", "nodeId": "production-cluster" },
+        { "name": "pipeline_queue_depth", "type": "gauge", "description": "Pending pipelines waiting to execute", "nodeId": "pipeline-orchestrator" }
+      ],
+      "alerts": [
+        { "name": "Build Queue Growing", "condition": "pending_builds > 50 for 10min", "severity": "warning", "channel": "slack-platform" },
+        { "name": "Canary Error Spike", "condition": "canary_error_rate > baseline * 2 for 3min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Vault Unreachable", "condition": "vault_health != healthy for 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Deploy Failure Rate", "condition": "deploy_failure_rate > 10% for 1h", "severity": "warning", "channel": "slack-platform" }
+      ],
+      "dashboards": ["Pipeline Overview", "Build Performance", "Deployment Tracking", "Security Scan Results", "Canary Analysis"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call Platform Engineer", "responseTimeMinutes": 5, "contacts": ["oncall-platform"] },
+        { "level": 2, "name": "Platform Team Lead", "responseTimeMinutes": 15, "contacts": ["platform-lead"] },
+        { "level": 3, "name": "VP Engineering", "responseTimeMinutes": 30, "contacts": ["vp-eng"] }
+      ],
+      "runbooks": [
+        { "incident": "Build cluster exhausted", "severity": "high", "steps": ["Check cluster autoscaler status", "Manually scale worker nodes", "Prioritize critical pipelines", "Identify resource-heavy builds"], "automatedRecovery": true },
+        { "incident": "Bad canary auto-rollback", "severity": "critical", "steps": ["Verify rollback completed", "Check production metrics post-rollback", "Notify deploying team", "Block re-deployment until root cause found"], "automatedRecovery": true },
+        { "incident": "Vault outage", "severity": "critical", "steps": ["Check Vault seal status", "Attempt auto-unseal", "If persists: manual unseal procedure", "Queue all deployments", "Running pods continue with cached secrets"], "automatedRecovery": true }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "GitOps with ArgoCD", "context": "Need declarative, auditable deployments with automatic drift detection.", "decision": "Use ArgoCD for GitOps-based continuous deployment to all environments.", "consequences": ["Git as single source of truth for cluster state", "Automatic drift detection and reconciliation", "Full audit trail of all deployments", "Developers must learn GitOps workflow"] },
+      { "title": "Canary Analysis for Production", "context": "Need to catch regressions before they impact all users.", "decision": "Implement automated canary analysis comparing error rates, latency, and business metrics.", "consequences": ["Regressions caught before full rollout", "Automatic rollback on metric degradation", "5-10 minute delay for canary observation window", "Need baseline metric collection"] },
+      { "title": "Ephemeral Build Environments", "context": "Shared build environments cause flaky builds and resource contention.", "decision": "Use Kubernetes pods for ephemeral, isolated build environments.", "consequences": ["No cross-build contamination", "Easy horizontal scaling", "Cold start overhead for pod creation", "Need aggressive Docker layer caching"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Speed vs Safety", "choice": "Safety with fast feedback", "benefit": "Comprehensive security scanning and canary analysis prevent bad deploys", "cost": "Pipeline takes 10-15 minutes instead of 2-3 minutes" },
+      { "dimension": "Cost vs Isolation", "choice": "Isolation", "benefit": "Each build runs in isolated pod, no side effects", "cost": "Higher compute cost vs shared build agents" },
+      { "dimension": "Flexibility vs Standardization", "choice": "Standardization", "benefit": "Standard pipeline templates ensure security gates are never skipped", "cost": "Less flexibility for teams with unusual build requirements" }
+    ],
+    "alternatives": [
+      { "name": "Jenkins-based Pipeline", "description": "Use Jenkins for CI/CD orchestration", "prosVsCons": "Pros: mature, plugin ecosystem. Cons: stateful master, scaling complexity, maintenance burden", "whyNotChosen": "Cloud-native orchestrator with Kubernetes integration provides better scalability and operability" },
+      { "name": "Blue-Green Instead of Canary", "description": "Switch 100% of traffic between blue and green environments", "prosVsCons": "Pros: simpler, instant rollback. Cons: 2x infrastructure cost, no gradual validation", "whyNotChosen": "Canary provides gradual validation with minimal additional cost" }
+    ]
+  }
+}

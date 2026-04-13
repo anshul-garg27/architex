@@ -1,0 +1,237 @@
+[
+  {
+    "id": "DIS-141",
+    "epic": "DIS",
+    "title": "Create distributed-module-specific guided tour (5 steps to first Raft election)",
+    "description": "The OnboardingOverlay (shared/onboarding-overlay.tsx) has 5 steps ALL about System Design (drag components, connect nodes, run simulation). A user who navigates to the distributed module gets ZERO guidance.\n\nCreate a module-specific tour that triggers when user first enters the distributed module (localStorage key: 'architex_distributed_tour_completed'). 5 steps:\n\n1. 'Welcome to Distributed Systems' (center) — 'See how servers agree, replicate data, and survive failures — all animated in real-time.'\n2. 'Choose a Protocol' (target: sidebar) — 'Pick from 11 distributed systems concepts. Start with Raft — it's how Kubernetes coordinates servers.'\n3. 'Watch It Run' (target: auto-play button) — 'Click Auto-play to watch a leader election happen. Nodes will communicate, vote, and elect a leader.'\n4. 'Break Things' (target: crash-node button) — 'Crash a node to see how the system recovers. This is how real distributed systems handle failures.'\n5. 'Explore More' (target: sidebar list) — 'Try Consistent Hashing, CRDTs, or the CAP Theorem. Each one teaches a different aspect of distributed systems.'\n\nThe tour should auto-play Raft at step 3 so the user SEES the election happen during the tour.",
+    "acceptanceCriteria": [
+      "Tour triggers on first distributed module visit",
+      "5 steps with spotlight pointing to correct UI elements",
+      "Step 3 auto-starts Raft simulation so user sees animation during tour",
+      "Can skip (Escape), can go back (ArrowLeft), keyboard accessible",
+      "localStorage flag prevents re-showing",
+      "Settings menu has 'Replay Distributed Tour' option"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/onboarding-overlay.tsx",
+      "src/components/modules/DistributedModule.tsx",
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "guided-tour", "first-success", "p1"]
+  },
+  {
+    "id": "DIS-142",
+    "epic": "DIS",
+    "title": "Add actionable empty states with one-click demo to all 11 simulations",
+    "description": "NO empty state has a CTA button. The System Design module's CanvasEmptyState has 'Start Building' with buttons — this pattern exists but isn't used here.\n\nFor each simulation, replace bare text/static diagram with:\n1. Brief 'what you'll see' description (1 sentence)\n2. Animated preview (subtle breathing/pulsing nodes)\n3. CTA button: 'Watch [Name] →' that auto-starts the simulation\n\nExamples:\n- Raft: 'Watch 5 servers elect a leader in real-time' + [Watch Election →]\n- Consistent Hashing: 'See how adding a server moves only 1/N keys' + [Add First Node →]\n- Gossip: 'Watch information spread like a rumor through 8 servers' + [Start Gossip →]\n- CAP: 'See what happens when a network splits' + [Inject Partition →]\n- CRDTs: 'Watch 3 replicas diverge and then merge without conflicts' + [Start Demo →]\n\nThe CTA should perform the FIRST interesting action automatically.",
+    "acceptanceCriteria": [
+      "All 11 simulations have designed empty states with CTA buttons",
+      "CTA click performs the first interesting action (auto-play, add node, inject partition, etc.)",
+      "Empty state has subtle animation (breathing nodes, pulsing button)",
+      "Description uses plain English, not jargon",
+      "After CTA click, empty state disappears and simulation runs"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["onboarding", "empty-state", "first-success", "p1"]
+  },
+  {
+    "id": "DIS-143",
+    "epic": "DIS",
+    "title": "Add tooltips to all distributed simulation controls",
+    "description": "Zero controls have tooltips. A beginner sees 'Step', 'Auto-play', 'Reset', 'Crash Node', 'Submit CMD' buttons with no explanation of what they do.\n\nAdd tooltips (using the existing Tooltip component from @/components/ui/tooltip already imported in activity-bar.tsx):\n- Step: 'Advance the simulation by one tick (~10ms of simulated time)'\n- Auto-play: 'Run the simulation continuously. Click again to pause.'\n- Reset: 'Reset the simulation to its initial state'\n- Crash Node: 'Simulate a server crash. The crashed node stops processing.'\n- Submit CMD: 'Submit a client command to the leader for replication'\n- Add Node (hash): 'Add a new server to the hash ring'\n- Add 100 Keys: 'Place 100 random keys on the ring'\n- Introduce Data: 'Write new data to a random node'\n- Merge All (CRDT): 'Merge all replicas to achieve convergence'\n- Inject Partition (CAP): 'Split the network into two groups that cannot communicate'\n\nAll simulation-specific controls should have brief tooltips.",
+    "acceptanceCriteria": [
+      "All control buttons have tooltips on hover",
+      "Tooltips use plain English explaining WHAT the button does",
+      "Tooltips use the shared Tooltip component for consistency",
+      "Touch devices: tooltips accessible via long-press or appear briefly on tap"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "tooltips", "accessibility", "p1"]
+  },
+  {
+    "id": "DIS-144",
+    "epic": "DIS",
+    "title": "Add 'How to use this simulation' section at top of properties panel",
+    "description": "Properties panel explains the CONCEPT (Key Concepts, Guarantees, Protocol Phases) but never explains HOW TO USE THE TOOL. A beginner might understand 'At most one leader per term' but not know they should click 'Auto-play' to see it.\n\nAdd a brief 'How to Use' section at the TOP of each simulation's properties panel:\n- Raft: 'Click Auto-play to watch leader election. Try Crash Node to see recovery. Submit CMD to replicate a command.'\n- Consistent Hashing: 'Add nodes and keys to build a ring. Watch the load distribution bars change.'\n- Vector Clocks: 'Select a process, then click Local Event or Send. Watch the clock vectors update.'\n- Gossip: 'Click Introduce Data, then Auto-play. Watch the convergence bar fill up.'\n\nKeep it to 1-2 sentences max. It should be the FIRST thing a beginner reads.",
+    "acceptanceCriteria": [
+      "All 11 properties panels have 'How to Use' as the first section",
+      "Each is 1-2 sentences explaining what buttons to click",
+      "Uses action-oriented language ('Click X to see Y')",
+      "Collapsible after first read (localStorage flag)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["onboarding", "help", "properties-panel", "p2"]
+  },
+  {
+    "id": "DIS-145",
+    "epic": "DIS",
+    "title": "Add inactivity detection: show help prompt after 15 seconds of no interaction",
+    "description": "If a user stares at the distributed module for 15 seconds without clicking anything, they're probably stuck. No detection mechanism exists.\n\nAdd: after 15s of no click/key events while the distributed module is active, show a subtle bottom-right toast: 'Not sure where to start? Click Auto-play to watch [current simulation] in action.' The toast has a 'Show Me' button that auto-starts the current simulation, and a 'Dismiss' button.\n\nOnly show once per session per simulation (localStorage tracking). Reset timer on any interaction.",
+    "acceptanceCriteria": [
+      "Toast appears after 15s of inactivity",
+      "Toast is specific to current simulation",
+      "'Show Me' button auto-starts the simulation",
+      "Only shows once per sim per session",
+      "Timer resets on any click/key event",
+      "Doesn't appear during guided tour"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "stuck-detection", "help", "p2"]
+  },
+  {
+    "id": "DIS-146",
+    "epic": "DIS",
+    "title": "Add distributed simulation shortcuts to keyboard shortcuts dialog",
+    "description": "The keyboard shortcuts dialog (shared/keyboard-shortcuts-dialog.tsx) lists module shortcuts (1-9) but no simulation-specific shortcuts. Add a 'Distributed Systems' section:\n- Space: Play/Pause current simulation\n- Right Arrow: Step forward\n- R: Reset simulation\n- 1-9: Switch between simulations (Raft=1, Consistent Hash=2, ...)\n\nThese shortcuts should also actually work (verify use-keyboard-shortcuts hook handles them when distributed module is active).",
+    "acceptanceCriteria": [
+      "Keyboard shortcuts dialog has 'Distributed Systems' section",
+      "Lists at least 4 simulation-specific shortcuts",
+      "Shortcuts actually function when module is active",
+      "Shortcuts only fire when not focused on input/textarea"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/keyboard-shortcuts-dialog.tsx",
+      "src/hooks/use-keyboard-shortcuts.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "keyboard", "shortcuts", "p3"]
+  },
+  {
+    "id": "DIS-147",
+    "epic": "DIS",
+    "title": "Add 'What is Distributed Systems?' explainer for complete beginners",
+    "description": "Complete beginners score 2/10 on first 60 seconds because they don't know what distributed systems ARE. The module jumps straight into 'Raft Consensus — Leader election, log replication, and fault tolerance' which is meaningless to them.\n\nAdd a one-time 'What is Distributed Systems?' overlay (shown before the tour, only for users who haven't dismissed it):\n\n'Distributed systems are what happens when one computer isn't enough.\n\nWhen millions of people use a service like Netflix or WhatsApp, no single server can handle all the traffic. The work is split across many servers that must coordinate.\n\nThis module lets you SEE how those servers communicate, agree, and recover from failures — through interactive simulations.\n\nReady? Let's start with how servers elect a leader.'\n\n[Start Tour →] [Skip — I know this →]",
+    "acceptanceCriteria": [
+      "Overlay shows on first distributed module visit (before tour)",
+      "Explains distributed systems in beginner-friendly language",
+      "Has 'Start Tour' and 'Skip' buttons",
+      "Dismissal stored in localStorage",
+      "Not shown to users who skip to distributed via activity bar (assumed not beginners)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-141"],
+    "blockedBy": [],
+    "tags": ["onboarding", "beginner", "explainer", "p2"]
+  },
+  {
+    "id": "DIS-148",
+    "epic": "DIS",
+    "title": "Add 'Quick Demo' auto-play that runs a compelling scenario on first visit",
+    "description": "The single biggest onboarding fix: when a user first enters the distributed module, instead of showing a static diagram, AUTO-PLAY a 5-second Raft election scenario. The user WATCHES a leader get elected without clicking anything. Then pause and show: 'You just saw 5 servers elect a leader. Try clicking Crash Node to see what happens next.'\n\nThis is the Nintendo tutorial approach: teach by SHOWING, then hand control to the user at the most interesting moment.\n\nImplementation: on first visit (localStorage flag), start Raft auto-play for ~50 ticks (5 seconds), which is enough for a leader election. Then pause and show a tooltip pointing to Crash Node.",
+    "acceptanceCriteria": [
+      "First visit auto-plays Raft for 5 seconds (enough for election)",
+      "After auto-play, simulation pauses",
+      "Tooltip appears: 'Try clicking Crash Node to see recovery'",
+      "User takes control from the paused state",
+      "Only happens once (localStorage)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "auto-demo", "first-success", "highest-impact", "p1"]
+  },
+  {
+    "id": "DIS-149",
+    "epic": "DIS",
+    "title": "Add contextual 'next step' suggestions after completing a simulation action",
+    "description": "After a user completes an action (leader elected, gossip converged, CRDT merged), there's no guidance on what to try next. The user hits a dead end.\n\nAdd contextual suggestions after key moments:\n- After Raft leader elected: 'Leader elected! Now try: Crash Node to test recovery, or Submit CMD to replicate a command.'\n- After Gossip converged: 'All nodes synced! Now try: Kill a node and introduce new data — watch convergence work around the failure.'\n- After CRDT merge: 'Replicas converged! Try: Set different values on A and B, then merge again to see conflict resolution.'\n- After CAP partition healed: 'Data reconciled! Try: Switch to AP mode and see how writes behave differently during partition.'\n\nShow as a brief toast or banner below the canvas. Disappear after 5s or on next click.",
+    "acceptanceCriteria": [
+      "At least 1 contextual suggestion per simulation (11 total)",
+      "Suggestions appear after key moments (not random timing)",
+      "Suggestions guide to the NEXT interesting action",
+      "Auto-dismiss after 5 seconds or on user interaction",
+      "Don't repeat the same suggestion twice in a session"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["onboarding", "progressive-disclosure", "guidance", "p2"]
+  },
+  {
+    "id": "DIS-150",
+    "epic": "DIS",
+    "title": "Add '?' help button in distributed module header linking to concept documentation",
+    "description": "No help entry point exists anywhere in the distributed module. If a user is confused, there's nowhere to go.\n\nAdd a small '?' icon button in the module header (next to the simulation name) that:\n1. Opens a dropdown with: 'Replay Tour', 'Keyboard Shortcuts', 'What is [Current Sim]?', 'Full Documentation'\n2. 'What is [Current Sim]?' links to the SEO concept page (/concepts/raft-consensus)\n3. 'Full Documentation' links to docs.architex.dev (already in settings-panel.tsx:23)\n4. 'Replay Tour' re-triggers the distributed tour (DIS-141)\n5. 'Keyboard Shortcuts' opens the shortcuts dialog",
+    "acceptanceCriteria": [
+      "'?' button visible in distributed module header area",
+      "Dropdown has 4 help options",
+      "Each option works correctly",
+      "Accessible via keyboard (focusable, Enter to open)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "help", "discoverability", "p2"]
+  }
+]

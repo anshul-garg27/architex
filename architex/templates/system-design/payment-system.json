@@ -1,0 +1,166 @@
+{
+  "id": "payment-system",
+  "name": "Payment System (Stripe-like)",
+  "description": "Design a payment processing system like Stripe. Covers idempotency, exactly-once processing, bank integrations, ledger accounting, and webhook notifications.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["payment", "stripe", "transactions", "idempotency", "ledger", "fintech"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 10000, "requestsPerSecond": 1000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 5000, "authType": "api-key", "timeoutMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "payment-service",
+      "type": "web-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Payment Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 5, "maxConnections": 5000, "processingTimeMs": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "bank-api",
+      "type": "client",
+      "position": { "x": 750, "y": 50 },
+      "data": {
+        "label": "Bank / Card Network",
+        "category": "client",
+        "componentType": "third-party-api",
+        "icon": "ExternalLink",
+        "config": { "rateLimitRps": 500, "latencyMs": 500, "errorRate": 0.02 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 750, "y": 200 },
+      "data": {
+        "label": "Ledger DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 200, "storageGB": 1000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "message-queue",
+      "type": "message-queue",
+      "position": { "x": 500, "y": 425 },
+      "data": {
+        "label": "Event Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": { "type": "kafka", "partitions": 6, "replicationFactor": 3, "retentionHours": 720 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "notification-service",
+      "type": "web-server",
+      "position": { "x": 750, "y": 425 },
+      "data": {
+        "label": "Webhook / Notification",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 3, "maxConnections": 5000, "processingTimeMs": 50 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-payment",
+      "source": "api-gw",
+      "target": "payment-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-payment-bank",
+      "source": "payment-service",
+      "target": "bank-api",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 500, "animated": true }
+    },
+    {
+      "id": "e-payment-db",
+      "source": "payment-service",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-payment-queue",
+      "source": "payment-service",
+      "target": "message-queue",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-queue-notif",
+      "source": "message-queue",
+      "target": "notification-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-notif-db",
+      "source": "notification-service",
+      "target": "database",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ]
+}

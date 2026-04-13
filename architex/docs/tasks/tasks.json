@@ -1,0 +1,351 @@
+{
+  "meta": {
+    "schemaVersion": "1.0",
+    "project": "Architex",
+    "generatedAt": "2026-04-12T00:00:00.000Z",
+    "generatedBy": "Reconstructed from batch files"
+  },
+  "epics": [
+    {
+      "id": "A11",
+      "name": "Accessibility",
+      "description": "Screen reader, keyboard nav, ARIA, focus management",
+      "phase": 8,
+      "priority": "P1",
+      "color": "#0EA5E9",
+      "taskCount": 30,
+      "completedCount": 0
+    },
+    {
+      "id": "AIX",
+      "name": "AI Features",
+      "description": "AI review, AI generation, architecture suggestions",
+      "phase": 7,
+      "priority": "P2",
+      "color": "#F43F5E",
+      "taskCount": 20,
+      "completedCount": 0
+    },
+    {
+      "id": "ALG",
+      "name": "Algorithm Visualizer",
+      "description": "Sorting, graph, tree, DP, string algorithms",
+      "phase": 3,
+      "priority": "P1",
+      "color": "#06B6D4",
+      "taskCount": 334,
+      "completedCount": 205
+    },
+    {
+      "id": "BIL",
+      "name": "Billing",
+      "description": "Stripe integration, plans, usage tracking",
+      "phase": 9,
+      "priority": "P3",
+      "color": "#FCD34D",
+      "taskCount": 8,
+      "completedCount": 0
+    },
+    {
+      "id": "BUG",
+      "name": "Bug Fixes",
+      "description": "Bug fixes and stability improvements",
+      "phase": 1,
+      "priority": "P0",
+      "color": "#DC2626",
+      "taskCount": 20,
+      "completedCount": 0
+    },
+    {
+      "id": "CID",
+      "name": "CI/CD",
+      "description": "GitHub Actions, deployment, preview environments",
+      "phase": 7,
+      "priority": "P2",
+      "color": "#475569",
+      "taskCount": 10,
+      "completedCount": 0
+    },
+    {
+      "id": "COL",
+      "name": "Collaboration",
+      "description": "Real-time collab, sharing, comments",
+      "phase": 9,
+      "priority": "P3",
+      "color": "#2DD4BF",
+      "taskCount": 15,
+      "completedCount": 0
+    },
+    {
+      "id": "CON",
+      "name": "Concurrency Lab",
+      "description": "Race conditions, producer-consumer, event loop, async patterns",
+      "phase": 5,
+      "priority": "P2",
+      "color": "#EF4444",
+      "taskCount": 253,
+      "completedCount": 4
+    },
+    {
+      "id": "DBL",
+      "name": "Database Design Lab",
+      "description": "ER diagrams, normalization, query plans, indexes",
+      "phase": 4,
+      "priority": "P1",
+      "color": "#22C55E",
+      "taskCount": 186,
+      "completedCount": 128
+    },
+    {
+      "id": "DIS",
+      "name": "Distributed Systems",
+      "description": "Raft, Paxos, consistent hashing, CRDTs",
+      "phase": 4,
+      "priority": "P1",
+      "color": "#A855F7",
+      "taskCount": 185,
+      "completedCount": 43
+    },
+    {
+      "id": "DOC",
+      "name": "Documentation",
+      "description": "API docs, contributor guides, architecture docs",
+      "phase": 10,
+      "priority": "P2",
+      "color": "#94A3B8",
+      "taskCount": 15,
+      "completedCount": 0
+    },
+    {
+      "id": "DSN",
+      "name": "Design System & UI Components",
+      "description": "CSS tokens, shadcn/ui wrappers, custom components",
+      "phase": 1,
+      "priority": "P0",
+      "color": "#8B5CF6",
+      "taskCount": 40,
+      "completedCount": 0
+    },
+    {
+      "id": "DST",
+      "name": "Data Structure Explorer",
+      "description": "45+ interactive data structures",
+      "phase": 3,
+      "priority": "P1",
+      "color": "#14B8A6",
+      "taskCount": 205,
+      "completedCount": 180
+    },
+    {
+      "id": "ENT",
+      "name": "Enterprise",
+      "description": "SSO, audit logs, team management",
+      "phase": 10,
+      "priority": "P3",
+      "color": "#6B7280",
+      "taskCount": 8,
+      "completedCount": 0
+    },
+    {
+      "id": "EXP",
+      "name": "Export & Import",
+      "description": "JSON, PNG, SVG export, import from other tools",
+      "phase": 7,
+      "priority": "P2",
+      "color": "#C084FC",
+      "taskCount": 10,
+      "completedCount": 5
+    },
+    {
+      "id": "FND",
+      "name": "Foundation & Core Platform",
+      "description": "Project setup, auth, database, stores, canvas, layout",
+      "phase": 1,
+      "priority": "P0",
+      "color": "#6366F1",
+      "taskCount": 52,
+      "completedCount": 10
+    },
+    {
+      "id": "INF",
+      "name": "Infrastructure",
+      "description": "CI/CD, monitoring, error tracking, analytics",
+      "phase": 7,
+      "priority": "P2",
+      "color": "#64748B",
+      "taskCount": 36,
+      "completedCount": 0
+    },
+    {
+      "id": "INO",
+      "name": "Innovation Features",
+      "description": "Cost calculator, SLA dashboard, heatmap, request tracing",
+      "phase": 7,
+      "priority": "P2",
+      "color": "#8B5CF6",
+      "taskCount": 35,
+      "completedCount": 0
+    },
+    {
+      "id": "INT",
+      "name": "Interview Engine",
+      "description": "Timed challenges, hints, evaluation, spaced repetition",
+      "phase": 6,
+      "priority": "P2",
+      "color": "#FBBF24",
+      "taskCount": 25,
+      "completedCount": 7
+    },
+    {
+      "id": "LLD",
+      "name": "Low-Level Design Studio",
+      "description": "UML diagrams, 33 patterns, SOLID, code gen",
+      "phase": 4,
+      "priority": "P1",
+      "color": "#F59E0B",
+      "taskCount": 182,
+      "completedCount": 59
+    },
+    {
+      "id": "LND",
+      "name": "Landing & Onboarding",
+      "description": "Landing page, onboarding flow, tutorials",
+      "phase": 9,
+      "priority": "P2",
+      "color": "#A78BFA",
+      "taskCount": 20,
+      "completedCount": 0
+    },
+    {
+      "id": "MLD",
+      "name": "ML System Design",
+      "description": "Feature stores, model serving, RAG, inference",
+      "phase": 6,
+      "priority": "P2",
+      "color": "#F472B6",
+      "taskCount": 222,
+      "completedCount": 0
+    },
+    {
+      "id": "MOB",
+      "name": "Mobile & PWA",
+      "description": "Responsive design, PWA features, touch gestures",
+      "phase": 8,
+      "priority": "P2",
+      "color": "#FB923C",
+      "taskCount": 15,
+      "completedCount": 0
+    },
+    {
+      "id": "NET",
+      "name": "Networking & Protocols",
+      "description": "TCP, TLS, DNS, HTTP, WebSocket, CORS",
+      "phase": 5,
+      "priority": "P1",
+      "color": "#EC4899",
+      "taskCount": 186,
+      "completedCount": 45
+    },
+    {
+      "id": "OSC",
+      "name": "OS Concepts",
+      "description": "Scheduling, page replacement, deadlock, memory, thread sync",
+      "phase": 5,
+      "priority": "P1",
+      "color": "#F97316",
+      "taskCount": 234,
+      "completedCount": 48
+    },
+    {
+      "id": "PER",
+      "name": "Performance",
+      "description": "Bundle size, lazy loading, caching, memory optimization",
+      "phase": 8,
+      "priority": "P1",
+      "color": "#F97316",
+      "taskCount": 15,
+      "completedCount": 0
+    },
+    {
+      "id": "PLT",
+      "name": "Platform Experience",
+      "description": "Cross-module navigation, routing, progress tracking, SEO, design consistency, analytics, error tracking",
+      "phase": 3,
+      "priority": "P1",
+      "color": "#F59E0B",
+      "taskCount": 54,
+      "completedCount": 4
+    },
+    {
+      "id": "PWA",
+      "name": "PWA",
+      "description": "Service worker, offline support, install prompt",
+      "phase": 8,
+      "priority": "P2",
+      "color": "#38BDF8",
+      "taskCount": 10,
+      "completedCount": 0
+    },
+    {
+      "id": "SCR",
+      "name": "Scoring & Gamification",
+      "description": "XP, badges, streaks, leaderboard",
+      "phase": 6,
+      "priority": "P2",
+      "color": "#FACC15",
+      "taskCount": 25,
+      "completedCount": 0
+    },
+    {
+      "id": "SDS",
+      "name": "System Design Simulator",
+      "description": "Drag-drop canvas, simulation engine, chaos, templates",
+      "phase": 2,
+      "priority": "P0",
+      "color": "#3B82F6",
+      "taskCount": 595,
+      "completedCount": 12
+    },
+    {
+      "id": "SEC",
+      "name": "Security & Cryptography",
+      "description": "Encryption, OWASP, TLS handshake, JWT, XSS",
+      "phase": 5,
+      "priority": "P2",
+      "color": "#10B981",
+      "taskCount": 227,
+      "completedCount": 0
+    },
+    {
+      "id": "SEO",
+      "name": "SEO & Marketing",
+      "description": "Meta tags, OG images, sitemap, structured data",
+      "phase": 9,
+      "priority": "P2",
+      "color": "#22D3EE",
+      "taskCount": 20,
+      "completedCount": 0
+    },
+    {
+      "id": "TST",
+      "name": "Testing",
+      "description": "Unit tests, integration tests, E2E, visual regression",
+      "phase": 10,
+      "priority": "P1",
+      "color": "#34D399",
+      "taskCount": 50,
+      "completedCount": 0
+    },
+    {
+      "id": "UXP",
+      "name": "UX Polish",
+      "description": "Animations, transitions, micro-interactions",
+      "phase": 8,
+      "priority": "P2",
+      "color": "#D946EF",
+      "taskCount": 26,
+      "completedCount": 0
+    }
+  ],
+  "tasks": []
+}

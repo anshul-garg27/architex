@@ -1,0 +1,257 @@
+[
+  {
+    "id": "DST-141",
+    "epic": "DST",
+    "title": "Rewrite ALL 34 DS descriptions with hook + intuition + formal structure",
+    "description": "Every DS description currently opens with a dry definition ('Contiguous block of memory...', 'Binary Search Tree: left child < parent < right child...'). Zero hooks, zero analogies, zero 'why should I care.' ALL 34 score F on T1 (Hook) and T2 (Intuition).\n\nRewrite each description following this template:\n1. HOOK (1 sentence): Why should I care? Real problem or real system.\n2. INTUITION (2-3 sentences): Analogy that builds a mental model.\n3. FORMAL (1-2 sentences): Precise definition.\n4. WHEN TO USE (1 sentence): When to pick this over alternatives.\n5. COMPLEXITY FEEL (1 sentence): What the O notation means concretely.\n\nExample rewrites provided in the teaching quality audit:\n- Array: 'Mailbox row' analogy\n- Hash Table: 'Library catalog' analogy\n- BST: 'Phone book binary search' analogy\n- Linked List: 'Scavenger hunt' analogy\n- Heap: 'ER triage' analogy\n- Bloom Filter: 'Chrome Safe Browsing' hook\n\nSources for best analogies: AlgoCademy blog, Brilliant.org, Medium 'explained simply' articles, Cornell CS 2110.",
+    "acceptanceCriteria": [
+      "Every DS description starts with a hook sentence (WHY it matters)",
+      "Every description includes an intuitive analogy or concrete example",
+      "Every description includes a 'When to use' guidance sentence",
+      "Every description includes a complexity intuition sentence",
+      "Descriptions are 4-6 sentences, not walls of text",
+      "A beginner reading only the description could explain the DS to a friend"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "teaching",
+      "descriptions",
+      "hook",
+      "intuition",
+      "all-topics"
+    ]
+  },
+  {
+    "id": "DST-142",
+    "epic": "DST",
+    "title": "Add WHY reasoning to step descriptions in all 34 engine files",
+    "description": "ALL 34 topics score 1/3 on T4 (Step WHY). Steps say WHAT happens ('Compare 42 with 25', 'Go right', 'Swap A and B') but never WHY.\n\nFor each engine, augment key steps with reasoning:\n\nBST example:\n  Current: 'Compare 42 with 25'\n  Better: 'Compare 42 with node 25. In a BST, values greater than a node go right. Since 42 > 25, we move right \u2014 eliminating the entire left subtree.'\n\nAVL example:\n  Current: 'LL case at 25: bf=2'\n  Better: 'Node 25 is unbalanced (left subtree is 2 levels taller). This LL case means the heavy side is the left child\\'s left subtree. A single right rotation will fix it.'\n\nHash Table example:\n  Current: 'hash(\"alice\") = 3'\n  Better: 'We hash \"alice\" to get bucket index 3. The hash function converts any key into a number within our table size, so we know exactly WHERE to look.'\n\nPrioritize: The first 2-3 steps of each operation are most important \u2014 that's when the student is building their mental model. Later steps can be more concise.\n\nTarget: 50%+ of steps in each engine should include WHY reasoning.",
+    "acceptanceCriteria": [
+      "First step of every operation includes WHY reasoning",
+      "Key decision steps (go left/right, swap, rotate) explain the logic",
+      "Comparison steps connect to the data structure's fundamental property",
+      "AVL/RB rotation steps explain what was unbalanced and why the rotation fixes it",
+      "At least 50% of steps include WHY, not just WHAT"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/array-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/avl-ds.ts",
+      "src/lib/data-structures/red-black-ds.ts",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/lib/data-structures/trie-ds.ts",
+      "src/lib/data-structures/linked-list.ts",
+      "src/lib/data-structures/bloom-filter.ts",
+      "src/lib/data-structures/lsm-tree.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "teaching",
+      "step-descriptions",
+      "why",
+      "all-topics"
+    ]
+  },
+  {
+    "id": "DST-143",
+    "epic": "DST",
+    "title": "Add complexity intuition text that explains what O notation MEANS",
+    "description": "ALL topics show complexity as raw notation ('O(n)', 'O(log n)', 'O(1)') with zero explanation. Students memorize O(n log n) without understanding what it MEANS.\n\nFor each DS, add a 'Complexity Intuition' paragraph in the properties panel:\n\n  Array Access O(1): 'Accessing element #500 in a million-element array is just as fast as accessing #1. The time doesn't depend on the array size \u2014 that's O(1).'\n\n  BST Search O(log n): 'Each comparison eliminates half the remaining nodes. For 1 million nodes, you need at most ~20 comparisons (log2(1,000,000) \u2248 20). Double the data? Just ONE more comparison.'\n\n  Hash Table O(1) avg: 'No matter how many entries you have \u2014 100 or 100 million \u2014 finding a key takes the same time on average. That's the magic of hashing.'\n\n  Array Insert O(n): 'Inserting at position 0 means shifting every single element. Double the array? Double the work. That's what O(n) means.'",
+    "acceptanceCriteria": [
+      "Every DS has a complexity intuition paragraph in properties panel",
+      "Explains what the O notation means in concrete terms",
+      "Uses specific numbers ('1 million elements \u2192 ~20 comparisons')",
+      "Explains how doubling input affects performance",
+      "Language is conversational, not mathematical"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "teaching",
+      "complexity",
+      "intuition",
+      "all-topics"
+    ]
+  },
+  {
+    "id": "DST-144",
+    "epic": "DST",
+    "title": "Add real-world connection hooks for all 34 data structures",
+    "description": "Most topics score 0-1 on T9 (Real-World Connection). Students don't know WHERE these are used.\n\nFor each DS, add specific production system references:\n- Array: 'Every variable in JavaScript is backed by a V8 array'\n- Hash Table: 'Redis, Python dict, browser localStorage, DNS resolution'\n- BST: 'File system directory indexing (old ext2)'\n- AVL: 'Database indexes in older systems'\n- Red-Black Tree: 'Java TreeMap, C++ std::map, Linux CFS scheduler'\n- Heap: 'Operating system process scheduler, Dijkstra's algorithm'\n- Trie: 'Phone keyboard autocomplete, DNS resolution, IP routing'\n- Bloom Filter: 'Chrome Safe Browsing, Google BigTable, Medium's recommendation dedup'\n- LSM Tree: 'LevelDB, RocksDB, Cassandra, CockroachDB'\n- Consistent Hash: 'Amazon DynamoDB, Apache Cassandra, CDN load balancing'\n- Skip List: 'Redis sorted sets (ZRANGEBYSCORE)'\n- Merkle Tree: 'Git version control, Bitcoin blockchain, IPFS'\n\nSource: Engineering blogs from Google, AWS re:Invent 2025, Redis docs.",
+    "acceptanceCriteria": [
+      "Every DS has at least 2 specific real-world system references",
+      "References name specific products (Redis, PostgreSQL, Chrome)",
+      "One-line explanation of WHY that system chose this DS",
+      "Visible in properties panel as 'Used In' section"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "teaching",
+      "real-world",
+      "applications",
+      "all-topics"
+    ]
+  },
+  {
+    "id": "DST-145",
+    "epic": "DST",
+    "title": "Add memorable 3-bullet summary for each data structure",
+    "description": "Zero topics have a summary or takeaway (T12 = 0 for all). After exploring a DS, the student has no crisp mental anchor.\n\nFor each DS, add a 3-bullet 'Key Takeaways' card at the bottom of the properties panel:\n\nHash Table:\n  1. O(1) average lookup \u2014 just compute hash, go to bucket\n  2. Collisions are the enemy \u2014 chaining or probing to handle them\n  3. Load factor > 0.75? Time to resize (double the buckets)\n\nBST:\n  1. Left < Parent < Right \u2014 this rule enables binary search on a tree\n  2. O(log n) average, but O(n) if tree degenerates to a line\n  3. Self-balancing variants (AVL, RB) prevent degeneration\n\nBloom Filter:\n  1. 'Definitely NOT in set' is always right. 'Probably in set' might be wrong.\n  2. More hash functions (k) = fewer false positives, but more bits set\n  3. You can add elements but NEVER remove them (bits can't be unset)\n\nThese should be copy-pasteable to flashcards.",
+    "acceptanceCriteria": [
+      "Every DS has a 3-bullet 'Key Takeaways' section",
+      "Each bullet is one concise sentence (flashcard-ready)",
+      "Bullets capture the ESSENCE \u2014 not just facts but INSIGHT",
+      "Visible at bottom of properties panel",
+      "Copy-to-clipboard button for flashcard export"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "teaching",
+      "summary",
+      "flashcard",
+      "all-topics"
+    ]
+  },
+  {
+    "id": "DST-146",
+    "epic": "DST",
+    "title": "Add common mistakes and misconceptions for top 15 data structures",
+    "description": "Zero topics address common errors (T8 = 0 for all). Students repeat the same mistakes every generation.\n\nBased on Reddit threads, StackOverflow, and teaching experience:\n\nHash Table mistakes:\n  - 'Hash tables are always O(1)' \u2192 Wrong, worst case is O(n) with many collisions\n  - 'Any object can be a key' \u2192 Only immutable/hashable objects\n  - 'Hash tables maintain insertion order' \u2192 Only in some implementations (Python 3.7+, LinkedHashMap)\n\nBST mistakes:\n  - 'BST search is always O(log n)' \u2192 Only if balanced; sorted insert \u2192 O(n)\n  - 'Deleting a node with two children is simple' \u2192 Need in-order successor\n  - 'Left child < parent' \u2192 Actually left child \u2264 parent in some implementations\n\nLinked List mistakes:\n  - 'Linked lists are faster than arrays' \u2192 Only for insert at head; arrays win on access\n  - 'Following pointers is free' \u2192 Cache misses make LL traversal much slower than array\n\nSource: Reddit r/learnprogramming, GeeksforGeeks common errors, teaching experience.",
+    "acceptanceCriteria": [
+      "Top 15 DS have at least 2 common mistakes documented",
+      "Mistakes framed as 'Students often think X, but actually Y'",
+      "Each mistake includes WHY it's wrong",
+      "Visible in properties panel as 'Common Mistakes' section",
+      "Mistakes verified against authoritative sources"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "teaching",
+      "mistakes",
+      "misconceptions",
+      "all-topics"
+    ]
+  },
+  {
+    "id": "DST-147",
+    "epic": "DST",
+    "title": "Add edge case demonstrations for top 10 data structures",
+    "description": "Zero topics demonstrate edge cases (T6 = 0 for all). Edge cases are the most powerful teaching tool \u2014 they reveal the DS's true nature.\n\nAdd preset buttons for key edge cases:\n\nBST: 'Sorted Input' button \u2192 inserts [1,2,3,4,5] showing degeneration to linked list\nBST: 'Balanced Input' \u2192 inserts [4,2,6,1,3,5,7] showing perfect balance\nHash Table: 'All Same Hash' \u2192 inserts keys that all map to bucket 0, showing worst-case chaining\nHeap: 'Already Sorted' \u2192 builds heap from sorted array, showing O(n) build\nBloom Filter: 'Fill It Up' \u2192 inserts many items showing FP rate climbing\nAVL: 'Trigger All Rotations' \u2192 sequence that triggers LL, RR, LR, RL rotations\n\nEach edge case has a description explaining WHAT it demonstrates and WHY it matters.",
+    "acceptanceCriteria": [
+      "Top 10 DS have at least 2 preset edge case buttons",
+      "Each edge case has a label and explanation",
+      "BST degeneration case shows height = n (linked list shape)",
+      "Hash table collision case shows O(n) chain length",
+      "AVL rotation cases show all 4 rotation types",
+      "Edge cases teach something about the DS's properties"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "teaching",
+      "edge-cases",
+      "demonstrations",
+      "top-10"
+    ]
+  },
+  {
+    "id": "DST-148",
+    "epic": "DST",
+    "title": "Add comparison guides between related data structures",
+    "description": "Zero topics compare with alternatives (T7 = 0 for all). The most common student question is 'When should I use X vs Y?'\n\nAdd comparison sections:\n  BST vs AVL vs Red-Black: 'BST is simplest but can degenerate. AVL is strictly balanced (faster lookups). Red-Black is approximately balanced (faster inserts). Use AVL for read-heavy, RB for write-heavy.'\n  Array vs Linked List: 'Array for random access, LL for frequent insertions at head/middle.'\n  Hash Table vs BST: 'Hash table for O(1) unordered lookup. BST for sorted operations and range queries.'\n  B-Tree vs B+ Tree: 'B+ Tree for databases (range queries via leaf chain). B-Tree for general-purpose.'\n  Heap vs BST: 'Heap for min/max only (O(1) peek). BST for arbitrary search (O(log n)).'\n  LSM Tree vs B+ Tree: 'LSM for write-heavy (sequential writes). B+ for read-heavy (in-place updates).'\n\nShow as a 'Compare' tab or expandable section in properties panel.",
+    "acceptanceCriteria": [
+      "At least 8 comparison guides covering major DS families",
+      "Each comparison explains WHEN to use each alternative",
+      "Trade-offs clearly stated (speed vs space, read vs write, etc.)",
+      "Accessible from properties panel 'Compare' section",
+      "Links to both DS topics being compared"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "teaching",
+      "comparison",
+      "when-to-use",
+      "decision-guide"
+    ]
+  }
+]

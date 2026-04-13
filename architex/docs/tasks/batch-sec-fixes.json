@@ -1,0 +1,2042 @@
+[
+  {
+    "id": "SEC-019",
+    "epic": "SEC",
+    "title": "Fix AES MixColumns to use correct GF(2^8) multiplication",
+    "description": "aes-engine.ts:192-208 uses a simplified XOR formula where out[0][c] only depends on a0,a1 (not a2,a3). Real AES MixColumns multiplies by [[2,3,1,1],[1,2,3,1],[1,1,2,3],[3,1,1,2]] in GF(2^8). Implement xtime() helper and proper Galois field arithmetic. The current output does NOT match NIST FIPS-197 Appendix B test vectors.",
+    "acceptanceCriteria": [
+      "aesEncrypt with NIST test vector (Appendix B) produces the correct intermediate and final states",
+      "xtime() function correctly implements multiplication by 2 in GF(2^8) with polynomial 0x1b reduction",
+      "Each output byte of MixColumns depends on all 4 input bytes in the column"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/aes-engine.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engine",
+      "correctness",
+      "crypto",
+      "educational-accuracy"
+    ]
+  },
+  {
+    "id": "SEC-020",
+    "epic": "SEC",
+    "title": "Fix certificate chain 'HMAC' terminology to 'digital signature'",
+    "description": "cert-chain.ts:184 says 'Signature check: HMAC(serverCert, intermediateCA.publicKey)'. HMAC is a symmetric MAC, but X.509 certificates use asymmetric digital signatures (RSA-PKCS1/ECDSA). Change to 'Verify server cert signature using Intermediate CA public key. Signature verification: RSA/ECDSA(serverCert.signature, intermediateCA.publicKey) \u2014 valid.'",
+    "acceptanceCriteria": [
+      "No instance of 'HMAC' appears in cert-chain.ts simulation step descriptions",
+      "Step description correctly describes asymmetric signature verification"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/cert-chain.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engine",
+      "correctness",
+      "crypto",
+      "educational-accuracy"
+    ]
+  },
+  {
+    "id": "SEC-021",
+    "epic": "SEC",
+    "title": "Add Play/Pause toggle to sidebar step controls",
+    "description": "SecurityModule.tsx:2819-2824 always shows 'Play' text/icon. The DDoS component correctly toggles to 'Pause' at line 313. Add a `playing` boolean prop to SecuritySidebar and toggle the button text/icon when auto-play is active. Affects OAuth, DH, and HTTPS flow topics.",
+    "acceptanceCriteria": [
+      "Play button shows 'Pause' text and Pause icon when auto-play interval is running",
+      "Clicking Pause stops the interval and reverts button to 'Play'",
+      "Step and Reset buttons remain functional during playback"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "interaction",
+      "feedback"
+    ]
+  },
+  {
+    "id": "SEC-022",
+    "epic": "SEC",
+    "title": "Add input validation for DH parameters (prevent NaN crash)",
+    "description": "diffie-hellman.ts:43 \u2014 modPow(base, exp, 0) causes NaN from 'base % 0'. The DH canvas at SecurityModule.tsx:586-863 shows NaN for all values when p=0. Add guard: if p < 2 or g < 2, show validation error in properties panel instead of running simulation. Clamp values: p must be prime and >= 2, g must be >= 2 and < p, a and b must be >= 1.",
+    "acceptanceCriteria": [
+      "Entering p=0 shows clear error message in DH properties panel",
+      "Entering p=1 shows warning that modular arithmetic requires p >= 2",
+      "NaN never appears in the DH canvas display"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/diffie-hellman.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "validation",
+      "edge-case"
+    ]
+  },
+  {
+    "id": "SEC-023",
+    "epic": "SEC",
+    "title": "Add input validation for AES hex inputs (prevent silent zero-fill)",
+    "description": "aes-engine.ts:337-343 parseHex converts invalid hex ('zz') to 0 via `parseInt(x, 16) || 0`. User gets wrong AES output with no indication of error. Add hex validation: reject non-hex characters, show specific error in AES properties panel. Keep || 0 fallback but only for missing bytes (padding), not for invalid bytes.",
+    "acceptanceCriteria": [
+      "Entering non-hex characters shows error message in AES properties panel",
+      "Error message specifies which characters are invalid",
+      "Valid partial input (e.g., '00 11 22') pads with zeros and shows info about padding"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/aes-engine.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "validation",
+      "edge-case"
+    ]
+  },
+  {
+    "id": "SEC-024",
+    "epic": "SEC",
+    "title": "Reset attackStepIndex and aesStateIndex on topic switch",
+    "description": "SecurityModule.tsx:4798-4806 handleSelect resets stepIndex and encryptionStepIndex but NOT attackStepIndex or aesStateIndex. If user steps to JWT attack step 3, switches to OAuth, then back to JWT attacks, they see step 3 residually. Add setAttackStepIndex(0) and setAesStateIndex(0) to handleSelect.",
+    "acceptanceCriteria": [
+      "Switching away from JWT and back starts at attack step 0",
+      "Switching away from AES and back starts at state 0",
+      "All topic switches result in clean initial state"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "state",
+      "bug"
+    ]
+  },
+  {
+    "id": "SEC-025",
+    "epic": "SEC",
+    "title": "Add aria-labels to DDoS timeline buttons",
+    "description": "DDoSSimulationVisualizer.tsx:292-305 has 28 <button> elements that are just colored h-3 bars with no text or aria-label. Screen readers encounter 28 unlabeled buttons. Add aria-label with tick number and status.",
+    "acceptanceCriteria": [
+      "Each timeline button has aria-label like 'Tick 5: Under Attack'",
+      "Screen reader announces the tick state when focused",
+      "Visual appearance unchanged"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/security/DDoSSimulationVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "aria"
+    ]
+  },
+  {
+    "id": "SEC-026",
+    "epic": "SEC",
+    "title": "Add role='img' and aria-label to all SVG visualizations",
+    "description": "OAuth sequence diagram (SecurityModule.tsx:216-351), Web Attacks (2127-2230), Rate Limiting (1941-1972), and Encryption (2512-2574) SVGs have no ARIA attributes. Add role='img' and descriptive aria-label to each SVG root element. The label should describe the visualization's current state.",
+    "acceptanceCriteria": [
+      "All 4 SVG visualization root elements have role='img'",
+      "Each has an aria-label describing the visualization (e.g., 'OAuth 2.0 sequence diagram showing step 3 of 9')",
+      "aria-label updates when the step changes"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "svg"
+    ]
+  },
+  {
+    "id": "SEC-027",
+    "epic": "SEC",
+    "title": "Add prefers-reduced-motion support to all animations",
+    "description": "SVG <animate> at SecurityModule.tsx:2539 and all CSS transitions ignore prefers-reduced-motion. Use Tailwind motion-reduce utilities for CSS transitions and conditionally disable SVG animate elements via useMediaQuery or CSS media query.",
+    "acceptanceCriteria": [
+      "When prefers-reduced-motion: reduce is enabled, SVG animate elements are disabled",
+      "CSS transitions use motion-reduce:transition-none or equivalent",
+      "All visualizations remain functional without animation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx",
+      "src/components/modules/security/DDoSSimulationVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "motion"
+    ]
+  },
+  {
+    "id": "SEC-028",
+    "epic": "SEC",
+    "title": "Add aria-live regions for dynamic step content",
+    "description": "When stepping through OAuth/DH/HTTPS/AES topics, new content appears in the canvas and bottom panel but is not announced to screen readers. Add aria-live='polite' to the step description containers in each canvas component.",
+    "acceptanceCriteria": [
+      "Advancing a step in any topic announces the new step description via aria-live",
+      "aria-live region only announces on step change, not on initial render",
+      "Rate limiting and static views do not use aria-live"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "aria-live"
+    ]
+  },
+  {
+    "id": "SEC-029",
+    "epic": "SEC",
+    "title": "Associate JWT textarea labels with inputs via htmlFor/id",
+    "description": "SecurityModule.tsx:3134-3171 has <label> elements for Header, Payload, and Secret inputs, but they use no htmlFor attribute and the inputs have no id. Add matching id/htmlFor pairs.",
+    "acceptanceCriteria": [
+      "Each <label> has htmlFor matching the input's id",
+      "Clicking the label focuses the corresponding textarea/input",
+      "No duplicate ids in the DOM"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "forms"
+    ]
+  },
+  {
+    "id": "SEC-030",
+    "epic": "SEC",
+    "title": "Extract shared randomHex utility from 4 engine files",
+    "description": "randomHex is defined identically in cert-chain.ts:41, password-hashing.ts:35, device-auth.ts:15, oauth-flows.ts:33. Extract to src/lib/security/utils.ts and import from all 4 files.",
+    "acceptanceCriteria": [
+      "Single randomHex definition in utils.ts",
+      "All 4 engine files import from utils.ts",
+      "No duplicate implementations remain",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/cert-chain.ts",
+      "src/lib/security/password-hashing.ts",
+      "src/lib/security/device-auth.ts",
+      "src/lib/security/oauth-flows.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "code-quality",
+      "dedup"
+    ]
+  },
+  {
+    "id": "SEC-031",
+    "epic": "SEC",
+    "title": "Extract shared base64url and FNV hash utilities",
+    "description": "oauth-flows.ts:46-60 reimplements base64url encoding (already in jwt-engine.ts:15-46). oauth-flows.ts:63-72 fakeSha256 and password-hashing.ts:48-64 simpleHash both implement FNV-1a variants. Consolidate: oauth-flows should import toBase64Url from jwt-engine. Move shared hash to utils.ts.",
+    "acceptanceCriteria": [
+      "oauth-flows.ts imports toBase64Url from jwt-engine.ts",
+      "Shared simpleHash/FNV-1a function in utils.ts",
+      "No duplicate base64url or hash implementations",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/oauth-flows.ts",
+      "src/lib/security/password-hashing.ts",
+      "src/lib/security/jwt-engine.ts"
+    ],
+    "dependencies": [
+      "SEC-030"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "code-quality",
+      "dedup"
+    ]
+  },
+  {
+    "id": "SEC-032",
+    "epic": "SEC",
+    "title": "Remove duplicate useEffect timer cleanup",
+    "description": "SecurityModule.tsx has identical timer cleanup useEffects at lines 4589-4593 and 4792-4796. The second is redundant. Remove it.",
+    "acceptanceCriteria": [
+      "Only one useEffect for timer cleanup exists in useSecurityModule",
+      "Timer cleanup still fires correctly on unmount"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "code-quality",
+      "dead-code"
+    ]
+  },
+  {
+    "id": "SEC-033",
+    "epic": "SEC",
+    "title": "Replace hardcoded SVG hex colors with theme-aware tokens",
+    "description": "40+ hardcoded hex values (#1e293b, #334155, #e2e8f0, etc.) in OAuth, Web Attacks, Rate Limiting, and Encryption SVGs bypass the Tailwind/CSS variable system. Extract to a SECURITY_SVG_THEME constant that reads from CSS custom properties or use inline style with Tailwind-equivalent values. This enables dark/light theme support.",
+    "acceptanceCriteria": [
+      "Zero hardcoded hex color values in SVG <rect>, <text>, <line> elements",
+      "Colors adapt to dark/light theme via CSS variables or Tailwind tokens",
+      "Visual appearance in current dark theme matches existing design"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "theming",
+      "svg"
+    ]
+  },
+  {
+    "id": "SEC-034",
+    "epic": "SEC",
+    "title": "Increase all SVG font sizes to minimum 11px",
+    "description": "Rate Limiting SVG uses fontSize 7px and 8px (SecurityModule.tsx:1950,1956). OAuth SVG uses 8px and 9px (lines 293,339). Encryption SVG uses 8px and 9px (lines 2541,2565). Increase all to minimum 11px. Adjust viewBox or layout if needed to accommodate larger text.",
+    "acceptanceCriteria": [
+      "No fontSize value below 11 in any SVG element",
+      "Text remains legible and does not overflow SVG boundaries",
+      "Existing layout/spacing maintained via viewBox adjustments"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "accessibility",
+      "typography"
+    ]
+  },
+  {
+    "id": "SEC-039",
+    "epic": "SEC",
+    "title": "Add AES NIST test vector verification test",
+    "description": "aes-engine.ts should be verifiable against NIST FIPS-197 Appendix B test vector. After SEC-019 fixes MixColumns, add a test that uses the NIST plaintext (00112233445566778899aabbccddeeff) and key (000102030405060708090a0b0c0d0e0f) and verifies the output matches the expected ciphertext (69c4e0d86a7b0430d8cdb78070b4c55a).",
+    "acceptanceCriteria": [
+      "Test uses exact NIST FIPS-197 Appendix B input/output values",
+      "Final state matrix matches expected ciphertext",
+      "Round 1 SubBytes output matches NIST intermediate value"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/security/aes-engine.test.ts"
+    ],
+    "dependencies": [
+      "SEC-019"
+    ],
+    "blockedBy": [
+      "SEC-019"
+    ],
+    "tags": [
+      "testing",
+      "correctness",
+      "crypto"
+    ]
+  },
+  {
+    "id": "SEC-040",
+    "epic": "SEC",
+    "title": "Add playback speed control (0.5x, 1x, 2x, 4x)",
+    "description": "Auto-play interval is hardcoded at 800ms (SecurityModule.tsx:4853). Add a speed selector with 0.5x (1600ms), 1x (800ms), 2x (400ms), 4x (200ms) options. Show current speed near the play button. Apply to OAuth, DH, and HTTPS step-through topics.",
+    "acceptanceCriteria": [
+      "Speed selector renders next to Play/Pause button",
+      "Changing speed during playback takes effect immediately",
+      "Default speed is 1x (800ms)",
+      "Speed persists across Reset within the same topic"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [
+      "SEC-021"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "interaction",
+      "playback"
+    ]
+  },
+  {
+    "id": "SEC-041",
+    "epic": "SEC",
+    "title": "Add keyboard shortcuts for step navigation",
+    "description": "No keyboard shortcuts exist for step navigation. Add: Right arrow = Step forward, Left arrow = Step back, Space = Play/Pause, R = Reset. Only active when the security module canvas has focus. Show shortcut hints in tooltip or at bottom of sidebar.",
+    "acceptanceCriteria": [
+      "Right arrow advances step in OAuth/DH/HTTPS/AES/Encryption topics",
+      "Left arrow goes back in AES/Encryption/JWT Attacks",
+      "Space toggles play/pause",
+      "Shortcuts only fire when canvas is focused, not when typing in inputs",
+      "Shortcut hints visible in sidebar"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [
+      "SEC-021"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "keyboard",
+      "shortcuts"
+    ]
+  },
+  {
+    "id": "SEC-042",
+    "epic": "SEC",
+    "title": "Add guided empty state with suggested starting topic",
+    "description": "SecurityModule.tsx:4996-5003 default case shows shield icon + 'Select a security topic to visualize.' Replace with a guided onboarding: 'Start with Password Hashing to learn the basics, or dive into OAuth 2.0 to understand modern authentication.' Include clickable topic suggestions that set the active topic.",
+    "acceptanceCriteria": [
+      "Empty state shows 2-3 suggested starting topics as clickable buttons",
+      "Clicking a suggestion sets active topic and renders the canvas",
+      "Suggestions are ordered by difficulty (beginner-friendly first)",
+      "Brief description of why each is a good starting point"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "onboarding",
+      "empty-state"
+    ]
+  },
+  {
+    "id": "SEC-043",
+    "epic": "SEC",
+    "title": "Add difficulty tags and learning path to sidebar topics",
+    "description": "Topics are listed without difficulty indicators or recommended order. Add difficulty badges (Beginner/Intermediate/Advanced) and subtle numbering to guide learners. Recommended order: Password Hashing \u2192 Encryption Comparison \u2192 AES \u2192 Diffie-Hellman \u2192 HTTPS Flow \u2192 Certificate Chain \u2192 JWT \u2192 OAuth \u2192 CORS \u2192 Web Attacks \u2192 Rate Limiting. Add a small 'Recommended Path' toggle that reorders topics by difficulty.",
+    "acceptanceCriteria": [
+      "Each topic has a visible difficulty badge (Beginner/Intermediate/Advanced)",
+      "Topics can be toggled between alphabetical and recommended learning order",
+      "Recommended order follows pedagogical progression",
+      "Badge colors are distinct and accessible"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "learning-path",
+      "content"
+    ]
+  },
+  {
+    "id": "SEC-044",
+    "epic": "SEC",
+    "title": "Add contextual help tooltips to security-specific terms",
+    "description": "Terms like PKCE, S-box, GF(2^8), code_verifier, preflight, HMAC appear without explanation. Add a HelpTooltip component that shows a brief definition on hover/focus for technical terms in step descriptions and properties panels. Start with the 10 most jargon-heavy terms.",
+    "acceptanceCriteria": [
+      "At least 10 security terms have hover tooltips with 1-sentence definitions",
+      "Tooltips are keyboard-accessible (show on focus)",
+      "Tooltips don't block other content",
+      "Terms are consistently highlighted across all topics"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "help",
+      "education"
+    ]
+  },
+  {
+    "id": "SEC-045",
+    "epic": "SEC",
+    "title": "Increase sidebar topic button touch targets to 44px minimum",
+    "description": "Sidebar topic buttons have py-2.5 (~28px total height). DDoS timeline buttons have h-3 (12px). Encryption Prev/Next are h-6 w-6 (24px). All violate the 44x44px minimum for touch targets. Increase padding/size to meet WCAG 2.5.8 target size minimum.",
+    "acceptanceCriteria": [
+      "All interactive elements have minimum 44x44px touch target",
+      "Sidebar buttons have at least py-3.5 or equivalent",
+      "DDoS timeline buttons are at least h-6 with adequate spacing",
+      "Visual design remains clean \u2014 use padding, not oversized elements"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx",
+      "src/components/modules/security/DDoSSimulationVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "mobile",
+      "touch"
+    ]
+  },
+  {
+    "id": "SEC-046",
+    "epic": "SEC",
+    "title": "Build Access Control visualization (RBAC/ABAC + broken access control attack)",
+    "description": "Access Control is OWASP #1 for 4+ years, tested in every security interview, covered by every university. Build an interactive visualization showing: (1) RBAC model \u2014 users \u2192 roles \u2192 permissions matrix, (2) ABAC model \u2014 attributes evaluated against policies, (3) Broken access control attack \u2014 user A accessing user B's resource by changing /api/users/123 to /api/users/456. Show the attack flow and the defense (proper authorization check). Add as a new topic 'Access Control' in the Security module.",
+    "acceptanceCriteria": [
+      "New topic 'Access Control' appears in sidebar",
+      "RBAC visualization shows users mapped to roles mapped to permissions",
+      "ABAC visualization shows attribute-based policy evaluation",
+      "Broken access control attack demo with step-by-step flow",
+      "Defense demo showing proper authorization check"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/access-control.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "owasp",
+      "curriculum-gap"
+    ]
+  },
+  {
+    "id": "SEC-047",
+    "epic": "SEC",
+    "title": "Build Session Management visualization (cookies vs tokens, session fixation attack)",
+    "description": "Session management is taught at Stanford, MIT, Berkeley and tested in interviews. Build: (1) Cookie-based session lifecycle \u2014 Set-Cookie, HttpOnly, Secure, SameSite flags, (2) Token-based session \u2014 JWT in localStorage vs httpOnly cookie, (3) Session fixation attack \u2014 attacker sets session ID before victim logs in, (4) Defense \u2014 session regeneration after login. Add as new topic or sub-topic under OAuth.",
+    "acceptanceCriteria": [
+      "Session lifecycle visualization shows cookie creation, sending, and expiration",
+      "Token vs cookie comparison side-by-side",
+      "Session fixation attack with step-by-step flow",
+      "Defense: session regeneration demonstrated"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/session-management.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "curriculum-gap"
+    ]
+  },
+  {
+    "id": "SEC-048",
+    "epic": "SEC",
+    "title": "Build Passkeys/WebAuthn visualization (registration + authentication ceremony)",
+    "description": "Passkeys have 87% enterprise adoption in 2026. MIT includes WebAuthn in labs. Build: (1) Registration ceremony \u2014 browser generates key pair, sends public key to server, (2) Authentication ceremony \u2014 server sends challenge, authenticator signs it, server verifies, (3) Show how this eliminates passwords entirely. Include comparison with traditional password flow.",
+    "acceptanceCriteria": [
+      "New topic 'Passkeys / WebAuthn' appears in sidebar",
+      "Registration ceremony shows key pair generation and public key registration",
+      "Authentication ceremony shows challenge-response flow",
+      "Comparison with password-based login highlighting security improvements"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/webauthn.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "trending",
+      "curriculum-gap"
+    ]
+  },
+  {
+    "id": "SEC-049",
+    "epic": "SEC",
+    "title": "Build Zero Trust Architecture visualization",
+    "description": "Zero Trust is the dominant security architecture paradigm of 2026 (Gartner: 60% orgs replacing VPN by 2026). Build: (1) Policy Decision Point (PDP) + Policy Enforcement Point (PEP) flow, (2) Show 'never trust, always verify' principle with animated request evaluation, (3) Compare with traditional perimeter security (VPN/firewall). Show how every request is authenticated, authorized, and encrypted regardless of network location.",
+    "acceptanceCriteria": [
+      "New topic 'Zero Trust' appears in sidebar",
+      "PDP/PEP flow animated with request evaluation",
+      "Comparison with traditional perimeter model",
+      "Key principles visually demonstrated: verify explicitly, least privilege, assume breach"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/zero-trust.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "trending",
+      "curriculum-gap"
+    ]
+  },
+  {
+    "id": "SEC-050",
+    "epic": "SEC",
+    "title": "Build Supply Chain Attack visualization",
+    "description": "Supply Chain Security is new OWASP #3 in 2025 and legally mandated by US Executive Order and EU Cyber Resilience Act. Build: (1) Dependency tree showing how a malicious package propagates, (2) Three attack vectors: typosquatting, dependency confusion, build pipeline compromise, (3) Defense: SBOM structure, lock files, signature verification. Show the attack chain from malicious publish \u2192 install \u2192 execute.",
+    "acceptanceCriteria": [
+      "New topic 'Supply Chain Security' appears in sidebar",
+      "Dependency tree visualization with attack propagation",
+      "Three attack scenarios with step-by-step flows",
+      "SBOM concept explained with visual structure"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/supply-chain.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "owasp",
+      "curriculum-gap"
+    ]
+  },
+  {
+    "id": "SEC-051",
+    "epic": "SEC",
+    "title": "Build API Security visualization (BOLA, mass assignment)",
+    "description": "API Security has its own OWASP Top 10. API attacks surged 300%+ YoY. Build: (1) Broken Object-Level Authorization (BOLA) \u2014 user changes /api/orders/123 to /api/orders/456, (2) Mass Assignment \u2014 attacker adds extra fields to POST body, (3) Proper API authentication patterns. Show request/response flow with attack and defense.",
+    "acceptanceCriteria": [
+      "New topic 'API Security' appears in sidebar",
+      "BOLA attack demonstrated with request modification",
+      "Mass assignment attack with extra payload fields",
+      "Defense patterns shown for each attack"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/api-security.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "owasp-api",
+      "curriculum-gap"
+    ]
+  },
+  {
+    "id": "SEC-052",
+    "epic": "SEC",
+    "title": "Build Threat Modeling interactive tool (STRIDE framework)",
+    "description": "Threat modeling is taught at MIT and CMU and consistently tested in FAANG interviews. Build an interactive STRIDE threat modeling tool: (1) Show a data flow diagram with user, web app, database, external API, (2) For each component/data flow, apply STRIDE categories (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege), (3) User clicks a data flow to see applicable threats and mitigations.",
+    "acceptanceCriteria": [
+      "New topic 'Threat Modeling' appears in sidebar",
+      "Interactive data flow diagram with clickable components",
+      "STRIDE categories explained with examples for each component",
+      "Clicking a component shows applicable threats and recommended mitigations"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/threat-modeling.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "innovation",
+      "curriculum-gap"
+    ]
+  },
+  {
+    "id": "SEC-053",
+    "epic": "SEC",
+    "title": "Build Security Headers dashboard (CSP, HSTS, X-Frame-Options interactive builder)",
+    "description": "Security misconfiguration is OWASP #2 in 2025. CSP code exists in lib/security/csp.ts but has no visualization. Build an interactive security headers builder: (1) Show all major headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy), (2) Toggle each directive on/off, (3) Live preview of what each header prevents with animated attack/defense.",
+    "acceptanceCriteria": [
+      "New topic 'Security Headers' appears in sidebar",
+      "Interactive builder for CSP directives with live preview",
+      "Each header shows what it prevents with visual example",
+      "Generated header string can be copied to clipboard"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/security-headers.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "owasp",
+      "curriculum-gap"
+    ]
+  },
+  {
+    "id": "SEC-054",
+    "epic": "SEC",
+    "title": "Build mTLS visualization (mutual TLS for microservices)",
+    "description": "mTLS is the operational realization of Zero Trust in microservices. Extend the existing HTTPS flow pattern to show bidirectional certificate verification: (1) Standard TLS \u2014 only server presents certificate, (2) mTLS \u2014 both client and server present certificates, (3) Service mesh sidecar pattern showing how mTLS is transparently applied.",
+    "acceptanceCriteria": [
+      "New sub-topic under HTTPS or separate 'mTLS' topic",
+      "Side-by-side comparison of TLS vs mTLS handshake",
+      "Client certificate verification step clearly shown",
+      "Service mesh sidecar pattern illustrated"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/mtls.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "trending"
+    ]
+  },
+  {
+    "id": "SEC-055",
+    "epic": "SEC",
+    "title": "Build AI/LLM Security visualization (prompt injection flow)",
+    "description": "Stanford added dedicated AI security lecture in 2026. PortSwigger added 'Web LLM attacks' topic. Build: (1) Prompt injection \u2014 show how untrusted user input flows through an LLM system, (2) Direct vs indirect prompt injection, (3) Defense: input sanitization, output validation, system prompt hardening. This is a first-mover opportunity \u2014 no competitor has this as a visualization.",
+    "acceptanceCriteria": [
+      "New topic 'AI/LLM Security' appears in sidebar",
+      "Prompt injection attack flow with data flowing through system boundaries",
+      "Direct and indirect injection scenarios shown",
+      "Defense strategies demonstrated"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/llm-security.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "trending",
+      "innovation",
+      "first-mover"
+    ]
+  },
+  {
+    "id": "SEC-056",
+    "epic": "SEC",
+    "title": "Add cross-topic linking ('You learned X, now try Y')",
+    "description": "Topics are isolated \u2014 no cross-references. Add contextual links at the end of each visualization: DH \u2192 'See how DH is used in the TLS handshake' \u2192 HTTPS Flow. AES \u2192 'See AES in the Encryption Comparison' \u2192 Encryption. OAuth \u2192 'Learn how JWT tokens work' \u2192 JWT. This creates a knowledge graph that encourages exploration.",
+    "acceptanceCriteria": [
+      "Each topic shows 1-2 related topic suggestions at the bottom of the canvas",
+      "Clicking a suggestion navigates to the related topic",
+      "Suggestions are contextually relevant (not random)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "learning-path",
+      "engagement"
+    ]
+  },
+  {
+    "id": "SEC-057",
+    "epic": "SEC",
+    "title": "Add CORS vs CSP comparison view",
+    "description": "CORS and CSP are the most commonly confused security concepts (student pain point from Reddit research). Build a side-by-side comparison: left column shows CORS protecting server resources from unauthorized cross-origin access, right column shows CSP protecting the page from loading unauthorized resources. Use the same scenario to highlight the different protection targets.",
+    "acceptanceCriteria": [
+      "New sub-view accessible from CORS topic or as standalone comparison",
+      "Side-by-side layout clearly distinguishing what each protects",
+      "Same scenario shown from both perspectives",
+      "Key differences highlighted: CORS = server-side, CSP = client-side"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "student-pain-point"
+    ]
+  },
+  {
+    "id": "SEC-058",
+    "epic": "SEC",
+    "title": "Add Clickjacking attack visualization",
+    "description": "Clickjacking is covered by both Hacksplaining and PortSwigger. Build: (1) Show a transparent iframe overlaying a legitimate page, (2) User thinks they're clicking a button but actually clicking a hidden element, (3) Defense: X-Frame-Options header, frame-ancestors CSP directive.",
+    "acceptanceCriteria": [
+      "Clickjacking attack flow with visual iframe overlay concept",
+      "Defense with X-Frame-Options and frame-ancestors shown",
+      "Integrated as sub-type under Web Attacks or standalone"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/web-attacks.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content"
+    ]
+  },
+  {
+    "id": "SEC-059",
+    "epic": "SEC",
+    "title": "Extract OAuthCanvas to security/OAuthCanvas.tsx",
+    "description": "Extract OAuthSequenceDiagram (lines 198-351) and OAuthCanvas (355-399) with OAUTH_COLUMNS, oauthActorToColumn, oauthStepTarget.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-060",
+    "epic": "SEC",
+    "title": "Extract JWTCanvas + JWTAttacksCanvas to security/JWTCanvases.tsx",
+    "description": "Extract JWTCanvas (403-551), ValidationItem (553-571), JWTAttacksCanvas (1758-1887), ATTACK_TABS, getAttackSteps.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-061",
+    "epic": "SEC",
+    "title": "Extract DiffieHellmanCanvas to security/DiffieHellmanCanvas.tsx",
+    "description": "Extract DiffieHellmanCanvas (586-863) and PAINT_COLORS constant.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-062",
+    "epic": "SEC",
+    "title": "Extract AESCanvas to security/AESCanvas.tsx",
+    "description": "Extract AESCanvas (886-1044), AES_STEP_COLORS, AES_STEP_BG, AES_SUB_STEPS.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-063",
+    "epic": "SEC",
+    "title": "Extract HTTPSFlowCanvas to security/HTTPSFlowCanvas.tsx",
+    "description": "Extract HTTPSFlowCanvas (1048-1196).",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-064",
+    "epic": "SEC",
+    "title": "Extract CORSCanvas to security/CORSCanvas.tsx",
+    "description": "Extract CORSCanvas (1200-1338) and CORS_STEP_COLORS.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-065",
+    "epic": "SEC",
+    "title": "Extract CertChainCanvas to security/CertChainCanvas.tsx",
+    "description": "Extract CertChainCanvas (1364-1525), CERT_SCENARIO_LABELS, CERT_CHAIN_COLORS, certLevel.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-066",
+    "epic": "SEC",
+    "title": "Extract PasswordHashingCanvas to security/PasswordHashingCanvas.tsx",
+    "description": "Extract PasswordHashingCanvas (1543-1737), HASH_STEP_COLORS, getHashStepColor.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-067",
+    "epic": "SEC",
+    "title": "Extract RateLimitingCanvas to security/RateLimitingCanvas.tsx",
+    "description": "Extract RateLimitingCanvas (1897-2044), RATE_LIMIT_COLORS.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-068",
+    "epic": "SEC",
+    "title": "Extract WebAttacksCanvas to security/WebAttacksCanvas.tsx",
+    "description": "Extract WebAttacksCanvas (2054-2230), WEB_ATTACK_TABS.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-069",
+    "epic": "SEC",
+    "title": "Extract EncryptionCanvas to security/EncryptionCanvas.tsx",
+    "description": "Extract EncryptionCanvas (2397-2635), ENCRYPTION_ACTOR_COLORS.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-070",
+    "epic": "SEC",
+    "title": "Extract SecuritySidebar to security/SecuritySidebar.tsx",
+    "description": "Extract SecuritySidebar (2639-2839) with sub-selectors and step controls.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-071",
+    "epic": "SEC",
+    "title": "Extract SecurityProperties to security/SecurityProperties.tsx",
+    "description": "Extract SecurityProperties (2923-3490+), SecurityPropertiesContext, useSecurityPropertiesContext.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-072",
+    "epic": "SEC",
+    "title": "Extract SecurityBottomPanel to security/SecurityBottomPanel.tsx",
+    "description": "Extract SecurityBottomPanel (4072-4581) with all 11 topic log views.",
+    "acceptanceCriteria": [
+      "Component renders identically to before extraction",
+      "No circular imports",
+      "All existing tests pass"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "refactor",
+      "extraction"
+    ]
+  },
+  {
+    "id": "SEC-073",
+    "epic": "SEC",
+    "title": "Add tests for oauth-flows engine",
+    "description": "Test: PKCE returns 9 steps, Client Credentials 4 steps, unique tokens per call, all steps have non-empty actor/action/description.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/oauth-flows.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-074",
+    "epic": "SEC",
+    "title": "Add tests for device-auth engine",
+    "description": "Test: returns 11 steps, correct actor sequence, includes device_code and user_code.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/device-auth.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-075",
+    "epic": "SEC",
+    "title": "Add tests for cert-chain engine",
+    "description": "Test: valid=6 steps all valid, expired stops early with valid=false, revoked stops early, root issuer===subject.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/cert-chain.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-076",
+    "epic": "SEC",
+    "title": "Add tests for password-hashing engine",
+    "description": "Test: bcrypt 7+ steps, cost clamped [4,12], $2b$ format, rainbow returns unsalted cracked + salted safe.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/password-hashing.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-077",
+    "epic": "SEC",
+    "title": "Add tests for https-flow engine",
+    "description": "Test: 6 phases in order, monotonic timing, subSteps on each, domain in description.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/https-flow.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-078",
+    "epic": "SEC",
+    "title": "Add tests for rate-limiting-demo engine",
+    "description": "Test: Token Bucket denies on empty, Sliding Window respects bounds, Leaky Bucket drains, pattern has 15 ticks.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/rate-limiting-demo.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-079",
+    "epic": "SEC",
+    "title": "Add tests for web-attacks engine",
+    "description": "Test: XSS=6 steps, CSRF=7, SQLi=6, attack steps isAttack=true, defense steps isAttack=false.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/web-attacks.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-080",
+    "epic": "SEC",
+    "title": "Add tests for encryption-comparison engine",
+    "description": "Test: Symmetric=7, Asymmetric=7, Hybrid=10, Network steps encrypted=true.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/encryption-comparison.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-081",
+    "epic": "SEC",
+    "title": "Add tests for cors-simulator engine",
+    "description": "Test: same-origin skips CORS, simple skips preflight, non-simple triggers preflight, wildcard+creds fails.",
+    "acceptanceCriteria": [
+      "At least 3 test cases covering happy path + edge cases",
+      "All tests pass",
+      "Tests verify step counts and key fields"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/cors-simulator.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "engine"
+    ]
+  },
+  {
+    "id": "SEC-082",
+    "epic": "SEC",
+    "title": "Add export visualization as PNG for sharing",
+    "description": "Add Export button to each canvas exporting current state as PNG (html2canvas). Include topic name watermark.",
+    "acceptanceCriteria": [
+      "Export button renders on every canvas",
+      "PNG includes topic name + Architex branding",
+      "Works for all 11 topics"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engagement",
+      "sharing"
+    ]
+  },
+  {
+    "id": "SEC-083",
+    "epic": "SEC",
+    "title": "Add 'Break It' challenge mode for web attacks",
+    "description": "Let users craft attack payloads. XSS: input field to trigger alert. SQLi: login form to bypass auth. Scoreboard of attempts.",
+    "acceptanceCriteria": [
+      "XSS challenge accepts user payload and shows execution result",
+      "SQLi challenge shows resulting query",
+      "Hints and solution reveal available"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/web-attacks.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engagement",
+      "gamification"
+    ]
+  },
+  {
+    "id": "SEC-084",
+    "epic": "SEC",
+    "title": "Add side-by-side comparison mode for any two sub-topics",
+    "description": "Split canvas into two panels running synchronized steps. E.g., Token Bucket vs Leaky Bucket, XSS vs CSRF, TLS vs mTLS.",
+    "acceptanceCriteria": [
+      "User can select two sub-topics to compare",
+      "Steps advance in sync",
+      "Key differences highlighted"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engagement",
+      "comparison"
+    ]
+  },
+  {
+    "id": "SEC-085",
+    "epic": "SEC",
+    "title": "Add progress tracking with completion badges per topic",
+    "description": "Checkmark on sidebar topics after user views all steps. localStorage persistence. Progress fraction in sidebar header.",
+    "acceptanceCriteria": [
+      "Topics show completion indicator after full viewing",
+      "Progress persists via localStorage",
+      "Progress bar shows X/N topics explored"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engagement",
+      "gamification",
+      "retention"
+    ]
+  },
+  {
+    "id": "SEC-086",
+    "epic": "SEC",
+    "title": "Add first-person AI narration toggle for step descriptions",
+    "description": "Toggle between Technical and Story mode. Story mode: 'I (Alice) am computing...' Inspired by 3Blue1Brown + Mayer's Personalization.",
+    "acceptanceCriteria": [
+      "Toggle between Technical and Story narration",
+      "Story mode uses first-person voice",
+      "DH, OAuth, Encryption have story narration"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/diffie-hellman.ts",
+      "src/lib/security/encryption-comparison.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engagement",
+      "narration"
+    ]
+  },
+  {
+    "id": "SEC-087",
+    "epic": "SEC",
+    "title": "Add 'What would Eve see?' overlay for all crypto topics",
+    "description": "DH already has Eve's panel. Extend to AES, HTTPS, Encryption. Toggle grays out private info, highlights only public-observable data.",
+    "acceptanceCriteria": [
+      "Eve toggle for DH, AES, HTTPS, Encryption topics",
+      "Private keys/plaintext redacted when active",
+      "Eve panel explains why she can't derive the secret"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "engagement",
+      "education",
+      "crypto"
+    ]
+  },
+  {
+    "id": "SEC-088",
+    "epic": "SEC",
+    "title": "Build Post-Quantum Cryptography comparison visualization",
+    "description": "NIST finalized PQC standards 2024. Show: why quantum breaks RSA/DH, how lattice-based crypto resists, key size comparison.",
+    "acceptanceCriteria": [
+      "New topic 'Post-Quantum Crypto'",
+      "Classical vs lattice key exchange comparison",
+      "Key size and performance table"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/post-quantum.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "trending"
+    ]
+  },
+  {
+    "id": "SEC-089",
+    "epic": "SEC",
+    "title": "Add Open Redirect attack to Web Attacks topic",
+    "description": "Add 4th web attack: attacker crafts redirect URL, victim trusts domain, gets redirected to phishing. Defense: URL whitelist.",
+    "acceptanceCriteria": [
+      "New Open Redirect tab in Web Attacks",
+      "Attack shows URL crafting and redirect",
+      "Defense shows whitelist validation"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/web-attacks.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content"
+    ]
+  },
+  {
+    "id": "SEC-090",
+    "epic": "SEC",
+    "title": "Add JWT vs Session Cookie comparison view",
+    "description": "Most debated web dev topic. Side-by-side: JWT (stateless, client-stored) vs Session Cookie (stateful, server-stored). Trade-offs table.",
+    "acceptanceCriteria": [
+      "Side-by-side comparison from JWT topic",
+      "Request flow for both approaches",
+      "Trade-off table: scalability, revocation, XSS risk"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "student-pain-point"
+    ]
+  },
+  {
+    "id": "SEC-091",
+    "epic": "SEC",
+    "title": "Build ECC (Elliptic Curve Cryptography) visualization",
+    "description": "Show elliptic curve, point addition, scalar multiplication. Complements DH integer modPow. Used in TLS 1.3 (x25519), Bitcoin.",
+    "acceptanceCriteria": [
+      "Visual elliptic curve with point addition animation",
+      "Scalar multiplication step-by-step",
+      "ECDH vs DH comparison"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/ecc.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content",
+      "crypto"
+    ]
+  },
+  {
+    "id": "SEC-092",
+    "epic": "SEC",
+    "title": "Unify step control placement across all topics",
+    "description": "Controls mixed: sidebar (OAuth/DH/HTTPS), canvas (AES/Encryption/JWT Attacks). Standardize to one consistent location.",
+    "acceptanceCriteria": [
+      "All step-through topics have controls in same UI location",
+      "Step/Prev/Next/Play/Pause/Reset consistently available"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "consistency"
+    ]
+  },
+  {
+    "id": "SEC-093",
+    "epic": "SEC",
+    "title": "Refactor SecurityPropertiesContext to discriminated union",
+    "description": "Context has 60+ fields. Refactor to: { type: 'oauth', ...oauthProps } | { type: 'jwt', ...jwtProps } | ... per-topic union.",
+    "acceptanceCriteria": [
+      "Context uses discriminated union",
+      "Adding new topic only modifies union",
+      "Type safety maintained per-topic"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "state"
+    ]
+  },
+  {
+    "id": "SEC-094",
+    "epic": "SEC",
+    "title": "Promote DDoS simulation from properties widget to full topic",
+    "description": "DDoS is wedged into properties panel bottom, always visible. Promote to proper topic with sidebar entry, main canvas, configurable params.",
+    "acceptanceCriteria": [
+      "New topic 'DDoS Mitigation' in sidebar",
+      "Visualizer renders as main canvas",
+      "Properties panel with configurable capacity/threshold"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx",
+      "src/components/modules/security/DDoSSimulationVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "consistency"
+    ]
+  },
+  {
+    "id": "SEC-095",
+    "epic": "SEC",
+    "title": "Add DNSSEC chain-of-trust visualization",
+    "description": "Berkeley teaches DNSSEC. Extend cert chain pattern to show DNSSEC trust hierarchy: Root \u2192 TLD \u2192 Domain. Show RRSIG, DNSKEY, DS records.",
+    "acceptanceCriteria": [
+      "New topic or sub-topic 'DNSSEC'",
+      "Trust chain from root to domain",
+      "RRSIG verification step-by-step"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/lib/security/dnssec.ts",
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "content"
+    ]
+  },
+  {
+    "id": "SEC-096",
+    "epic": "SEC",
+    "title": "Add sonification mode \u2014 hear the difference between encryption rounds",
+    "description": "Map AES round states to audio: each byte value maps to a pitch. SubBytes sounds chaotic, ShiftRows sounds like sliding, final round sounds 'random'. Web Audio API. Never-been-done idea.",
+    "acceptanceCriteria": [
+      "Toggle enables audio during AES stepping",
+      "Each sub-step has distinct sound character",
+      "Volume control and mute option"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/SecurityModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "audio",
+      "never-been-done"
+    ]
+  }
+]

@@ -1,0 +1,343 @@
+[
+  {
+    "id": "ALG-211",
+    "epic": "ALG",
+    "title": "Add prediction mode \u2014 'what happens next' with multiple-choice before each step",
+    "description": "The single most impactful practice feature. Based on Roediger & Karpicke 2006: active recall retains 80% vs 34% for passive viewing. Also validated by dpvis (SIGCSE 2025, 75% student improvement). Add toggle 'Predict Mode' in playback controls. When enabled, pause before each step, show 3 options (correct + 2 plausible distractors). Track correct/total. For sorting: 'Which two elements are compared next?' For graph: 'Which node is visited next?' For DP: 'What value goes in this cell?' Start with Bubble Sort, BFS, Knapsack as proof-of-concept. Prediction questions defined per-algorithm in a new predictions field on engine output.",
+    "acceptanceCriteria": [
+      "Predict Mode toggle visible in playback section when result exists",
+      "In Predict Mode, animation pauses before EACH step",
+      "3 multiple-choice options shown \u2014 one correct, two plausible distractors",
+      "Correct answer: green flash + brief WHY explanation + score increment",
+      "Wrong answer: red flash + explanation of correct answer using visualization state",
+      "Score tracked as X/Y correct, displayed in playback area",
+      "Works for at least Bubble Sort, BFS, and Knapsack initially"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/lib/algorithms/playback-controller.ts",
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/graph/bfs.ts",
+      "src/lib/algorithms/dp/knapsack.ts"
+    ],
+    "dependencies": [
+      "ALG-142",
+      "ALG-147"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "active-recall",
+      "bloom-apply",
+      "research-validated",
+      "p1-transformative"
+    ]
+  },
+  {
+    "id": "ALG-212",
+    "epic": "ALG",
+    "title": "Add manual tracing mode \u2014 user clicks elements instead of algorithm",
+    "description": "Transform passive watching into active doing. User toggles 'Trace Mode'. Instead of the algorithm executing, the USER clicks which elements to compare/swap/visit. Tool validates each click: correct = advance, wrong = show why and let retry. For sorting: click two bars to compare, then click to swap if needed. For graph: click the node to visit next. Validates against the algorithm's actual next step. Start with Bubble Sort and BFS. Based on Bloom's 'Apply' level \u2014 can the student DO the algorithm, not just watch it?",
+    "acceptanceCriteria": [
+      "Trace Mode toggle visible for Bubble Sort and BFS",
+      "In Trace Mode, bars/nodes become clickable",
+      "Clicking the correct next pair to compare: green highlight + advance",
+      "Clicking wrong pair: red highlight + hint about what the algorithm would do",
+      "Running count of correct/wrong traces",
+      "At completion: summary comparing user's trace vs algorithm's trace"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-142"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "active-learning",
+      "bloom-apply",
+      "manual-tracing"
+    ]
+  },
+  {
+    "id": "ALG-213",
+    "epic": "ALG",
+    "title": "Add comparison challenge prompts \u2014 guided side-by-side analysis",
+    "description": "Existing comparison mode (AlgorithmPanel.tsx:300-305) lets users run two sorts but provides NO guidance. Add guided comparison challenges: (1) Before running, ask 'Which will finish with fewer comparisons?' (2) After running, show results side-by-side with explanation. (3) Pre-built challenges: 'Bubble vs Selection on nearly-sorted', 'Quick vs Merge on random', 'Quick vs Merge on sorted'. Targets Bloom's 'Analyze' level.",
+    "acceptanceCriteria": [
+      "Pre-built comparison challenges accessible from a 'Challenge' button",
+      "Each challenge asks a prediction question before running",
+      "After both algorithms complete, results shown side-by-side",
+      "Explanation text shows WHY one was faster: 'Bubble Sort benefits from early exit on nearly-sorted data'",
+      "At least 5 pre-built comparison challenges covering sorting, graph, DP"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-142",
+      "ALG-149"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "comparison",
+      "bloom-analyze"
+    ]
+  },
+  {
+    "id": "ALG-214",
+    "epic": "ALG",
+    "title": "Add debugging challenges \u2014 find the bug in broken algorithm implementations",
+    "description": "Show a BROKEN implementation (pseudocode with a deliberate bug) alongside its visualization showing wrong behavior. Student identifies the bug line. Targets Bloom's 'Evaluate' level. Design 3 initial challenges: (1) Bubble Sort without early-exit on sorted input (O(n\u00b2) instead of O(n)), (2) Dijkstra accepting negative edges (wrong distances), (3) Quick Sort always picking first element (O(n\u00b2) on sorted). Each shows the buggy behavior, then asks 'What's wrong and how would you fix it?'",
+    "acceptanceCriteria": [
+      "Debug Challenge accessible from a 'Challenges' section in sidebar",
+      "Buggy pseudocode displayed with line numbers",
+      "Visualization runs the buggy version showing incorrect behavior",
+      "Student clicks the buggy line to identify the error",
+      "Correct identification: explanation of the fix + comparison with correct version",
+      "At least 3 debugging challenges available"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/lib/algorithms/challenges/debug-challenges.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "debugging",
+      "bloom-evaluate"
+    ]
+  },
+  {
+    "id": "ALG-215",
+    "epic": "ALG",
+    "title": "Add scenario-based algorithm selection questions",
+    "description": "Present real-world scenarios and ask which algorithm/data structure to use. Targets Bloom's 'Evaluate' level and interview prep. Design 10 scenarios: GPS routing (Dijkstra), social network degrees (BFS), autocomplete (Trie), nearly-sorted logs (Insertion Sort), membership check (Bloom Filter), etc. Each has: scenario description, 4 algorithm options, correct answer with WHY explanation.",
+    "acceptanceCriteria": [
+      "Scenario challenges accessible from sidebar 'Practice' section",
+      "Each scenario: real-world description + 4 algorithm choices",
+      "Correct answer: explanation of WHY this algorithm fits",
+      "Wrong answer: explanation of WHY this algorithm doesn't work for this scenario",
+      "At least 10 scenarios covering all 7 algorithm categories",
+      "Scenarios link to the relevant algorithm for immediate exploration"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/challenges/scenario-challenges.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "scenario",
+      "bloom-evaluate",
+      "interview-prep"
+    ]
+  },
+  {
+    "id": "ALG-216",
+    "epic": "ALG",
+    "title": "Add XP scoring system with streaks and mastery levels per algorithm",
+    "description": "Duolingo research: streaks increase commitment by 60%, XP leaderboards drive 40% more engagement, 7-day streak users are 3.6x more likely to stay. Add: XP earned per action (5 for watching, 10-15 for correct prediction, 25 for trace, 30 for debug challenge). Per-algorithm mastery 0-5 stars. Daily streak counter. Store in localStorage with optional sync. Display as compact XP bar in sidebar header.",
+    "acceptanceCriteria": [
+      "XP counter visible in sidebar header, increments on each action",
+      "Per-algorithm star rating (0-5) visible in algorithm dropdown",
+      "Daily streak counter with celebration animation on continuation",
+      "Streak freeze: missing one day doesn't break streak if used",
+      "Mastery levels: 0=untouched, 1=watched, 2=3/5 predictions, 3=5/5, 4=traced, 5=challenge solved",
+      "All progress persisted in localStorage"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/practice/scoring.ts",
+      "src/lib/algorithms/practice/progress.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-211"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "gamification",
+      "scoring",
+      "streaks",
+      "retention",
+      "duolingo-inspired"
+    ]
+  },
+  {
+    "id": "ALG-217",
+    "epic": "ALG",
+    "title": "Add spaced repetition for algorithm review \u2014 resurface concepts after 1/3/7/14 days",
+    "description": "Dunlosky et al. (2013) rated spaced repetition as 'high utility' \u2014 the only technique besides active recall. After completing an algorithm, schedule a review quiz (3 quick recall questions) after 1 day, 3 days, 7 days, 14 days. Difficulty adapts: cards answered correctly appear less often, wrong answers appear sooner. Use localStorage for scheduling. Show 'Review Due' indicator in sidebar when reviews are available.",
+    "acceptanceCriteria": [
+      "After completing an algorithm, review questions scheduled at 1/3/7/14 day intervals",
+      "Review Due indicator visible in sidebar when reviews are available",
+      "Each review: 3 quick questions (complexity recall, step prediction, 'when to use')",
+      "Correct answers extend interval, wrong answers shorten it",
+      "Review history tracked in localStorage",
+      "Dismissable \u2014 user can skip reviews without penalty"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/practice/spaced-repetition.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-216"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "spaced-repetition",
+      "retention",
+      "long-term-memory"
+    ]
+  },
+  {
+    "id": "ALG-218",
+    "epic": "ALG",
+    "title": "Add complexity recall flashcards \u2014 quick-fire 'what is O(?) for X?' quiz",
+    "description": "Bloom's Level 1 (Remember) has 1/5 support. Add quick-fire flashcard mode: show algorithm name, student types/selects time and space complexity. Immediate feedback. Track accuracy per algorithm. Can be used as warm-up before deeper practice. 62 flashcards (one per algorithm). Also include: 'Is X stable?', 'Is X in-place?', 'What data structure does X use?'",
+    "acceptanceCriteria": [
+      "Flashcard mode accessible from sidebar 'Practice' section",
+      "Each card: algorithm name + question (time complexity / space / stable / in-place)",
+      "Student selects from options or types answer",
+      "Immediate green/red feedback with correct answer",
+      "Accuracy tracked per algorithm and per question type",
+      "Quick-fire mode: 10 random cards in 60 seconds"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/practice/flashcards.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "flashcards",
+      "bloom-remember",
+      "recall"
+    ]
+  },
+  {
+    "id": "ALG-219",
+    "epic": "ALG",
+    "title": "Add hints system for wrong answers \u2014 3-level progressive hints",
+    "description": "Practice without good feedback is useless. When a student answers wrong in any practice mode: Level 1 hint = rephrase the question ('Think about what BFS does with its queue...'). Level 2 hint = give a clue about the algorithm's strategy ('BFS always processes the OLDEST item in the queue first...'). Level 3 hint = show the first part and ask about the rest ('The queue is [C, D, E]. C was added first. What does FIFO mean?'). Design 3 levels of hints for each prediction/challenge type.",
+    "acceptanceCriteria": [
+      "Wrong answers show 'Hint' button instead of just 'Wrong'",
+      "3 progressive hint levels, each revealing more information",
+      "Hints are specific to the algorithm and current state \u2014 not generic",
+      "Using hints reduces XP earned (full XP for first-attempt correct, 50% after 1 hint, 25% after 2)",
+      "Hint content for all prediction types defined in practice config"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/practice/hints.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-211"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "hints",
+      "feedback",
+      "scaffolding"
+    ]
+  },
+  {
+    "id": "ALG-220",
+    "epic": "ALG",
+    "title": "Add practice dashboard showing per-concept mastery and Bloom's level reached",
+    "description": "Students need to SEE their progress. Add a dashboard view showing: (1) per-algorithm mastery level (0-5 stars), (2) Bloom's level reached per algorithm (Remember\u2192Understand\u2192Apply\u2192Analyze\u2192Evaluate\u2192Create), (3) Overall module completion %, (4) Weakness identification: 'You struggle with DP \u2014 practice Knapsack again', (5) Streak counter and XP total. Based on Duolingo's progress dashboard design.",
+    "acceptanceCriteria": [
+      "Dashboard accessible from sidebar header or tab",
+      "Shows all 62 algorithms with mastery stars and Bloom's level",
+      "Filter by category, difficulty, or completion status",
+      "Weakness section highlights algorithms with <50% prediction accuracy",
+      "Next recommended algorithm based on learning path + weakness",
+      "XP total, streak, and session summary visible"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/algorithm/PracticeDashboard.tsx",
+      "src/lib/algorithms/practice/progress.ts"
+    ],
+    "dependencies": [
+      "ALG-216",
+      "ALG-211"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "dashboard",
+      "progress",
+      "gamification"
+    ]
+  }
+]

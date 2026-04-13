@@ -1,0 +1,134 @@
+{
+  "id": "bp-event-driven",
+  "name": "Event-Driven Microservices — Production Blueprint",
+  "description": "Event-driven microservices architecture with CQRS, event sourcing, saga orchestration, and schema evolution. Demonstrates loose coupling and eventual consistency at scale.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["event-driven", "microservices", "cqrs", "event-sourcing", "saga", "blueprint"],
+  "nodes": [
+    { "id": "api-gateway", "type": "api-gateway", "position": { "x": 0, "y": 250 }, "data": { "label": "API Gateway", "category": "load-balancing", "componentType": "api-gateway", "icon": "Shield", "config": { "rateLimitRps": 100000, "authType": "jwt", "timeoutMs": 30000 }, "state": "idle" } },
+    { "id": "order-cmd", "type": "web-server", "position": { "x": 250, "y": 100 }, "data": { "label": "Order Command Service", "category": "compute", "componentType": "web-server", "icon": "FileEdit", "config": { "instances": 8, "processingTimeMs": 20, "commandTypes": 12 }, "state": "idle" } },
+    { "id": "order-query", "type": "web-server", "position": { "x": 250, "y": 400 }, "data": { "label": "Order Query Service", "category": "compute", "componentType": "web-server", "icon": "Search", "config": { "instances": 6, "processingTimeMs": 5, "materialized": true }, "state": "idle" } },
+    { "id": "inventory-svc", "type": "web-server", "position": { "x": 500, "y": 100 }, "data": { "label": "Inventory Service", "category": "compute", "componentType": "web-server", "icon": "Package", "config": { "instances": 6, "processingTimeMs": 10 }, "state": "idle" } },
+    { "id": "payment-svc", "type": "web-server", "position": { "x": 500, "y": 250 }, "data": { "label": "Payment Service", "category": "compute", "componentType": "web-server", "icon": "CreditCard", "config": { "instances": 6, "processingTimeMs": 50, "idempotencyEnabled": true }, "state": "idle" } },
+    { "id": "shipping-svc", "type": "web-server", "position": { "x": 500, "y": 400 }, "data": { "label": "Shipping Service", "category": "compute", "componentType": "web-server", "icon": "Truck", "config": { "instances": 4, "processingTimeMs": 30 }, "state": "idle" } },
+    { "id": "saga-orchestrator", "type": "web-server", "position": { "x": 250, "y": 250 }, "data": { "label": "Saga Orchestrator", "category": "compute", "componentType": "web-server", "icon": "Workflow", "config": { "instances": 4, "sagaTimeoutMs": 30000, "maxRetries": 3 }, "state": "idle" } },
+    { "id": "event-store", "type": "database", "position": { "x": 750, "y": 100 }, "data": { "label": "Event Store (EventStoreDB)", "category": "storage", "componentType": "nosql-db", "icon": "ScrollText", "config": { "type": "eventstoredb", "streams": 1000000, "retentionDays": 365, "storageGB": 5000 }, "state": "idle" } },
+    { "id": "kafka-events", "type": "message-queue", "position": { "x": 750, "y": 250 }, "data": { "label": "Kafka (Domain Events)", "category": "messaging", "componentType": "kafka", "icon": "ArrowRightLeft", "config": { "partitions": 48, "retentionHours": 168, "throughputMbps": 500 }, "state": "idle" } },
+    { "id": "schema-registry", "type": "web-server", "position": { "x": 750, "y": 400 }, "data": { "label": "Schema Registry", "category": "compute", "componentType": "web-server", "icon": "FileCode", "config": { "instances": 2, "schemaCount": 200, "compatibilityMode": "backward" }, "state": "idle" } },
+    { "id": "read-db", "type": "database", "position": { "x": 500, "y": 550 }, "data": { "label": "Read Model DB (PostgreSQL)", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 1000 }, "state": "idle" } },
+    { "id": "dead-letter", "type": "message-queue", "position": { "x": 950, "y": 250 }, "data": { "label": "Dead Letter Queue", "category": "messaging", "componentType": "sqs", "icon": "AlertCircle", "config": { "maxRetries": 5, "retentionDays": 14, "alertOnDepth": 100 }, "state": "idle" } },
+    { "id": "projector", "type": "web-server", "position": { "x": 250, "y": 550 }, "data": { "label": "Event Projector", "category": "compute", "componentType": "web-server", "icon": "Layers", "config": { "instances": 4, "projectionCount": 15, "processingTimeMs": 5 }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-gw-cmd", "source": "api-gateway", "target": "order-cmd", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } },
+    { "id": "e-gw-query", "source": "api-gateway", "target": "order-query", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } },
+    { "id": "e-cmd-saga", "source": "order-cmd", "target": "saga-orchestrator", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } },
+    { "id": "e-cmd-events", "source": "order-cmd", "target": "event-store", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 5, "animated": true } },
+    { "id": "e-cmd-kafka", "source": "order-cmd", "target": "kafka-events", "type": "data-flow", "data": { "edgeType": "async", "latency": 3, "animated": true } },
+    { "id": "e-saga-inventory", "source": "saga-orchestrator", "target": "inventory-svc", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 5, "animated": true } },
+    { "id": "e-saga-payment", "source": "saga-orchestrator", "target": "payment-svc", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 10, "animated": true } },
+    { "id": "e-saga-shipping", "source": "saga-orchestrator", "target": "shipping-svc", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 5, "animated": true } },
+    { "id": "e-kafka-projector", "source": "kafka-events", "target": "projector", "type": "data-flow", "data": { "edgeType": "stream", "latency": 10, "animated": true } },
+    { "id": "e-projector-read", "source": "projector", "target": "read-db", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 5, "animated": true } },
+    { "id": "e-query-read", "source": "order-query", "target": "read-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 3, "animated": true } },
+    { "id": "e-kafka-schema", "source": "kafka-events", "target": "schema-registry", "type": "data-flow", "data": { "edgeType": "schema-validation", "latency": 1, "animated": false } },
+    { "id": "e-kafka-dlq", "source": "kafka-events", "target": "dead-letter", "type": "data-flow", "data": { "edgeType": "error-routing", "latency": 5, "animated": false } },
+    { "id": "e-inventory-kafka", "source": "inventory-svc", "target": "kafka-events", "type": "data-flow", "data": { "edgeType": "async", "latency": 3, "animated": true } },
+    { "id": "e-payment-kafka", "source": "payment-svc", "target": "kafka-events", "type": "data-flow", "data": { "edgeType": "async", "latency": 3, "animated": true } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-saga-timeout", "name": "Saga Step Timeout", "description": "Payment service times out during an order saga, leaving saga in pending state", "targetNodes": ["payment-svc", "saga-orchestrator"], "faultType": "latency", "severity": 3, "expectedBehavior": "Saga orchestrator times out after 30s. Compensating transactions triggered: inventory reservation released, order marked as failed. Customer notified.", "mitigationSteps": ["Saga timeout triggers compensating actions", "Payment checked for idempotent completion", "Order moved to 'payment_failed' state", "Customer receives failure notification with retry option"] },
+      { "id": "cs-event-store-crash", "name": "Event Store Unavailable", "description": "EventStoreDB cluster becomes unavailable", "targetNodes": ["event-store"], "faultType": "crash", "severity": 5, "expectedBehavior": "No new events can be persisted. All command operations fail. Query service continues from read model. Events queued in Kafka for replay.", "mitigationSteps": ["EventStoreDB cluster failover", "Commands return 503 during outage", "Queue events in Kafka for durability", "Replay queued events after recovery", "Verify event sequence integrity"] },
+      { "id": "cs-consumer-lag", "name": "Projection Consumer Lag", "description": "Event projector falls behind, causing read model staleness", "targetNodes": ["projector", "kafka-events"], "faultType": "resource-exhaustion", "severity": 2, "expectedBehavior": "Read model shows stale data. Queries return eventually consistent results. Write side unaffected.", "mitigationSteps": ["Scale projector instances", "Optimize projection queries", "Show data freshness indicator to users", "Consider parallel projection for hot paths"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 10000, "bottleneckNode": "event-store", "metric": "disk-io", "description": "Event store write throughput saturates from append-heavy workload", "resolution": "SSD storage, event stream partitioning, batch appends" },
+      { "rpsThreshold": 30000, "bottleneckNode": "saga-orchestrator", "metric": "memory", "description": "Active saga instances consume memory for state tracking", "resolution": "Saga state externalization to Redis, increase instances" },
+      { "rpsThreshold": 50000, "bottleneckNode": "kafka-events", "metric": "network", "description": "High event volume saturates Kafka broker network", "resolution": "Add brokers, increase partitions, enable compression" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-out-of-order", "title": "Out-of-Order Event Processing", "description": "Events processed out of order by consumers, causing incorrect projections", "affectedNodes": ["projector", "kafka-events"], "likelihood": 3, "impact": 4, "mitigation": "Partition by aggregate ID ensuring ordering, idempotent projectors, sequence number validation" },
+      { "id": "ei-schema-break", "title": "Breaking Schema Change", "description": "Event schema update breaks downstream consumers", "affectedNodes": ["schema-registry", "kafka-events"], "likelihood": 3, "impact": 4, "mitigation": "Backward-compatible schema evolution, schema registry enforcement, consumer tolerance for unknown fields" },
+      { "id": "ei-dual-write", "title": "Dual Write Inconsistency", "description": "Event store and Kafka can diverge if one write succeeds and other fails", "affectedNodes": ["event-store", "kafka-events"], "likelihood": 2, "impact": 5, "mitigation": "Outbox pattern: write events to DB outbox table, CDC publishes to Kafka" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 48000,
+      "components": [
+        { "nodeId": "kafka-events", "label": "Kafka Cluster", "monthlyCostUsd": 8000, "costDriver": "6 brokers, 48 partitions" },
+        { "nodeId": "event-store", "label": "EventStoreDB", "monthlyCostUsd": 6000, "costDriver": "3-node cluster, 5TB" },
+        { "nodeId": "read-db", "label": "Read Model DB", "monthlyCostUsd": 5000, "costDriver": "Primary + 3 replicas" },
+        { "nodeId": "order-cmd", "label": "Order Command Service", "monthlyCostUsd": 4000, "costDriver": "8 instances" },
+        { "nodeId": "inventory-svc", "label": "Inventory Service", "monthlyCostUsd": 3000, "costDriver": "6 instances" },
+        { "nodeId": "payment-svc", "label": "Payment Service", "monthlyCostUsd": 3000, "costDriver": "6 instances" },
+        { "nodeId": "order-query", "label": "Order Query Service", "monthlyCostUsd": 3000, "costDriver": "6 instances" },
+        { "nodeId": "saga-orchestrator", "label": "Saga Orchestrator", "monthlyCostUsd": 3000, "costDriver": "4 instances" },
+        { "nodeId": "shipping-svc", "label": "Shipping Service", "monthlyCostUsd": 2500, "costDriver": "4 instances" },
+        { "nodeId": "projector", "label": "Event Projector", "monthlyCostUsd": 2500, "costDriver": "4 instances" },
+        { "nodeId": "schema-registry", "label": "Schema Registry", "monthlyCostUsd": 1000, "costDriver": "2 instances" },
+        { "nodeId": "dead-letter", "label": "Dead Letter Queue", "monthlyCostUsd": 500, "costDriver": "SQS" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Small (5K events/s)", "rps": 5000, "monthlyCostUsd": 18000 },
+        { "label": "Medium (20K events/s)", "rps": 20000, "monthlyCostUsd": 32000 },
+        { "label": "Large (50K events/s)", "rps": 50000, "monthlyCostUsd": 48000 },
+        { "label": "XL (200K events/s)", "rps": 200000, "monthlyCostUsd": 150000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 50000, "trafficProfile": "bursty", "p50LatencyMs": 30, "p99LatencyMs": 200, "availabilityTarget": 99.99, "maxErrorRatePercent": 0.01, "throughputRps": 50000 },
+    "scalingPolicies": [
+      { "nodeId": "order-cmd", "metric": "cpu_utilization", "threshold": 70, "scaleUpStep": 2, "scaleDownStep": 1, "cooldownSeconds": 120, "minInstances": 4, "maxInstances": 24 },
+      { "nodeId": "projector", "metric": "consumer_lag", "threshold": 5000, "scaleUpStep": 2, "scaleDownStep": 1, "cooldownSeconds": 60, "minInstances": 2, "maxInstances": 16 }
+    ],
+    "slaDefinitions": [
+      { "name": "Command Processing", "metric": "p99_command_latency_ms", "target": 200, "unit": "ms", "penalty": "Commands processed within 200ms" },
+      { "name": "Read Model Freshness", "metric": "projection_lag_ms", "target": 1000, "unit": "ms", "penalty": "Read model within 1s of write" },
+      { "name": "Event Durability", "metric": "event_loss_rate", "target": 0, "unit": "events", "penalty": "Zero event loss" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "command_latency", "type": "histogram", "description": "Command processing duration", "nodeId": "order-cmd" },
+        { "name": "projection_lag", "type": "gauge", "description": "Lag between event store and read model", "nodeId": "projector" },
+        { "name": "saga_active_count", "type": "gauge", "description": "Number of active saga instances", "nodeId": "saga-orchestrator" },
+        { "name": "dead_letter_depth", "type": "gauge", "description": "Messages in dead letter queue", "nodeId": "dead-letter" },
+        { "name": "events_per_second", "type": "counter", "description": "Domain events published per second", "nodeId": "kafka-events" }
+      ],
+      "alerts": [
+        { "name": "DLQ Growing", "condition": "dlq_depth > 100 for 5min", "severity": "warning", "channel": "slack-eng" },
+        { "name": "Saga Timeout Rate", "condition": "saga_timeout_rate > 1% for 5min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Projection Lag", "condition": "projection_lag > 5000ms for 3min", "severity": "warning", "channel": "slack-eng" },
+        { "name": "Event Store Unavailable", "condition": "event_store_health != ok for 30s", "severity": "critical", "channel": "pagerduty" }
+      ],
+      "dashboards": ["Event Flow", "Saga Status", "CQRS Performance", "Schema Evolution", "Dead Letter Analysis"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call Backend Engineer", "responseTimeMinutes": 5, "contacts": ["oncall-backend"] },
+        { "level": 2, "name": "Architecture Lead", "responseTimeMinutes": 15, "contacts": ["architecture-lead"] },
+        { "level": 3, "name": "VP Engineering", "responseTimeMinutes": 30, "contacts": ["vp-eng"] }
+      ],
+      "runbooks": [
+        { "incident": "Event store failure", "severity": "critical", "steps": ["Verify EventStoreDB cluster status", "Events buffered in Kafka for durability", "Commands return 503 until recovery", "Replay buffered events post-recovery", "Verify event sequence integrity"], "automatedRecovery": true },
+        { "incident": "Stuck sagas", "severity": "high", "steps": ["Identify stuck saga instances", "Check dependent service health", "Force-complete or compensate stuck sagas", "Investigate root cause", "Adjust saga timeout if needed"], "automatedRecovery": false },
+        { "incident": "DLQ overflow", "severity": "medium", "steps": ["Analyze DLQ message patterns", "Fix consumer bug causing failures", "Replay DLQ messages", "Monitor for regression"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "CQRS (Command Query Responsibility Segregation)", "context": "Read and write patterns differ significantly. Writes need strong consistency; reads need speed.", "decision": "Separate command (write) and query (read) models with event projections maintaining the read side.", "consequences": ["Optimized read model for queries", "Independent scaling of read and write paths", "Eventual consistency between write and read", "Additional complexity of maintaining projections"] },
+      { "title": "Orchestration-Based Sagas", "context": "Multi-service transactions require coordination. Choreography-based sagas are hard to reason about.", "decision": "Use a centralized saga orchestrator that manages the workflow steps.", "consequences": ["Clear workflow visibility and debugging", "Centralized compensation logic", "Saga orchestrator is a potential bottleneck", "Easier to add new saga steps"] },
+      { "title": "Event Sourcing for Core Aggregates", "context": "Need complete audit trail and ability to rebuild state from events.", "decision": "Store all state changes as immutable events in EventStoreDB.", "consequences": ["Complete audit trail", "Time-travel debugging", "Event replay for new projections", "Higher storage costs", "Complex event versioning"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Consistency vs Performance", "choice": "Eventual consistency for reads", "benefit": "Sub-5ms read latency from optimized read model", "cost": "Read model may be up to 1s behind write model" },
+      { "dimension": "Flexibility vs Complexity", "choice": "Flexibility", "benefit": "New read models can be added by creating new projections", "cost": "Multiple databases and projections to maintain" },
+      { "dimension": "Coupling vs Visibility", "choice": "Orchestration over choreography", "benefit": "Clear saga flow, easier debugging and monitoring", "cost": "Orchestrator creates a coordination point" }
+    ],
+    "alternatives": [
+      { "name": "Choreography-Based Sagas", "description": "Each service listens for events and reacts independently", "prosVsCons": "Pros: no central coordinator, looser coupling. Cons: hard to debug, implicit workflow, difficult to add compensation", "whyNotChosen": "Orchestration provides better observability and explicit compensation handling" },
+      { "name": "State-Based Persistence (No Event Sourcing)", "description": "Store current state only, not event history", "prosVsCons": "Pros: simpler, familiar CRUD. Cons: no audit trail, can't rebuild past state, can't derive new projections", "whyNotChosen": "Event sourcing provides essential audit trail and ability to create new read models retroactively" }
+    ]
+  }
+}

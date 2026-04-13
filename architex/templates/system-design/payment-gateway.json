@@ -1,0 +1,192 @@
+{
+  "id": "payment-gateway",
+  "name": "Payment Gateway (Stripe-like)",
+  "description": "Design a payment gateway like Stripe. Covers idempotent charge creation, async bank processing, webhook delivery, PCI compliance, and exactly-once payment guarantees.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["payment", "gateway", "stripe", "fintech", "idempotency", "bank", "transactions"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Merchant Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 50000, "requestsPerSecond": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 10000, "authType": "api-key", "timeoutMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "payment-app",
+      "type": "app-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Payment Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 8, "cpuCores": 4, "memoryGB": 8, "processingTimeMs": 50 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 500, "y": 425 },
+      "data": {
+        "label": "Payment Event Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": { "type": "kafka", "partitions": 12, "replicationFactor": 3, "retentionHours": 720 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "process-worker",
+      "type": "worker",
+      "position": { "x": 250, "y": 425 },
+      "data": {
+        "label": "Payment Processor Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 6, "concurrencyPerInstance": 10, "retryAttempts": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "bank-api",
+      "type": "third-party-api",
+      "position": { "x": 0, "y": 425 },
+      "data": {
+        "label": "Bank / Card Network API",
+        "category": "external",
+        "componentType": "third-party-api",
+        "icon": "ExternalLink",
+        "config": { "rateLimitRps": 1000, "latencyMs": 800, "errorRate": 0.03 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 750, "y": 200 },
+      "data": {
+        "label": "Ledger DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 300, "storageGB": 2000 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-app",
+      "source": "api-gw",
+      "target": "payment-app",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "payment-app",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "payment-app",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-mq-worker",
+      "source": "mq",
+      "target": "process-worker",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-worker-bank",
+      "source": "process-worker",
+      "target": "bank-api",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 800, "animated": true }
+    },
+    {
+      "id": "e-worker-db",
+      "source": "process-worker",
+      "target": "database",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Idempotent Charge Creation",
+      "description": "Merchants send charge requests with an idempotency key (UUID) to the API Gateway. The Payment Service checks PostgreSQL for an existing charge with that key. If found, it returns the cached result (idempotent retry). If not, it creates a new charge record with status PENDING in a serializable transaction. This prevents duplicate charges from network retries. The API Gateway enforces per-merchant rate limits and API key authentication.",
+      "highlightNodes": ["client", "api-gw", "payment-app", "database"],
+      "highlightEdges": ["e-client-gw", "e-gw-app", "e-app-db"]
+    },
+    {
+      "title": "Async Payment Processing",
+      "description": "After creating a PENDING charge, the Payment Service publishes a process event to Kafka and returns a 202 Accepted. The Payment Processor Worker consumes the event and calls the bank/card network API (Visa, Mastercard, ACH). Bank APIs have ~800ms latency and ~3% error rate. This async pattern decouples the fast API response from slow bank processing, preventing client timeouts on long-running bank calls.",
+      "highlightNodes": ["payment-app", "mq", "process-worker"],
+      "highlightEdges": ["e-app-mq", "e-mq-worker"]
+    },
+    {
+      "title": "Bank Integration and Settlement",
+      "description": "The Worker sends the charge to the bank API with transaction details. On success, it updates the Ledger DB to SUCCEEDED and creates double-entry accounting records (debit merchant, credit platform). On failure, it marks FAILED and triggers retry with exponential backoff (up to 5 attempts). Bank declines are terminal and not retried. The Worker uses distributed locks to prevent concurrent processing of the same charge.",
+      "highlightNodes": ["process-worker", "bank-api", "database"],
+      "highlightEdges": ["e-worker-bank", "e-worker-db"]
+    },
+    {
+      "title": "Exactly-Once Processing and Audit Trail",
+      "description": "The system achieves exactly-once semantics through idempotency keys at the API level and transactional outbox pattern at the DB level. Every state transition is logged in an immutable audit table. Kafka retains events for 30 days for replay and reconciliation. Daily batch reconciliation compares the ledger against bank settlement files to detect discrepancies. PCI compliance is achieved by tokenizing card data before it reaches the Payment Service.",
+      "highlightNodes": ["payment-app", "database", "mq"],
+      "highlightEdges": ["e-app-db", "e-app-mq"]
+    }
+  ]
+}

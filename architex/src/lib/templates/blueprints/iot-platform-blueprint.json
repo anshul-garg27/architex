@@ -1,0 +1,132 @@
+{
+  "id": "bp-iot-platform",
+  "name": "IoT Platform — Production Blueprint",
+  "description": "Industrial IoT platform with device management, telemetry ingestion, edge computing, digital twins, and real-time alerting. Manages millions of devices with guaranteed message delivery.",
+  "difficulty": 4,
+  "category": "infrastructure",
+  "tags": ["iot", "telemetry", "edge-computing", "digital-twin", "device-management", "blueprint"],
+  "nodes": [
+    { "id": "iot-devices", "type": "client", "position": { "x": 0, "y": 200 }, "data": { "label": "IoT Devices (Sensors)", "category": "client", "componentType": "web-client", "icon": "Radio", "config": { "deviceCount": 5000000, "telemetryHz": 1, "protocolType": "mqtt" }, "state": "idle" } },
+    { "id": "edge-gateway", "type": "web-server", "position": { "x": 0, "y": 400 }, "data": { "label": "Edge Gateways", "category": "compute", "componentType": "web-server", "icon": "Router", "config": { "gatewayCount": 10000, "localProcessing": true, "bufferSizeMB": 256 }, "state": "idle" } },
+    { "id": "mqtt-broker", "type": "message-queue", "position": { "x": 250, "y": 300 }, "data": { "label": "MQTT Broker Cluster", "category": "messaging", "componentType": "kafka", "icon": "Radio", "config": { "maxConnections": 5000000, "qos": 1, "retainedMessages": true }, "state": "idle" } },
+    { "id": "device-registry", "type": "web-server", "position": { "x": 450, "y": 100 }, "data": { "label": "Device Registry", "category": "compute", "componentType": "web-server", "icon": "List", "config": { "instances": 6, "totalDevices": 5000000, "processingTimeMs": 10 }, "state": "idle" } },
+    { "id": "ingestion-service", "type": "web-server", "position": { "x": 450, "y": 300 }, "data": { "label": "Telemetry Ingestion", "category": "compute", "componentType": "web-server", "icon": "ArrowDown", "config": { "instances": 24, "maxEventsPerSec": 5000000, "batchSize": 1000 }, "state": "idle" } },
+    { "id": "rule-engine", "type": "web-server", "position": { "x": 450, "y": 500 }, "data": { "label": "Rule Engine", "category": "compute", "componentType": "web-server", "icon": "Workflow", "config": { "instances": 8, "ruleCount": 5000, "evaluationTimeMs": 5 }, "state": "idle" } },
+    { "id": "kafka-telemetry", "type": "message-queue", "position": { "x": 700, "y": 300 }, "data": { "label": "Kafka (Telemetry)", "category": "messaging", "componentType": "kafka", "icon": "ArrowRightLeft", "config": { "partitions": 128, "retentionHours": 72, "throughputMbps": 5000 }, "state": "idle" } },
+    { "id": "timeseries-db", "type": "database", "position": { "x": 900, "y": 200 }, "data": { "label": "TimescaleDB", "category": "storage", "componentType": "timeseries-db", "icon": "Database", "config": { "type": "timescaledb", "nodes": 6, "retentionDays": 90, "storageGB": 50000 }, "state": "idle" } },
+    { "id": "device-db", "type": "database", "position": { "x": 700, "y": 100 }, "data": { "label": "Device DB (PostgreSQL)", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "postgresql", "replicas": 2, "maxConnections": 300, "storageGB": 500 }, "state": "idle" } },
+    { "id": "digital-twin", "type": "cache", "position": { "x": 900, "y": 400 }, "data": { "label": "Digital Twin Store (Redis)", "category": "storage", "componentType": "redis", "icon": "Copy", "config": { "type": "redis", "memoryGB": 128, "shards": 16, "deviceStates": 5000000 }, "state": "idle" } },
+    { "id": "alert-service", "type": "web-server", "position": { "x": 900, "y": 550 }, "data": { "label": "Alert Service", "category": "compute", "componentType": "web-server", "icon": "Bell", "config": { "instances": 6, "alertChannels": ["email", "sms", "webhook", "pagerduty"], "evaluationIntervalS": 10 }, "state": "idle" } },
+    { "id": "cold-storage", "type": "database", "position": { "x": 1100, "y": 300 }, "data": { "label": "Cold Storage (S3 + Parquet)", "category": "storage", "componentType": "object-storage", "icon": "Archive", "config": { "type": "s3", "storagePB": 5, "format": "parquet", "retentionYears": 5 }, "state": "idle" } },
+    { "id": "dashboard", "type": "web-server", "position": { "x": 1100, "y": 100 }, "data": { "label": "IoT Dashboard", "category": "compute", "componentType": "web-server", "icon": "BarChart3", "config": { "instances": 4, "concurrentUsers": 5000, "refreshIntervalS": 5 }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-device-mqtt", "source": "iot-devices", "target": "mqtt-broker", "type": "data-flow", "data": { "edgeType": "mqtt", "latency": 50, "animated": true } },
+    { "id": "e-edge-mqtt", "source": "edge-gateway", "target": "mqtt-broker", "type": "data-flow", "data": { "edgeType": "mqtt", "latency": 20, "animated": true } },
+    { "id": "e-mqtt-ingestion", "source": "mqtt-broker", "target": "ingestion-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 5, "animated": true } },
+    { "id": "e-mqtt-registry", "source": "mqtt-broker", "target": "device-registry", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 5, "animated": false } },
+    { "id": "e-ingestion-kafka", "source": "ingestion-service", "target": "kafka-telemetry", "type": "data-flow", "data": { "edgeType": "async", "latency": 2, "animated": true } },
+    { "id": "e-kafka-tsdb", "source": "kafka-telemetry", "target": "timeseries-db", "type": "data-flow", "data": { "edgeType": "stream", "latency": 50, "animated": true } },
+    { "id": "e-kafka-twin", "source": "kafka-telemetry", "target": "digital-twin", "type": "data-flow", "data": { "edgeType": "cache-write", "latency": 1, "animated": true } },
+    { "id": "e-kafka-rules", "source": "kafka-telemetry", "target": "rule-engine", "type": "data-flow", "data": { "edgeType": "stream", "latency": 10, "animated": true } },
+    { "id": "e-rules-alert", "source": "rule-engine", "target": "alert-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 5, "animated": true } },
+    { "id": "e-registry-db", "source": "device-registry", "target": "device-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": false } },
+    { "id": "e-tsdb-cold", "source": "timeseries-db", "target": "cold-storage", "type": "data-flow", "data": { "edgeType": "batch-export", "latency": 60000, "animated": false } },
+    { "id": "e-tsdb-dash", "source": "timeseries-db", "target": "dashboard", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 20, "animated": true } },
+    { "id": "e-twin-dash", "source": "digital-twin", "target": "dashboard", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-mqtt-overload", "name": "MQTT Broker Overload", "description": "Firmware update causes all 5M devices to reconnect simultaneously", "targetNodes": ["mqtt-broker"], "faultType": "resource-exhaustion", "severity": 5, "expectedBehavior": "MQTT connection queue saturates. New connections rejected. Edge gateways buffer messages locally. Telemetry delayed by minutes.", "mitigationSteps": ["Stagger firmware updates across device groups", "Edge gateways buffer and retry", "Scale MQTT broker nodes", "Rate-limit reconnections"] },
+      { "id": "cs-tsdb-disk-full", "name": "TimescaleDB Disk Full", "description": "Unexpected telemetry volume fills TimescaleDB storage", "targetNodes": ["timeseries-db"], "faultType": "resource-exhaustion", "severity": 4, "expectedBehavior": "Writes to TimescaleDB fail. Kafka retains data for replay. Real-time digital twin unaffected (Redis). Historical queries fail.", "mitigationSteps": ["Emergency disk expansion", "Accelerate data archival to cold storage", "Drop low-priority metrics temporarily", "Increase retention policy enforcement"] },
+      { "id": "cs-network-partition", "name": "Edge Gateway Network Partition", "description": "Regional network outage disconnects 10K edge gateways from cloud", "targetNodes": ["edge-gateway", "mqtt-broker"], "faultType": "partition", "severity": 3, "expectedBehavior": "Edge gateways operate in offline mode. Local rules continue executing. Telemetry buffered locally. Cloud dashboards show stale data for affected region.", "mitigationSteps": ["Edge gateways buffer up to 256MB", "Gateways reconnect when network recovers", "Buffered telemetry replayed in order", "Dashboard shows data freshness indicators"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 1000000, "bottleneckNode": "mqtt-broker", "metric": "connections", "description": "MQTT broker connection limit reached as device fleet grows", "resolution": "Add MQTT broker nodes, implement connection pooling via edge gateways" },
+      { "rpsThreshold": 3000000, "bottleneckNode": "kafka-telemetry", "metric": "network", "description": "Kafka network bandwidth saturates from high-frequency telemetry", "resolution": "Enable message compression, increase broker count, batch messages" },
+      { "rpsThreshold": 5000000, "bottleneckNode": "timeseries-db", "metric": "disk-io", "description": "TimescaleDB insert rate exceeds disk I/O capacity", "resolution": "Add hypertable chunks, use NVMe storage, increase downsampling" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-clock-skew", "title": "Device Clock Skew", "description": "IoT devices with inaccurate clocks send telemetry with wrong timestamps", "affectedNodes": ["ingestion-service", "timeseries-db"], "likelihood": 5, "impact": 3, "mitigation": "Server-side timestamp annotation, NTP enforcement on devices, tolerance window for out-of-order data" },
+      { "id": "ei-device-spoofing", "title": "Device Identity Spoofing", "description": "Compromised devices send fraudulent telemetry data", "affectedNodes": ["mqtt-broker", "device-registry"], "likelihood": 3, "impact": 4, "mitigation": "X.509 certificate-based device auth, anomaly detection on telemetry patterns, device revocation list" },
+      { "id": "ei-alert-fatigue", "title": "Alert Fatigue", "description": "Too many low-priority alerts overwhelm operators", "affectedNodes": ["rule-engine", "alert-service"], "likelihood": 4, "impact": 3, "mitigation": "Alert deduplication, severity-based routing, smart grouping, configurable quiet periods" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 95000,
+      "components": [
+        { "nodeId": "timeseries-db", "label": "TimescaleDB", "monthlyCostUsd": 20000, "costDriver": "6 nodes, 50TB, NVMe" },
+        { "nodeId": "kafka-telemetry", "label": "Kafka", "monthlyCostUsd": 15000, "costDriver": "12 brokers, 5Gbps" },
+        { "nodeId": "mqtt-broker", "label": "MQTT Brokers", "monthlyCostUsd": 12000, "costDriver": "5M concurrent connections" },
+        { "nodeId": "digital-twin", "label": "Digital Twin (Redis)", "monthlyCostUsd": 10000, "costDriver": "128GB, 16 shards" },
+        { "nodeId": "ingestion-service", "label": "Ingestion Service", "monthlyCostUsd": 8000, "costDriver": "24 instances" },
+        { "nodeId": "cold-storage", "label": "Cold Storage (S3)", "monthlyCostUsd": 8000, "costDriver": "5PB parquet" },
+        { "nodeId": "rule-engine", "label": "Rule Engine", "monthlyCostUsd": 5000, "costDriver": "8 instances" },
+        { "nodeId": "device-registry", "label": "Device Registry", "monthlyCostUsd": 4000, "costDriver": "6 instances" },
+        { "nodeId": "alert-service", "label": "Alert Service", "monthlyCostUsd": 3000, "costDriver": "6 instances" },
+        { "nodeId": "dashboard", "label": "Dashboard", "monthlyCostUsd": 3000, "costDriver": "4 instances" },
+        { "nodeId": "device-db", "label": "Device DB", "monthlyCostUsd": 2500, "costDriver": "PostgreSQL + replicas" },
+        { "nodeId": "edge-gateway", "label": "Edge Software", "monthlyCostUsd": 4500, "costDriver": "Software license per gateway" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Pilot (10K devices)", "rps": 10000, "monthlyCostUsd": 10000 },
+        { "label": "Production (500K devices)", "rps": 500000, "monthlyCostUsd": 40000 },
+        { "label": "Scale (5M devices)", "rps": 5000000, "monthlyCostUsd": 95000 },
+        { "label": "Enterprise (50M devices)", "rps": 50000000, "monthlyCostUsd": 500000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 5000000, "trafficProfile": "steady", "p50LatencyMs": 100, "p99LatencyMs": 500, "availabilityTarget": 99.9, "maxErrorRatePercent": 0.1, "throughputRps": 5000000 },
+    "scalingPolicies": [
+      { "nodeId": "ingestion-service", "metric": "kafka_consumer_lag", "threshold": 100000, "scaleUpStep": 4, "scaleDownStep": 2, "cooldownSeconds": 120, "minInstances": 12, "maxInstances": 64 },
+      { "nodeId": "rule-engine", "metric": "evaluation_latency_p99", "threshold": 20, "scaleUpStep": 2, "scaleDownStep": 1, "cooldownSeconds": 180, "minInstances": 4, "maxInstances": 24 }
+    ],
+    "slaDefinitions": [
+      { "name": "Telemetry Ingestion", "metric": "p99_ingestion_latency_ms", "target": 500, "unit": "ms", "penalty": "Telemetry delivered within 500ms" },
+      { "name": "Alert Delivery", "metric": "alert_delivery_latency_s", "target": 30, "unit": "s", "penalty": "Critical alerts within 30s of trigger condition" },
+      { "name": "Data Retention", "metric": "data_availability_days", "target": 90, "unit": "days", "penalty": "Hot data available for 90 days" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "telemetry_rate", "type": "counter", "description": "Telemetry messages ingested per second", "nodeId": "ingestion-service" },
+        { "name": "device_connectivity", "type": "gauge", "description": "Percentage of devices currently connected", "nodeId": "mqtt-broker" },
+        { "name": "rule_evaluation_time", "type": "histogram", "description": "Rule engine evaluation latency", "nodeId": "rule-engine" },
+        { "name": "twin_freshness", "type": "gauge", "description": "Average age of digital twin state", "nodeId": "digital-twin" },
+        { "name": "alert_fire_rate", "type": "counter", "description": "Alerts fired per minute", "nodeId": "alert-service" }
+      ],
+      "alerts": [
+        { "name": "Ingestion Lag", "condition": "consumer_lag > 500000 for 5min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Mass Disconnection", "condition": "connected_devices drops > 10% in 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "TSDB Disk Usage", "condition": "disk_usage > 85%", "severity": "warning", "channel": "slack-iot-eng" },
+        { "name": "Rule Engine Slow", "condition": "rule_eval_p99 > 50ms for 5min", "severity": "warning", "channel": "slack-iot-eng" }
+      ],
+      "dashboards": ["Device Fleet", "Telemetry Pipeline", "Rule Engine", "Digital Twin", "Alert History"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call IoT SRE", "responseTimeMinutes": 5, "contacts": ["oncall-iot-sre"] },
+        { "level": 2, "name": "IoT Platform Lead", "responseTimeMinutes": 15, "contacts": ["iot-platform-lead"] },
+        { "level": 3, "name": "VP IoT + Field Ops", "responseTimeMinutes": 30, "contacts": ["vp-iot", "field-ops-lead"] }
+      ],
+      "runbooks": [
+        { "incident": "Mass device reconnection storm", "severity": "critical", "steps": ["Rate-limit MQTT connections", "Scale MQTT brokers", "Stagger reconnection backoff", "Monitor connection recovery"], "automatedRecovery": true },
+        { "incident": "TimescaleDB disk full", "severity": "critical", "steps": ["Emergency disk expansion", "Force archive old data to S3", "Check retention policy enforcement", "Add TSDB nodes if growth sustained"], "automatedRecovery": true },
+        { "incident": "False alarm storm", "severity": "medium", "steps": ["Identify misconfigured rule", "Suppress noisy alerts", "Review rule thresholds", "Notify affected operators"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "MQTT as Device Protocol", "context": "IoT devices have limited bandwidth and intermittent connectivity.", "decision": "Use MQTT with QoS 1 for device-to-cloud communication.", "consequences": ["Low bandwidth overhead", "At-least-once delivery guarantee", "Native support for unreliable networks", "Need deduplication for QoS 1 duplicate messages"] },
+      { "title": "Edge Computing with Local Buffering", "context": "Network outages should not cause data loss or stop local operations.", "decision": "Deploy edge gateways with local rule execution and message buffering.", "consequences": ["Continued operation during cloud disconnection", "Local latency-sensitive rule evaluation", "Additional edge software to maintain and update"] },
+      { "title": "Digital Twin in Redis", "context": "Need real-time view of every device's current state for dashboards and rule evaluation.", "decision": "Maintain digital twin (last-known state) for each device in Redis.", "consequences": ["Sub-millisecond state lookups", "Real-time dashboard rendering", "128GB Redis cluster for 5M device states"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Freshness vs Cost", "choice": "Tiered freshness", "benefit": "Real-time state in Redis, historical in TimescaleDB, archive in S3", "cost": "Three-tier storage architecture to manage" },
+      { "dimension": "Reliability vs Latency", "choice": "Reliability", "benefit": "QoS 1 ensures no message loss even on flaky connections", "cost": "Possible duplicate messages requiring deduplication logic" },
+      { "dimension": "Centralized vs Edge Processing", "choice": "Hybrid", "benefit": "Time-critical rules execute at edge, complex analytics in cloud", "cost": "Edge software deployment and update complexity" }
+    ],
+    "alternatives": [
+      { "name": "HTTP REST for Device Communication", "description": "Use HTTP REST instead of MQTT", "prosVsCons": "Pros: simpler, standard tooling. Cons: higher bandwidth, no push capability, connection overhead", "whyNotChosen": "MQTT's persistent connections and low overhead are essential for battery-powered IoT devices" },
+      { "name": "InfluxDB Instead of TimescaleDB", "description": "Use InfluxDB for time-series data", "prosVsCons": "Pros: purpose-built for time series. Cons: less SQL support, weaker ecosystem", "whyNotChosen": "TimescaleDB provides full SQL compatibility and better integration with PostgreSQL ecosystem" }
+    ]
+  }
+}

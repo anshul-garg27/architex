@@ -1,0 +1,216 @@
+[
+  {
+    "id": "CON-157", "epic": "CON", "title": "Add prediction mode to Race Condition — 'what will the final counter be?'",
+    "description": "HIGHEST IMPACT PRACTICE FEATURE: Before the simulation plays, show a prediction prompt: 'If 3 threads each increment a counter 3 times without locks, what will the final value be? (a) 9 (b) 3 (c) Depends on interleaving'. After the student answers, play the simulation. On reveal, show: 'The answer is (b) 3 — because all 3 threads read the same stale value in each round, only the last writer's increment survives.' This transforms passive watching into active learning (testing effect). The platform already has hint infrastructure in lib/interview/challenges.ts.\n\nDesign 3 prediction questions for Race Condition:\n1. Pre-simulation: 'What will the unsafe counter's final value be?' (multiple choice)\n2. Mid-simulation (after step 3): 'Thread-2 just read counter=0. What value will it write?' (free input)\n3. Post-histogram: 'If you run this 1000 times, will the counter EVER reach 9?' (yes/no with explanation)",
+    "acceptanceCriteria": [
+      "Prediction prompt appears before simulation starts (dismissable callout above canvas)",
+      "Student can answer before Play; answer is verified after simulation completes",
+      "Correct answer shows green confirmation with brief reinforcement",
+      "Wrong answer shows the specific step where their prediction went wrong, highlighted in the event log",
+      "At least 3 prediction questions per Race Condition demo"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "prediction", "active-learning", "highest-impact", "testing-effect"]
+  },
+  {
+    "id": "CON-158", "epic": "CON", "title": "Add prediction mode to Event Loop — 'predict the console output order'",
+    "description": "Event Loop is the BEST candidate for prediction because it already shows code + 'Expected output'. Transform the expected output into a hidden answer: show the code, ask 'What order will these print?', let the student type or drag-reorder their prediction, then step through to reveal.\n\nQuestions:\n1. setTimeout vs Promise: 'Drag these into the order they will print: 1, 2, 3, 4' → correct: 1, 4, 3, 2\n2. Nested async: 'Which prints first: A or D?' → A (sync before await) then D (continues after suspend)\n3. Multiple timeouts: 'setTimeout(100) vs setTimeout(0) — which callback fires first?' → 0ms fires first",
+    "acceptanceCriteria": [
+      "Code is shown but expected output is hidden behind a 'Reveal' button",
+      "Student can drag-reorder output values OR type their predicted order",
+      "After submitting prediction, step-through auto-plays to reveal actual order",
+      "Correct prediction shows celebration; wrong shows which specific rule they missed"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "prediction", "active-learning", "testing-effect"]
+  },
+  {
+    "id": "CON-159", "epic": "CON", "title": "Add prediction mode to Dining Philosophers — 'will deadlock occur?'",
+    "description": "Questions:\n1. 'All 5 philosophers pick up their LEFT fork simultaneously. Will deadlock occur?' → Yes (circular wait)\n2. 'Philosophers pick up LOWER-NUMBERED fork first. Will deadlock occur?' → No (breaks circular wait)\n3. 'P0 eats first, then releases both forks. Can P1 start eating?' → Yes (P1 can now get both forks)\n4. 'What is the MINIMUM number of philosophers that must change strategy to prevent deadlock?' → Just 1 (any asymmetry breaks the cycle)",
+    "acceptanceCriteria": [
+      "Prediction prompt before each simulation variant (naive and ordered)",
+      "Question about minimum change (just 1 philosopher) is the 'aha moment' question",
+      "Wrong answer feedback highlights the specific Coffman condition that was satisfied/broken"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "prediction", "active-learning"]
+  },
+  {
+    "id": "CON-160", "epic": "CON", "title": "Add prediction mode to remaining 9 concepts with concept-specific questions",
+    "description": "Extend prediction mode to all concepts. Key questions per concept:\n\nProducer-Consumer: 'Buffer size 4, 2 producers produce 1 item/tick. How many ticks until the first producer blocks?'\nThread Lifecycle: 'Thread calls wait(). What state does it enter?' (multiple choice)\nGo Goroutines (buffered): 'Buffer capacity 3. After sending 3 values, what happens on the 4th send?'\nReaders-Writers: '3 readers active. Can a writer start?' (No — must wait for all readers to finish)\nSleeping Barber: 'All 3 chairs full, barber busy. What happens to the next customer?'\nAsync Patterns: 'One promise in Promise.all rejects. Do the others stop executing?' (No — they run to completion, but results are ignored)\nDeadlock Demo: 'Thread-A holds R1, Thread-B holds R2. Thread-A requests R2. Is this deadlock YET?' (No — Thread-B hasn't requested R1 yet)\nLock Comparison: 'Critical section takes 100μs. SpinLock or Mutex?' (Mutex — CS is too long for spinning)\nThread Pool: 'Pool size 4, queue size 3. 8 simultaneous requests arrive. How many are rejected?' (1: 4 threads + 3 queue = 7 served)",
+    "acceptanceCriteria": [
+      "All 12 concepts have at least 2 prediction questions",
+      "Questions are answerable from knowledge of the concept (not trick questions)",
+      "Each question has 1 sentence of feedback explaining WHY the answer is right/wrong",
+      "Questions cover different Bloom's levels (recall, apply, analyze)"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-157"], "blockedBy": [], "tags": ["practice", "prediction", "active-learning"]
+  },
+  {
+    "id": "CON-161", "epic": "CON", "title": "Add manual tracing mode for Race Condition — user schedules thread execution order",
+    "description": "TRANSFORMS PASSIVE TO ACTIVE (Bloom's Apply+Analyze): Instead of watching a fixed interleaving, the user CONTROLS which thread runs next. Show pending operations for each thread (e.g., 'Thread-0: READ counter', 'Thread-1: READ counter'). User clicks a thread to execute its next operation. The counter updates accordingly. User discovers which interleavings cause races and which don't.\n\nThis is the 'play the evil scheduler' mechanic from Deadlock Empire — proven effective for concurrency learning. The platform's challenge infrastructure (lib/interview/challenges.ts with hints) can be reused.\n\nGoal: User can discover that READ-READ-WRITE-WRITE loses updates, while READ-WRITE-READ-WRITE doesn't.",
+    "acceptanceCriteria": [
+      "Toggle 'Manual Mode' visible on Race Condition demo",
+      "User sees pending operations per thread and clicks to execute one at a time",
+      "Counter updates based on the user's chosen interleaving",
+      "At the end, system shows: 'Your interleaving produced counter=X (expected: Y). Lost updates: Z'",
+      "Hint button available: 'Try making all threads read before any writes'"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/race-condition.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "manual-tracing", "active-learning", "highest-impact"]
+  },
+  {
+    "id": "CON-162", "epic": "CON", "title": "Add manual tracing mode for Dining Philosophers — user controls fork acquisition",
+    "description": "User plays the scheduler: for each philosopher that's hungry, user decides whether they pick up left fork, right fork, or wait. User tries to create deadlock OR prevent it. System checks for deadlock after each move.\n\nChallenge variants:\n1. 'Create a deadlock in 5 moves or fewer'\n2. 'Feed all 5 philosophers without deadlock'\n3. 'Use ONLY resource ordering — can you still deadlock?' (No — impossible, teaches the invariant)",
+    "acceptanceCriteria": [
+      "User clicks philosopher → fork to attempt acquisition",
+      "System validates: fork must be free and adjacent to philosopher",
+      "Deadlock detection runs after each move with visual feedback",
+      "Challenge mode: 'Create deadlock in N moves' with move counter",
+      "Win/lose feedback with explanation of WHY deadlock occurred or was prevented"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/dining-philosophers.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "manual-tracing", "gamification"]
+  },
+  {
+    "id": "CON-163", "epic": "CON", "title": "Add manual tracing mode for Deadlock Demo — user controls resource acquisition",
+    "description": "User controls 2 threads acquiring 2 resources. For each thread, user chooses: (a) acquire R1, (b) acquire R2, (c) release R1, (d) release R2. User tries to cause deadlock, then tries to prevent it using resource ordering.\n\nThis is Deadlock Empire's core mechanic adapted to our visual style — resource allocation graph updates live as user makes choices.",
+    "acceptanceCriteria": [
+      "User clicks thread → resource action (acquire/release)",
+      "Resource allocation graph updates live after each action",
+      "Deadlock detected and announced when circular wait forms",
+      "Challenge: 'Cause deadlock in 4 actions' and 'Complete both threads without deadlock'"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/deadlock-demo.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "manual-tracing", "Deadlock-Empire-style"]
+  },
+  {
+    "id": "CON-164", "epic": "CON", "title": "Add comparison challenge: 'SpinLock vs Mutex — which wins for THIS critical section?'",
+    "description": "Bloom's Analyze+Evaluate: Present a scenario (critical section duration, thread count, contention level) and ask the student to predict which lock type performs best. Then run the simulation and reveal metrics.\n\nScenarios:\n1. 'CS takes 2 instructions, 2 threads' → SpinLock wins (no context switch overhead)\n2. 'CS takes 100ms (I/O), 8 threads' → Mutex wins (sleeping saves CPU)\n3. 'CS takes 10 instructions, 16 threads' → TTAS wins (reduced bus traffic vs spinlock)\n\nThe Lock Comparison viz already supports this — just needs the question framework and configurable parameters.",
+    "acceptanceCriteria": [
+      "At least 3 scenario-based comparison questions",
+      "Student selects their prediction (SpinLock/Mutex/TTAS)",
+      "Simulation runs with scenario parameters and reveals actual winner",
+      "Explanation shows WHY: CPU cycles wasted (SpinLock), context switch cost (Mutex), cache efficiency (TTAS)"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/mutex-comparison.ts"],
+    "dependencies": ["CON-018"], "blockedBy": [], "tags": ["practice", "comparison", "bloom-analyze"]
+  },
+  {
+    "id": "CON-165", "epic": "CON", "title": "Add comparison challenge: 'Which synchronization primitive for THIS scenario?'",
+    "description": "Bloom's Evaluate: Present real-world scenarios and ask which primitive to use. Teach the decision-making process.\n\n1. '5 database connections shared among 20 request threads' → Counting semaphore (permits=5)\n2. 'Configuration object read by 100 threads, updated by 1 admin thread' → Readers-writer lock\n3. 'HTTP request handler protecting a cache map' → Mutex (simple mutual exclusion)\n4. 'Parallel workers that must all finish before aggregation' → Barrier / WaitGroup\n5. 'Node.js server handling 10K concurrent connections' → Event loop (single-threaded, non-blocking)\n6. 'Go microservice distributing work to N workers' → Fan-out with buffered channels\n7. 'Multiple API calls that must all succeed before proceeding' → Promise.all\n8. 'Fastest CDN response wins' → Promise.race",
+    "acceptanceCriteria": [
+      "At least 8 scenario questions presented in a quiz format",
+      "Each scenario describes a real-world situation (not abstract)",
+      "Student selects from available primitives (mutex, semaphore, RWLock, barrier, channel, Promise.X)",
+      "Wrong answers explain WHY the selected primitive doesn't fit and which one does"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "scenario-based", "bloom-evaluate", "interview-prep"]
+  },
+  {
+    "id": "CON-166", "epic": "CON", "title": "Add debugging challenge: find the concurrency bug in pseudocode",
+    "description": "Bloom's Evaluate: Show pseudocode with a specific concurrency bug. Student must identify the buggy line(s). Bugs drawn from OSTEP's concurrency bugs chapter (atomicity violations, order violations).\n\nChallenges:\n1. 'This producer-consumer uses IF instead of WHILE on the condition variable check. Why is this wrong?' → Spurious wakeup can cause buffer underflow\n2. 'This mutex implementation doesn't lock before the READ. What can go wrong?' → Race condition: stale read\n3. 'Thread A acquires locks in order [R1, R2]. Thread B acquires in order [R2, R1]. What's the bug?' → Deadlock: different acquisition order\n4. 'This goroutine spawns a worker but never reads from the channel. What happens?' → Goroutine leak: worker blocks forever\n5. 'This code uses setTimeout(0) to 'yield'. Will the Promise callback run before or after it?' → Promise callback runs first (microtask priority)",
+    "acceptanceCriteria": [
+      "At least 5 debugging challenges with pseudocode display",
+      "Student clicks/highlights the buggy line(s)",
+      "Hints available (3 levels: rephrase question, hint about bug type, show first symptom)",
+      "Correct answer shows the visualization of the bug manifesting",
+      "Each challenge maps to a specific OSTEP bug category"
+    ],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/debugging-challenges.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["practice", "debugging", "bloom-evaluate"]
+  },
+  {
+    "id": "CON-167", "epic": "CON", "title": "Wire FSRS spaced repetition system to Concurrency concepts",
+    "description": "The platform has a FULLY IMPLEMENTED FSRS system at lib/interview/srs.ts (ReviewCard, stability, intervals, ratings). It is currently only used by InterviewModule. Wire it to Concurrency concepts so that after a student completes a prediction/tracing exercise, the concept is scheduled for review.\n\nCreate ReviewCard entries for each of the 12 existing concepts. When a student gets a prediction right → rate 'good'. Wrong → rate 'again'. This automatically schedules the concept for spaced review. Show a 'Review Due' indicator in the sidebar for concepts needing review.",
+    "acceptanceCriteria": [
+      "ReviewCard created for each concurrency concept in localStorage",
+      "After completing any practice exercise, FSRS schedules next review",
+      "Sidebar shows 'Review Due' badge count when concepts are due",
+      "Clicking 'Review Due' shows the concept's prediction questions again",
+      "Review history persists across sessions via localStorage"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/interview/srs.ts"],
+    "dependencies": ["CON-157"], "blockedBy": ["CON-157"], "tags": ["practice", "spaced-repetition", "retention"]
+  },
+  {
+    "id": "CON-168", "epic": "CON", "title": "Wire skill tree and progress tracking to Concurrency module",
+    "description": "Platform has skill-tree.ts, streak-protector.ts, and achievements.ts. Wire them to Concurrency:\n1. Skill tree: Race Condition → Mutex → Semaphore → Condition Variable → Monitor (as prerequisite graph)\n2. Progress: track per-concept mastery (0-5 stars based on prediction accuracy)\n3. Streak: consecutive days with at least 1 practice exercise\n4. Achievements: 'First Race Found' (complete race condition), 'Deadlock Breaker' (prevent deadlock in manual mode), 'Lock Master' (score 100% on lock comparison)",
+    "acceptanceCriteria": [
+      "Skill tree visible in sidebar or properties panel as dependency graph",
+      "Per-concept mastery stars shown next to each sidebar demo item",
+      "Streak counter shown in module header",
+      "At least 5 achievements defined for Concurrency module"
+    ],
+    "priority": "P3", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/innovation/skill-tree.ts", "src/lib/innovation/streak-protector.ts", "src/lib/interview/achievements.ts"],
+    "dependencies": ["CON-157"], "blockedBy": [], "tags": ["practice", "progress-tracking", "gamification"]
+  },
+  {
+    "id": "CON-169", "epic": "CON", "title": "Add progressive difficulty system: warm-up → easy → medium → hard → expert",
+    "description": "Platform has difficulty-adaptation.ts and difficulty-scaling.ts. Design a 5-level difficulty ladder for Concurrency practice:\n\nWARM-UP (Bloom's Remember): 'What does mutex stand for?' / 'Name the 4 Coffman conditions'\nEASY (Bloom's Apply): 'Predict the next step in this Race Condition simulation'\nMEDIUM (Bloom's Analyze): 'Compare SpinLock vs Mutex for a 100μs critical section — which wins?'\nHARD (Bloom's Evaluate): 'Find the concurrency bug in this pseudocode'\nEXPERT (Bloom's Create): 'Design a lock-free counter using CAS and test it'\n\nDifficulty adapts based on accuracy: >80% → level up, <50% → level down.",
+    "acceptanceCriteria": [
+      "5 difficulty levels with at least 3 questions per level",
+      "Questions span different concepts (not all on one topic)",
+      "Difficulty auto-adapts based on recent accuracy",
+      "Level shown in practice mode header",
+      "Each level maps to a named Bloom's taxonomy stage"
+    ],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/innovation/difficulty-adaptation.ts"],
+    "dependencies": ["CON-157", "CON-164", "CON-166"], "blockedBy": ["CON-157"], "tags": ["practice", "difficulty", "bloom-taxonomy"]
+  },
+  {
+    "id": "CON-170", "epic": "CON", "title": "Add feedback system: wrong-answer explanations using visualization highlights",
+    "description": "Practice without feedback is useless. When a student answers wrong:\n1. Don't just say 'Wrong' — show WHY using the visualization\n2. Highlight the specific step where their prediction diverged from reality\n3. Replay the relevant 3-step sequence with enhanced descriptions\n\nExample: Student predicts counter will be 9 (safe behavior). System shows: 'Watch step 3 — ALL threads read the SAME value (0). This is the stale read that causes the race. Your prediction assumed each thread would see the updated value.'\n\nFor correct answers: Brief reinforcement + connection to the general principle ('Correct! Microtasks ALWAYS drain before the next macrotask. This is the #1 rule of the JS event loop.').",
+    "acceptanceCriteria": [
+      "Wrong answers show specific visualization step where prediction diverged",
+      "Explanation references the general principle, not just the specific answer",
+      "Correct answers show brief reinforcement (not just 'Correct!')",
+      "Feedback appears inline, not in a modal (maintains flow)"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-157"], "blockedBy": ["CON-157"], "tags": ["practice", "feedback", "teaching"]
+  },
+  {
+    "id": "CON-171", "epic": "CON", "title": "Add 3-level hints system for practice challenges",
+    "description": "The platform already has a 4-level hint system in lib/interview/challenges.ts. Adapt it for concurrency practice:\n\nLevel 1 hint: Rephrase the question ('Think about what happens when BOTH threads read before EITHER writes')\nLevel 2 hint: Give a clue about the specific concept ('This is about the READ-before-WRITE gap — the stale read problem')\nLevel 3 hint: Show the first part of the answer ('Thread-0 reads 0, Thread-1 reads 0. Now what happens when they both write?')\n\nHints cost points (level 1: -10%, level 2: -25%, level 3: -50% of question points). This provides desirable difficulty.",
+    "acceptanceCriteria": [
+      "Hint button visible on all practice questions",
+      "3 progressive hint levels per question",
+      "Each hint reveals more of the answer without giving it away completely",
+      "Point reduction shown when hint is used",
+      "Hint text is specific to each question (not generic)"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/interview/challenges.ts"],
+    "dependencies": ["CON-157"], "blockedBy": ["CON-157"], "tags": ["practice", "hints", "desirable-difficulty"]
+  },
+  {
+    "id": "CON-172", "epic": "CON", "title": "Add daily concurrency challenge with streak counter",
+    "description": "Platform has daily-challenge.ts and streak-protector.ts. Create a daily concurrency challenge that:\n1. Presents ONE concurrency question per day (rotates through all concepts)\n2. Difficulty adapts to the student's mastery level\n3. Streak counter: consecutive days with correct answer\n4. Streak milestones: 7-day, 30-day, 100-day badges\n\nThe daily challenge appears as a prominent card at the top of the Concurrency module when due.",
+    "acceptanceCriteria": [
+      "Daily challenge card visible at module top when not yet completed today",
+      "Challenge rotates through concepts, favoring weaker areas (from FSRS data)",
+      "Streak counter visible and persists across sessions",
+      "Challenge disappears after completion, returns next day"
+    ],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/interview/daily-challenge.ts", "src/lib/innovation/streak-protector.ts"],
+    "dependencies": ["CON-167", "CON-169"], "blockedBy": [], "tags": ["practice", "gamification", "retention", "daily"]
+  }
+]

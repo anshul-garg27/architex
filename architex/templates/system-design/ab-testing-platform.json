@@ -1,0 +1,205 @@
+{
+  "id": "ab-testing-platform",
+  "name": "A/B Testing Platform",
+  "description": "Design an A/B testing and experimentation platform. Covers experiment assignment, consistent hashing for user bucketing, real-time event ingestion, statistical analysis, and results dashboarding.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": ["ab-testing", "experimentation", "analytics", "feature-flags", "statistics", "bucketing"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client (Web/Mobile)",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 500000, "requestsPerSecond": 200000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckInterval": 10, "maxConnections": 200000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "assignment-service",
+      "type": "web-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Assignment Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 8, "maxConnections": 30000, "processingTimeMs": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "assignment-cache",
+      "type": "cache",
+      "position": { "x": 500, "y": 0 },
+      "data": {
+        "label": "Assignment Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 32, "evictionPolicy": "allkeys-lru", "ttlSeconds": 3600, "cacheHitRate": 0.95 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "experiment-db",
+      "type": "database",
+      "position": { "x": 750, "y": 50 },
+      "data": {
+        "label": "Experiment DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 200, "storageGB": 200 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "event-queue",
+      "type": "message-queue",
+      "position": { "x": 750, "y": 300 },
+      "data": {
+        "label": "Event Bus (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": { "type": "kafka", "partitions": 32, "replicationFactor": 3, "retentionHours": 168 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "stream-processor",
+      "type": "stream-processor",
+      "position": { "x": 1000, "y": 300 },
+      "data": {
+        "label": "Analytics Processor (Flink)",
+        "category": "compute",
+        "componentType": "stream-processor",
+        "icon": "Activity",
+        "config": { "parallelism": 16, "checkpointIntervalMs": 30000, "processingGuarantee": "exactly-once" },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "analytics-db",
+      "type": "timeseries-db",
+      "position": { "x": 1250, "y": 300 },
+      "data": {
+        "label": "Analytics DB (ClickHouse)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "TrendingUp",
+        "config": { "retentionDays": 365, "ingestionRate": 500000, "storageGB": 5000, "compactionEnabled": true },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-lb-assign",
+      "source": "lb",
+      "target": "assignment-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-assign-cache",
+      "source": "assignment-service",
+      "target": "assignment-cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-assign-expdb",
+      "source": "assignment-service",
+      "target": "experiment-db",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-assign-mq",
+      "source": "assignment-service",
+      "target": "event-queue",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-mq-stream",
+      "source": "event-queue",
+      "target": "stream-processor",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-stream-analytics",
+      "source": "stream-processor",
+      "target": "analytics-db",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 5, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Deterministic User Bucketing",
+      "description": "When a user requests an experiment variant, the Assignment Service hashes the user ID + experiment ID using MurmurHash3 to produce a deterministic bucket (0-9999). Each experiment defines bucket ranges per variant (e.g., control=0-4999, treatment=5000-9999 for a 50/50 split). This ensures the same user always sees the same variant without storing per-user state, and different experiments get independent random assignments.",
+      "highlightNodes": ["client", "lb", "assignment-service"],
+      "highlightEdges": ["e-client-lb", "e-lb-assign"]
+    },
+    {
+      "title": "Assignment Caching and Experiment Configuration",
+      "description": "Experiment definitions (name, variants, traffic allocation, targeting rules, start/end dates) are stored in PostgreSQL and cached in Redis with a 95% hit rate. On each request the service checks Redis for the experiment config, falls back to PostgreSQL on miss. Cached assignments mean subsequent variant lookups for the same user complete in under 1ms. The cache is invalidated via a Kafka event when an experiment is updated.",
+      "highlightNodes": ["assignment-cache", "experiment-db", "assignment-service"],
+      "highlightEdges": ["e-assign-cache", "e-assign-expdb"]
+    },
+    {
+      "title": "Real-Time Event Ingestion",
+      "description": "Every user action (page view, click, conversion, purchase) is published to Kafka along with the experiment assignment context (experiment ID, variant, user ID). Kafka's 32 partitions keyed by user ID ensure ordered processing per user. The exactly-once semantics in Flink prevent double-counting conversions. This event stream captures both the assignment moment and all downstream user behavior for causal analysis.",
+      "highlightNodes": ["assignment-service", "event-queue", "stream-processor"],
+      "highlightEdges": ["e-assign-mq", "e-mq-stream"]
+    },
+    {
+      "title": "Statistical Analysis and Results",
+      "description": "Flink aggregates events per experiment-variant pair into ClickHouse: conversion rates, revenue sums, sample sizes, and confidence intervals. The platform runs sequential testing (not just fixed-horizon) to allow early stopping when results are statistically significant. It computes p-values, confidence intervals, and minimum detectable effect (MDE). Guardrail metrics (latency, error rate) are monitored to catch experiments that degrade overall performance.",
+      "highlightNodes": ["stream-processor", "analytics-db"],
+      "highlightEdges": ["e-mq-stream", "e-stream-analytics"]
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "MLD-195",
+    "epic": "MLD",
+    "title": "Create ML-Design-specific onboarding tour (4 steps to first success)",
+    "description": "THE #1 ONBOARDING FIX. The platform's OnboardingOverlay (onboarding-overlay.tsx) targets System Design only. ML Design has ZERO guided onboarding. A beginner sees 13 unlabeled controls and has no idea what to do.\n\nCreate an ML-specific tour triggered on first visit to ML Design (separate localStorage flag from the platform tour):\n\nStep 1: (full-screen) 'Welcome to ML Playground — Train neural networks, test A/B experiments, and explore ML systems. Let's train your first model!'\nStep 2: (spotlight sidebar dataset buttons) 'Choose a dataset shape. Each one challenges the network differently. Start with Circle — it's the easiest.'\nStep 3: (spotlight Train button) 'Click Train to start learning! Watch the decision boundary form as the network discovers the pattern.'\nStep 4: (spotlight canvas decision boundary area) 'See the colored regions? That's the network's prediction. Blue = class 0, orange = class 1. The boundary between them is what the network learned. Try changing to XOR and training again!'\n\nThis tour leads directly to the user's FIRST SUCCESS: seeing a decision boundary form.\n\nResearch basis: 'Products that get users to create something real within 60 seconds see dramatically higher 7-day retention.' Source: rubyroidlabs.com/blog/2026/02/ux-onboarding-first-60-seconds/",
+    "acceptanceCriteria": ["4-step tour triggers on first visit to ML Design module", "Tour uses spotlight overlay pointing to real UI elements", "Step 3 waits for user to actually click Train (not auto-advancing)", "Tour dismissible at any step", "Re-accessible via '?' button or settings", "Works on mobile viewports", "Separate localStorage flag from platform onboarding"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/shared/onboarding-overlay.tsx", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "tour", "first-time", "highest-impact"]
+  },
+  {
+    "id": "MLD-196",
+    "epic": "MLD",
+    "title": "Auto-run a 20-epoch demo training on first visit to NN mode",
+    "description": "Research says: 'The fastest activation happens when users create something real in the first 60 seconds.' Currently the user must manually click Train before seeing anything meaningful. The decision boundary panel shows an empty dashed box saying 'Train to see boundary.'\n\nOn FIRST visit to NN mode: auto-run a 20-epoch training on Circle dataset with default parameters. The decision boundary forms within 2 seconds. User sees their 'first success' without clicking anything.\n\nAfter auto-train completes, show a subtle prompt: 'That was automatic! Now try changing the dataset and training again.'\n\nDo NOT auto-train on subsequent visits (only when trainedNetwork is null AND localStorage indicates first visit).",
+    "acceptanceCriteria": ["First visit to NN mode auto-runs 20-epoch training", "Decision boundary visibly forms within 2 seconds of mode appearing", "After auto-train, subtle prompt says 'Now try changing the dataset!'", "Auto-train uses Circle dataset with sensible defaults", "Does NOT auto-train on subsequent visits or after user resets", "Can be disabled via a 'Don't auto-train' preference"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "first-success", "auto-demo"]
+  },
+  {
+    "id": "MLD-197",
+    "epic": "MLD",
+    "title": "Add contextual tooltips to all ML Design sidebar controls",
+    "description": "ZERO tooltips exist on any ML Design control. A beginner sees 'Learning Rate: 0.1000' and has no context.\n\nAdd ContextualTooltip (or simple hover tooltips) for:\n- Hidden Layers: 'How many processing layers between input and output. More layers = can learn more complex patterns, but slower to train.'\n- Neurons / Layer: 'How many computing units per layer. More neurons = more capacity, but also more parameters to train.'\n- Activation: 'The function that decides if a neuron \"fires.\" ReLU is fastest, Sigmoid outputs probabilities, Tanh is zero-centered.'\n- Learning Rate: 'How big each training step is. Too high = overshoots, too low = takes forever. Try 0.01-0.1.'\n- Epochs: 'How many times the network sees the entire dataset. More epochs = more learning, but too many can overfit.'\n- Dataset buttons: 'Different data shapes that test different network capabilities.' (per-dataset tooltips in MLD-115)\n\nUse the existing ContextualTooltip component pattern with first-encounter auto-show.",
+    "acceptanceCriteria": ["All 6 NN sidebar controls have hover/click tooltips", "Tooltips use beginner-friendly language (no jargon without explanation)", "First-encounter tooltips auto-show for the first 3 controls", "Tooltips include suggested value ranges where applicable", "A/B Testing and Bandit controls also get tooltips", "Tooltips don't interfere with slider/button interaction"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/components/shared/ContextualTooltip.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "tooltips", "beginner-friendly"]
+  },
+  {
+    "id": "MLD-198",
+    "epic": "MLD",
+    "title": "Rewrite all ML Design empty states with CTAs and previews",
+    "description": "Current empty states are bare text ('Configure and click Run Test to see results'). No CTA button. No preview. Not inspiring.\n\nRewrite each:\n\n**A/B Testing (currently at line 2397):**\n- Text: 'Is a 3% improvement real or just luck? Run an A/B test to find out.'\n- CTA button: 'Run Example Test →' (auto-fills sensible defaults and runs)\n- Preview: Small illustration of two bars\n\n**Bandit (line 2657):**\n- Text: 'You have 4 slot machines and 200 coins. Which strategy finds the best machine fastest?'\n- CTA button: 'Try Epsilon-Greedy →'\n- Preview: Small bar chart icon\n\n**Feature Store (line 2971):**\n- Text: 'How does Uber serve ML predictions in <5ms? Watch the data flow through a Feature Store.'\n- CTA button: 'See Feature Store in Action →'\n- Preview: Small architecture diagram icon\n\nUse the CanvasEmptyState pattern (framer-motion entry animation, centered layout, icon + text + button).",
+    "acceptanceCriteria": ["All 3 mode empty states rewritten with hook + CTA button", "CTA button auto-fills defaults and runs the simulation", "Framer-motion entry animation (fade + slide up)", "Icon above text matching the mode", "Language is curiosity-driven ('Is a 3% improvement real or just luck?')", "CTA runs immediately — 1 click to see something happening"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "empty-states", "cta"]
+  },
+  {
+    "id": "MLD-199",
+    "epic": "MLD",
+    "title": "Add 'Replay Tour' button accessible from sidebar header",
+    "description": "The onboarding tour can't be replayed after dismissal (localStorage flag is permanent). Add a small '?' or 'Help' button in the ML Design sidebar header that:\n1. Replays the ML-specific guided tour (MLD-195)\n2. Shows a 'Quick Start' card with 3-step instructions\n3. Links to keyboard shortcuts dialog\n\nThis ensures returning users who forgot the basics can re-learn without clearing localStorage.",
+    "acceptanceCriteria": ["'?' button visible in ML Design sidebar header", "Clicking opens a help menu with: 'Replay Tour', 'Quick Start', 'Keyboard Shortcuts'", "'Replay Tour' restarts the ML onboarding overlay", "'Quick Start' shows a 3-step card (Select → Train → Observe)", "'Keyboard Shortcuts' opens the platform shortcuts dialog"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-195"], "blockedBy": ["MLD-195"], "tags": ["onboarding", "help", "replay"]
+  },
+  {
+    "id": "MLD-200",
+    "epic": "MLD",
+    "title": "Add stuck detection — prompt help after 30s of inactivity in ML Design",
+    "description": "If a user has been on ML Design for 30 seconds without clicking any button, they're likely confused. Show a subtle, non-intrusive prompt:\n\n'Not sure where to start? Click the blue Train button to see your first neural network learn! →'\n\nUse a toast-style notification at the bottom of the canvas. Dismiss after click or after 10 seconds. Only show once per session.\n\nResearch basis: 'Contextual onboarding introduces users to features gradually, timed to when they are most relevant.' Source: eleken.co user-onboarding-best-practices",
+    "acceptanceCriteria": ["30-second inactivity timer starts when ML Design mode first loads", "Prompt appears as a subtle toast/banner at canvas bottom", "Prompt has a direct action: clicking it scrolls to and highlights the Train button", "Auto-dismisses after 10 seconds or on any user click", "Only shows once per session (not on every 30-second idle)", "Does not show if user has already clicked Train"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "stuck-detection", "adaptive-help"]
+  },
+  {
+    "id": "MLD-201",
+    "epic": "MLD",
+    "title": "Simplify initial NN mode view with progressive disclosure of controls",
+    "description": "NN mode shows 13 interactive controls immediately (4 dataset buttons + Hidden Layers slider + Neurons slider + 3 activation buttons + Learning Rate slider + Epochs slider + Train + Reset). For a beginner, this is a wall of unknown knobs.\n\nRedesign initial view:\n- VISIBLE: Dataset selector (4 buttons) + Train button + Reset button = 6 controls\n- COLLAPSED: 'Advanced Settings ▸' toggle revealing: Hidden Layers, Neurons, Activation, Learning Rate, Epochs\n- Default values are sensible (2 layers, 4 neurons, sigmoid, lr=0.1, 100 epochs)\n\nThis reduces initial cognitive load from 13 controls to 6. Advanced users can expand immediately; beginners aren't overwhelmed.",
+    "acceptanceCriteria": ["Initial view shows only Dataset + Train + Reset", "Advanced settings collapsed behind an expandable section", "Expanding reveals all existing controls unchanged", "Collapsed by default on first visit, remembers state on return", "Default values produce good results on Circle dataset without adjustment", "Collapse/expand animated smoothly"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "progressive-disclosure", "cognitive-load"]
+  },
+  {
+    "id": "MLD-202",
+    "epic": "MLD",
+    "title": "Add data-onboarding attributes to ML Design UI elements for tour targeting",
+    "description": "The onboarding system uses `data-onboarding` attributes to anchor spotlight overlays. ML Design has ZERO such attributes. Add them to enable both the ML tour (MLD-195) and contextual tooltips (MLD-197):\n\n- Sidebar dataset buttons area: data-onboarding='ml-dataset-selector'\n- Train button: data-onboarding='ml-train-button'\n- Canvas decision boundary area: data-onboarding='ml-decision-boundary'\n- Mode tabs: data-onboarding='ml-mode-tabs'\n- Advanced settings: data-onboarding='ml-advanced-settings'\n- CNN Demo toggle: data-onboarding='ml-cnn-demo'",
+    "acceptanceCriteria": ["6 data-onboarding attributes added to key ML Design elements", "Attributes follow the naming pattern: 'ml-{element-name}'", "OnboardingOverlay can target these for spotlight positioning", "ContextualTooltip can anchor tooltips to these elements", "No visual change — attributes are invisible to users"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "infrastructure", "data-attributes"]
+  },
+  {
+    "id": "MLD-203",
+    "epic": "MLD",
+    "title": "Add legend and labels to scatter plot and decision boundary for self-explanatory visuals",
+    "description": "A beginner sees blue and orange dots with zero labels. This is a barrier to understanding. Without labels, the visualization fails to self-explain.\n\nAdd:\n- ScatterPlot: small legend at bottom-right: '● Class 0  ● Class 1'\n- ScatterPlot: axis labels: 'Feature 1' (x) and 'Feature 2' (y)\n- DecisionBoundary: title text: 'Decision Boundary' above\n- DecisionBoundary: gradient color bar legend: '← Class 0 | Class 1 →'\n- A small text below the boundary: 'Colored regions show the network\\'s prediction for each point in space'\n\nThis makes the visualizations self-explanatory without needing the tour.",
+    "acceptanceCriteria": ["ScatterPlot has color legend for class 0 and class 1", "Both plots have axis labels", "Decision boundary has gradient legend", "Explanatory text below boundary for beginners", "Labels don't overlap with data points", "Labels use text-[10px] to match existing label style"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "labels", "self-explanatory"]
+  }
+]

@@ -1,0 +1,945 @@
+[
+  {
+    "id": "LLD-060",
+    "epic": "LLD",
+    "title": "Fix rate limiter token bucket simulation to track actual tokens",
+    "description": "PatternBehavioralSimulator.tsx:166-176 calculates remaining tokens as `max(0, bucketSize - (totalRequests + i) * cost + floor((totalRequests + i) / 5) * refillRate)`. This formula doesn't cap at bucketSize and uses cumulative request count instead of tracking actual token state. At 25 requests with bucket=20/cost=1/refillRate=10, yields 45 tokens (exceeds capacity). Root cause: simulation lacks independent token state variable. Fix: add `tokens` field to SimMetrics, refill per tick capped at bucketSize, deduct per request.",
+    "acceptanceCriteria": [
+      "Token count never exceeds bucketSize at any simulation step",
+      "Tokens refill by refillRate per tick, clamped to bucketSize",
+      "Each request deducts costPerReq tokens; insufficient tokens = rejected",
+      "Metrics display shows current token count",
+      "'Within Limit' scenario has near-zero rejections; 'Burst Traffic' drains bucket visibly"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/lld/PatternBehavioralSimulator.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug-fix", "simulation", "rate-limiter", "correctness"]
+  },
+  {
+    "id": "LLD-061",
+    "epic": "LLD",
+    "title": "Unify LLD problem data into single canonical source",
+    "description": "Two separate LLD problem datasets: lib/lld/problems.ts (10 problems, LLDProblem type with starterClasses/starterRelationships/hints) and lib/seo/lld-problems-data.ts (25 problems, different schema with slug/title/category/keyPatterns/interviewFrequency). Module uses one, SEO pages use the other. Confusing and unsynchronized. Unify into single source in lib/lld/problems.ts with full schema covering both needs. SEO data can derive from unified source.",
+    "acceptanceCriteria": [
+      "Single canonical LLD_PROBLEMS array contains all 25 problems",
+      "Each problem has both starter diagram data AND SEO fields (slug, category, keyPatterns)",
+      "lib/seo/lld-problems-data.ts imports from canonical source or is removed",
+      "LLD module sidebar shows all 25 problems",
+      "SEO pages continue to work with correct metadata",
+      "No duplicate problem definitions remain"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/problems.ts",
+      "src/lib/seo/lld-problems-data.ts",
+      "src/app/lld-problems/page.tsx",
+      "src/app/lld-problems/[slug]/page.tsx"
+    ],
+    "dependencies": ["LLD-036"],
+    "blockedBy": [],
+    "tags": ["data-model", "unification", "single-source-of-truth"]
+  },
+  {
+    "id": "LLD-062",
+    "epic": "LLD",
+    "title": "Add getter/setter and decorator support to code-to-diagram parser",
+    "description": "code-to-diagram.ts:248-275 parseTsMethods regex `methodRe` expects `name(params): returnType` but misses TypeScript getters (`get name(): string { }`) and setters (`set name(val: string) { }`). parsePyMethods at line 458-480 misses @property decorated methods and @staticmethod. These are common in real-world code users would paste. Fix: extend regexes to handle get/set keywords and Python decorator forms.",
+    "acceptanceCriteria": [
+      "TypeScript getter `get name(): string` parsed as attribute with '+' visibility",
+      "TypeScript setter `set name(val: string)` parsed as method",
+      "Python @property methods parsed as attributes",
+      "Python @staticmethod parsed as methods with correct visibility",
+      "Existing parsing of normal methods unchanged",
+      "Unit tests added for each new case"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/codegen/code-to-diagram.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["parser", "code-to-diagram", "edge-case"]
+  },
+  {
+    "id": "LLD-063",
+    "epic": "LLD",
+    "title": "Add localStorage persistence for diagram state",
+    "description": "useLLDModule hook at LLDModule.tsx:3206-3459 uses 12 useState hooks with no persistence. Refreshing loses all state. Add auto-save to localStorage for: current sidebar mode, active item ID, classes/relationships array, selected class/message/state IDs. Load on mount. Clear on explicit user action. Use a version key to handle schema changes.",
+    "acceptanceCriteria": [
+      "Diagram state auto-saves to localStorage on every change",
+      "Page refresh restores exact previous diagram state",
+      "Sidebar mode and active selection restored",
+      "Works correctly with user-added classes and custom positions",
+      "Clear/Reset button removes saved state",
+      "Schema versioning prevents crashes on data format changes"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": ["LLD-058"],
+    "blockedBy": [],
+    "tags": ["persistence", "localStorage", "state-management"]
+  },
+  {
+    "id": "LLD-064",
+    "epic": "LLD",
+    "title": "Improve parse error messages with specific failure context",
+    "description": "LLDModule.tsx:1024-1026 catch block shows generic 'Failed to parse code. Check syntax and try again.' with no detail about what the parser found or where it got confused. Enhance to show: number of classes found, number of relationships extracted, and specific parsing warnings (e.g., 'Found class Dog but could not find parent Animal in the code').",
+    "acceptanceCriteria": [
+      "Successful parse with warnings shows 'Found N classes, M relationships. Warnings: ...'",
+      "Failed parse shows what was partially parsed before failure",
+      "Unresolved relationship targets (e.g., parent class not found) reported as warnings, not errors",
+      "Error message under 3 lines, actionable"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/codegen/code-to-diagram.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["error-handling", "ux", "parser"]
+  },
+  {
+    "id": "LLD-065",
+    "epic": "LLD",
+    "title": "Add input size guard to code-to-diagram textarea",
+    "description": "LLDModule.tsx:1075 code textarea has no maxLength. A user could paste megabytes of code, causing the regex parser at code-to-diagram.ts:41-138 to freeze the browser. Add maxLength=102400 (100KB) to textarea, display warning if input exceeds 50KB, and cap parsed classes at 100 with a message.",
+    "acceptanceCriteria": [
+      "Textarea has maxLength of 100KB",
+      "Warning shown if input exceeds 50KB: 'Large input may be slow to parse'",
+      "Parser caps output at 100 classes with message: 'Showing first 100 of N classes'",
+      "Browser does not freeze on large paste operations"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/codegen/code-to-diagram.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["security", "input-validation", "performance"]
+  },
+  {
+    "id": "LLD-066",
+    "epic": "LLD",
+    "title": "Add search and filter to sidebar pattern and problem lists",
+    "description": "PatternBrowser (LLDModule.tsx:543-601) shows 15 patterns across 4 categories with no search. ProblemsBrowser (717-751) shows 10 problems with no filter. As content grows (25+ problems, potentially more patterns), browsing becomes tedious. Add search input at top of sidebar content area that filters across all modes.",
+    "acceptanceCriteria": [
+      "Search input appears at top of sidebar content area",
+      "Typing filters visible items across current mode (patterns/problems/etc.)",
+      "Search matches name, description, and category",
+      "Empty results show 'No matches for [query]'",
+      "Clearing search restores full list",
+      "Search persists when switching between sidebar tabs"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "search", "filter", "sidebar"]
+  },
+  {
+    "id": "LLD-067",
+    "epic": "LLD",
+    "title": "Increase sub-11px SVG font sizes to minimum 11px",
+    "description": "Six SVG text elements use font sizes below 11px: stereotype label at LLDModule.tsx:362 (9px), relationship label at line 502 (10px), cardinality text at line 516 (9px), category count at line 574 (10px), sequence order at line 2238 (9px), state machine transition at line 2761 (9px). Below WCAG readability guidelines. Increase all to minimum 11px, adjusting layout as needed.",
+    "acceptanceCriteria": [
+      "No SVG text element has fontSize below 11px",
+      "All text remains visually balanced within its context",
+      "Cardinality labels don't overlap class edges at new size",
+      "Transition labels fit within background rects"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["accessibility", "font-size", "visual"]
+  },
+  {
+    "id": "LLD-068",
+    "epic": "LLD",
+    "title": "Remove dead LLDModule component export",
+    "description": "LLDModule.tsx:3461-3463 exports `const LLDModule = memo(function LLDModule() { return null; })` — a component that renders nothing. The module works via the useLLDModule hook only. This export is confusing for developers. Remove it or, if needed for module registry, add a comment explaining why it returns null.",
+    "acceptanceCriteria": [
+      "Dead LLDModule component removed or documented",
+      "No imports of LLDModule component break",
+      "Module registry (if any) updated to use hook pattern"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dead-code", "cleanup"]
+  },
+  {
+    "id": "LLD-069",
+    "epic": "LLD",
+    "title": "Add unit tests for code-to-diagram parser edge cases",
+    "description": "code-to-diagram.ts (496 lines) has no dedicated test file. It parses user-provided TypeScript and Python code — the most security-sensitive and error-prone path in the module. Missing tests for: getters/setters, nested generics (Map<string, List<int>>), empty classes, single-line classes, deeply nested inheritance, enum with explicit values, abstract method without body, multiline method signatures.",
+    "acceptanceCriteria": [
+      "Test file created at src/lib/lld/__tests__/code-to-diagram.test.ts",
+      "Tests cover: empty class, getter/setter, nested generics, enum with values",
+      "Tests cover: abstract method, multiline params, deeply nested inheritance chain",
+      "Tests cover: Python @property, @staticmethod, multiple inheritance",
+      "Tests cover: invalid input (empty string, just comments, HTML)",
+      "All tests pass on current implementation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/__tests__/code-to-diagram.test.ts",
+      "src/lib/lld/codegen/code-to-diagram.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["testing", "parser", "quality"]
+  },
+  {
+    "id": "LLD-070",
+    "epic": "LLD",
+    "title": "Add unit tests for diagram-to-typescript code generation",
+    "description": "diagram-to-typescript.ts (430 lines) generates TypeScript from UML diagrams but has no test file. Tests needed for: interface generation, abstract class generation, enum generation, class with inheritance, class with multiple implements, composition/aggregation field generation, import map generation, edge cases (empty class, class with no methods).",
+    "acceptanceCriteria": [
+      "Test file at src/lib/lld/__tests__/codegen-typescript.test.ts or verify existing test at src/__tests__/lib/lld/codegen-typescript.test.ts",
+      "Tests cover all 4 stereotypes: class, interface, abstract, enum",
+      "Tests cover inheritance (extends), realization (implements)",
+      "Tests cover composition/aggregation field generation",
+      "Tests cover import map correctness",
+      "Tests verify generated code is syntactically valid TypeScript"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/__tests__/codegen-typescript.test.ts",
+      "src/lib/lld/codegen/diagram-to-typescript.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["testing", "codegen", "quality"]
+  },
+  {
+    "id": "LLD-071",
+    "epic": "LLD",
+    "title": "Add text-based pattern key-differences comparison table",
+    "description": "Team validation killed side-by-side SVG canvas (no auto-layout, cognitive overload). Replace with lightweight text-based comparison: dropdown to pick 2 patterns, shows a 3-row table (Intent, Structure, Key Tradeoff) plus links to load each pattern. Skeptic agent confirmed a static table does the job at 2 hours vs 2 weeks. Uses existing whenToUse/whenNotToUse fields from DesignPattern type.",
+    "acceptanceCriteria": [
+      "Compare dropdown in sidebar allows selecting 2 patterns",
+      "Comparison shows text table: Intent, Structure Difference, Key Tradeoff",
+      "At least 6 commonly confused pairs have curated difference descriptions",
+      "Each pattern name in table is clickable to load it on canvas",
+      "Table renders in properties panel area, not a split canvas"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/patterns.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["educational", "comparison", "patterns", "innovation"]
+  },
+  {
+    "id": "LLD-072",
+    "epic": "LLD",
+    "title": "Add difficulty indicators and learning path to design patterns",
+    "description": "20 patterns now have difficulty 1-5 field. Patterns browser shows flat list within categories. Add: difficulty level (1-5) to each DesignPattern, sort by difficulty within categories, show 'Recommended Next' links between patterns (e.g., 'You learned Strategy → Try State next'), and a 'Beginner Path' that highlights the 5 essential patterns to learn first.",
+    "acceptanceCriteria": [
+      "Each pattern has a difficulty 1-5 field displayed as badge in sidebar",
+      "Patterns sorted by difficulty within each category",
+      "Properties panel shows 'Recommended Next' with 1-2 suggested patterns",
+      "A 'Beginner Path' filter in sidebar shows 5 essential patterns",
+      "Difficulty mapping is pedagogically sound (Singleton=1, Mediator=4, etc.)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/types.ts",
+      "src/lib/lld/patterns.ts",
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["educational", "learning-path", "difficulty", "innovation"]
+  },
+  {
+    "id": "LLD-073",
+    "epic": "LLD",
+    "title": "Add code-based SOLID violation quiz with 25 questions",
+    "description": "Skeptic agent recommended code-based input (not UML) — faster to author, more practical. Show TypeScript/Python code snippets (under 15 lines each) containing SOLID violations. User identifies which principle is violated from 5 options. Correct answer reveals explanation from existing SOLID_DEMOS.explanation + the before/after UML. Wrong answer shows hint and allows retry. Need 5 questions per principle (25 total). Use code excerpts, not the UML beforeClasses, as quiz input.",
+    "acceptanceCriteria": [
+      "New bottom panel tab: 'SOLID Quiz'",
+      "Each question shows a code snippet (TS or Python, user selectable)",
+      "User selects which SOLID principle is violated from 5 options",
+      "Correct answer shows explanation + animates before/after UML from SOLID_DEMOS",
+      "Wrong answer shows targeted hint, allows retry",
+      "25 questions total (5 per principle), code under 15 lines each",
+      "Session score tracking with summary at end"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/solid-demos.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["educational", "quiz", "solid", "gamification", "innovation"]
+  },
+  {
+    "id": "LLD-074",
+    "epic": "LLD",
+    "title": "Add LLD interview practice mode with timer, reveal, and self-assess checklist",
+    "description": "Skeptic agent recommended: ship timer + requirements-only view + reveal reference + self-assess checklist NOW, defer automated grading indefinitely. LLDChallengeDefinition in lld-challenges.ts already has checklist field with grading criteria. Show requirements only, hide starter diagram, start timer, let user build. On submit/timeout, show reference solution side-by-side. User self-assesses against the existing checklist. No automated diff algorithm needed.",
+    "acceptanceCriteria": [
+      "Practice mode toggle in Problems sidebar hides starter diagram",
+      "Timer visible with configurable duration (15/30/45/60 min)",
+      "User builds diagram from blank canvas using palette + editing",
+      "Submit/timeout reveals reference solution alongside user's diagram",
+      "Self-assessment checklist from lld-challenges.ts checklist field shown",
+      "User checks off items they covered; score = checked/total items",
+      "No automated structural diffing — human self-assessment only"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/problems.ts"
+    ],
+    "dependencies": ["LLD-031", "LLD-032", "LLD-033"],
+    "blockedBy": [],
+    "tags": ["educational", "interview-prep", "practice", "grading", "innovation"]
+  },
+  {
+    "id": "LLD-075",
+    "epic": "LLD",
+    "title": "Add static 'Pattern Finder' reference card to sidebar",
+    "description": "Skeptic agent killed the decision engine (beginners can't answer the questions, experts don't need it). Replace with a static, always-visible reference card in the Patterns sidebar: two columns, 'I need to...' and 'Use this pattern.' One sentence per pattern using existing whenToUse fields. Example: 'I need to notify multiple objects when state changes → Observer.' No wizard, no questions, just a scannable reference.",
+    "acceptanceCriteria": [
+      "Reference card visible in Patterns sidebar (collapsible section at top)",
+      "One row per pattern: scenario description + pattern name (clickable)",
+      "Clicking pattern name loads it on canvas",
+      "Scenario descriptions use plain language (not jargon)",
+      "All 15 patterns covered"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/patterns.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["educational", "decision-engine", "patterns", "innovation"]
+  },
+  {
+    "id": "LLD-076",
+    "epic": "LLD",
+    "title": "Add progress tracking for patterns, SOLID, and problems",
+    "description": "Zero progress tracking exists (Octalysis score: 0/5 for Accomplishment). Users have no sense of completion or mastery. Add: track which patterns viewed, which SOLID demos toggled both ways, which problems attempted. Show progress bar in sidebar header ('7/15 patterns explored'). Persist to localStorage. Show checkmarks on completed items.",
+    "acceptanceCriteria": [
+      "Progress bar shows 'N/M explored' for each sidebar mode",
+      "Viewing a pattern for >5 seconds marks it as explored",
+      "Toggling SOLID demo both before→after marks it as completed",
+      "Loading a problem starter diagram marks it as attempted",
+      "Checkmark icon on explored/completed items in sidebar lists",
+      "Progress persists across page refreshes via localStorage",
+      "Reset progress button in settings"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["gamification", "progress", "engagement", "innovation"]
+  },
+  {
+    "id": "LLD-077",
+    "epic": "LLD",
+    "title": "Add Mermaid syntax export for class diagrams",
+    "description": "Research showed Mermaid has 87K GitHub stars and is native in GitHub/Notion/Confluence. Adding Mermaid export allows users to take their diagrams anywhere. Add 'Export as Mermaid' button in GeneratedCodePanel that converts current classes/relationships to Mermaid classDiagram syntax. This piggybacks on the massive Mermaid ecosystem for viral distribution.",
+    "acceptanceCriteria": [
+      "'Export as Mermaid' option alongside TypeScript/Python in GeneratedCodePanel",
+      "Generated Mermaid syntax is valid and renders correctly in Mermaid Live Editor",
+      "All UML relationship types mapped to Mermaid equivalents",
+      "Class stereotypes shown as annotations",
+      "Attributes and methods included in class definitions",
+      "Copy button works for Mermaid output"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/codegen/diagram-to-mermaid.ts",
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["export", "mermaid", "interoperability", "innovation"]
+  },
+  {
+    "id": "LLD-078",
+    "epic": "LLD",
+    "title": "Add guided discovery walkthrough for Decorator pattern (validate format before scaling)",
+    "description": "Skeptic agent recommended: build infra + ONE exemplary walkthrough (Decorator), measure completion rate, then decide whether to invest in 14 more. Build step-navigation infrastructure (step indicator, instruction panel, Next/Back, partial diagram state per step). Author 5-7 steps for Decorator: (1) Notifier class, (2) add email+SMS requirement, (3) try inheritance → class explosion, (4) introduce component interface, (5) apply Decorator, (6) compose decorators, (7) see full pattern. Each step has its own UMLClass[]/UMLRelationship[] partial state.",
+    "acceptanceCriteria": [
+      "Discovery mode toggle appears on pattern view",
+      "Step navigation infrastructure: indicator, instruction panel, Next/Back buttons",
+      "Decorator walkthrough has 5-7 steps with canvas state + narrative per step",
+      "Each step renders partial UML diagram progressing toward full pattern",
+      "Final step shows complete Decorator pattern with summary",
+      "Completion rate trackable (for validation before scaling to more patterns)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/patterns.ts"
+    ],
+    "dependencies": ["LLD-053"],
+    "blockedBy": [],
+    "tags": ["educational", "guided-discovery", "brilliant", "innovation"]
+  },
+  {
+    "id": "LLD-079",
+    "epic": "LLD",
+    "title": "Add empty state with recommended starting points",
+    "description": "Current empty state at LLDModule.tsx:1158-1168 shows a faint PenTool icon and one line of text. Score: 3/10. Replace with an inspiring onboarding experience: show 3 recommended starting points ('Start with Singleton (easiest pattern)', 'Try the Parking Lot problem', 'Learn SRP — the most important SOLID principle'), a 'What do you want to learn?' quick-select, and a subtle animated diagram in the background.",
+    "acceptanceCriteria": [
+      "Empty state shows 3 clickable recommended starting points",
+      "Each recommendation has icon, title, one-line description, and difficulty badge",
+      "Clicking a recommendation loads it immediately",
+      "'What are you learning?' selector offers: Patterns, SOLID, Interview Prep",
+      "Empty state feels inviting, not empty (subtle background animation or illustration)",
+      "Recommendations are personalized once progress tracking exists (show unvisited items)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "onboarding", "empty-state", "first-impression"]
+  },
+  {
+    "id": "LLD-080",
+    "epic": "LLD",
+    "title": "Add native select replacement with custom styled dropdowns",
+    "description": "PatternBehavioralSimulator.tsx:338-349 and SequenceDiagramLatencyOverlay.tsx:206-219 use native browser <select> elements which render as unstyled OS defaults. Replace with custom styled dropdown components matching the platform design system using existing CSS variables. Both components already import motion/react for other animations.",
+    "acceptanceCriteria": [
+      "Native <select> elements replaced with custom dropdown components",
+      "Dropdowns styled with platform CSS variables",
+      "Keyboard accessible (arrow keys, Enter, Escape)",
+      "Dropdown options show scenario descriptions",
+      "Visual appearance matches sidebar button styling"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/lld/PatternBehavioralSimulator.tsx",
+      "src/components/modules/lld/SequenceDiagramLatencyOverlay.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["visual", "design-system", "select", "polish"]
+  },
+  {
+    "id": "LLD-081",
+    "epic": "LLD",
+    "title": "Add pattern recognition quiz ('Which pattern is this?')",
+    "description": "Creative technique INVERT yielded: show a UML diagram, user names the pattern. Build quiz mode: show a pattern's class diagram WITHOUT its name, give 4 options, user picks. Uses existing DESIGN_PATTERNS data — just hide the pattern name and category badge during quiz. Randomize options from other patterns in same category for harder distractors. Track score per session.",
+    "acceptanceCriteria": [
+      "Quiz mode accessible from Patterns sidebar section",
+      "Shows pattern UML diagram without name, category, or description",
+      "4 multiple-choice options from same or adjacent categories",
+      "Correct answer reveals pattern name + description",
+      "Wrong answer shows hint ('Look at the number of interfaces')",
+      "All 15 patterns appear in random order",
+      "Session score displayed at end"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/patterns.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["educational", "quiz", "pattern-recognition", "gamification", "innovation"]
+  },
+  {
+    "id": "LLD-082",
+    "epic": "LLD",
+    "title": "Add presentation mode for classroom/lecture use",
+    "description": "Professor persona needs fullscreen diagrams with keyboard-only control for projectors. Add presentation mode: F key or button toggles fullscreen canvas, hides sidebar/properties/bottom panel, increases font sizes, arrow keys step through walkthrough steps or cycle patterns within a category. Exit with Escape. Uses existing canvas components at larger scale.",
+    "acceptanceCriteria": [
+      "F key or toolbar button enters presentation mode",
+      "Fullscreen canvas: sidebar, properties panel, bottom panel hidden",
+      "Font sizes increased by 1.5x for projection readability",
+      "Arrow keys cycle through patterns within current category",
+      "Escape exits presentation mode, restores normal layout",
+      "Works with all 3 canvas types (class, sequence, state machine)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["presentation", "classroom", "fullscreen", "professor", "innovation"]
+  },
+  {
+    "id": "LLD-083",
+    "epic": "LLD",
+    "title": "Add interview countdown study plan generator",
+    "description": "Creative technique: 'first tool that generates a study plan from your interview date.' User enters interview date (e.g., 14 days away). System generates a day-by-day plan: Day 1-3 SOLID fundamentals, Day 4-7 key patterns (Observer, Strategy, Factory), Day 8-12 practice problems, Day 13-14 mock interview simulations. Uses existing content — just sequences it into a calendar view. Purely frontend calculation.",
+    "acceptanceCriteria": [
+      "Input field for interview date (date picker or days-from-now)",
+      "Generates day-by-day study plan from today to interview date",
+      "Plan allocates time across: SOLID (20%), Patterns (40%), Problems (30%), Review (10%)",
+      "Each day links to the specific pattern/problem/demo to study",
+      "Adjusts granularity: 7-day plan is condensed, 30-day plan is thorough",
+      "Shareable as text/markdown for note-taking"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["interview-prep", "study-plan", "personalization", "innovation"]
+  },
+  {
+    "id": "LLD-084",
+    "epic": "LLD",
+    "title": "Add 'Pattern X-Ray' — paste code, detect which patterns it contains",
+    "description": "Creative technique INVERT: 'detect patterns you already use unconsciously.' User pastes their own TypeScript/Python code. Existing code-to-diagram parser extracts classes/relationships. New analyzer scans for pattern signatures: class with single static getInstance() → Singleton, interface with multiple implementations → Strategy/Factory, class delegating to composed object with same interface → Decorator. Leverages existing parseTypeScriptCode/parsePythonCode.",
+    "acceptanceCriteria": [
+      "New option in Code sidebar tab: 'Detect Patterns in Code'",
+      "User pastes code, parser extracts classes/relationships",
+      "Analyzer checks structural signatures against known patterns",
+      "Results show: detected pattern name + confidence + which classes match",
+      "Clicking a detected pattern highlights the matching classes on canvas",
+      "At least Singleton, Strategy, Observer, Factory Method, Decorator detectable"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx",
+      "src/lib/lld/codegen/code-to-diagram.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["code-analysis", "pattern-detection", "innovation", "dream"]
+  },
+  {
+    "id": "LLD-085",
+    "epic": "LLD",
+    "title": "Add daily pattern challenge with streak counter",
+    "description": "Engagement audit scored 0/5 for Avoidance drive. Add a daily challenge banner: each day features a random pattern to identify, a mini quiz question, or a 3-minute build challenge. Completing it increments a streak counter. Missing a day resets the streak. Uses existing pattern/quiz data. Streak stored in localStorage. Creates a reason to return daily.",
+    "acceptanceCriteria": [
+      "Daily challenge banner at top of module (dismissible)",
+      "Challenge rotates daily (based on day-of-year mod content count)",
+      "Challenge types: identify pattern from UML, answer SOLID question, or build a pattern in 3 minutes",
+      "Completing challenge increments streak counter",
+      "Streak counter visible in sidebar header",
+      "Streak persists across sessions via localStorage",
+      "Missing a day resets streak to 0"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": ["LLD-076"],
+    "blockedBy": [],
+    "tags": ["gamification", "streaks", "daily-challenge", "engagement", "innovation"]
+  },
+  {
+    "id": "LLD-086",
+    "epic": "LLD",
+    "title": "Add screen reader mode with text-based diagram descriptions",
+    "description": "Blind user persona has zero experience with current module (0 ARIA attributes). Add a 'Screen Reader Mode' toggle that replaces the SVG canvas with a structured text description: 'Observer Pattern: 4 classes. Subject (abstract): attributes [observers: Observer[]], methods [attach(), detach(), notify()]. Observer (interface): methods [update()]. ConcreteSubject extends Subject. ConcreteObserver implements Observer.' Uses existing class/relationship data, just renders as accessible HTML instead of SVG.",
+    "acceptanceCriteria": [
+      "Toggle in toolbar: 'Screen Reader Mode'",
+      "SVG canvas replaced with structured HTML text description",
+      "Each class listed with stereotype, attributes, methods, visibility",
+      "Relationships listed as sentences: 'ConcreteSubject inherits from Subject'",
+      "All content keyboard-navigable",
+      "aria-live region announces changes on pattern switch",
+      "Works with VoiceOver, NVDA, and JAWS"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["accessibility", "screen-reader", "a11y", "inclusive-design", "innovation"]
+  },
+  {
+    "id": "LLD-087",
+    "epic": "LLD",
+    "title": "Add one-click video export of pattern animation via MediaRecorder",
+    "description": "Content creator persona needs shareable video content. Add Record button that captures the canvas + any step-through/walkthrough animation as an MP4 using the MediaRecorder API + canvas.captureStream(). User clicks Record, steps through a pattern walkthrough or runs a simulation, clicks Stop, downloads video. Requires rendering SVG to canvas element for capture.",
+    "acceptanceCriteria": [
+      "Record button appears in canvas toolbar",
+      "Click Record starts capturing canvas as video stream",
+      "Click Stop renders video and triggers download as .webm or .mp4",
+      "Captures all canvas interactions: drag, walkthrough steps, simulation",
+      "Video includes pattern title overlay",
+      "Works in Chrome and Firefox (MediaRecorder support)"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["export", "video", "content-creation", "mediarecorder", "innovation", "dream"]
+  },
+  {
+    "id": "LLD-088",
+    "epic": "LLD",
+    "title": "Fix mobile bottom sheet not auto-dismissing after pattern selection",
+    "description": "LIVE BROWSER TEST (April 2026, Chrome DevTools MCP, 375x812 mobile viewport): After clicking Observer in the mobile bottom sheet sidebar, the pattern loads behind the sheet but the sheet remains open covering the entire canvas. User cannot see the diagram. Pressing Escape does not dismiss. The bottom sheet dialog (a11y role='dialog' modal) at the module renderer level needs to auto-close when a sidebar item triggers a canvas update, or provide a clear dismiss gesture.",
+    "acceptanceCriteria": [
+      "Clicking any pattern/SOLID/problem/sequence/state-machine item auto-dismisses the mobile bottom sheet",
+      "Canvas is visible immediately after selection on mobile",
+      "User can re-open the sheet via a floating action button or swipe-up gesture",
+      "Works for all 7 sidebar modes"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["mobile", "bug-fix", "bottom-sheet", "ux", "live-browser-test"]
+  },
+  {
+    "id": "LLD-089",
+    "epic": "LLD",
+    "title": "Fix duplicate 'PATTERN' in canvas title bar for pattern mode",
+    "description": "LIVE BROWSER TEST: When Observer pattern is loaded, the canvas title bar shows 'OBSERVER PATTERN PATTERN' — the word PATTERN appears twice. Root cause: LLDModule.tsx:3344 computes canvasTitle as `activePattern.name + ' Pattern'` but LLDCanvas at line 1179 renders `{patternName} Pattern`. Either the hook adds 'Pattern' OR the canvas component does, not both. Fix: remove ' Pattern' suffix from one location.",
+    "acceptanceCriteria": [
+      "Canvas title shows 'OBSERVER PATTERN' not 'OBSERVER PATTERN PATTERN'",
+      "All 15 patterns show correct single-word title",
+      "Other canvas modes (SOLID, Problems, Sequence, State Machine) unaffected"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/LLDModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["bug-fix", "visual", "title", "live-browser-test"]
+  },
+  {
+    "id": "LLD-046",
+    "epic": "LLD",
+    "title": "Optimize UMLEdge with Map lookup instead of Array.find",
+    "description": "UMLEdge uses classes.find(c => c.id === rel.source) per edge. Built a classById Map in LLDCanvas via useMemo and pass it to UMLEdge for O(1) lookups.",
+    "acceptanceCriteria": [
+      "UMLEdge receives classById Map instead of classes array",
+      "classById Map is built via useMemo in LLDCanvas",
+      "Edge rendering behavior unchanged"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["performance", "optimization"]
+  },
+  {
+    "id": "LLD-048",
+    "epic": "LLD",
+    "title": "Add error boundary around canvases",
+    "description": "Wrap LLDCanvas, SequenceDiagramCanvas, StateMachineCanvas in an ErrorBoundary with a custom fallback showing 'Something went wrong' + 'Reset' button that calls clearAllModes().",
+    "acceptanceCriteria": [
+      "All three canvas components are wrapped in ErrorBoundary",
+      "Fallback shows 'Something went wrong' message",
+      "Reset button calls clearAllModes to restore empty state",
+      "Error details logged to console"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["error-handling", "resilience"]
+  },
+  {
+    "id": "LLD-050",
+    "epic": "LLD",
+    "title": "Show legend without pattern selected when classes exist on canvas",
+    "description": "LLDCanvas legend was inside {patternName && (...)} so it didn't show when user added classes from Palette. Fixed to show legend whenever classes.length > 0.",
+    "acceptanceCriteria": [
+      "Legend shows whenever classes exist on canvas",
+      "Title bar shows 'Class Diagram' when no specific pattern/demo/problem is active",
+      "Still shows pattern name when a pattern is selected"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "legend", "palette"]
+  },
+  {
+    "id": "LLD-140",
+    "epic": "LLD",
+    "title": "Share button with URL state encoding",
+    "description": "Added share button to canvas toolbar. On click: encode current state as URL query params (?lld=pattern:observer etc.), copy to clipboard, show 'Link copied!' toast. Also parses URL params on mount to restore state.",
+    "acceptanceCriteria": [
+      "Share button appears when a diagram is loaded",
+      "Clicking copies URL with ?lld= param to clipboard",
+      "Toast shows 'Link copied!' for 2 seconds",
+      "URL updates via replaceState on every selection change",
+      "Opening URL with ?lld= param restores the correct diagram"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["sharing", "url-state", "deep-link"]
+  },
+  {
+    "id": "LLD-054",
+    "epic": "LLD",
+    "title": "Deep-linkable URLs for all LLD modes",
+    "description": "URL params work for ALL modes: patterns, SOLID, problems, sequence, state-machine. Invalid IDs fall back to empty state gracefully. Implemented together with LLD-140.",
+    "acceptanceCriteria": [
+      "?lld=pattern:<id> loads pattern",
+      "?lld=solid:<id> loads SOLID demo",
+      "?lld=problem:<id> loads problem",
+      "?lld=sequence:<id> loads sequence diagram",
+      "?lld=state-machine:<id> loads state machine",
+      "Invalid IDs show empty state without errors"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["deep-link", "url-state", "routing"]
+  },
+  {
+    "id": "LLD-149",
+    "epic": "LLD",
+    "title": "Staggered entry animation for UML class boxes and edges",
+    "description": "Wrapped UMLClassBox in motion.g with staggered spring animation (delay: index * 0.08). Edges fade in after all classes finish animating. Respects prefers-reduced-motion via matchMedia check.",
+    "acceptanceCriteria": [
+      "UML class boxes animate in with staggered spring animation",
+      "Edges fade in after all classes have appeared",
+      "Animation skipped when prefers-reduced-motion is set",
+      "No layout shift during animation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": ["src/components/modules/LLDModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["animation", "motion", "ux", "a11y"]
+  },
+  {
+    "id": "LLD-090",
+    "epic": "LLD",
+    "title": "Expand LLD problems from 10 to 33 to match awesome-low-level-design curriculum",
+    "description": "LIVE RESEARCH (April 2026): awesome-low-level-design (23.3K GitHub stars) lists 33 LLD problems as the de facto interview prep curriculum. Architex has 10 in problems.ts and 25 in lld-problems-data.ts. Missing problems from the community standard include: Splitwise, Ride-Sharing (Uber), Movie Ticket Booking, Online Shopping (Amazon), Stock Brokerage, Music Streaming (Spotify), Food Delivery (Swiggy), CricInfo, Course Registration, Digital Wallet, Online Auction, Coffee Vending Machine, Social Network, Pub-Sub System. Add starter diagrams for the missing problems.",
+    "acceptanceCriteria": [
+      "problems.ts contains 33 LLD problems matching awesome-low-level-design list",
+      "Each new problem has 3-5 starter UML classes with attributes/methods",
+      "Each has typed relationships, 4-5 requirements, and 3 hints",
+      "Difficulty levels align with awesome-low-level-design Easy/Medium/Hard categorization",
+      "All 33 appear in ProblemsBrowser sidebar"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "lld-studio",
+    "category": "frontend",
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
+    "dependencies": ["LLD-036", "LLD-061"],
+    "blockedBy": [],
+    "tags": ["content", "problems", "completeness", "community-alignment", "live-research"]
+  }
+]

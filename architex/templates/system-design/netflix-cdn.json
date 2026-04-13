@@ -1,0 +1,223 @@
+{
+  "id": "netflix-cdn",
+  "name": "Netflix Streaming",
+  "description": "Design a Netflix-like video streaming platform. Covers adaptive bitrate streaming, CDN edge caching, content transcoding, and global content delivery at scale.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["netflix", "streaming", "cdn", "video", "adaptive-bitrate", "content-delivery"],
+  "nodes": [
+    {
+      "id": "web-client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Web Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 100000, "requestsPerSecond": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "CDN (Edge Servers)",
+        "category": "load-balancing",
+        "componentType": "reverse-proxy",
+        "icon": "Globe2",
+        "config": { "cacheHitRate": 0.95, "ttlSeconds": 2592000, "edgeLocations": 200 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 500, "y": 50 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 50000, "authType": "jwt", "timeoutMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "load-balancer",
+      "type": "load-balancer",
+      "position": { "x": 750, "y": 50 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckInterval": 10, "maxConnections": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "content-service",
+      "type": "web-server",
+      "position": { "x": 1000, "y": 50 },
+      "data": {
+        "label": "Content Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 10, "maxConnections": 10000, "processingTimeMs": 20 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "object-storage",
+      "type": "storage",
+      "position": { "x": 1000, "y": 300 },
+      "data": {
+        "label": "Object Storage (S3)",
+        "category": "storage",
+        "componentType": "object-storage",
+        "icon": "HardDrive",
+        "config": { "storageTB": 1000, "replication": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 750, "y": 300 },
+      "data": {
+        "label": "Content Metadata DB",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 500, "y": 300 },
+      "data": {
+        "label": "Metadata Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 32, "evictionPolicy": "lru", "ttlSeconds": 3600, "cacheHitRate": 0.92 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-cdn",
+      "source": "web-client",
+      "target": "cdn",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-client-gw",
+      "source": "web-client",
+      "target": "api-gw",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-lb",
+      "source": "api-gw",
+      "target": "load-balancer",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-lb-content",
+      "source": "load-balancer",
+      "target": "content-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-content-storage",
+      "source": "content-service",
+      "target": "object-storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 25, "animated": false }
+    },
+    {
+      "id": "e-content-db",
+      "source": "content-service",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-content-cache",
+      "source": "content-service",
+      "target": "cache",
+      "sourceHandle": "left",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-cdn-storage",
+      "source": "cdn",
+      "target": "object-storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 50, "animated": false }
+    },
+    {
+      "id": "e-cache-db",
+      "source": "cache",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Adaptive Bitrate Streaming (ABR)",
+      "description": "Videos are transcoded into multiple bitrate/resolution variants (240p to 4K). The client player measures network bandwidth in real-time and switches between quality levels seamlessly. Content is chunked into 2-4 second segments, each available at every bitrate. The manifest file (DASH/HLS) lists all available variants.",
+      "highlightNodes": ["web-client", "cdn"],
+      "highlightEdges": ["e-client-cdn"]
+    },
+    {
+      "title": "CDN Edge Caching & Open Connect",
+      "description": "Netflix deploys edge servers (Open Connect Appliances) directly inside ISP networks. Popular content is pre-positioned during off-peak hours. With a 95% cache hit rate across 200+ locations, most video bytes never leave the local ISP network. Cache misses fall back to regional or origin S3 storage.",
+      "highlightNodes": ["cdn", "object-storage"],
+      "highlightEdges": ["e-client-cdn", "e-cdn-storage"]
+    },
+    {
+      "title": "Content Pipeline & Metadata",
+      "description": "The Content Service manages the catalog, recommendations, and playback sessions via the API Gateway. Metadata (titles, thumbnails, subtitles) is cached in Redis with a 92% hit rate. The API path is separate from the video streaming path to optimize each independently.",
+      "highlightNodes": ["content-service", "cache", "database"],
+      "highlightEdges": ["e-content-cache", "e-content-db", "e-cache-db"]
+    },
+    {
+      "title": "Global Content Delivery Architecture",
+      "description": "Two data paths: (1) API calls for browse/search/recommendations go through API Gateway to Load Balancer to Content Service. (2) Video streaming goes directly from Client to nearest CDN edge. This separation allows API servers to scale independently from video delivery. Object Storage holds the master copies of all transcoded content.",
+      "highlightNodes": ["api-gw", "load-balancer", "content-service", "object-storage"],
+      "highlightEdges": ["e-client-gw", "e-gw-lb", "e-lb-content", "e-content-storage"]
+    }
+  ]
+}

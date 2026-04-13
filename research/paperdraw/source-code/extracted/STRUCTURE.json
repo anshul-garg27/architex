@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "system_design_simulator",
+    "version": "1.0.0",
+    "framework": "Flutter Web (dart2js)"
+  },
+  "stats": {
+    "totalLines": 172327,
+    "totalChars": 5306222,
+    "classes": 8375,
+    "uniqueStrings": 12357,
+    "components": 0,
+    "issueCodes": 70,
+    "topClassSizeKB": "1021.3"
+  }
+}

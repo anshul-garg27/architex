@@ -1,0 +1,176 @@
+[
+  {
+    "id": "ALG-330",
+    "epic": "ALG",
+    "title": "Add custom graph editor \u2014 let users create their own graphs for graph algorithms",
+    "description": "QA GAP: Sorting has custom array input (AlgorithmPanel.tsx:1140) but graph algorithms use FIXED sample graphs only (SAMPLE_GRAPH_FOR_ALGORITHM in sample-graphs.ts). Users cannot add/remove nodes or edges. algorithm-visualizer.org and VisuAlgo both let users provide custom input for ALL algorithm types. Add: (1) 'Custom Graph' option alongside existing sample graphs, (2) Click canvas to add nodes, (3) Click+drag between nodes to add edges with weight input, (4) Delete nodes/edges, (5) Set start node. This is the #1 interactivity gap vs competitors.",
+    "acceptanceCriteria": [
+      "Custom Graph option visible when a graph algorithm is selected",
+      "User can click to add nodes (auto-positioned or click-to-place)",
+      "User can drag between nodes to create edges with weight prompt",
+      "User can delete nodes/edges (right-click or delete key)",
+      "User can set start node for BFS/DFS/Dijkstra",
+      "Custom graph can be run through any graph algorithm",
+      "Minimum viable: 2-20 nodes supported"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/lib/algorithms/graph/sample-graphs.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-gap",
+      "custom-input",
+      "graph",
+      "interactivity",
+      "competitor-parity"
+    ]
+  },
+  {
+    "id": "ALG-331",
+    "epic": "ALG",
+    "title": "Add live code editor with run-and-visualize for user-written algorithms",
+    "description": "QA GAP: algorithm-visualizer.org's #1 differentiator is that users can write JS/Python/C++ code and see it visualize step-by-step. Our ALG-226 adds display code (read-only) but users cannot EDIT or RUN custom code. Add: (1) Code editor panel (Monaco or CodeMirror) showing the algorithm in Python/JS, (2) User can modify the code, (3) Click 'Run My Code' executes in sandboxed Web Worker, (4) Step recording via instrumented array/graph proxy captures mutations, (5) Visualization plays back user's custom algorithm. This transforms from 'watch algorithms' to 'experiment with algorithms'. Frontend-only via Web Worker sandboxing.",
+    "acceptanceCriteria": [
+      "Code editor panel togglable in the module layout",
+      "Pre-filled with selected algorithm's code in Python or JavaScript",
+      "User can edit the code",
+      "Run button executes code in sandboxed Web Worker with 5s timeout",
+      "Step recording captures array mutations as AnimationStep objects",
+      "Visualization plays back the user's modified algorithm",
+      "Infinite loop protection: 5-second timeout with clear error message"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/lib/workers/algorithm-worker.ts"
+    ],
+    "dependencies": [
+      "ALG-226"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "qa-gap",
+      "code-editor",
+      "custom-code",
+      "competitor-parity",
+      "dream"
+    ]
+  },
+  {
+    "id": "ALG-332",
+    "epic": "ALG",
+    "title": "Add Python-Tutor-style execution trace showing variable states at each line",
+    "description": "QA GAP: Python Tutor (pythontutor.com) shows line-by-line execution with variable states, stack frames, and heap visualization. Our ALG-179 (recursive call stack) and ALG-226 (Python display code) partially cover this but don't show VARIABLE STATE at each step. Add: alongside the code panel, show a 'Variables' panel that displays the current value of every local variable at the current algorithm step. For sorting: show array state, loop counters (i, j), comparison result, swap status. For graph: show visited set, distance map, queue contents. Synced with playback \u2014 stepping forward updates variables.",
+    "acceptanceCriteria": [
+      "Variables panel visible alongside code panel when both are open",
+      "Shows current values of key variables at the current step",
+      "Sorting: shows array, i, j, swapped flag, pass number",
+      "Graph: shows visited set, distances map, queue/stack contents",
+      "DP: shows current cell coordinates, computed value, dependency values",
+      "Variables update in sync with step forward/backward",
+      "Expandable for complex objects (maps, arrays)"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/lib/algorithms/types.ts"
+    ],
+    "dependencies": [
+      "ALG-226"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "qa-gap",
+      "execution-trace",
+      "variables",
+      "python-tutor-style"
+    ]
+  },
+  {
+    "id": "ALG-333",
+    "epic": "ALG",
+    "title": "Add milestone bookmarks \u2014 jump to key algorithm moments (first partition, first merge, etc.)",
+    "description": "QA GAP from professor scenario: a professor wants to show ONLY the Quick Sort partition step, not sit through 50 steps of comparisons to get there. Add: (1) Engine marks certain steps as 'milestone' (first pass complete, pivot placed, merge phase starts, etc.), (2) Timeline scrubber shows milestone markers as dots/ticks, (3) User can click any milestone to jump directly to that step, (4) Milestone labels shown on hover: 'Pass 1 complete', 'Pivot 7 placed at index 4'. This enables non-linear exploration \u2014 professors jump to the interesting part, students replay just the confusing section.",
+    "acceptanceCriteria": [
+      "AnimationStep type has optional milestone?: string field",
+      "Top 10 algorithms have 3-5 milestones each (pass complete, pivot placed, merge start, etc.)",
+      "Timeline scrubber (or progress bar) shows milestone markers visually",
+      "Clicking a milestone jumps PlaybackController to that step",
+      "Milestone label shown on hover/tooltip",
+      "Keyboard shortcut: Shift+Right jumps to next milestone, Shift+Left to previous"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/playback-controller.ts",
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-gap",
+      "milestone",
+      "navigation",
+      "professor",
+      "non-linear"
+    ]
+  },
+  {
+    "id": "ALG-334",
+    "epic": "ALG",
+    "title": "Add print-friendly step export \u2014 generate PDF/printable study sheet of algorithm trace",
+    "description": "QA GAP from student scenario: student wants to print the step-by-step trace as a study sheet for offline review or exam prep. Add: (1) 'Export Steps' button in toolbar, (2) Generates a clean, print-optimized HTML page with: algorithm name, input data, each step (number + description + array/graph state at that step), complexity summary, pseudocode, (3) CSS @media print styles for clean printing, (4) Optional: PDF download via browser print dialog. This enables: exam study sheets, professor handouts, offline review.",
+    "acceptanceCriteria": [
+      "Export Steps button visible after running an algorithm",
+      "Generates printable HTML with all steps listed",
+      "Each step shows: step number, description, data state (array values or graph status)",
+      "Header shows: algorithm name, input data, total steps, complexity",
+      "Footer shows: pseudocode summary",
+      "CSS @media print removes non-essential UI elements",
+      "Opens in new tab ready for Ctrl+P / browser print"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-gap",
+      "export",
+      "print",
+      "study-sheet",
+      "offline"
+    ]
+  }
+]

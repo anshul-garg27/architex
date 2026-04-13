@@ -1,0 +1,582 @@
+{
+  "id": "email-service",
+  "name": "Email Delivery Service",
+  "description": "Design an email delivery platform like SendGrid or Amazon SES. Covers template rendering, delivery queuing, bounce handling, spam compliance, and delivery tracking.",
+  "difficulty": 3,
+  "category": "classic",
+  "tags": [
+    "email",
+    "delivery",
+    "smtp",
+    "queue",
+    "notification",
+    "bounce-handling"
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Client Application",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": {
+          "concurrentUsers": 10000,
+          "requestsPerSecond": 5000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": {
+        "x": 200,
+        "y": 200
+      },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": {
+          "rateLimitRps": 10000,
+          "authType": "api-key",
+          "timeoutMs": 30000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": {
+        "x": 400,
+        "y": 200
+      },
+      "data": {
+        "label": "Email Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": {
+          "instances": 6,
+          "cpuCores": 4,
+          "memoryGB": 16,
+          "processingTimeMs": 10
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": {
+        "x": 600,
+        "y": 200
+      },
+      "data": {
+        "label": "Send Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": {
+          "partitions": 24,
+          "retentionHours": 72,
+          "maxThroughputMBps": 50
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "send-worker",
+      "type": "worker",
+      "position": {
+        "x": 800,
+        "y": 200
+      },
+      "data": {
+        "label": "SMTP Send Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": {
+          "instances": 20,
+          "concurrencyPerInstance": 50,
+          "retryAttempts": 5
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "smtp",
+      "type": "third-party-api",
+      "position": {
+        "x": 1000,
+        "y": 100
+      },
+      "data": {
+        "label": "SMTP Relay / ISP",
+        "category": "external",
+        "componentType": "third-party-api",
+        "icon": "ExternalLink",
+        "config": {
+          "provider": "smtp",
+          "timeoutMs": 30000,
+          "retryAttempts": 3
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": {
+        "x": 600,
+        "y": 400
+      },
+      "data": {
+        "label": "Email DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 2,
+          "maxConnections": 200,
+          "storageGB": 1000
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 50,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-gw-app",
+      "source": "api-gw",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-mq-worker",
+      "source": "mq",
+      "target": "send-worker",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 5,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-worker-smtp",
+      "source": "send-worker",
+      "target": "smtp",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "smtp",
+        "latency": 500,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-worker-db",
+      "source": "send-worker",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "API Ingestion and Validation",
+      "description": "Client applications submit email requests (recipient, template ID, variables) via the API. The Email Service validates inputs, checks the sender's domain (SPF/DKIM records), enforces per-account rate limits, and persists the email record to PostgreSQL. The API returns a 202 Accepted immediately \u2014 actual sending is asynchronous.",
+      "highlightNodes": [
+        "client",
+        "api-gw",
+        "app-server"
+      ],
+      "highlightEdges": [
+        "e-client-gw",
+        "e-gw-app",
+        "e-app-db"
+      ]
+    },
+    {
+      "title": "Queue-Based Delivery with Retry",
+      "description": "Emails are published to Kafka partitioned by recipient domain (batching to same ISP). SMTP Send Workers consume and deliver via SMTP. Transient failures (4xx) trigger exponential backoff retries (up to 5 attempts over 24 hours). Permanent failures (5xx, invalid address) are marked as bounced. This decouples ingestion throughput from SMTP delivery speed.",
+      "highlightNodes": [
+        "mq",
+        "send-worker",
+        "smtp"
+      ],
+      "highlightEdges": [
+        "e-app-mq",
+        "e-mq-worker",
+        "e-worker-smtp"
+      ]
+    },
+    {
+      "title": "Bounce and Complaint Handling",
+      "description": "The SMTP Worker tracks delivery status (delivered, bounced, deferred, complained). Bounce notifications from ISPs update the Email DB. Hard-bounced addresses are added to a suppression list to protect sender reputation. Complaint feedback loops (FBL) from ISPs are processed similarly. This data drives deliverability dashboards.",
+      "highlightNodes": [
+        "send-worker",
+        "database",
+        "smtp"
+      ],
+      "highlightEdges": [
+        "e-worker-smtp",
+        "e-worker-db"
+      ]
+    },
+    {
+      "title": "Throughput and IP Warm-Up",
+      "description": "New sending IPs have no reputation with ISPs. The system gradually increases volume per IP (warm-up schedule). Workers are assigned to IP pools, and each pool has a sending rate limit. Kafka partitioning by domain ensures ISP-specific throttling. At scale, the system manages thousands of IPs across multiple ISPs for optimal deliverability.",
+      "highlightNodes": [
+        "send-worker",
+        "mq"
+      ],
+      "highlightEdges": [
+        "e-mq-worker",
+        "e-worker-smtp"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-smtp-bounce-storm",
+        "name": "SMTP Bounce Storm",
+        "description": "Bad recipient list causes mass bounces from ISP",
+        "targetNodes": [
+          "smtp-relay"
+        ],
+        "faultType": "error",
+        "severity": 4,
+        "expectedBehavior": "ISP blocks sending IP. Delivery rate drops to zero for that ISP.",
+        "mitigationSteps": [
+          "Automatic bounce rate monitoring",
+          "IP warming rotation",
+          "Recipient validation before send"
+        ]
+      },
+      {
+        "id": "cs-template-rendering-crash",
+        "name": "Template Engine Crash",
+        "description": "Email template rendering fails due to bad data",
+        "targetNodes": [
+          "template-service"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Emails queued but not rendered. Delivery paused.",
+        "mitigationSteps": [
+          "Template validation in CI",
+          "Fallback to plaintext",
+          "Isolate bad template"
+        ]
+      },
+      {
+        "id": "cs-queue-backup",
+        "name": "Email Queue Backlog",
+        "description": "Marketing blast creates millions of queued emails",
+        "targetNodes": [
+          "email-queue"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 2,
+        "expectedBehavior": "Transactional emails delayed behind marketing volume.",
+        "mitigationSteps": [
+          "Priority queue for transactional",
+          "Rate limiting for marketing",
+          "Separate queues by priority"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 2500,
+        "bottleneckNode": "smtp-relay",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "template-service",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-email-service-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "smtp-relay"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-email-service-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "email-queue"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-email-service-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "smtp-relay"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 8000,
+      "components": [
+        {
+          "nodeId": "smtp-relay",
+          "label": "Primary Service",
+          "monthlyCostUsd": 2666,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "email-queue",
+          "label": "Storage",
+          "monthlyCostUsd": 2666,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 2666,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 500,
+          "monthlyCostUsd": 2666
+        },
+        {
+          "label": "Medium",
+          "rps": 5000,
+          "monthlyCostUsd": 8000
+        },
+        {
+          "label": "High",
+          "rps": 25000,
+          "monthlyCostUsd": 24000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 5000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 200,
+      "p99LatencyMs": 2000,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 5000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "smtp-relay",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 2000,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "smtp-relay"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "smtp-relay"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 4000ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

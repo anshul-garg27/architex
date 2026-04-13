@@ -1,0 +1,274 @@
+[
+  {
+    "id": "CON-091", "epic": "CON", "title": "Add 'Concurrency vs Parallelism' as lesson zero before all other demos",
+    "description": "The #2 student pain point (per Reddit research) is conflating concurrency with parallelism. No demo addresses this distinction explicitly. Add a new introductory demo showing: (1) concurrent tasks on single CPU (interleaved), (2) parallel tasks on multi-core (simultaneous), (3) concurrent+parallel (interleaved across cores). Use Rob Pike's 'concurrency is not parallelism' framing. This MUST be the first item in the sidebar. Sources: r/learnprogramming recurring threads, MIT 6.005 Reading 17, Start Concurrent (Purdue).",
+    "acceptanceCriteria": ["New 'Concurrency vs Parallelism' demo is the first sidebar item", "Visual shows single-core interleaving vs multi-core simultaneous execution", "Properties panel explains the distinction with Rob Pike's framing", "At least 2 step-by-step scenarios contrasting concurrent vs parallel behavior"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/concurrency-vs-parallelism.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "essential", "lesson-zero", "student-pain"]
+  },
+  {
+    "id": "CON-092", "epic": "CON", "title": "Add Semaphores demo: counting + binary with visual permit counter",
+    "description": "Semaphores appear in OSTEP, Berkeley CS162, Deadlock Empire, Java Concurrent Animated, and LeetCode concurrency. They are the #4 student pain point (mutex vs semaphore confusion). Add: (1) binary semaphore showing equivalence to mutex, (2) counting semaphore with N permits — visual counter decrements on acquire, increments on release, (3) side-by-side comparison: mutex = ownership + reentrancy, semaphore = signaling + resource counting. Sources: OSTEP Ch.31, Berkeley CS162 lectures, Deadlock Empire 3 semaphore levels, r/compsci mutex vs semaphore threads.",
+    "acceptanceCriteria": ["New 'Semaphore' demo in sidebar after Mutex/Race Condition", "Binary semaphore demonstrates mutual exclusion", "Counting semaphore shows N concurrent accessors with visible permit counter", "Properties panel has a 'Mutex vs Semaphore' comparison table with clear use-case guidance"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/semaphore.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "essential", "student-pain", "curriculum-gap"]
+  },
+  {
+    "id": "CON-093", "epic": "CON", "title": "Add Condition Variables demo: wait/signal/broadcast with spurious wakeup",
+    "description": "Condition variables appear in OSTEP, Berkeley CS162, Deadlock Empire (1 level), Java Concurrent Animated, and LeetCode. They are foundational for producer-consumer and monitor patterns. Add: (1) wait()/signal() basic pattern, (2) broadcast() waking all waiters, (3) spurious wakeup with while-loop guard explanation, (4) bounded buffer implemented with CVs (contrast with our existing producer-consumer). Sources: OSTEP Ch.30, Berkeley CS162, JCiP Ch.14.",
+    "acceptanceCriteria": ["New 'Condition Variables' demo shows wait/signal/broadcast step-by-step", "Spurious wakeup scenario demonstrates why while-loop guard is required instead of if-check", "CV-based bounded buffer demo contrasts with existing producer-consumer", "Properties panel links to producer-consumer and explains relationship"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/condition-variable.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "essential", "curriculum-gap"]
+  },
+  {
+    "id": "CON-094", "epic": "CON", "title": "Add Memory Model / Happens-Before visualization",
+    "description": "The #1 student pain point across all sources. JCiP Ch.16 is the gold standard. Appears in senior Java interviews as 'critical'. Add: (1) two threads reading/writing shared variable without synchronization — reordering possible, (2) happens-before edges as arrows connecting causally related operations, (3) memory barrier/fence as visual wall, (4) volatile semantics, (5) with/without barrier contrast. Sources: JCiP Ch.16, CMU 15-213, r/compsci (consistently #1 hardest concept), InterviewKickstart senior Java questions.",
+    "acceptanceCriteria": ["New 'Memory Model' demo shows instruction reordering without barriers", "Happens-before arrows visually connect dependent operations", "Memory barrier shown as fence that prevents reordering", "With/without barrier scenarios demonstrate the difference on same code", "Properties panel explains volatile, synchronized, and final field guarantees"],
+    "priority": "P0", "effort": "XL", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/memory-model.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "essential", "student-pain-1", "interview-critical"]
+  },
+  {
+    "id": "CON-095", "epic": "CON", "title": "Add CAS / Atomic Operations demo with ABA problem",
+    "description": "CAS appears in JCiP Ch.15, Herlihy Ch.5, and senior Java interviews. Foundation for all lock-free programming. Add: (1) CAS operation step-by-step (compare expected, swap if match, retry if stale), (2) lock-free counter using CAS retry loop, (3) ABA problem scenario with visual timeline, (4) comparison: CAS vs mutex performance characteristics. Sources: JCiP Ch.15, Art of Multiprocessor Programming Ch.5, Herlihy/Shavit.",
+    "acceptanceCriteria": ["New 'Atomic CAS' demo shows compare-and-swap step by step with expected/actual/new values", "Lock-free counter demonstrates CAS retry loop with backoff", "ABA problem visualized with timeline showing value changes A→B→A fooling CAS", "Properties panel explains when CAS is better vs worse than locks"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/cas-atomic.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "essential", "interview-critical"]
+  },
+  {
+    "id": "CON-096", "epic": "CON", "title": "Add Barrier Synchronization demo (CyclicBarrier / CountDownLatch)",
+    "description": "Barriers appear in Herlihy, CMU 15-213 (advanced sync lecture), LeetCode concurrency, Deadlock Empire (boss fights), Java Concurrent Animated. Add: (1) CountDownLatch (one-shot), (2) CyclicBarrier (reusable, all threads must arrive), (3) what happens when one thread crashes before reaching barrier. Sources: Herlihy Ch.17, CMU 15-213 advanced synchronization, LeetCode Building H2O problem, JCA barrier animation.",
+    "acceptanceCriteria": ["New 'Barriers' demo shows threads arriving at barrier point and waiting", "CountDownLatch shows one-shot countdown with N→0", "CyclicBarrier shows reusable barrier with reset after release", "Crash scenario shows remaining threads stuck forever", "Properties panel references CyclicBarrier(Java), CountDownLatch(Java), sync.WaitGroup(Go), threading.Barrier(Python)"],
+    "priority": "P0", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/barrier.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "essential", "curriculum-gap"]
+  },
+  {
+    "id": "CON-097", "epic": "CON", "title": "Add Monitors demo: mutual exclusion + condition synchronization",
+    "description": "Monitors get 2 full lectures at Berkeley CS162 (Spring 2026). They combine mutex + condition variables into a single construct. Add: (1) monitor entry/exit with implicit locking, (2) wait/notify inside monitor, (3) Mesa vs Hoare semantics difference, (4) Java's synchronized as monitor implementation. Sources: Berkeley CS162 Spring 2026, Stanford CS140, Hoare's original 1974 paper.",
+    "acceptanceCriteria": ["New 'Monitors' demo shows automatic lock acquire on entry, release on exit", "wait() releases monitor lock and blocks; notify() wakes one waiter", "Mesa vs Hoare semantics shown side-by-side (Mesa: signaler continues, Hoare: signaler yields)", "Properties panel explains how Java synchronized + wait/notify IS a monitor"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/monitor.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": ["CON-093"], "blockedBy": [], "tags": ["content-addition", "important", "academic"]
+  },
+  {
+    "id": "CON-098", "epic": "CON", "title": "Add Livelock and Starvation dedicated demo",
+    "description": "Livelock/starvation are the #7 student pain point — 'invisible failures' that don't deadlock but never make progress. JCiP Ch.10 covers this. Add: (1) livelock: two threads repeatedly yielding to each other (hallway problem), (2) starvation: high-priority thread always chosen over low-priority, (3) contrast with deadlock (stuck vs spinning vs starved). Our readers-writers demo mentions starvation in description but never shows it explicitly.",
+    "acceptanceCriteria": ["New 'Livelock & Starvation' demo with at least 2 scenarios", "Livelock shows two threads actively running but making zero progress", "Starvation shows a thread waiting indefinitely while others proceed", "Properties panel contrasts deadlock vs livelock vs starvation with clear criteria"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/livelock-starvation.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "important", "student-pain"]
+  },
+  {
+    "id": "CON-099", "epic": "CON", "title": "Add Structured Concurrency demo (Java 21 / Python TaskGroup / Swift actors)",
+    "description": "The #1 emerging trend in 2025-2026. Java 21 StructuredTaskScope, Python 3.11 TaskGroup, Swift actors all converge on this paradigm. Replaces CompletableFuture chains. Add: (1) unstructured concurrency (fire-and-forget) showing leaked tasks, (2) structured concurrency (all tasks scoped to parent lifetime), (3) automatic cancellation on failure, (4) language comparison table. Sources: JEP 453, Python PEP 654, Swift Concurrency Manifesto, r/java.",
+    "acceptanceCriteria": ["New 'Structured Concurrency' demo shows unstructured vs structured side-by-side", "Unstructured shows leaked goroutine/task when parent exits", "Structured shows all child tasks cancelled when parent fails", "Properties panel covers Java StructuredTaskScope, Python TaskGroup, Swift actors", "Marked as 'NEW 2026' with emerging tag"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/structured-concurrency.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "emerging-2026", "trending"]
+  },
+  {
+    "id": "CON-100", "epic": "CON", "title": "Add Fan-out / Fan-in / Pipeline concurrency patterns demo",
+    "description": "These are the #1 Go interview patterns (golanginterview.com) and #4 professional need. Add: (1) fan-out: single producer distributes work to N workers, (2) fan-in: N workers feed results to single collector, (3) pipeline: chain of stages where each transforms and passes downstream, (4) bounded parallelism (semaphore-limited workers). Sources: Go blog 'Concurrency Patterns', golanginterview.com, r/golang.",
+    "acceptanceCriteria": ["New 'Concurrency Patterns' demo with 3 sub-demos: fan-out, fan-in, pipeline", "Fan-out shows work distribution to N parallel workers", "Pipeline shows data flowing through stages with buffered channels", "Properties panel references Go pipeline blog post and production usage"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/concurrency-patterns.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "important", "interview-critical", "go-patterns"]
+  },
+  {
+    "id": "CON-101", "epic": "CON", "title": "Add Actor Model demo (Erlang/Akka-style message passing)",
+    "description": "Actor model appears in system design interviews (HelloInterview 'dealing with contention' pattern) and is the concurrency model for Erlang, Akka, Swift actors. Add: (1) actors with private state and mailbox, (2) message passing (no shared memory), (3) supervision: actor crash + restart by supervisor. Sources: HelloInterview contention patterns, Akka docs, Erlang OTP.",
+    "acceptanceCriteria": ["New 'Actor Model' demo shows actors as nodes with mailbox queues", "Message passing visualized as animated arrows between actors", "Supervision demo shows actor crash and automatic restart by supervisor", "Properties panel contrasts shared-memory vs message-passing concurrency models"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/actor-model.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "important", "system-design"]
+  },
+  {
+    "id": "CON-102", "epic": "CON", "title": "Add Optimistic vs Pessimistic Concurrency Control demo",
+    "description": "Now a named pattern in system design interview prep (HelloInterview). Add: (1) pessimistic: acquire lock before access (our existing mutex pattern), (2) optimistic: read freely, validate before commit, retry on conflict (version numbering / CAS), (3) when to use which: low contention → optimistic, high contention → pessimistic. Sources: HelloInterview 'dealing with contention', DesignGurus, database MVCC.",
+    "acceptanceCriteria": ["New 'Optimistic vs Pessimistic' demo shows both strategies side-by-side", "Pessimistic shows lock-acquire-before-access pattern", "Optimistic shows read-validate-retry pattern with version numbers", "Comparison metrics show optimistic wins at low contention, pessimistic at high"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/optimistic-pessimistic.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "important", "system-design", "interview-critical"]
+  },
+  {
+    "id": "CON-103", "epic": "CON", "title": "Add Concurrency Bugs Taxonomy demo (atomicity + order violations)",
+    "description": "OSTEP has a dedicated chapter on concurrency bugs (unique among textbooks). Meta and Databricks interview on bug identification. Add: (1) atomicity violation: non-atomic check-then-act, (2) order violation: Thread B assumes Thread A has run, (3) the Lu et al. 2008 study showing 97% of bugs are these two types. Sources: OSTEP 'Common Concurrency Problems' chapter, Lu et al. 'Learning from Mistakes', Meta interview patterns.",
+    "acceptanceCriteria": ["New 'Concurrency Bugs' demo with atomicity and order violation scenarios", "Atomicity violation shows check-then-act race with interleaving", "Order violation shows assumption failure when threads run in unexpected order", "Properties panel cites the 97% statistic from Lu et al. 2008 study"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/concurrency-bugs.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "important", "interview-critical", "OSTEP"]
+  },
+  {
+    "id": "CON-104", "epic": "CON", "title": "Add Lock-Free Data Structures demo (lock-free stack/queue)",
+    "description": "Covered by Herlihy extensively, trending in production (crossbeam/Rust, JCTools/Java). Databricks interviews test this. Add: (1) lock-free stack using CAS push/pop, (2) lock-free queue (Michael-Scott queue), (3) comparison: lock-based vs lock-free throughput under contention. Depends on CAS demo being completed first. Sources: Herlihy Ch.10-11, CppCon 2024-2025 talks, crossbeam-rs docs.",
+    "acceptanceCriteria": ["New 'Lock-Free Data Structures' demo shows at least a lock-free stack", "CAS-based push/pop operations shown step-by-step", "Contention comparison shows lock-free advantages under high contention", "Properties panel explains when lock-free is worth the complexity cost"],
+    "priority": "P1", "effort": "XL", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/lock-free-ds.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": ["CON-095"], "blockedBy": ["CON-095"], "tags": ["content-addition", "important", "trending", "advanced"]
+  },
+  {
+    "id": "CON-105", "epic": "CON", "title": "Add Virtual Threads / Green Threads demo (Java 21 Project Loom)",
+    "description": "The #2 emerging 2025-2026 trend. Virtual threads eliminate the thread-per-request vs reactive tradeoff. Now a senior Java interview topic. Add: (1) OS thread vs virtual thread comparison (creation cost, memory, scheduling), (2) 1M virtual threads demo showing scalability, (3) when NOT to use virtual threads (pinning, synchronized blocks). Sources: JEP 444, r/java, InterviewKickstart 2026.",
+    "acceptanceCriteria": ["New 'Virtual Threads' demo shows OS thread vs virtual thread side-by-side", "Visual shows 1000 virtual threads vs 10 OS threads handling same workload", "Pinning scenario shows when virtual threads degrade to OS thread behavior", "Properties panel covers Java 21, Go goroutines as prior art, and Python TaskGroup"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/virtual-threads.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "emerging-2026", "interview-critical"]
+  },
+  {
+    "id": "CON-106", "epic": "CON", "title": "Add Context Switching demo with cost visualization",
+    "description": "Covered by MIT 6.1810 and Stanford CS140 as foundational. Students need to understand WHY locks are expensive. Add: (1) context switch mechanics (save registers, switch page table, restore), (2) cost visualization (microseconds wasted), (3) cache thrashing effect on context switch, (4) voluntary vs involuntary preemption. Sources: MIT 6.1810, Stanford CS140, OSTEP Ch.6.",
+    "acceptanceCriteria": ["New 'Context Switching' demo shows register save/restore steps", "Cost visualization shows time wasted per switch (microseconds)", "Cache effect shows cold cache after switch vs warm cache without", "Properties panel explains why this matters for lock strategy decisions"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/context-switch.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "important", "academic"]
+  },
+  {
+    "id": "CON-107", "epic": "CON", "title": "Add Fork-Join Parallelism demo",
+    "description": "Taught at Berkeley CS162 and CMU 15-213. Foundation for Java ForkJoinPool, MapReduce, parallel divide-and-conquer. Add: (1) fork: split task into subtasks, (2) join: wait for all subtasks to complete, (3) work stealing: idle threads steal from busy threads' queues, (4) example: parallel merge sort via fork-join. Sources: Berkeley CS162, CMU 15-213, Java ForkJoinPool docs.",
+    "acceptanceCriteria": ["New 'Fork-Join' demo shows task splitting and joining with visual tree", "Work stealing visualization shows idle thread taking work from busy thread's deque", "Parallel merge sort example demonstrates practical fork-join usage", "Properties panel references Java ForkJoinPool, .NET Parallel.ForEach, Python multiprocessing.Pool"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/fork-join.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "advanced", "academic"]
+  },
+  {
+    "id": "CON-108", "epic": "CON", "title": "Add Dining Philosophers variants: Chandy/Misra and arbitrator solutions",
+    "description": "Our dining philosophers only shows naive (deadlock) and resource ordering. Missing 2 other classic solutions: (1) Chandy/Misra (clean/dirty token passing), (2) arbitrator/waiter (centralized coordinator). Students asked about these in OS exams. Sources: OSTEP, Tanenbaum Modern OS Ch.6.",
+    "acceptanceCriteria": ["Chandy/Misra solution added as sub-demo tab in Dining Philosophers", "Arbitrator/waiter solution added as sub-demo tab", "Properties panel compares all 4 approaches: naive, ordering, Chandy/Misra, arbitrator", "Each variant clearly explains WHY it prevents deadlock"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/dining-philosophers.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-completion", "variants"]
+  },
+  {
+    "id": "CON-109", "epic": "CON", "title": "Add Readers-Writers variants: writer-preference and fair (FIFO) policies",
+    "description": "Our readers-writers only shows reader-preference (which starves writers). Missing writer-preference and fair/FIFO policies that prevent starvation. Students need to see all three to understand the design space. Sources: OSTEP, Wikipedia Readers-writers problem.",
+    "acceptanceCriteria": ["Writer-preference policy added as sub-demo tab showing reader starvation", "Fair/FIFO policy added as sub-demo tab showing no starvation", "Properties panel compares all 3 policies with starvation analysis", "Each policy shows a scenario where it outperforms the others"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/readers-writers.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-completion", "variants"]
+  },
+  {
+    "id": "CON-110", "epic": "CON", "title": "Add Deadlock Demo variants: Banker's algorithm and lock timeout",
+    "description": "Our deadlock demo only shows circular wait and resource ordering. Missing Banker's algorithm (avoidance) and lock timeout (recovery). Sources: OSTEP Ch.32, Dijkstra's Banker's Algorithm, JCiP Ch.10.",
+    "acceptanceCriteria": ["Banker's algorithm added showing safe/unsafe state computation", "Lock timeout sub-demo showing timeout-based deadlock recovery", "Properties panel covers all four Coffman conditions individually", "Properties panel lists all deadlock strategies: prevention, avoidance, detection, recovery"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/deadlock-demo.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-completion", "variants"]
+  },
+  {
+    "id": "CON-111", "epic": "CON", "title": "Add pseudocode display to 9 topics that lack it",
+    "description": "Only Event Loop, Go Goroutines, and Async Patterns show code snippets. The other 9 topics have no pseudocode: Race Condition, Producer-Consumer, Dining Philosophers, Thread Lifecycle, Readers-Writers, Sleeping Barber, Deadlock Demo, Lock Comparison, Thread Pool. Add pseudocode panels to each with syntax-highlighted, language-agnostic pseudocode. Sources: Best practice from MIT 6.005, VisuAlgo (all topics show pseudocode).",
+    "acceptanceCriteria": ["All 12 topics show pseudocode in a code panel adjacent to visualization", "Pseudocode is language-agnostic (not Java/Go/JS specific)", "Current step is highlighted in the pseudocode during playback", "Pseudocode is collapsible so it doesn't clutter the view"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-014"], "blockedBy": [], "tags": ["content-completion", "pseudocode", "education"]
+  },
+  {
+    "id": "CON-112", "epic": "CON", "title": "Add real-world application context to all 12 existing topics",
+    "description": "Zero topics mention where the concept is used in production. Add a 'Real World' section to each topic's properties panel: Race Condition → database lost updates, Producer-Consumer → message queues (Kafka, RabbitMQ), Dining Philosophers → database connection acquisition, Event Loop → Node.js server architecture, Thread Pool → web server thread pools (Tomcat, Netty), Goroutines → Go microservices, Readers-Writers → database read replicas, Lock Comparison → Linux kernel spinlocks. Sources: Web search '[topic] used in real world production' per topic.",
+    "acceptanceCriteria": ["All 12 existing topics have a 'Used in Production' section in properties panel", "Each section names at least 2 specific real systems/libraries", "Sections are collapsible and don't push educational content down"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-completion", "real-world", "professional"]
+  },
+  {
+    "id": "CON-113", "epic": "CON", "title": "Add interview tips section to all 12 existing topics",
+    "description": "No topic has interview guidance. Add an 'Interview Tips' collapsible section to each properties panel: which companies ask this, how to approach it, common follow-ups, time complexity expectations. Sources: Devinterview.io concurrency questions, InterviewKickstart, Databricks concurrency round (TeamBlind), LeetCode concurrency problemset.",
+    "acceptanceCriteria": ["All 12 topics have an 'Interview Tips' section in properties panel", "Each section names which companies commonly ask this topic", "Each section has at least 1 'common follow-up question'", "Tips are actionable ('Mention the four Coffman conditions to impress') not generic"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-completion", "interview-prep"]
+  },
+  {
+    "id": "CON-114", "epic": "CON", "title": "Add 'When to Use' comparison guides for each synchronization primitive category",
+    "description": "Students (#4 pain: mutex vs semaphore) need decision guidance, not just individual explanations. Add comparison tables: (1) Mutex vs Semaphore vs Monitor vs SpinLock — when to use which, (2) Optimistic vs Pessimistic locking, (3) Channel vs Shared Memory, (4) Thread Pool sizing guidelines. Sources: JCiP Ch.11 (performance), Go proverb 'Share memory by communicating', Start Concurrent (Purdue).",
+    "acceptanceCriteria": ["At least 3 'When to Use' comparison guides accessible from properties panel", "Mutex vs Semaphore vs Monitor table with clear selection criteria", "Each comparison includes a scenario where each option wins", "Decision flowchart or checklist format for quick reference"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-completion", "comparison", "decision-guide"]
+  },
+  {
+    "id": "CON-115", "epic": "CON", "title": "Add common mistakes / gotchas section to all 12 existing topics",
+    "description": "Each topic has well-known mistakes students make. Add 'Common Mistakes' section: Race Condition → 'I added a lock but forgot to lock the READ', Producer-Consumer → 'using if instead of while with condition variable', Dining Philosophers → 'breaking deadlock by adding more forks (wrong!)', Event Loop → 'thinking setTimeout(0) runs immediately'. Sources: r/learnprogramming, JCiP bug patterns, OSTEP concurrency bugs chapter.",
+    "acceptanceCriteria": ["All 12 topics have a 'Common Mistakes' section", "Each section has 2-3 specific gotchas with brief explanations", "Mistakes are derived from real student/developer confusion points", "Each mistake has a one-line fix or correction"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-completion", "common-mistakes", "education"]
+  },
+  {
+    "id": "CON-116", "epic": "CON", "title": "Add complexity/performance characteristics display to all topics",
+    "description": "Only Lock Comparison shows performance metrics (CPU cycles, throughput). Other 11 topics have no complexity info. Add: time complexity of operations (lock acquire O(1) uncontended, O(n) with n waiters), space overhead per thread, and contention scaling characteristics. Sources: JCiP Ch.11 (performance and scalability), Herlihy Ch.7 (spin lock performance).",
+    "acceptanceCriteria": ["All topics with engines show relevant complexity metrics in properties panel", "Metrics include time complexity per operation and space overhead", "Lock Comparison's existing metrics are used as the pattern for other topics", "Thread Pool shows Little's Law (throughput = pool_size / avg_latency)"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-completion", "complexity", "metrics"]
+  },
+  {
+    "id": "CON-117", "epic": "CON", "title": "Implement FAANG Interview Prep learning path (4-week intensive)",
+    "description": "Based on 2026 interview patterns from research: Week 1: Concurrency vs Parallelism, Race Conditions, Mutex, Semaphore. Week 2: Deadlock (all 4 conditions), Producer-Consumer, Readers-Writers, Condition Variables. Week 3: Thread Pools, CAS/Atomics, Lock-Free DS, Memory Model. Week 4: Go Patterns (fan-out/fan-in), Structured Concurrency, System Design concurrency patterns. Sources: NeetCode, Grokking, Databricks round, LeetCode concurrency.",
+    "acceptanceCriteria": ["Learning path selectable from module header or sidebar", "4 weeks with 3-5 topics per week in recommended order", "Each topic shows completion checkmark when viewed", "Path shows estimated time per topic"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["curriculum", "learning-path", "interview-prep"]
+  },
+  {
+    "id": "CON-118", "epic": "CON", "title": "Implement University CS Course learning path (12-week semester)",
+    "description": "Map to MIT 6.1810 / Berkeley CS162 structure: Weeks 1-2: Threads, Processes, Context Switching. Weeks 3-4: Locks, Mutex, Semaphores. Weeks 5-6: Condition Variables, Monitors. Weeks 7-8: Classic problems (Producer-Consumer, Dining Philosophers, Readers-Writers). Weeks 9-10: Deadlock, Concurrency Bugs. Weeks 11-12: Advanced (CAS, Lock-Free, Memory Model). Sources: MIT 6.1810, Berkeley CS162, OSTEP chapter ordering.",
+    "acceptanceCriteria": ["12-week path selectable from module header", "Mirrors standard university OS course sequence", "Prerequisites clearly marked (e.g., 'Complete Mutex before Semaphore')", "Maps to OSTEP chapter numbers for textbook cross-reference"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["curriculum", "learning-path", "academic"]
+  },
+  {
+    "id": "CON-119", "epic": "CON", "title": "Implement prerequisite graph showing topic dependencies",
+    "description": "Topics have implicit dependencies that are not shown: Mutex → Semaphore → Condition Variable → Monitor. CAS → Lock-Free DS. Thread Lifecycle → Context Switch. Render as a visual DAG in the sidebar or properties panel. Sources: OSTEP chapter ordering, JCiP chapter structure.",
+    "acceptanceCriteria": ["Visual dependency graph rendered as DAG (Mermaid or SVG)", "Clicking a node navigates to that demo", "Completed topics shown in green, available in blue, locked in gray", "At least 15 dependency edges defined"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["curriculum", "prerequisite-graph", "navigation"]
+  },
+  {
+    "id": "CON-120", "epic": "CON", "title": "Add cross-module links from concurrency topics to related Architex modules",
+    "description": "Many concurrency topics connect to other modules: Thread Pool → System Design (connection pooling), Deadlock → Database (transaction deadlock), Readers-Writers → Database (read replicas, MVCC), CAS → Data Structures (lock-free linked list), Fan-out/Fan-in → Distributed Systems, Event Loop → Networking (epoll/select). Add cross-module link badges in properties panels. Sources: Internal Architex module inventory.",
+    "acceptanceCriteria": ["At least 8 cross-module links defined", "Each link shows as a badge/chip in the properties panel that navigates to the related module", "Links are bidirectional (concurrency→database AND database→concurrency)"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/cross-module/concept-module-map.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["curriculum", "cross-module", "navigation"]
+  },
+  {
+    "id": "CON-121", "epic": "CON", "title": "Add topic history/origin stories for top 5 concepts",
+    "description": "Content technique from MIT 6.005 and 3Blue1Brown: explaining WHY a concept was invented creates emotional connection. Add brief origin stories: Semaphore (Dijkstra 1965, THE multiprogramming system), Dining Philosophers (Dijkstra 1971, exam problem), Monitor (Hoare 1974), Deadlock (first formalized by Coffman 1971), CAS (IBM System 370, 1970s hardware instruction). Sources: Wikipedia history sections, original papers.",
+    "acceptanceCriteria": ["Top 5 topics have an 'Origin Story' collapsible section in properties panel", "Each story is 2-4 sentences naming the inventor, year, and original problem", "Stories make the concept feel like a human invention, not abstract theory"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-experience", "history", "storytelling"]
+  },
+  {
+    "id": "CON-122", "epic": "CON", "title": "Add Cancellation and Graceful Shutdown demo",
+    "description": "JCiP Ch.7 dedicates a full chapter to this. Professional need #7. Add: (1) cooperative cancellation via flag/poison pill, (2) interruption-based cancellation (Thread.interrupt), (3) graceful shutdown sequence (stop accepting, drain queue, terminate workers, timeout force-kill). Sources: JCiP Ch.7, Go context.WithCancel, Python asyncio.Task.cancel.",
+    "acceptanceCriteria": ["New 'Cancellation & Shutdown' demo with at least 2 scenarios", "Cooperative cancellation shows flag-based stop with clean exit", "Graceful shutdown shows drain-then-terminate sequence with timeout", "Properties panel covers Java interrupt, Go context, Python asyncio patterns"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/cancellation.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "important", "professional"]
+  },
+  {
+    "id": "CON-123", "epic": "CON", "title": "Note JVM-specificity in Thread Lifecycle and add POSIX thread states comparison",
+    "description": "Thread Lifecycle (thread-lifecycle.ts) models JVM thread states (7 states) but doesn't mention this is Java-specific. POSIX threads have a different state model (created, ready, running, blocked, terminated — 5 states). Add: (1) label as 'Java/JVM Thread States', (2) add POSIX comparison tab, (3) note differences in properties panel. Sources: Java Thread.State docs, POSIX pthread spec.",
+    "acceptanceCriteria": ["Thread Lifecycle header clarifies 'Java/JVM Thread States'", "POSIX thread state comparison available as alternative tab", "Properties panel notes the key differences (JVM has waiting/timed-waiting, POSIX doesn't)"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/thread-lifecycle.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-accuracy", "completeness"]
+  },
+  {
+    "id": "CON-124", "epic": "CON", "title": "Add Testing Concurrent Programs demo (stress test, TLA+, deterministic simulation)",
+    "description": "JCiP Ch.12 covers this. Emerging trend #8 (TLA+) and #10 (FoundationDB-style deterministic simulation). Students (#4 pain) don't know how to verify concurrent code. Add: (1) why normal tests miss concurrency bugs, (2) stress testing with randomized scheduling, (3) TLA+ model checking concept (not full TLA+ implementation), (4) deterministic simulation testing overview. Sources: JCiP Ch.12, FoundationDB testing blog, AWS TLA+ usage.",
+    "acceptanceCriteria": ["New 'Testing Concurrency' demo shows why sequential tests miss bugs", "Stress test simulation shows bug appearing after N runs", "TLA+ concept explained with simple state machine", "Properties panel links to AWS TLA+ blog and FoundationDB testing approach"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/testing-concurrency.ts", "src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["content-addition", "important", "emerging-2026", "professional"]
+  }
+]

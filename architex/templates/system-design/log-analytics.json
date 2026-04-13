@@ -1,0 +1,161 @@
+{
+  "id": "log-analytics",
+  "name": "Log Analytics Platform (ELK Stack)",
+  "description": "Design a scalable log analytics platform similar to Datadog or Splunk. Covers log ingestion from distributed services, stream processing, full-text search indexing, time-series metrics extraction, and long-term storage.",
+  "difficulty": 4,
+  "category": "infrastructure",
+  "tags": ["logging", "analytics", "elk", "elasticsearch", "time-series", "observability", "pipeline"],
+  "nodes": [
+    {
+      "id": "app-servers",
+      "type": "app-server",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Application Servers (Log Sources)",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 500, "cpuCores": 4, "memoryGB": 8, "processingTimeMs": 1 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Ingestion Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": { "type": "kafka", "partitions": 128, "replicationFactor": 3, "retentionHours": 72 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "stream-processor",
+      "type": "stream-processor",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Stream Processor (Flink)",
+        "category": "compute",
+        "componentType": "stream-processor",
+        "icon": "Activity",
+        "config": { "parallelism": 64, "checkpointIntervalMs": 10000, "processingGuarantee": "at-least-once" },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "search-engine",
+      "type": "search-engine",
+      "position": { "x": 750, "y": 100 },
+      "data": {
+        "label": "Search Engine (Elasticsearch)",
+        "category": "storage",
+        "componentType": "search-engine",
+        "icon": "Search",
+        "config": { "shards": 40, "replicas": 1, "storageGB": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cold-storage",
+      "type": "storage",
+      "position": { "x": 750, "y": 300 },
+      "data": {
+        "label": "Cold Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 500000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "timeseries-db",
+      "type": "timeseries-db",
+      "position": { "x": 500, "y": 425 },
+      "data": {
+        "label": "Metrics DB (InfluxDB)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "TrendingUp",
+        "config": { "retentionDays": 90, "downsampleIntervals": "1m,5m,1h", "storageGB": 2000 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-app-mq",
+      "source": "app-servers",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-stream",
+      "source": "mq",
+      "target": "stream-processor",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-stream-es",
+      "source": "stream-processor",
+      "target": "search-engine",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "index", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-stream-s3",
+      "source": "stream-processor",
+      "target": "cold-storage",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 50, "animated": false }
+    },
+    {
+      "id": "e-stream-tsdb",
+      "source": "stream-processor",
+      "target": "timeseries-db",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 5, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "High-Throughput Log Ingestion",
+      "description": "500+ application servers emit structured JSON logs via sidecar agents (Filebeat/Fluentd). Logs are published to Kafka partitioned by service name, enabling per-service ordering. With 128 partitions and 3x replication, the queue handles millions of log events per second. Kafka acts as a buffer during traffic spikes, decoupling producers from downstream processing speed. Back-pressure is handled at the agent level with local disk buffering.",
+      "highlightNodes": ["app-servers", "mq"],
+      "highlightEdges": ["e-app-mq"]
+    },
+    {
+      "title": "Stream Processing and Enrichment",
+      "description": "Flink consumes from Kafka, parsing raw log lines (regex/grok patterns), enriching with metadata (service name, datacenter, trace ID), and filtering noise (health checks, debug logs). It also extracts numeric metrics (response times, error counts) from logs in real-time. The at-least-once guarantee with idempotent sinks ensures no logs are lost. Parallelism of 64 matches the number of Kafka consumer partitions for maximum throughput.",
+      "highlightNodes": ["mq", "stream-processor"],
+      "highlightEdges": ["e-mq-stream"]
+    },
+    {
+      "title": "Search Indexing and Querying",
+      "description": "Enriched logs are bulk-indexed into Elasticsearch using time-based indices (logs-2024-01-15). Each index is sharded across 40 nodes for parallel indexing and search. Hot indices (last 24h) use SSDs for fast queries; warm indices (7-30 days) move to cheaper storage. Elasticsearch enables full-text search across billions of log entries with sub-second query latency using inverted indices. Index lifecycle management (ILM) automates rollover and deletion.",
+      "highlightNodes": ["stream-processor", "search-engine"],
+      "highlightEdges": ["e-stream-es"]
+    },
+    {
+      "title": "Metrics Extraction and Cold Storage",
+      "description": "The Stream Processor extracts time-series metrics (error rate, p99 latency, request count) from logs and writes to InfluxDB with automatic downsampling (1-minute, 5-minute, 1-hour aggregations). This enables dashboards and alerting without querying raw logs. Raw logs older than 30 days are archived to S3 as compressed Parquet files for compliance and forensics. This tiered architecture keeps hot-path costs manageable while retaining years of data.",
+      "highlightNodes": ["stream-processor", "timeseries-db", "cold-storage"],
+      "highlightEdges": ["e-stream-tsdb", "e-stream-s3"]
+    }
+  ]
+}

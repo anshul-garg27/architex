@@ -1,0 +1,798 @@
+[
+  {
+    "id": "OSC-061",
+    "epic": "OSC",
+    "title": "Add Process vs Thread concept with memory map visualization",
+    "description": "Process vs Thread is the #1 most-asked OS interview topic (18/18 sources). Completely absent from module. Add interactive visualization showing: shared vs private memory regions (heap, stack, code, files, registers), context switch cost comparison, and fork/exec model. Source: InterviewBit, GFG, TakeUForward, every OS interview list.",
+    "acceptanceCriteria": [
+      "New 'Process Lifecycle' concept in sidebar with Process vs Thread sub-section",
+      "Interactive memory map showing shared (heap, code) vs private (stack, registers) for threads",
+      "Context switch cost comparison visualization (process vs thread)",
+      "Step-through showing fork() creating process vs pthread_create creating thread",
+      "Interview tip: 'This is the #1 most asked OS question at every company'"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/process-lifecycle.ts",
+      "src/components/modules/os/ProcessLifecycleCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "interview-critical"
+    ]
+  },
+  {
+    "id": "OSC-062",
+    "epic": "OSC",
+    "title": "Add Context Switching visualization with overhead breakdown",
+    "description": "Context switching is #9 interview topic (12/18 sources). Students underestimate its cost. Add visualization showing: register save/restore, TLB flush, cache invalidation, pipeline stall. Show process vs thread switch cost difference. Source: GFG, InterviewBit, FinalRoundAI.",
+    "acceptanceCriteria": [
+      "Animated context switch showing CPU register save/restore sequence",
+      "TLB flush and cache invalidation effects visualized",
+      "Process switch vs thread switch side-by-side comparison",
+      "Overhead metrics (cycles, microseconds) for each phase",
+      "Common misconception callout: 'Context switch is not just saving registers'"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/context-switch.ts",
+      "src/components/modules/os/ContextSwitchCanvas.tsx"
+    ],
+    "dependencies": [
+      "OSC-061"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "interview-critical"
+    ]
+  },
+  {
+    "id": "OSC-063",
+    "epic": "OSC",
+    "title": "Add System Calls visualization (user mode \u2192 kernel mode transition)",
+    "description": "System calls are #10 interview topic (11/18 sources). Completely absent. Add animated visualization showing: user process \u2192 syscall instruction \u2192 privilege escalation \u2192 kernel handler \u2192 return to user space. Show common syscalls (read, write, fork, exec, open, close). Source: MIT 6.1810, GFG, Adaface.",
+    "acceptanceCriteria": [
+      "New 'System Calls' concept or sub-section",
+      "Animated privilege ring diagram showing user\u2192kernel transition",
+      "Step-through of a specific syscall (e.g., read()) from user call to kernel handler and back",
+      "List of 10 most important syscalls with descriptions",
+      "Interview tip: 'Apple asks about syscall overhead in constrained environments'"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/system-calls.ts",
+      "src/components/modules/os/SystemCallCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "interview-critical"
+    ]
+  },
+  {
+    "id": "OSC-064",
+    "epic": "OSC",
+    "title": "Add IPC (Inter-Process Communication) visualization \u2014 pipes, shared memory, message queues",
+    "description": "IPC is #12 interview topic (10/18 sources). Completely absent. Add visualization comparing: pipes (unidirectional byte stream), shared memory (fast but needs sync), message queues (typed, kernel-managed), Unix domain sockets. Include decision tree for when to use which. Source: OSTEP Ch.28, GFG, InterviewBit.",
+    "acceptanceCriteria": [
+      "New 'IPC' concept in sidebar",
+      "4 IPC mechanisms visualized: pipe, shared memory, message queue, socket",
+      "Side-by-side comparison with latency/throughput characteristics",
+      "Decision tree: 'When to use which IPC mechanism'",
+      "Producer-consumer scenario running on each mechanism"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/ipc.ts",
+      "src/components/modules/os/IPCCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-065",
+    "epic": "OSC",
+    "title": "Add classic synchronization problems: Producer-Consumer, Readers-Writers, Dining Philosophers",
+    "description": "Classic sync problems are #13 interview topic (9/18 sources). We have sync primitives but zero classic problems. BinaryVisual covers these; we don't. Add: Producer-Consumer (bounded buffer), Readers-Writers (writer priority), Dining Philosophers (deadlock-prone). Source: OSTEP Ch.30-31, BinaryVisual, Devinterview.io.",
+    "acceptanceCriteria": [
+      "3 classic problems added as sub-sections of Thread Sync",
+      "Producer-Consumer with bounded buffer, N producers, M consumers",
+      "Readers-Writers with configurable priority (reader vs writer preference)",
+      "Dining Philosophers with deadlock demonstration and solution",
+      "Each problem shows the bug first, then the correct solution"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/classic-sync-problems.ts",
+      "src/components/modules/os/ClassicSyncCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "interview"
+    ]
+  },
+  {
+    "id": "OSC-066",
+    "epic": "OSC",
+    "title": "Add Disk Scheduling algorithms \u2014 SSTF, SCAN, C-SCAN, LOOK",
+    "description": "Disk scheduling is covered by BinaryVisual (Full) and OSTEP (Full). We have zero. #21 interview topic (6/18). Add: SSTF, SCAN, C-SCAN, LOOK with head movement animation, seek distance tracking, and comparison mode. Source: OSTEP Ch.37, BinaryVisual.",
+    "acceptanceCriteria": [
+      "New 'Disk Scheduling' concept in sidebar",
+      "4 algorithms: SSTF, SCAN, C-SCAN, LOOK",
+      "Head movement animation across disk tracks",
+      "Total seek distance metric for comparison",
+      "Compare All mode across all 4 algorithms",
+      "Note: 'SSDs make these less relevant but still commonly asked'"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/disk-scheduling.ts",
+      "src/components/modules/os/DiskSchedulingCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-067",
+    "epic": "OSC",
+    "title": "Add File System fundamentals \u2014 inodes, directory structure, allocation methods",
+    "description": "File systems are #14 interview topic (9/18 sources). BinaryVisual and OSTEP both cover them. We have zero. Add: inode structure visualization, directory tree with hard/soft links, file allocation methods (contiguous, linked, indexed). Source: OSTEP Ch.39-43, Silberschatz Ch.14-15.",
+    "acceptanceCriteria": [
+      "New 'File Systems' concept in sidebar",
+      "Interactive inode structure diagram",
+      "Hard link vs soft link visualization",
+      "3 allocation methods: contiguous, linked, indexed",
+      "File open trace: path \u2192 directory \u2192 inode \u2192 data blocks",
+      "Interview tip: 'inode does NOT contain the filename \u2014 this trips up many candidates'"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/file-systems.ts",
+      "src/components/modules/os/FileSystemCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-068",
+    "epic": "OSC",
+    "title": "Add Thrashing and Working Set visualization",
+    "description": "Thrashing is #11 interview topic (10/18 sources). Completely absent. Add visualization showing: page fault rate increasing as degree of multiprogramming increases, working set concept (Denning), working set window parameter. Most commonly confused with 'too many processes' \u2014 correct answer is working set exceeds physical memory. Source: OSTEP Ch.22, Silberschatz.",
+    "acceptanceCriteria": [
+      "Thrashing visualization as sub-section of Memory Management",
+      "Graph showing CPU utilization vs degree of multiprogramming",
+      "Working set window parameter (\u0394) with adjustable slider",
+      "Demonstration: adding processes until thrashing occurs",
+      "Common misconception callout with correct explanation"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/thrashing.ts",
+      "src/components/modules/os/ThrashingCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "interview"
+    ]
+  },
+  {
+    "id": "OSC-069",
+    "epic": "OSC",
+    "title": "Add Condition Variables to thread sync \u2014 with producer-consumer example",
+    "description": "Condition variables are essential for producer-consumer and monitor patterns. OSTEP Ch.30. Missing from our module. Add: wait(), signal(), broadcast() operations with bounded buffer example showing spurious wakeup handling. Source: OSTEP, MIT 6.005, Baeldung.",
+    "acceptanceCriteria": [
+      "Condition Variable added as 4th sync primitive option",
+      "Visual shows threads calling wait() and being woken by signal()/broadcast()",
+      "Bounded buffer example with producer/consumer threads",
+      "Spurious wakeup concept explained and demonstrated",
+      "Comparison: when to use condition variable vs semaphore"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/thread-sync.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-070",
+    "epic": "OSC",
+    "title": "Add Segmentation vs Paging comparison visualization",
+    "description": "Segmentation vs Paging is #18 interview topic (7/18 sources). We only have paging. Add: segmentation model (base + limit registers), segmentation fault visualization, comparison table (segmentation vs paging vs segmentation+paging). Source: OSTEP Ch.16, Silberschatz.",
+    "acceptanceCriteria": [
+      "Segmentation sub-section in Memory Management",
+      "Base + limit register visualization with segment table",
+      "Segmentation fault demonstration (out-of-bounds access)",
+      "Side-by-side comparison: segmentation vs paging",
+      "Historical note: 'x86 supported both; modern OSes use flat segmentation + paging'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/segmentation.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-071",
+    "epic": "OSC",
+    "title": "Add Container Internals visualization \u2014 namespaces, cgroups, isolation",
+    "description": "Container internals are #20 interview topic (6/18) and the FASTEST GROWING. No competitor covers this visually. Add: namespace types (PID, net, mount, UTS, IPC, user), cgroups v2 (CPU, memory, IO controllers), visual showing how clone() + unshare() creates isolation. Source: Atlantbh, NGINX blog, Kubernetes docs.",
+    "acceptanceCriteria": [
+      "New 'Container Internals' concept in sidebar (or as Learn content)",
+      "6 namespace types visualized with what each isolates",
+      "Cgroups v2 resource limits: CPU shares/quota, memory.max, IO weight",
+      "Step-through: 'What happens when you run docker run'",
+      "Bridge to K8s: show how pod scheduling maps to OS scheduling"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/containers.ts",
+      "src/components/modules/os/ContainerCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "emerging-2026"
+    ]
+  },
+  {
+    "id": "OSC-072",
+    "epic": "OSC",
+    "title": "Add Lottery and CFS (Completely Fair Scheduler) scheduling algorithms",
+    "description": "OSTEP covers Lottery scheduling (Ch.9). CFS is what Linux actually uses \u2014 #1 student question is 'what does Linux actually do?' Neither is in our module. OSTEP simulators have lottery.py. No competitor besides OSTEP covers these. Source: OSTEP Ch.9, Linux kernel docs.",
+    "acceptanceCriteria": [
+      "Lottery Scheduling added to CPU scheduling dropdown",
+      "CFS (Completely Fair Scheduler) added with virtual runtime concept",
+      "Lottery: visual shows ticket allocation, random selection, proportional fairness",
+      "CFS: visual shows red-black tree of processes sorted by vruntime",
+      "Comparison with MLFQ: when to use which"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-073",
+    "epic": "OSC",
+    "title": "Add eBPF Concepts visualization \u2014 hook points, program lifecycle, use cases",
+    "description": "eBPF has 300% YoY adoption growth (CNCF Q1 2026). #25 interview topic but fastest growing. ZERO competitors cover this educationally. First-mover opportunity. Add: hook points diagram (syscalls, network, scheduler), program lifecycle (load\u2192verify\u2192JIT\u2192attach\u2192run), map types, real-world use cases (Cilium, Falco, Tetragon). Source: ebpf.io, eBPF Foundation.",
+    "acceptanceCriteria": [
+      "New 'eBPF' concept in Learn tab or as advanced topic",
+      "Interactive diagram showing kernel hook points where eBPF attaches",
+      "Program lifecycle: user-space code \u2192 verifier \u2192 JIT compiler \u2192 kernel execution",
+      "3 use case demos: observability (tracing syscalls), networking (packet filtering), security (seccomp)",
+      "Real-world context: 'Used at Netflix, Meta, Cloudflare, Datadog'"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/EBPFCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging-2026",
+      "innovation"
+    ]
+  },
+  {
+    "id": "OSC-074",
+    "epic": "OSC",
+    "title": "Add io_uring visualization \u2014 submission/completion queue architecture",
+    "description": "io_uring is the most important modern Linux I/O interface. Redis adopted it with 10-50% improvement. #23 interview topic, growing fast. ZERO competitors visualize this. Add: SQ/CQ ring buffer diagram, comparison with epoll/select, zero-copy path. Source: io_uring Wikipedia, IanFisher notes, Linux 6.13 release.",
+    "acceptanceCriteria": [
+      "io_uring visualization as advanced I/O concept",
+      "SQ (submission queue) and CQ (completion queue) ring buffer diagram",
+      "Step-through: user submits I/O request \u2192 kernel processes \u2192 completion appears",
+      "Comparison: select vs poll vs epoll vs io_uring with performance characteristics",
+      "Real-world context: 'Redis, databases, and web servers are migrating to io_uring'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/IOUringCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging-2026",
+      "innovation"
+    ]
+  },
+  {
+    "id": "OSC-075",
+    "epic": "OSC",
+    "title": "Add Race Condition and Thread Interleaving visualizer",
+    "description": "Thread safety is #15 interview topic (9/18 sources). #1 student struggle is reasoning about non-deterministic execution. Add: balance++ race condition demo showing all possible interleavings, visual showing how mutex prevents the race. Source: MIT 6.005, HackerNoon, Stefan Marr, ACM ICER 2021.",
+    "acceptanceCriteria": [
+      "Interactive interleaving visualizer showing all possible thread orderings",
+      "balance++ classic race condition: show load/increment/store as separate steps",
+      "Toggle: without mutex (race) vs with mutex (correct)",
+      "Count of possible interleavings shown (combinatorial explosion)",
+      "Common misconception: 'balance++ is NOT atomic even though it is one line of code'"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/race-condition.ts",
+      "src/components/modules/os/RaceConditionCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "student-pain"
+    ]
+  },
+  {
+    "id": "OSC-076",
+    "epic": "OSC",
+    "title": "Add Mutex ownership distinction and misconception callouts to sync descriptions",
+    "description": "The #1 thing interview candidates get wrong about synchronization is 'mutex = binary semaphore'. The key difference is OWNERSHIP: only the thread that locked a mutex can unlock it. Our step descriptions don't mention ownership at all. Source: GFG Mutex vs Semaphore, Medium/LORY interview story, NailYourInterview.",
+    "acceptanceCriteria": [
+      "Mutex step descriptions include ownership tracking (which thread holds it)",
+      "Explicit note: 'Only the owning thread can release a mutex \u2014 this differs from semaphore'",
+      "Comparison table: Mutex vs Semaphore vs Condition Variable (when to use each)",
+      "Interview tip: 'Never say mutex equals binary semaphore in an interview'"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/thread-sync.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "accuracy",
+      "interview"
+    ]
+  },
+  {
+    "id": "OSC-077",
+    "epic": "OSC",
+    "title": "Add WHY explanations to all engine step descriptions",
+    "description": "Every engine says WHAT happened but never WHY. Belady's Anomaly (5/5 quality) proves the team can write excellent educational content. Apply the same depth to all engines. FCFS: explain arrival-order selection. MLFQ: explain CPU-bound penalization. Deadlock: explain safe-sequence logic. Source: Phase 5 content review.",
+    "acceptanceCriteria": [
+      "Every engine's key step descriptions include a WHY clause",
+      "FCFS: 'P1 starts because it arrived first (FCFS is non-preemptive, serves by arrival order)'",
+      "MLFQ: 'Demoted because CPU-bound processes are penalized to favor interactive ones'",
+      "Deadlock: 'P0 can finish because available resources meet its remaining need'",
+      "Page replacement: 'LRU evicts page 3 because it was accessed longest ago (recency principle)'"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts",
+      "src/lib/os/mlfq-scheduler.ts",
+      "src/lib/os/page-replacement.ts",
+      "src/lib/os/deadlock.ts",
+      "src/lib/os/memory.ts",
+      "src/lib/os/memory-alloc.ts",
+      "src/lib/os/thread-sync.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "education"
+    ]
+  },
+  {
+    "id": "OSC-078",
+    "epic": "OSC",
+    "title": "Add real-world application notes to every topic",
+    "description": "Zero topics mention where they are used in production. Students ask 'when will I use this?' Add production context. FCFS=print queues. MLFQ=macOS/Windows scheduler. CFS=Linux. LRU=Redis eviction. Banker's=database resource management. Mutex=Go sync.Mutex. Source: Professional needs research.",
+    "acceptanceCriteria": [
+      "Every concept has a 'Real World' section in its Learn tab",
+      "CPU Scheduling: 'macOS uses MLFQ; Linux uses CFS; Windows uses hybrid'",
+      "Page Replacement: 'Redis uses LRU approximation for cache eviction'",
+      "Memory Allocation: 'Linux kernel uses Buddy System + Slab Allocator'",
+      "Thread Sync: 'Go uses goroutines with M:N threading; Java uses mutex via synchronized'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [
+      "OSC-026"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "education",
+      "professional"
+    ]
+  },
+  {
+    "id": "OSC-079",
+    "epic": "OSC",
+    "title": "Add interview tips and common misconceptions to each topic",
+    "description": "Zero topics have interview guidance. Add misconception callouts and interview tips based on research. Top misconceptions: mutex=binary semaphore (WRONG), thrashing=too many processes (WRONG), context switch=just saving registers (WRONG), virtual memory=swap (WRONG). Source: Interview research \u2014 candidate common errors.",
+    "acceptanceCriteria": [
+      "Each concept has an 'Interview Tips' collapsible section",
+      "At least 2 common misconceptions per major topic",
+      "Company-specific notes where available (Apple asks about X, Meta asks about Y)",
+      "Difficulty indicators for interview frequency (How Often Asked: High/Medium/Low)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [
+      "OSC-026"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "interview"
+    ]
+  },
+  {
+    "id": "OSC-080",
+    "epic": "OSC",
+    "title": "Add pseudocode display for all algorithms",
+    "description": "Zero topics have pseudocode. Pseudocode bridges the gap between visualization and implementation. Add toggleable pseudocode panel showing the algorithm logic. Highlight current line during step-through. Source: VisuAlgo (all algorithms have pseudocode), CLRS textbook format.",
+    "acceptanceCriteria": [
+      "Pseudocode panel available for all 14+ algorithms",
+      "Current line highlights during step-through playback",
+      "Pseudocode uses CLRS-style notation (not language-specific)",
+      "Toggle between pseudocode and code (TypeScript implementation)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "education"
+    ]
+  },
+  {
+    "id": "OSC-081",
+    "epic": "OSC",
+    "title": "Add complexity metadata (time/space) to all algorithms",
+    "description": "Zero topics display time or space complexity. This is essential for interview prep and academic learning. Add complexity badges for each algorithm. FCFS: O(n), SJF: O(n\u00b2), MLFQ: O(n*queues). Page replacement: FIFO O(1), LRU O(n) or O(1) with doubly-linked list+hashmap. Source: CLRS, Silberschatz.",
+    "acceptanceCriteria": [
+      "Time complexity (best/avg/worst) shown for each algorithm",
+      "Space complexity shown",
+      "Complexity badge visible in algorithm selector dropdown",
+      "Complexity table in comparison view",
+      "Interview note: 'Interviewers expect you to know LRU can be O(1) with hashmap+DLL'"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "accuracy"
+    ]
+  },
+  {
+    "id": "OSC-082",
+    "epic": "OSC",
+    "title": "Add difficulty tags and prerequisite graph for all OS concepts",
+    "description": "No concepts show difficulty level or prerequisites. Add: Beginner (FCFS, FIFO, Mutex), Intermediate (SJF, LRU, Semaphore, Virtual Memory), Advanced (MLFQ, Banker's, RW Lock, Thrashing). Add prerequisite arrows in sidebar. Source: OSTEP chapter ordering, interview frequency data.",
+    "acceptanceCriteria": [
+      "Every concept and sub-algorithm has a difficulty tag (Beginner/Intermediate/Advanced)",
+      "Sidebar shows prerequisite connections between concepts",
+      "Beginner path highlighted: 'Start Here \u2192 FCFS \u2192 FIFO \u2192 Mutex'",
+      "Prerequisites stated before advanced topics: 'Learn Paging before Page Replacement'"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "learning-path"
+    ]
+  },
+  {
+    "id": "OSC-083",
+    "epic": "OSC",
+    "title": "Implement FAANG Interview Prep learning path (4-week curriculum)",
+    "description": "Based on research across 18+ sources, build a structured 4-week interview prep path covering the top 15 OS interview topics in priority order. Week 1: Process/Thread, Context Switching, Scheduling. Week 2: Memory, Virtual Memory, Paging. Week 3: Sync, Deadlock, IPC. Week 4: File Systems, Advanced topics. Source: Combined interview research.",
+    "acceptanceCriteria": [
+      "4-week learning path accessible from sidebar or module header",
+      "Each week has 3-5 topics in recommended order",
+      "Progress tracking per week",
+      "Each topic links to its visualization + interview tips",
+      "Practice questions after each week's topics"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [
+      "OSC-061",
+      "OSC-062",
+      "OSC-063",
+      "OSC-079"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "learning-path",
+      "interview"
+    ]
+  },
+  {
+    "id": "OSC-084",
+    "epic": "OSC",
+    "title": "Add cross-module links from OS topics to System Design, Concurrency, and Database modules",
+    "description": "OS concepts connect deeply to other Architex modules. CPU Scheduling \u2192 System Design (task scheduling). Page Replacement \u2192 Database (buffer pool management). Mutex/Semaphore \u2192 Concurrency module. Deadlock \u2192 Distributed Systems (distributed deadlock). Source: concept-module-map.ts already has some entries.",
+    "acceptanceCriteria": [
+      "Each OS concept shows 'Related Topics' section linking to other modules",
+      "CPU Scheduling links to Concurrency module's thread scheduling",
+      "Page Replacement links to Database module's buffer pool management",
+      "Deadlock links to Distributed Systems module's distributed deadlock",
+      "Memory Allocation links to Database module's storage engine concepts"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/cross-module/concept-module-map.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "cross-module"
+    ]
+  },
+  {
+    "id": "OSC-085",
+    "epic": "OSC",
+    "title": "Add Buddy System and Next Fit to memory allocation algorithms",
+    "description": "We have First/Best/Worst Fit. Missing: Buddy System (used by Linux kernel, OSTEP Ch.17) and Next Fit (common interview variant). Buddy System uses power-of-2 splitting/merging. Source: OSTEP, Linux kernel docs, BinaryVisual doesn't cover Buddy either \u2014 first-mover.",
+    "acceptanceCriteria": [
+      "Buddy System added with power-of-2 block splitting visualization",
+      "Buddy merging on deallocation shown step-by-step",
+      "Next Fit added (starts search from last allocation point)",
+      "Both included in Compare All mode",
+      "Real-world note: 'Linux kernel uses Buddy System for page frame allocation'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/memory-alloc.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-086",
+    "epic": "OSC",
+    "title": "Add Multi-level Page Table visualization (2-level and 3-level walk)",
+    "description": "Our memory simulation only covers single-level page tables. Multi-level page tables are used by all modern architectures (x86-64 uses 4-level). OSTEP Ch.20 covers this. #17 interview topic (8/18 sources). Source: OSTEP, MIT 6.1810 lab.",
+    "acceptanceCriteria": [
+      "2-level and 3-level page table options in memory concept",
+      "Visual shows directory \u2192 table \u2192 frame walk with arrows",
+      "TLB caching shown with multi-level context",
+      "Overhead comparison: single vs multi-level page tables",
+      "Interview context: 'x86-64 uses 4-level page tables (PML4 \u2192 PDP \u2192 PD \u2192 PT)'"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/memory.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-087",
+    "epic": "OSC",
+    "title": "Add Deadlock vs Livelock vs Starvation comparison visualization",
+    "description": "Interview candidates frequently conflate deadlock, livelock, and starvation. Add a unified visualization showing all three states with the same scenario but different outcomes. Source: Interview research \u2014 top candidate confusion points.",
+    "acceptanceCriteria": [
+      "3-way comparison in deadlock concept",
+      "Deadlock: two threads frozen, holding and waiting for each other's resources",
+      "Livelock: two threads actively changing state but making no progress (after-you/after-you pattern)",
+      "Starvation: one thread perpetually denied access despite being ready",
+      "Clear visual distinction between all three"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/deadlock.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "interview",
+      "education"
+    ]
+  }
+]

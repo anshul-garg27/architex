@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a bug in Architex
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for reporting a bug! Please fill out the details below."
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Steps to reproduce the behavior
+      value: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots.
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      options:
+        - System Design
+        - Algorithms
+        - Data Structures
+        - LLD Studio
+        - Database Lab
+        - Distributed Systems
+        - Networking
+        - OS Concepts
+        - Concurrency
+        - Security
+        - ML Design
+        - Interview Engine
+        - Other
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: "Chrome 120, Firefox 121, Safari 17"

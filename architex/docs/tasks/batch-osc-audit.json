@@ -1,0 +1,1255 @@
+[
+  {
+    "id": "OSC-016",
+    "epic": "OSC",
+    "title": "Guard Clock page replacement against zero frames infinite loop",
+    "description": "clockPageReplacement at page-replacement.ts:320 enters while(true) when frameCount=0. hand=(hand+1)%0 yields NaN, refBit[NaN] is undefined, loop never terminates, browser hangs. Add guard: if (frameCount <= 0) return buildResult('Clock', []).",
+    "acceptanceCriteria": [
+      "clockPageReplacement(refs, 0) returns empty result without hanging",
+      "All 4 page algorithms guard against frameCount <= 0",
+      "Unit test confirms no hang on zero frames"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/page-replacement.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "security",
+      "bug",
+      "engine"
+    ]
+  },
+  {
+    "id": "OSC-017",
+    "epic": "OSC",
+    "title": "Add Round Robin quantum input to CPU scheduling controls",
+    "description": "OSModule.tsx:2125 hardcodes roundRobin(procs, 2). The engine supports configurable quantum but UI provides no control. Add a number input for quantum (1-20, default 2) visible when RR is selected.",
+    "acceptanceCriteria": [
+      "Number input for quantum appears when Round Robin is selected",
+      "Quantum value is passed to roundRobin() engine call",
+      "Quantum persists between Run clicks",
+      "Compare All uses user-specified quantum for RR"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "feature-gap"
+    ]
+  },
+  {
+    "id": "OSC-018",
+    "epic": "OSC",
+    "title": "Add priority input field to process cards for Priority scheduling",
+    "description": "OSModule.tsx:2429-2451 shows only Arr and Burst labels. The priority field exists in state but has no input. When Priority or MLFQ is selected, a priority input must be visible.",
+    "acceptanceCriteria": [
+      "Priority input field appears in each process card",
+      "Priority value is passed to priorityScheduling()",
+      "Priority is visible in the process table in properties panel"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "feature-gap"
+    ]
+  },
+  {
+    "id": "OSC-019",
+    "epic": "OSC",
+    "title": "Expose SJF preemptive toggle and Priority preemptive toggle",
+    "description": "OSModule.tsx:2121 always calls sjf(procs) non-preemptive. Line 2128 always calls priorityScheduling(procs) non-preemptive. Both engines support preemptive mode. Add checkbox toggles.",
+    "acceptanceCriteria": [
+      "Preemptive checkbox appears when SJF or Priority is selected",
+      "SRTF mode produces different results than SJF",
+      "Compare All includes both modes"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "feature-gap"
+    ]
+  },
+  {
+    "id": "OSC-020",
+    "epic": "OSC",
+    "title": "Fix orphaned timer when switching away from thread-sync mid-play",
+    "description": "OSModule.tsx:2083-2104 syncTimerRef continues firing setSyncStep after user switches concept. No useEffect cleanup on active change. Add effect: useEffect(() => { return () => { setSyncPlaying(false); clearInterval(syncTimerRef.current); }; }, [active]).",
+    "acceptanceCriteria": [
+      "Switching concept while thread-sync is playing stops the timer",
+      "No console errors from state updates on unmounted concept",
+      "Timer restarts correctly when returning to thread-sync"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "state"
+    ]
+  },
+  {
+    "id": "OSC-021",
+    "epic": "OSC",
+    "title": "Fix duplicate step IDs in bankersAlgorithm requestResources output",
+    "description": "bankers-algorithm.ts:300 \u2014 requestResources calls isSafe which calls resetStepId(), so step IDs restart at 0 mid-trace. The merged steps array has non-monotonic IDs. Fix: pass starting ID as parameter or use closure-scoped counter.",
+    "acceptanceCriteria": [
+      "requestResources output has strictly increasing step IDs",
+      "isSafe standalone still works with IDs starting at 0",
+      "Unit test asserts monotonic IDs"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/bankers-algorithm.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "engine"
+    ]
+  },
+  {
+    "id": "OSC-022",
+    "epic": "OSC",
+    "title": "Fix mlfq() in scheduling.ts emitting preempt instead of demote for demotion events",
+    "description": "scheduling.ts:858 emits type:'preempt' for demotion events. Should be type:'demote' to match mlfq-scheduler.ts:437 and enable correct event log coloring.",
+    "acceptanceCriteria": [
+      "mlfq() demotion events have type:'demote'",
+      "Event log colors demotions correctly",
+      "Compare All shows correct event types for MLFQ"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "engine"
+    ]
+  },
+  {
+    "id": "OSC-023",
+    "epic": "OSC",
+    "title": "Add ARIA labels, roles, htmlFor/id pairing, and focus indicators to all OS module controls",
+    "description": "OSModule.tsx has 0 aria-label, 0 role, 0 htmlFor, 0 aria-live attributes across 3933 lines. All inputs use outline-none without custom focus ring. This makes the entire module inaccessible to screen readers and keyboard users.",
+    "acceptanceCriteria": [
+      "Every label has htmlFor matching input id",
+      "All icon-only buttons have aria-label",
+      "Result areas have aria-live='polite'",
+      "All inputs have visible focus ring (focus:ring-2 focus:ring-primary)",
+      "SVG visualizers have role='img' and descriptive title elements"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y"
+    ]
+  },
+  {
+    "id": "OSC-024",
+    "epic": "OSC",
+    "title": "Replace hardcoded hex colors with CSS custom properties across OS module",
+    "description": "59 hardcoded hex colors in OSModule.tsx (ALLOC_COLORS, THREAD_COLORS, PROCESS_COLORS at lines 136-165, plus 30+ inline SVG fill values). GCPauseLatencyVisualizer correctly uses var(--primary) etc. Consolidate 3 duplicate color arrays into one OS_PALETTE and use CSS variables for theme compatibility.",
+    "acceptanceCriteria": [
+      "Single OS_PALETTE constant replaces 3 duplicate arrays",
+      "SVG fill/stroke values use CSS variables",
+      "Colors adapt correctly in dark theme",
+      "No visual regression in any visualization"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "design-system"
+    ]
+  },
+  {
+    "id": "OSC-025",
+    "epic": "OSC",
+    "title": "Replace sub-11px text with minimum 10px throughout OS module",
+    "description": "114 instances of text-[8px] and text-[9px] across OSModule.tsx. Below WCAG minimum readable size. Replace text-[8px] with text-[10px] and text-[9px] with text-[10px] or text-xs. Key locations: Gantt axis (line 208), SVG legends (lines 1090-1094), thread state labels (line 1291), HIT/FAULT badges (line 910).",
+    "acceptanceCriteria": [
+      "No text-[8px] or text-[9px] remains in OS module files",
+      "Minimum font size is 10px for data, 11px for labels",
+      "Visualizations remain visually balanced after size increase"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "accessibility"
+    ]
+  },
+  {
+    "id": "OSC-026",
+    "epic": "OSC",
+    "title": "Make Learn tab concept-specific instead of always showing GC visualizer",
+    "description": "OSModule.tsx:3769-3774 renders GCPauseLatencyVisualizer for ALL 6 concepts. A user studying deadlock sees Java GC content. Each concept needs its own Learn component: scheduling theory for CPU, virtual memory fundamentals for memory, etc.",
+    "acceptanceCriteria": [
+      "Learn tab renders different content based on active concept",
+      "Each concept has at minimum a text explainer with key terms defined",
+      "GC visualizer only shows for relevant concept or as bonus content",
+      "Learn components are lazy-loaded"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/components/modules/os/GCPauseLatencyVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "content",
+      "learning"
+    ]
+  },
+  {
+    "id": "OSC-027",
+    "epic": "OSC",
+    "title": "Add input validation and error handling to all simulation run callbacks",
+    "description": "No try/catch around algorithm calls (OSModule.tsx:2117-2141, 2164-2184, 2228-2244). Invalid inputs silently produce empty results or corrupt data. Negative burst times accepted. Empty process lists produce vacuous results. Add validation before run, try/catch around engines, and error state display.",
+    "acceptanceCriteria": [
+      "Negative burst/arrival values are rejected with inline error",
+      "Empty process/reference lists show validation message instead of running",
+      "Engine exceptions are caught and displayed as error banners",
+      "Frame count 0 is prevented at input level (min=1 enforced)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/lib/os/page-replacement.ts"
+    ],
+    "dependencies": [
+      "OSC-016"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "error-handling",
+      "validation"
+    ]
+  },
+  {
+    "id": "OSC-028",
+    "epic": "OSC",
+    "title": "Split OSModule.tsx into 6 concept-specific canvas components",
+    "description": "OSModule.tsx is 3933 lines with 6 concept branches in one file. Extract each concept canvas into its own file: CPUSchedulingCanvas.tsx, PageReplacementCanvas.tsx, DeadlockCanvas.tsx, MemoryCanvas.tsx, MemAllocCanvas.tsx, ThreadSyncCanvas.tsx. Keep useOSModule hook in a separate useOSModule.ts file.",
+    "acceptanceCriteria": [
+      "Each concept canvas is a separate file under src/components/modules/os/",
+      "useOSModule.ts contains only the hook logic",
+      "Each canvas component is lazy-loadable",
+      "No functional regression in any concept",
+      "Main OSModule.tsx is under 200 lines"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "code-quality"
+    ]
+  },
+  {
+    "id": "OSC-029",
+    "epic": "OSC",
+    "title": "Add step-through mode for CPU scheduling Gantt chart",
+    "description": "CPU scheduling shows full Gantt instantly (OSModule.tsx:2472-2485) while all other concepts have step controls. Add step-through that highlights one Gantt block at a time, showing the scheduler's decision at each tick with the event description.",
+    "acceptanceCriteria": [
+      "Step/Reset/Show All buttons appear below Gantt chart",
+      "Each step highlights the active Gantt block",
+      "Event description shows at each step (why this process was chosen)",
+      "Properties panel updates per-step metrics"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "education",
+      "consistency"
+    ]
+  },
+  {
+    "id": "OSC-030",
+    "epic": "OSC",
+    "title": "Add color legend inside Gantt chart canvas (spatial contiguity)",
+    "description": "Gantt chart colors are only explained in the Properties panel process table (OSModule.tsx:1526-1558), violating Mayer's spatial contiguity principle. Add an inline process color legend directly below the Gantt chart bars.",
+    "acceptanceCriteria": [
+      "Color legend with process name + color dot appears below Gantt chart",
+      "Legend updates when processes are added/removed",
+      "Legend is compact (horizontal layout with wrapping)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "visual",
+      "mayer"
+    ]
+  },
+  {
+    "id": "OSC-031",
+    "epic": "OSC",
+    "title": "Add pre-training concept explainers at the top of each concept panel",
+    "description": "No concept defines terms before using them (Mayer's pre-training principle). 'TLB HIT', 'PT HIT', 'TAT', 'Arr' are used without explanation. Add a collapsible 'What is X?' callout at the top of each concept canvas explaining key terms and the visualization.",
+    "acceptanceCriteria": [
+      "Each concept has a collapsible explainer below the title",
+      "Key terms (TLB, TAT, quantum, etc.) are defined",
+      "Collapsed by default for returning users",
+      "Expand state persists in session"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "mayer",
+      "ux"
+    ]
+  },
+  {
+    "id": "OSC-032",
+    "epic": "OSC",
+    "title": "Clarify Request/Need matrix dual-semantics for Deadlock vs Banker's",
+    "description": "OSModule.tsx:2760 labels the matrix 'Request / Need Matrix' which has different semantics for Detect Deadlock (requested resources) vs Banker's (remaining need = max - allocated). This is the highest extraneous cognitive load item in the module.",
+    "acceptanceCriteria": [
+      "Matrix label changes based on which algorithm will be run",
+      "Tooltip or helper text explains the interpretation",
+      "Separate labels: 'Current Requests' for RAG, 'Max Additional Need' for Banker's"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "education",
+      "cognitive-load"
+    ]
+  },
+  {
+    "id": "OSC-033",
+    "epic": "OSC",
+    "title": "Add mobile responsive layout with panel collapse and touch targets",
+    "description": "All action buttons are h-8 (32px), process inputs are h-4 (16px), delete icons are 12x12px \u2014 all below 44px touch target minimum. No 3-panel collapse for mobile. PropertiesSheet component exists but is unused. Add: mobile panel drawer, minimum 44px touch targets, safe-area insets for bottom panel.",
+    "acceptanceCriteria": [
+      "All interactive elements meet 44px minimum touch target on mobile",
+      "Sidebar collapses to drawer below md breakpoint",
+      "Properties panel uses PropertiesSheet on mobile",
+      "Bottom panel has safe-area-inset-bottom padding",
+      "Deadlock matrix uses tabbed view on mobile instead of side-by-side"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "mobile",
+      "responsive",
+      "ux"
+    ]
+  },
+  {
+    "id": "OSC-034",
+    "epic": "OSC",
+    "title": "Add keyboard shortcuts for Run (Ctrl+Enter), Step (\u2192), Reset (Escape)",
+    "description": "Zero onKeyDown handlers in OSModule.tsx. DatabaseModule has Enter-key handlers on inputs. Add global keyboard shortcuts: Ctrl+Enter to Run, \u2192 to Step forward, \u2190 to Step back, Escape to Reset. Show shortcut hints on buttons.",
+    "acceptanceCriteria": [
+      "Ctrl+Enter runs the current simulation",
+      "Arrow keys advance/retreat steps when step controls are active",
+      "Escape resets the current simulation",
+      "Keyboard shortcut hints appear on hover/focus of buttons",
+      "Enter key on input fields triggers Run"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "keyboard",
+      "accessibility"
+    ]
+  },
+  {
+    "id": "OSC-035",
+    "epic": "OSC",
+    "title": "Add comprehensive test coverage for untested engines",
+    "description": "Clock algorithm, all thread-sync primitives, memory simulation, and memory allocation have zero test coverage. Clock has a confirmed while(true) bug. SJF, Priority scheduling also untested. Add unit tests for all 12 engine functions with edge cases.",
+    "acceptanceCriteria": [
+      "clockPageReplacement has tests including 0-frame guard",
+      "simulateMutex, simulateSemaphore, simulateReaderWriterLock have basic correctness tests",
+      "simulateVirtualMemory has TLB hit/miss/eviction tests",
+      "simulateFirstFit/BestFit/WorstFit have fragmentation validation tests",
+      "sjf(preemptive=true) and priorityScheduling have correctness tests",
+      "Test for requestResources step ID monotonicity"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/os/page-replacement.test.ts",
+      "src/__tests__/lib/os/scheduling.test.ts",
+      "src/__tests__/lib/os/deadlock.test.ts"
+    ],
+    "dependencies": [
+      "OSC-016",
+      "OSC-021"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "quality"
+    ]
+  },
+  {
+    "id": "OSC-036",
+    "epic": "OSC",
+    "title": "Replace module-level mutable counters with closure-scoped state",
+    "description": "memory-alloc.ts:39 blockIdCounter and bankers-algorithm.ts:69 _stepId are module-level mutable singletons reset on each simulate(). In SSR/concurrent mode, overlapping calls corrupt counters. compareAllocAlgorithms runs 3 simulations resetting counter each time, causing React key collisions.",
+    "acceptanceCriteria": [
+      "blockIdCounter is passed as parameter or uses closure",
+      "_stepId is passed as parameter or uses closure",
+      "compareAllocAlgorithms produces unique block IDs across all 3 strategies",
+      "requestResources produces unique step IDs throughout merged trace"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/memory-alloc.ts",
+      "src/lib/os/bankers-algorithm.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "architecture",
+      "state"
+    ]
+  },
+  {
+    "id": "OSC-037",
+    "epic": "OSC",
+    "title": "Add Random button for generating reference strings and process sets",
+    "description": "page-replacement.ts:356 exports generateReferenceString() but no UI calls it. Users must manually type comma-separated numbers. Add Random buttons next to reference string input and for generating process sets.",
+    "acceptanceCriteria": [
+      "Random button next to reference string input generates a random string",
+      "Random button next to process list generates 3-6 random processes",
+      "Generated values use reasonable ranges (pages 0-9, burst 1-10)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "convenience"
+    ]
+  },
+  {
+    "id": "OSC-038",
+    "epic": "OSC",
+    "title": "Add Reset to Defaults button for each concept",
+    "description": "No way to restore initial state after corrupting inputs. If user removes all processes, changes all matrix values, or clears the reference string, only a page refresh recovers. Add Reset to Defaults button in each concept's control bar.",
+    "acceptanceCriteria": [
+      "Each concept has a Reset to Defaults button",
+      "Button restores the initial state values defined in useOSModule",
+      "Confirmation dialog before resetting if there are unsaved results"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "error-recovery"
+    ]
+  },
+  {
+    "id": "OSC-039",
+    "epic": "OSC",
+    "title": "Reorder concepts from domain grouping to pedagogical sequence",
+    "description": "Current order: scheduling, page-replacement, deadlock, memory, mem-alloc, thread-sync. Pedagogically correct: scheduling \u2192 memory \u2192 page-replacement \u2192 mem-alloc \u2192 thread-sync \u2192 deadlock (concepts that require understanding of earlier ones come later). Add difficulty badges.",
+    "acceptanceCriteria": [
+      "Sidebar shows concepts in pedagogical order",
+      "Each concept has a difficulty badge (Beginner/Intermediate/Advanced)",
+      "Sidebar shows grouping headers (CPU, Memory, Concurrency)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "learning-path"
+    ]
+  },
+  {
+    "id": "OSC-040",
+    "epic": "OSC",
+    "title": "Add color-independent encoding to all visualizations for color-blind users",
+    "description": "Red/green alone distinguish page faults from hits, deadlock from safe, holding from waiting. No pattern, shape, or icon supplements exist. Add shape/icon/text backups for every color-coded state.",
+    "acceptanceCriteria": [
+      "PageFrameGrid uses checkmark/X icons alongside green/red",
+      "RAG uses different line styles (solid vs double) alongside colors",
+      "ThreadSync uses icon badges alongside color for state",
+      "All visualizations are distinguishable in grayscale"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "visual"
+    ]
+  },
+  {
+    "id": "OSC-041",
+    "epic": "OSC",
+    "title": "Replace raw HTML inputs with shared UI components (Input, Select, Label)",
+    "description": "OSModule uses native <select> and <input> with manual Tailwind (OSModule.tsx:2374-2384). NetworkingModule and DatabaseModule use shared @/components/ui components. When global theme changes, OS module will visually diverge.",
+    "acceptanceCriteria": [
+      "All <select> elements replaced with shared Select component",
+      "All <input> elements replaced with shared Input component",
+      "All <label> elements replaced with shared Label component",
+      "Visual consistency with other modules maintained"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "consistency",
+      "design-system"
+    ]
+  },
+  {
+    "id": "OSC-042",
+    "epic": "OSC",
+    "title": "Extract shared scheduling helpers to avoid duplication between scheduling.ts and mlfq-scheduler.ts",
+    "description": "scheduling.ts:59-110 and mlfq-scheduler.ts:87-133 both define identical finalise() and pushGantt() helpers. Extract to a shared scheduling-utils.ts.",
+    "acceptanceCriteria": [
+      "finalise() and pushGantt() exist in a single scheduling-utils.ts",
+      "Both scheduling.ts and mlfq-scheduler.ts import from shared file",
+      "No duplicate function definitions remain"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts",
+      "src/lib/os/mlfq-scheduler.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "code-quality"
+    ]
+  },
+  {
+    "id": "OSC-043",
+    "epic": "OSC",
+    "title": "Add Gantt chart intermediate time tick marks and axis labels",
+    "description": "GanttChart (OSModule.tsx:207-212) only shows 0 and maxTime. No intermediate markers, no 'Time' axis label. For simulations longer than 20 ticks, the axis is useless. Add 4-6 evenly spaced tick marks.",
+    "acceptanceCriteria": [
+      "Gantt chart shows 4-6 intermediate time markers",
+      "X-axis has 'Time' label",
+      "Tick marks scale with simulation length"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "education"
+    ]
+  },
+  {
+    "id": "OSC-044",
+    "epic": "OSC",
+    "title": "Replace key={i} with stable IDs for all mutable lists",
+    "description": "19 instances of key={i} for mutable lists (process cards line 2408, Gantt blocks, request items). When items are deleted or reordered, React incorrectly reuses DOM nodes. Use stable IDs.",
+    "acceptanceCriteria": [
+      "Process cards use key={p.name} or unique ID",
+      "Alloc request items use stable key",
+      "No key={i} remains for lists that can be mutated"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "react"
+    ]
+  },
+  {
+    "id": "OSC-045",
+    "epic": "OSC",
+    "title": "Add process lifecycle state machine visualization (New \u2192 Ready \u2192 Running \u2192 Blocked \u2192 Terminated)",
+    "description": "Process lifecycle is the most fundamental OS concept (OSTEP Ch.4, MIT 6.828 Lecture 3, top-10 interview topic) but is entirely missing from the module. Add an animated state machine showing process state transitions.",
+    "acceptanceCriteria": [
+      "New concept 'Process Lifecycle' added to sidebar",
+      "Interactive state machine diagram with transitions",
+      "User can trigger transitions (fork, schedule, block, wake, terminate)",
+      "Step-through mode showing state changes"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/lib/os/process-lifecycle.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "curriculum",
+      "education"
+    ]
+  },
+  {
+    "id": "OSC-046",
+    "epic": "OSC",
+    "title": "Add I/O and disk scheduling visualization (SSTF, SCAN, C-SCAN, LOOK)",
+    "description": "Disk scheduling is covered in every OS course (OSTEP Ch.37-44) and interview prep. 4 algorithms (SSTF, SCAN, C-SCAN, LOOK) with head movement visualization. No existing tool does this well.",
+    "acceptanceCriteria": [
+      "New concept 'Disk Scheduling' added to sidebar",
+      "4 algorithms: SSTF, SCAN, C-SCAN, LOOK",
+      "Head movement visualization showing seek distance",
+      "Comparison mode showing total seek time for all algorithms",
+      "Step-through mode"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/disk-scheduling.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "curriculum",
+      "education"
+    ]
+  },
+  {
+    "id": "OSC-047",
+    "epic": "OSC",
+    "title": "Add condition variables to thread synchronization concept",
+    "description": "Thread sync covers Mutex, Semaphore, RW Lock but omits condition variables (OSTEP Ch.30, top interview topic). Add condition variable simulation with wait/signal/broadcast showing producer-consumer pattern.",
+    "acceptanceCriteria": [
+      "Condition Variable added as 4th sync primitive option",
+      "Producer-consumer scenario with bounded buffer",
+      "Visual shows threads waiting on condition vs holding mutex",
+      "Step-through mode with event log"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/thread-sync.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-048",
+    "epic": "OSC",
+    "title": "Add system call interface visualization (user space \u2192 kernel space transition)",
+    "description": "System calls are a top-10 OS interview topic (InterviewBit) and MIT lab topic. Visualize the trap/interrupt mechanism: user process \u2192 syscall instruction \u2192 mode switch \u2192 kernel handler \u2192 return. No existing tool visualizes this.",
+    "acceptanceCriteria": [
+      "New concept 'System Calls' added to sidebar or as Learn content",
+      "Animated diagram showing privilege level transition",
+      "Common syscalls listed with their flow (read, write, fork, exec)",
+      "Shows register save/restore during context switch"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/SystemCallVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "curriculum",
+      "education"
+    ]
+  },
+  {
+    "id": "OSC-049",
+    "epic": "OSC",
+    "title": "Add multi-level page table visualization for real-world memory concepts",
+    "description": "Memory concept only covers single-level page tables. Multi-level page tables (used by x86-64) are standard curriculum (OSTEP Ch.20) and interview material. Add visualization showing 2-level or 3-level page table walk.",
+    "acceptanceCriteria": [
+      "Multi-level page table option in memory concept",
+      "Visual shows page directory \u2192 page table \u2192 frame walk",
+      "TLB interaction with multi-level tables shown",
+      "Comparison of memory overhead: single vs multi-level"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/memory.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-050",
+    "epic": "OSC",
+    "title": "Add 'Predict what happens next' mode for active learning engagement",
+    "description": "Research shows active prediction improves learning (Mayer's principles, OS Odyssey study). Before each step, pause and ask 'What page will be evicted?' or 'Which process runs next?' with instant feedback. No existing tool does this.",
+    "acceptanceCriteria": [
+      "Toggle for 'Quiz Mode' in step controls",
+      "Before each step, a prediction prompt appears",
+      "User selects from multiple choice options",
+      "Immediate feedback: correct/incorrect with explanation",
+      "Score tracking within session"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "education",
+      "gamification",
+      "innovation"
+    ]
+  },
+  {
+    "id": "OSC-051",
+    "epic": "OSC",
+    "title": "Add copy/export simulation results as shareable image or text",
+    "description": "No way to share results. Students cannot show classmates 'look what I found'. Add copy-to-clipboard for metrics table, and export Gantt/visualization as PNG. Research shows shareability drives adoption.",
+    "acceptanceCriteria": [
+      "Copy button on metrics tables copies formatted text to clipboard",
+      "Export button on visualizations generates PNG via html2canvas",
+      "Exported images include a watermark/attribution"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "sharing",
+      "engagement"
+    ]
+  },
+  {
+    "id": "OSC-052",
+    "epic": "OSC",
+    "title": "Add progress tracking \u2014 concepts explored, algorithms run, comparison completed",
+    "description": "Zero engagement/gamification mechanics (Octalysis score 5/40). Add lightweight progress: track which concepts user has explored, which algorithms they've run, badge for completing all comparisons. Store in localStorage.",
+    "acceptanceCriteria": [
+      "Sidebar shows checkmark for explored concepts",
+      "Progress counter: 'X/6 concepts explored'",
+      "Badge earned for running Compare All in each concept",
+      "Progress persists across page refreshes via localStorage"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "engagement",
+      "gamification"
+    ]
+  },
+  {
+    "id": "OSC-053",
+    "epic": "OSC",
+    "title": "Add worst-case input challenge mode: 'Break the algorithm'",
+    "description": "Never-been-done innovation: invert the relationship. Instead of 'watch algorithm work', challenge users to craft the WORST input. 'Make FCFS have the highest average wait time possible.' 'Find an input where Belady's anomaly is most extreme.' First tool to make failure the feature.",
+    "acceptanceCriteria": [
+      "Challenge mode toggle available for each concept",
+      "Predefined challenges with scoring (e.g., maximize wait time, maximize page faults)",
+      "Leaderboard showing best scores",
+      "Explanation of why worst-case inputs matter in practice"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "innovation",
+      "gamification"
+    ]
+  },
+  {
+    "id": "OSC-054",
+    "epic": "OSC",
+    "title": "Add algorithm sonification \u2014 hear the difference between O(n\u00b2) and O(n log n) scheduling",
+    "description": "Web Audio API enables zero-latency synthesis. Each scheduling tick produces a tone whose pitch maps to the running process. Different algorithms produce different melodies. FCFS sounds monotone; MLFQ sounds dynamic. First OS visualization tool with audio.",
+    "acceptanceCriteria": [
+      "Sound toggle button in scheduling controls",
+      "Each process has a distinct pitch",
+      "Scheduling ticks produce tones via Web Audio API",
+      "Speed control affects playback rate",
+      "Respects prefers-reduced-motion by defaulting to off"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [
+      "OSC-029"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "innovation",
+      "audio"
+    ]
+  },
+  {
+    "id": "OSC-055",
+    "epic": "OSC",
+    "title": "Add OS-to-Cloud bridge: map FCFS/RR/Priority to Kubernetes pod scheduling",
+    "description": "67% of K8s teams use eBPF. No tool connects OS scheduling concepts to container scheduling. Add a 'Real World' panel showing how each OS algorithm maps to Kubernetes: FCFS\u2192FIFO queue, Priority\u2192PriorityClass, RR\u2192ResourceQuota fair sharing.",
+    "acceptanceCriteria": [
+      "Real World section in each concept's Learn tab",
+      "CPU scheduling maps to K8s scheduler concepts",
+      "Memory management maps to container cgroups/limits",
+      "Thread sync maps to distributed locks/leader election"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [
+      "OSC-026"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "education",
+      "innovation"
+    ]
+  },
+  {
+    "id": "OSC-056",
+    "epic": "OSC",
+    "title": "Cap simulation input sizes to prevent UI thread blocking",
+    "description": "Burst values up to 999999 block the UI for seconds in SRTF tick-by-tick loop (scheduling.ts:299-316). Reference strings of 100000 items exhaust memory. Add input guards: max burst 1000, max reference string length 200, max processes 20.",
+    "acceptanceCriteria": [
+      "Number inputs have max attributes enforced",
+      "Reference string is truncated with warning at 200 entries",
+      "Process count capped at 20 with Add button disabled",
+      "Error message shown when limits are hit"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "security",
+      "performance",
+      "validation"
+    ]
+  },
+  {
+    "id": "OSC-057",
+    "epic": "OSC",
+    "title": "Add Buddy System memory allocator to mem-alloc concept",
+    "description": "Memory allocation covers First/Best/Worst Fit but omits Buddy System (used by Linux kernel, OSTEP Ch.17, common interview topic). Add power-of-2 splitting/merging visualization.",
+    "acceptanceCriteria": [
+      "Buddy System added as 4th allocation algorithm",
+      "Visual shows power-of-2 block splitting on allocation",
+      "Visual shows buddy merging on deallocation",
+      "Included in Compare All mode"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/memory-alloc.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "feature",
+      "curriculum"
+    ]
+  },
+  {
+    "id": "OSC-058",
+    "epic": "OSC",
+    "title": "Add concept-specific empty states with example scenarios",
+    "description": "All 6 concepts show identical 'Configure and press Run' centered text. Add concept-specific empty states with: illustration, 1-sentence description of what the visualization shows, and a 'Try Example' button that loads a pre-configured interesting scenario.",
+    "acceptanceCriteria": [
+      "Each concept has a unique empty state illustration",
+      "Try Example button loads a pre-configured scenario and runs it",
+      "Example scenarios are educational (e.g., deadlock cycle, Belady's case)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "education",
+      "onboarding"
+    ]
+  },
+  {
+    "id": "OSC-059",
+    "epic": "OSC",
+    "title": "Add WHY explanations to step descriptions across all engines",
+    "description": "Step descriptions say WHAT happened but not WHY. FCFS: 'P1 starts execution (burst=5)' should add 'because it arrived first (FCFS serves in arrival order)'. MLFQ demotion should explain 'penalized for CPU-bound behavior'. Deadlock release should explain safe-sequence logic.",
+    "acceptanceCriteria": [
+      "Each engine's step descriptions include a WHY clause",
+      "WHY text is wrapped in a distinct style (e.g., italic or muted color)",
+      "Beginner could understand each step without external reference",
+      "At least 3 description types per engine have WHY text"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts",
+      "src/lib/os/page-replacement.ts",
+      "src/lib/os/deadlock.ts",
+      "src/lib/os/memory.ts",
+      "src/lib/os/thread-sync.ts",
+      "src/lib/os/memory-alloc.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "education",
+      "content"
+    ]
+  },
+  {
+    "id": "OSC-060",
+    "epic": "OSC",
+    "title": "Add deadlock cycle display using user-visible names instead of internal IDs",
+    "description": "Deadlock cycle (OSModule.tsx:1720) displays internal IDs like 'p0 \u2192 p1 \u2192 p2' instead of user-visible names 'P0 \u2192 P1 \u2192 P2'. Apply name lookup from dlProcesses when rendering the cycle.",
+    "acceptanceCriteria": [
+      "Deadlock cycle shows user-visible process names",
+      "Safe sequence in Banker's also shows user-visible names",
+      "Properties panel deadlock info uses user-visible names"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "ux"
+    ]
+  }
+]

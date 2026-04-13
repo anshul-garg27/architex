@@ -1,0 +1,78 @@
+[
+  {
+    "id": "CON-189", "epic": "CON", "title": "Wire Concurrency module features to platform MODULE_FEATURES progress tracking",
+    "description": "Platform has MODULE_FEATURES progress tracking at lib/progress/module-progress.ts but Concurrency module features need to be verified and matched to the actual 12 demos. Currently the concurrency features array should list all demo IDs. When a user views a demo and plays through it, the feature should be marked as explored. This connects to the dashboard progress display, 'Continue where you left off,' and the skill radar chart.\n\nCheck: does the concurrency entry in MODULE_FEATURES match the actual 12 demos (race-condition, producer-consumer, dining-philosophers, event-loop, thread-lifecycle, go-goroutines, readers-writers, sleeping-barber, async-patterns, deadlock-demo, lock-comparison, thread-pool-saturation)?",
+    "acceptanceCriteria": [
+      "MODULE_FEATURES concurrency entry lists all 12 demo IDs",
+      "Viewing a demo marks it as explored in localStorage",
+      "Dashboard shows correct concurrency progress percentage",
+      "Skill radar chart includes concurrency module data"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/progress/module-progress.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "progress", "integration"]
+  },
+  {
+    "id": "CON-190", "epic": "CON", "title": "Add Concurrency-specific cross-module bridges beyond the 2 existing system-design bridges",
+    "description": "The bridge registry has only 2 concurrency bridges — both pointing to system-design. Missing critical cross-module connections:\n1. Concurrency → Database: 'Mutex/Lock → Database Locks (Row lock, Table lock, MVCC)'\n2. Concurrency → Database: 'Readers-Writers → Read Replicas / MVCC'\n3. Concurrency → Distributed: 'Deadlock → Distributed Deadlock Detection'\n4. Concurrency → Distributed: 'CAS → Distributed Consensus (CAS is the local equivalent)'\n5. Concurrency → Networking: 'Event Loop → epoll/select/kqueue'\n6. Concurrency → OS: 'Thread Lifecycle → Process Scheduling'\n7. Concurrency → OS: 'Context Switching → OS Scheduler'\n8. Concurrency → Data Structures: 'Lock-Free DS → Concurrent Skip List, CAS-based Stack'\n9. Concurrency → LLD: 'Producer-Consumer → Message Queue Pattern'\n10. Concurrency → LLD: 'Thread Pool → Object Pool Pattern'\n\nAdd to bridge-registry.ts with appropriate payloadFactory functions.",
+    "acceptanceCriteria": [
+      "At least 8 new concurrency bridges added to BRIDGE_REGISTRY",
+      "Bridges cover connections to Database, Distributed, Networking, OS, Data Structures, and LLD modules",
+      "Each bridge has a descriptive label and description",
+      "RecommendedBridges component shows relevant bridges when concurrency module is active"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/cross-module/bridge-registry.ts", "src/lib/cross-module/bridge-rules.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "cross-module", "bridges"]
+  },
+  {
+    "id": "CON-191", "epic": "CON", "title": "Add Concurrency concepts to concept-module-map for cross-module knowledge graph",
+    "description": "The concept-module-map.ts (245 lines) maps concepts across modules but may not include all concurrency concepts. Ensure all 12 existing + planned concepts are mapped:\n- Mutex → Database locks, OS kernel locks\n- Semaphore → Database connection pools, OS resource limits\n- Deadlock → Database transaction deadlocks, Distributed deadlock\n- Race condition → Database lost updates, Distributed split-brain\n- Event loop → Networking I/O models, OS scheduling\n- Producer-Consumer → Message queues (Kafka/RabbitMQ)\n- Thread pool → Web server architecture (Tomcat, Nginx)\n- Goroutines → Go microservice patterns",
+    "acceptanceCriteria": [
+      "All 12 concurrency concepts mapped to related concepts in other modules",
+      "ConceptModuleLinks component shows relevant cross-module links in concurrency properties panel",
+      "Knowledge Graph module can visualize concurrency concept connections"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/cross-module/concept-module-map.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "cross-module", "knowledge-graph"]
+  },
+  {
+    "id": "CON-192", "epic": "CON", "title": "Add Concurrency-specific daily challenges to the dashboard challenge pool",
+    "description": "The dashboard (dashboard/page.tsx:63-71) has 7 DAILY_CHALLENGES but NONE are concurrency-related. Add:\n1. { title: 'Race Condition: Predict the Counter', module: 'concurrency', difficulty: 'Easy' }\n2. { title: 'Deadlock: Break the Circular Wait', module: 'concurrency', difficulty: 'Medium' }\n3. { title: 'Event Loop: Predict Output Order', module: 'concurrency', difficulty: 'Medium' }\n4. { title: 'SpinLock vs Mutex: Pick the Winner', module: 'concurrency', difficulty: 'Hard' }\n5. { title: 'Dining Philosophers: Feed Everyone', module: 'concurrency', difficulty: 'Hard' }",
+    "acceptanceCriteria": [
+      "At least 5 concurrency challenges added to DAILY_CHALLENGES array",
+      "Challenges span Easy/Medium/Hard difficulty",
+      "Clicking a concurrency challenge navigates to the concurrency module with the relevant demo active"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/app/dashboard/page.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "daily-challenge", "engagement"]
+  },
+  {
+    "id": "CON-193", "epic": "CON", "title": "Verify Concurrency module keyboard shortcuts are consistent with platform-wide shortcuts",
+    "description": "The platform has keyboard-shortcuts-dialog.tsx and use-keyboard-shortcuts.ts for global shortcuts. The activity bar shows shortcuts 1-9 for modules (concurrency = '9'). Verify:\n1. Pressing '9' switches to concurrency module from any other module\n2. Cmd+K opens command palette with concurrency demos searchable\n3. Concurrency-specific shortcuts (Play/Step/Reset) don't conflict with global shortcuts\n4. All shortcuts listed in keyboard-shortcuts-dialog include concurrency module's controls",
+    "acceptanceCriteria": [
+      "'9' key switches to concurrency module from any module",
+      "Command palette search finds all 12 concurrency demos by name",
+      "No keyboard shortcut conflicts between concurrency playback and global shortcuts",
+      "Keyboard shortcuts dialog lists concurrency-specific controls"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/hooks/use-keyboard-shortcuts.ts", "src/components/shared/keyboard-shortcuts-dialog.tsx", "src/components/shared/command-palette.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "keyboard", "consistency"]
+  },
+  {
+    "id": "CON-194", "epic": "CON", "title": "Add Concurrency module to SEO concept pages and blog data",
+    "description": "The platform has SEO infrastructure: concepts/page.tsx, blog/page.tsx, and seo/concepts-data.ts. Verify concurrency concepts are included in SEO-optimized pages:\n1. Check if concurrency concepts appear in seo/concepts-data.ts\n2. Check if concurrency has entries in seo/blog-data.ts\n3. Verify /concepts/[slug] routes exist for concurrency topics\n4. Verify Open Graph metadata for concurrency pages",
+    "acceptanceCriteria": [
+      "All 12 concurrency demos have entries in seo/concepts-data.ts",
+      "At least 3 concurrency blog post stubs exist in seo/blog-data.ts",
+      "Concurrency concept pages are crawlable by search engines",
+      "Open Graph images generated for concurrency concept pages"
+    ],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/seo/concepts-data.ts", "src/lib/seo/blog-data.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["platform", "seo", "discoverability"]
+  }
+]

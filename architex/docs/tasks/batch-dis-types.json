@@ -1,0 +1,241 @@
+[
+  {
+    "id": "DIS-121",
+    "epic": "DIS",
+    "title": "Convert RaftMessage from flat optional interface to discriminated union",
+    "description": "raft.ts:57-88 — RaftMessage has 12 optional fields shared across 4 message types. A RequestVote message has candidateId but NOT entries/leaderCommit. All are optional because one flat interface serves all types.\n\nThis allows constructing invalid messages (RequestVote with entries field) and accessing missing fields without TypeScript warning.\n\nConvert to discriminated union:\n```typescript\ntype RaftMessage =\n  | { type: 'RequestVote'; from: string; to: string; term: number;\n      candidateId: string; lastLogIndex: number; lastLogTerm: number }\n  | { type: 'RequestVoteResponse'; from: string; to: string; term: number;\n      voteGranted: boolean }\n  | { type: 'AppendEntries'; from: string; to: string; term: number;\n      leaderId: string; prevLogIndex: number; prevLogTerm: number;\n      entries: LogEntry[]; leaderCommit: number }\n  | { type: 'AppendEntriesResponse'; from: string; to: string; term: number;\n      success: boolean; matchIndex?: number };\n```\n\nThis makes handleMessage at :560 type-narrow correctly in each switch case.",
+    "acceptanceCriteria": [
+      "RaftMessage is a discriminated union with 4 variants",
+      "Each variant has only the fields for that message type (no optionals for wrong fields)",
+      "handleMessage switch cases narrow types correctly",
+      "All existing tests pass",
+      "matchIndex on AppendEntriesResponse replaces the `as` cast at line 739"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/raft.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["type-safety", "discriminated-union", "raft", "p1"]
+  },
+  {
+    "id": "DIS-122",
+    "epic": "DIS",
+    "title": "Replace MRStep.data: Record<string, unknown> with discriminated union per phase",
+    "description": "map-reduce.ts:20 — MRStep.data is Record<string, unknown>. The UI at DistributedModule.tsx:2222-2389 must cast: (data.chunks as string[]), (data.pairs as string[]), (data.reduced as Record<string, number>), etc. These casts are unsafe — a typo in the key name would compile but crash at runtime.\n\nReplace with:\n```typescript\ntype MRStep =\n  | { phase: 'split'; tick: number; description: string;\n      chunks: string[]; chunkCount: number; totalWords: number }\n  | { phase: 'map'; tick: number; description: string;\n      chunkIndex: number; input: string; pairs: string[] }\n  | { phase: 'shuffle'; tick: number; description: string;\n      groups: Record<string, number[]>; uniqueKeys: number }\n  | { phase: 'reduce'; tick: number; description: string;\n      reduced: Record<string, number> }\n  | { phase: 'output'; tick: number; description: string;\n      counts: Record<string, number>; topWords: string[] };\n```\n\nThis eliminates all `as` casts in MapReduceCanvas.",
+    "acceptanceCriteria": [
+      "MRStep is a discriminated union with 5 variants",
+      "Zero `as` casts in MapReduceCanvas rendering code",
+      "TypeScript narrows data fields correctly in phase-based switch",
+      "simulateMapReduce return type is MRStep[]"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/map-reduce.ts", "src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["type-safety", "discriminated-union", "mapreduce", "p1"]
+  },
+  {
+    "id": "DIS-123",
+    "epic": "DIS",
+    "title": "Fix unsafe double-cast: events as unknown as RaftEvent[] at DistributedModule.tsx:4809",
+    "description": "The GenericEvent[] array (with 3 fields: tick, type, description) is cast to RaftEvent[] (which has 5 fields: tick, type, nodeId, description, data). The double-cast `as unknown as` bypasses type checking entirely. At runtime, nodeId and data are undefined.\n\nHowever, RaftCanvas never reads the events prop — it uses nodes, leader, crashedNodes, pendingMessages instead. The events prop appears to be dead code.\n\nFix: Either (a) remove the events prop from RaftCanvas since it's not used, or (b) pass the actual RaftEvent[] from the engine instead of the flattened generic events.",
+    "acceptanceCriteria": [
+      "No `as unknown as` cast remains",
+      "Either events prop removed from RaftCanvas or typed correctly",
+      "TypeScript compiles without any unsafe casts in this file"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["type-safety", "unsafe-cast", "p1"]
+  },
+  {
+    "id": "DIS-124",
+    "epic": "DIS",
+    "title": "Unify step discriminator field name: type vs phase vs action",
+    "description": "Three different names for the event/step discriminator field across engines:\n- `type`: RaftEvent, CAPEvent, CRDTEvent, ClockEvent, LamportEvent\n- `phase`: TwoPCStep, MRStep, PaxosStep\n- `action`: SagaStep\n\nThis prevents writing generic step-processing code (e.g., a shared event log renderer) because the discriminator field name varies. The GenericEvent type at :552 uses `type` — so events with `phase` or `action` must be manually mapped.\n\nStandardize on `type` (the most common, matches TypeScript discriminated union convention). Rename TwoPCStep.phase→type, MRStep.phase→type, PaxosStep.phase→type, SagaStep.action→type. Keep the original field as an alias if needed for backwards compat.",
+    "acceptanceCriteria": [
+      "All step/event types use `type` as the discriminator field",
+      "GenericEvent mapping simplified (no field renaming needed)",
+      "UI code updated to read `type` instead of `phase`/`action`",
+      "All tests updated"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/lib/distributed/two-phase-commit.ts",
+      "src/lib/distributed/saga.ts",
+      "src/lib/distributed/map-reduce.ts",
+      "src/lib/distributed/paxos.ts",
+      "src/components/modules/DistributedModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["type-consistency", "naming", "p2"]
+  },
+  {
+    "id": "DIS-125",
+    "epic": "DIS",
+    "title": "Replace CRDTSimulation.getValue() return type from unknown to typed per-CRDTType",
+    "description": "crdt.ts:497 returns `unknown` from getValue(). crdt.ts:512 returns Record<string, unknown> from getAllValues(). The CRDT type IS known at construction time (crdtType field) but not propagated through the type system.\n\nOption A — overloaded getValue:\n```typescript\ngetValue(replicaId: string): CRDTValue;\n// where CRDTValue = number | string | null | string[]\n```\n\nOption B — generic simulation:\n```typescript\nclass CRDTSimulation<T extends CRDTType> {\n  getValue(replicaId: string): CRDTValueFor<T>;\n}\n```\n\nOption A is simpler. The UI already handles all types via formatValue() — this just adds type safety to the intermediate layer.",
+    "acceptanceCriteria": [
+      "getValue() returns a type narrower than unknown",
+      "getAllValues() returns Record<string, CRDTValue> instead of Record<string, unknown>",
+      "CRDTEvent.resultValue typed as CRDTValue instead of unknown",
+      "formatValue in CRDTCanvas can pattern-match without runtime type guessing"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/crdt.ts", "src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["type-safety", "generics", "crdt", "p2"]
+  },
+  {
+    "id": "DIS-126",
+    "epic": "DIS",
+    "title": "Rename GenericEvent to SimulationLogEntry and add optional source fields",
+    "description": "DistributedModule.tsx:552 — GenericEvent is a meaningless name. It's used as the unified type for the bottom panel event log. Fields: { tick, type, description }.\n\nRename to SimulationLogEntry and add optional fields that engines can populate:\n```typescript\ninterface SimulationLogEntry {\n  tick: number;\n  type: string; // TODO: union of all event types\n  description: string;\n  sourceNodeId?: string; // from RaftEvent.nodeId, GossipEvent.from, etc.\n  severity?: 'info' | 'warning' | 'error'; // for color-coding\n}\n```\n\nThis enables the event log to show source node and severity without the unsafe RaftEvent cast.",
+    "acceptanceCriteria": [
+      "GenericEvent renamed to SimulationLogEntry",
+      "Optional sourceNodeId populated where engines provide it",
+      "Event log can show source node without unsafe casts",
+      "Severity field enables log color-coding without type-string matching"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["type-naming", "p2"]
+  },
+  {
+    "id": "DIS-127",
+    "epic": "DIS",
+    "title": "Prefix HashNode/HashKey with ConsistentHash for naming consistency",
+    "description": "consistent-hash.ts exports HashNode and HashKey — too generic. Every other engine uses algorithm-prefixed names (RaftNode, GossipNode, CAPNode). Rename to ConsistentHashNode and ConsistentHashKey for consistency.\n\nAlso rename OperationResult (cap-theorem.ts:18) to CAPOperationResult, and MRStep (map-reduce.ts:14) to MapReduceStep.",
+    "acceptanceCriteria": [
+      "HashNode → ConsistentHashNode",
+      "HashKey → ConsistentHashKey",
+      "OperationResult → CAPOperationResult",
+      "MRStep → MapReduceStep",
+      "All imports updated across codebase",
+      "index.ts barrel export updated"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/lib/distributed/consistent-hash.ts",
+      "src/lib/distributed/cap-theorem.ts",
+      "src/lib/distributed/map-reduce.ts",
+      "src/lib/distributed/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["type-naming", "consistency", "p3"]
+  },
+  {
+    "id": "DIS-128",
+    "epic": "DIS",
+    "title": "Share ClockEventType between vector-clock.ts and lamport-timestamps.ts",
+    "description": "vector-clock.ts:19 defines `ClockEventType = 'local' | 'send' | 'receive'`. lamport-timestamps.ts:19 defines the same union inline as `type: 'local' | 'send' | 'receive'` in LamportEvent. Both are identical 3-member unions representing the same concept.\n\nExtract to a shared type and import from both files. This ensures if a new event type is added (e.g., 'barrier'), both engines are updated.",
+    "acceptanceCriteria": [
+      "Single ClockEventType definition used by both engines",
+      "LamportEvent.type uses the shared type",
+      "ClockEvent.type uses the shared type",
+      "No inline redefinition of the same union"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/vector-clock.ts", "src/lib/distributed/lamport-timestamps.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["type-deduplication", "p3"]
+  },
+  {
+    "id": "DIS-129",
+    "epic": "DIS",
+    "title": "Define DistributedSimulation interface for compile-time exhaustiveness checking",
+    "description": "Adding a new simulation requires touching ~7 locations in 2 files with zero TypeScript guidance. The DistributedSim union type can be extended but nothing forces the developer to add a canvas, controls, or properties for the new sim.\n\nDefine:\n```typescript\ninterface DistributedSimulation<T extends DistributedSim> {\n  id: T;\n  meta: SimDef;\n  createEngine: () => SimulationEngine;\n  Canvas: React.ComponentType<CanvasProps>;\n  Controls: React.ComponentType<ControlProps>;\n  Properties: React.ComponentType;\n}\n\nconst SIMULATION_REGISTRY: { [K in DistributedSim]: DistributedSimulation<K> } = {\n  raft: { ... },\n  'consistent-hashing': { ... },\n  // TypeScript ERROR if any sim is missing!\n};\n```\n\nThis makes adding a new simulation a compile-checked operation.",
+    "acceptanceCriteria": [
+      "DistributedSimulation interface defined",
+      "Registry object typed so missing sims are compile errors",
+      "Adding new sim to DistributedSim union forces implementing all parts",
+      "Existing if/else chain in canvas/controls/properties replaced with registry lookup"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["type-extensibility", "architecture", "p2"]
+  },
+  {
+    "id": "DIS-130",
+    "epic": "DIS",
+    "title": "Add distributed module event emission to shared progress and cross-module stores",
+    "description": "The distributed module manages ALL state in local useState/useRef (45 variables in useDistributedModule hook). It calls ZERO shared stores — no progress-store.addXP(), no cross-module-store.updateModuleMastery(), no module-progress activity logging.\n\nThis is why the dashboard, gamification, and cross-module systems are disconnected.\n\nAdd store integration:\n1. On simulation switch: log activity to module-progress\n2. On completing a full simulation run: call progress-store.addXP()\n3. On exploring a new feature: call markFeatureExplored in module-progress\n4. On completing all sims: call cross-module-store.updateModuleMastery()",
+    "acceptanceCriteria": [
+      "Simulation interactions appear in module-progress activity log",
+      "XP awarded for completing simulation runs",
+      "Feature exploration tracked (6/11 → 11/11 features)",
+      "Cross-module mastery updated when user explores distributed concepts",
+      "Dashboard shows correct distributed module progress"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DistributedModule.tsx",
+      "src/stores/progress-store.ts",
+      "src/stores/cross-module-store.ts",
+      "src/lib/progress/module-progress.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["store-integration", "progress", "platform-connection", "p1"]
+  }
+]

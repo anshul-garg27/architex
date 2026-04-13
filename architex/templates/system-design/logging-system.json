@@ -1,0 +1,547 @@
+{
+  "id": "logging-system",
+  "name": "Distributed Logging System (ELK Stack)",
+  "description": "Design a centralized logging pipeline like the ELK stack (Elasticsearch, Logstash, Kibana). Covers log ingestion at scale, structured parsing, indexing, retention, and search.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": [
+    "logging",
+    "elk",
+    "observability",
+    "search",
+    "pipeline",
+    "ingestion"
+  ],
+  "nodes": [
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Application Servers (Log Source)",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": {
+          "instances": 100,
+          "cpuCores": 4,
+          "memoryGB": 8,
+          "processingTimeMs": 1
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "Log Ingestion Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": {
+          "partitions": 64,
+          "retentionHours": 48,
+          "maxThroughputMBps": 500
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "stream-processor",
+      "type": "stream-processor",
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "data": {
+        "label": "Log Processor (Logstash/Flink)",
+        "category": "compute",
+        "componentType": "stream-processor",
+        "icon": "Activity",
+        "config": {
+          "parallelism": 32,
+          "checkpointIntervalMs": 5000,
+          "processingGuarantee": "at-least-once"
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "search-engine",
+      "type": "search-engine",
+      "position": {
+        "x": 750,
+        "y": 100
+      },
+      "data": {
+        "label": "Elasticsearch (Hot Index)",
+        "category": "storage",
+        "componentType": "search-engine",
+        "icon": "Search",
+        "config": {
+          "shards": 20,
+          "replicas": 1,
+          "storageGB": 5000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "storage",
+      "type": "storage",
+      "position": {
+        "x": 750,
+        "y": 350
+      },
+      "data": {
+        "label": "Cold Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": {
+          "type": "s3",
+          "storageGB": 100000,
+          "replicationFactor": 3
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "log-aggregator",
+      "type": "log-aggregator",
+      "position": {
+        "x": 500,
+        "y": 400
+      },
+      "data": {
+        "label": "Log Aggregator (Fluentd)",
+        "category": "observability",
+        "componentType": "log-aggregator",
+        "icon": "FileText",
+        "config": {
+          "bufferSizeMB": 256,
+          "flushIntervalSeconds": 5
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-mq-processor",
+      "source": "mq",
+      "target": "stream-processor",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "stream",
+        "latency": 5,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-processor-es",
+      "source": "stream-processor",
+      "target": "search-engine",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "index",
+        "latency": 10,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-processor-s3",
+      "source": "stream-processor",
+      "target": "storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "write",
+        "latency": 50,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-app-agg",
+      "source": "app-server",
+      "target": "log-aggregator",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "log-forward",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-agg-mq",
+      "source": "log-aggregator",
+      "target": "mq",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 2,
+        "animated": true
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Log Collection and Buffering",
+      "description": "Application servers emit structured JSON logs. Fluentd agents (sidecar or daemon) run on each host, buffering logs locally before forwarding to Kafka. This two-tier approach (Fluentd + Kafka) provides back-pressure handling: if downstream processing is slow, Kafka absorbs the burst. No logs are lost during spikes.",
+      "highlightNodes": [
+        "app-server",
+        "log-aggregator",
+        "mq"
+      ],
+      "highlightEdges": [
+        "e-app-agg",
+        "e-agg-mq",
+        "e-app-mq"
+      ]
+    },
+    {
+      "title": "Stream Processing and Enrichment",
+      "description": "The Log Processor (Logstash or Flink) consumes from Kafka, parses unstructured log lines (grok patterns), enriches with metadata (service name, environment, trace ID), and filters noise. It can also detect anomalies in real-time (error rate spikes) and trigger alerts. The at-least-once guarantee ensures no log events are silently dropped.",
+      "highlightNodes": [
+        "mq",
+        "stream-processor"
+      ],
+      "highlightEdges": [
+        "e-mq-processor"
+      ]
+    },
+    {
+      "title": "Hot/Cold Storage Tiering",
+      "description": "Recent logs (last 7-30 days) are indexed in Elasticsearch for fast full-text search and dashboards. Older logs are rolled over to S3 as compressed Parquet/JSON for compliance and long-term retention. This tiered approach balances cost (S3 is 10x cheaper) with query performance (Elasticsearch for real-time debugging).",
+      "highlightNodes": [
+        "search-engine",
+        "storage"
+      ],
+      "highlightEdges": [
+        "e-processor-es",
+        "e-processor-s3"
+      ]
+    },
+    {
+      "title": "Scaling the Ingestion Pipeline",
+      "description": "At scale (100K+ hosts, 1M+ logs/sec), Kafka partitions provide horizontal scaling for ingestion. Elasticsearch uses index sharding for parallel indexing. Key tuning knobs: Kafka partition count (parallelism), ES bulk index size (throughput vs latency), and Flink parallelism (processing capacity). Each component scales independently.",
+      "highlightNodes": [
+        "mq",
+        "stream-processor",
+        "search-engine"
+      ],
+      "highlightEdges": [
+        "e-mq-processor",
+        "e-processor-es"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-es-cluster-red",
+        "name": "Elasticsearch Cluster Red",
+        "description": "ES cluster goes red due to disk pressure",
+        "targetNodes": [
+          "elasticsearch"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Log ingestion stops. No new logs searchable. Old logs still readable.",
+        "mitigationSteps": [
+          "Force merge old indices",
+          "Delete oldest indices",
+          "Expand disk",
+          "Apply ILM policies"
+        ]
+      },
+      {
+        "id": "cs-log-flood",
+        "name": "Log Flood from Bad Deploy",
+        "description": "Error loop generates 100x normal log volume",
+        "targetNodes": [
+          "kafka-ingest",
+          "elasticsearch"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Kafka consumer lag grows. ES write queue fills. Important logs delayed.",
+        "mitigationSteps": [
+          "Rate-limit per service",
+          "Drop debug logs during flood",
+          "Auto-detect log volume anomalies"
+        ]
+      },
+      {
+        "id": "cs-kafka-broker-loss",
+        "name": "Kafka Broker Failure",
+        "description": "Kafka broker crashes losing some in-flight logs",
+        "targetNodes": [
+          "kafka-ingest"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Brief log gap during leader re-election. No data loss if replicated.",
+        "mitigationSteps": [
+          "Kafka leader re-election",
+          "Producers retry",
+          "Verify no under-replicated partitions"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 500000,
+        "bottleneckNode": "elasticsearch",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 1000000,
+        "bottleneckNode": "kafka-ingest",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-logging-system-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "elasticsearch"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-logging-system-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "kafka-ingest"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-logging-system-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "elasticsearch"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 20000,
+      "components": [
+        {
+          "nodeId": "elasticsearch",
+          "label": "Primary Service",
+          "monthlyCostUsd": 6666,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "kafka-ingest",
+          "label": "Storage",
+          "monthlyCostUsd": 6666,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 6666,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 100000,
+          "monthlyCostUsd": 6666
+        },
+        {
+          "label": "Medium",
+          "rps": 1000000,
+          "monthlyCostUsd": 20000
+        },
+        {
+          "label": "High",
+          "rps": 5000000,
+          "monthlyCostUsd": 60000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 1000000,
+      "trafficProfile": "steady",
+      "p50LatencyMs": 50,
+      "p99LatencyMs": 200,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 1000000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "elasticsearch",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 200,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "elasticsearch"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "elasticsearch"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 400ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

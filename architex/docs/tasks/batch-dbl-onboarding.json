@@ -1,0 +1,193 @@
+[
+  {
+    "id": "DBL-178",
+    "epic": "DBL",
+    "title": "Create Database module guided tour with 5 steps leading to first success",
+    "description": "The platform OnboardingOverlay (onboarding-overlay.tsx) has 5 steps ALL focused on System Design. When user navigates to Database module, there is ZERO onboarding. Create a Database-specific guided tour: (1) Welcome + mode overview, (2) B-Tree insert prompt, (3) Step-through explanation, (4) Properties 'How It Works' panel, (5) Invite to explore other modes. Use the existing OnboardingOverlay pattern with data-onboarding targets. Trigger on first Database module visit (localStorage flag). Source: Figma's onboarding \u2014 hands-on within 3 minutes.",
+    "acceptanceCriteria": [
+      "5-step guided tour triggers on first Database module visit",
+      "Step 1: Welcome overlay explaining 7 modes with visual preview",
+      "Step 2: Spotlights B-Tree insert input, prompts user to type a key",
+      "Step 3: Spotlights step bar, explains Step/Play controls",
+      "Step 4: Points to 'How It Works' panel in properties",
+      "Step 5: Invites exploration of other modes with specific suggestions",
+      "Tour can be skipped (X button) and replayed from Settings/Help",
+      "Tour stores completion in localStorage: 'architex_db_tour_completed'"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/components/shared/onboarding-overlay.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "guided-tour",
+      "first-time-experience",
+      "p1-critical"
+    ]
+  },
+  {
+    "id": "DBL-179",
+    "epic": "DBL",
+    "title": "Add one-click 'Try Sample Data' buttons to all empty state canvases",
+    "description": "5 of 7 Database modes start with empty or minimal canvases. Empty B-Tree shows tiny 'empty' node. Empty Hash shows 4 empty buckets. Zero guidance on what to do. Add one-click sample data buttons: (1) B-Tree: 'Insert sample keys [10, 20, 5, 15, 25]' \u2192 auto-inserts with step-through, (2) Hash: 'Insert sample entries' \u2192 auto-inserts 4 key-value pairs, (3) LSM: 'Write sample data' \u2192 auto-writes 5 keys, (4) Normalization: 'Load Student-Course example' \u2192 loads and runs Analyze, (5) Query Plans: 'Analyze sample query' \u2192 auto-fills and runs. Source: Canva onboarding \u2014 hands-on templates instead of blank canvas.",
+    "acceptanceCriteria": [
+      "B-Tree empty state shows 'Try it: Insert [10, 20, 5, 15, 25]' button",
+      "Clicking auto-inserts all 5 keys with animation starting at step 0",
+      "Hash empty state shows 'Try it: Insert sample entries' button",
+      "LSM empty state shows 'Try it: Write sample data' button",
+      "Normalization empty state shows 'Load example' button (in canvas area, not just sidebar)",
+      "Query Plans empty state shows 'Try: SELECT * FROM users WHERE id = 1' button",
+      "Each button is prominent (primary color, centered in empty canvas area)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "empty-states",
+      "quick-start",
+      "first-success"
+    ]
+  },
+  {
+    "id": "DBL-180",
+    "epic": "DBL",
+    "title": "Add contextual tooltips for Database-specific controls on first encounter",
+    "description": "ContextualTooltip system (ContextualTooltip.tsx) exists with useFirstEncounter hook but has ZERO Database features defined. Add 5 Database contextual tooltips: (1) B-Tree order selector: 'Tree order = max children per node. Start with 3.', (2) Hash delete input: 'Remove a key to see how deletion works.', (3) LSM Flush button: 'Manually flush memtable to disk as SSTable.', (4) LSM Compact button: 'Merge SSTables to reduce read amplification.', (5) Normalization FD textarea: 'Arrow notation: A,B -> C means A and B determine C.' Each shows once per feature using useFirstEncounter.",
+    "acceptanceCriteria": [
+      "5 new tooltip features added to CONTEXTUAL_FEATURES array (or Database-specific array)",
+      "Each tooltip appears once on first encounter with the control",
+      "Tooltips use the existing ContextualTooltip component pattern",
+      "Tooltips are dismissible (X button)",
+      "Tooltip content explains the control in beginner-friendly language",
+      "Does not show again after dismissal (localStorage via useFirstEncounter)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/ContextualTooltip.tsx",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "contextual-tooltips",
+      "first-encounter",
+      "beginner-help"
+    ]
+  },
+  {
+    "id": "DBL-181",
+    "epic": "DBL",
+    "title": "Rewrite all Database empty states to be curiosity-driven with specific examples",
+    "description": "Current empty states are instructional but not inspiring. 'Enter a relation and functional dependencies, then click Analyze' assumes you know what FDs are. Rewrite ALL empty states to be curiosity-driven: (1) B-Tree: 'How does a database find 1 row in 10 million? Watch a B-Tree do it in 4 steps.', (2) Hash: 'O(1) lookup \u2014 instant, regardless of table size. See how.', (3) LSM: 'Cassandra writes 1 million rows per second. This is how.', (4) Normalization: 'Is your database schema wasting space? Let's find out.', (5) Query Plans: 'Your SQL query might scan 10 million rows. Or just 5. See why.'",
+    "acceptanceCriteria": [
+      "All 5 empty-canvas modes have curiosity-driven text (problem-first, not definition-first)",
+      "Each empty state includes a specific data example or statistic",
+      "Text creates 'I want to know!' feeling, not 'I must learn this' obligation",
+      "Empty state icon matches the mode's concept (tree icon for B-Tree, hash icon for Hash, etc.)",
+      "All text is accessible (not just decorative)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "empty-states",
+      "copywriting",
+      "curiosity-driven"
+    ]
+  },
+  {
+    "id": "DBL-182",
+    "epic": "DBL",
+    "title": "Add inactivity prompt: suggest action after 10 seconds on empty canvas",
+    "description": "Zero stuck detection exists. A confused user staring at an empty B-Tree canvas gets no help. Add: after 10 seconds of inactivity on a canvas with no data (no inserts, no interactions), show a gentle fade-in prompt: 'Not sure where to start? Try inserting the number 42 in the box on the left \u2192'. Prompt points toward the insert input. Dismisses on any user interaction. Only shows once per mode per session.",
+    "acceptanceCriteria": [
+      "After 10s of inactivity on empty B-Tree/Hash/LSM canvas, a help prompt fades in",
+      "Prompt is a subtle card/banner near the center of the canvas, not a modal",
+      "Prompt includes specific action: 'Type 42 in the insert box and press Enter'",
+      "Prompt points visually toward the input (arrow or highlight)",
+      "Prompt dismisses on any user interaction (click, type, etc.)",
+      "Shows only once per mode per session (not on every inactivity)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "stuck-detection",
+      "adaptive-help",
+      "inactivity-prompt"
+    ]
+  },
+  {
+    "id": "DBL-183",
+    "epic": "DBL",
+    "title": "Add 'Replay Database Tour' button in Settings or Help menu",
+    "description": "The onboarding tour stores completion in localStorage and never shows again. No way to replay it. Add: (1) 'Replay Database Tour' button in Settings panel or a '?' help button in the Database sidebar, (2) Clicking resets the localStorage flag and restarts the tour, (3) Also accessible via Command Palette: type 'tour' or 'onboarding' to find it.",
+    "acceptanceCriteria": [
+      "Replay button visible in Settings panel under a 'Help' section",
+      "Clicking resets localStorage flag and shows the tour from step 1",
+      "Also findable via Command Palette (\u2318K \u2192 type 'tour')",
+      "Optional: '?' icon in Database sidebar header linking to tour replay"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/settings-panel.tsx",
+      "src/components/shared/command-palette.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-178"
+    ],
+    "tags": [
+      "onboarding",
+      "replay-tour",
+      "help",
+      "settings"
+    ]
+  }
+]

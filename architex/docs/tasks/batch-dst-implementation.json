@@ -1,0 +1,252 @@
+[
+  {
+    "id": "DST-158",
+    "epic": "DST",
+    "title": "Fix BST two-child delete silent step gap \u2014 deleteRecurse generates no steps",
+    "description": "When deleting a BST node with two children, the in-order successor is found and announced with a step. But the actual successor deletion calls `deleteRecurse` (bst-ds.ts:235-252) which generates ZERO steps. The tree mutates silently \u2014 the canvas jumps from 'successor found' to final state skipping all intermediate states.\n\nThis is a Visual Lie \u2014 the visualization misrepresents what the algorithm does.\n\nFix: Replace `deleteRecurse` call with recursive call to the step-recording `deleteNode` function, or inline the deletion with step generation. Same fix needed for AVL (avl-ds.ts:349) which inherits this pattern.\n\nSource: Implementation audit V1 State Accuracy finding.",
+    "acceptanceCriteria": [
+      "BST two-child delete shows step-by-step successor removal animation",
+      "All intermediate tree states visible during successor deletion",
+      "AVL two-child delete also shows successor removal steps",
+      "No silent tree mutations (every mutation has a corresponding step)"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/avl-ds.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual-lie",
+      "implementation",
+      "bst",
+      "avl",
+      "correctness"
+    ]
+  },
+  {
+    "id": "DST-159",
+    "epic": "DST",
+    "title": "Fix linked-list node ID collision \u2014 resetStepId resets _nodeIdCounter",
+    "description": "In linked-list.ts:27, resetStepId() also resets _nodeIdCounter = 0. This means every operation resets the node counter. Nodes created in operation N will have IDs identical to nodes from operation N+1 (both get 'll-node-0', 'll-node-1', etc.).\n\nThis causes the animation system to find the wrong node when looking up highlight state. After multiple insertions, the canvas will highlight incorrect nodes.\n\nFix: Remove _nodeIdCounter = 0 from resetStepId(). Let the counter be monotonically increasing, matching the pattern in bst-ds.ts and avl-ds.ts.\n\nSource: Implementation audit I1 Correctness finding.",
+    "acceptanceCriteria": [
+      "_nodeIdCounter NOT reset between operations",
+      "Node IDs are globally unique within a session",
+      "Highlights target correct nodes after multiple insert/delete cycles",
+      "Existing tests pass"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/linked-list.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bugfix",
+      "linked-list",
+      "correctness",
+      "node-id"
+    ]
+  },
+  {
+    "id": "DST-160",
+    "epic": "DST",
+    "title": "Fix AVL balance factor announcement using stale heights before updateHeight",
+    "description": "In dsAvlInsert (avl-ds.ts:219-224), the step 'Node X is unbalanced (bf=Y)' computes balanceFactor(node) from heights that have NOT yet been updated by updateHeight inside rebalance. The bf value in the step text may differ from the bf that actually triggers the rotation.\n\nFix: Move the unbalanced-node step AFTER updateHeight runs, or compute bf from the updated heights.\n\nSource: Implementation audit V1/I5 finding.",
+    "acceptanceCriteria": [
+      "Balance factor in step description matches the actual value used for rotation decision",
+      "updateHeight runs before bf is computed for step text",
+      "Existing AVL rotation behavior unchanged"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/avl-ds.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bugfix",
+      "avl",
+      "step-accuracy",
+      "balance-factor"
+    ]
+  },
+  {
+    "id": "DST-161",
+    "epic": "DST",
+    "title": "Add color legend to all canvas components \u2014 explain what colors mean",
+    "description": "DS_COLORS has 15 named states (comparing, visiting, visited, inserting, done, deleting, shifting, found, hashing, etc.) but only RBTreeCanvas and FibHeapCanvas have legends. A student sees a node turn amber and has NO in-canvas explanation of what amber means.\n\nAdd a persistent color legend strip to every canvas. Only show states actually used by that DS. Use DS_COLORS keys as legend labels.\n\nSource: Implementation audit V4 Legend finding \u2014 8 of 10 top DS score 0/3 on legend.",
+    "acceptanceCriteria": [
+      "Every canvas has a color legend visible below or beside the visualization",
+      "Legend shows only states used by the current DS",
+      "Each state shows colored dot + label (e.g., blue dot: 'Comparing')",
+      "Legend updates if states change during operation",
+      "Consistent position across all canvases"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "visualization",
+      "legend",
+      "color",
+      "accessibility"
+    ]
+  },
+  {
+    "id": "DST-162",
+    "epic": "DST",
+    "title": "Fix color collision between 'visited' and 'done' states \u2014 both map to green",
+    "description": "In DS_COLORS (DataStructuresModule.tsx:402-417), both 'visited' and 'done' map to '#22c55e' (green). During BST search, a visited node turns green \u2014 indistinguishable from 'done' (operation complete). A student cannot tell if green means 'already checked' or 'this is the result'.\n\nFix: Change 'visited' to a different color (e.g., lighter green '#86efac' or gray-green '#6b7280') to distinguish from 'done'.\n\nSource: Implementation audit V3 Color Truth finding.",
+    "acceptanceCriteria": [
+      "'visited' and 'done' use visually distinct colors",
+      "Legend (DST-161) shows both states clearly",
+      "BST search path shows visited nodes in muted color, found node in bright green",
+      "No two semantic states share the same color"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visualization",
+      "color",
+      "accessibility",
+      "semantic"
+    ]
+  },
+  {
+    "id": "DST-163",
+    "epic": "DST",
+    "title": "Add educational inline comments to all 10 top engine files",
+    "description": "Only bloom-filter.ts has good inline documentation (I10: 3/3). Most files have structural dividers only. The code IS the textbook for a learning platform \u2014 comments should teach.\n\nFor each top-10 engine file, add WHY comments at key decision points:\n- array-ds.ts:29: '// Clamp index to [0, length] to prevent out-of-bounds'\n- hash-table.ts:40: '// Prime 31 chosen because it's odd prime that distributes well (same as Java String.hashCode)'\n- bst-ds.ts:89: '// BST invariant: smaller values always go left'\n- heap-ds.ts:211: '// Start from last non-leaf \u2014 leaves are trivially heaps, so we only need to fix internal nodes'\n- lsm-tree.ts:90: '// Real LSMs use a skip-list here for O(log n) insert; we use sort for simplicity'\n\nTarget: at least 5 WHY comments per file.\n\nSource: Implementation audit I10 finding. Bloom filter is the gold standard to match.",
+    "acceptanceCriteria": [
+      "Each of 10 top engine files has 5+ educational WHY comments",
+      "Comments explain design decisions, not just what code does",
+      "Comments reference real-world equivalents where applicable",
+      "No 'restates code' comments (// increment i)",
+      "Bloom filter's documentation quality used as reference standard"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/array-ds.ts",
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/avl-ds.ts",
+      "src/lib/data-structures/red-black-ds.ts",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/lib/data-structures/trie-ds.ts",
+      "src/lib/data-structures/linked-list.ts",
+      "src/lib/data-structures/lsm-tree.ts",
+      "src/lib/data-structures/bloom-filter.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "documentation",
+      "inline-comments",
+      "education",
+      "code-quality"
+    ]
+  },
+  {
+    "id": "DST-164",
+    "epic": "DST",
+    "title": "Add real-world implementation comparison comments for top 5 DS engines",
+    "description": "I9 (Real-World Comparison) scores 0/3 for ALL 10 DS. The code never connects to production implementations.\n\nFor top 5 DS, add comparison comments/sections:\n- Hash Table: 'This uses polynomial rolling hash (prime 31) \u2014 identical to Java String.hashCode()'\n- BST: 'Java TreeMap and C++ std::map use Red-Black trees, not plain BST'\n- Heap: 'Python heapq module uses the same array-based binary heap'\n- Bloom Filter: 'Uses Kirsch-Mitzenmacher double-hashing \u2014 same technique as Cassandra and LevelDB'\n- LSM Tree: 'This simulates LevelDB/RocksDB architecture. Real implementations use SkipList memtable and binary search on SSTables'\n\nSource: Implementation audit I9 finding.",
+    "acceptanceCriteria": [
+      "Top 5 engine files have real-world comparison comments",
+      "Comments name specific production systems (Redis, Java, Python, RocksDB)",
+      "Comments explain how our teaching implementation differs from production",
+      "Accessible via inline comments (for code readers) AND description text (for UI readers)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/hash-table.ts",
+      "src/lib/data-structures/bst-ds.ts",
+      "src/lib/data-structures/heap-ds.ts",
+      "src/lib/data-structures/bloom-filter.ts",
+      "src/lib/data-structures/lsm-tree.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "documentation",
+      "real-world",
+      "comparison",
+      "production"
+    ]
+  },
+  {
+    "id": "DST-165",
+    "epic": "DST",
+    "title": "Add LSM binary search for SSTable lookup instead of linear find()",
+    "description": "lsm-tree.ts:218 uses `table.find(e => e.key === key)` for SSTable search \u2014 O(n) linear scan. Real LSMs use binary search on sorted SSTables for O(log n). This isn't just a performance issue \u2014 it's educationally misleading because the POINT of SSTables being sorted is to enable binary search.\n\nFix: Replace `table.find()` with a `binarySearchTable(table, key)` helper. Add step descriptions that say 'Binary search SSTable...' instead of just 'Checking SSTable'. Add comment: '// SSTables are sorted, enabling O(log n) binary search instead of O(n) scan'\n\nSource: Implementation audit I2 Algorithm Choice finding for LSM Tree.",
+    "acceptanceCriteria": [
+      "SSTable lookup uses binary search, not linear scan",
+      "Step descriptions mention 'binary search' during SSTable lookup",
+      "Comment explains why SSTables are sorted and how this enables binary search",
+      "Performance improvement visible in step count for large SSTables"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/lsm-tree.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "correctness",
+      "lsm-tree",
+      "binary-search",
+      "education"
+    ]
+  }
+]

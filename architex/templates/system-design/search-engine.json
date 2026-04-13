@@ -1,0 +1,561 @@
+{
+  "id": "search-engine",
+  "name": "Search Engine (Simplified)",
+  "description": "Design a simplified search engine with web crawling, indexing, and query serving. Covers inverted indexes, ranking algorithms, and query caching.",
+  "difficulty": 4,
+  "category": "advanced",
+  "tags": [
+    "search",
+    "elasticsearch",
+    "crawler",
+    "indexing",
+    "full-text",
+    "ranking"
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": {
+          "concurrentUsers": 50000,
+          "requestsPerSecond": 10000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "load-balancer",
+      "type": "load-balancer",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": {
+          "algorithm": "round-robin",
+          "healthCheckInterval": 10,
+          "maxConnections": 100000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "query-service",
+      "type": "web-server",
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "data": {
+        "label": "Query Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 10,
+          "maxConnections": 10000,
+          "processingTimeMs": 50
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": {
+        "x": 500,
+        "y": 0
+      },
+      "data": {
+        "label": "Query Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 32,
+          "evictionPolicy": "lru",
+          "ttlSeconds": 300,
+          "cacheHitRate": 0.6
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "search-index",
+      "type": "database",
+      "position": {
+        "x": 750,
+        "y": 200
+      },
+      "data": {
+        "label": "Search Index (Elasticsearch)",
+        "category": "storage",
+        "componentType": "elasticsearch",
+        "icon": "Database",
+        "config": {
+          "type": "elasticsearch",
+          "replicas": 2,
+          "maxConnections": 500,
+          "storageGB": 2000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "web-crawler",
+      "type": "web-server",
+      "position": {
+        "x": 750,
+        "y": 425
+      },
+      "data": {
+        "label": "Web Crawler",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 50,
+          "maxConnections": 1000,
+          "processingTimeMs": 500
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": {
+        "x": 1000,
+        "y": 100
+      },
+      "data": {
+        "label": "URL & Page DB",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 3,
+          "maxConnections": 300,
+          "storageGB": 5000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "object-storage",
+      "type": "storage",
+      "position": {
+        "x": 1000,
+        "y": 350
+      },
+      "data": {
+        "label": "Page Storage (S3)",
+        "category": "storage",
+        "componentType": "object-storage",
+        "icon": "HardDrive",
+        "config": {
+          "storageTB": 100,
+          "replication": 3
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "load-balancer",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 50,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-lb-query",
+      "source": "load-balancer",
+      "target": "query-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-query-cache",
+      "source": "query-service",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-query-search",
+      "source": "query-service",
+      "target": "search-index",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 20,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-crawler-index",
+      "source": "web-crawler",
+      "target": "search-index",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 50,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-crawler-db",
+      "source": "web-crawler",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 10,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-crawler-storage",
+      "source": "web-crawler",
+      "target": "object-storage",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 25,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-search-db",
+      "source": "search-index",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-index-corruption",
+        "name": "Search Index Corruption",
+        "description": "ES index segment corruption after disk failure",
+        "targetNodes": [
+          "elasticsearch"
+        ],
+        "faultType": "data-corruption",
+        "severity": 4,
+        "expectedBehavior": "Affected shard returns errors. Partial search results returned.",
+        "mitigationSteps": [
+          "Promote replica shard",
+          "Reindex from source data",
+          "Verify index integrity"
+        ]
+      },
+      {
+        "id": "cs-query-of-death",
+        "name": "Query of Death",
+        "description": "Complex regex query causes ES thread pool exhaustion",
+        "targetNodes": [
+          "elasticsearch"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "All search queries time out. Search service unavailable.",
+        "mitigationSteps": [
+          "Circuit breaker on query complexity",
+          "Kill long-running queries",
+          "Query validation and complexity limits"
+        ]
+      },
+      {
+        "id": "cs-ranking-degraded",
+        "name": "Ranking Model Degraded",
+        "description": "ML ranking model returns poor relevance scores",
+        "targetNodes": [
+          "ranking-service"
+        ],
+        "faultType": "error",
+        "severity": 2,
+        "expectedBehavior": "Search results are less relevant but functional. User engagement drops.",
+        "mitigationSteps": [
+          "Fallback to BM25 scoring",
+          "Rollback to previous model",
+          "A/B test before full rollout"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 25000,
+        "bottleneckNode": "elasticsearch",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "elasticsearch",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-search-engine-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "elasticsearch"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-search-engine-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "ranking-service"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-search-engine-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "elasticsearch"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 30000,
+      "components": [
+        {
+          "nodeId": "elasticsearch",
+          "label": "Primary Service",
+          "monthlyCostUsd": 10000,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "ranking-service",
+          "label": "Storage",
+          "monthlyCostUsd": 10000,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 10000,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 5000,
+          "monthlyCostUsd": 10000
+        },
+        {
+          "label": "Medium",
+          "rps": 50000,
+          "monthlyCostUsd": 30000
+        },
+        {
+          "label": "High",
+          "rps": 250000,
+          "monthlyCostUsd": 90000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 50000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 30,
+      "p99LatencyMs": 200,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 50000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "elasticsearch",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 200,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "elasticsearch"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "elasticsearch"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 400ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

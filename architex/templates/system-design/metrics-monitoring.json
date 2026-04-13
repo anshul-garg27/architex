@@ -1,0 +1,530 @@
+{
+  "id": "metrics-monitoring",
+  "name": "Metrics & Monitoring (Prometheus/Grafana)",
+  "description": "Design a metrics collection and monitoring system like Prometheus/Grafana. Covers time-series data ingestion, alerting pipeline, and push vs pull collection models.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": [
+    "monitoring",
+    "metrics",
+    "time-series",
+    "alerting",
+    "prometheus",
+    "observability"
+  ],
+  "nodes": [
+    {
+      "id": "instrumented-app",
+      "type": "app-server",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Instrumented Application",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": {
+          "instances": 100,
+          "cpuCores": 4,
+          "memoryGB": 8,
+          "processingTimeMs": 5
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "tsdb",
+      "type": "timeseries-db",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "Time-Series DB (Prometheus)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "TrendingUp",
+        "config": {
+          "retentionDays": 90,
+          "ingestionRate": 1000000,
+          "storageGB": 5000,
+          "compactionEnabled": true
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "batch-alert",
+      "type": "batch-processor",
+      "position": {
+        "x": 500,
+        "y": 100
+      },
+      "data": {
+        "label": "Alert Evaluator (Rules Engine)",
+        "category": "compute",
+        "componentType": "batch-processor",
+        "icon": "Layers",
+        "config": {
+          "batchSizeRecords": 10000,
+          "intervalSeconds": 15,
+          "parallelism": 10,
+          "retryAttempts": 3
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": {
+        "x": 750,
+        "y": 100
+      },
+      "data": {
+        "label": "Alert Queue",
+        "category": "messaging",
+        "componentType": "sqs",
+        "icon": "ArrowRightLeft",
+        "config": {
+          "partitions": 8,
+          "retentionHours": 24,
+          "maxThroughputMBps": 10
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "notifier",
+      "type": "worker",
+      "position": {
+        "x": 1000,
+        "y": 100
+      },
+      "data": {
+        "label": "Notification Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": {
+          "instances": 5,
+          "concurrencyPerInstance": 10,
+          "retryAttempts": 3
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "dashboard",
+      "type": "client",
+      "position": {
+        "x": 500,
+        "y": 350
+      },
+      "data": {
+        "label": "Grafana Dashboard",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": {
+          "concurrentUsers": 500,
+          "requestsPerSecond": 100
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-app-tsdb",
+      "source": "instrumented-app",
+      "target": "tsdb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "metrics-scrape",
+        "latency": 100,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-tsdb-alert",
+      "source": "tsdb",
+      "target": "batch-alert",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "promql-query",
+        "latency": 10,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-alert-mq",
+      "source": "batch-alert",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-mq-notifier",
+      "source": "mq",
+      "target": "notifier",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-dash-tsdb",
+      "source": "dashboard",
+      "target": "tsdb",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "promql-query",
+        "latency": 50,
+        "animated": false
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Pull-Based Metrics Collection",
+      "description": "Prometheus uses a pull model: it scrapes /metrics endpoints from instrumented applications every 15-30 seconds. Applications expose counters, gauges, and histograms in a text format. This pull model means the monitoring system controls the scrape rate and can detect when a target is down (failed scrape).",
+      "highlightNodes": [
+        "instrumented-app",
+        "tsdb"
+      ],
+      "highlightEdges": [
+        "e-app-tsdb"
+      ]
+    },
+    {
+      "title": "Time-Series Storage Engine",
+      "description": "Prometheus stores time-series data in a custom TSDB optimized for append-heavy workloads. Data is organized in 2-hour blocks with an in-memory head block for recent writes. Blocks are compacted over time. Gorilla-style delta-of-delta encoding achieves ~1.4 bytes per sample. PromQL provides powerful aggregation queries.",
+      "highlightNodes": [
+        "tsdb"
+      ],
+      "highlightEdges": [
+        "e-app-tsdb"
+      ]
+    },
+    {
+      "title": "Alerting Pipeline",
+      "description": "The Alert Evaluator periodically runs PromQL alert rules against the TSDB. When a rule fires (e.g., error_rate > 5% for 5 minutes), it creates an alert. Alerts flow through a queue to the Notification Worker, which handles deduplication, grouping, silencing, and routing to PagerDuty/Slack/email.",
+      "highlightNodes": [
+        "batch-alert",
+        "mq",
+        "notifier"
+      ],
+      "highlightEdges": [
+        "e-tsdb-alert",
+        "e-alert-mq",
+        "e-mq-notifier"
+      ]
+    },
+    {
+      "title": "Dashboarding and Visualization",
+      "description": "Grafana queries Prometheus via PromQL to build real-time dashboards. Queries like rate(http_requests_total[5m]) compute per-second request rates. Grafana supports variable templates, auto-refresh, and drill-down from high-level dashboards to per-instance metrics.",
+      "highlightNodes": [
+        "dashboard",
+        "tsdb"
+      ],
+      "highlightEdges": [
+        "e-dash-tsdb"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-tsdb-overload",
+        "name": "TSDB Write Overload",
+        "description": "Metrics cardinality explosion overwhelms time-series database",
+        "targetNodes": [
+          "tsdb"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Metrics ingestion falls behind. Dashboards show gaps. Alerts delayed.",
+        "mitigationSteps": [
+          "Drop low-priority metrics",
+          "Rate-limit per metric name",
+          "Increase TSDB capacity"
+        ]
+      },
+      {
+        "id": "cs-alerting-storm",
+        "name": "Alert Storm",
+        "description": "Cascading failure triggers thousands of alerts simultaneously",
+        "targetNodes": [
+          "alerting-engine"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Alert fatigue. Important alerts lost in noise.",
+        "mitigationSteps": [
+          "Alert grouping and deduplication",
+          "Severity-based routing",
+          "Alert suppression during known incidents"
+        ]
+      },
+      {
+        "id": "cs-collector-crash",
+        "name": "Metrics Collector Crash",
+        "description": "OpenTelemetry collectors crash across a region",
+        "targetNodes": [
+          "collectors"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Metrics gap for affected services. Alerting blind spots.",
+        "mitigationSteps": [
+          "Auto-restart collectors",
+          "Local buffering on agents",
+          "Monitor collector health"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 250000,
+        "bottleneckNode": "tsdb",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 500000,
+        "bottleneckNode": "alerting-engine",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-metrics-monitoring-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "tsdb"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-metrics-monitoring-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "collectors"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-metrics-monitoring-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "tsdb"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 25000,
+      "components": [
+        {
+          "nodeId": "tsdb",
+          "label": "Primary Service",
+          "monthlyCostUsd": 8333,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "collectors",
+          "label": "Storage",
+          "monthlyCostUsd": 8333,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 8333,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 50000,
+          "monthlyCostUsd": 8333
+        },
+        {
+          "label": "Medium",
+          "rps": 500000,
+          "monthlyCostUsd": 25000
+        },
+        {
+          "label": "High",
+          "rps": 2500000,
+          "monthlyCostUsd": 75000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 500000,
+      "trafficProfile": "steady",
+      "p50LatencyMs": 10,
+      "p99LatencyMs": 50,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 500000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "tsdb",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 50,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "tsdb"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "tsdb"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 100ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

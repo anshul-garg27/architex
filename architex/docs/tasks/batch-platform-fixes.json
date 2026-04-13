@@ -1,0 +1,846 @@
+[
+  {
+    "id": "PLT-001",
+    "epic": "PLT",
+    "title": "Add URL routing per module \u2014 /system-design, /algorithms, /data-structures, etc.",
+    "description": "ALL 13 modules live at the root URL '/'. Switching modules changes React state but NOT the URL. Browser back/forward does not work between modules. Users cannot deep-link to a specific module. SEO is impossible \u2014 Google sees one page for the entire platform.\n\nCreate Next.js routes:\n- /system-design \u2192 System Design module\n- /algorithms \u2192 Algorithms module\n- /data-structures \u2192 Data Structures module\n- / \u2192 landing page or redirect to last-used module\n\nUse Next.js App Router with layout.tsx sharing the activity bar + status bar. Each module becomes a route segment.\n\nThis is the single most impactful platform change \u2014 it enables SEO, deep linking, browser navigation, and shareability for every module.\n\nEvidence: browser testing confirmed URL stays at '/' for all module switches. Page title updates ('Algorithms - Architex') but URL does not.",
+    "acceptanceCriteria": [
+      "Each module has its own URL route",
+      "Browser back/forward navigates between modules",
+      "Direct URL load opens correct module",
+      "Activity bar state syncs with URL",
+      "Shared layout (activity bar, status bar) persists across routes",
+      "No full page reload on module switch"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/app/page.tsx",
+      "src/app/layout.tsx",
+      "src/app/system-design/page.tsx",
+      "src/app/algorithms/page.tsx",
+      "src/app/data-structures/page.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "routing",
+      "seo",
+      "navigation",
+      "deep-linking"
+    ]
+  },
+  {
+    "id": "PLT-002",
+    "epic": "PLT",
+    "title": "Create landing page explaining the platform value proposition",
+    "description": "There is NO landing page. The root URL '/' drops users directly into the last active module with zero explanation of what Architex is or why they should care. A new visitor sees a complex technical interface with no context.\n\nCreate a landing page at '/' with:\n- Hero: 'Design, simulate, and study system architectures \u2014 all in one interactive workspace'\n- Value props: 13 modules, 100+ interactive visualizations, interview prep, system design\n- Social proof: user count, GitHub stars (if open source)\n- CTA: 'Start Exploring' button \u2192 /system-design\n- Module grid showing all 13 modules with icons and descriptions\n- Screenshots/GIFs of key visualizations\n\nThe onboarding dialog that currently appears (seen in screenshots) partially covers this but it's dismissable and gone forever after Skip.\n\nEvidence: browser screenshot shows module interface immediately on first load.",
+    "acceptanceCriteria": [
+      "Landing page at '/' explains what Architex is in under 5 seconds",
+      "Clear CTA to start exploring",
+      "Module grid showing all 13 modules",
+      "Mobile responsive",
+      "SEO meta tags and OG image for the landing page",
+      "Authenticated/returning users can be redirected to last module"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/app/page.tsx",
+      "src/app/layout.tsx"
+    ],
+    "dependencies": [
+      "PLT-001"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "landing-page",
+      "onboarding",
+      "seo"
+    ]
+  },
+  {
+    "id": "PLT-003",
+    "epic": "PLT",
+    "title": "Standardize properties panel format across Algorithm and DS modules",
+    "description": "Algorithm module properties panel has: description, complexity grid (Best/Avg/Worst/Space), Stable/In-Place badges, PSEUDOCODE panel, comparison metrics. DS module has: description, vertical complexity list, size/capacity. The formats are completely different for the same type of information.\n\nStandardize:\n- Both should use 2x2 complexity grid format\n- Both should have property badges\n- Both should have pseudocode panel (DS currently has ZERO pseudocode)\n- Both should show step detail in the same format\n\nEvidence: Algorithm module screenshot shows pseudocode, badges, grid. DS module screenshot shows only vertical list.",
+    "acceptanceCriteria": [
+      "Complexity shown in same format across Algorithm and DS modules",
+      "Property badges (stable, in-place, etc.) in both modules",
+      "Pseudocode panel structure shared between modules",
+      "Step detail format consistent"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "consistency",
+      "cross-module",
+      "properties-panel"
+    ]
+  },
+  {
+    "id": "PLT-004",
+    "epic": "PLT",
+    "title": "Add cross-module knowledge links \u2014 click from DS concept to related Algorithm",
+    "description": "Zero cross-module connections exist in the UI despite a cross-module bridge system existing in src/lib/cross-module/. Key connections that should be clickable:\n\n- Hash Table (DS) \u2192 Hash Index (Database module)\n- B-Tree (DS) \u2192 Database Indexes (Database)\n- BST traversals (DS) \u2192 DFS/BFS (Algorithms)\n- Consistent Hash Ring (DS) \u2192 Load Balancing (System Design)\n- Heap (DS) \u2192 Priority Queue \u2192 Dijkstra (Algorithms)\n- WAL (DS) \u2192 Transaction Log (Database)\n- CRDTs (DS) \u2192 Eventual Consistency (Distributed)\n- Bloom Filter (DS) \u2192 LSM Compaction Guard (DS, already in SystemRoleSelector)\n\nAdd 'Related Topics' section in properties panel with clickable links that navigate to the related concept in the other module.\n\nEvidence: SystemRoleSelector.tsx:402 has a 'Open in System Canvas' button that only console.logs.",
+    "acceptanceCriteria": [
+      "At least 10 cross-module links defined",
+      "Clicking a link navigates to the related concept in the other module",
+      "Links shown in properties panel under 'Related Topics'",
+      "Bidirectional: if DS links to Algorithm, Algorithm links back to DS",
+      "Bridge buttons in SystemRoleSelector actually navigate (not console.log)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/lib/cross-module/bridge-handlers.ts",
+      "src/lib/cross-module/bridge-types.ts",
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/components/modules/data-structures/SystemRoleSelector.tsx"
+    ],
+    "dependencies": [
+      "PLT-001"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "cross-module",
+      "navigation",
+      "knowledge-graph"
+    ]
+  },
+  {
+    "id": "PLT-005",
+    "epic": "PLT",
+    "title": "Standardize empty states across all modules",
+    "description": "Algorithm module has 7 context-specific empty states with icons and actionable guidance ('Select a sorting algorithm from the sidebar, enter an array or generate a random one, then press Run'). DS module has generic 'BST is empty' with no guidance. System Design has 'Start Building' with Browse Templates + Cmd+K buttons.\n\nCreate a shared EmptyState component used by ALL modules:\n- Icon (per-category)\n- Title ('Algorithm Visualizer' / 'Data Structure Explorer')\n- Description (actionable guidance)\n- CTA buttons ('Try an Example', 'Browse Templates')\n\nEvidence: Algorithm screenshot shows rich empty state. DS screenshot shows plain text. System Design shows different rich pattern.",
+    "acceptanceCriteria": [
+      "Shared EmptyState component used by all modules",
+      "Every empty state has icon, title, description, and CTA",
+      "CTAs are actionable (clicking does something, not just decorative)",
+      "Consistent visual pattern across all modules",
+      "Empty states inspire action, not show a void"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/EmptyState.tsx",
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "consistency",
+      "empty-state",
+      "shared-component"
+    ]
+  },
+  {
+    "id": "PLT-006",
+    "epic": "PLT",
+    "title": "Add unified progress dashboard showing mastery across all modules",
+    "description": "module-progress.ts exists with markFeatureExplored and per-module feature maps. But there's no unified dashboard showing the user's journey across ALL 13 modules.\n\nCreate a Progress Dashboard (accessible from activity bar or Settings):\n- Module completion grid: 13 modules with % complete each\n- Total stats: topics explored, time spent, streak\n- 'Continue where you left off' showing last 3 visited topics\n- Weakness identification: 'You haven't explored Distributed Systems yet'\n- Achievement showcase (from achievements.ts)\n\nEvidence: module-progress.ts defines features but DS module never calls markFeatureExplored. Achievement system exists but is only wired to Interview module.",
+    "acceptanceCriteria": [
+      "Progress dashboard accessible from activity bar",
+      "Shows completion % for each of 13 modules",
+      "Shows 'Continue where you left off' with recent topics",
+      "Shows total learning stats (topics, time, streak)",
+      "Persisted via existing zustand-persist infrastructure"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/ProgressDashboard.tsx",
+      "src/lib/progress/module-progress.ts"
+    ],
+    "dependencies": [
+      "DST-166"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "progress",
+      "dashboard",
+      "retention",
+      "cross-module"
+    ]
+  },
+  {
+    "id": "PLT-007",
+    "epic": "PLT",
+    "title": "Add presets feature to DS module matching Algorithm module pattern",
+    "description": "Algorithm module has data presets: Random, Nearly Sorted, Reverse, Few Unique with a Generate button. DS module has only Random and Reset \u2014 no presets for interesting edge cases.\n\nAdd DS-specific presets per category:\n- BST: 'Balanced', 'Degenerate (sorted)', 'Random', 'Large (20 nodes)'\n- Hash Table: 'High Load Factor', 'Many Collisions', 'Empty'\n- Heap: 'Nearly Heap', 'Reverse Sorted', 'All Duplicates'\n- AVL: 'Trigger All Rotations', 'Balanced', 'Sequential'\n\nMatch the Algorithm module's preset button bar UI pattern.\n\nEvidence: Algorithm screenshot shows preset buttons (Random, Nearly Sorted, Reverse, Few Unique). DS screenshot shows only Random/Reset.",
+    "acceptanceCriteria": [
+      "Preset buttons visible in DS controls bar for applicable DS",
+      "At least 3 presets per major DS category (Linear, Tree, Hash, Heap)",
+      "Preset UI matches Algorithm module's button bar pattern",
+      "Presets generate educational edge cases, not just random data"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "consistency",
+      "presets",
+      "edge-cases",
+      "cross-module"
+    ]
+  },
+  {
+    "id": "PLT-008",
+    "epic": "PLT",
+    "title": "Add Compare Side-by-Side feature to DS module matching Algorithm module",
+    "description": "Algorithm module has a 'Compare Side-by-Side' button that splits the canvas. DS module has no comparison capability. Students benefit from seeing BST vs AVL, HashMap vs TreeMap, etc.\n\nPort the Algorithm module's comparison infrastructure to DS module. Split canvas layout, dual step tracking, synchronized operations on same data.\n\nEvidence: Algorithm screenshot shows 'Compare Side-by-Side' button. DS screenshot has no equivalent.",
+    "acceptanceCriteria": [
+      "Compare Side-by-Side button in DS controls",
+      "Canvas splits into two halves showing two different DS",
+      "Same operation runs on both DS simultaneously",
+      "Step counts and complexity shown for both",
+      "User can select which two DS to compare"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "consistency",
+      "comparison",
+      "cross-module-parity"
+    ]
+  },
+  {
+    "id": "PLT-009",
+    "epic": "PLT",
+    "title": "Redirect first-time visitors from / to onboarding or /landing",
+    "description": "PLATFORM AUDIT P1: Root URL drops users into Data Structures workspace with no context. OnboardingOverlay exists at page.tsx:11 and onboardingActive flag exists in ui-store.ts:121, but it fires once and is dismissible forever. First-time visitors who dismiss it never understand what Architex is. Either: (A) redirect first-time visitors to /landing (which has full SEO/OG/description), or (B) make onboarding a 3-step guided tour (not dismissible until completed) that explains: what Architex is, what 13 modules cover, where to start.",
+    "acceptanceCriteria": [
+      "First-time visitor sees clear explanation of what Architex is",
+      "Value proposition communicated in under 5 seconds",
+      "User shown all 13 modules with descriptions and recommended starting point",
+      "After onboarding, user lands in recommended module (not default DS)",
+      "Returning visitors skip directly to last active module"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/app/page.tsx",
+      "src/components/shared/onboarding-overlay.tsx",
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "onboarding",
+      "first-time-experience"
+    ]
+  },
+  {
+    "id": "PLT-010",
+    "epic": "PLT",
+    "title": "Fix streak computation \u2014 streakDays defined but never calculated",
+    "description": "PLATFORM AUDIT P5: OverallProgress.streakDays is defined at module-progress.ts:33 but getOverallProgress() never computes consecutive-day streaks. Dashboard at dashboard/page.tsx shows stats cards including a streak display with Flame icon. Implement: compare consecutive ActivityEntry.timestamp values to count calendar days with activity. Research: Duolingo streaks increase commitment by 60% (source: trypropel.ai).",
+    "acceptanceCriteria": [
+      "streakDays correctly computed from consecutive daily activity",
+      "Dashboard StatsCard shows accurate streak count with Flame icon",
+      "Missing a calendar day resets streak to 0",
+      "Streak persists across sessions via existing localStorage progress"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/lib/progress/module-progress.ts",
+      "src/app/dashboard/page.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "streak",
+      "progress",
+      "retention"
+    ]
+  },
+  {
+    "id": "PLT-011",
+    "epic": "PLT",
+    "title": "Expand LLD module feature tracking from 4 coarse features to 30+ per-topic",
+    "description": "PLATFORM AUDIT P5: MODULE_FEATURES['lld'] at module-progress.ts:69-74 only lists 4 features: 'solid-principles', 'design-patterns', 'class-diagrams', 'code-generation'. Viewing Singleton and viewing all 15 patterns count the same. Expand to individual tracking: 'pattern-singleton', 'pattern-observer', ..., 'solid-srp', ..., 'problem-parking-lot', etc. Same expansion needed for other modules too.",
+    "acceptanceCriteria": [
+      "MODULE_FEATURES['lld'] lists 30+ individual features (15 patterns, 5 SOLID, 10 problems)",
+      "Each topic marks its specific feature key when explored",
+      "Dashboard shows granular progress (7/15 patterns, 3/5 SOLID, 2/10 problems)",
+      "SkillRadarChart reflects per-topic granularity"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/lib/progress/module-progress.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "progress",
+      "granularity",
+      "per-topic"
+    ]
+  },
+  {
+    "id": "PLT-012",
+    "epic": "PLT",
+    "title": "Add LLD design patterns to cross-module concept map",
+    "description": "PLATFORM AUDIT P4: concept-module-map.ts maps 40+ concepts but LLD patterns are absent. Add mappings: Observer\u2192System Design (event-driven arch), Strategy\u2192Algorithms (algorithm selection), State\u2192Distributed (state machines in consensus), Repository\u2192Database (data access layer), Command\u2192System Design (command queue). At least 10 LLD concepts should be in the map.",
+    "acceptanceCriteria": [
+      "At least 10 LLD patterns/concepts added to CONCEPT_MODULE_MAP",
+      "Observer mapped to LLD + System Design + Algorithms",
+      "Repository mapped to LLD + Database",
+      "ConceptModuleLinks renders links between LLD and other modules",
+      "Links are bidirectional"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/lib/cross-module/concept-module-map.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "cross-module",
+      "knowledge-graph",
+      "LLD-connections"
+    ]
+  },
+  {
+    "id": "PLT-013",
+    "epic": "PLT",
+    "title": "Fix 14x CSP report 400 errors on every page load",
+    "description": "PLATFORM AUDIT P8: Network tab shows 14x POST /api/csp-report returning HTTP 400 on every page load. CSP is configured in middleware.ts:~line 30+ but the report endpoint doesn't accept the reports properly. This generates 14 console errors and 14 failed network requests per page. Either: (A) fix the /api/csp-report route to accept reports, (B) remove the report-uri directive from CSP headers, or (C) fix the inline style violations that trigger reports.",
+    "acceptanceCriteria": [
+      "Zero 400 errors from /api/csp-report on page load",
+      "Browser console shows zero CSP-related errors",
+      "Network tab shows no failed CSP report requests",
+      "CSP policy still enforced (or report-only without broken endpoint)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/middleware.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "performance",
+      "CSP",
+      "errors",
+      "network"
+    ]
+  },
+  {
+    "id": "PLT-014",
+    "epic": "PLT",
+    "title": "Preserve module-specific state when switching between modules",
+    "description": "PLATFORM AUDIT P3: Module switching via setActiveModule at ui-store.ts:126 changes which module renders, but LLD uses local useState (not Zustand) so ALL state is lost on switch. User loads Observer pattern in LLD, switches to DS, switches back \u2014 Observer gone. The MODULE_COMPONENTS map at page.tsx:94-111 renders components conditionally. Options: (A) persist each module's state to per-module Zustand stores, (B) use keepAlive/offscreen pattern to keep modules mounted but hidden.",
+    "acceptanceCriteria": [
+      "LLD pattern selection survives module switch and return",
+      "DS populated data survives module switch and return",
+      "At least last 3 visited modules preserve their state",
+      "No significant memory increase from preserving state"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/app/page.tsx",
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "state-preservation",
+      "module-switching",
+      "UX"
+    ]
+  },
+  {
+    "id": "PLT-015",
+    "epic": "PLT",
+    "title": "Add breadcrumb navigation inside workspace modules",
+    "description": "PLATFORM AUDIT P2: No breadcrumbs inside the workspace. User sees 'LLD STUDIO' title but no trail like 'Home > LLD Studio > Patterns > Observer'. Breadcrumb component exists at components/shared/Breadcrumb.tsx (used on /lld-problems SEO pages). Wire it into workspace-layout.tsx for in-module navigation. ModuleContextBar at cross-module/ModuleContextBar.tsx partially serves this purpose but may not show topic-level breadcrumbs.",
+    "acceptanceCriteria": [
+      "Breadcrumb visible in workspace showing: Module > Section > Topic",
+      "Each segment clickable (Module \u2192 activity bar, Section \u2192 sidebar mode, Topic \u2192 clear selection)",
+      "Updates on every navigation within a module",
+      "Consistent across all 13 modules"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/workspace-layout.tsx",
+      "src/components/shared/Breadcrumb.tsx",
+      "src/components/cross-module/ModuleContextBar.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "navigation",
+      "breadcrumb",
+      "wayfinding"
+    ]
+  },
+  {
+    "id": "PLT-016",
+    "epic": "PLT",
+    "title": "Add 'Recommended Next Module' nudge after section completion",
+    "description": "PLATFORM AUDIT P10: After exploring patterns in LLD, no nudge to the next relevant module. Cross-module bridge system exists (bridge-registry.ts) with connections defined, but no automatic recommendation based on progress. Add: when 80%+ of a module section is explored, show 'Next Up' card using existing bridges. E.g., 'You mastered Observer pattern \u2192 See event-driven architecture in System Design.'",
+    "acceptanceCriteria": [
+      "When 80%+ of a section explored, 'Next Up' card appears in sidebar footer",
+      "Card uses existing bridge connections to suggest relevant next module",
+      "Dismissible \u2014 doesn't reappear for same suggestion",
+      "Clicking navigates to suggested module/topic",
+      "At least 5 module\u2192module recommendations defined"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/workspace-layout.tsx",
+      "src/lib/cross-module/bridge-registry.ts",
+      "src/lib/progress/module-progress.ts"
+    ],
+    "dependencies": [
+      "PLT-011"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "recommendation",
+      "cross-module",
+      "retention"
+    ]
+  },
+  {
+    "id": "PLT-017",
+    "epic": "PLT",
+    "title": "Add error tracking via Sentry for production error visibility",
+    "description": "PLATFORM AUDIT P9: No error tracking service configured. Client-side errors (rate limiter crash, SVG rendering failures, CSP violations) are invisible in production. Add Sentry: initialize in layout.tsx, wrap with ErrorBoundary, capture breadcrumbs for module switches and topic selections, upload source maps for readable stack traces. global-error.tsx already exists \u2014 wire it to Sentry.",
+    "acceptanceCriteria": [
+      "Sentry SDK initialized in production builds",
+      "Unhandled errors captured with stack trace + user context (active module, topic)",
+      "Module switches logged as Sentry breadcrumbs",
+      "Source maps uploaded for production builds",
+      "global-error.tsx reports to Sentry before showing fallback UI"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/app/layout.tsx",
+      "src/app/global-error.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "infrastructure",
+      "error-tracking",
+      "sentry"
+    ]
+  },
+  {
+    "id": "PLT-018",
+    "epic": "PLT",
+    "title": "Add animation speed preference to unified settings",
+    "description": "PLATFORM AUDIT P6: ui-store.ts persists theme and panel state but has no animation speed preference. Some users want faster animations, some want slower for learning. ReducedMotionProvider exists for a11y but no SPEED control. Add: animationSpeed: 'slow' | 'normal' | 'fast' to UIState. Expose in Settings page. Consumed by all modules via a shared hook useAnimationSpeed(). Persisted via existing Zustand persist.",
+    "acceptanceCriteria": [
+      "UIState extended with animationSpeed: 'slow' | 'normal' | 'fast'",
+      "Settings page shows animation speed selector",
+      "Speed setting persisted across sessions",
+      "At least PatternBehavioralSimulator and future animations respect the setting",
+      "useAnimationSpeed() hook provides multiplier (slow=2x, normal=1x, fast=0.5x duration)"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 4,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/stores/ui-store.ts",
+      "src/app/settings/page.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "settings",
+      "animation-speed",
+      "preference"
+    ]
+  },
+  {
+    "id": "PLT-019",
+    "epic": "PLT",
+    "title": "Fix System Design module \u2014 8 canvas nodes show 'Rendered fewer hooks' crash",
+    "description": "CRITICAL: Live browser testing (April 12, 2026) confirms System Design module \u2014 the DEFAULT module and FIRST thing every new user sees \u2014 shows 8 React Flow nodes all displaying 'Something went wrong: Rendered fewer hooks than expected. This may be caused by an accidental early return statement.' with Retry buttons. This is a React hooks violation in one or more custom React Flow node components. The default canvas has 8 nodes: 1 Client, 1 Load Balancer, 2 Web Servers, 1 Message Queue, 1 Cache, 1 Database, 1 CDN. ALL crash. Likely a conditional return before a useEffect/useState call in the shared node component.",
+    "acceptanceCriteria": [
+      "System Design module loads with ALL 8 default nodes rendering correctly (no error state)",
+      "Zero 'Something went wrong' error nodes on canvas on fresh page load",
+      "Node components verified: no conditional returns before hooks in any React Flow custom node",
+      "React strict mode produces zero hooks warnings in browser console"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 1,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "critical-bug",
+      "system-design",
+      "hooks-violation",
+      "first-impression",
+      "live-tested"
+    ]
+  },
+  {
+    "id": "PLT-020",
+    "epic": "PLT",
+    "title": "Connect Database module interactions to platform progress and mastery stores",
+    "description": "Database module uses local useState for everything and reports NOTHING to the platform's progress-store.ts (totalXP, streakDays) or cross-module-store.ts (moduleMastery, conceptProgress). The stores exist with persist middleware \u2014 they just aren't called. Add: (1) Import useProgressStore.addXP() and useCrossModuleStore.updateModuleMastery() in useDatabaseModule, (2) Award 10 XP per meaningful interaction (insert, search, analyze, etc.), (3) Update database module mastery on concept completion, (4) Call markConceptComplete when user explores all operations in a mode.",
+    "acceptanceCriteria": [
+      "B-Tree insert/search calls addXP(10) from progress store",
+      "Hash, LSM, Normalization, Query Plan interactions each award XP",
+      "Module mastery updates: theory +5 for viewing, practice +10 for interacting",
+      "markConceptComplete called when all operations in a mode are used",
+      "Progress visible once PLT-006 (existing task) surfaces the dashboard"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/stores/progress-store.ts",
+      "src/stores/cross-module-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "progress",
+      "xp",
+      "mastery",
+      "database-integration"
+    ]
+  },
+  {
+    "id": "PLT-021",
+    "epic": "PLT",
+    "title": "Add JSON-LD structured data (schema.org/LearningResource) for AI search visibility",
+    "description": "In 2026, AI-powered search (Google AI Overviews, Perplexity, ChatGPT) relies on structured data to cite sources. Currently no JSON-LD structured data for educational content. Add: schema.org/Course per module, schema.org/LearningResource per topic with name, description, learningResourceType='interactive visualization', educationalLevel. Source: 2026 SEO guide (doesinfotech.com, comms.thisisdefinition.com) \u2014 'Without schema markup, content is significantly less likely to appear in AI-generated responses.'",
+    "acceptanceCriteria": [
+      "JSON-LD <script type='application/ld+json'> on each module page",
+      "schema.org/Course for each of 13 modules",
+      "schema.org/LearningResource for at least 20 major topics",
+      "Validates with Google Rich Results Test tool",
+      "Includes provider, educationalLevel, learningResourceType fields"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/lib/seo/structured-data.ts",
+      "src/app/layout.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "PLT-001"
+    ],
+    "tags": [
+      "platform",
+      "seo",
+      "structured-data",
+      "schema-org",
+      "ai-search-2026"
+    ]
+  },
+  {
+    "id": "PLT-022",
+    "epic": "PLT",
+    "title": "Add 'Recently Studied' quick-access list showing cross-module topic history",
+    "description": "No recently visited feature. Users forget where they were across 13 modules. Add: (1) Track last 10 visited topics (module + topic + timestamp) in localStorage, (2) Show in sidebar bottom section or accessible via icon, (3) Cross-module: 'B-Tree Index (Database) \u2014 2h ago, Raft Consensus (Distributed) \u2014 yesterday, Bubble Sort (Algorithms) \u2014 3 days ago'. This makes the platform feel like it REMEMBERS the user's journey.",
+    "acceptanceCriteria": [
+      "Recent topics section in sidebar showing last 10 unique topic visits",
+      "Each entry: topic name, module name, relative time",
+      "Click jumps to that exact topic in that module",
+      "Cross-module: shows topics from ALL 13 modules in one list",
+      "Persisted to localStorage, survives page refresh"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 3,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/stores/ui-store.ts",
+      "src/components/shared/workspace-layout.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "platform",
+      "navigation",
+      "recent-history",
+      "cross-module",
+      "memory"
+    ]
+  },
+  {
+    "id": "PLT-023",
+    "epic": "PLT",
+    "title": "Add 'Continue where you left off' card on root canvas page",
+    "description": "When user opens Architex, no indication of last session. Add a prominent card showing: last template name + thumbnail, last module visited, time ago, streak status. Click to resume. Uses progress-store and cross-module-store data. Different from PLT-022 (recently studied list) \u2014 this is a SINGLE prominent CTA card, not a list.",
+    "acceptanceCriteria": [
+      "Card appears on canvas page when user has prior session data",
+      "Shows last template name, module, and time ago",
+      "Click opens the last template in the last module",
+      "Falls back to standard empty state for first-time users"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 2,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/EmptyState.tsx",
+      "src/stores/progress-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "continuity",
+      "ux"
+    ]
+  },
+  {
+    "id": "PLT-024",
+    "epic": "PLT",
+    "title": "Standardize toolbar position and pattern across all 13 modules",
+    "description": "Cross-module audit found inconsistent control placement: SD uses floating bottom-center toolbar, Algorithms has controls in sidebar, DS has header controls. Standardize ALL modules to use floating bottom-center toolbar pattern (consistent with System Design). Module-specific tools adapt to toolbar pattern. Sidebar is for content navigation only.",
+    "acceptanceCriteria": [
+      "All modules use floating bottom-center toolbar for primary controls",
+      "Sidebar reserved for content navigation (palette, topic list)",
+      "Play/pause/stop controls always in toolbar",
+      "Toolbar visual consistent across all modules"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/CanvasToolbar.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "consistency",
+      "cross-module",
+      "toolbar"
+    ]
+  },
+  {
+    "id": "PLT-025",
+    "epic": "PLT",
+    "title": "Add 7 missing natural cross-module bridge connections",
+    "description": "Bridge Registry has 23+ connections but 7 natural links are missing: (1) Consistent Hashing (Distributed) <> Hash Ring (DS), (2) B-Tree (DS) <> Database Indexes (Database), (3) Producer-Consumer (Concurrency) <> Message Queue (SD), (4) TCP Handshake (Networking) <> Connection Pool (SD), (5) Mutex/Semaphore (OS) <> Database Locks (Database), (6) LB Algorithms (Algo) <> Load Balancer (SD), (7) Graph BFS (Algo) <> Network Routing (Networking).",
+    "acceptanceCriteria": [
+      "7 new bridge connections added to bridge-registry.ts",
+      "Each has proper BridgePayload type",
+      "Bridges appear in BridgePanel and RecommendedBridges"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/lib/cross-module/bridge-registry.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "cross-module",
+      "bridges"
+    ]
+  },
+  {
+    "id": "PLT-026",
+    "epic": "PLT",
+    "title": "Expand Settings panel with sound, notification, and canvas preferences",
+    "description": "Settings panel only has theme toggle + about info. PLT-018 covers animation speed. This task adds the remaining preferences: (1) Sound toggle (for sonification when built), (2) Notification preferences (toast frequency, streak reminders), (3) Canvas defaults (snap-to-grid on/off, minimap default visibility, grid density). Store in ui-store with persistence.",
+    "acceptanceCriteria": [
+      "Settings panel has sections: Appearance, Canvas, Notifications",
+      "Canvas section: snap-to-grid, minimap default, grid visibility toggles",
+      "Notification section: toast frequency, streak reminder toggle",
+      "All preferences persist via Zustand persist"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/SettingsPanel.tsx",
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "PLT-018"
+    ],
+    "tags": [
+      "settings",
+      "preferences"
+    ]
+  },
+  {
+    "id": "PLT-027",
+    "epic": "PLT",
+    "title": "Add interactive cross-module concept graph to dashboard",
+    "description": "Dashboard has skill radar but no visual graph of module connections. Add an interactive graph showing: 13 module nodes sized by mastery, bridge connections as edges, clickable nodes to navigate. Uses React Flow (same tech as canvas). Complements PLT-006 (progress dashboard) with a visual representation.",
+    "acceptanceCriteria": [
+      "Dashboard shows interactive module-connection graph",
+      "Node size proportional to mastery level",
+      "Edges show bridge connections",
+      "Clicking a node navigates to that module",
+      "Responsive (hidden on mobile)"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "platform",
+    "category": "frontend",
+    "files": [
+      "src/app/dashboard/ConceptGraph.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "PLT-006"
+    ],
+    "tags": [
+      "dashboard",
+      "visualization",
+      "cross-module"
+    ]
+  }
+]

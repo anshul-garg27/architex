@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Main bundle",
+    "path": ".next/static/chunks/main-*.js",
+    "limit": "250 KB",
+    "gzip": true
+  },
+  {
+    "name": "Framework bundle",
+    "path": ".next/static/chunks/framework-*.js",
+    "limit": "250 KB",
+    "gzip": true
+  },
+  {
+    "name": "Page chunks",
+    "path": ".next/static/chunks/app/**/page-*.js",
+    "limit": "100 KB",
+    "gzip": true
+  }
+]

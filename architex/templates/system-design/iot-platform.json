@@ -1,0 +1,161 @@
+{
+  "id": "iot-platform",
+  "name": "IoT Data Platform",
+  "description": "Design an IoT data ingestion and analytics platform handling millions of device telemetry events. Covers MQTT ingestion, stream processing, time-series storage, and raw data archival.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["iot", "telemetry", "stream-processing", "time-series", "mqtt", "sensor-data"],
+  "nodes": [
+    {
+      "id": "iot-devices",
+      "type": "mobile-client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "IoT Devices",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "concurrentUsers": 5000000, "requestsPerSecond": 500000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "API Gateway (MQTT Broker)",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 1000000, "authType": "certificate", "timeoutMs": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Ingestion Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 64, "retentionHours": 168, "maxThroughputMBps": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "stream-processor",
+      "type": "stream-processor",
+      "position": { "x": 600, "y": 200 },
+      "data": {
+        "label": "Stream Processor (Flink)",
+        "category": "compute",
+        "componentType": "stream-processor",
+        "icon": "Activity",
+        "config": { "parallelism": 32, "checkpointIntervalMs": 10000, "windowSizeMs": 60000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "tsdb",
+      "type": "timeseries-db",
+      "position": { "x": 800, "y": 100 },
+      "data": {
+        "label": "TimeSeries DB (InfluxDB)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "TrendingUp",
+        "config": { "retentionDays": 90, "writeOpsPerSec": 500000, "storageGB": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "storage",
+      "type": "storage",
+      "position": { "x": 800, "y": 300 },
+      "data": {
+        "label": "Raw Data Lake (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 500000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-devices-gw",
+      "source": "iot-devices",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "mqtt", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-gw-mq",
+      "source": "api-gw",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-stream",
+      "source": "mq",
+      "target": "stream-processor",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-stream-tsdb",
+      "source": "stream-processor",
+      "target": "tsdb",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-stream-storage",
+      "source": "stream-processor",
+      "target": "storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 50, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Device Ingestion at Scale",
+      "description": "Millions of IoT devices send telemetry (temperature, GPS, heartbeat) via MQTT or HTTP to the API Gateway. The gateway authenticates devices using mTLS certificates, validates payloads, and immediately publishes messages to Kafka. This decouples device-facing connectivity from downstream processing, preventing backpressure from slowing device communication.",
+      "highlightNodes": ["iot-devices", "api-gw", "mq"],
+      "highlightEdges": ["e-devices-gw", "e-gw-mq"]
+    },
+    {
+      "title": "Real-Time Stream Processing",
+      "description": "Apache Flink consumes from Kafka and applies windowed aggregations (1-minute averages, anomaly detection, geofence checks). It enriches events with device metadata and routes processed results to downstream sinks. Flink's exactly-once semantics with Kafka ensure no data loss or duplication, even during worker failures.",
+      "highlightNodes": ["mq", "stream-processor"],
+      "highlightEdges": ["e-mq-stream"]
+    },
+    {
+      "title": "Hot Path: Time-Series Analytics",
+      "description": "Aggregated metrics are written to InfluxDB for real-time dashboards and alerting. InfluxDB's columnar storage and retention policies automatically downsample old data (e.g., 1-second resolution for 7 days, 1-minute for 90 days). Queries like 'average temperature over last hour for building-42' complete in milliseconds.",
+      "highlightNodes": ["stream-processor", "tsdb"],
+      "highlightEdges": ["e-stream-tsdb"]
+    },
+    {
+      "title": "Cold Path: Raw Data Archival",
+      "description": "Raw events are written to S3 in Parquet format partitioned by device ID and timestamp. This data lake serves batch analytics (Spark/Presto), ML model training, and regulatory compliance. S3 lifecycle policies transition data to cheaper tiers (Glacier) after 30 days. The hot/cold path split ensures real-time queries stay fast while all data remains accessible.",
+      "highlightNodes": ["stream-processor", "storage"],
+      "highlightEdges": ["e-stream-storage"]
+    }
+  ]
+}

@@ -1,0 +1,501 @@
+{
+  "id": "feature-flags",
+  "name": "Feature Flag System",
+  "description": "Design a feature flag/toggle service like LaunchDarkly. Covers flag evaluation, percentage rollouts, targeting rules, and real-time flag propagation.",
+  "difficulty": 2,
+  "category": "infrastructure",
+  "tags": [
+    "feature-flags",
+    "toggles",
+    "rollout",
+    "configuration",
+    "a-b-testing"
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Application Client (SDK)",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": {
+          "concurrentUsers": 100000,
+          "requestsPerSecond": 500000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Flag Evaluation Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": {
+          "instances": 6,
+          "cpuCores": 4,
+          "memoryGB": 8,
+          "processingTimeMs": 1
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": {
+        "x": 600,
+        "y": 50
+      },
+      "data": {
+        "label": "Flag Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 8,
+          "evictionPolicy": "allkeys-lru",
+          "ttlSeconds": 30,
+          "cacheHitRate": 0.99
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": {
+        "x": 600,
+        "y": 350
+      },
+      "data": {
+        "label": "Flag Store (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 2,
+          "maxConnections": 100,
+          "storageGB": 50
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": {
+        "x": 300,
+        "y": 400
+      },
+      "data": {
+        "label": "Flag Update Bus (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": {
+          "partitions": 4,
+          "retentionHours": 24,
+          "maxThroughputMBps": 10
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-app",
+      "source": "client",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 5,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 3,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-db-mq",
+      "source": "database",
+      "target": "mq",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-mq-cache",
+      "source": "mq",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-invalidation",
+        "latency": 1,
+        "animated": true
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Flag Evaluation Hot Path",
+      "description": "Application SDKs call the Flag Evaluation Service on every feature check. The service reads flag definitions from Redis (99% cache hit rate, sub-millisecond). Flag evaluation applies targeting rules (user segment, percentage rollout, environment) and returns a boolean or variant. The entire hot path completes in under 5ms to avoid impacting application latency.",
+      "highlightNodes": [
+        "client",
+        "app-server",
+        "cache"
+      ],
+      "highlightEdges": [
+        "e-client-app",
+        "e-app-cache"
+      ]
+    },
+    {
+      "title": "Flag Storage and Versioning",
+      "description": "Flag definitions (name, variants, targeting rules, rollout percentage) are stored in PostgreSQL. Each flag change creates a new version, enabling rollback and audit trails. The admin dashboard writes to PostgreSQL, which triggers a change event. On cache miss, the service falls back to the database and populates the cache.",
+      "highlightNodes": [
+        "database",
+        "app-server"
+      ],
+      "highlightEdges": [
+        "e-app-db"
+      ]
+    },
+    {
+      "title": "Real-Time Flag Propagation",
+      "description": "When a flag is updated in PostgreSQL, a change event is published to Kafka. All Flag Evaluation Service instances and the Redis cache subscribe to this topic. This ensures all nodes converge on the new flag state within seconds, without polling. The propagation pattern is similar to a CDC (Change Data Capture) pipeline.",
+      "highlightNodes": [
+        "database",
+        "mq",
+        "cache"
+      ],
+      "highlightEdges": [
+        "e-db-mq",
+        "e-mq-cache"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-flag-store-down",
+        "name": "Flag Store Unavailable",
+        "description": "Feature flag database becomes unreachable",
+        "targetNodes": [
+          "flag-store"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Services use cached flag values. No new flag changes propagate.",
+        "mitigationSteps": [
+          "Local SDK cache serves stale flags",
+          "Fallback to default values",
+          "Restore flag store"
+        ]
+      },
+      {
+        "id": "cs-bad-rollout",
+        "name": "Bad Feature Rollout",
+        "description": "Feature flag enabled for 100% causes production incident",
+        "targetNodes": [
+          "flag-evaluator"
+        ],
+        "faultType": "error",
+        "severity": 4,
+        "expectedBehavior": "Feature causes errors for all users. Need immediate kill switch.",
+        "mitigationSteps": [
+          "Emergency kill switch via flag disable",
+          "Automatic rollback on error rate spike",
+          "Gradual rollout policy enforcement"
+        ]
+      },
+      {
+        "id": "cs-evaluation-latency",
+        "name": "Complex Rule Evaluation Spike",
+        "description": "Complex targeting rules cause evaluation latency spike",
+        "targetNodes": [
+          "flag-evaluator"
+        ],
+        "faultType": "latency",
+        "severity": 2,
+        "expectedBehavior": "Flag evaluation takes >100ms, adding latency to every request",
+        "mitigationSteps": [
+          "Cache evaluation results per user segment",
+          "Simplify targeting rules",
+          "Pre-compute segments"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 25000,
+        "bottleneckNode": "flag-store",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "flag-evaluator",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-feature-flags-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "flag-store"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-feature-flags-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "flag-evaluator"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-feature-flags-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "flag-store"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 2000,
+      "components": [
+        {
+          "nodeId": "flag-store",
+          "label": "Primary Service",
+          "monthlyCostUsd": 666,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "flag-evaluator",
+          "label": "Storage",
+          "monthlyCostUsd": 666,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 666,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 5000,
+          "monthlyCostUsd": 666
+        },
+        {
+          "label": "Medium",
+          "rps": 50000,
+          "monthlyCostUsd": 2000
+        },
+        {
+          "label": "High",
+          "rps": 250000,
+          "monthlyCostUsd": 6000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 50000,
+      "trafficProfile": "steady",
+      "p50LatencyMs": 2,
+      "p99LatencyMs": 10,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 50000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "flag-store",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 10,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "flag-store"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "flag-store"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 20ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

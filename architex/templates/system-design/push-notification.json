@@ -1,0 +1,148 @@
+{
+  "id": "push-notification",
+  "name": "Push Notification Service",
+  "description": "Design a push notification delivery system for mobile apps. Covers device token management, message queuing, platform-specific delivery (APNs/FCM), delivery tracking, and retry handling.",
+  "difficulty": 3,
+  "category": "infrastructure",
+  "tags": ["push-notification", "apns", "fcm", "mobile", "delivery", "queue"],
+  "nodes": [
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "App Server (Trigger)",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 6, "cpuCores": 4, "memoryGB": 16, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Notification Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 24, "retentionHours": 72, "maxThroughputMBps": 50 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "notification-worker",
+      "type": "worker",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Notification Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 15, "concurrencyPerInstance": 100, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "third-party",
+      "type": "third-party-api",
+      "position": { "x": 650, "y": 100 },
+      "data": {
+        "label": "APNs / FCM",
+        "category": "external",
+        "componentType": "third-party-api",
+        "icon": "ExternalLink",
+        "config": { "provider": "apns-fcm", "timeoutMs": 10000, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 400, "y": 400 },
+      "data": {
+        "label": "Device Token DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 200, "storageGB": 500 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-worker",
+      "source": "mq",
+      "target": "notification-worker",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-worker-apns",
+      "source": "notification-worker",
+      "target": "third-party",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 100, "animated": true }
+    },
+    {
+      "id": "e-worker-db",
+      "source": "notification-worker",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Notification Trigger and Queuing",
+      "description": "When a backend event occurs (new message, order update, friend request), the App Server publishes a notification payload to Kafka with the target user ID, message content, and priority. Using a queue decouples notification delivery from business logic, ensuring the API response is not blocked by slow downstream delivery. Kafka partitions by user ID to maintain per-user ordering.",
+      "highlightNodes": ["app-server", "mq"],
+      "highlightEdges": ["e-app-mq"]
+    },
+    {
+      "title": "Device Token Resolution",
+      "description": "Notification Workers consume from Kafka, look up the target user's device tokens in PostgreSQL (a user may have multiple devices), and determine the platform (iOS/Android) for each token. Stale tokens (devices where the user uninstalled the app) are detected when APNs/FCM returns an 'unregistered' error, and are pruned from the database.",
+      "highlightNodes": ["notification-worker", "database"],
+      "highlightEdges": ["e-mq-worker", "e-worker-db"]
+    },
+    {
+      "title": "Platform-Specific Delivery",
+      "description": "Workers maintain persistent HTTP/2 connections to APNs and gRPC connections to FCM for efficient delivery. iOS notifications use APNs with certificate-based auth, while Android uses FCM with server keys. Workers batch multiple notifications per connection for throughput. Delivery receipts from each platform are recorded for analytics (delivered, opened, failed).",
+      "highlightNodes": ["notification-worker", "third-party"],
+      "highlightEdges": ["e-worker-apns"]
+    },
+    {
+      "title": "Retry, Deduplication, and Rate Limiting",
+      "description": "Transient failures (network timeout, rate limiting) trigger exponential backoff retries. Permanent failures (invalid token) skip retries and update the DB. Per-user deduplication prevents duplicate notifications if the same event is processed twice. Rate limiting per user (e.g., max 10 notifications/hour) prevents notification fatigue and reduces churn.",
+      "highlightNodes": ["notification-worker", "mq", "database"],
+      "highlightEdges": ["e-mq-worker", "e-worker-db", "e-worker-apns"]
+    }
+  ]
+}

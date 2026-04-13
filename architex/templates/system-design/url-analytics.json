@@ -1,0 +1,227 @@
+{
+  "id": "url-analytics",
+  "name": "URL Shortener with Analytics",
+  "description": "Design a URL shortener with real-time click analytics. Extends the basic shortener with CDN-level redirect caching, click event streaming, time-series analytics, and dashboard queries.",
+  "difficulty": 3,
+  "category": "classic",
+  "tags": ["url-shortener", "analytics", "click-tracking", "time-series", "stream-processing", "caching"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Web Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 50000, "requestsPerSecond": 20000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": { "x": 150, "y": 50 },
+      "data": {
+        "label": "CDN (Edge Cache)",
+        "category": "load-balancing",
+        "componentType": "reverse-proxy",
+        "icon": "Globe2",
+        "config": { "cacheHitRate": 0.7, "ttlSeconds": 300, "edgeLocations": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "Scale",
+        "config": { "algorithm": "round-robin", "maxConnectionsPerServer": 30000, "healthCheckIntervalMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "URL Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 5, "cpuCores": 4, "memoryGB": 8, "processingTimeMs": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "URL Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 16, "evictionPolicy": "lru", "ttlSeconds": 86400, "cacheHitRate": 0.9 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 600, "y": 350 },
+      "data": {
+        "label": "URL DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 200, "storageGB": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 400, "y": 400 },
+      "data": {
+        "label": "Click Event Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 16, "retentionHours": 168, "maxThroughputMBps": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "stream-processor",
+      "type": "stream-processor",
+      "position": { "x": 200, "y": 400 },
+      "data": {
+        "label": "Analytics Processor (Flink)",
+        "category": "compute",
+        "componentType": "stream-processor",
+        "icon": "Activity",
+        "config": { "parallelism": 8, "checkpointIntervalMs": 10000, "windowSizeMs": 60000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "tsdb",
+      "type": "timeseries-db",
+      "position": { "x": 0, "y": 400 },
+      "data": {
+        "label": "Click Analytics (InfluxDB)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "TrendingUp",
+        "config": { "retentionDays": 365, "writeOpsPerSec": 50000, "storageGB": 1000 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-cdn",
+      "source": "client",
+      "target": "cdn",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-stream",
+      "source": "mq",
+      "target": "stream-processor",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-stream-tsdb",
+      "source": "stream-processor",
+      "target": "tsdb",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "write", "latency": 3, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Multi-Tier Redirect Flow",
+      "description": "When a user clicks a short URL, the request first hits the CDN edge. If the redirect is cached (302 with short TTL to preserve analytics), the user is redirected instantly from the edge. On a cache miss, the request reaches the LB, then the URL Service, which checks Redis (90% hit rate) and falls back to PostgreSQL. Using 302 redirects instead of 301 ensures every click passes through the system for tracking.",
+      "highlightNodes": ["client", "cdn", "lb", "app-server", "cache"],
+      "highlightEdges": ["e-client-cdn", "e-client-lb", "e-lb-app", "e-app-cache"]
+    },
+    {
+      "title": "Click Event Streaming",
+      "description": "After resolving the redirect, the URL Service fire-and-forgets a click event to Kafka containing the short URL, timestamp, referrer, user agent, geo (from IP), and device type. This async publish adds <2ms to redirect latency. Kafka retains events for 7 days, enabling replay if the analytics pipeline needs reprocessing.",
+      "highlightNodes": ["app-server", "mq"],
+      "highlightEdges": ["e-app-mq"]
+    },
+    {
+      "title": "Real-Time Analytics Aggregation",
+      "description": "Apache Flink consumes click events and computes windowed aggregations: clicks per minute/hour/day, top referrers, geographic distribution, and device breakdown. These pre-aggregated metrics are written to InfluxDB. Dashboards query InfluxDB directly for sub-second responses on questions like 'clicks in last 24 hours for link X, grouped by country.'",
+      "highlightNodes": ["mq", "stream-processor", "tsdb"],
+      "highlightEdges": ["e-mq-stream", "e-stream-tsdb"]
+    },
+    {
+      "title": "Balancing Analytics vs Performance",
+      "description": "The CDN cache TTL is the key trade-off: a longer TTL (5 min) reduces origin load and speeds up redirects, but undercounts clicks. A shorter TTL (30 sec) captures more clicks but increases origin traffic. The system can also use edge-side logging (CDN access logs piped to Kafka) to capture clicks served from cache, getting both performance and complete analytics.",
+      "highlightNodes": ["cdn", "app-server", "mq", "tsdb"],
+      "highlightEdges": ["e-client-cdn", "e-app-mq", "e-stream-tsdb"]
+    }
+  ]
+}

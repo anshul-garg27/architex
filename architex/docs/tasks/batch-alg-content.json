@@ -1,0 +1,598 @@
+[
+  {
+    "id": "ALG-182",
+    "epic": "ALG",
+    "title": "Add Binary Search algorithm with step-by-step visualization",
+    "description": "CRITICAL MISSING: Binary Search is an ESSENTIAL topic (MIT 6.006, Stanford CS161, CLRS, NeetCode 150, Blind 75, every competitor tool). Every university teaches it. Every tool has it. We don't. Add: binary search on sorted array, step-by-step highlighting of left/right/mid pointers, show halving of search space per step. Source: https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/",
+    "acceptanceCriteria": [
+      "Binary Search appears in a new 'Search' category in the algorithm dropdown",
+      "Visualization shows array with left/right/mid pointer indicators",
+      "Step descriptions explain WHY the search space halves",
+      "Handles edge cases: element not found, single element, empty array",
+      "Complexity shown: O(log n) time, O(1) space"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/search/binary-search.ts",
+      "src/lib/algorithms/search/index.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential",
+      "search",
+      "interview",
+      "academic"
+    ]
+  },
+  {
+    "id": "ALG-183",
+    "epic": "ALG",
+    "title": "Add Greedy Algorithms category (Activity Selection, Fractional Knapsack, Huffman Coding)",
+    "description": "CRITICAL MISSING: Greedy is an ESSENTIAL topic (Stanford CS161 dedicates 2 weeks, CLRS Chapter 15, NeetCode has full category, Blind 75 includes it). Add new 'greedy' category with 3 initial algorithms: Activity Selection (interval scheduling), Fractional Knapsack (contrast with 0/1 in DP), and reclassify existing Huffman as greedy. Source: https://stanford-cs161.github.io/winter2025/",
+    "acceptanceCriteria": [
+      "New 'Greedy' category appears in algorithm dropdown",
+      "Activity Selection shows timeline visualization with intervals",
+      "Fractional Knapsack shows items being partially included",
+      "Huffman Tree is cross-listed in both Tree and Greedy categories",
+      "Each has WHY explanation: 'Greedy works here because of optimal substructure + greedy choice property'"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/greedy/activity-selection.ts",
+      "src/lib/algorithms/greedy/fractional-knapsack.ts",
+      "src/lib/algorithms/greedy/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential",
+      "greedy",
+      "academic",
+      "interview"
+    ]
+  },
+  {
+    "id": "ALG-184",
+    "epic": "ALG",
+    "title": "Add Union-Find (Disjoint Set) data structure with path compression visualization",
+    "description": "CRITICAL MISSING: Union-Find is ESSENTIAL (MIT 6.006, CLRS, NeetCode Advanced Graphs, VisuAlgo has it). Currently used internally by Kruskal's but NOT visualized as its own topic. Add: Union-Find with union by rank + path compression, show tree flattening animation during find(). Source: https://visualgo.net/en (Union-Find DS module)",
+    "acceptanceCriteria": [
+      "Union-Find appears as a standalone topic in Tree or new 'Data Structures' category",
+      "Visualization shows forest of trees merging during union operations",
+      "Path compression animation shows tree flattening during find()",
+      "Step descriptions explain amortized near-O(1) complexity",
+      "Real-world application note: 'Used in Kruskal's MST, network connectivity, image segmentation'"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/union-find.ts",
+      "src/lib/algorithms/tree/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential",
+      "data-structure",
+      "academic",
+      "competitive"
+    ]
+  },
+  {
+    "id": "ALG-185",
+    "epic": "ALG",
+    "title": "Add Two Pointers pattern with 3 classic problems",
+    "description": "IMPORTANT MISSING: Two Pointers is in NeetCode 150 (5 problems), Blind 75 (5 problems), Grokking patterns. Every FAANG interview uses it. Add: Two Sum (sorted), Container With Most Water, 3Sum approach. Show pointer movement animation on array. Source: https://neetcode.io/practice/practice/neetcode150",
+    "acceptanceCriteria": [
+      "Two Pointers appears as pattern/category in dropdown",
+      "Array visualization shows two colored pointer indicators converging",
+      "At least 3 classic problems available as presets",
+      "Step descriptions explain WHY pointers move inward/outward",
+      "Complexity analysis for each problem variant"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/patterns/two-pointers.ts",
+      "src/lib/algorithms/patterns/index.ts"
+    ],
+    "dependencies": [
+      "ALG-182"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important",
+      "interview-pattern",
+      "neetcode"
+    ]
+  },
+  {
+    "id": "ALG-186",
+    "epic": "ALG",
+    "title": "Add Sliding Window pattern with 3 classic problems",
+    "description": "IMPORTANT MISSING: Sliding Window is in NeetCode 150, Blind 75, Grokking. Core interview pattern. Add: Maximum Subarray Sum (fixed window), Longest Substring Without Repeating (variable window), Minimum Window Substring. Show window expansion/contraction animation. Source: https://www.designgurus.io/blind75",
+    "acceptanceCriteria": [
+      "Sliding Window appears as pattern/category",
+      "Visualization shows window boundaries on array/string with expand/contract animation",
+      "Fixed and variable window variants both demonstrated",
+      "Step descriptions explain window expansion/contraction logic"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/patterns/sliding-window.ts",
+      "src/lib/algorithms/patterns/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important",
+      "interview-pattern",
+      "neetcode"
+    ]
+  },
+  {
+    "id": "ALG-187",
+    "epic": "ALG",
+    "title": "Add LRU Cache algorithm with doubly-linked list + hashmap visualization",
+    "description": "IMPORTANT MISSING: LRU Cache is a top FAANG interview question (Amazon, Meta specifically). Tests both data structure design and algorithm knowledge. Add: LRU Cache using doubly-linked list + hashmap, show get/put operations with node movement animation. Source: https://intervu.dev/blog/cracking-faang-coding-interviews/",
+    "acceptanceCriteria": [
+      "LRU Cache appears in a new 'Design' or 'Patterns' category",
+      "Visualization shows doubly-linked list (recency order) + hashmap side panel",
+      "get() moves accessed node to head with animation",
+      "put() with eviction shows tail removal + head insertion",
+      "Capacity parameter is configurable"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/design/lru-cache.ts",
+      "src/lib/algorithms/design/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important",
+      "interview",
+      "faang",
+      "design"
+    ]
+  },
+  {
+    "id": "ALG-188",
+    "epic": "ALG",
+    "title": "Add Monotonic Stack pattern with Next Greater Element visualization",
+    "description": "IMPORTANT MISSING: Monotonic Stack is in Blind 75, NeetCode Advanced. Classic interview pattern. Add: Next Greater Element, Daily Temperatures, Largest Rectangle in Histogram approach. Show stack growing/shrinking with pop animations. Source: https://algoark.io/blog/blind-75-leetcode-guide",
+    "acceptanceCriteria": [
+      "Monotonic Stack appears as a pattern category",
+      "Visualization shows array + stack side-by-side",
+      "Stack pops animate when current element is greater/smaller",
+      "Step descriptions explain the monotonic invariant"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/patterns/monotonic-stack.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important",
+      "interview-pattern",
+      "blind75"
+    ]
+  },
+  {
+    "id": "ALG-189",
+    "epic": "ALG",
+    "title": "Add Floyd's Cycle Detection (Tortoise and Hare) algorithm",
+    "description": "IMPORTANT MISSING: Floyd's cycle detection is in MIT curriculum, VisuAlgo, and common linked list interview questions. Add: slow/fast pointer animation on a linked list with cycle, show meeting point detection. Source: https://visualgo.net/en (Cycle Finding module)",
+    "acceptanceCriteria": [
+      "Floyd's Cycle Detection appears in Graph or new 'Linked List' category",
+      "Visualization shows two pointers (slow=tortoise, fast=hare) moving at different speeds",
+      "Cycle detection point highlighted when pointers meet",
+      "Cycle start finding phase shown after detection",
+      "Step descriptions explain WHY fast catches slow (pigeonhole)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/patterns/cycle-detection-floyd.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important",
+      "interview",
+      "linked-list"
+    ]
+  },
+  {
+    "id": "ALG-190",
+    "epic": "ALG",
+    "title": "Add HNSW (Hierarchical Navigable Small World) for AI/vector search",
+    "description": "EMERGING 2025-2026: Vector DB adoption grew 377% YoY. HNSW is THE algorithm for approximate nearest neighbor search in production AI systems (Pinecone, Weaviate, Qdrant, pgvector all use it). Add: HNSW graph construction + search with layer-by-layer visualization showing how the hierarchical structure narrows search. Source: https://redis.io/blog/how-hnsw-algorithms-can-improve-search/",
+    "acceptanceCriteria": [
+      "HNSW appears in a new 'AI/ML Algorithms' or 'Vector Search' category",
+      "Visualization shows multi-layer graph structure",
+      "Search animation shows traversal from top layer down to bottom layer",
+      "Description explains: 'Used in Pinecone, Weaviate, Qdrant for AI embeddings search'",
+      "Configurable parameters: M (max connections), efConstruction, efSearch"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/vector-search/hnsw.ts",
+      "src/lib/algorithms/vector-search/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging",
+      "ai-ml",
+      "2026",
+      "vector-search",
+      "competitive-advantage"
+    ]
+  },
+  {
+    "id": "ALG-191",
+    "epic": "ALG",
+    "title": "Add Bloom Filter probabilistic data structure visualization",
+    "description": "EMERGING 2025-2026: Bloom Filters are production-critical (used in databases, caches, network routers). Add: Bloom Filter insert + query with bit array + multiple hash function visualization. Show false positive demonstration. Source: https://towardsdatascience.com/probabilistic-data-structures-decoded-enhancing-performance-in-modern-computing-17f700e6ea47/",
+    "acceptanceCriteria": [
+      "Bloom Filter appears in new 'Probabilistic' or 'Data Structures' category",
+      "Visualization shows bit array with hash function arrows",
+      "Insert operation colors bits at hash positions",
+      "Query shows 'definitely not in set' vs 'possibly in set'",
+      "False positive rate displayed and explained",
+      "Real-world note: 'Used in Google BigTable, Apache Cassandra, Redis'"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/probabilistic/bloom-filter.ts",
+      "src/lib/algorithms/probabilistic/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging",
+      "probabilistic",
+      "production",
+      "system-design"
+    ]
+  },
+  {
+    "id": "ALG-192",
+    "epic": "ALG",
+    "title": "Add 'Real-World Applications' section to all top 15 algorithms",
+    "description": "Content depth review found real-world applications scoring 2-3/5 across all topics. For each of the top 15 algorithms (Bubble, Insertion, Selection, Merge, Quick, Heap Sort, BFS, DFS, Dijkstra, Kruskal, BST, AVL, Knapsack, KMP, N-Queens), add a 'Where is this used?' section to the description showing production use cases. Research each: '[algorithm] used in real world production'.",
+    "acceptanceCriteria": [
+      "Each of the top 15 algorithms has at least 2 real-world application examples",
+      "Applications are specific: 'Python/Java use TimSort (derived from Merge Sort)' not just 'used in databases'",
+      "Applications visible in the properties panel description section",
+      "At least 3 algorithms connect to system design: 'Dijkstra powers Google Maps routing'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/dp/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-depth",
+      "real-world",
+      "applications"
+    ]
+  },
+  {
+    "id": "ALG-193",
+    "epic": "ALG",
+    "title": "Add 'Interview Tips' section to top 20 interview-relevant algorithms",
+    "description": "Content review found interview readiness scoring 3/5. For each interview-relevant algorithm, add tips: 'Companies ask this because...', 'Common follow-up questions...', 'Edge cases interviewers test...'. Based on NeetCode 150 and Blind 75 patterns. Source: https://www.designgurus.io/blind75",
+    "acceptanceCriteria": [
+      "Top 20 interview algorithms have 'Interview Tips' in their config description",
+      "Tips include: which companies ask this, common follow-ups, edge cases to mention",
+      "Tips are actionable: 'Always ask about sorted vs unsorted input before choosing approach'",
+      "Visible in properties panel"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/dp/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-depth",
+      "interview",
+      "tips"
+    ]
+  },
+  {
+    "id": "ALG-194",
+    "epic": "ALG",
+    "title": "Add 'When to Use' comparison guide for each algorithm category",
+    "description": "Students don't know WHEN to use which algorithm. Add comparison tables: 'Use Merge Sort when stability matters, Quick Sort when average performance matters, Heap Sort when worst-case guarantee needed.' For each category (sorting, graph shortest path, tree types, DP patterns), add a decision guide. Source: common interview framework.",
+    "acceptanceCriteria": [
+      "Each category has a 'When to Use Which?' comparison section accessible from sidebar",
+      "Sorting comparison: stability, in-place, best/worst case, input characteristics",
+      "Graph shortest path: Dijkstra vs Bellman-Ford vs Floyd-Warshall decision tree",
+      "DP: when to use 1D vs 2D table, memoization vs tabulation decision"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/graph/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content-depth",
+      "comparison",
+      "decision-guide"
+    ]
+  },
+  {
+    "id": "ALG-195",
+    "epic": "ALG",
+    "title": "Add LSH and Cosine Similarity for AI/ML vector search category",
+    "description": "EMERGING: LSH (Locality-Sensitive Hashing) is a core ANN algorithm alongside HNSW. Cosine Similarity is the default distance metric for embedding comparisons. Add both to the new AI/ML category. Source: https://www.pinecone.io/learn/series/faiss/hnsw/",
+    "acceptanceCriteria": [
+      "LSH appears in AI/ML or Vector Search category",
+      "LSH visualization shows hash buckets grouping similar vectors",
+      "Cosine Similarity shows vector angle comparison in 2D",
+      "Description explains: 'Used for approximate nearest neighbor search in embedding spaces'"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/vector-search/lsh.ts",
+      "src/lib/algorithms/vector-search/cosine-similarity.ts"
+    ],
+    "dependencies": [
+      "ALG-190"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging",
+      "ai-ml",
+      "2026",
+      "vector-search"
+    ]
+  },
+  {
+    "id": "ALG-196",
+    "epic": "ALG",
+    "title": "Add Interval Merge and Bit Manipulation pattern categories",
+    "description": "IMPORTANT MISSING from NeetCode 150 and Blind 75. Interval Merge: merge overlapping intervals, insert interval, meeting rooms. Bit Manipulation: single number, counting bits, reverse bits. Both are full NeetCode categories with 5+ problems each.",
+    "acceptanceCriteria": [
+      "Interval patterns category with at least 2 problems",
+      "Bit Manipulation category with at least 2 problems",
+      "Interval visualization shows timeline with merge animation",
+      "Bit visualization shows binary representation with bit operations"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/patterns/intervals.ts",
+      "src/lib/algorithms/patterns/bit-manipulation.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important",
+      "interview-pattern",
+      "neetcode"
+    ]
+  },
+  {
+    "id": "ALG-197",
+    "epic": "ALG",
+    "title": "Add Topological Sort (Kahn's BFS variant) alongside existing DFS variant",
+    "description": "We have DFS-based topological sort but NOT Kahn's BFS-based variant. MIT teaches both. Interview candidates should know both approaches. Add Kahn's algorithm showing in-degree counting + BFS queue processing.",
+    "acceptanceCriteria": [
+      "Kahn's Algorithm appears as a separate option or variant selector under Topological Sort",
+      "Visualization shows in-degree counters per node",
+      "BFS queue processing animated",
+      "Comparison note: 'DFS variant detects cycles via back edges; Kahn's detects via remaining nodes'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/graph/topological-sort-kahn.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "variant",
+      "graph",
+      "academic"
+    ]
+  },
+  {
+    "id": "ALG-198",
+    "epic": "ALG",
+    "title": "Implement 6 learning path presets for curriculum navigation",
+    "description": "Phase 6 curriculum design identified 6 learning paths. Implement as selectable presets that filter/order the algorithm dropdown: (1) University CS (12 weeks), (2) FAANG Interview (4 weeks), (3) Senior Engineer (2 weeks), (4) Competitive Programming (8 weeks), (5) Weekend Crash Course (2 days), (6) AI/ML Engineer (new for 2026). Each path shows progress and recommended order.",
+    "acceptanceCriteria": [
+      "Learning Path selector visible at top of sidebar",
+      "Selecting a path filters algorithms to only those in the path",
+      "Algorithms shown in recommended order within the path",
+      "Progress bar shows completion within selected path",
+      "All 6 paths defined with specific algorithm lists"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/lib/algorithms/learning-paths.ts"
+    ],
+    "dependencies": [
+      "ALG-171",
+      "ALG-178"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "curriculum",
+      "learning-path",
+      "ux"
+    ]
+  },
+  {
+    "id": "ALG-199",
+    "epic": "ALG",
+    "title": "Add Skip List and Count-Min Sketch to probabilistic data structures category",
+    "description": "EMERGING: Skip List (used in Redis sorted sets, alternative to balanced trees) and Count-Min Sketch (streaming frequency estimation). Both are production-critical. Source: https://redis.io/blog/count-min-sketch-the-art-and-science-of-estimating-stuff/",
+    "acceptanceCriteria": [
+      "Skip List visualization shows multi-level linked list structure",
+      "Insert/search operations show traversal across levels",
+      "Count-Min Sketch shows 2D grid with hash function mappings",
+      "Real-world application notes for both (Redis, streaming analytics)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/probabilistic/skip-list.ts",
+      "src/lib/algorithms/probabilistic/count-min-sketch.ts"
+    ],
+    "dependencies": [
+      "ALG-191"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging",
+      "probabilistic",
+      "production"
+    ]
+  },
+  {
+    "id": "ALG-200",
+    "epic": "ALG",
+    "title": "Add Segment Tree and Fenwick Tree (BIT) for competitive programming path",
+    "description": "ADVANCED: Both are in VisuAlgo, ICPC syllabus, and competitive programming training. Segment Tree: range queries (sum, min, max) with lazy propagation. Fenwick Tree: prefix sums with O(log n) update. Source: https://visualgo.net/en (Segment Tree and Fenwick Tree modules)",
+    "acceptanceCriteria": [
+      "Segment Tree visualization shows tree structure built from array",
+      "Range query highlighting shows which nodes are accessed",
+      "Fenwick Tree shows binary indexed tree structure",
+      "Update propagation animated for both",
+      "Comparison note: 'Fenwick is simpler but only supports prefix queries; Segment Tree is more general'"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/tree/segment-tree.ts",
+      "src/lib/algorithms/tree/fenwick-tree.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "advanced",
+      "competitive",
+      "range-queries"
+    ]
+  }
+]

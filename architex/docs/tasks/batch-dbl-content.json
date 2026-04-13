@@ -1,0 +1,1279 @@
+[
+  {
+    "id": "DBL-066",
+    "epic": "DBL",
+    "title": "Add ACID properties explainer with interactive demonstration",
+    "description": "ACID is asked in >50% of DB interviews (datainterview.com). We demo isolation levels but never teach Atomicity, Consistency, or Durability. Add an interactive panel showing: (1) Atomicity: bank transfer that partially fails, (2) Consistency: constraint violation rejected, (3) Isolation: already covered, (4) Durability: WAL commit confirmation. Source: CMU 15-445 L17, DDIA Ch7.",
+    "acceptanceCriteria": [
+      "ACID mode accessible from Database module sidebar",
+      "Each letter (A, C, I, D) has its own interactive demo with step-through",
+      "Isolation links to existing Transaction Isolation mode",
+      "Descriptions explain WHY each property matters with real-world examples"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/transaction-sim.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential-missing",
+      "interview",
+      "acid"
+    ]
+  },
+  {
+    "id": "DBL-067",
+    "epic": "DBL",
+    "title": "Add B+ Tree visualization with leaf linked list and range scans",
+    "description": "SUPERSEDED by DBL-184 (integrate existing BPlusTreeViz). Every real database uses B+ Trees, not B-Trees. CMU 15-445 L8, DDIA Ch3 teach B+ Trees. Our module only has B-Tree (no leaf links, no range queries). Add B+ Tree as a new mode or variant showing: (1) All keys stored in leaves, (2) Leaves linked in a doubly-linked list, (3) Range scan animation traversing leaf chain, (4) Comparison with B-Tree. Interview candidates saying 'B-Tree' instead of 'B+ Tree' is a common mistake.",
+    "acceptanceCriteria": [
+      "B+ Tree mode available alongside existing B-Tree mode",
+      "Visualization shows internal nodes (keys only) and leaf nodes (keys + values + next pointers)",
+      "Leaf linked list visually connected with arrows",
+      "Range scan operation animates traversal along leaf chain",
+      "Comparison panel explains B-Tree vs B+ Tree differences"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/btree-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "essential-missing",
+      "interview",
+      "b-plus-tree",
+      "indexing"
+    ]
+  },
+  {
+    "id": "DBL-068",
+    "epic": "DBL",
+    "title": "Add MVCC (Multi-Version Concurrency Control) interactive visualization",
+    "description": "MVCC is CMU 15-445 Lecture 20, DDIA Ch7, and a top-10 interview topic. Zero coverage in our module. Build: (1) Transaction creates a new version of a row instead of overwriting, (2) Each transaction sees a consistent snapshot based on its start timestamp, (3) Show version chain with xmin/xmax markers (PostgreSQL style), (4) Demo how two concurrent readers see different versions. Source: CMU 15-445 L20, PostgreSQL MVCC docs.",
+    "acceptanceCriteria": [
+      "MVCC mode accessible from sidebar",
+      "Visualization shows row versions with transaction IDs (xmin/xmax)",
+      "Step-through demo: T1 reads v1, T2 writes v2, T1 still sees v1 (snapshot isolation)",
+      "Version chain visualization with garbage collection concept",
+      "Comparison with lock-based concurrency control"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/mvcc-viz.ts",
+      "src/components/modules/database/canvases/MVCCCanvas.tsx",
+      "src/components/modules/database/useDatabaseModule.ts",
+      "src/components/modules/database/DatabaseSidebar.tsx",
+      "src/components/modules/database/DatabaseProperties.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "essential-missing",
+      "interview",
+      "mvcc",
+      "concurrency"
+    ]
+  },
+  {
+    "id": "DBL-069",
+    "epic": "DBL",
+    "title": "Add CAP Theorem interactive explainer with database classification",
+    "description": "CAP theorem asked in >50% of system design interviews (training data analysis). We demo consistency levels but never teach CAP. Build: (1) Interactive triangle showing C, A, P tradeoffs, (2) Classify real databases: PostgreSQL=CP, Cassandra=AP, MongoDB=configurable, (3) Demo: network partition happens, show what CP vs AP systems do differently, (4) Explain 'you can't have all 3' with concrete example. Source: DDIA Ch9, Eric Brewer's theorem.",
+    "acceptanceCriteria": [
+      "CAP Theorem mode or section within Distributed/Consistency area",
+      "Interactive triangle diagram with C, A, P vertices",
+      "Clicking a database name (PostgreSQL, Cassandra, DynamoDB) highlights its position",
+      "Partition simulation shows divergent behavior of CP vs AP systems",
+      "Links to existing Consistency Level Demo"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential-missing",
+      "interview",
+      "cap-theorem",
+      "distributed"
+    ]
+  },
+  {
+    "id": "DBL-070",
+    "epic": "DBL",
+    "title": "Add SQL vs NoSQL comparison interactive guide",
+    "description": "SQL vs NoSQL is a top-5 interview question (datainterview.com, Reddit/cscareerquestions). Our module generates both SQL and MongoDB schemas but never teaches WHEN to use which. Build: (1) Comparison table: consistency, scalability, schema flexibility, query power, (2) Decision flowchart: 'Do you need ACID? Do you need flexible schema? Do you need horizontal scaling?', (3) Real-world examples: Instagram=PostgreSQL, WhatsApp=Cassandra, MongoDB for catalogs. Source: DDIA Ch2.",
+    "acceptanceCriteria": [
+      "SQL vs NoSQL comparison section accessible from sidebar",
+      "Interactive comparison table with 6+ dimensions",
+      "Decision flowchart that recommends SQL or NoSQL based on requirements",
+      "At least 5 real-world company examples with reasoning",
+      "Links to existing ER\u2192SQL and ER\u2192NoSQL generators"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "essential-missing",
+      "interview",
+      "sql-vs-nosql"
+    ]
+  },
+  {
+    "id": "DBL-071",
+    "epic": "DBL",
+    "title": "Add WAL (Write-Ahead Logging) visualization integrated with LSM-Tree",
+    "description": "WAL is CMU 15-445 L21, DDIA Ch3, and how every database survives crashes. Our LSM-Tree module shows memtable\u2192SSTable but skips the WAL step entirely. Add: (1) WAL entry created BEFORE memtable write, (2) Show crash scenario: memtable lost, WAL replayed to recover, (3) Checkpoint concept: WAL truncation after flush. Source: CMU L21, PostgreSQL WAL docs.",
+    "acceptanceCriteria": [
+      "LSM-Tree mode shows WAL as the first step before memtable write",
+      "WAL entries visible as a log panel alongside the LSM visualization",
+      "Crash simulation: 'What if the system crashes here?' \u2014 show memtable loss + WAL replay",
+      "Checkpoint concept explained: WAL can be truncated after SSTable flush"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/lsm-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "important-missing",
+      "wal",
+      "recovery",
+      "lsm-tree"
+    ]
+  },
+  {
+    "id": "DBL-072",
+    "epic": "DBL",
+    "title": "Add Bloom Filter visualization for LSM-Tree read optimization",
+    "description": "Bloom filters are a key optimization for LSM-Tree reads (DDIA Ch3, Database Internals Ch7). Our LSM read searches all levels sequentially. Add: (1) Bloom filter per SSTable that quickly answers 'is key DEFINITELY NOT in this table?', (2) Show read path: check bloom filter before searching SSTable, (3) False positive demo: bloom filter says 'maybe' but key not found. Source: DDIA Ch3.",
+    "acceptanceCriteria": [
+      "Bloom filter toggle in LSM-Tree mode",
+      "Each SSTable shows its bloom filter state (bit array visualization)",
+      "Read operation checks bloom filter first, skips SSTable if negative",
+      "False positive scenario demonstrated",
+      "Read amplification comparison: with vs without bloom filters"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/lsm-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "important-missing",
+      "bloom-filter",
+      "lsm-tree",
+      "probabilistic"
+    ]
+  },
+  {
+    "id": "DBL-073",
+    "epic": "DBL",
+    "title": "Add Consistent Hashing visualization with virtual nodes",
+    "description": "Consistent hashing is asked in most sharding interview questions. Our module has hash/range/directory sharding but no consistent hashing. Build: (1) Hash ring visualization, (2) Add/remove nodes shows minimal key redistribution, (3) Virtual nodes for load balancing, (4) Compare with naive modular hashing. Source: DDIA Ch6, Amazon Dynamo paper.",
+    "acceptanceCriteria": [
+      "Consistent Hashing available as 4th sharding strategy in ShardingSimulator",
+      "Hash ring visualization with nodes positioned by hash value",
+      "Adding/removing a node shows only affected keys migrating",
+      "Virtual nodes toggle showing improved distribution",
+      "Comparison metric: keys moved during rebalance (consistent vs naive)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/ShardingSimulator.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important-missing",
+      "consistent-hashing",
+      "sharding",
+      "distributed"
+    ]
+  },
+  {
+    "id": "DBL-074",
+    "epic": "DBL",
+    "title": "Add BCNF detection and decomposition to normalization engine",
+    "description": "Our normalization engine detects BCNF (normalization.ts:141-154) but decomposeTo3NF only decomposes to 3NF. Universities teach BCNF decomposition as the standard. Add: (1) decomposeToBCNF function using the standard algorithm, (2) Show cases where 3NF decomposition differs from BCNF, (3) Explain the tradeoff: BCNF eliminates all redundancy but may lose dependency preservation. Source: CMU, Silberschatz Ch7.",
+    "acceptanceCriteria": [
+      "decomposeToBCNF function added to normalization.ts",
+      "UI shows both 3NF and BCNF decomposition results for comparison",
+      "Cases where 3NF and BCNF differ are highlighted",
+      "Explanation of dependency preservation tradeoff"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/normalization.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth-missing",
+      "normalization",
+      "bcnf"
+    ]
+  },
+  {
+    "id": "DBL-075",
+    "epic": "DBL",
+    "title": "Add denormalization guide: when and why to break normal forms",
+    "description": "Production databases are often intentionally denormalized for performance. This is a common interview question: 'When would you denormalize?' Add: (1) Read-heavy vs write-heavy tradeoff, (2) Examples: user profile with embedded address (avoid JOIN), (3) Materialized views as controlled denormalization, (4) Decision framework. Source: DDIA Ch2-3, real-world practice.",
+    "acceptanceCriteria": [
+      "Denormalization section in normalization mode or as a new sub-mode",
+      "Interactive example: normalized schema with JOIN cost vs denormalized with redundancy",
+      "Decision framework: 'Denormalize when read:write ratio > 10:1'",
+      "At least 3 real-world denormalization examples"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/DatabaseProperties.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important-missing",
+      "denormalization",
+      "interview"
+    ]
+  },
+  {
+    "id": "DBL-076",
+    "epic": "DBL",
+    "title": "Add Join Algorithms visualization (Nested Loop, Sort-Merge, Hash Join)",
+    "description": "CMU 15-445 Lecture 12 teaches join algorithms in depth. Our query plan shows 'HashJoin' as a node type but never explains HOW it works. Add: (1) Nested Loop Join animation (O(n*m)), (2) Sort-Merge Join animation (O(n log n + m log m)), (3) Hash Join animation (build phase + probe phase). Source: CMU L12, DDIA Ch3.",
+    "acceptanceCriteria": [
+      "Join Algorithms mode or sub-section in Query Plans",
+      "Animated visualization for each of 3 join types with sample data",
+      "Step-by-step showing comparisons and matches",
+      "Complexity comparison table: when to use which join",
+      "Connection to query plan: 'The optimizer chose HashJoin because...'"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/join-viz.ts",
+      "src/components/modules/database/canvases/JoinAlgorithmsCanvas.tsx",
+      "src/components/modules/database/useDatabaseModule.ts",
+      "src/components/modules/database/DatabaseSidebar.tsx",
+      "src/components/modules/database/DatabaseProperties.tsx",
+      "src/lib/database/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "important-missing",
+      "join-algorithms",
+      "query-processing"
+    ]
+  },
+  {
+    "id": "DBL-077",
+    "epic": "DBL",
+    "title": "Add Vector Index (HNSW) visualization for AI/ML use cases",
+    "description": "CMU 15-445 Spring 2026 added 'vector' to its index coverage. DDIA 2nd edition (2025) added vector indexes. pgvector is now standard (Instaclustr 2026 guide). By 2026, vectors are 'a data type, not a database category' (State of Databases 2026). Build: (1) HNSW graph structure with layers, (2) Search animation navigating from top layer to bottom, (3) Comparison with brute-force search, (4) pgvector context. Source: CMU Spring 2026, DDIA 2e, Neon blog.",
+    "acceptanceCriteria": [
+      "Vector Index mode accessible from sidebar as new advanced topic",
+      "HNSW graph visualization with hierarchical layers",
+      "Insert animation showing multi-layer graph construction",
+      "Search animation: greedy traversal from top layer, narrowing at each level",
+      "Performance comparison: HNSW vs brute-force on N vectors",
+      "Context: 'Used in semantic search, RAG systems, and recommendation engines'"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/hnsw-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "emerging-2026",
+      "vector-index",
+      "hnsw",
+      "ai-ml"
+    ]
+  },
+  {
+    "id": "DBL-078",
+    "epic": "DBL",
+    "title": "Add Row Store vs Column Store comparison visualization",
+    "description": "Columnar storage is a major 2025-2026 trend (Pavlo review: columnar format explosion, Arrow ADBC standardization). CMU L6 teaches storage models. Add: (1) Same data shown in row-oriented vs column-oriented layout, (2) Show why analytical queries (SUM, AVG on one column) are faster with column stores, (3) Show why OLTP (full row read/write) is faster with row stores, (4) Real systems: PostgreSQL (row), ClickHouse (column), DuckDB (column). Source: CMU L6, DDIA Ch3.",
+    "acceptanceCriteria": [
+      "Row vs Column Store section in storage/indexing area",
+      "Side-by-side visualization: same table in row format and column format",
+      "Animated query: 'SELECT AVG(price) FROM products' scanning only price column (fast) vs all columns (slow)",
+      "Animated query: 'SELECT * FROM products WHERE id=1' reading one row (fast in row store) vs assembling from columns",
+      "Real database examples with logos/names"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "emerging-2026",
+      "column-store",
+      "storage-models",
+      "olap"
+    ]
+  },
+  {
+    "id": "DBL-079",
+    "epic": "DBL",
+    "title": "Add Database Caching patterns (cache-aside, write-through, invalidation)",
+    "description": "Database caching is a top interview topic (Reddit/cscareerquestions, MentorCruise FAANG guide). Zero coverage. Build: (1) Cache-aside pattern animation: check cache \u2192 miss \u2192 read DB \u2192 populate cache, (2) Write-through: write cache AND DB simultaneously, (3) Cache invalidation: 'the two hardest problems in CS' \u2014 TTL, event-based, manual, (4) Redis as example. Source: System design interviews, DDIA Ch5.",
+    "acceptanceCriteria": [
+      "Caching Patterns mode accessible from sidebar",
+      "Interactive animation for cache-aside, write-through, write-behind patterns",
+      "Cache hit vs miss visualization with latency comparison",
+      "Invalidation strategies comparison: TTL vs event-based vs manual",
+      "Interview framing: 'You'll be asked this in system design rounds'"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "essential-missing",
+      "caching",
+      "redis",
+      "interview"
+    ]
+  },
+  {
+    "id": "DBL-080",
+    "epic": "DBL",
+    "title": "Add Write Skew anomaly to transaction isolation demonstrations",
+    "description": "Our transaction isolation covers dirty read, non-repeatable read, and phantom read. Missing: Write Skew \u2014 a subtle anomaly at Repeatable Read level that only Serializable prevents. This trips up senior engineers in interviews. Add: (1) Doctor on-call scenario from DDIA Ch7, (2) Show how two transactions each read OK state and both make conflicting writes, (3) Explain why Repeatable Read doesn't prevent this. Source: DDIA Ch7.",
+    "acceptanceCriteria": [
+      "Write Skew scenario added to transaction-sim.ts",
+      "Accessible via a new button or tab in Transaction Isolation mode",
+      "Step-through demo with the doctor on-call or similar scenario",
+      "Clear explanation of why Repeatable Read allows this but Serializable prevents it"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/transaction-sim.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth-missing",
+      "write-skew",
+      "transactions"
+    ]
+  },
+  {
+    "id": "DBL-081",
+    "epic": "DBL",
+    "title": "Expose existing ER\u2192NoSQL (MongoDB) converter in the UI",
+    "description": "erToNoSQL function exists at schema-converter.ts:259 and is fully implemented with 1:1, 1:N, M:N handling, composite attributes, and multivalued arrays. But it's not exposed in the DatabaseModule UI \u2014 only erToSQL is shown. Add a tab in the SQL output panel showing MongoDB schema output alongside SQL.",
+    "acceptanceCriteria": [
+      "Bottom panel SQL tab gains sub-tabs: 'SQL' and 'MongoDB'",
+      "MongoDB tab shows the output of erToNoSQL for the current ER diagram",
+      "MongoDB output formatted as JSON schema with field types",
+      "Both SQL and MongoDB update when ER diagram changes"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/schema-converter.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth-missing",
+      "nosql",
+      "mongodb",
+      "schema-converter"
+    ]
+  },
+  {
+    "id": "DBL-082",
+    "epic": "DBL",
+    "title": "Add EXPLAIN output reader for PostgreSQL query plans",
+    "description": "Our QueryPlanSimulation generates plans from heuristics. Working engineers need to READ real PostgreSQL EXPLAIN output. Add: (1) Paste real EXPLAIN ANALYZE output, (2) Parse and visualize as a tree, (3) Highlight expensive nodes, (4) Show actual vs estimated rows, (5) Suggest optimizations. Source: CMU L15-16, use-the-index-luke.com, pgMustard.",
+    "acceptanceCriteria": [
+      "EXPLAIN Reader mode or tab in Query Plans section",
+      "Paste box accepts real PostgreSQL EXPLAIN (ANALYZE) output",
+      "Parsed into visual tree with cost, rows, time per node",
+      "Nodes color-coded by relative cost (green=cheap, red=expensive)",
+      "At least 3 sample EXPLAIN outputs to practice with"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/explain-parser.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "depth-missing",
+      "explain",
+      "query-plans",
+      "professional"
+    ]
+  },
+  {
+    "id": "DBL-083",
+    "epic": "DBL",
+    "title": "Add difficulty tags and interview relevance markers to all topics",
+    "description": "No difficulty labels exist on any of the 7 modes. Students can't tell if LSM-Tree is beginner or advanced. Add: (1) Difficulty badge on each mode (Beginner/Intermediate/Advanced), (2) Interview relevance badge ('Asked at Google', 'Common in system design'), (3) Prerequisite hints ('Learn B-Tree before LSM-Tree'). Source: NeetCode patterns, DataLemur categories.",
+    "acceptanceCriteria": [
+      "Every mode in sidebar shows a difficulty badge (Beginner/Intermediate/Advanced)",
+      "At least 5 modes show interview relevance tag",
+      "Prerequisite hints appear when hovering/clicking a mode that depends on another",
+      "Tags are accurate per university curriculum and interview research"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "difficulty-tags",
+      "interview-relevance"
+    ]
+  },
+  {
+    "id": "DBL-084",
+    "epic": "DBL",
+    "title": "Add 'real-world applications' section to each existing topic",
+    "description": "Most topics lack real-world context. For each of the 7 existing modes, add a collapsible 'Where is this used?' section: B-Tree (PostgreSQL, MySQL InnoDB), Hash Index (PostgreSQL hash index, Memcached), LSM-Tree (RocksDB, Cassandra, LevelDB), Normalization (schema design at scale), Query Plans (PostgreSQL EXPLAIN, MySQL EXPLAIN), Sharding (Instagram, Uber), Consistency (DynamoDB, Cassandra).",
+    "acceptanceCriteria": [
+      "Each of 7 modes has a 'Used in Production' collapsible section in properties panel",
+      "At least 2 real-world database systems cited per topic with brief explanation",
+      "Links to further reading where appropriate"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/DatabaseProperties.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth-missing",
+      "real-world",
+      "production-context"
+    ]
+  },
+  {
+    "id": "DBL-085",
+    "epic": "DBL",
+    "title": "Add 'common mistakes' warnings to normalization, indexing, and transactions",
+    "description": "Students make predictable mistakes: (1) Normalization: confusing 2NF with 3NF, forgetting transitive dependencies, (2) Indexing: adding too many indexes (write penalty), composite index column order matters, (3) Transactions: assuming Repeatable Read prevents all anomalies. Add inline warning callouts at the moments where these mistakes typically occur.",
+    "acceptanceCriteria": [
+      "At least 3 common mistake callouts in Normalization mode",
+      "At least 3 in B-Tree/Hash Index modes",
+      "At least 2 in Transaction Isolation mode",
+      "Each callout explains what the mistake is and how to avoid it",
+      "Callouts styled as warning badges, not intrusive"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth-missing",
+      "common-mistakes",
+      "educational"
+    ]
+  },
+  {
+    "id": "DBL-086",
+    "epic": "DBL",
+    "title": "Add SQL interactive sandbox with JOIN/GROUP BY/Window Functions",
+    "description": "SQL is the #1 most-asked topic in DB interviews (datainterview.com Top 100 SQL Questions 2026, DataLemur 200+ exercises). Our module has ZERO SQL teaching. Build: (1) In-browser SQL executor against sample tables, (2) Guided exercises: SELECT basics, JOINs (INNER/LEFT/SELF), GROUP BY/HAVING, Window Functions (ROW_NUMBER/RANK/LAG), CTEs, (3) Visual result table showing query output, (4) At least 20 progressive exercises. Source: CMU L2, Berkeley CS186 L1-2, DataLemur, pgexercises.com, sqlbolt.com.",
+    "acceptanceCriteria": [
+      "SQL Sandbox mode accessible from Database module sidebar",
+      "In-browser SQL execution engine (sql.js/AlaSQL) runs queries against pre-loaded tables",
+      "At least 20 exercises covering: SELECT, WHERE, JOIN types, GROUP BY, HAVING, Window Functions, CTEs",
+      "Visual results table showing query output with column types",
+      "Exercises are progressive: beginner \u2192 intermediate \u2192 advanced"
+    ],
+    "priority": "P0",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/sql-sandbox.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "critical-missing",
+      "sql",
+      "interview",
+      "exercises"
+    ]
+  },
+  {
+    "id": "DBL-087",
+    "epic": "DBL",
+    "title": "Add index anti-patterns and performance pitfalls guide",
+    "description": "use-the-index-luke.com devotes entire chapters to index obfuscation \u2014 functions on indexed columns (WHERE YEAR(date)=2026 prevents index use), type coercion (comparing varchar to int), LIKE with leading wildcard, low-cardinality columns, over-indexing write penalty. PlanetScale also teaches this. Our module shows indexes working but never shows how they BREAK. Add interactive demos of 5+ anti-patterns. Source: use-the-index-luke.com WHERE clause chapter, PlanetScale MySQL for Developers indexing section.",
+    "acceptanceCriteria": [
+      "Index Anti-patterns section accessible from indexing area or query plans",
+      "At least 5 anti-patterns demonstrated: function on column, type coercion, leading wildcard LIKE, low cardinality, over-indexing",
+      "Each anti-pattern shows: the bad query, WHY the index isn't used, and the fix",
+      "Connected to query plan: show SeqScan caused by anti-pattern, then IndexScan after fix"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/components/modules/database/QueryPlanSimulation.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important-missing",
+      "index-antipatterns",
+      "professional",
+      "use-the-index-luke"
+    ]
+  },
+  {
+    "id": "DBL-088",
+    "epic": "DBL",
+    "title": "Add Data Warehouse modeling: Star Schema and Snowflake Schema",
+    "description": "Star/Snowflake schema is asked in data engineering interviews (DataLemur, InterviewQuery) and is standard at every analytics company. Add: (1) Star schema visualization: fact table in center + dimension tables, (2) Snowflake schema: dimensions normalized further, (3) Comparison: query performance, storage, maintenance tradeoffs, (4) OLAP vs OLTP context. Source: DataLemur interview guide, Silberschatz Ch11.",
+    "acceptanceCriteria": [
+      "Star/Snowflake Schema section in Schema Design area",
+      "Visual star diagram with central fact table and 4+ dimension tables",
+      "Toggle between Star and Snowflake to see normalization differences",
+      "OLAP vs OLTP comparison panel explaining when to use each"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "important-missing",
+      "star-schema",
+      "data-warehouse",
+      "olap"
+    ]
+  },
+  {
+    "id": "DBL-089",
+    "epic": "DBL",
+    "title": "Add Two-Phase Locking (2PL) and Deadlock Detection visualization",
+    "description": "2PL is CMU 15-445 Lecture 18 and standard concurrency control. Deadlock detection is a common interview topic. Add: (1) Two transactions acquiring/releasing locks in growing/shrinking phases, (2) Wait-for graph showing deadlock cycle, (3) Deadlock resolution: abort one transaction, (4) Compare with MVCC approach. Source: CMU L18, Silberschatz Ch18, Berkeley CS186 L15.",
+    "acceptanceCriteria": [
+      "2PL mode within Transaction area showing lock acquire/release phases",
+      "Visual lock table showing which transaction holds which lock",
+      "Deadlock scenario: two transactions lock resources in opposite order",
+      "Wait-for graph with cycle detection highlighted",
+      "Comparison panel: 2PL vs MVCC pros/cons"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/locking-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028",
+      "DBL-068"
+    ],
+    "tags": [
+      "content",
+      "important-missing",
+      "2pl",
+      "deadlock",
+      "concurrency"
+    ]
+  },
+  {
+    "id": "DBL-090",
+    "epic": "DBL",
+    "title": "Add Distributed Transactions (2PC/3PC) and Saga Pattern visualization",
+    "description": "2PC is DDIA Ch9, Petrov Ch13, CMU L23 and asked in senior system design interviews. Saga pattern is the modern microservices alternative. Add: (1) 2PC coordinator-participant animation: prepare\u2192commit/abort, (2) Failure scenarios: coordinator crash, participant crash, (3) 3PC as improvement over 2PC, (4) Saga pattern with compensating transactions. Source: DDIA Ch9, CMU L23.",
+    "acceptanceCriteria": [
+      "Distributed Transactions mode in Distributed area",
+      "2PC animation: coordinator sends PREPARE, participants respond, coordinator sends COMMIT/ABORT",
+      "Failure scenario: what happens if coordinator crashes after PREPARE?",
+      "Saga pattern visualization: forward operations + compensating rollback",
+      "Comparison: 2PC vs Saga tradeoffs (consistency vs availability)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/distributed-tx-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "important-missing",
+      "2pc",
+      "saga",
+      "distributed-transactions"
+    ]
+  },
+  {
+    "id": "DBL-091",
+    "epic": "DBL",
+    "title": "Add Database Recovery (ARIES) visualization with WAL replay",
+    "description": "ARIES is CMU 15-445 Lecture 22, Berkeley CS186 L16-18, Silberschatz Ch19. Standard recovery protocol for every major database. Add: (1) ARIES 3-phase animation: Analysis \u2192 Redo \u2192 Undo, (2) Show dirty page table and transaction table during analysis, (3) Redo all logged operations from checkpoint, (4) Undo uncommitted transactions, (5) Crash scenario showing data loss without recovery vs successful recovery with ARIES. Source: CMU L22, Silberschatz Ch19.",
+    "acceptanceCriteria": [
+      "ARIES Recovery mode accessible from sidebar under Transactions/Storage area",
+      "3-phase animation: Analysis scans WAL, Redo replays committed ops, Undo rolls back uncommitted",
+      "Crash simulation: inject crash at arbitrary point, show recovery process",
+      "Dirty page table and transaction table visualized during analysis phase",
+      "Checkpoint concept explained and shown in WAL timeline"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/aries-viz.ts",
+      "src/components/modules/database/canvases/ARIESCanvas.tsx",
+      "src/components/modules/database/useDatabaseModule.ts",
+      "src/components/modules/database/DatabaseSidebar.tsx",
+      "src/components/modules/database/DatabaseProperties.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-071"
+    ],
+    "tags": [
+      "content",
+      "important-missing",
+      "aries",
+      "recovery",
+      "crash-recovery"
+    ]
+  },
+  {
+    "id": "DBL-092",
+    "epic": "DBL",
+    "title": "Add Buffer Pool Manager visualization with page eviction policies",
+    "description": "Buffer pool is CMU 15-445 Lecture 4, Berkeley CS186 L3+L8. Every database caches disk pages in memory \u2014 understanding this is crucial for performance tuning. Add: (1) Page table mapping page IDs to buffer frames, (2) Page request: check buffer \u2192 hit or miss \u2192 fetch from disk, (3) Eviction policies: LRU, Clock, LRU-K comparison, (4) Dirty page flush on eviction, (5) Pin count mechanism. Source: CMU L4, Berkeley L8.",
+    "acceptanceCriteria": [
+      "Buffer Pool mode showing fixed-size array of buffer frames",
+      "Page request animation: check page table \u2192 buffer hit (green) or miss (red, fetch from disk)",
+      "Toggle between LRU, Clock, and LRU-K eviction policies",
+      "Dirty pages marked, flush animation on eviction",
+      "Hit rate counter showing buffer efficiency"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/buffer-pool-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "important-missing",
+      "buffer-pool",
+      "memory-management",
+      "cmu-15445"
+    ]
+  },
+  {
+    "id": "DBL-093",
+    "epic": "DBL",
+    "title": "Add Connection Pooling patterns visualization",
+    "description": "Connection pooling is a top production concern (PlanetScale teaches it, Prisma Data Guide covers it, Reddit mentions it as frequent interview topic). Uber's CacheFront handles 40M+ reads/sec partly through connection management. Add: (1) Without pooling: each request opens/closes TCP + auth, (2) With pooling: pre-warmed connections reused, (3) Pool sizing: too small = queue, too large = resource exhaustion, (4) PgBouncer/HikariCP patterns. Source: Prisma Data Guide, production engineering guides.",
+    "acceptanceCriteria": [
+      "Connection Pooling section in a Production Patterns area",
+      "Animation: request lifecycle without pooling (slow: connect, auth, query, disconnect) vs with pooling (fast: borrow, query, return)",
+      "Pool size simulator: slider for pool size, show queue depth and latency",
+      "PgBouncer modes explained: session, transaction, statement"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "content",
+      "professional-missing",
+      "connection-pooling",
+      "production"
+    ]
+  },
+  {
+    "id": "DBL-094",
+    "epic": "DBL",
+    "title": "Add covering indexes and index-only scan demonstration",
+    "description": "use-the-index-luke.com and PlanetScale both teach covering indexes as a key optimization. A covering index includes ALL columns needed by a query, eliminating the need to read the actual table row (index-only scan). Our module shows indexes but never this optimization. Add: (1) Query that needs 2 columns, (2) Non-covering index: index lookup \u2192 then heap fetch (2 reads), (3) Covering index: index lookup only (1 read), (4) INCLUDE clause for covering indexes. Source: use-the-index-luke.com clustering chapter, PlanetScale covering indexes video.",
+    "acceptanceCriteria": [
+      "Covering Index demo accessible from B-Tree or Query Plans mode",
+      "Side-by-side: non-covering (index + heap fetch) vs covering (index only)",
+      "Visual showing the extra I/O hop eliminated by covering index",
+      "INCLUDE clause syntax shown for PostgreSQL and MySQL"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "depth-missing",
+      "covering-index",
+      "index-only-scan",
+      "use-the-index-luke"
+    ]
+  },
+  {
+    "id": "DBL-095",
+    "epic": "DBL",
+    "title": "Add cursor/keyset pagination vs offset pagination comparison",
+    "description": "Offset pagination breaks at scale (OFFSET 10000 still scans 10000 rows). PlanetScale and use-the-index-luke both dedicate sections to cursor/seek pagination. This is a common production issue and interview topic. Add: (1) Offset pagination demo: show growing cost as OFFSET increases, (2) Cursor/keyset pagination: WHERE id > last_seen_id LIMIT 20, (3) Visual comparison of I/O cost, (4) When to use each. Source: use-the-index-luke.com pagination chapter, PlanetScale cursor pagination video.",
+    "acceptanceCriteria": [
+      "Pagination section in Query Plans or Production Patterns area",
+      "Offset demo: slider for page number, show increasing query cost",
+      "Cursor demo: same pages but constant query cost",
+      "Side-by-side cost comparison graph: offset grows linearly, cursor is constant",
+      "Code examples for both patterns"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "professional-missing",
+      "pagination",
+      "production",
+      "use-the-index-luke"
+    ]
+  },
+  {
+    "id": "DBL-096",
+    "epic": "DBL",
+    "title": "Add visual JOIN explainer with Venn diagrams and animated row matching",
+    "description": "JOINs are the #1 thing students struggle with (LearnSQL.com, Frontiers in Education 2025 study). 75% of students fail complex joins. Add: (1) Venn diagram for each JOIN type (INNER, LEFT, RIGHT, FULL, CROSS), (2) Animated row-by-row matching showing which rows survive each JOIN, (3) SELF join with a practical example, (4) Anti-join pattern (LEFT JOIN WHERE right IS NULL). Source: LearnSQL, DataLemur anti-join guide, sqlbolt.com JOINs lesson.",
+    "acceptanceCriteria": [
+      "JOIN Explainer accessible from SQL area",
+      "Venn diagram for each of 5 JOIN types with highlighted matching areas",
+      "Two sample tables with 5-6 rows each, animated row matching",
+      "Result table builds row by row as matches are found",
+      "Anti-join pattern shown: LEFT JOIN + WHERE IS NULL",
+      "SELF join with employee-manager example"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-086"
+    ],
+    "tags": [
+      "content",
+      "essential-missing",
+      "joins",
+      "sql",
+      "student-pain",
+      "visual-explainer"
+    ]
+  },
+  {
+    "id": "DBL-097",
+    "epic": "DBL",
+    "title": "Implement 6 learning paths with progress tracking",
+    "description": "The content audit designed 6 learning paths: (1) University CS Student 12-week, (2) FAANG Interview Prep 4-week, (3) Senior Engineer Upskill 2-week, (4) Competitive Programming 8-week, (5) Weekend Crash Course 2-day, (6) AI/ML Engineer (2026). Each path is a sequence of topics from the module. Implement: path selector, topic checklist per path, progress bar, 'next topic' suggestions. Source: curriculum design from content audit.",
+    "acceptanceCriteria": [
+      "Learning Paths section accessible from module header or sidebar",
+      "6 paths selectable with description and estimated time",
+      "Each path shows ordered topic list with checkboxes for completion",
+      "Progress bar showing percentage complete per path",
+      "Next topic suggestion based on current progress",
+      "Progress persisted to localStorage"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-038"
+    ],
+    "tags": [
+      "content",
+      "curriculum",
+      "learning-paths",
+      "progress-tracking"
+    ]
+  },
+  {
+    "id": "DBL-098",
+    "epic": "DBL",
+    "title": "Add prerequisite graph showing topic dependencies",
+    "description": "Users don't know what to learn before what. Build a visual prerequisite graph: ER Diagrams \u2192 Normalization \u2192 SQL Generation, B-Tree \u2192 B+ Tree \u2192 LSM-Tree, ACID \u2192 Isolation Levels \u2192 MVCC \u2192 2PL, SQL Basics \u2192 JOINs \u2192 Window Functions, Sharding \u2192 Consistent Hashing, etc. Clickable nodes navigate to the topic. Source: curriculum design, CMU 15-445 course structure.",
+    "acceptanceCriteria": [
+      "Prerequisite graph viewable from Learning Paths or sidebar",
+      "Topics as nodes, dependencies as directed edges",
+      "Clicking a node navigates to that mode/topic",
+      "Completed topics shown in green, available topics in blue, locked topics in gray",
+      "Graph renders using React Flow or SVG"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-097"
+    ],
+    "tags": [
+      "content",
+      "curriculum",
+      "prerequisite-graph",
+      "navigation"
+    ]
+  },
+  {
+    "id": "DBL-099",
+    "epic": "DBL",
+    "title": "Add cross-module connections from DB topics to other Architex modules",
+    "description": "Many DB topics connect to other modules: Hash Index \u2192 Data Structures hash table, B-Tree \u2192 Data Structures trees, Replication \u2192 Distributed Systems consensus, Sharding \u2192 System Design load balancing, Query Plans \u2192 Algorithm complexity analysis. Add 'Related in other modules' links. Source: cross-module curriculum design.",
+    "acceptanceCriteria": [
+      "At least 8 cross-module links added across the 7 existing modes",
+      "Each link shows: 'Related: [Topic] in [Module Name]' with click to navigate",
+      "Links appear in the Properties panel or as inline badges",
+      "B-Tree \u2192 DS module tree section, Hash \u2192 DS hash table, Sharding \u2192 Distributed module"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "cross-module",
+      "navigation"
+    ]
+  },
+  {
+    "id": "DBL-100",
+    "epic": "DBL",
+    "title": "Add interview tips section to each topic with company-specific context",
+    "description": "Each topic should have an 'Interview Tips' collapsible section: B-Tree \u2192 'Google asks: explain how a B+ Tree handles range queries', MVCC \u2192 'Asked at Apple/infra teams: how does PostgreSQL handle concurrent reads?', Sharding \u2192 'Amazon: design the shard key for a user table'. Source: datainterview.com Top 100 SQL Questions 2026, Reddit/cscareerquestions, MentorCruise FAANG guide.",
+    "acceptanceCriteria": [
+      "Interview Tips section in Properties panel for each of the 7+ modes",
+      "Each tip includes: which companies ask it, how to approach it, common follow-ups",
+      "At least 2 tips per mode (14+ total tips)",
+      "Tips sourced from real interview reports where possible"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "interview-tips",
+      "faang",
+      "career-prep"
+    ]
+  },
+  {
+    "id": "DBL-101",
+    "epic": "DBL",
+    "title": "Add quiz/self-test after each visualization mode",
+    "description": "Active recall dramatically improves learning (Roediger & Karpicke 2006). After completing a visualization (e.g., B-Tree insert), show 3 quiz questions testing understanding: 'How many comparisons does a search through a 3-level B+ Tree need?', 'What triggers a node split?', 'What is the worst-case time complexity?'. Source: VisuAlgo quiz system (proven model), Brilliant.org quiz-per-lesson pattern.",
+    "acceptanceCriteria": [
+      "Quiz button appears after user has interacted with a mode for 60+ seconds",
+      "3-5 multiple choice questions per mode (7 modes \u00d7 3 = 21+ questions minimum)",
+      "Instant feedback: correct answer highlighted green, wrong shows explanation",
+      "Score tracked per session (e.g., '4/5 correct on B-Tree Quiz')",
+      "Questions are randomized from a pool to allow retaking"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx",
+      "src/lib/database/quiz-data.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "engagement",
+      "quiz",
+      "active-recall",
+      "retention"
+    ]
+  },
+  {
+    "id": "DBL-102",
+    "epic": "DBL",
+    "title": "Add topic history/story for B-Tree, LSM-Tree, and normalization",
+    "description": "Every great explanation starts with WHY the concept was invented. Add brief history panels: B-Tree (Rudolf Bayer, 1970, needed balanced tree for disk access), LSM-Tree (Patrick O'Neil, 1996, needed to optimize write-heavy workloads for log-structured systems), Normalization (Edgar Codd, 1970, Third Manifesto, eliminating data redundancy). 3Blue1Brown style: the STORY makes the concept memorable. Source: Wikipedia history sections, original papers.",
+    "acceptanceCriteria": [
+      "History/story collapsible section in Properties panel for B-Tree, LSM-Tree, Normalization",
+      "Each story: who invented it, when, what problem they were solving, why it matters today",
+      "Written in conversational tone, not academic",
+      "At least 3 topics have history sections (expandable to all topics later)"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "storytelling",
+      "history",
+      "engagement",
+      "3blue1brown"
+    ]
+  },
+  {
+    "id": "DBL-103",
+    "epic": "DBL",
+    "title": "Add database migration strategies guide (expand/contract, zero-downtime)",
+    "description": "Database migrations are a weekly production concern (Prisma Data Guide covers expand/contract pattern, PlanetScale teaches online schema changes). Missing from our module. Add: (1) Expand/contract pattern: add new column \u2192 backfill \u2192 switch reads \u2192 drop old column, (2) Zero-downtime migration steps, (3) Common pitfalls: locking tables, backfill timeouts, rollback strategies, (4) Tool context: Prisma migrate, Flyway, Liquibase. Source: Prisma Data Guide migrations section.",
+    "acceptanceCriteria": [
+      "Migration Strategies section in Schema Design or Production Patterns area",
+      "Animated expand/contract pattern showing 4 steps",
+      "Zero-downtime checklist with do's and don'ts",
+      "At least 3 common migration pitfalls explained"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "professional-missing",
+      "migrations",
+      "production",
+      "prisma"
+    ]
+  },
+  {
+    "id": "DBL-104",
+    "epic": "DBL",
+    "title": "Add slow query identification and analysis guide",
+    "description": "Slow query analysis is a daily production skill (PlanetScale teaches slow query logs, pgMustard built a business around this). Our query plan module shows theoretical costs but doesn't teach real-world query debugging. Add: (1) What a slow query log entry looks like (PostgreSQL pg_stat_statements, MySQL slow_query_log), (2) Key metrics: execution time, rows examined, rows returned, (3) Decision tree: is it missing an index? Bad join? Table scan? Lock contention? Source: PlanetScale MySQL for Developers, PostgreSQL pg_stat_statements docs.",
+    "acceptanceCriteria": [
+      "Slow Query Analysis section in Query Plans area",
+      "Sample slow query log entries with annotated explanations",
+      "Decision tree: 'Is rows_examined >> rows_returned? \u2192 Likely missing index'",
+      "Connected to existing query plan visualization: 'This slow query produces THIS plan'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "professional-missing",
+      "slow-query",
+      "production",
+      "debugging"
+    ]
+  },
+  {
+    "id": "DBL-105",
+    "epic": "DBL",
+    "title": "Add serverless database architecture explainer (Neon, PlanetScale, Aurora)",
+    "description": "Serverless databases are a major 2025-2026 architectural shift. Databricks bought Neon for $1B (Pavlo 2025 retrospective). Scale-to-zero, copy-on-write branching, and separation of storage/compute are reshaping how databases are deployed. Add: (1) Traditional vs serverless architecture comparison, (2) Storage-compute separation diagram, (3) Scale-to-zero concept, (4) Database branching for dev/preview environments. Source: Pavlo 2025 retrospective, Neon docs, PlanetScale docs.",
+    "acceptanceCriteria": [
+      "Serverless DB section in Distributed/Modern area",
+      "Traditional (monolithic) vs serverless (disaggregated) architecture diagram",
+      "Scale-to-zero animation: compute spins down, storage persists, compute restarts on query",
+      "Branching demo: create a branch, make changes, merge back",
+      "Real-world context: Neon, PlanetScale, Aurora Serverless v2"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "emerging-2026",
+      "serverless",
+      "neon",
+      "cloud-native"
+    ]
+  }
+]

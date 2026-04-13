@@ -1,0 +1,163 @@
+[
+  {
+    "id": "NET-158",
+    "epic": "NET",
+    "title": "Write 'How to Add a New Protocol Simulation' contributor guide",
+    "description": "No networking-specific contributor guide exists. adding-an-algorithm.md (416 lines) covers algorithms but not networking. A developer wanting to add UDP has no starting point. Write a guide covering: (1) Create engine file extending ProtocolTimelineEvent, (2) Export from barrel, (3) Add to Protocol union, (4) Add to PROTOCOLS array, (5) Add switch cases for messages/columns/canvas, (6) Write tests using template, (7) Verification checklist. Model after the excellent adding-an-algorithm.md.",
+    "acceptanceCriteria": [
+      "Guide exists at docs/guides/adding-a-protocol.md",
+      "Covers all 7 steps with file paths and code snippets",
+      "Includes annotated template for engine file",
+      "Includes test template with edge cases",
+      "Includes PR checklist specific to networking protocols",
+      "A developer can follow it to add a new protocol without reading any other code"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": ["docs/guides/adding-a-protocol.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "contributor-guide", "highest-impact"]
+  },
+  {
+    "id": "NET-159",
+    "epic": "NET",
+    "title": "Add README to src/lib/networking/ with architecture overview and data flow diagram",
+    "description": "The networking engine directory has 10 files, 5000+ lines, and no README explaining: how protocols are registered, how engines produce events, how events convert to SequenceMessages, how the UI layer consumes data, or the relationship between engine/visualization/properties. Write a README with Mermaid architecture diagram, data flow, and quick reference for each engine file.",
+    "acceptanceCriteria": [
+      "README.md exists at src/lib/networking/README.md",
+      "Contains Mermaid data flow diagram (engine → events → messages → viz)",
+      "Lists all 10 engine files with 1-line purpose",
+      "Explains shared patterns (tick, from/to, description)",
+      "Explains the SequenceMessage adapter pattern",
+      "Links to the contributor guide (NET-158)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": ["src/lib/networking/README.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "architecture"]
+  },
+  {
+    "id": "NET-160",
+    "epic": "NET",
+    "title": "Move protocol-deep-dive.ts from src/lib/innovation/ to src/lib/networking/",
+    "description": "protocol-deep-dive.ts contains detailed header-field data for 10 networking protocols (TCP, HTTP/2, HTTP/3, gRPC, WebSocket, TLS, DNS, MQTT, AMQP, GraphQL) but lives in src/lib/innovation/ where a developer searching for networking content would never find it. Fix: move to src/lib/networking/protocol-deep-dive.ts and update all import paths.",
+    "acceptanceCriteria": [
+      "File moved to src/lib/networking/protocol-deep-dive.ts",
+      "All imports updated (ProtocolDeepDive.tsx, tests)",
+      "Barrel export in index.ts includes deep-dive exports",
+      "No broken imports after move"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": ["src/lib/innovation/protocol-deep-dive.ts", "src/lib/networking/index.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "file-organization", "discoverability"]
+  },
+  {
+    "id": "NET-161",
+    "epic": "NET",
+    "title": "Write test templates and tests for TCP, WebSocket, CORS, and CDN engines (currently zero)",
+    "description": "5 of 10 engines have zero tests: TCP (673 lines, most complex), WebSocket (352 lines), CORS (467 lines, has confirmed bugs), CDN (664 lines). The single monolithic test file (networking.test.ts) only covers HTTP, API, Serialization, DNS, and TLS. Fix: create per-engine test files with a shared template covering: normal flow, edge cases (empty input, error states), and state transitions.",
+    "acceptanceCriteria": [
+      "tcp-state-machine.test.ts covers connect, sendData, close, simulatePacketLoss, error states",
+      "websocket-lifecycle.test.ts covers connect, sendMessage, heartbeat, close, state guards",
+      "cors-simulator.test.ts covers simple, preflight, credentials, wildcard, same-origin, Content-Type",
+      "cdn-flow.test.ts covers all 4 scenarios + sequence message conversion",
+      "Test template documented in contributor guide (NET-158)"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": ["src/__tests__/lib/networking/tcp-state-machine.test.ts", "src/__tests__/lib/networking/websocket-lifecycle.test.ts", "src/__tests__/lib/networking/cors-simulator.test.ts"],
+    "dependencies": ["NET-016", "NET-089"],
+    "blockedBy": [],
+    "tags": ["dx", "testing", "coverage"]
+  },
+  {
+    "id": "NET-162",
+    "epic": "NET",
+    "title": "Add pre-commit hooks (Husky + lint-staged) enforcing typecheck and lint",
+    "description": "No pre-commit hooks exist. Developers can commit untypechecked or unlinted code. pnpm typecheck and pnpm lint scripts exist but are not enforced. Fix: install Husky + lint-staged, configure pre-commit to run: tsc --noEmit on staged .ts/.tsx files, eslint --fix on staged files, prettier --write on staged files.",
+    "acceptanceCriteria": [
+      "Husky pre-commit hook runs on every commit",
+      "TypeScript errors prevent commit",
+      "ESLint errors prevent commit",
+      "Prettier formats staged files automatically",
+      "Documented in CONTRIBUTING.md"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [".husky/pre-commit", "package.json"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "tooling", "quality-gates"]
+  },
+  {
+    "id": "NET-163",
+    "epic": "NET",
+    "title": "Add runtime warnings for developer mistakes (missing switch cases, unregistered protocols)",
+    "description": "Currently adding a protocol to the type union but forgetting a switch case produces silent fallback behavior (empty messages, default columns, placeholder canvas). Fix: in development mode, add console.warn messages: 'Protocol \"udp\" has no messages handler — add a case to the messages switch at NetworkingModule.tsx:2451'. Similarly warn if a Protocol value is not found in the PROTOCOLS array.",
+    "acceptanceCriteria": [
+      "console.warn fires in development when a protocol has no messages case",
+      "console.warn fires when a protocol has no canvas case",
+      "console.warn fires when a Protocol value is missing from PROTOCOLS array",
+      "Warnings include the exact file:line to fix",
+      "Warnings suppressed in production build"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": ["src/components/modules/NetworkingModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "error-messages", "developer-feedback"]
+  },
+  {
+    "id": "NET-164",
+    "epic": "NET",
+    "title": "Create Storybook stories for SequenceDiagram and 3 key visualizations",
+    "description": "Storybook is configured but has zero networking stories. This makes visual development and review impossible without running the full app. Fix: create stories for SequenceDiagram (with various column counts), CORSVisualization (with pass/fail scenarios), and ConnectionPoolVisualization (with different pool configs). Stories enable isolated component development and visual regression testing.",
+    "acceptanceCriteria": [
+      "SequenceDiagram.stories.tsx with 2-column and 5-column variants",
+      "CORSVisualization.stories.tsx with pass and fail scenarios",
+      "ConnectionPoolVisualization.stories.tsx with normal and exhaustion modes",
+      "Stories render correctly in Storybook dev server"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": ["src/components/modules/networking/SequenceDiagram.stories.tsx", "src/components/modules/networking/CORSVisualization.stories.tsx"],
+    "dependencies": ["NET-026"],
+    "blockedBy": [],
+    "tags": ["dx", "storybook", "visual-testing"]
+  }
+]

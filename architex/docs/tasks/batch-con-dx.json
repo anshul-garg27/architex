@@ -1,0 +1,93 @@
+[
+  {
+    "id": "CON-205", "epic": "CON", "title": "Write 'How to Add a New Concurrency Demo' contributor guide in CONTRIBUTING.md",
+    "description": "CONTRIBUTING.md has guides for adding nodes, algorithms, templates, and modules — but ZERO guidance for adding a new concurrency demo. A developer wanting to add 'Semaphore' must reverse-engineer the existing demos (3192-line file!) to figure out the 7-step process:\n\n1. Create engine file: src/lib/concurrency/semaphore.ts (export simulateSemaphore)\n2. Define step type: SemaphoreStep extending ConcurrencyStep\n3. Export from: src/lib/concurrency/index.ts\n4. Add demo ID to ConcurrencyDemo union type (ConcurrencyModule.tsx:62-73)\n5. Add DemoDef entry to DEMOS array (ConcurrencyModule.tsx:81-148)\n6. Add useMemo for simulation data in useConcurrencyModule hook\n7. Add visualization component + switch case in canvas render\n8. Add properties panel content for the new demo\n9. Add bottom panel step log case\n10. Add maxSteps case\n\nTime wasted without guide: ~3-4 hours. Time with guide: ~30 minutes.\n\nAdd a 'How to Add a New Concurrency Demo' section to CONTRIBUTING.md with step-by-step instructions, file paths, and a checklist.",
+    "acceptanceCriteria": [
+      "New section in CONTRIBUTING.md: 'How to Add a New Concurrency Demo'",
+      "Lists all 10 files/locations that need updating with exact paths",
+      "Includes a checklist: engine ✓, types ✓, index export ✓, DEMOS array ✓, useMemo ✓, viz ✓, properties ✓, bottomPanel ✓, maxSteps ✓, tests ✓",
+      "Includes a 'common mistakes' section (forgetting maxSteps case, not resetting stepIndex on demo switch)"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["CONTRIBUTING.md"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "documentation", "contributor-guide"]
+  },
+  {
+    "id": "CON-206", "epic": "CON", "title": "Create concurrency demo scaffolding script: pnpm scaffold:concurrency-demo",
+    "description": "Adding a new concurrency demo requires creating/modifying 10+ locations across 4+ files. This is error-prone. Create a scaffolding script:\n\n```bash\npnpm scaffold:concurrency-demo --name semaphore --title 'Semaphore'\n\nCreates:\n  src/lib/concurrency/semaphore.ts              (engine boilerplate with SemaphoreStep type)\n  src/__tests__/lib/concurrency/semaphore.test.ts (test boilerplate)\n\nUpdates:\n  src/lib/concurrency/index.ts                   (adds re-export)\n  src/components/modules/ConcurrencyModule.tsx    (adds demo ID, DEMOS entry, switch cases)\n\nPrints:\n  ✓ Created semaphore engine + tests\n  ✓ Registered in index.ts\n  ✓ Added to ConcurrencyModule\n  Next: implement simulateSemaphore() and create SemaphoreViz component\n```\n\nThis saves 30+ minutes per new demo and eliminates 'forgot to add maxSteps case' bugs.",
+    "acceptanceCriteria": [
+      "Script creates engine file with correct boilerplate (type + simulate function stub)",
+      "Script creates test file with describe block and placeholder test",
+      "Script updates index.ts exports",
+      "Script prints clear 'next steps' for the developer",
+      "Script is documented in CONTRIBUTING.md"
+    ],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["scripts/scaffold-concurrency-demo.ts", "CONTRIBUTING.md"],
+    "dependencies": ["CON-014"], "blockedBy": [], "tags": ["dx", "scaffolding", "automation"]
+  },
+  {
+    "id": "CON-207", "epic": "CON", "title": "Add JSDoc documentation to all exported engine functions",
+    "description": "DX: 6 of 11 engine files have excellent file-level JSDoc (race-condition.ts, producer-consumer.ts, dining-philosophers.ts, goroutines.ts, event-loop.ts, mutex-comparison.ts). But 5 files have minimal or no function-level JSDoc: sleeping-barber.ts, readers-writers.ts, deadlock-demo.ts, async-patterns.ts, thread-lifecycle.ts.\n\nAdd @param, @returns, and @example JSDoc to all exported simulate functions. A developer hovering over `simulateReadersWriters` in their IDE should see:\n```typescript\n/**\n * Simulate a readers-writers scenario with configurable actor counts.\n * Uses readers-preference policy (writers may starve under heavy read load).\n *\n * @param readerCount - Number of reader actors (1-10)\n * @param writerCount - Number of writer actors (1-5)\n * @param rounds - Scheduling rounds per actor\n * @returns Ordered array of RWEvent for step-by-step playback\n *\n * @example\n * const events = simulateReadersWriters(3, 2, 4);\n * // events[0].action === 'read-start'\n */\n```",
+    "acceptanceCriteria": [
+      "All 15 exported simulate/compute functions have @param and @returns JSDoc",
+      "At least 5 functions include @example usage",
+      "JSDoc renders correctly in VS Code IntelliSense hover",
+      "Each function documents its synchronization policy or algorithm variant"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/sleeping-barber.ts", "src/lib/concurrency/readers-writers.ts", "src/lib/concurrency/deadlock-demo.ts", "src/lib/concurrency/async-patterns.ts", "src/lib/concurrency/thread-lifecycle.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "documentation", "jsdoc"]
+  },
+  {
+    "id": "CON-208", "epic": "CON", "title": "Write architecture overview document for the Concurrency module",
+    "description": "No architecture document exists for the Concurrency module. A new developer opening the 3192-line ConcurrencyModule.tsx has no map. Create a concurrency-architecture.md (or JSDoc block) with:\n\n1. Module architecture diagram (hook → sidebar + canvas + properties + bottomPanel)\n2. Data flow: DEMOS → useMemo(simulate*) → stepIndex → Viz component\n3. File organization: engines in lib/concurrency/, viz in ConcurrencyModule.tsx (currently), ThreadPoolSaturation in its own file\n4. State management: 8 useState + 15 useMemo + 1 useRef in useConcurrencyModule\n5. How to understand the module in 15 minutes (read order: DEMOS array → one engine → one viz → the hook)\n6. Known architectural debt (monolithic file, no code splitting per viz)",
+    "acceptanceCriteria": [
+      "Architecture document created (Markdown or JSDoc in useConcurrencyModule)",
+      "Includes data flow diagram with types at each step",
+      "Includes 'recommended reading order' for new developers",
+      "Lists architectural debt with links to relevant tasks"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/concurrency/ARCHITECTURE.md"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "documentation", "architecture"]
+  },
+  {
+    "id": "CON-209", "epic": "CON", "title": "Add error boundary with developer-friendly error messages to concurrency visualizations",
+    "description": "If a visualization component crashes (e.g., undefined event at a step index), the entire module goes blank with no useful error. React error boundaries exist in the platform (ModuleRenderer uses them) but the error messages are generic.\n\nAdd a concurrency-specific error boundary wrapper:\n```tsx\n<ConcurrencyErrorBoundary demo={active} stepIndex={stepIndex}>\n  {canvas}\n</ConcurrencyErrorBoundary>\n```\n\nOn error, show: 'ConcurrencyModule crashed while rendering [demo] at step [stepIndex]. Error: [message]. Try clicking Reset or switching to another demo.'\n\nThis saves developers 10+ minutes of debugging 'white screen' issues.",
+    "acceptanceCriteria": [
+      "Error boundary wraps the canvas rendering area",
+      "Error message shows demo name, step index, and error details",
+      "Recovery actions visible: Reset button and demo switcher",
+      "Error is logged to console with full stack trace"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "error-handling", "debugging"]
+  },
+  {
+    "id": "CON-210", "epic": "CON", "title": "Create PR review checklist specific to concurrency demo contributions",
+    "description": "When a developer submits a PR adding a new concurrency demo, reviewers need a checklist to verify quality. Create a .github/PULL_REQUEST_TEMPLATE/concurrency-demo.md:\n\n## Concurrency Demo PR Checklist\n- [ ] Engine file exports simulateXxx() function\n- [ ] Step type extends ConcurrencyStep base (if created)\n- [ ] Exported from lib/concurrency/index.ts\n- [ ] Demo ID added to ConcurrencyDemo union type\n- [ ] DemoDef entry added to DEMOS array with clear description\n- [ ] useMemo computation added with appropriate deps\n- [ ] Visualization component renders all step states\n- [ ] Properties panel has: hook, intuition, technical explanation\n- [ ] Bottom panel step log shows current step description\n- [ ] maxSteps case returns correct array length\n- [ ] Step descriptions explain WHY, not just WHAT\n- [ ] At least 3 unit tests written\n- [ ] No hardcoded hex colors (use design tokens)\n- [ ] Reduced motion respected (no infinite animations)\n- [ ] All text readable (minimum fontSize 10 in SVG, text-[10px] in Tailwind)",
+    "acceptanceCriteria": [
+      "PR template created with 15+ checklist items",
+      "Template auto-applied when PR title contains 'concurrency' or '[CON]'",
+      "Checklist items are specific and verifiable (not vague)"
+    ],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": [".github/PULL_REQUEST_TEMPLATE/concurrency-demo.md"],
+    "dependencies": [], "blockedBy": [], "tags": ["dx", "process", "review-checklist"]
+  },
+  {
+    "id": "CON-211", "epic": "CON", "title": "Add Storybook stories for concurrency visualization components",
+    "description": "Storybook exists (.storybook/main.ts + preview.ts) but no concurrency stories are written. Add stories for at least the 4 A/B-grade visualizations so developers can iterate on visual changes without running the full app:\n\n1. GoroutineViz.stories.tsx — render each of 5 demos at step 0, mid-step, and final step\n2. DeadlockDemoViz.stories.tsx — render normal state + deadlock state\n3. EventLoopViz.stories.tsx — render each demo at step 0 and final step\n4. LockComparisonViz.stories.tsx — render all 3 lock types at step 0 and mid-step\n\nEach story should use mock data (not full simulation) so it renders instantly.",
+    "acceptanceCriteria": [
+      "At least 4 story files created for visualization components",
+      "Each story renders without errors in Storybook",
+      "Stories use mock step data (not full simulation engine)",
+      "Stories show multiple states: initial, mid-simulation, and final/deadlock"
+    ],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/concurrency/GoroutineViz.stories.tsx", "src/components/modules/concurrency/DeadlockDemoViz.stories.tsx"],
+    "dependencies": ["CON-014"], "blockedBy": ["CON-014"], "tags": ["dx", "storybook", "visual-testing"]
+  }
+]

@@ -1,0 +1,133 @@
+{
+  "id": "bp-multi-region",
+  "name": "Multi-Region Active-Active — Production Blueprint",
+  "description": "Global active-active deployment across 3 regions with conflict-free data replication, intelligent traffic routing, and automated failover. Achieves 99.999% availability.",
+  "difficulty": 5,
+  "category": "infrastructure",
+  "tags": ["multi-region", "active-active", "global", "failover", "crdt", "disaster-recovery", "blueprint"],
+  "nodes": [
+    { "id": "global-dns", "type": "load-balancer", "position": { "x": 400, "y": 0 }, "data": { "label": "Global DNS (Route53)", "category": "load-balancing", "componentType": "load-balancer-l7", "icon": "Globe", "config": { "routingPolicy": "latency-based", "healthCheckIntervalS": 10, "failoverTtlS": 30 }, "state": "idle" } },
+    { "id": "us-lb", "type": "load-balancer", "position": { "x": 100, "y": 150 }, "data": { "label": "US-East LB", "category": "load-balancing", "componentType": "load-balancer-l7", "icon": "GitBranch", "config": { "region": "us-east-1", "algorithm": "least-connections" }, "state": "idle" } },
+    { "id": "eu-lb", "type": "load-balancer", "position": { "x": 400, "y": 150 }, "data": { "label": "EU-West LB", "category": "load-balancing", "componentType": "load-balancer-l7", "icon": "GitBranch", "config": { "region": "eu-west-1", "algorithm": "least-connections" }, "state": "idle" } },
+    { "id": "ap-lb", "type": "load-balancer", "position": { "x": 700, "y": 150 }, "data": { "label": "AP-Southeast LB", "category": "load-balancing", "componentType": "load-balancer-l7", "icon": "GitBranch", "config": { "region": "ap-southeast-1", "algorithm": "least-connections" }, "state": "idle" } },
+    { "id": "us-app", "type": "web-server", "position": { "x": 100, "y": 300 }, "data": { "label": "US App Servers", "category": "compute", "componentType": "web-server", "icon": "Server", "config": { "instances": 10, "region": "us-east-1", "processingTimeMs": 20 }, "state": "idle" } },
+    { "id": "eu-app", "type": "web-server", "position": { "x": 400, "y": 300 }, "data": { "label": "EU App Servers", "category": "compute", "componentType": "web-server", "icon": "Server", "config": { "instances": 8, "region": "eu-west-1", "processingTimeMs": 20 }, "state": "idle" } },
+    { "id": "ap-app", "type": "web-server", "position": { "x": 700, "y": 300 }, "data": { "label": "AP App Servers", "category": "compute", "componentType": "web-server", "icon": "Server", "config": { "instances": 6, "region": "ap-southeast-1", "processingTimeMs": 20 }, "state": "idle" } },
+    { "id": "us-db", "type": "database", "position": { "x": 100, "y": 450 }, "data": { "label": "US CockroachDB", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "cockroachdb", "nodes": 5, "region": "us-east-1", "storageGB": 2000 }, "state": "idle" } },
+    { "id": "eu-db", "type": "database", "position": { "x": 400, "y": 450 }, "data": { "label": "EU CockroachDB", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "cockroachdb", "nodes": 5, "region": "eu-west-1", "storageGB": 2000 }, "state": "idle" } },
+    { "id": "ap-db", "type": "database", "position": { "x": 700, "y": 450 }, "data": { "label": "AP CockroachDB", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "cockroachdb", "nodes": 3, "region": "ap-southeast-1", "storageGB": 1000 }, "state": "idle" } },
+    { "id": "global-cache", "type": "cache", "position": { "x": 400, "y": 600 }, "data": { "label": "Global Redis (ElastiCache)", "category": "storage", "componentType": "redis", "icon": "Zap", "config": { "type": "redis", "globalDatastore": true, "regions": 3, "memoryGB": 64 }, "state": "idle" } },
+    { "id": "conflict-resolver", "type": "web-server", "position": { "x": 100, "y": 600 }, "data": { "label": "Conflict Resolver", "category": "compute", "componentType": "web-server", "icon": "GitMerge", "config": { "instances": 3, "strategy": "last-writer-wins", "crdtEnabled": true }, "state": "idle" } },
+    { "id": "failover-controller", "type": "web-server", "position": { "x": 700, "y": 600 }, "data": { "label": "Failover Controller", "category": "compute", "componentType": "web-server", "icon": "RefreshCw", "config": { "instances": 3, "healthCheckIntervalS": 5, "failoverThresholdS": 30 }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-dns-us", "source": "global-dns", "target": "us-lb", "type": "data-flow", "data": { "edgeType": "dns-routing", "latency": 5, "animated": true } },
+    { "id": "e-dns-eu", "source": "global-dns", "target": "eu-lb", "type": "data-flow", "data": { "edgeType": "dns-routing", "latency": 5, "animated": true } },
+    { "id": "e-dns-ap", "source": "global-dns", "target": "ap-lb", "type": "data-flow", "data": { "edgeType": "dns-routing", "latency": 5, "animated": true } },
+    { "id": "e-us-lb-app", "source": "us-lb", "target": "us-app", "type": "data-flow", "data": { "edgeType": "https", "latency": 1, "animated": true } },
+    { "id": "e-eu-lb-app", "source": "eu-lb", "target": "eu-app", "type": "data-flow", "data": { "edgeType": "https", "latency": 1, "animated": true } },
+    { "id": "e-ap-lb-app", "source": "ap-lb", "target": "ap-app", "type": "data-flow", "data": { "edgeType": "https", "latency": 1, "animated": true } },
+    { "id": "e-us-app-db", "source": "us-app", "target": "us-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": true } },
+    { "id": "e-eu-app-db", "source": "eu-app", "target": "eu-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": true } },
+    { "id": "e-ap-app-db", "source": "ap-app", "target": "ap-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": true } },
+    { "id": "e-us-eu-repl", "source": "us-db", "target": "eu-db", "type": "data-flow", "data": { "edgeType": "replication", "latency": 80, "animated": true } },
+    { "id": "e-eu-ap-repl", "source": "eu-db", "target": "ap-db", "type": "data-flow", "data": { "edgeType": "replication", "latency": 120, "animated": true } },
+    { "id": "e-us-ap-repl", "source": "us-db", "target": "ap-db", "type": "data-flow", "data": { "edgeType": "replication", "latency": 150, "animated": true } },
+    { "id": "e-db-conflict", "source": "us-db", "target": "conflict-resolver", "type": "data-flow", "data": { "edgeType": "async", "latency": 5, "animated": false } },
+    { "id": "e-app-cache", "source": "us-app", "target": "global-cache", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true } },
+    { "id": "e-failover-dns", "source": "failover-controller", "target": "global-dns", "type": "data-flow", "data": { "edgeType": "dns-update", "latency": 100, "animated": false } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-region-outage", "name": "Full Region Outage", "description": "US-East region becomes completely unavailable due to AWS outage", "targetNodes": ["us-lb", "us-app", "us-db"], "faultType": "crash", "severity": 5, "expectedBehavior": "DNS failover routes US traffic to EU within 30s. EU and AP continue serving normally. Cross-region replication ensures near-zero data loss.", "mitigationSteps": ["Failover controller detects health check failures", "DNS TTL expires, traffic rerouted to healthy regions", "CockroachDB promotes EU/AP replicas", "Monitor increased load on remaining regions", "Scale EU/AP to absorb redirected traffic"] },
+      { "id": "cs-replication-lag", "name": "Cross-Region Replication Lag", "description": "Transatlantic link degradation causes replication lag between US and EU to exceed 5 seconds", "targetNodes": ["us-db", "eu-db"], "faultType": "latency", "severity": 3, "expectedBehavior": "Users in EU may see slightly stale data from US-origin writes. Conflict rate increases. Local reads/writes unaffected.", "mitigationSteps": ["Detect replication lag via monitoring", "Enable read-your-writes consistency for critical paths", "Alert on sustained lag > 5s", "Investigate network path issues"] },
+      { "id": "cs-split-brain", "name": "Network Split Brain", "description": "Network partition isolates AP region from US/EU, both sides accept writes", "targetNodes": ["ap-db", "us-db", "eu-db"], "faultType": "partition", "severity": 4, "expectedBehavior": "AP region accepts local writes independently. US/EU continue as majority. When partition heals, conflict resolution merges divergent writes.", "mitigationSteps": ["CockroachDB quorum prevents split-brain for coordinated tables", "CRDT-based fields auto-merge without conflict", "Conflict resolver handles remaining merge conflicts", "Post-partition audit of conflict resolution outcomes"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 50000, "bottleneckNode": "us-db", "metric": "connections", "description": "Cross-region queries increase local DB connection usage", "resolution": "Connection pooling, query routing to local region only" },
+      { "rpsThreshold": 100000, "bottleneckNode": "global-cache", "metric": "network", "description": "Global Redis replication bandwidth saturates", "resolution": "Regional cache sharding, selective replication of hot keys only" },
+      { "rpsThreshold": 200000, "bottleneckNode": "conflict-resolver", "metric": "cpu", "description": "High write volume creates many cross-region conflicts to resolve", "resolution": "CRDT data types for counter/set fields, partition data by region ownership" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-write-conflicts", "title": "Concurrent Write Conflicts", "description": "Same record updated simultaneously in multiple regions", "affectedNodes": ["conflict-resolver", "us-db", "eu-db"], "likelihood": 4, "impact": 3, "mitigation": "CRDT for counters/sets, last-writer-wins for scalar fields, domain-specific merge for complex types" },
+      { "id": "ei-inconsistent-reads", "title": "Stale Cross-Region Reads", "description": "User writes in one region, reads from another before replication completes", "affectedNodes": ["us-app", "eu-app", "global-cache"], "likelihood": 5, "impact": 2, "mitigation": "Sticky sessions for critical paths, read-your-writes consistency token, cache invalidation on write" },
+      { "id": "ei-dns-propagation", "title": "Slow DNS Failover", "description": "DNS TTL caching delays failover for some clients up to 60 seconds", "affectedNodes": ["global-dns", "failover-controller"], "likelihood": 3, "impact": 3, "mitigation": "Low DNS TTL (30s), client-side retry with alternate region, health-check endpoint on client" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 110000,
+      "components": [
+        { "nodeId": "us-db", "label": "US CockroachDB", "monthlyCostUsd": 18000, "costDriver": "5 nodes, 2TB, multi-AZ" },
+        { "nodeId": "eu-db", "label": "EU CockroachDB", "monthlyCostUsd": 18000, "costDriver": "5 nodes, 2TB, multi-AZ" },
+        { "nodeId": "ap-db", "label": "AP CockroachDB", "monthlyCostUsd": 10000, "costDriver": "3 nodes, 1TB" },
+        { "nodeId": "us-app", "label": "US App Servers", "monthlyCostUsd": 10000, "costDriver": "10 instances" },
+        { "nodeId": "eu-app", "label": "EU App Servers", "monthlyCostUsd": 8000, "costDriver": "8 instances" },
+        { "nodeId": "ap-app", "label": "AP App Servers", "monthlyCostUsd": 6000, "costDriver": "6 instances" },
+        { "nodeId": "global-cache", "label": "Global Redis", "monthlyCostUsd": 12000, "costDriver": "64GB across 3 regions" },
+        { "nodeId": "global-dns", "label": "Route53 + Health Checks", "monthlyCostUsd": 2000, "costDriver": "DNS queries + health checks" },
+        { "nodeId": "us-lb", "label": "Load Balancers (3 regions)", "monthlyCostUsd": 6000, "costDriver": "ALBs across 3 regions" },
+        { "nodeId": "conflict-resolver", "label": "Conflict Resolver", "monthlyCostUsd": 3000, "costDriver": "3 instances" },
+        { "nodeId": "failover-controller", "label": "Failover Controller", "monthlyCostUsd": 2000, "costDriver": "3 instances" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Dual Region", "rps": 50000, "monthlyCostUsd": 60000 },
+        { "label": "Tri-Region", "rps": 100000, "monthlyCostUsd": 110000 },
+        { "label": "Quad-Region", "rps": 200000, "monthlyCostUsd": 160000 },
+        { "label": "Global (6 regions)", "rps": 500000, "monthlyCostUsd": 300000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 100000, "trafficProfile": "diurnal", "p50LatencyMs": 30, "p99LatencyMs": 150, "availabilityTarget": 99.999, "maxErrorRatePercent": 0.001, "throughputRps": 100000 },
+    "scalingPolicies": [
+      { "nodeId": "us-app", "metric": "cpu_utilization", "threshold": 65, "scaleUpStep": 3, "scaleDownStep": 1, "cooldownSeconds": 120, "minInstances": 6, "maxInstances": 30 },
+      { "nodeId": "eu-app", "metric": "cpu_utilization", "threshold": 65, "scaleUpStep": 2, "scaleDownStep": 1, "cooldownSeconds": 120, "minInstances": 4, "maxInstances": 24 }
+    ],
+    "slaDefinitions": [
+      { "name": "Global Availability", "metric": "uptime_percent", "target": 99.999, "unit": "%", "penalty": "5 nines SLA with financial penalty" },
+      { "name": "Failover Time", "metric": "failover_duration_s", "target": 30, "unit": "s", "penalty": "Regional failover within 30 seconds" },
+      { "name": "Data Durability", "metric": "data_loss_events", "target": 0, "unit": "events", "penalty": "Zero data loss during failover (RPO=0)" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "cross_region_replication_lag", "type": "gauge", "description": "Replication lag between regions in ms", "nodeId": "us-db" },
+        { "name": "conflict_rate", "type": "counter", "description": "Cross-region write conflicts per second", "nodeId": "conflict-resolver" },
+        { "name": "region_health_score", "type": "gauge", "description": "Health score per region (0-100)", "nodeId": "failover-controller" },
+        { "name": "dns_failover_events", "type": "counter", "description": "Number of DNS failover events", "nodeId": "global-dns" },
+        { "name": "cross_region_latency", "type": "histogram", "description": "Inter-region network latency", "nodeId": "global-cache" }
+      ],
+      "alerts": [
+        { "name": "Region Health Degraded", "condition": "region_health < 80 for 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Replication Lag High", "condition": "replication_lag > 5000ms for 2min", "severity": "warning", "channel": "slack-infra" },
+        { "name": "Conflict Rate Spike", "condition": "conflict_rate > 100/s for 5min", "severity": "warning", "channel": "slack-infra" },
+        { "name": "Failover Triggered", "condition": "failover_event = true", "severity": "critical", "channel": "pagerduty" }
+      ],
+      "dashboards": ["Global Overview", "Region Health", "Replication Status", "Conflict Resolution", "Failover History"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call SRE", "responseTimeMinutes": 2, "contacts": ["oncall-global-sre"] },
+        { "level": 2, "name": "Infrastructure Lead", "responseTimeMinutes": 10, "contacts": ["infra-lead"] },
+        { "level": 3, "name": "CTO", "responseTimeMinutes": 15, "contacts": ["cto", "vp-eng"] }
+      ],
+      "runbooks": [
+        { "incident": "Full region outage", "severity": "critical", "steps": ["Verify automated failover activated", "Monitor DNS propagation", "Scale healthy regions to absorb traffic", "Check data replication completeness", "Plan region recovery"], "automatedRecovery": true },
+        { "incident": "Split brain detected", "severity": "critical", "steps": ["Identify partition boundaries", "Determine majority partition", "Force minority to read-only", "Plan merge strategy for divergent writes", "Run conflict resolution after heal"], "automatedRecovery": false },
+        { "incident": "High replication lag", "severity": "high", "steps": ["Check cross-region network path", "Verify no resource saturation on DB nodes", "Consider temporary read-your-writes routing", "Investigate and resolve network issue"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "CockroachDB for Multi-Region", "context": "Need a globally distributed database with strong consistency and automatic sharding.", "decision": "Use CockroachDB with multi-region locality-optimized tables.", "consequences": ["Automatic data distribution across regions", "Serializable transactions across regions", "Higher write latency for cross-region transactions", "Simpler application code vs manual sharding"] },
+      { "title": "Active-Active Over Active-Passive", "context": "Active-passive wastes 50%+ infrastructure and has longer failover times.", "decision": "Run active-active in all 3 regions, each serving local traffic.", "consequences": ["No wasted infrastructure capacity", "Sub-30s failover (DNS-based)", "Must handle cross-region write conflicts", "Higher complexity than active-passive"] },
+      { "title": "CRDTs for Counter/Set Fields", "context": "Some data types (counters, sets) conflict frequently in multi-region writes.", "decision": "Use CRDT data types for fields that can be merged automatically.", "consequences": ["Zero conflicts for CRDT fields", "Eventual consistency is sufficient for these fields", "Not all data types can be represented as CRDTs"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Consistency vs Latency", "choice": "Tiered (local reads, global writes)", "benefit": "Local reads are fast (5ms), writes use appropriate consistency level", "cost": "Cross-region writes have 80-150ms latency" },
+      { "dimension": "Availability vs Cost", "choice": "Availability", "benefit": "99.999% availability through 3-region redundancy", "cost": "3x infrastructure cost compared to single region" },
+      { "dimension": "Simplicity vs Data Locality", "choice": "Data Locality", "benefit": "Users always read from nearest region", "cost": "Complex conflict resolution for cross-region writes" }
+    ],
+    "alternatives": [
+      { "name": "Active-Passive with Manual Failover", "description": "Primary region serves all traffic, standby for disaster recovery", "prosVsCons": "Pros: simpler, no conflicts. Cons: wasted standby resources, slow manual failover", "whyNotChosen": "Cannot meet 99.999% availability with manual failover" },
+      { "name": "DynamoDB Global Tables", "description": "Use DynamoDB global tables for automatic multi-region replication", "prosVsCons": "Pros: managed, simple. Cons: eventual consistency only, limited query patterns", "whyNotChosen": "Need strong consistency for certain transactions, and SQL query flexibility" }
+    ]
+  }
+}

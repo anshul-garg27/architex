@@ -1,0 +1,162 @@
+[
+  {
+    "id": "SDS-594",
+    "epic": "SDS",
+    "title": "Wire frustration detector to help UI — show nudge toast when user is stuck",
+    "description": "frustration-detector.ts tracks behavior (rapid undo, pauses, failed attempts) and computes frustration levels (calm/mild/frustrated/very-frustrated) but is NOT connected to any UI. When level reaches 'frustrated', show a non-intrusive toast: 'Stuck? Try browsing templates (Cmd+T)' or 'Need help? Check the hint panel.' When 'very-frustrated', offer to replay onboarding tour. Uses existing notification-store for toast delivery.",
+    "acceptanceCriteria": [
+      "When frustration level reaches 'mild': subtle hint appears in status bar",
+      "When 'frustrated': toast notification with actionable suggestion",
+      "When 'very-frustrated': offer to replay onboarding or open help",
+      "Toast is non-blocking and dismissible",
+      "Respects user preference (can disable in settings)",
+      "Frustration resets on successful action (prevents spam)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/lib/ai/frustration-detector.ts", "src/stores/notification-store.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "help", "frustration", "smart-nudge"]
+  },
+  {
+    "id": "SDS-595",
+    "epic": "SDS",
+    "title": "Add info tooltips to simulation metric pills explaining what each number means",
+    "description": "SimulationDashboard shows RPS, P99 Latency, Error Rate, Cost/hr as metric pills with no explanation. A beginner doesn't know if '200ms P99' is good or bad. Add hover tooltips to each metric pill: RPS: 'Requests per second — how many requests the system handles. Higher is better.' P99 Latency: '99% of requests complete under this time. Under 200ms is good for most APIs.' Error Rate: 'Percentage of requests that fail. Under 1% is healthy.' Cost/hr: 'Estimated infrastructure cost at current load.'",
+    "acceptanceCriteria": [
+      "Each metric pill in SimulationDashboard has a hover tooltip",
+      "Tooltip explains: what the metric measures, what good/bad values look like",
+      "Tooltips use beginner-friendly language (no jargon)",
+      "Tooltips don't interfere with the compact dashboard layout"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/overlays/SimulationDashboard.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "tooltips", "education", "metrics"]
+  },
+  {
+    "id": "SDS-596",
+    "epic": "SDS",
+    "title": "Add first-encounter contextual tooltips for heatmap toggle and time-travel scrubber",
+    "description": "Existing first-encounter system tracks 4 features (canvas-drag, palette-open, simulation-play, export-open) using useFirstEncounter hook. Two powerful features lack discovery: (1) Heatmap toggle — just a flame icon, no label, no tooltip on first use. (2) Time-travel scrubber — appears after simulation without introduction. Add 2 new first-encounter entries: 'heatmap-first-toggle' and 'time-travel-first-appear'. Same pattern as existing contextual tooltips.",
+    "acceptanceCriteria": [
+      "First time heatmap toggle appears: contextual tooltip explains 'Color-code nodes by utilization, latency, or error rate'",
+      "First time time-travel scrubber appears: tooltip explains 'Scrub through the simulation timeline. Set breakpoints by clicking.'",
+      "Both use existing ContextualTooltip component with useFirstEncounter hook",
+      "Both persist in localStorage so they only show once",
+      "Both auto-dismiss after 5 seconds"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/overlays/CanvasToolbar.tsx", "src/components/canvas/overlays/TimeTravelScrubber.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "tooltips", "discovery", "first-encounter"]
+  },
+  {
+    "id": "SDS-597",
+    "epic": "SDS",
+    "title": "Add 'Replay Onboarding Tour' button in Settings panel",
+    "description": "Onboarding overlay can be skipped but cannot be replayed. Users who skipped and later want guidance have no way to see the tour again. Add a 'Replay Onboarding Tour' button in the Settings panel. On click: set onboardingActive=true and onboardingStep=0 in ui-store, close settings, show onboarding overlay.",
+    "acceptanceCriteria": [
+      "'Replay Onboarding Tour' button visible in Settings panel",
+      "Clicking it closes settings and starts the 5-step tour from step 1",
+      "Tour completion re-sets localStorage key",
+      "Button is accessible via keyboard"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/shared/SettingsPanel.tsx", "src/stores/ui-store.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "settings", "replay", "tour"]
+  },
+  {
+    "id": "SDS-598",
+    "epic": "SDS",
+    "title": "Upgrade empty state with animated preview and inspiring copy",
+    "description": "Current empty state: LayoutDashboard icon + 'Start Building' + 'Drag components...' text + 2 buttons. Functional but not inspiring. Upgrade: (1) Replace static icon with a small looping animation showing particles flowing through a mini architecture (3-4 nodes), (2) Change heading to 'Design systems like Netflix and Uber — then watch them run under load', (3) Add a third CTA: 'Try a Quick Demo' that auto-loads URL Shortener + starts simulation. The empty state should make users EXCITED, not just informed.",
+    "acceptanceCriteria": [
+      "Empty state has animated preview (particles flowing through mini architecture)",
+      "Inspiring heading that communicates the platform's unique value",
+      "3 CTAs: Browse Templates, Quick Demo, Cmd+K",
+      "'Quick Demo' auto-loads URL Shortener template and starts simulation",
+      "Animation respects prefers-reduced-motion (shows static preview instead)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/overlays/EmptyState.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "empty-state", "inspiration", "first-impression"]
+  },
+  {
+    "id": "SDS-599",
+    "epic": "SDS",
+    "title": "Add 'Start Here' badge and beginner section to template gallery",
+    "description": "55 templates shown with no indication of which to try first. A beginner opening the gallery is overwhelmed. Add: (1) 'Start Here' badge on URL Shortener and Rate Limiter (difficulty 2), (2) Pinned 'Beginner's Path' section at top of gallery showing 3 recommended first templates with brief 'why start here' text, (3) Section collapses after user has loaded 3+ templates.",
+    "acceptanceCriteria": [
+      "'Start Here' badge visible on 2-3 beginner templates",
+      "Pinned 'Beginner's Path' section at top of gallery with 3 templates",
+      "Each recommended template has 1-sentence 'why start here' text",
+      "Section auto-collapses after user has loaded 3+ templates (localStorage)",
+      "Badge styling is distinct and eye-catching"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/panels/TemplateGallery.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "gallery", "beginner", "discovery"]
+  },
+  {
+    "id": "SDS-600",
+    "epic": "SDS",
+    "title": "Add ChaosQuickBar first-encounter tooltip explaining chaos injection",
+    "description": "ChaosQuickBar appears during simulation but has no introduction. Users see categorized chaos events (Infrastructure, Network, Data, etc.) but don't know they need to DRAG them onto nodes. Add first-encounter tooltip: 'Inject failures into your system! Drag any chaos event onto a node to see how your architecture handles it. Try dragging \"Cache Failure\" onto the Redis node.'",
+    "acceptanceCriteria": [
+      "First-encounter tooltip appears when ChaosQuickBar first becomes visible",
+      "Tooltip explains: what it is, how to use it (drag onto node), suggests first action",
+      "Uses existing useFirstEncounter pattern with 'chaos-first-appear' key",
+      "Auto-dismisses after 8 seconds",
+      "Only shows once (persisted in localStorage)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": ["src/components/canvas/overlays/ChaosQuickBar.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "tooltip", "chaos", "first-encounter"]
+  }
+]

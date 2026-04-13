@@ -1,0 +1,474 @@
+{
+  "id": "bp-url-shortener",
+  "name": "URL Shortener — Production Blueprint",
+  "description": "Production-grade URL shortening service with analytics, abuse detection, and global edge caching. Handles 100K+ RPS read-heavy workload with 99.99% availability.",
+  "difficulty": 3,
+  "category": "classic",
+  "tags": ["url-shortener", "caching", "key-generation", "analytics", "blueprint", "read-heavy"],
+  "nodes": [
+    {
+      "id": "mobile-client",
+      "type": "client",
+      "position": { "x": 0, "y": 100 },
+      "data": {
+        "label": "Mobile Client",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "concurrentUsers": 50000, "requestsPerSecond": 20000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "web-client",
+      "type": "client",
+      "position": { "x": 0, "y": 300 },
+      "data": {
+        "label": "Web Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 100000, "requestsPerSecond": 80000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Global CDN (CloudFront)",
+        "category": "load-balancing",
+        "componentType": "reverse-proxy",
+        "icon": "Globe2",
+        "config": { "cacheHitRate": 0.75, "edgeLocations": 200, "ttlSeconds": 3600 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gateway",
+      "type": "api-gateway",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 100000, "authType": "api-key", "timeoutMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "url-service",
+      "type": "web-server",
+      "position": { "x": 600, "y": 100 },
+      "data": {
+        "label": "URL Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": { "instances": 8, "maxConnections": 20000, "processingTimeMs": 2 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "kgs",
+      "type": "web-server",
+      "position": { "x": 600, "y": 300 },
+      "data": {
+        "label": "Key Generation Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Key",
+        "config": { "instances": 2, "keyPoolSize": 1000000, "keyLength": 7 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "redis-cache",
+      "type": "cache",
+      "position": { "x": 850, "y": 50 },
+      "data": {
+        "label": "Redis Cluster",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "shards": 6, "cacheHitRate": 0.92 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "primary-db",
+      "type": "database",
+      "position": { "x": 850, "y": 200 },
+      "data": {
+        "label": "PostgreSQL Primary",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 0, "maxConnections": 500, "storageGB": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "read-replicas",
+      "type": "database",
+      "position": { "x": 1050, "y": 200 },
+      "data": {
+        "label": "Read Replicas (x3)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 300, "storageGB": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "analytics-queue",
+      "type": "message-queue",
+      "position": { "x": 850, "y": 350 },
+      "data": {
+        "label": "Kafka (Click Events)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 12, "retentionHours": 168, "throughputMbps": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "analytics-service",
+      "type": "web-server",
+      "position": { "x": 1050, "y": 350 },
+      "data": {
+        "label": "Analytics Aggregator",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "BarChart3",
+        "config": { "instances": 4, "batchSizeEvents": 1000, "flushIntervalMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "analytics-db",
+      "type": "database",
+      "position": { "x": 1250, "y": 350 },
+      "data": {
+        "label": "ClickHouse (Analytics)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "Database",
+        "config": { "type": "clickhouse", "storageGB": 500, "retentionDays": 365 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "abuse-detector",
+      "type": "web-server",
+      "position": { "x": 600, "y": 450 },
+      "data": {
+        "label": "Abuse Detection",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "ShieldAlert",
+        "config": { "instances": 2, "mlModelVersion": "v3", "blockThreshold": 0.85 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-mobile-cdn",
+      "source": "mobile-client",
+      "target": "cdn",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-web-cdn",
+      "source": "web-client",
+      "target": "cdn",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 15, "animated": true }
+    },
+    {
+      "id": "e-cdn-gw",
+      "source": "cdn",
+      "target": "api-gateway",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-gw-url",
+      "source": "api-gateway",
+      "target": "url-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-gw-kgs",
+      "source": "api-gateway",
+      "target": "kgs",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 1, "animated": false }
+    },
+    {
+      "id": "e-url-cache",
+      "source": "url-service",
+      "target": "redis-cache",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-url-db",
+      "source": "url-service",
+      "target": "primary-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 3, "animated": false }
+    },
+    {
+      "id": "e-db-replicas",
+      "source": "primary-db",
+      "target": "read-replicas",
+      "type": "data-flow",
+      "data": { "edgeType": "replication", "latency": 2, "animated": false }
+    },
+    {
+      "id": "e-url-replicas",
+      "source": "url-service",
+      "target": "read-replicas",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-url-kafka",
+      "source": "url-service",
+      "target": "analytics-queue",
+      "type": "data-flow",
+      "data": { "edgeType": "async", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-kafka-analytics",
+      "source": "analytics-queue",
+      "target": "analytics-service",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-analytics-clickhouse",
+      "source": "analytics-service",
+      "target": "analytics-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-write", "latency": 10, "animated": false }
+    },
+    {
+      "id": "e-kgs-db",
+      "source": "kgs",
+      "target": "primary-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-gw-abuse",
+      "source": "api-gateway",
+      "target": "abuse-detector",
+      "type": "data-flow",
+      "data": { "edgeType": "async", "latency": 10, "animated": false }
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-redis-failure",
+        "name": "Redis Cluster Failure",
+        "description": "Complete Redis cluster outage forcing all reads to hit the database directly",
+        "targetNodes": ["redis-cache"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Read latency increases 10x. Database connection pool saturates within 30s. Error rate spikes to ~5% before circuit breaker activates fallback.",
+        "mitigationSteps": ["Circuit breaker opens, routes reads to read-replicas directly", "Auto-failover to Redis standby cluster", "Gradually warm cache from read-replicas"]
+      },
+      {
+        "id": "cs-db-partition",
+        "name": "Database Network Partition",
+        "description": "Network partition between primary DB and read replicas causing stale reads",
+        "targetNodes": ["primary-db", "read-replicas"],
+        "faultType": "partition",
+        "severity": 3,
+        "expectedBehavior": "Writes succeed on primary but replicas serve stale data. New shortened URLs may not resolve for up to replication lag window.",
+        "mitigationSteps": ["Detect replication lag via monitoring", "Route critical reads to primary", "Alert on-call if lag exceeds 30s"]
+      },
+      {
+        "id": "cs-cdn-eviction",
+        "name": "CDN Cache Stampede",
+        "description": "Mass CDN cache eviction causes thundering herd to origin",
+        "targetNodes": ["cdn", "api-gateway"],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Origin receives 10x normal traffic. API gateway rate limiting activates. Some redirect requests return 429 or 503.",
+        "mitigationSteps": ["Request coalescing at CDN edge", "Stale-while-revalidate headers", "Auto-scale URL service instances"]
+      },
+      {
+        "id": "cs-kgs-exhaustion",
+        "name": "Key Pool Exhaustion",
+        "description": "Pre-generated key pool runs out under sustained high write load",
+        "targetNodes": ["kgs"],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "New URL creation requests fail with 503. Existing shortened URLs continue to work. Read path unaffected.",
+        "mitigationSteps": ["KGS triggers emergency batch generation", "Fallback to inline Base62 encoding with collision retry", "Alert on key pool < 10% threshold"]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "primary-db",
+        "metric": "connections",
+        "description": "PostgreSQL connection pool saturates as cache misses increase",
+        "resolution": "Add read replicas and increase connection pool size"
+      },
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "redis-cache",
+        "metric": "memory",
+        "description": "Redis memory usage exceeds 80%, eviction rate increases, cache hit rate drops",
+        "resolution": "Add Redis shards and increase memory allocation"
+      },
+      {
+        "rpsThreshold": 200000,
+        "bottleneckNode": "api-gateway",
+        "metric": "cpu",
+        "description": "API gateway CPU saturates from TLS termination and rate limiting logic",
+        "resolution": "Horizontal scale API gateway, offload TLS to CDN layer"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hot-urls",
+        "title": "Hot URL Concentration",
+        "description": "A single viral URL can receive millions of redirects, creating a hot key in Redis and uneven load across shards",
+        "affectedNodes": ["redis-cache", "url-service"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Client-side caching of popular URLs, Redis local cache, and CDN pinning for viral content"
+      },
+      {
+        "id": "ei-replication-lag",
+        "title": "Replication Lag on Writes",
+        "description": "Newly created URLs may not resolve immediately due to replication lag between primary and read replicas",
+        "affectedNodes": ["primary-db", "read-replicas"],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Write-through to Redis on creation, read-your-writes consistency for the creating user"
+      },
+      {
+        "id": "ei-abuse-links",
+        "title": "Malicious URL Abuse",
+        "description": "Service used to shorten phishing or malware distribution URLs",
+        "affectedNodes": ["abuse-detector", "url-service"],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "Real-time URL scanning, Google Safe Browsing API integration, rate limiting per API key"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 12400,
+      "components": [
+        { "nodeId": "cdn", "label": "CloudFront CDN", "monthlyCostUsd": 2500, "costDriver": "Data transfer out (50TB/mo)" },
+        { "nodeId": "redis-cache", "label": "Redis Cluster", "monthlyCostUsd": 2200, "costDriver": "6 shards x r6g.xlarge" },
+        { "nodeId": "primary-db", "label": "PostgreSQL Primary", "monthlyCostUsd": 1800, "costDriver": "db.r6g.2xlarge + 2TB storage" },
+        { "nodeId": "read-replicas", "label": "Read Replicas (x3)", "monthlyCostUsd": 2700, "costDriver": "3x db.r6g.xlarge" },
+        { "nodeId": "url-service", "label": "URL Service (ECS)", "monthlyCostUsd": 1600, "costDriver": "8 Fargate tasks" },
+        { "nodeId": "analytics-queue", "label": "Kafka (MSK)", "monthlyCostUsd": 800, "costDriver": "3 brokers, 12 partitions" },
+        { "nodeId": "analytics-db", "label": "ClickHouse", "monthlyCostUsd": 500, "costDriver": "Analytics storage" },
+        { "nodeId": "abuse-detector", "label": "Abuse Detection", "monthlyCostUsd": 300, "costDriver": "2 instances + ML inference" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low (10K RPS)", "rps": 10000, "monthlyCostUsd": 4500 },
+        { "label": "Medium (50K RPS)", "rps": 50000, "monthlyCostUsd": 8200 },
+        { "label": "High (100K RPS)", "rps": 100000, "monthlyCostUsd": 12400 },
+        { "label": "Peak (500K RPS)", "rps": 500000, "monthlyCostUsd": 38000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 5,
+      "p99LatencyMs": 50,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "url-service",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 32
+      },
+      {
+        "nodeId": "redis-cache",
+        "metric": "memory_utilization",
+        "threshold": 75,
+        "scaleUpStep": 1,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 3,
+        "maxInstances": 12
+      }
+    ],
+    "slaDefinitions": [
+      { "name": "Redirect Latency", "metric": "p99_redirect_latency_ms", "target": 50, "unit": "ms", "penalty": "10% credit per 10ms over target" },
+      { "name": "Availability", "metric": "uptime_percent", "target": 99.99, "unit": "%", "penalty": "25% credit per 0.01% under target" },
+      { "name": "URL Creation", "metric": "p99_create_latency_ms", "target": 200, "unit": "ms", "penalty": "5% credit per 50ms over target" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "redirect_latency", "type": "histogram", "description": "Time to resolve and redirect a shortened URL", "nodeId": "url-service" },
+        { "name": "cache_hit_rate", "type": "gauge", "description": "Redis cache hit rate for URL lookups", "nodeId": "redis-cache" },
+        { "name": "db_connection_pool_usage", "type": "gauge", "description": "Active connections / max connections", "nodeId": "primary-db" },
+        { "name": "key_pool_remaining", "type": "gauge", "description": "Remaining pre-generated keys in KGS pool", "nodeId": "kgs" },
+        { "name": "click_events_per_second", "type": "counter", "description": "Click analytics events ingested", "nodeId": "analytics-queue" }
+      ],
+      "alerts": [
+        { "name": "High Redirect Latency", "condition": "p99_redirect_latency > 100ms for 2min", "severity": "warning", "channel": "slack-eng" },
+        { "name": "Cache Hit Rate Drop", "condition": "cache_hit_rate < 0.8 for 5min", "severity": "warning", "channel": "slack-eng" },
+        { "name": "DB Connection Saturation", "condition": "db_connections > 90% for 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Key Pool Low", "condition": "key_pool_remaining < 100000", "severity": "critical", "channel": "pagerduty" }
+      ],
+      "dashboards": ["URL Service Overview", "Cache Performance", "Database Health", "Analytics Pipeline", "Abuse Detection"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call Engineer", "responseTimeMinutes": 5, "contacts": ["oncall-url-service"] },
+        { "level": 2, "name": "Senior Engineer", "responseTimeMinutes": 15, "contacts": ["senior-backend-eng"] },
+        { "level": 3, "name": "Engineering Manager", "responseTimeMinutes": 30, "contacts": ["eng-manager", "vp-eng"] }
+      ],
+      "runbooks": [
+        { "incident": "Redis cluster failure", "severity": "critical", "steps": ["Verify Redis health via sentinel", "Trigger failover to standby", "Monitor cache hit rate recovery", "Post-incident: review eviction policies"], "automatedRecovery": true },
+        { "incident": "Key pool exhaustion", "severity": "high", "steps": ["Check KGS batch generation logs", "Trigger emergency key batch generation", "Enable inline fallback key generation", "Monitor creation success rate"], "automatedRecovery": true },
+        { "incident": "Spike in abuse reports", "severity": "medium", "steps": ["Review abuse detector model scores", "Enable strict rate limiting", "Manually review flagged URLs", "Coordinate with trust & safety team"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Pre-generated Key Pool", "context": "URL creation requires a unique short key. Generating keys inline under high concurrency risks collisions.", "decision": "Use a dedicated Key Generation Service that pre-generates keys in batches and hands them out on demand.", "consequences": ["Zero collision risk on key generation", "Slight complexity: KGS is a separate service to maintain", "Key pool needs monitoring for exhaustion"] },
+      { "title": "302 Redirects for Analytics", "context": "301 redirects are cached by browsers, preventing per-click analytics. 302 redirects always hit origin.", "decision": "Use 302 redirects for all shortened URLs to enable click tracking.", "consequences": ["Higher origin traffic compared to 301", "Accurate click analytics per URL", "CDN still caches at edge with short TTL"] },
+      { "title": "Async Analytics via Kafka", "context": "Logging each click synchronously would add latency to the redirect path.", "decision": "Fire-and-forget click events to Kafka, process asynchronously with ClickHouse for analytics.", "consequences": ["Zero impact on redirect latency", "Analytics data is eventually consistent (sub-second delay)", "Kafka provides durability and replay capability"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Consistency vs Availability", "choice": "Availability", "benefit": "Redirects always work even during partial failures", "cost": "Newly created URLs may take a few seconds to propagate to all read replicas" },
+      { "dimension": "Cost vs Performance", "choice": "Performance", "benefit": "Large Redis cluster provides sub-millisecond reads for 92% of requests", "cost": "Redis cluster accounts for 18% of total infrastructure cost" },
+      { "dimension": "Simplicity vs Analytics", "choice": "Analytics", "benefit": "Rich click-through data for URL owners", "cost": "Additional Kafka + ClickHouse pipeline to maintain" }
+    ],
+    "alternatives": [
+      { "name": "NoSQL (DynamoDB) Instead of PostgreSQL", "description": "Use DynamoDB for its auto-scaling and single-digit-ms reads", "prosVsCons": "Pros: auto-scaling, managed. Cons: higher cost at scale, less flexible querying for analytics", "whyNotChosen": "PostgreSQL with read replicas provides better cost efficiency at this scale and supports complex analytics queries" },
+      { "name": "Inline Key Generation with Collision Retry", "description": "Generate random Base62 keys inline and retry on collision", "prosVsCons": "Pros: simpler architecture. Cons: collision probability increases with scale, retry adds latency", "whyNotChosen": "At 100K+ RPS write volume, collision retry would cause measurable latency spikes" }
+    ]
+  }
+}

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "MLD-204",
+    "epic": "MLD",
+    "title": "Connect ML Design to ShareDialog for sharing visualizations",
+    "description": "LAYER 9 (DISCOVERY). ShareDialog.tsx with Twitter/LinkedIn/QR/copy-link already exists but ML Design doesn't use it. Add a 'Share' button to the ML Design canvas toolbar that opens ShareDialog with: current mode, hyperparameters, and training state encoded in the URL.\n\nUser story: 'As a CS student, I trained a neural network that achieved 98% on Spiral with only 2 layers. I want to share this achievement with a URL that recreates exactly what I see.'\n\nThe URL should encode: mode, datasetType, layerCount, neuronsPerLayer, activation, learningRate, epochs, and optionally the trained weights (serialized). Opening the URL restores the full state.\n\nPlatform infrastructure exists: shareable-links.ts, to-url.ts, oEmbed route. Just need to connect ML Design state to it.",
+    "acceptanceCriteria": ["Share button visible in ML Design canvas toolbar", "ShareDialog opens with ML-specific URL", "URL encodes mode + hyperparameters as query params", "Opening shared URL recreates the configuration", "Twitter/LinkedIn share cards include ML-specific description", "Copy-to-clipboard with toast confirmation"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/collaboration/shareable-links.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["features", "discovery", "sharing", "existing-infrastructure"]
+  },
+  {
+    "id": "MLD-205",
+    "epic": "MLD",
+    "title": "Connect ML Design to RecordButton for GIF/video export of training",
+    "description": "LAYER 9 (DISCOVERY). GifRecorder + RecordButton already exist but aren't wired to ML Design. Add the RecordButton to the NN canvas area. User clicks Record → trains → recording captures the decision boundary forming → user downloads WebM video.\n\nUser story: 'As a content creator, I want to record the decision boundary evolving during training to use as a YouTube thumbnail or Twitter post.'\n\nThis is the 'screenshot-worthy' feature the viz audit identified as missing. The infrastructure is built — just needs connection.",
+    "acceptanceCriteria": ["RecordButton appears in ML Design canvas area", "Recording captures the canvas (scatter + architecture + decision boundary)", "Training animation recorded at 10fps for 30s max", "Download as WebM video on recording stop", "Architex watermark in bottom-right corner", "Works for NN mode at minimum; bonus for other modes"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["features", "discovery", "export", "existing-infrastructure"]
+  },
+  {
+    "id": "MLD-206",
+    "epic": "MLD",
+    "title": "Connect ML Design to notification system for streak/XP reminders",
+    "description": "LAYER 6 (RETENTION). notification-store.ts and NotificationToast.tsx exist. Connect ML Design actions to trigger notifications:\n- 'You trained your first neural network! +10 XP'\n- 'New mode explored: Feature Store. 4/6 modes discovered!'\n- 'You're on a 3-day streak! Keep it going tomorrow.'\n- After 24 hours of inactivity: 'Your neural network misses you. Come back and try Spiral dataset!'\n\nDuolingo research: Streaks increase engagement by 60%. Users with 7-day streaks are 3.6x more likely to stay long-term.",
+    "acceptanceCriteria": ["Toast notification on first training completion", "Toast on exploring a new mode", "Streak notification displays current streak count", "Notifications use NotificationToast component (existing)", "All notifications are dismissible", "Notification frequency capped (max 2 per session)"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/stores/notification-store.ts"],
+    "dependencies": ["MLD-170"], "blockedBy": ["MLD-170"], "tags": ["features", "retention", "notifications", "existing-infrastructure"]
+  },
+  {
+    "id": "MLD-207",
+    "epic": "MLD",
+    "title": "Add ML Playground daily challenge system",
+    "description": "LAYER 6 (RETENTION). Create a 'Daily Challenge' that gives users a reason to return every day:\n- Day 1: 'Achieve 90% accuracy on XOR with ≤3 layers'\n- Day 2: 'Find the bandit strategy that minimizes regret on 4 arms in 100 rounds'\n- Day 3: 'Detect a 2% lift in an A/B test with the smallest possible sample size'\n- Day 4: 'Train a network to 95% on Spiral in under 50 epochs'\n- Day 5: 'Identify which serving pattern to use for a high-risk model update'\n\nRotating pool of 20+ challenges. One new challenge per day. Completion awards XP and counts toward streak.\n\nDuolingo research: Daily challenges + streaks = 14% improvement in Day-7 retention.",
+    "acceptanceCriteria": ["Daily challenge banner at top of ML Design sidebar", "Challenge rotates daily (based on date, not random)", "Pool of 20+ challenges covering all 6 modes", "Completion awards 25 XP and increments streak", "Challenge result tracked in progress-store", "Past challenges viewable in a 'Challenge History' section"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/daily-challenges.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-170", "MLD-142"], "blockedBy": ["MLD-170"], "tags": ["features", "retention", "daily-challenge", "gamification"]
+  },
+  {
+    "id": "MLD-208",
+    "epic": "MLD",
+    "title": "Add 'ML Playground Wrapped' — weekly learning summary",
+    "description": "LAYER 6 (RETENTION). Inspired by Spotify Wrapped: at the end of each week, show a personalized summary of what the user learned:\n- 'This week you trained 12 neural networks'\n- 'You explored 4/6 modes — try Experimentation next!'\n- 'Your highest accuracy: 98.5% on Circle (impressive!)'\n- 'You spent 45 minutes in ML Playground'\n- 'Your streak: 5 days and counting'\n\nGenerate from progress-store data. Show as a shareable card (screenshot-optimized) that users can post on social media.\n\nSpotify Wrapped generates 60M+ social shares annually. Even a fraction of that viral potential is massive for organic growth.",
+    "acceptanceCriteria": ["Weekly summary card generated from progress-store data", "Card shows: networks trained, modes explored, highest accuracy, time spent, streak", "Card is visually beautiful (gradient background, clean typography)", "Share button exports card as PNG", "Summary available every Sunday or after 7 active days", "Data sourced from localStorage (no backend needed)"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/ml-design/WeeklyWrapped.tsx", "src/stores/progress-store.ts"],
+    "dependencies": ["MLD-170", "MLD-151"], "blockedBy": ["MLD-170"], "tags": ["features", "retention", "shareability", "innovation"]
+  },
+  {
+    "id": "MLD-209",
+    "epic": "MLD",
+    "title": "Add 'Teach Mode' — user explains to the tool what the algorithm does",
+    "description": "LAYER 10 (INNOVATION). Inversion technique: instead of the tool teaching the user, the USER teaches the TOOL.\n\nUser story: 'I select Teach Mode for Neural Networks. The tool shows me a scatter plot and asks: What should the network do with this data? I type: Separate the blue and orange dots with a curved boundary. The tool responds: Correct! Now, how does the network learn to draw that boundary? Multiple choice: (A) Random guessing, (B) Gradient descent, (C) Asking the user. I choose B. Tool: Right! Gradient descent adjusts weights to minimize prediction error. Now watch it happen...'\n\nThis is Bloom's Level 2 (Understand) — the student must explain the concept, not just watch it. The Feynman Technique: if you can explain it simply, you understand it.\n\nNO tool in the world has this. It would be genuinely first-in-the-world.",
+    "acceptanceCriteria": ["'Teach Mode' toggle available in NN mode sidebar", "3-5 questions testing the student's understanding before running", "Questions use multiple choice for easy interaction", "Correct answers unlock the simulation (Train button)", "Wrong answers provide gentle correction with explanation", "Completion awards bonus XP (teaching = deeper learning)"],
+    "priority": "P3", "effort": "L", "status": "ready", "phase": 5, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/teach-mode.ts"],
+    "dependencies": ["MLD-142"], "blockedBy": [], "tags": ["features", "innovation", "never-been-done", "feynman-technique"]
+  },
+  {
+    "id": "MLD-210",
+    "epic": "MLD",
+    "title": "Add embeddable ML Playground widget for blog posts and articles",
+    "description": "LAYER 9 (DISCOVERY). GitHub algorithm-visualizer issue #278 showed demand for embeddable widgets. Distill.pub's entire model proves inline interactive visualizations drive engagement.\n\nCreate an embeddable version:\n- URL: /embed/ml?mode=neural-network&dataset=circle&layers=2&neurons=4\n- Minimal chrome: no sidebar, no activity bar, just canvas + Train button + small controls\n- iframe-friendly: responsive to container size\n- Attribution: 'Powered by Architex' link at bottom\n- oEmbed support (existing api/oembed/route.ts) for auto-embed in WordPress, Medium, etc.\n\nThis turns every blog post about neural networks into a potential Architex user acquisition channel.",
+    "acceptanceCriteria": ["Embeddable URL /embed/ml renders minimal ML playground", "URL params configure mode, dataset, hyperparameters", "No sidebar, no activity bar — just visualization + essential controls", "Responsive to iframe container size (min 300px wide)", "Attribution link 'Powered by Architex' at bottom-right", "oEmbed endpoint returns proper embed metadata", "Works in Medium, WordPress, Notion embeds"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/app/embed/ml/page.tsx", "src/app/api/oembed/route.ts"],
+    "dependencies": ["MLD-160"], "blockedBy": [], "tags": ["features", "discovery", "embed", "growth"]
+  },
+  {
+    "id": "MLD-211",
+    "epic": "MLD",
+    "title": "Add social proof counters to ML Design sidebar",
+    "description": "LAYER 9 (DISCOVERY). No social proof exists anywhere in the module. Add subtle counters that show community engagement:\n- 'Neural networks trained: 12,847' (aggregate counter, can be seeded with realistic starting number)\n- 'Students exploring ML: 342 this week' (from analytics if available, or estimated)\n\nThese create FOMO (\"other people are using this, I should too\") and validate the user's choice to explore the module.\n\nFor MVP without backend: use localStorage counters incremented per user action, displayed with a multiplier to suggest community usage. When analytics backend is available, switch to real numbers.",
+    "acceptanceCriteria": ["Sidebar header shows a subtle engagement counter", "Counter increments when user completes a training run", "Counter uses localStorage with a seed multiplier for social proof", "Design is subtle (small text, not attention-grabbing)", "When real analytics available, swap to actual numbers"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["features", "discovery", "social-proof"]
+  },
+  {
+    "id": "MLD-212",
+    "epic": "MLD",
+    "title": "Add 'ML Interview Flash Cards' exportable review deck",
+    "description": "LAYER 6 (RETENTION). After exploring ML concepts, users should be able to export key facts as flashcards for spaced repetition review:\n\nGenerated cards per mode:\n- NN: 'What does the learning rate control?' → 'How much weights change per training step. Too high = overshoots, too low = slow convergence.'\n- A/B Testing: 'When is a result statistically significant?' → 'When p-value < 0.05 — less than 5% chance the difference is due to random noise.'\n- Bandits: 'What is the explore-exploit tradeoff?' → 'Balancing trying new options (explore) vs using the known best (exploit).'\n\nExport as: copy-to-clipboard text (for Anki import), or printable PDF, or in-app flashcard review mode.\n\nResearch: Retrieval practice via flashcards produces 50% more retention than re-reading.",
+    "acceptanceCriteria": ["Each mode generates 3-5 flashcards from key concepts", "'Export Flashcards' button in properties panel or sidebar", "Export as Anki-compatible TSV (question→tab→answer format)", "In-app review mode: show question, click to reveal answer", "Cards cover: NN fundamentals, A/B testing significance, bandit strategies, serving patterns, feature store concepts", "At least 20 cards total across all 6 modes"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/flashcards.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["features", "retention", "spaced-repetition", "export"]
+  },
+  {
+    "id": "MLD-213",
+    "epic": "MLD",
+    "title": "Add RecommendedBridges integration for 'What to learn next' suggestions",
+    "description": "LAYER 6 (RETENTION). RecommendedBridges.tsx exists in the cross-module system but ML Design doesn't trigger it. After completing an ML mode, show contextual 'Learn next' suggestions:\n\n- After Feature Store → 'Related: Database module — learn about Redis and caching'\n- After Pipeline Builder → 'Related: System Design — see how Kafka and Spark fit into architectures'\n- After A/B Testing → 'Related: Algorithms — explore statistical testing algorithms'\n- After Neural Network → 'Related: Data Structures — learn about the matrix operations behind NNs'\n\nThis creates natural cross-module flow and increases time-on-platform.",
+    "acceptanceCriteria": ["After completing a simulation in any mode, RecommendedBridges shows 1-2 suggestions", "Suggestions are contextual to the completed mode (not random)", "Clicking a suggestion navigates to the target module via bridge system", "Suggestions appear in the properties panel or as a subtle banner", "At least 6 unique suggestions covering all modes → different target modules"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/components/cross-module/RecommendedBridges.tsx"],
+    "dependencies": ["MLD-169"], "blockedBy": ["MLD-169"], "tags": ["features", "retention", "cross-module", "existing-infrastructure"]
+  },
+  {
+    "id": "MLD-214",
+    "epic": "MLD",
+    "title": "Add ML Concept Mind Map as module landing view",
+    "description": "LAYER 10 (INNOVATION). Instead of dropping the user into Neural Network mode by default, show a visual mind map of all ML concepts with connections:\n\n```\n          [Linear Regression] → [Logistic Regression] → [Neural Networks]\n                                                              ↓\n[Regularization] ← [Overfitting] ←──────────── [Decision Boundary]\n     ↓\n[Dropout] [L1/L2]\n\n[A/B Testing] → [Multi-Armed Bandits] → [Model Serving]\n                                              ↓\n                                       [Feature Store] → [ML Pipeline]\n```\n\nNodes are clickable — clicking navigates to that mode/concept. Completed concepts are filled/colored. In-progress concepts glow. Locked concepts (prerequisites not met) are grayed.\n\nThis gives the user a map of the entire learning journey before diving in, and creates the 'skill tree' feeling that gamers love.\n\nInspired by: Duolingo's course tree, skill trees in RPGs, Brilliant.org's course map.",
+    "acceptanceCriteria": ["Mind map view shows as an optional 'Overview' mode or landing screen", "All existing + planned ML concepts represented as nodes", "Nodes clickable — navigate to the mode/concept", "Completed concepts visually distinct (filled/colored)", "Connections show prerequisite relationships", "Map renders using SVG or React Flow", "Can be dismissed to go directly to a mode"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-060", "MLD-111"], "blockedBy": [], "tags": ["features", "innovation", "skill-tree", "gamification"]
+  }
+]

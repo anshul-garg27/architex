@@ -1,0 +1,214 @@
+{
+  "id": "stock-exchange",
+  "name": "Stock Trading System",
+  "description": "Design a stock exchange/trading platform like NYSE or Robinhood. Covers order matching engine, real-time market data, risk checks, and trade settlement.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["stock-exchange", "trading", "order-matching", "real-time", "time-series", "low-latency"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Trading Client (Web/Desktop)",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 1000000, "requestsPerSecond": 500000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "API Gateway (Risk Check)",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 100000, "authType": "jwt", "timeoutMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Order Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 10, "cpuCores": 16, "memoryGB": 64, "processingTimeMs": 1 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 750, "y": 200 },
+      "data": {
+        "label": "Order Book Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 128, "retentionHours": 168, "maxThroughputMBps": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "stream-processor",
+      "type": "stream-processor",
+      "position": { "x": 1000, "y": 200 },
+      "data": {
+        "label": "Matching Engine (Flink)",
+        "category": "compute",
+        "componentType": "stream-processor",
+        "icon": "Activity",
+        "config": { "parallelism": 64, "checkpointIntervalMs": 1000, "processingGuarantee": "exactly-once" },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 1000, "y": 400 },
+      "data": {
+        "label": "Trade DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "tsdb",
+      "type": "timeseries-db",
+      "position": { "x": 750, "y": 400 },
+      "data": {
+        "label": "Market Data (TimescaleDB)",
+        "category": "storage",
+        "componentType": "timeseries-db",
+        "icon": "BarChart3",
+        "config": { "retentionDays": 365, "compressionEnabled": true, "storageGB": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 500, "y": 0 },
+      "data": {
+        "label": "Price Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 128, "evictionPolicy": "volatile-lru", "ttlSeconds": 1, "cacheHitRate": 0.99 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-gw-app",
+      "source": "api-gw",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-mq-match",
+      "source": "mq",
+      "target": "stream-processor",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-match-db",
+      "source": "stream-processor",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 2, "animated": false }
+    },
+    {
+      "id": "e-match-tsdb",
+      "source": "stream-processor",
+      "target": "tsdb",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-tsdb-cache",
+      "source": "tsdb",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-update", "latency": 1, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Order Flow and Risk Validation",
+      "description": "Trading clients submit orders (buy/sell, limit/market) through the API Gateway, which performs pre-trade risk checks: margin validation, position limits, and circuit breaker thresholds. Validated orders are forwarded to the Order Service, which assigns a sequence number and publishes to the Order Book Queue. Strict ordering per symbol is maintained via Kafka partition keys.",
+      "highlightNodes": ["client", "api-gw", "app-server"],
+      "highlightEdges": ["e-client-gw", "e-gw-app", "e-app-mq"]
+    },
+    {
+      "title": "Matching Engine (Price-Time Priority)",
+      "description": "The Matching Engine (Flink) consumes orders from Kafka and maintains an in-memory order book per symbol — sorted buy orders (descending price) and sell orders (ascending price). When a buy price >= sell price, a trade executes. This is the price-time priority algorithm. The engine processes millions of matches per second with exactly-once guarantees via Flink checkpointing.",
+      "highlightNodes": ["mq", "stream-processor"],
+      "highlightEdges": ["e-mq-match"]
+    },
+    {
+      "title": "Trade Settlement and Persistence",
+      "description": "Executed trades are written to PostgreSQL (trade records, position updates, P&L) and TimescaleDB (tick-by-tick market data, OHLCV candles). PostgreSQL uses serializable transactions for settlement correctness. TimescaleDB enables efficient time-range queries for charts and analytics. Both writes happen asynchronously from the matching engine's critical path.",
+      "highlightNodes": ["stream-processor", "database", "tsdb"],
+      "highlightEdges": ["e-match-db", "e-match-tsdb"]
+    },
+    {
+      "title": "Real-Time Market Data Distribution",
+      "description": "After each trade, the latest price is pushed to the Redis cache with a 1-second TTL. Trading clients poll or subscribe (via WebSocket) for real-time quotes. The Price Cache serves as a read-optimized layer, handling millions of price lookups per second. TimescaleDB feeds the cache with aggregated price updates, ensuring consistency between tick data and displayed quotes.",
+      "highlightNodes": ["cache", "tsdb", "app-server"],
+      "highlightEdges": ["e-tsdb-cache", "e-app-cache"]
+    }
+  ]
+}

@@ -1,0 +1,451 @@
+[
+  {
+    "id": "OSC-103",
+    "epic": "OSC",
+    "title": "Fix PageFrameGrid to show fixed-size frame grid with empty slots instead of growing list",
+    "description": "page-replacement.ts uses frames.filter(f => f !== null) at lines 79,94,106 which produces a GROWING frame list during the loading phase. A 3-frame system should always show 3 cells, with empty ones marked as '-'. The current visual implies the number of frames changes, which is a teaching lie. Fix: include null frames in the event, render them as empty cells in PageFrameGrid.",
+    "acceptanceCriteria": [
+      "PageFrameGrid always shows exactly frameCount cells, regardless of how many are loaded",
+      "Empty frames render as '-' or empty cell with distinct styling",
+      "The grid size never changes during step-through \u2014 only contents change",
+      "Visual clearly distinguishes: empty frame (not yet used) vs occupied frame"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/page-replacement.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visualization",
+      "accuracy",
+      "teaching"
+    ]
+  },
+  {
+    "id": "OSC-104",
+    "epic": "OSC",
+    "title": "Replace SJF ready.sort() with ready.reduce() to better represent 'find minimum' algorithm logic",
+    "description": "scheduling.ts:263 uses ready.sort((a,b) => a.remainingTime - b.remainingTime)[0] to find the shortest job. This teaches students that SJF SORTS all processes every tick, when the actual algorithm just finds the MINIMUM. Using ready.reduce((min, p) => p.remainingTime < min.remainingTime ? p : min) better represents the algorithm's logic and is O(n) instead of O(n log n).",
+    "acceptanceCriteria": [
+      "SJF uses reduce/find to locate minimum remaining time process",
+      "Priority scheduling uses the same pattern for minimum priority",
+      "No change in output \u2014 same process is selected",
+      "Step description updated: 'SJF selects P2 because it has the shortest remaining time (3) among ready processes'"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "teaching",
+      "algorithm-choice"
+    ]
+  },
+  {
+    "id": "OSC-105",
+    "epic": "OSC",
+    "title": "Add pseudocode display for all 14+ OS algorithms matching CLRS/Silberschatz notation",
+    "description": "Zero algorithms have pseudocode (I6 score: 0/3 across all). Add CLRS-style pseudocode strings to each algorithm's config/metadata. Pseudocode must map line-by-line to the actual implementation so students can trace both simultaneously. Use Silberschatz notation for Banker's, OSTEP notation for scheduling.",
+    "acceptanceCriteria": [
+      "Every algorithm has a pseudocode string in a displayable format",
+      "Pseudocode uses standard textbook notation (1-indexed, CAPITALIZE keywords)",
+      "Line numbers in pseudocode can be mapped to implementation lines",
+      "Pseudocode panel visible alongside visualization during step-through",
+      "Current pseudocode line highlights during step-through"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts",
+      "src/lib/os/page-replacement.ts",
+      "src/lib/os/deadlock.ts",
+      "src/lib/os/bankers-algorithm.ts",
+      "src/lib/os/memory.ts",
+      "src/lib/os/memory-alloc.ts",
+      "src/lib/os/thread-sync.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "pseudocode",
+      "teaching"
+    ]
+  },
+  {
+    "id": "OSC-106",
+    "epic": "OSC",
+    "title": "Add inline educational comments to all engine files \u2014 'why' at every decision point",
+    "description": "Engine comments currently score 1-2/3 on I10. They describe WHAT the code does but rarely WHY. Add educational comments at every algorithmic decision point. Example in scheduling.ts FCFS: '// FCFS rule: pick the process that arrived earliest. This is non-preemptive \u2014 once selected, it runs to completion.' Example in page-replacement.ts LRU: '// Temporal locality: recently used pages are likely to be used again. LRU evicts the page accessed LONGEST AGO.'",
+    "acceptanceCriteria": [
+      "Every algorithm function has a 2-3 line educational comment explaining its core principle",
+      "Every if/else decision point has a comment explaining WHY the branch is taken",
+      "Every event.push has a comment explaining what teaching moment this step represents",
+      "Reading JUST the comments teaches the algorithm (narrative test)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts",
+      "src/lib/os/page-replacement.ts",
+      "src/lib/os/deadlock.ts",
+      "src/lib/os/bankers-algorithm.ts",
+      "src/lib/os/memory.ts",
+      "src/lib/os/memory-alloc.ts",
+      "src/lib/os/thread-sync.ts",
+      "src/lib/os/mlfq-scheduler.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "documentation",
+      "teaching"
+    ]
+  },
+  {
+    "id": "OSC-107",
+    "epic": "OSC",
+    "title": "Rename single-letter variables in scheduling.ts for teaching readability",
+    "description": "scheduling.ts uses `p` for process (26 occurrences), `t` for tick, `i`/`j` for loop indices. For teaching code, every variable should be self-documenting. Rename: p\u2192currentProcess, t\u2192currentTick, running\u2192currentlyRunning, pick\u2192selectedProcess. This makes the code readable WITHOUT comments.",
+    "acceptanceCriteria": [
+      "No single-letter variables remain except loop index 'i' in non-critical loops",
+      "Every variable name describes its purpose: currentProcess, selectedProcess, readyProcesses",
+      "Code reads like English: 'if (currentProcess.remainingTime === 0) { completed.add(currentProcess.id) }'",
+      "No functional change \u2014 same algorithm, same output"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "naming",
+      "readability"
+    ]
+  },
+  {
+    "id": "OSC-108",
+    "epic": "OSC",
+    "title": "Add SRTF variant to SJF dropdown and Hoare partition analogy to Priority",
+    "description": "SJF only shows non-preemptive mode in UI (I2 score: 1/3). The preemptive variant (SRTF) is implemented but hidden. Add: SRTF as a dropdown option alongside SJF, with explanation of the difference. For Priority scheduling, expose the preemptive toggle. Each variant should explain what changes and why.",
+    "acceptanceCriteria": [
+      "SJF dropdown shows 'SJF (Non-preemptive)' and 'SRTF (Preemptive)' options",
+      "Priority dropdown shows 'Priority (Non-preemptive)' and 'Priority (Preemptive)' options",
+      "Step descriptions explain the variant: 'SRTF preempts P1 because newly arrived P3 has shorter remaining time'",
+      "Compare All includes both variants"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [
+      "OSC-019"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "variant-coverage"
+    ]
+  },
+  {
+    "id": "OSC-109",
+    "epic": "OSC",
+    "title": "Add NRU and Working Set page replacement variants",
+    "description": "We have 4 page replacement algorithms (FIFO, LRU, Optimal, Clock). Missing important variants: NRU (Not Recently Used \u2014 uses reference+modify bits), Working Set (evicts pages outside the working set window). These are covered in OSTEP Ch.22 and Tanenbaum. Adding them deepens the module beyond competitors.",
+    "acceptanceCriteria": [
+      "NRU page replacement algorithm added with class-based eviction (reference bit + modify bit)",
+      "Working Set page replacement with configurable window parameter (\u0394)",
+      "Both included in Compare All mode",
+      "Step descriptions explain the eviction logic for each new algorithm"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/page-replacement.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "variant-coverage"
+    ]
+  },
+  {
+    "id": "OSC-110",
+    "epic": "OSC",
+    "title": "Fix ResourceAllocationGraph cycle highlighting to trace actual cycle edges, not just node membership",
+    "description": "OSModule.tsx:970,983 checks inCycle = deadlockedSet.has(pid) && cycleSet.has(pid). This highlights nodes that are in BOTH sets but doesn't trace the actual cycle path through edges. An edge from P0\u2192R0 might be in the cycle but isn't highlighted if the logic only checks node-level membership. Fix: trace the cycle array to highlight specific edges.",
+    "acceptanceCriteria": [
+      "Cycle edges are highlighted by tracing the cycle path: P0\u2192R0\u2192P1\u2192R1\u2192P0",
+      "Non-cycle edges from deadlocked processes remain un-highlighted",
+      "The visual clearly shows the circular dependency chain",
+      "Cycle arrow animation (pulsing or flowing) to draw attention"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visualization",
+      "accuracy"
+    ]
+  },
+  {
+    "id": "OSC-111",
+    "epic": "OSC",
+    "title": "Add color legends to GanttChart, PageFrameGrid, and Memory Translation panels",
+    "description": "V4 Legend scores 0-1 for most visualizers. GanttChart has NO inline legend (process colors only in properties panel). PageFrameGrid has HIT/FAULT labels but no color legend. Memory Translation has status badges but no legend. Add compact inline legends below each visualizer.",
+    "acceptanceCriteria": [
+      "GanttChart: process color legend directly below the chart",
+      "PageFrameGrid: legend showing green=HIT, red=FAULT, highlight=current step",
+      "Memory Translation: legend showing green=TLB HIT, blue=PT HIT, red=PAGE FAULT",
+      "ThreadSyncCanvas legend already exists (good) \u2014 verify it's readable (currently 8px)",
+      "All legends use minimum 10px text"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visualization",
+      "legend",
+      "teaching"
+    ]
+  },
+  {
+    "id": "OSC-112",
+    "epic": "OSC",
+    "title": "Add Python display code for top 5 algorithms alongside TypeScript engine",
+    "description": "I7 Multi-Language scores 1/3 \u2014 only TypeScript engine code exists. Python is the #1 teaching language for OS concepts (OSTEP homework simulators are all Python). Add a toggleable code panel showing clean Python implementations that match the TypeScript engine logic, without framework-specific event generation.",
+    "acceptanceCriteria": [
+      "Python implementations for: FCFS, Round Robin, FIFO Page Replacement, Banker's Algorithm, Virtual Memory Translation",
+      "Python code is clean, standalone, and uses descriptive variable names",
+      "Code panel toggleable in the UI (TypeScript | Python)",
+      "Python code matches the algorithm logic line-by-line with TypeScript",
+      "Comments in Python code are educational (not restating code)"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/display-code/"
+    ],
+    "dependencies": [
+      "OSC-105"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "multi-language",
+      "teaching"
+    ]
+  },
+  {
+    "id": "OSC-113",
+    "epic": "OSC",
+    "title": "Add 'Textbook vs Production' comparison for scheduling and page replacement",
+    "description": "I9 Real-World Implementation scores 0/3. Students never see how textbook algorithms relate to production code. Add comparison panels: (1) MLFQ textbook vs Linux CFS (virtual runtime, red-black tree), (2) LRU textbook vs Redis approximate LRU (random sampling), (3) First Fit textbook vs Linux Buddy System. Show key differences and why production versions diverge.",
+    "acceptanceCriteria": [
+      "At least 3 'Textbook vs Production' comparison panels in Learn tab",
+      "MLFQ vs CFS: show virtual runtime concept, red-black tree, no explicit priority queues",
+      "LRU vs Redis approx LRU: show random sampling approach, why exact LRU is too expensive",
+      "First Fit vs Buddy System: show power-of-2 splitting, why it's faster for page frames",
+      "Each comparison explains WHY production diverges from textbook"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/"
+    ],
+    "dependencies": [
+      "OSC-026"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "real-world",
+      "teaching"
+    ]
+  },
+  {
+    "id": "OSC-114",
+    "epic": "OSC",
+    "title": "Add operation counters to all algorithm visualizations",
+    "description": "No algorithm shows operation counts during execution. Add visible counters: scheduling (comparisons, context switches), page replacement (page faults, hits, evictions), memory (TLB hits, TLB misses, page faults), allocation (scans, splits, merges), sync (acquires, blocks, releases). These counters make complexity VISIBLE.",
+    "acceptanceCriteria": [
+      "Real-time operation counter visible during step-through for all concepts",
+      "Scheduling: context switch count, idle ticks, total comparisons",
+      "Page Replacement: running fault count, hit count, eviction count",
+      "Memory: TLB hit rate updating per step, page fault rate",
+      "Counters reset on new simulation run",
+      "Counters shown in comparison mode for each algorithm"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts",
+      "src/lib/os/page-replacement.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visualization",
+      "metrics",
+      "teaching"
+    ]
+  },
+  {
+    "id": "OSC-115",
+    "epic": "OSC",
+    "title": "Add 'Problem Before Solution' mode \u2014 show broken behavior first, then the fix",
+    "description": "OSTEP's gold standard teaching pattern: show what goes WRONG before the fix. Apply: (1) Thread Sync: race condition demo corrupting shared counter, THEN mutex fix. (2) Scheduling: Convoy Effect in FCFS, THEN SJF fix. (3) Page replacement: thrashing scenario. Source: OSTEP -c flag pattern.",
+    "acceptanceCriteria": [
+      "Thread Sync: 'Race Condition Demo' button showing broken concurrent counter increment",
+      "CPU Scheduling: 'Convoy Effect Demo' button showing one long job blocking short ones",
+      "Each problem demo followed by 'Now try [algorithm] on the same input' prompt",
+      "Pattern matches Belady's Anomaly approach (our highest-rated content)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/thread-sync.ts",
+      "src/lib/os/scheduling.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "teaching",
+      "problem-first"
+    ]
+  },
+  {
+    "id": "OSC-116",
+    "epic": "OSC",
+    "title": "Consolidate duplicate MLFQ implementations \u2014 keep mlfq-scheduler.ts, deprecate scheduling.ts mlfq()",
+    "description": "Two MLFQ implementations overlap: scheduling.ts:702-867 (simpler, has event type bug) and mlfq-scheduler.ts:150-461 (full, with I/O boost). The simpler one has confirmed 'preempt' instead of 'demote' bug. Keep mlfq-scheduler.ts as single source, wire compareAlgorithms() to use it.",
+    "acceptanceCriteria": [
+      "compareAlgorithms() uses mlfqScheduler from mlfq-scheduler.ts",
+      "scheduling.ts mlfq() function removed or marked @deprecated",
+      "All MLFQ events use correct 'demote' type"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts",
+      "src/lib/os/mlfq-scheduler.ts"
+    ],
+    "dependencies": [
+      "OSC-022"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "code-quality"
+    ]
+  },
+  {
+    "id": "OSC-117",
+    "epic": "OSC",
+    "title": "Add compaction operation to memory allocation simulation",
+    "description": "MemoryAllocStep type includes 'compact' as action (memory-alloc.ts:23) but no compaction function exists. Compaction eliminates external fragmentation. Add Compact button that relocates all allocated blocks contiguously.",
+    "acceptanceCriteria": [
+      "Compact button in memory allocation controls",
+      "Compaction moves allocated blocks to be contiguous from address 0",
+      "Fragmentation drops to 0% after compaction",
+      "Animation shows blocks sliding left to close gaps"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/memory-alloc.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "feature",
+      "teaching"
+    ]
+  }
+]

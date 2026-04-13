@@ -1,0 +1,192 @@
+{
+  "id": "gaming-backend",
+  "name": "Multiplayer Game Backend",
+  "description": "Design a multiplayer game backend handling real-time state synchronization, matchmaking, and session management. Covers authoritative game servers, low-latency state caching, and asynchronous matchmaking workers.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["gaming", "multiplayer", "real-time", "matchmaking", "state-sync", "websocket"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Game Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 500000, "requestsPerSecond": 50000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "Scale",
+        "config": { "algorithm": "least-connections", "maxConnectionsPerServer": 50000, "healthCheckIntervalMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "game-server",
+      "type": "app-server",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Game Server",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 50, "cpuCores": 8, "memoryGB": 32, "processingTimeMs": 16 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "Game State Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "evictionPolicy": "volatile-lru", "ttlSeconds": 3600, "cacheHitRate": 0.95 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 600, "y": 350 },
+      "data": {
+        "label": "Player DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 400, "y": 450 },
+      "data": {
+        "label": "Matchmaking Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 16, "retentionHours": 24, "maxThroughputMBps": 50 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "matchmaking-worker",
+      "type": "worker",
+      "position": { "x": 200, "y": 450 },
+      "data": {
+        "label": "Matchmaking Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 10, "concurrencyPerInstance": 20, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "websocket", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-lb-game",
+      "source": "lb",
+      "target": "game-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "websocket", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-game-cache",
+      "source": "game-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-game-db",
+      "source": "game-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-game-mq",
+      "source": "game-server",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-worker",
+      "source": "mq",
+      "target": "matchmaking-worker",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-worker-db",
+      "source": "matchmaking-worker",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Real-Time State via WebSocket",
+      "description": "Game clients maintain persistent WebSocket connections through the Load Balancer to authoritative Game Servers. The LB uses least-connections routing to ensure even distribution. Each Game Server hosts multiple game sessions, running a tick-based loop (e.g., 60 Hz) that processes player inputs, updates game state, and broadcasts state deltas back to all connected clients in the session.",
+      "highlightNodes": ["client", "lb", "game-server"],
+      "highlightEdges": ["e-client-lb", "e-lb-game"]
+    },
+    {
+      "title": "In-Memory Game State with Redis",
+      "description": "The authoritative game state for each active session lives in Redis, enabling sub-millisecond reads/writes. Redis Sorted Sets track leaderboards, and Hash types store player positions and inventories. When a Game Server crashes, another can resume the session by loading state from Redis. The TTL ensures abandoned sessions are garbage-collected automatically.",
+      "highlightNodes": ["game-server", "cache"],
+      "highlightEdges": ["e-game-cache"]
+    },
+    {
+      "title": "Asynchronous Matchmaking",
+      "description": "When a player queues for a match, the Game Server publishes a matchmaking request to Kafka. Matchmaking Workers consume these requests and run ELO/MMR-based algorithms to form balanced teams. Once a match is formed, the worker writes the match assignment to PostgreSQL and notifies the Game Server, which then routes players to the allocated session.",
+      "highlightNodes": ["mq", "matchmaking-worker", "database"],
+      "highlightEdges": ["e-game-mq", "e-mq-worker", "e-worker-db"]
+    },
+    {
+      "title": "Persistence and Player Profiles",
+      "description": "Player profiles, match history, inventories, and progression are durably stored in PostgreSQL. Game Servers write match results and reward grants at session end. Read replicas serve profile lookups and leaderboard queries. The separation of hot state (Redis) from cold state (PostgreSQL) lets the system handle millions of concurrent players while keeping match data durable.",
+      "highlightNodes": ["database", "game-server", "cache"],
+      "highlightEdges": ["e-game-db", "e-game-cache"]
+    }
+  ]
+}

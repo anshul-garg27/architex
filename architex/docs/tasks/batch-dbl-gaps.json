@@ -1,0 +1,100 @@
+[
+  {
+    "id": "DBL-184",
+    "epic": "DBL",
+    "title": "Integrate existing BPlusTreeViz (820 lines) into Database module instead of building from scratch",
+    "description": "QA REVIEW FINDING: The content audit (DBL-067) said 'B+ Tree is MISSING \u2014 build from scratch (L effort)'. But a complete 820-line B+ Tree visualization ALREADY EXISTS at src/components/database/BPlusTreeViz.tsx with: insert, search, delete, range query, step-through animation with motion/react springs, leaf linked-list visualization, and 9 highlight color states. It uses src/lib/data-structures/bplus-tree-ds.ts (799 lines) as its engine. Currently imported by DataStructuresModule only. INSTEAD of building from scratch: (1) Add 'B+ Tree' mode to DatabaseModule's mode list, (2) Import BPlusTreeViz component, (3) Wire to sidebar controls and properties panel, (4) Add comparison panel: 'B-Tree vs B+ Tree'. This REPLACES DBL-067 and reduces effort from L to M.",
+    "acceptanceCriteria": [
+      "B+ Tree mode visible in Database module sidebar alongside existing B-Tree mode",
+      "BPlusTreeViz component renders in the Database canvas area when B+ Tree mode selected",
+      "Sidebar shows insert/search/delete/range-query controls matching BPlusTreeViz's API",
+      "Properties panel shows step details and 'How It Works' for B+ Tree",
+      "Comparison section: 'B-Tree vs B+ Tree \u2014 why databases use B+ Trees'",
+      "Leaf linked-list visualization is visible (this is the key B+ Tree differentiator)"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/database/BPlusTreeViz.tsx",
+      "src/lib/data-structures/bplus-tree-ds.ts",
+      "src/components/modules/database/useDatabaseModule.ts",
+      "src/components/modules/database/DatabaseSidebar.tsx",
+      "src/components/modules/database/DatabaseProperties.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "qa-gap",
+      "bplus-tree",
+      "integration",
+      "replaces-DBL-067",
+      "existing-code"
+    ]
+  },
+  {
+    "id": "DBL-185",
+    "epic": "DBL",
+    "title": "Handle long entity names in ER diagram SVG \u2014 truncate or auto-resize",
+    "description": "QA REVIEW FINDING: ER diagram entity width is hardcoded at 200px (DatabaseModule.tsx:199). A 50-character entity name like 'CustomerOrderPaymentHistory' would overflow the SVG text boundary. No truncation, no ellipsis, no auto-resize. Add: (1) Measure text width using SVG textLength or canvas measureText, (2) If text exceeds entity width - 24px padding, truncate with ellipsis, (3) Show full name on hover via title attribute or tooltip.",
+    "acceptanceCriteria": [
+      "Entity names longer than ~18 characters are truncated with '...' in the SVG",
+      "Full name shown on hover (SVG <title> element or tooltip)",
+      "Attribute names also truncated if they exceed column width",
+      "Type labels don't overflow their column"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-gap",
+      "er-diagram",
+      "overflow",
+      "text-truncation"
+    ]
+  },
+  {
+    "id": "DBL-186",
+    "epic": "DBL",
+    "title": "Add localStorage graceful degradation for incognito/restricted storage",
+    "description": "QA REVIEW FINDING: Multiple tasks plan localStorage persistence (DBL-038 state, DBL-141 streaks, DBL-143 mastery). But in incognito mode or with restricted storage policies, localStorage.setItem may throw. Add a try-catch wrapper utility: safeLocalStorage.setItem/getItem that falls back to in-memory Map when localStorage is unavailable. All future persistence code should use this utility.",
+    "acceptanceCriteria": [
+      "safeLocalStorage utility at src/lib/utils/safe-storage.ts",
+      "try-catch around localStorage.setItem \u2014 falls back to in-memory Map",
+      "try-catch around localStorage.getItem \u2014 returns null if unavailable",
+      "All Database module persistence features use safeLocalStorage instead of raw localStorage",
+      "Module works correctly in incognito mode (features degrade gracefully, no errors)"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/utils/safe-storage.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-gap",
+      "incognito",
+      "localStorage",
+      "graceful-degradation"
+    ]
+  }
+]

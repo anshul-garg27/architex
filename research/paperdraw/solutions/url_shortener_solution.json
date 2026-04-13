@@ -1,0 +1,139 @@
+{
+  "viewState": {
+    "panOffset": {"x": -4500, "y": -4600},
+    "scale": 0.85
+  },
+  "components": [
+    {
+      "id": "edge-group",
+      "type": "container",
+      "customName": "Edge & Traffic Layer",
+      "position": {"x": 4600, "y": 4580},
+      "size": {"w": 800, "h": 220},
+      "config": {}
+    },
+    {
+      "id": "compute-group",
+      "type": "container",
+      "customName": "Application Services",
+      "position": {"x": 4600, "y": 4850},
+      "size": {"w": 800, "h": 280},
+      "config": {}
+    },
+    {
+      "id": "data-group",
+      "type": "container",
+      "customName": "Persistence & Cache",
+      "position": {"x": 4600, "y": 5180},
+      "size": {"w": 800, "h": 220},
+      "config": {}
+    },
+    {
+      "id": "client",
+      "type": "client",
+      "customName": "Global Users",
+      "position": {"x": 4960, "y": 4450},
+      "size": {"w": 80, "h": 64},
+      "config": {"capacity": 50000}
+    },
+    {
+      "id": "dns",
+      "type": "dns",
+      "position": {"x": 4700, "y": 4680},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "edge-group",
+      "config": {"capacity": 1000000}
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": {"x": 4850, "y": 4680},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "edge-group",
+      "config": {"capacity": 500000}
+    },
+    {
+      "id": "lb",
+      "type": "loadBalancer",
+      "position": {"x": 5000, "y": 4680},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "edge-group",
+      "config": {"instances": 2, "algorithm": "round_robin"}
+    },
+    {
+      "id": "api-gw",
+      "type": "apiGateway",
+      "position": {"x": 5200, "y": 4680},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "edge-group",
+      "config": {"rateLimiting": true, "rateLimitRps": 5000}
+    },
+    {
+      "id": "shorten-svc",
+      "type": "appServer",
+      "customName": "URL Shortener Service",
+      "position": {"x": 4800, "y": 4980},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "compute-group",
+      "config": {"instances": 3, "autoScale": true}
+    },
+    {
+      "id": "redirect-svc",
+      "type": "appServer",
+      "customName": "Redirect Service",
+      "position": {"x": 5050, "y": 4980},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "compute-group",
+      "config": {"instances": 5, "autoScale": true}
+    },
+    {
+      "id": "analytics-svc",
+      "type": "worker",
+      "customName": "Analytics Worker",
+      "position": {"x": 5300, "y": 4980},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "compute-group",
+      "config": {"instances": 2}
+    },
+    {
+      "id": "redis",
+      "type": "cache",
+      "customName": "Hot URL Cache",
+      "position": {"x": 4800, "y": 5280},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "data-group",
+      "config": {"capacity": 200000}
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "customName": "URL Mappings (Sharded NoSQL)",
+      "position": {"x": 5050, "y": 5280},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "data-group",
+      "config": {"sharding": true, "replication": true}
+    },
+    {
+      "id": "click-stream",
+      "type": "stream",
+      "customName": "Click Analytics Stream",
+      "position": {"x": 5300, "y": 5280},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "data-group",
+      "config": {"capacity": 100000}
+    }
+  ],
+  "connections": [
+    {"id": "c1", "sourceId": "client", "targetId": "dns", "type": "request"},
+    {"id": "c2", "sourceId": "client", "targetId": "cdn", "type": "request"},
+    {"id": "c3", "sourceId": "cdn", "targetId": "lb", "type": "request"},
+    {"id": "c4", "sourceId": "lb", "targetId": "api-gw", "type": "request"},
+    {"id": "c5", "sourceId": "api-gw", "targetId": "shorten-svc", "type": "request"},
+    {"id": "c6", "sourceId": "api-gw", "targetId": "redirect-svc", "type": "request"},
+    {"id": "c7", "sourceId": "redirect-svc", "targetId": "redis", "type": "request"},
+    {"id": "c8", "sourceId": "redirect-svc", "targetId": "db", "type": "request"},
+    {"id": "c9", "sourceId": "shorten-svc", "targetId": "db", "type": "request"},
+    {"id": "c10", "sourceId": "redirect-svc", "targetId": "click-stream", "type": "async"},
+    {"id": "c11", "sourceId": "click-stream", "targetId": "analytics-svc", "type": "async"}
+  ]
+}

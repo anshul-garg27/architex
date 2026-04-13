@@ -1,0 +1,728 @@
+[
+  {
+    "id": "CON-011",
+    "epic": "CON",
+    "title": "Fix DiningPhilosophersViz showing wrong state for non-active philosophers",
+    "description": "In ConcurrencyModule.tsx:393-395, the code `const state = event.philosopherId === id ? event.state : 'thinking'` defaults ALL non-active philosophers to 'thinking' regardless of their actual state. The visualization only shows the correct state for the philosopher mentioned in the current event — others always appear as 'thinking'. Root cause: events are per-philosopher but the viz doesn't track cumulative state. Fix: maintain a running state map across events (build from all events up to stepIndex) so every philosopher shows their true state at each step.",
+    "acceptanceCriteria": [
+      "All 5 philosophers show their correct state at every step (not just the active one)",
+      "Fork ownership is accurately reflected for all philosophers at every step",
+      "Deadlock state shows all 5 philosophers as 'waiting' simultaneously"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["engine-bug", "visualization", "correctness"]
+  },
+  {
+    "id": "CON-012",
+    "epic": "CON",
+    "title": "Fix sleeping barber tick double-increment causing inconsistent arrival timing",
+    "description": "In sleeping-barber.ts:80-191, the tick variable is incremented both inside event pushes (tick: tick++) and unconditionally at line 191 (tick++). This causes arrivals to have inconsistent timing — some customers arrive at interval=2, others at interval=3-4. The `tick % ARRIVAL_INTERVAL === 0` check at line 93-94 misses expected arrival ticks because tick jumps past them. Fix: remove the unconditional tick++ at line 191, or restructure so tick increments only once per simulation round.",
+    "acceptanceCriteria": [
+      "Customers arrive at exactly every ARRIVAL_INTERVAL ticks",
+      "Tick numbers in the event log are sequential without unexpected gaps",
+      "Simulation terminates correctly with all customers served or turned away"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/lib/concurrency/sleeping-barber.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["engine-bug", "simulation"]
+  },
+  {
+    "id": "CON-013",
+    "epic": "CON",
+    "title": "Fix histogram 'Running...' state never visible due to synchronous execution",
+    "description": "In ConcurrencyModule.tsx:2431-2438, handleRunHistogram sets histogramRunning=true, runs 100 iterations synchronously, then sets histogramRunning=false. React batches these state updates so the 'Running...' button text never renders. Fix: use requestAnimationFrame or setTimeout(0) to defer the computation, or use a Web Worker for the Monte Carlo simulation. This also blocks the main thread for ~10ms during 100 iterations.",
+    "acceptanceCriteria": [
+      "The button shows 'Running...' state while the simulation executes",
+      "The UI remains responsive during the 100-trial simulation",
+      "Results appear after a visible loading state"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "performance"]
+  },
+  {
+    "id": "CON-014",
+    "epic": "CON",
+    "title": "Split ConcurrencyModule.tsx (3192 lines) into per-demo visualization files",
+    "description": "ConcurrencyModule.tsx contains all 11 visualization components, the sidebar, histogram, and main hook in a single 3192-line file. This prevents code splitting and makes the file unmaintainable. Split into: (1) src/components/modules/concurrency/RaceConditionViz.tsx, (2) ProducerConsumerViz.tsx, (3) DiningPhilosophersViz.tsx, (4) EventLoopViz.tsx, (5) ThreadLifecycleViz.tsx, (6) GoroutineViz.tsx, (7) ReadersWritersViz.tsx, (8) SleepingBarberViz.tsx, (9) AsyncPatternsViz.tsx, (10) DeadlockDemoViz.tsx, (11) LockComparisonViz.tsx, (12) RaceConditionHistogram.tsx, (13) ConcurrencySidebar.tsx, (14) useConcurrencyModule.ts hook. Keep shared constants in a constants.ts file.",
+    "acceptanceCriteria": [
+      "ConcurrencyModule.tsx is under 200 lines (just imports + switch statement)",
+      "Each visualization component is in its own file under src/components/modules/concurrency/",
+      "All 11 demos still work identically after the split",
+      "No circular imports"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["architecture", "code-quality", "maintainability"]
+  },
+  {
+    "id": "CON-015",
+    "epic": "CON",
+    "title": "Lazy-load simulation engines per demo instead of computing all 13 upfront",
+    "description": "In ConcurrencyModule.tsx:2374-2428, ALL 13 simulations (unsafeIncrement, safeIncrement, simulateProducerConsumer, simulateNaive, simulateOrdered, simulateEventLoop, simulateGoroutines, simulateReadersWriters, simulateSleepingBarber, simulateAsyncPattern, simulateDeadlock, simulateDeadlockPrevention, simulateSpinLock, simulateMutex, simulateTTAS) plus 3 computeMetrics calls are computed on first mount via useMemo([], []). Only 1 demo is visible at a time. Fix: compute only the active demo's simulation data, keyed on the active demo ID.",
+    "acceptanceCriteria": [
+      "Only the currently selected demo's simulation is computed",
+      "Switching demos computes the new simulation lazily",
+      "No visible lag when switching between demos"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-014"],
+    "blockedBy": ["CON-014"],
+    "tags": ["performance", "optimization"]
+  },
+  {
+    "id": "CON-016",
+    "epic": "CON",
+    "title": "Add ARIA roles, labels, and keyboard navigation to SVG visualizations",
+    "description": "4 SVGs lack role='img' and aria-label (ConcurrencyModule.tsx:368, 736, 1013, 1866). 6 dynamic content regions lack aria-live (counter displays at :182/:224, deadlock alerts at :363/:1861, step descriptions at :530, SATURATED alert in ThreadPoolSaturationVisualizer.tsx:206). 1 interactive SVG element (<g onClick> at :774 for transition clicks) has no tabIndex, role='button', or keyboard handler. 8 state indicators rely on color only without shape/text backup.",
+    "acceptanceCriteria": [
+      "All 4 visualization SVGs have role='img' and descriptive aria-label",
+      "All 6 dynamic content regions have aria-live='polite'",
+      "Thread lifecycle transition <g> elements have tabIndex=0, role='button', aria-label, and onKeyDown handler",
+      "Screen reader can navigate and understand all demo states"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["accessibility", "a11y"]
+  },
+  {
+    "id": "CON-017",
+    "epic": "CON",
+    "title": "Add animation speed control slider to playback controls",
+    "description": "All demos use a hardcoded 400ms interval (ConcurrencyModule.tsx:2489, ThreadPoolSaturationVisualizer.tsx:179). Users have no way to slow down complex demos or speed through simple ones. Add a speed slider with presets: 0.5x (800ms), 1x (400ms), 2x (200ms), 4x (100ms) to the sidebar playback controls area. The ThreadPoolSaturationVisualizer should also respect this speed setting.",
+    "acceptanceCriteria": [
+      "Speed slider visible in sidebar playback controls",
+      "4 speed presets: 0.5x, 1x, 2x, 4x",
+      "Speed changes take effect immediately during playback",
+      "ThreadPoolSaturationVisualizer also uses the speed setting"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "feature", "playback"]
+  },
+  {
+    "id": "CON-018",
+    "epic": "CON",
+    "title": "Add user-configurable parameters to simulation demos",
+    "description": "All simulations use hardcoded parameters: race-condition (3 threads, 3 increments), producer-consumer (2 producers, 2 consumers, buffer 4, 8 items), dining-philosophers (5 philosophers, 10 ticks), readers-writers (3 readers, 2 writers, 4 rounds), sleeping-barber (3 chairs, 10 customers), lock-comparison (4 threads, 3 CS ticks). Add parameter controls in the properties panel allowing users to experiment. Start with race-condition (thread count 1-8, increments 1-10) and producer-consumer (buffer size 1-10, producer/consumer count 1-5).",
+    "acceptanceCriteria": [
+      "Race condition demo has sliders for thread count (1-8) and increments per thread (1-10)",
+      "Producer-consumer demo has controls for buffer size, producer count, consumer count",
+      "Changing parameters resets and recomputes the simulation",
+      "Parameter controls are in the properties panel with sensible defaults matching current values"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/race-condition.ts",
+      "src/lib/concurrency/producer-consumer.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "interactivity", "learning"]
+  },
+  {
+    "id": "CON-019",
+    "epic": "CON",
+    "title": "Add unit tests for 9 untested simulation engines",
+    "description": "Only race-condition (3 tests) and dining-philosophers (3 tests) have unit tests. 9 engines have zero tests: producer-consumer, event-loop, goroutines, readers-writers, sleeping-barber, async-patterns, deadlock-demo, mutex-comparison, thread-lifecycle. Add tests verifying: (1) event-loop output matches expectedOutput, (2) goroutine deadlock demo produces blocked states, (3) mutex-comparison CPU cycles are computed correctly, (4) sleeping-barber terminates, (5) async-pattern settlement order, (6) deadlock-demo circular wait detection, (7) readers-writers exclusive write access, (8) producer-consumer buffer bounds, (9) thread-lifecycle transition validity.",
+    "acceptanceCriteria": [
+      "All 11 engines have at least 3 unit tests each",
+      "Event loop tests verify output order matches expectedOutput for all 3 demos",
+      "Mutex comparison tests verify SpinLock CPU > Mutex CPU for long critical sections",
+      "All tests pass with vitest"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/concurrency/producer-consumer.test.ts",
+      "src/__tests__/lib/concurrency/event-loop.test.ts",
+      "src/__tests__/lib/concurrency/goroutines.test.ts",
+      "src/__tests__/lib/concurrency/readers-writers.test.ts",
+      "src/__tests__/lib/concurrency/sleeping-barber.test.ts",
+      "src/__tests__/lib/concurrency/async-patterns.test.ts",
+      "src/__tests__/lib/concurrency/deadlock-demo.test.ts",
+      "src/__tests__/lib/concurrency/mutex-comparison.test.ts",
+      "src/__tests__/lib/concurrency/thread-lifecycle.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["testing", "quality"]
+  },
+  {
+    "id": "CON-020",
+    "epic": "CON",
+    "title": "Increase minimum font sizes from 7-9px to 12px+ across all visualizations",
+    "description": "107 instances of sub-12px fonts across ConcurrencyModule.tsx and ThreadPoolSaturationVisualizer.tsx. SVG elements use fontSize='7' (fork labels at :420,:449), fontSize='8' (transition labels at :800, channel info at :1162,:1201), fontSize='9' (goroutine state at :1151). Tailwind classes include text-[9px] (5 instances), text-[10px] (48 instances), text-[11px] (22 instances). Fix: minimum 12px for all readable text. SVG text should be at least fontSize='10' for labels, fontSize='12' for content.",
+    "acceptanceCriteria": [
+      "No fontSize attribute below '10' in any SVG",
+      "No text-[9px] Tailwind class in the module",
+      "text-[10px] used only for tertiary labels, all primary content is text-xs (12px) or larger",
+      "All text remains readable at default zoom on 1080p screens"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"
+    ],
+    "dependencies": ["CON-014"],
+    "blockedBy": [],
+    "tags": ["visual", "readability", "a11y"]
+  },
+  {
+    "id": "CON-021",
+    "epic": "CON",
+    "title": "Extract 95 hardcoded hex colors to shared design tokens",
+    "description": "95 hardcoded hex colors in ConcurrencyModule.tsx spread across component constants (PHILOSOPHER_STATES, GOROUTINE_STATE_COLORS, RW_ACTION_COLORS, etc.) and inline SVG fill/stroke attributes. Colors like #3b82f6, #ef4444, #22c55e, #f59e0b, #a855f7 are Tailwind palette values but used as raw hex. Extract to a shared concurrency-colors.ts token file using CSS custom properties or Tailwind's theme() function so dark/light theme switching works correctly.",
+    "acceptanceCriteria": [
+      "All state color maps reference a shared token file",
+      "SVG fill/stroke colors reference tokens instead of inline hex",
+      "Colors still visually match current design",
+      "No more than 10 unique hex values remain inline (for SVG structural elements like backgrounds)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-014"],
+    "blockedBy": [],
+    "tags": ["visual", "design-tokens", "theming"]
+  },
+  {
+    "id": "CON-022",
+    "epic": "CON",
+    "title": "Add responsive breakpoints for event loop 4-column grid on mobile",
+    "description": "EventLoopViz at ConcurrencyModule.tsx:542 uses `grid-cols-4` with no responsive breakpoint. On mobile (375px), 4 columns are unusable. The Goroutine SVG viewBox 800x400 and Thread Lifecycle SVG 700x420 don't adapt well to narrow screens. Fix: Event loop should stack to 2x2 grid on md and 1-column on sm. SVG visualizations should have responsive viewBox or scroll container.",
+    "acceptanceCriteria": [
+      "Event loop grid is 1 column on <640px, 2 columns on <1024px, 4 columns on >=1024px",
+      "All SVG visualizations are scrollable horizontally on mobile",
+      "Touch targets meet 44x44px minimum on mobile viewport",
+      "No content overflow or clipping at 375px width"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-014"],
+    "blockedBy": [],
+    "tags": ["mobile", "responsive"]
+  },
+  {
+    "id": "CON-023",
+    "epic": "CON",
+    "title": "Add keyboard shortcuts for Step (→), Play/Pause (Space), Reset (R)",
+    "description": "The module has no keyboard shortcuts for playback control. Users must click small buttons in the sidebar footer. Add: Arrow Right (→) = Step Forward, Space = Play/Pause, R = Reset, Arrow Left (←) = Step Back (new feature). These should work when the module is focused and not conflict with global shortcuts. ThreadPoolSaturationVisualizer should also respond to these shortcuts when focused.",
+    "acceptanceCriteria": [
+      "→ key steps forward, ← key steps backward",
+      "Space bar toggles play/pause",
+      "R key resets to step 0",
+      "Shortcuts only active when concurrency module is focused",
+      "Shortcuts documented in a tooltip on the control buttons"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "keyboard", "accessibility"]
+  },
+  {
+    "id": "CON-024",
+    "epic": "CON",
+    "title": "Add step-back functionality (currently can only step forward)",
+    "description": "The handleStep function at ConcurrencyModule.tsx:2468 only increments stepIndex. There is no way to go back one step without resetting to 0. Since all simulations are pre-computed arrays, stepping backward is trivial: setStepIndex(s => Math.max(s - 1, 0)). Add a Step Back button with SkipBack icon next to the existing Step Forward button.",
+    "acceptanceCriteria": [
+      "Step Back button appears next to Step Forward",
+      "Clicking Step Back decrements stepIndex by 1 (minimum 0)",
+      "Step Back is disabled at step 0",
+      "← keyboard shortcut triggers Step Back"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "feature", "playback"]
+  },
+  {
+    "id": "CON-025",
+    "epic": "CON",
+    "title": "Add empty-state onboarding guidance when no simulation has been run",
+    "description": "When first loading the module, the Race Condition demo shows counter at 0 with no events. There is no guidance text suggesting the user click Play. Add an empty-state overlay or inline prompt like 'Click Play ▶ or press Space to simulate a race condition' that disappears on first interaction. Apply similar treatment to each demo's initial state.",
+    "acceptanceCriteria": [
+      "Each demo shows an onboarding hint in its initial state",
+      "Hint disappears after first Play/Step interaction",
+      "Hint includes keyboard shortcut mention (Space or →)",
+      "Hint does not reappear after reset (only on first view per session)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["ux", "onboarding", "first-time-experience"]
+  },
+  {
+    "id": "CON-026",
+    "epic": "CON",
+    "title": "Add difficulty levels and learning path markers to sidebar demos",
+    "description": "The 11 demos in the sidebar have no difficulty indicators or recommended order. Add difficulty tags (Beginner/Intermediate/Advanced) and suggested ordering: Beginner: Race Condition, Producer-Consumer, Event Loop, Thread Lifecycle, Async Patterns. Intermediate: Dining Philosophers, Readers-Writers, Sleeping Barber, Deadlock Demo. Advanced: Go Goroutines, Lock Comparison. Add optional prerequisite hints ('Learn Race Condition first').",
+    "acceptanceCriteria": [
+      "Each demo has a visible difficulty badge (Beginner/Intermediate/Advanced)",
+      "Demos are grouped by difficulty in the sidebar",
+      "Optional 'Prerequisite' hint shown for intermediate/advanced demos",
+      "Difficulty levels match typical CS curriculum progression"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["learning-path", "ux", "education"]
+  },
+  {
+    "id": "CON-027",
+    "epic": "CON",
+    "title": "Add 'Why' explanations to step descriptions in race-condition and producer-consumer engines",
+    "description": "Step descriptions in race-condition.ts say WHAT happened ('thread-0 reads counter = 0') but not WHY it matters. A beginner doesn't understand why a stale read is significant. Enhance descriptions to include educational context. Example: 'thread-0 reads counter = 0. (This is a stale read — thread-1 already incremented but thread-0 hasn't seen it yet because there's no synchronization.)' Apply to producer-consumer descriptions as well.",
+    "acceptanceCriteria": [
+      "All race-condition event descriptions include a WHY parenthetical",
+      "All producer-consumer event descriptions include a WHY parenthetical",
+      "Descriptions remain under 120 characters each",
+      "A beginner can understand each step without prior context"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/lib/concurrency/race-condition.ts",
+      "src/lib/concurrency/producer-consumer.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["education", "content", "teaching"]
+  },
+  {
+    "id": "CON-028",
+    "epic": "CON",
+    "title": "Remove unused PHILOSOPHER_COLORS constant",
+    "description": "PHILOSOPHER_COLORS at ConcurrencyModule.tsx:150 defines 5 colors but is never referenced anywhere. The DiningPhilosophersViz uses PHILOSOPHER_STATES instead. Remove the dead constant.",
+    "acceptanceCriteria": [
+      "PHILOSOPHER_COLORS constant is removed",
+      "No import or reference to it exists",
+      "Dining philosophers visualization still works correctly"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dead-code", "cleanup"]
+  },
+  {
+    "id": "CON-029",
+    "epic": "CON",
+    "title": "Fix hasRace flag always true even with 1 thread (no actual race possible)",
+    "description": "In race-condition.ts:95, unsafeIncrement always returns hasRace: true. With threadCount=1, there can be no race condition and finalValue always equals expectedValue. The flag should be computed: hasRace = sharedCounter !== expectedValue. Currently this doesn't affect UI because the module uses hardcoded 3 threads, but if user-configurable parameters are added (CON-018), this will produce incorrect educational information.",
+    "acceptanceCriteria": [
+      "hasRace computed from sharedCounter !== expectedValue",
+      "unsafeIncrement(1, N) returns hasRace: false",
+      "unsafeIncrement(3, 3) still returns hasRace: true",
+      "Existing tests still pass"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/lib/concurrency/race-condition.ts"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["engine-bug", "correctness"]
+  },
+  {
+    "id": "CON-030",
+    "epic": "CON",
+    "title": "Add semaphore counting simulation with visual counter",
+    "description": "Semaphores are a critical gap — they are distinct from mutexes and appear in every OS/concurrency curriculum (MIT 6.006, OSTEP, CLRS). Add a new 'Semaphore' demo showing: (1) binary semaphore (equivalent to mutex), (2) counting semaphore with N permits, (3) visual counter showing available permits decremented on acquire and incremented on release. Include a comparison table: Semaphore vs Mutex differences.",
+    "acceptanceCriteria": [
+      "New 'Semaphore' demo appears in sidebar between Readers-Writers and Sleeping Barber",
+      "Binary semaphore demo shows mutual exclusion",
+      "Counting semaphore demo shows N concurrent accessors with visual permit counter",
+      "Properties panel explains semaphore vs mutex differences",
+      "Step-by-step playback works like other demos"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/lib/concurrency/semaphore.ts",
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "content-gap", "education"]
+  },
+  {
+    "id": "CON-031",
+    "epic": "CON",
+    "title": "Add compare-and-swap (CAS) atomic operation visualization",
+    "description": "Atomic CAS is fundamental to lock-free programming and appears in interview questions (Amazon, Google) and academic curricula. Add a new 'Atomic CAS' demo showing: (1) CAS operation step-by-step (compare expected value, swap if match, fail if stale), (2) ABA problem visualization, (3) lock-free counter using CAS retry loop. This fills a critical gap identified by both academic syllabi and interview prep resources.",
+    "acceptanceCriteria": [
+      "New 'Atomic CAS' demo in sidebar under Advanced section",
+      "CAS operation shows expected/actual/new values at each step",
+      "ABA problem scenario demonstrated with visual timeline",
+      "Lock-free counter shows CAS retry loop",
+      "Properties panel explains CAS vs lock-based approaches"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/lib/concurrency/cas-atomic.ts",
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "content-gap", "interview-prep"]
+  },
+  {
+    "id": "CON-032",
+    "epic": "CON",
+    "title": "Add condition variable and monitor pattern visualization",
+    "description": "Condition variables and monitors are core synchronization primitives (Java synchronized, Python threading.Condition, Go sync.Cond) present in every OS textbook but missing from the module. Add a demo showing: (1) wait/signal pattern on a condition variable, (2) the classic monitor pattern with mutual exclusion + condition synchronization, (3) spurious wakeup handling. Use a bounded-buffer-with-CV scenario to contrast with the existing producer-consumer demo.",
+    "acceptanceCriteria": [
+      "New 'Condition Variables' demo shows wait/signal/broadcast pattern",
+      "Monitor pattern demonstrated with visual mutex + condition variable",
+      "Spurious wakeup scenario included with while-loop guard explanation",
+      "Cross-reference to producer-consumer demo in properties panel"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/lib/concurrency/condition-variable.ts",
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "content-gap", "education"]
+  },
+  {
+    "id": "CON-033",
+    "epic": "CON",
+    "title": "Add prediction mode: 'What happens next?' before each step",
+    "description": "Currently users passively watch simulations. Add an optional prediction mode where before revealing the next step, the user is asked 'What will happen next?' with 2-3 multiple choice options. On answer, reveal the actual step with 'Correct!' or 'Actually...' explanation. This dramatically improves learning retention (Mayer's active engagement principle). Start with Event Loop demo (predict output order) and Race Condition (predict final counter value).",
+    "acceptanceCriteria": [
+      "Toggle for 'Prediction Mode' in properties panel",
+      "Event Loop demo pauses before each output and asks user to predict the next printed value",
+      "Race Condition demo asks user to predict whether counter will be correct at the end",
+      "Correct/incorrect feedback shown with brief explanation",
+      "Can be skipped by pressing Step without answering"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/event-loop.ts",
+      "src/lib/concurrency/race-condition.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "innovation", "learning", "engagement"]
+  },
+  {
+    "id": "CON-034",
+    "epic": "CON",
+    "title": "Add thread interleaving explorer: user controls scheduling order",
+    "description": "Instead of fixed scheduling, let users manually schedule threads by clicking 'run next' on specific threads. For the race condition demo, this lets users discover which interleavings cause bugs and which don't. This is the #1 feature request in Deadlock Empire's GitHub issues and doesn't exist in any competing tool. Implement as an alternative mode on the race-condition demo where user clicks thread-0 or thread-1 to execute their next instruction.",
+    "acceptanceCriteria": [
+      "Toggle for 'Manual Scheduling' mode on race-condition demo",
+      "User sees pending instructions for each thread and clicks to execute one",
+      "Final counter value reflects the user's chosen interleaving",
+      "Side-by-side comparison of user's interleaving vs worst-case interleaving",
+      "Works for 2-4 threads"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/race-condition.ts"
+    ],
+    "dependencies": ["CON-018"],
+    "blockedBy": [],
+    "tags": ["feature", "innovation", "first-in-world", "interactivity"]
+  },
+  {
+    "id": "CON-035",
+    "epic": "CON",
+    "title": "Add sound feedback: different tones for lock/unlock/deadlock/signal events",
+    "description": "Web Audio API enables zero-latency sonification. Map concurrency events to audio: lock acquire = short ascending tone, unlock = descending tone, deadlock = dissonant chord, signal/notify = bell ping, thread spawn = pop. Use the Web Audio API OscillatorNode for lightweight synthesis (no audio files needed). Include a mute toggle. This creates a multi-sensory learning experience where users can HEAR contention building.",
+    "acceptanceCriteria": [
+      "Audio toggle button visible in playback controls",
+      "Lock acquire plays ascending tone, unlock plays descending",
+      "Deadlock produces distinctive dissonant sound",
+      "Signal/notify plays a notification ping",
+      "Mute toggle persists per session",
+      "Respects prefers-reduced-motion by defaulting to mute"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/audio-feedback.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "innovation", "multi-sensory", "delight"]
+  },
+  {
+    "id": "CON-036",
+    "epic": "CON",
+    "title": "Add 'Challenge Mode': find the deadlock, fix the race condition",
+    "description": "Gamified challenges where the user must identify or prevent concurrency bugs. Challenge 1: 'Find the Deadlock' — given a thread interleaving, identify which step creates the circular wait. Challenge 2: 'Fix the Race' — given an unsafe program, add lock/unlock at the right places. Challenge 3: 'Prevent Starvation' — adjust scheduling to give the writer a turn. Score based on attempts. This is the engagement mechanism the module lacks (Octalysis drives 2+6).",
+    "acceptanceCriteria": [
+      "At least 3 challenges available, one per difficulty level",
+      "Each challenge has clear success criteria and scoring",
+      "Hints available if stuck",
+      "Completion state tracked per session",
+      "Challenges accessible from sidebar under a 'Challenges' section"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/challenges.ts"
+    ],
+    "dependencies": ["CON-034"],
+    "blockedBy": [],
+    "tags": ["feature", "gamification", "engagement", "innovation"]
+  },
+  {
+    "id": "CON-037",
+    "epic": "CON",
+    "title": "Add memory model / happens-before visualization",
+    "description": "Memory ordering (happens-before, memory barriers, volatile) is the most confusing concurrency topic per Reddit research and a frequent interview topic at Google/Meta. Add a visualization showing: (1) two threads with instruction reordering, (2) happens-before edges as arrows, (3) what a memory barrier does, (4) why volatile/atomic prevents stale reads. Use a simple flag-based communication scenario (Thread A sets flag=true, Thread B reads flag) showing how without a barrier, B may never see A's write.",
+    "acceptanceCriteria": [
+      "New 'Memory Model' demo in sidebar under Advanced section",
+      "Visual timeline showing two threads with potential reordering",
+      "Happens-before arrows connecting causally related events",
+      "Memory barrier shown as a visual fence across the timeline",
+      "Contrasts with/without barrier to show the difference"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/lib/concurrency/memory-model.ts",
+      "src/components/modules/ConcurrencyModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "content-gap", "advanced", "interview-prep"]
+  },
+  {
+    "id": "CON-038",
+    "epic": "CON",
+    "title": "Add real-world analogies panel for each demo",
+    "description": "Each demo's properties panel has technical explanations but lacks real-world analogies that make concepts click. Add a collapsible 'Real World' section: Race Condition = two ATMs withdrawing from same account. Producer-Consumer = assembly line with buffer shelf. Dining Philosophers = 4-way intersection. Sleeping Barber = barbershop/connection pool. Readers-Writers = shared Google Doc. These analogies dramatically improve retention for visual learners.",
+    "acceptanceCriteria": [
+      "Each of the 11 demos has a 'Real World' collapsible section in properties panel",
+      "Each analogy is 2-3 sentences max",
+      "At least one analogy per demo references a software system (connection pool, database, etc.)",
+      "Analogies are accurate and don't introduce misconceptions"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["education", "content", "learning"]
+  },
+  {
+    "id": "CON-039",
+    "epic": "CON",
+    "title": "Add barrier synchronization (CyclicBarrier/Phaser) demo",
+    "description": "Barrier synchronization appears in parallel computing courses and is used in production (MapReduce shuffle, GPU kernel synchronization, parallel test runners). Add a demo showing N threads reaching a barrier point and waiting until all arrive, then all proceeding. Show: (1) basic barrier with countdown, (2) cyclic barrier (reusable), (3) what happens when one thread crashes before reaching the barrier.",
+    "acceptanceCriteria": [
+      "New 'Barrier Sync' demo in sidebar",
+      "Visual shows N threads approaching a barrier line and waiting",
+      "Countdown visible as threads arrive (3 remaining... 2... 1... GO!)",
+      "Crash scenario shows remaining threads stuck at barrier forever",
+      "Properties panel references CyclicBarrier (Java), sync.WaitGroup (Go)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/lib/concurrency/barrier-sync.ts",
+      "src/components/modules/ConcurrencyModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "content-gap"]
+  },
+  {
+    "id": "CON-040",
+    "epic": "CON",
+    "title": "Add export animation as shareable GIF or video clip",
+    "description": "Content creators and professors need to share visualizations in slides and social media. Use the MediaRecorder API to capture the canvas area during playback and export as WebM/MP4 or animated GIF. Add an 'Export' button next to playback controls. This enables viral sharing (Octalysis drive 5: Social Influence) and professional use (drive 1: Epic Meaning). No competing tool offers one-click animation export.",
+    "acceptanceCriteria": [
+      "Export button visible in playback controls area",
+      "Clicking Export starts recording, plays the full animation, then downloads the file",
+      "Output is a WebM video or animated GIF",
+      "Export includes the step description text overlaid",
+      "Works for all 11 demos"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "concurrency",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/ConcurrencyModule.tsx",
+      "src/lib/concurrency/export-animation.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["feature", "innovation", "shareability", "dream"]
+  }
+]

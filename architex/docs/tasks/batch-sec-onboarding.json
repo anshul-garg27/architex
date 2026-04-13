@@ -1,0 +1,179 @@
+[
+  {
+    "id": "SEC-198",
+    "epic": "SEC",
+    "title": "Create Security module-specific guided tour (platform tour is System Design-only)",
+    "description": "OnboardingOverlay (onboarding-overlay.tsx) has 5 steps all about System Design (drag components, connect nodes, run simulation). When a user enters the Security module for the first time, none of these steps apply. Create a Security-specific mini-tour that triggers on first Security module visit (localStorage key: 'architex_security_tour_completed'). Steps: (1) 'Welcome to Security & Cryptography — explore 11 interactive security topics' pointing to sidebar, (2) 'Start with Password Hashing — the simplest concept' pointing to Password Hashing topic, (3) 'Click Step to advance through the visualization' pointing to step controls, (4) 'Explore attack and defense modes' pointing to Web Attacks topic, (5) 'Deep dive into cryptography' pointing to AES/DH topics. 5 steps, <30 seconds.",
+    "acceptanceCriteria": [
+      "Security-specific tour triggers on first visit to Security module",
+      "Tour has 5 steps pointing to Security-specific UI elements",
+      "Tour uses spotlight/cutout pattern matching platform OnboardingOverlay",
+      "Can skip (Esc) and replays are possible via settings",
+      "Doesn't re-trigger after completion (localStorage persistence)"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "guided-tour", "first-time-experience"]
+  },
+  {
+    "id": "SEC-199",
+    "epic": "SEC",
+    "title": "Replace canvas empty state with actionable topic suggestions and preview",
+    "description": "SecurityModule.tsx:4993-5003 shows a faded shield icon + 'Select a security topic to visualize.' This is never actually shown (default is OAuth), but the DESIGN of it should be improved for cases where active doesn't match. More importantly, the sidebar's topic list needs a 'Recommended starting point' indicator. Rewrite: add a 'Start Here →' badge on Password Hashing (simplest) and OAuth (most practical). Add a mini-preview icon or animation for each topic in the sidebar to show what the visualization looks like.",
+    "acceptanceCriteria": [
+      "At least 2 sidebar topics have a 'Start Here' or 'Beginner' badge",
+      "Badge is visually subtle (not overwhelming) but noticeable",
+      "Clicking the badge topic loads it immediately",
+      "Empty state (if ever shown) has CTA buttons for 3 suggested starting topics"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "empty-state", "beginner-guidance"]
+  },
+  {
+    "id": "SEC-200",
+    "epic": "SEC",
+    "title": "Add 'topic completed → try next' suggestion when reaching last step",
+    "description": "When a user steps through all 8 DH steps or all 9 OAuth steps and reaches the last one, nothing happens — the Step button just goes disabled. Add a subtle 'completion card' that appears below the visualization: 'You completed OAuth 2.0! Try JWT Lifecycle next → [button]'. Connections: OAuth → JWT, JWT → JWT Attacks, DH → HTTPS Flow, AES → Encryption Comparison, Password Hashing → Web Attacks. This creates a natural learning progression without requiring explicit learning paths.",
+    "acceptanceCriteria": [
+      "Completion suggestion appears when user reaches last step of a step-through topic",
+      "Suggestion names a specific next topic with a clickable link",
+      "Suggestion is contextually relevant (not random)",
+      "At least 5 topic-to-topic connections defined",
+      "Suggestion is dismissible and non-blocking"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "progression", "engagement", "retention"]
+  },
+  {
+    "id": "SEC-201",
+    "epic": "SEC",
+    "title": "Add tooltips to all Security sidebar controls and properties panel inputs",
+    "description": "Zero tooltips exist in the Security module. A beginner doesn't know what 'PKCE' means when they see the OAuth flow selector, or what 'p', 'g', 'a', 'b' are in the DH properties panel. Add Radix Tooltip (already installed) to: (1) OAuth flow buttons: 'Auth Code + PKCE — for browser/mobile apps', (2) DH parameter inputs: 'p = prime modulus (public)', (3) AES hex inputs: 'Enter 16 bytes as hex — each byte is two hex digits (00-ff)', (4) Cert scenario buttons: 'See what happens when a certificate expires', (5) Defense toggle: 'Toggle to see how defenses prevent the attack'. At least 10 tooltips across the module.",
+    "acceptanceCriteria": [
+      "At least 10 interactive elements have Radix Tooltip on hover",
+      "Tooltips explain what the control does in beginner-friendly language",
+      "Tooltips appear on focus for keyboard accessibility",
+      "DH parameters (p, g, a, b) all have tooltips explaining their role"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "tooltips", "contextual-help"]
+  },
+  {
+    "id": "SEC-202",
+    "epic": "SEC",
+    "title": "Move DDoS widget out of properties panel (visible for ALL topics, confusing)",
+    "description": "SecurityModule.tsx:5129-5132 renders DDoSSimulationVisualizer inside the properties panel `<div>` with a border-t separator. This means the DDoS traffic simulation is visible when viewing OAuth, AES, JWT — any topic. A user editing JWT payload sees a DDoS simulation below their JSON editor. This is confusing and unrelated. Either: (a) Only show DDoS widget when a future 'DDoS' topic is active (SEC-094 promotes it to a proper topic), or (b) Move it to a dedicated section that only appears in relevant context. NOTE: This overlaps with SEC-094.",
+    "acceptanceCriteria": [
+      "DDoS simulation widget NOT visible when OAuth, JWT, AES, or other non-DDoS topics are active",
+      "DDoS is either a proper topic (SEC-094) or hidden until relevant",
+      "Properties panel only shows content relevant to the active topic"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "progressive-disclosure", "confusion"]
+  },
+  {
+    "id": "SEC-203",
+    "epic": "SEC",
+    "title": "Add 'Replay Module Tour' button in settings panel for Security",
+    "description": "Platform OnboardingOverlay sets localStorage flag 'architex_onboarding_completed'. No way to replay the tour. Similarly, the proposed Security tour (SEC-198) should have a replay mechanism. Add a 'Replay Tutorial' button in the Settings panel that clears the relevant localStorage flags and triggers the Security tour. Also consider a small '?' help icon in the Security module header.",
+    "acceptanceCriteria": [
+      "Settings panel has 'Replay Security Tour' option",
+      "Clicking it clears Security tour completion flag and starts the tour",
+      "Small '?' icon in module header also offers to replay tour",
+      "Also add 'Replay Platform Tour' option for the main onboarding"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/shared/settings-panel.tsx", "src/components/modules/SecurityModule.tsx"],
+    "dependencies": ["SEC-198"],
+    "blockedBy": [],
+    "tags": ["onboarding", "replay", "settings"]
+  },
+  {
+    "id": "SEC-204",
+    "epic": "SEC",
+    "title": "Add mobile-specific optimizations for Security visualizations",
+    "description": "Mobile experience scored 1/10. SVG text at 9px is unreadable. Sidebar requires constant open/close. No touch gestures. (1) Increase minimum SVG font size to 12px on mobile viewport, (2) Add swipe-left/right gesture for step navigation (step forward/back), (3) Show a simplified step description overlay on the canvas instead of requiring properties panel, (4) Make sidebar auto-close after topic selection on mobile.",
+    "acceptanceCriteria": [
+      "SVG text readable on 375px viewport (minimum 12px font)",
+      "Swipe gestures navigate steps on touch devices",
+      "Step description visible on canvas (no sheet switching needed)",
+      "Sidebar auto-closes after topic selection on mobile"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "mobile", "touch", "responsive"]
+  },
+  {
+    "id": "SEC-205",
+    "epic": "SEC",
+    "title": "Add 'inactivity nudge' — suggest action after 15s of no interaction",
+    "description": "Zero stuck detection exists. If a user stares at the Security module for 15 seconds without clicking anything, show a subtle non-blocking toast: 'Try clicking Step to advance the OAuth flow →' or 'Click a topic in the sidebar to explore security concepts'. Use a setTimeout that resets on any user interaction. Only triggers once per session. This addresses the 'complete beginner' user type who scored 2/10.",
+    "acceptanceCriteria": [
+      "After 15s of no interaction, a subtle suggestion toast appears",
+      "Toast suggests a specific action (not generic 'click something')",
+      "Toast auto-dismisses after 5s or on any user interaction",
+      "Only triggers once per session (doesn't nag)"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["onboarding", "stuck-detection", "nudge"]
+  }
+]

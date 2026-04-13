@@ -1,0 +1,886 @@
+[
+  {
+    "id": "OSC-132",
+    "epic": "OSC",
+    "title": "Extract CPUSchedulingCanvas from OSModule.tsx into standalone component",
+    "description": "Part of OSC-028 decomposition. Extract lines 2364-2487 (cpu-scheduling canvas branch) into src/components/modules/os/CPUSchedulingCanvas.tsx. Pass scheduling state as props. Component receives: schedAlgo, processes, schedResult, comparisonResults, + callbacks.",
+    "acceptanceCriteria": [
+      "New file: src/components/modules/os/CPUSchedulingCanvas.tsx",
+      "All CPU scheduling UI (controls, process cards, Gantt, comparison panel) moved",
+      "Props interface clearly typed",
+      "No functional regression",
+      "OSModule.tsx shrinks by ~120 lines"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/components/modules/os/CPUSchedulingCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "decomposition"
+    ]
+  },
+  {
+    "id": "OSC-133",
+    "epic": "OSC",
+    "title": "Extract PageReplacementCanvas from OSModule.tsx",
+    "description": "Part of OSC-028. Extract lines 2488-2609 (page-replacement canvas branch) into src/components/modules/os/PageReplacementCanvas.tsx. Includes Belady panel, comparison panel, frame grid, step controls.",
+    "acceptanceCriteria": [
+      "New file: src/components/modules/os/PageReplacementCanvas.tsx",
+      "All page replacement UI moved",
+      "Belady's Anomaly panel included",
+      "No functional regression"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/components/modules/os/PageReplacementCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "decomposition"
+    ]
+  },
+  {
+    "id": "OSC-134",
+    "epic": "OSC",
+    "title": "Extract DeadlockCanvas from OSModule.tsx",
+    "description": "Part of OSC-028. Extract lines 2610-2884 (deadlock canvas branch) into src/components/modules/os/DeadlockCanvas.tsx. Includes resource/process tables, allocation/need matrices, RAG SVG, Banker's step-through.",
+    "acceptanceCriteria": [
+      "New file: src/components/modules/os/DeadlockCanvas.tsx",
+      "All deadlock UI (matrices, RAG, Banker's steps) moved",
+      "No functional regression"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/components/modules/os/DeadlockCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "decomposition"
+    ]
+  },
+  {
+    "id": "OSC-135",
+    "epic": "OSC",
+    "title": "Extract MemoryCanvas from OSModule.tsx",
+    "description": "Part of OSC-028. Extract lines 2885-3121 (memory canvas branch) into src/components/modules/os/MemoryCanvas.tsx. Includes address input, page size selector, step controls, translation chain, address timeline, translation log table.",
+    "acceptanceCriteria": [
+      "New file: src/components/modules/os/MemoryCanvas.tsx",
+      "All memory management UI moved",
+      "No functional regression"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/components/modules/os/MemoryCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "decomposition"
+    ]
+  },
+  {
+    "id": "OSC-136",
+    "epic": "OSC",
+    "title": "Extract MemAllocCanvas from OSModule.tsx",
+    "description": "Part of OSC-028. Extract lines 3122-3512 (mem-alloc canvas branch) into src/components/modules/os/MemAllocCanvas.tsx. Includes algo selector, request list editor, step controls, memory bar, fragmentation indicator, block table, comparison view.",
+    "acceptanceCriteria": [
+      "New file: src/components/modules/os/MemAllocCanvas.tsx",
+      "All memory allocation UI moved",
+      "No functional regression"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/components/modules/os/MemAllocCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "decomposition"
+    ]
+  },
+  {
+    "id": "OSC-137",
+    "epic": "OSC",
+    "title": "Extract ThreadSyncCanvas panel from OSModule.tsx",
+    "description": "Part of OSC-028. Extract lines 3513-3717 (thread-sync canvas branch) into src/components/modules/os/ThreadSyncPanel.tsx. Includes primitive selector, thread/permit/reader/writer inputs, play/step controls, SVG canvas, event timeline.",
+    "acceptanceCriteria": [
+      "New file: src/components/modules/os/ThreadSyncPanel.tsx",
+      "All thread sync UI moved",
+      "No functional regression"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/components/modules/os/ThreadSyncPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "decomposition"
+    ]
+  },
+  {
+    "id": "OSC-138",
+    "epic": "OSC",
+    "title": "Extract useOSModule hook into separate file",
+    "description": "Part of OSC-028. Extract lines 1981-3929 (useOSModule hook + all state + all callbacks) into src/hooks/useOSModule.ts. The hook is 1950 lines with 38 useState calls. After canvas extraction, it becomes a pure state management file.",
+    "acceptanceCriteria": [
+      "New file: src/hooks/useOSModule.ts",
+      "All state, callbacks, and canvas composition logic moved",
+      "OSModule.tsx becomes a thin wrapper (<100 lines)",
+      "No functional regression"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/hooks/useOSModule.ts"
+    ],
+    "dependencies": [
+      "OSC-132",
+      "OSC-133",
+      "OSC-134",
+      "OSC-135",
+      "OSC-136",
+      "OSC-137"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "decomposition"
+    ]
+  },
+  {
+    "id": "OSC-139",
+    "epic": "OSC",
+    "title": "Add ARIA labels and roles to OSSidebar + concept buttons",
+    "description": "Atomic decomposition of OSC-023. Sidebar at OSModule.tsx:1334-1368. Add: role='navigation' to sidebar container, aria-label='OS Concepts navigation', aria-current='page' to active concept button, aria-describedby linking to concept descriptions.",
+    "acceptanceCriteria": [
+      "Sidebar has role='navigation' and aria-label",
+      "Active concept button has aria-current='page'",
+      "Each concept button has aria-describedby linking to its description text",
+      "Screen reader announces 'OS Concepts navigation, CPU Scheduling selected'"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-140",
+    "epic": "OSC",
+    "title": "Add ARIA to all form controls \u2014 htmlFor/id pairing + labels",
+    "description": "Atomic decomposition of OSC-023. Every <label> in OSModule.tsx lacks htmlFor. Every <input> and <select> lacks id. Count: ~15 label elements, ~20 input elements, ~8 select elements. Add htmlFor/id pairs throughout. Replace outline-none with visible focus ring.",
+    "acceptanceCriteria": [
+      "Every label has htmlFor matching an input/select id",
+      "Every input/select has a unique id",
+      "All outline-none replaced with focus:ring-2 focus:ring-primary",
+      "Tab order flows: controls \u2192 canvas \u2192 properties"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-141",
+    "epic": "OSC",
+    "title": "Add ARIA to SVG visualizations \u2014 role='img' + title + desc",
+    "description": "Atomic decomposition of OSC-023. GanttChart (line 170), ResourceAllocationGraph (line 926), ThreadSyncCanvas (line 1102) \u2014 all SVGs lack role='img', <title>, <desc>, and aria-label. Add text alternatives for each SVG that describe what the visualization shows.",
+    "acceptanceCriteria": [
+      "GanttChart SVG: role='img', aria-label='Gantt chart showing process execution timeline'",
+      "RAG SVG: role='img', <title>Resource Allocation Graph</title>, <desc> describing nodes and edges",
+      "ThreadSync SVG: role='img', aria-label describing thread states",
+      "All SVG text elements have aria-hidden='true' (decorative) or meaningful accessible names"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-142",
+    "epic": "OSC",
+    "title": "Add aria-live regions for simulation results and step changes",
+    "description": "Atomic decomposition of OSC-023. When user clicks Run, results appear silently. When stepping, the event description changes silently. Add aria-live='polite' to: result summary area, current step description, properties panel metrics, error messages.",
+    "acceptanceCriteria": [
+      "Result summary (Gantt, PageFrameGrid, etc.) wrapper has aria-live='polite'",
+      "Current step description text has aria-live='polite'",
+      "Properties panel metrics have aria-live='polite'",
+      "Error/validation messages have aria-live='assertive'"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-143",
+    "epic": "OSC",
+    "title": "Add unit tests for scheduling.ts \u2014 SJF, SRTF, Priority (preemptive + non-preemptive)",
+    "description": "Atomic decomposition of OSC-035. scheduling.ts has tests only for FCFS and RR (31 lines). SJF, SRTF (preemptive), Priority (preemptive + non-preemptive) have ZERO coverage. Add: SJF correctness (selects shortest job), SRTF preemption on new short arrival, Priority ordering, Priority preemption.",
+    "acceptanceCriteria": [
+      "sjf() non-preemptive: correct selection of shortest burst",
+      "sjf(preemptive=true): preempts when shorter job arrives",
+      "priorityScheduling() non-preemptive: correct priority ordering",
+      "priorityScheduling(preemptive=true): preempts on higher priority arrival",
+      "Edge cases: all same burst, all same priority, single process"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/os/scheduling.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-144",
+    "epic": "OSC",
+    "title": "Add unit tests for page-replacement.ts \u2014 Clock algorithm + zero-frame guard + Optimal",
+    "description": "Atomic decomposition of OSC-035. Clock has ZERO coverage and a confirmed while(true) bug on frameCount=0. Optimal has no correctness test. Add: Clock basic correctness, Clock zero-frame guard, Optimal produces fewest faults vs FIFO/LRU on classic ref string.",
+    "acceptanceCriteria": [
+      "clockPageReplacement: basic fault counting correctness",
+      "clockPageReplacement(refs, 0): does NOT infinite loop (tests guard)",
+      "optimalPageReplacement: produces \u2264 faults than FIFO and LRU on same input",
+      "All 4 algorithms: hitRate + faultRate === 1.0",
+      "Edge: empty reference string \u2192 valid empty result"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/os/page-replacement.test.ts"
+    ],
+    "dependencies": [
+      "OSC-016"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-145",
+    "epic": "OSC",
+    "title": "Add unit tests for thread-sync.ts \u2014 Mutex, Semaphore, RW Lock",
+    "description": "Atomic decomposition of OSC-035. All 3 sync primitives have ZERO test coverage. Add: Mutex produces acquire/release/blocked events. Semaphore respects permit count. RW Lock allows multiple readers but exclusive writer. Writer priority respected.",
+    "acceptanceCriteria": [
+      "simulateMutex(4): produces acquire events for each thread, only one holds at a time",
+      "simulateSemaphore(4, 2): at most 2 threads holding simultaneously",
+      "simulateReaderWriterLock(3, 2): multiple readers allowed, writer is exclusive",
+      "RW Lock: writer priority \u2014 waiting writer blocks new readers",
+      "All: MAX_TICKS guard prevents infinite simulation"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/os/thread-sync.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-146",
+    "epic": "OSC",
+    "title": "Add unit tests for memory.ts \u2014 TLB hit/miss/eviction + page fault handling",
+    "description": "Atomic decomposition of OSC-035. simulateVirtualMemory() has ZERO test coverage. Add: TLB hit on repeated access, TLB miss + PT hit on first access after TLB eviction, page fault on uncached page, LRU frame eviction order, TLB eviction when full.",
+    "acceptanceCriteria": [
+      "Repeated access to same address \u2192 TLB hit",
+      "Access after TLB eviction \u2192 TLB miss, PT hit",
+      "Access to new page beyond physical frames \u2192 page fault + LRU eviction",
+      "TLB size respected \u2014 oldest entry evicted when full",
+      "Edge: empty access pattern \u2192 valid empty result",
+      "Edge: pageSize not power of 2 \u2192 throws error"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/os/memory.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-147",
+    "epic": "OSC",
+    "title": "Add unit tests for memory-alloc.ts \u2014 fragmentation calculation + strategy comparison",
+    "description": "Atomic decomposition of OSC-035. All allocation strategies + fragmentation formula untested. Add: First Fit selects first sufficient block, Best Fit selects tightest, Worst Fit selects largest. Fragmentation formula correct. Deallocation merges adjacent free blocks.",
+    "acceptanceCriteria": [
+      "simulateFirstFit: allocates in first block that fits",
+      "simulateBestFit: allocates in tightest fitting block",
+      "simulateWorstFit: allocates in largest block",
+      "calcFragmentation: 1 - (largestFree/totalFree) \u00d7 100 verified",
+      "Deallocation: adjacent free blocks merged correctly",
+      "Failed allocation: produces step with FAILED description"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/os/memory-alloc.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-148",
+    "epic": "OSC",
+    "title": "Add WHY descriptions to scheduling.ts step events \u2014 FCFS + SJF",
+    "description": "Atomic decomposition of OSC-077. Rewrite step descriptions in scheduling.ts for FCFS (lines 135-178) and SJF (lines 224-370). OLD: 'P1 starts execution (burst=5)'. NEW: 'P1 starts execution (burst=5). FCFS selected P1 because it arrived first \u2014 this algorithm serves processes in arrival order without interruption.'",
+    "acceptanceCriteria": [
+      "FCFS 'start' event: explains arrival-order selection rule",
+      "FCFS 'complete' event: shows wait time and explains Convoy Effect if applicable",
+      "SJF 'start' event: explains shortest-burst selection",
+      "SJF 'preempt' event (SRTF): explains why shorter job preempts",
+      "Idle events: explain why CPU sits idle (no processes ready)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-149",
+    "epic": "OSC",
+    "title": "Add WHY descriptions to scheduling.ts \u2014 Round Robin + Priority",
+    "description": "Atomic decomposition of OSC-077. Rewrite step descriptions for RR (lines 389-512) and Priority (lines 524-685). RR 'preempt': 'P1 preempted after quantum=2 \u2014 Round Robin guarantees fairness by limiting each process to the quantum before yielding to the next.' Priority 'start': 'P2 starts (priority=1). Priority scheduling selected P2 because lower number = higher priority.'",
+    "acceptanceCriteria": [
+      "RR 'start': mentions quantum and time-sharing concept",
+      "RR 'preempt': explains fairness guarantee through quantum-based rotation",
+      "Priority 'start': explains lower-number-higher-priority convention",
+      "Priority 'preempt' (preemptive): explains why higher priority arrival interrupts",
+      "All descriptions a beginner could understand without external reference"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-150",
+    "epic": "OSC",
+    "title": "Add WHY descriptions to page-replacement.ts \u2014 all 4 algorithms",
+    "description": "Atomic decomposition of OSC-077. Rewrite step descriptions for FIFO, LRU, Optimal, Clock. FIFO eviction: 'Page 2 replaces page 7 (FIFO evicts the OLDEST loaded page \u2014 page 7 was loaded at t=0, the earliest in the frame set).' LRU eviction: 'LRU evicts page 3 because it was accessed longest ago \u2014 temporal locality suggests recently used pages are likely needed again.'",
+    "acceptanceCriteria": [
+      "FIFO: eviction explains circular pointer and oldest-loaded rule",
+      "LRU: eviction explains recency principle and temporal locality",
+      "Optimal: eviction explains future-knowledge and why it's a theoretical benchmark",
+      "Clock: eviction explains second-chance mechanism (ref bit check \u2192 clear \u2192 advance)",
+      "HIT events: explain why hit means no page fault needed"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/page-replacement.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-151",
+    "epic": "OSC",
+    "title": "Add WHY descriptions to deadlock.ts \u2014 safe sequence logic + cycle detection",
+    "description": "Atomic decomposition of OSC-077. Rewrite step descriptions for detectDeadlock and bankersAlgorithm. Safe sequence: 'P0 can finish because its remaining need [0,1,0] fits within available resources [3,3,2] \u2014 meaning the OS can guarantee P0 completes and releases its allocation.' Deadlock: 'P1 is deadlocked \u2014 it holds R2 but needs R1, which is held by P0, who needs R2 (circular wait).'",
+    "acceptanceCriteria": [
+      "Safe sequence step: explains WHY process can finish (need \u2264 available)",
+      "Resource release step: explains freed resources increase available pool",
+      "Deadlock detected: names the circular wait chain explicitly",
+      "Banker's denial: explains which resource constraint prevents safe state"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/deadlock.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-152",
+    "epic": "OSC",
+    "title": "Add WHY descriptions to memory.ts \u2014 TLB hit/miss/fault explanations",
+    "description": "Atomic decomposition of OSC-077. Rewrite step descriptions for virtual memory translation. TLB HIT: 'TLB HIT: VA 16 \u2192 page 1 \u2192 frame 2 \u2192 PA 32. The TLB cached this mapping from a previous access \u2014 skipping the slow page table lookup (100x faster).' PAGE FAULT: 'PAGE FAULT: VA 48 \u2192 page 3 not in physical memory. The OS must load this page from disk \u2014 this takes ~1ms, during which the process is blocked.'",
+    "acceptanceCriteria": [
+      "TLB HIT: explains why TLB is fast (cache of recent translations)",
+      "TLB MISS + PT HIT: explains TLB miss requires page table walk",
+      "PAGE FAULT: explains disk I/O required and process blocking",
+      "Frame eviction: explains LRU policy and which frame was oldest",
+      "Non-standard 'PT HIT' renamed to 'TLB Miss, Page Table Hit'"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/memory.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-153",
+    "epic": "OSC",
+    "title": "Add WHY descriptions to thread-sync.ts \u2014 ownership + blocking explanations",
+    "description": "Atomic decomposition of OSC-077. Rewrite step descriptions for Mutex, Semaphore, RW Lock. Mutex acquire: 'T0 acquires the mutex \u2014 T0 is now the OWNER and only T0 can release it (this ownership is what distinguishes a mutex from a semaphore).' Semaphore acquire: 'T1 acquires a permit (1/2 remaining). Unlike a mutex, any thread can release a semaphore permit.'",
+    "acceptanceCriteria": [
+      "Mutex acquire: mentions OWNERSHIP explicitly",
+      "Mutex blocked: explains only one holder allowed, others must wait",
+      "Mutex release: mentions that ONLY the owner can release",
+      "Semaphore acquire: shows permit count and explains counting mechanism",
+      "RW Lock: explains multiple readers allowed, exclusive writer required",
+      "RW Lock writer priority: explains why writers block new readers"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/thread-sync.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-154",
+    "epic": "OSC",
+    "title": "Add WHY descriptions to memory-alloc.ts \u2014 strategy selection explanations",
+    "description": "Atomic decomposition of OSC-077. Rewrite step descriptions for First/Best/Worst Fit. First Fit allocate: 'First Fit chose block at offset 40 (size 60B) \u2014 it scans from the beginning and selects the FIRST block large enough. Fast but can fragment the start of memory.' Best Fit: 'Best Fit chose the 45B block for a 40B request \u2014 it finds the TIGHTEST fit to minimize wasted space, but this can create tiny unusable fragments.'",
+    "acceptanceCriteria": [
+      "First Fit: explains scan-from-start strategy and speed tradeoff",
+      "Best Fit: explains tightest-fit strategy and tiny-fragment risk",
+      "Worst Fit: explains largest-block strategy and leftover-space benefit",
+      "Failed allocation: explains why no block was large enough (fragmentation)",
+      "Deallocation: explains adjacent-block merging (coalescing)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/memory-alloc.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "teaching",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-155",
+    "epic": "OSC",
+    "title": "Add prediction mode for CPU scheduling \u2014 'Which process runs next?'",
+    "description": "Atomic decomposition of OSC-118 for CPU scheduling. Before each scheduling step, show ready queue and ask: 'Which process will the scheduler pick? A) P1 (burst=5, arrived t=0) B) P2 (burst=3, arrived t=1) C) P3 (burst=1, arrived t=2)'. Answer depends on active algorithm.",
+    "acceptanceCriteria": [
+      "Prediction overlay appears before each 'start' or 'resume' event",
+      "Options show process details relevant to algorithm (burst for SJF, arrival for FCFS, priority for Priority)",
+      "Correct answer determined by the actual algorithm's next event",
+      "Feedback: 'Correct! SJF picks P3 because it has the shortest burst (1).'",
+      "Score tracker for this simulation run"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/PredictionOverlay.tsx"
+    ],
+    "dependencies": [
+      "OSC-029"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "prediction",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-156",
+    "epic": "OSC",
+    "title": "Add prediction mode for page replacement \u2014 'HIT or FAULT? Which evicted?'",
+    "description": "Atomic decomposition of OSC-118 for page replacement. Before each step, show current frames and next page. Ask: 'Will page 3 be a HIT or FAULT?' If FAULT with full frames: 'Which page will be evicted? A) Page 7 B) Page 0 C) Page 1'.",
+    "acceptanceCriteria": [
+      "Two-phase prediction: first HIT/FAULT, then eviction choice if FAULT",
+      "Current frame contents clearly visible during prediction",
+      "For Optimal: future reference string visible so student can reason about it",
+      "Feedback explains the algorithm's eviction logic",
+      "Works for all 4 algorithms"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/PredictionOverlay.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "prediction",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-157",
+    "epic": "OSC",
+    "title": "Add prediction mode for virtual memory \u2014 'TLB hit, PT hit, or page fault?'",
+    "description": "Atomic decomposition of OSC-118 for memory management. Before each translation step, show VA and ask: 'What will happen? A) TLB Hit B) TLB Miss + Page Table Hit C) Page Fault'. Student must reason about whether the page is in TLB, in page table, or neither.",
+    "acceptanceCriteria": [
+      "3-option prediction: TLB Hit / PT Hit / Page Fault",
+      "TLB contents visible during prediction (so student can check)",
+      "Feedback: 'Correct! Page 2 is in the TLB from the previous access \u2014 TLB Hit.'",
+      "Bonus follow-up on fault: 'Which frame will be evicted for this new page?'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/PredictionOverlay.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "prediction",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-158",
+    "epic": "OSC",
+    "title": "Add prediction mode for thread sync \u2014 'Will this thread acquire or block?'",
+    "description": "Atomic decomposition of OSC-118 for thread sync. Before each step, show current holder/waiters and ask: 'Thread T2 tries to acquire the mutex. Will it: A) Acquire (lock is free) B) Block (mutex held by T0)'. For semaphore: 'Permits: 0/2. T3 tries to acquire. What happens?'",
+    "acceptanceCriteria": [
+      "2-option prediction: Acquire / Block",
+      "Current mutex holder or semaphore permit count visible",
+      "For RW Lock: 'Will T3 (reader) be admitted while W0 (writer) holds the lock?'",
+      "Feedback explains the synchronization rule that determined the outcome"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/PredictionOverlay.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "practice",
+      "prediction",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-159",
+    "epic": "OSC",
+    "title": "Replace hardcoded hex colors in SVG visualizations (RAG + ThreadSync)",
+    "description": "Atomic decomposition of OSC-024. The SVG components at OSModule.tsx:996-1094 (RAG) and 1177-1330 (ThreadSync) have ~25 hardcoded hex fills/strokes. Replace with CSS variables: #ef4444\u2192var(--state-error), #22c55e\u2192var(--state-success), #f59e0b\u2192var(--state-warning), #6b7280\u2192var(--foreground-muted), #06b6d4\u2192var(--accent-cyan), #3b82f6\u2192var(--primary).",
+    "acceptanceCriteria": [
+      "All SVG fill= and stroke= attributes use CSS variables",
+      "RAG: assignment arrows use var(--state-success), request arrows use var(--foreground-muted), cycle arrows use var(--state-error)",
+      "ThreadSync: holding=var(--state-success), waiting=var(--state-warning), idle=var(--foreground-muted)",
+      "Colors adapt correctly in dark theme",
+      "No visual regression"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-160",
+    "epic": "OSC",
+    "title": "Consolidate ALLOC_COLORS, THREAD_COLORS, PROCESS_COLORS into shared OS_PALETTE",
+    "description": "Atomic decomposition of OSC-024. Three arrays at OSModule.tsx:136-165 contain overlapping hex values. Create a single OS_PALETTE constant and derive the three named variants from it. Move to a shared file (e.g., src/lib/os/palette.ts).",
+    "acceptanceCriteria": [
+      "Single OS_PALETTE array in src/lib/os/palette.ts",
+      "PROCESS_COLORS = OS_PALETTE.slice(0, 8)",
+      "THREAD_COLORS = OS_PALETTE.slice(0, 10)",
+      "ALLOC_COLORS = Object.fromEntries(OS_PALETTE.slice(0, 8).map((c, i) => [`P${i+1}`, c]))",
+      "No color duplication remains"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/lib/os/palette.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "atomic",
+      "code-quality"
+    ]
+  },
+  {
+    "id": "OSC-161",
+    "epic": "OSC",
+    "title": "Add mobile touch targets to CPU scheduling + page replacement panels",
+    "description": "Atomic decomposition of OSC-033. Focus on the two most-used concept panels. CPU scheduling: Run/Compare/Add Process buttons \u2192 min h-11 (44px). Process card inputs \u2192 stack vertically on mobile, min h-9. Trash icons \u2192 wrap with p-2 -m-2 for 44px tap zone. Page replacement: same button treatment + ref string input full-width.",
+    "acceptanceCriteria": [
+      "All buttons in CPU scheduling and page replacement panels meet 44px minimum height",
+      "Process card inputs stack vertically below sm breakpoint",
+      "Trash/delete icons have invisible 44px tap zone (p-2 -m-2)",
+      "No overlapping tap targets on 375px viewport"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "mobile",
+      "atomic"
+    ]
+  },
+  {
+    "id": "OSC-162",
+    "epic": "OSC",
+    "title": "Add mobile panel collapse \u2014 sidebar drawer + properties sheet",
+    "description": "Atomic decomposition of OSC-033. Below md breakpoint: sidebar collapses behind hamburger button (use existing drawer pattern). Properties panel converts to bottom sheet (use existing PropertiesSheet at src/components/mobile/PropertiesSheet.tsx). Canvas fills full width.",
+    "acceptanceCriteria": [
+      "Below md: sidebar hidden, hamburger icon in top bar opens drawer",
+      "Below md: properties panel replaced by bottom sheet trigger button",
+      "Canvas takes full width on mobile",
+      "Bottom panel respects safe-area-inset-bottom",
+      "Concept switching works from drawer"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "mobile",
+      "atomic"
+    ]
+  }
+]

@@ -1,0 +1,183 @@
+{
+  "id": "distributed-kv",
+  "name": "Distributed Key-Value Store (DynamoDB-Style)",
+  "description": "Design a distributed key-value store like DynamoDB or Riak. Covers consistent hashing, replication, vector clocks, and tunable consistency.",
+  "difficulty": 5,
+  "category": "infrastructure",
+  "tags": ["distributed-systems", "key-value", "consistent-hashing", "replication", "dynamo", "CAP-theorem"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Application Client (SDK)",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 100000, "requestsPerSecond": 1000000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Request Router",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "GitBranch",
+        "config": { "algorithm": "consistent-hash", "healthCheckIntervalMs": 2000, "maxConnectionsPerNode": 50000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Coordinator Node",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 50, "cpuCores": 8, "memoryGB": 32, "processingTimeMs": 2 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 500, "y": 0 },
+      "data": {
+        "label": "In-Memory Cache (DAX)",
+        "category": "storage",
+        "componentType": "dax",
+        "icon": "Zap",
+        "config": { "type": "dax", "memoryGB": 128, "evictionPolicy": "lru", "ttlSeconds": 300, "cacheHitRate": 0.8 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "wide-col-db",
+      "type": "wide-column",
+      "position": { "x": 750, "y": 200 },
+      "data": {
+        "label": "Storage Nodes (LSM-Tree)",
+        "category": "storage",
+        "componentType": "wide-column",
+        "icon": "Database",
+        "config": { "replicas": 3, "consistencyLevel": "quorum", "storageGB": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 750, "y": 0 },
+      "data": {
+        "label": "Replication / Hint Queue",
+        "category": "messaging",
+        "componentType": "sqs",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 32, "retentionHours": 24, "maxThroughputMBps": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 750, "y": 400 },
+      "data": {
+        "label": "Metadata DB (Partition Map)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 200, "storageGB": 100 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-lb-coord",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-coord-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-coord-storage",
+      "source": "app-server",
+      "target": "wide-col-db",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-storage-mq",
+      "source": "wide-col-db",
+      "target": "mq",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "replication", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-coord-meta",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 2, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Consistent Hashing and Partitioning",
+      "description": "Keys are mapped to a hash ring using consistent hashing. Each storage node owns a range of the ring. Virtual nodes (vnodes) ensure even distribution — each physical node has ~256 vnodes. When a node joins/leaves, only keys in adjacent ranges are redistributed, minimizing data movement.",
+      "highlightNodes": ["lb", "app-server"],
+      "highlightEdges": ["e-client-lb", "e-lb-coord"]
+    },
+    {
+      "title": "Coordinator and Quorum Reads/Writes",
+      "description": "The Coordinator Node receives each request and determines which N storage nodes own the key. For a write, it sends the value to all N replicas and waits for W acknowledgments (quorum write). For a read, it queries N replicas and waits for R responses. With N=3, W=2, R=2, you get strong consistency (W+R > N).",
+      "highlightNodes": ["app-server", "wide-col-db"],
+      "highlightEdges": ["e-coord-storage"]
+    },
+    {
+      "title": "Replication and Hinted Handoff",
+      "description": "Each key is replicated to N successor nodes on the hash ring. If a replica is temporarily down, the coordinator sends the write to a healthy node with a 'hint' — the intended destination. When the failed node recovers, hints are replayed from the queue. This achieves high availability even during failures.",
+      "highlightNodes": ["wide-col-db", "mq"],
+      "highlightEdges": ["e-storage-mq"]
+    },
+    {
+      "title": "LSM-Tree Storage Engine",
+      "description": "Each storage node uses an LSM-tree: writes go to an in-memory MemTable, then flush to sorted SSTables on disk. Reads check the MemTable, then Bloom filters on SSTables to skip irrelevant files. Compaction merges SSTables in the background. This design optimizes for write-heavy workloads.",
+      "highlightNodes": ["wide-col-db", "cache"],
+      "highlightEdges": ["e-coord-storage", "e-coord-cache"]
+    }
+  ]
+}

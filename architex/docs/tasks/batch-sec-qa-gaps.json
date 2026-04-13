@@ -1,0 +1,65 @@
+[
+  {
+    "id": "SEC-219",
+    "epic": "SEC",
+    "title": "Add max-length warning for JWT payload textarea (very long input causes visual overflow)",
+    "description": "QA gap: JWT payload textarea (SecurityModule.tsx:3153) has no max-length. User can paste 10KB+ of JSON, creating an unusably long encoded token in the display. Add: (1) character count indicator below textarea, (2) warning when payload exceeds 1KB ('JWT payloads should be small — this is 10KB'), (3) encoded token display wraps gracefully with horizontal scroll.",
+    "acceptanceCriteria": [
+      "Character count shown below JWT payload textarea",
+      "Warning appears when payload exceeds 1KB",
+      "Encoded token display doesn't break layout with large payloads"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["qa-gap", "edge-case", "jwt"]
+  },
+  {
+    "id": "SEC-220",
+    "epic": "SEC",
+    "title": "Add empty password validation in Password Hashing demo",
+    "description": "QA gap: demonstrateBcrypt('') runs without error but shows empty string in 'Plaintext Input' step, which is misleading — it suggests bcrypt can hash nothing. Add: show a note 'Empty passwords are technically valid but should never be allowed in production — always enforce minimum length.' Or auto-fill with 'password123' as default (already the case in useState default, but input can be cleared).",
+    "acceptanceCriteria": [
+      "Clearing the password input shows a helpful note about empty passwords",
+      "Note is educational: 'In production, enforce minimum password length'",
+      "Demo still runs on empty input (not blocked) but with the warning"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["qa-gap", "edge-case", "password-hashing"]
+  },
+  {
+    "id": "SEC-221",
+    "epic": "SEC",
+    "title": "Make AES matrix responsive at high zoom levels (150%+)",
+    "description": "QA gap: AES matrix cells are fixed h-12 w-12 (48px). Two 4×4 grids side-by-side = 384px minimum. At 150% zoom on a 1280px viewport, effective width is 853px. With sidebar (18%) and properties (20%), canvas is ~530px. Two grids + padding may overflow. Make grids stack vertically when viewport is narrow or use relative sizing (w-[clamp(2rem,3vw,3rem)]).",
+    "acceptanceCriteria": [
+      "AES grids don't overflow at 150% zoom on 1280px viewport",
+      "At narrow widths, grids stack vertically instead of side-by-side",
+      "Cell text (hex values) remains readable at all zoom levels"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "security",
+    "category": "frontend",
+    "files": ["src/components/modules/SecurityModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["qa-gap", "responsive", "accessibility", "zoom"]
+  }
+]

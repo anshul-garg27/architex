@@ -1,0 +1,29 @@
+name: New Data Structure Request
+description: Propose a new data structure for the DS module
+title: "[DS] "
+labels: ["data-structures", "enhancement"]
+body:
+  - type: input
+    attributes:
+      label: Data Structure Name
+      placeholder: e.g., Cuckoo Hash Table
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Category
+      options: [linear, tree, hash, heap, probabilistic, system]
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Operations
+      placeholder: "insert, delete, search, ..."
+  - type: textarea
+    attributes:
+      label: Why This Matters
+      placeholder: "Used in production at..., important for interviews because..."
+  - type: textarea
+    attributes:
+      label: References
+      placeholder: "CLRS Chapter X, Wikipedia link, etc."

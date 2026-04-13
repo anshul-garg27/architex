@@ -1,0 +1,236 @@
+{
+  "id": "food-delivery",
+  "name": "Food Delivery (DoorDash / Uber Eats)",
+  "description": "Design a food delivery platform like DoorDash or Uber Eats. Covers real-time order tracking, driver dispatch optimization, restaurant integration, and ETA estimation.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": ["food-delivery", "real-time", "dispatch", "geolocation", "order-tracking", "marketplace"],
+  "nodes": [
+    {
+      "id": "mobile-client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Mobile App (Customer)",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "concurrentUsers": 2000000, "requestsPerSecond": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 50000, "authType": "jwt", "timeoutMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 500, "y": 100 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckIntervalMs": 5000, "maxConnectionsPerNode": 50000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 750, "y": 100 },
+      "data": {
+        "label": "Order / Restaurant Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 20, "cpuCores": 8, "memoryGB": 32, "processingTimeMs": 15 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 1000, "y": 0 },
+      "data": {
+        "label": "Cache (Redis — Menus / Sessions)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "evictionPolicy": "lru", "ttlSeconds": 1800, "cacheHitRate": 0.85 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 1000, "y": 200 },
+      "data": {
+        "label": "PostgreSQL (Orders / Users)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 3, "maxConnections": 500, "storageGB": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 500, "y": 350 },
+      "data": {
+        "label": "Order Event Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 64, "retentionHours": 72, "maxThroughputMBps": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "dispatch-worker",
+      "type": "worker",
+      "position": { "x": 750, "y": 350 },
+      "data": {
+        "label": "Dispatch Worker (Driver Matching)",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 30, "concurrencyPerInstance": 50, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "storage",
+      "type": "storage",
+      "position": { "x": 250, "y": 400 },
+      "data": {
+        "label": "Image Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 10000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "mobile-client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-gw-lb",
+      "source": "api-gw",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-dispatch",
+      "source": "mq",
+      "target": "dispatch-worker",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-dispatch-db",
+      "source": "dispatch-worker",
+      "target": "database",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-client-storage",
+      "source": "mobile-client",
+      "target": "storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 20, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Order Flow Architecture",
+      "description": "When a customer places an order, the Order Service validates it (menu availability, pricing, address), processes payment, and publishes an OrderCreated event to Kafka. This event-driven design decouples order placement from restaurant notification and driver dispatch.",
+      "highlightNodes": ["mobile-client", "app-server", "mq"],
+      "highlightEdges": ["e-client-gw", "e-lb-app", "e-app-mq"]
+    },
+    {
+      "title": "Driver Dispatch Optimization",
+      "description": "The Dispatch Worker consumes order events and matches them with available drivers. It uses a geospatial index (Redis GEO or H3 hexagonal grid) to find nearby drivers. The matching algorithm optimizes for minimizing total delivery time across all active orders, considering driver location, restaurant prep time, and traffic.",
+      "highlightNodes": ["dispatch-worker", "mq"],
+      "highlightEdges": ["e-mq-dispatch"]
+    },
+    {
+      "title": "Real-Time Order Tracking",
+      "description": "Drivers publish GPS locations every 4 seconds. These locations update a Redis GEO set for dispatch and are pushed to customers via WebSocket/SSE. The order state machine (placed, accepted, preparing, picked_up, delivering, delivered) transitions are stored in PostgreSQL and broadcast in real-time.",
+      "highlightNodes": ["cache", "database", "dispatch-worker"],
+      "highlightEdges": ["e-dispatch-db", "e-app-cache"]
+    },
+    {
+      "title": "Restaurant and Menu Caching",
+      "description": "Restaurant menus, hours, and availability are cached in Redis with a 30-minute TTL. Restaurants update menus via a dashboard, invalidating the cache. Popular restaurants near a user are pre-fetched. Image assets (food photos) are stored in S3 and served via CDN.",
+      "highlightNodes": ["cache", "storage", "app-server"],
+      "highlightEdges": ["e-app-cache", "e-client-storage"]
+    }
+  ]
+}

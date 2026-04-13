@@ -1,0 +1,192 @@
+{
+  "id": "image-cdn",
+  "name": "Image Processing CDN",
+  "description": "Design an on-the-fly image processing and delivery CDN like Cloudinary or Imgix. Covers URL-based transformation, edge caching, async resize workers, origin storage, and processed image caching.",
+  "difficulty": 3,
+  "category": "modern",
+  "tags": ["image-processing", "cdn", "resize", "thumbnails", "media", "edge-caching"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Web / Mobile Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 200000, "requestsPerSecond": 50000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "CDN Edge (CloudFront)",
+        "category": "load-balancing",
+        "componentType": "reverse-proxy",
+        "icon": "Globe2",
+        "config": { "cacheHitRate": 0.85, "ttlSeconds": 2592000, "edgeLocations": 200 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "Scale",
+        "config": { "algorithm": "round-robin", "maxConnectionsPerServer": 20000, "healthCheckIntervalMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 600, "y": 200 },
+      "data": {
+        "label": "Image Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 8, "cpuCores": 4, "memoryGB": 16, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "resize-worker",
+      "type": "worker",
+      "position": { "x": 800, "y": 100 },
+      "data": {
+        "label": "Resize Worker (libvips)",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 20, "concurrencyPerInstance": 4, "retryAttempts": 2 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "storage",
+      "type": "storage",
+      "position": { "x": 800, "y": 300 },
+      "data": {
+        "label": "Origin Storage (S3)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 200000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 600, "y": 400 },
+      "data": {
+        "label": "Processed Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "evictionPolicy": "lru", "ttlSeconds": 604800, "cacheHitRate": 0.8 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-cdn",
+      "source": "client",
+      "target": "cdn",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-cdn-lb",
+      "source": "cdn",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-worker",
+      "source": "app-server",
+      "target": "resize-worker",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "rpc", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-worker-storage",
+      "source": "resize-worker",
+      "target": "storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "read-write", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-storage",
+      "source": "app-server",
+      "target": "storage",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "read", "latency": 50, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "URL-Based Transformation Request",
+      "description": "Clients request images using URL parameters that encode transformations: /images/photo.jpg?w=400&h=300&format=webp&quality=80. The CDN checks its edge cache first. On a hit (85% of the time for popular images), the processed image is served in <10ms from the nearest edge location. On a miss, the request is forwarded to the origin.",
+      "highlightNodes": ["client", "cdn"],
+      "highlightEdges": ["e-client-cdn"]
+    },
+    {
+      "title": "Cache-Aside with Processed Image Cache",
+      "description": "On a CDN miss, the Image Service first checks Redis using a cache key derived from the image ID + transformation parameters. If found, the processed image bytes are returned immediately. If not, the service dispatches the resize job. Redis acts as a warm L2 cache between the CDN (L1) and the processing pipeline, catching requests that missed the CDN but were recently processed.",
+      "highlightNodes": ["app-server", "cache", "lb"],
+      "highlightEdges": ["e-lb-app", "e-app-cache"]
+    },
+    {
+      "title": "On-The-Fly Image Processing",
+      "description": "Resize Workers fetch the original image from S3, apply the requested transformations (resize, crop, format conversion, quality adjustment) using libvips (fast, memory-efficient), and return the result. The processed image is stored in Redis and the response flows back through the CDN, which caches it at the edge with a long TTL (30 days). Future requests for the same transformation are served from cache.",
+      "highlightNodes": ["resize-worker", "storage", "cache"],
+      "highlightEdges": ["e-app-worker", "e-worker-storage", "e-app-cache"]
+    },
+    {
+      "title": "Scaling and Cost Optimization",
+      "description": "The three-tier cache (CDN edge, Redis, S3) minimizes processing. Workers auto-scale based on CPU utilization. To prevent abuse, the Image Service validates that transformation parameters are within allowed ranges (max 4096px, allowed formats). Pre-warming popular images (generating common sizes at upload time) further reduces on-demand processing. Storage costs are managed by only persisting originals in S3.",
+      "highlightNodes": ["cdn", "app-server", "resize-worker", "storage"],
+      "highlightEdges": ["e-client-cdn", "e-app-worker", "e-worker-storage"]
+    }
+  ]
+}

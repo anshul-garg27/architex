@@ -1,0 +1,268 @@
+[
+  {
+    "id": "ALG-241",
+    "epic": "ALG",
+    "title": "Replace all 80+ hardcoded hex colors with theme-aware CSS tokens + subtle gradients",
+    "description": "VA1 COLOR: All 7 visualizers use hardcoded hex (#6b7280, #3b82f6, #ef4444, etc.) instead of CSS variables. motion.ts already references var(--state-error) in particle presets (line 326) showing the pattern EXISTS. Replace all STATE_COLORS maps in ArrayVisualizer.tsx:12-18, GraphVisualizer.tsx:14-30, TreeVisualizer.tsx:15-24, DPVisualizer.tsx:16-38, StringMatchVisualizer.tsx:17-33, GridVisualizer.tsx:21-48, GeometryVisualizer.tsx:14-22 with a shared token system. Add subtle gradients for states: comparing=blue gradient, swapping=red gradient, sorted=green gradient. Current flat blocks look like a homework project; gradients add polish. Reference: https://www.cleanchart.app/blog/data-visualization-color-palettes (2026 best practices recommend perceptually uniform palettes, not raw Tailwind colors).",
+    "acceptanceCriteria": [
+      "Zero hardcoded hex values remain in any visualizer component for state colors",
+      "All state colors come from CSS custom properties or a shared constants file",
+      "State colors use subtle linear gradients instead of flat fills (e.g., comparing = blue-400 to blue-600)",
+      "Dark mode and light mode each have distinct, tested palettes",
+      "Colorblind-safe: no red+green as sole differentiators (add patterns per ALG-154)",
+      "Contrast ratio \u22654.5:1 for all text-on-color combinations"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx",
+      "src/components/canvas/overlays/TreeVisualizer.tsx",
+      "src/components/canvas/overlays/DPVisualizer.tsx",
+      "src/components/canvas/overlays/StringMatchVisualizer.tsx",
+      "src/components/canvas/overlays/GridVisualizer.tsx",
+      "src/components/canvas/overlays/GeometryVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "color",
+      "design-tokens",
+      "theme",
+      "polish"
+    ]
+  },
+  {
+    "id": "ALG-242",
+    "epic": "ALG",
+    "title": "Use existing animations.algorithm presets instead of inline transitions in ArrayVisualizer",
+    "description": "VA2 ANIMATION: motion.ts has purpose-built algorithm animation presets (lines 384-424): barSwap (springs.smooth), barCompare (blue with ease-out), barSorted (green with scale pulse [1, 1.05, 1]), pivotHighlight (infinite purple glow pulse). ArrayVisualizer.tsx IGNORES all of these and uses inline springs.snappy/duration.normal at lines 134-137. This is a pure wiring gap \u2014 the beautiful animations are DESIGNED but not USED. Wire: barSwap for swap transitions, barCompare for comparing state, barSorted for sorted state (adds a satisfying scale pulse), pivotHighlight for pivot elements.",
+    "acceptanceCriteria": [
+      "ArrayVisualizer uses animations.algorithm.barSwap for bar height transitions during swaps",
+      "Comparing bars use animations.algorithm.barCompare with the designed blue color",
+      "Sorted bars use animations.algorithm.barSorted including the scale [1, 1.05, 1] pulse",
+      "Pivot elements show the animations.algorithm.pivotHighlight infinite purple glow",
+      "No inline transition objects in ArrayVisualizer \u2014 all from motion.ts presets"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/lib/constants/motion.ts"
+    ],
+    "dependencies": [
+      "ALG-142"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "animation",
+      "motion-system",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-243",
+    "epic": "ALG",
+    "title": "Add entry animations for visualizer elements \u2014 bars/nodes/cells should appear, not teleport",
+    "description": "VA6 STATE TRANSITIONS: Currently bars in ArrayVisualizer appear instantly when data loads (no entry animation). Nodes in GraphVisualizer are static from start. DP cells pop into existence. Use motion.ts animations.canvas.nodeAppear (scale 0\u21921 with bouncy spring, line 247-249) for all elements on initial render. Add AnimatePresence for exit animations when data changes. This transforms 'data suddenly appears' into 'data elegantly enters stage'. The motion system already has these presets \u2014 they just need to be applied to visualizer elements.",
+    "acceptanceCriteria": [
+      "Array bars scale in from 0 when first rendered (bouncy spring)",
+      "Graph nodes scale in when graph loads",
+      "DP table cells fade+scale in with stagger (use stagger.chartDataPoints, 20ms per cell)",
+      "When switching algorithms, old elements exit (scale out) before new ones enter",
+      "Stagger prevents all elements appearing simultaneously (cascade effect)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx",
+      "src/components/canvas/overlays/DPVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "animation",
+      "entry-exit",
+      "polish"
+    ]
+  },
+  {
+    "id": "ALG-244",
+    "epic": "ALG",
+    "title": "Add rounded corners and subtle shadows to all visualization elements for depth",
+    "description": "VA5 ICONOGRAPHY: ArrayVisualizer bars have rounded-t-sm (line 127) but no shadow or depth. DP cells have rounded-md but no shadow. Graph nodes are flat circles with no depth cue. Add: subtle box-shadow or drop-shadow to bars on hover/active states, slight inner glow to graph nodes when active, card-like shadow to DP cells. This adds the 'Apple polish' level \u2014 the difference between flat homework project and crafted product. Keep subtle: shadow-sm or 0 0 4px rgba(0,0,0,0.1).",
+    "acceptanceCriteria": [
+      "Array bars have subtle shadow when in comparing/swapping state",
+      "Graph nodes have a soft glow (not just a stroke change) when active",
+      "DP cells have card-like shadow when computing",
+      "Shadows are theme-aware (darker in dark mode, lighter in light mode)",
+      "Performance: shadows use filter: drop-shadow (GPU-composited) not box-shadow where possible"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx",
+      "src/components/canvas/overlays/DPVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "depth",
+      "shadows",
+      "polish"
+    ]
+  },
+  {
+    "id": "ALG-245",
+    "epic": "ALG",
+    "title": "Add adaptive sizing for visualizers \u2014 graceful degradation at 50+ elements",
+    "description": "VA7 RESPONSIVENESS: ArrayVisualizer shows value labels (text-[10px] at line 116) and index labels (text-xs at line 158) for EVERY bar regardless of count. At 50+ elements, labels overlap and become unreadable. At 100 elements, the entire visualization is a wall of overlapping text. Add: (1) Hide value labels when >30 elements, (2) Show every-5th index when >30 elements, (3) Show no labels at >50, just bars, (4) At >100, switch to a minimap/overview mode with a zoom window. Graph visualizer already handles this via viewBox auto-scaling \u2014 apply the same philosophy to arrays.",
+    "acceptanceCriteria": [
+      "At \u226420 elements: all value labels and index labels visible",
+      "At 21-30 elements: value labels visible, index labels every 5th",
+      "At 31-50 elements: no value labels, index labels every 10th",
+      "At 51-100 elements: no labels at all, thinner bars",
+      "At >100 elements: minimap overview with optional zoom window",
+      "Transitions between modes are smooth (no jarring layout shift)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "responsive",
+      "scaling",
+      "large-data"
+    ]
+  },
+  {
+    "id": "ALG-246",
+    "epic": "ALG",
+    "title": "Add pedagogically-timed step durations \u2014 slow on important moments, fast on routine",
+    "description": "VA2 TIMING: Currently all sorting steps use fixed durations (bubble-sort.ts compare=400ms, swap=500ms, sorted=300ms at lines 82/131/151). All steps feel the same importance. But educationally, FIRST comparison should be slow (student is learning the pattern), subsequent comparisons can be faster. The PIVOT SELECTION in Quick Sort should be the slowest step (it's the key decision). The 'no swaps \u2014 array is sorted' early exit should PAUSE for emphasis. Design variable step durations: first-occurrence=1.5x, routine=0.8x, milestone=2x, with per-algorithm overrides.",
+    "acceptanceCriteria": [
+      "First comparison step in any sorting algorithm has 1.5x normal duration",
+      "Subsequent identical operations progressively faster (down to 0.7x by step 10)",
+      "Milestone steps (pass complete, pivot placed, merge complete) have 2x duration",
+      "Early-exit detection ('no swaps this pass') has 3x duration with emphasis animation",
+      "Speed slider still works as a multiplier on top of these pedagogical durations"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts",
+      "src/lib/algorithms/playback-controller.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "timing",
+      "pedagogical",
+      "animation"
+    ]
+  },
+  {
+    "id": "ALG-247",
+    "epic": "ALG",
+    "title": "Create shared visualization primitives component library",
+    "description": "VA8 DISTINCTIVENESS + cross-module consistency: Each visualizer implements its own legend, empty state, loading state, and color map independently. Create shared primitives: <VizLegend items={[...]} />, <VizEmptyState message='...' icon={...} />, <VizContainer height={480} className='...' />, state color utility getStateColor(state, theme). These ensure visual consistency across all 7 visualizers AND across other Architex modules. Currently, ArrayVisualizer legend (line 166-180), GraphVisualizer legend (line 326-337), and TreeVisualizer legend (line 380-392) all implement the same pattern slightly differently.",
+    "acceptanceCriteria": [
+      "Shared <VizLegend> component used by all 7 visualizers",
+      "Shared <VizEmptyState> component with consistent styling",
+      "Shared <VizContainer> wrapper with consistent border, padding, overflow behavior",
+      "Shared getStateColor() utility replacing per-visualizer STATE_COLORS maps",
+      "All 7 visualizers refactored to use shared primitives",
+      "Visual appearance unchanged (same output, better architecture)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/viz-primitives.tsx",
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx"
+    ],
+    "dependencies": [
+      "ALG-241"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "architecture",
+      "consistency",
+      "design-system"
+    ]
+  },
+  {
+    "id": "ALG-248",
+    "epic": "ALG",
+    "title": "Add hover interactions to visualization elements \u2014 tooltips with educational info",
+    "description": "VA5 INTERACTIVITY: Currently zero hover behavior on any visualizer element. Bars, nodes, cells are all non-interactive displays. Add: hovering a bar shows tooltip with 'Value: 5, Index: 2, State: comparing'. Hovering a graph node shows 'Node A, Distance: 3, Status: visited'. Hovering a DP cell shows 'dp[2][5] = 7, meaning: best value using first 2 items with capacity 5'. These educational tooltips are a zero-cost teaching upgrade \u2014 the data already exists in the step mutations, just needs to be surfaced on hover.",
+    "acceptanceCriteria": [
+      "Hovering an array bar shows: value, index, current state, and brief explanation",
+      "Hovering a graph node shows: label, distance/status, neighbors",
+      "Hovering a DP cell shows: cell coordinates, value, and what it represents",
+      "Tooltips use the existing design system (motion.ts tooltip animation)",
+      "Tooltips don't block the visualization or interfere with playback",
+      "Touch devices: long-press shows tooltip instead of hover"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx",
+      "src/components/canvas/overlays/DPVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "interactivity",
+      "tooltips",
+      "educational"
+    ]
+  }
+]

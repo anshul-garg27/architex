@@ -1,0 +1,156 @@
+[
+  {
+    "id": "DST-195",
+    "epic": "DST",
+    "title": "Rewrite all 16 bare empty states with actionable hints and input examples",
+    "description": "ONBOARDING AUDIT: 16 of 29 empty states show only 'X is empty' with zero guidance. R-Tree (:3351) and G-Counter (:4179) already nail the pattern: 'R-Tree is empty. Insert points like \"30,50\"'. Apply this pattern to all 16 bare states.\n\nRewrite each to: '{DS name} is empty. {Action verb} {example input format}.'\n\nExamples:\n- BST: 'BST is empty. Type a number (e.g., 42) and click Insert to build your tree.'\n- Heap: 'Heap is empty. Insert numbers to see the heap property in action.'\n- Bloom Filter: 'Bloom filter has 0 items. Insert strings like \"alice\" to see bits set.'\n- Fenwick Tree: 'Fenwick Tree is empty. Enter index and delta (e.g., 3, +5) to update.'\n\nThis is the #1 onboarding fix \u2014 2-3 hour task, no architecture changes, addresses beginner and mobile failure modes.\n\nEvidence: Onboarding audit scored 16 empty states at 1/5. R-Tree and G-Counter scored 5/5.",
+    "acceptanceCriteria": [
+      "All 16 bare 'X is empty' states replaced with actionable hints",
+      "Each hint includes the exact input format with example values",
+      "Hints use action verbs (Insert, Type, Enter) not passive descriptions",
+      "R-Tree and G-Counter quality level (5/5) applied everywhere",
+      "Trie hint updated: 'Insert words like \"cat\", \"car\", \"card\"'",
+      "Merkle hint updated: 'Build from comma-separated data like \"A,B,C,D\"'"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "empty-state",
+      "beginner",
+      "first-time",
+      "actionable"
+    ]
+  },
+  {
+    "id": "DST-196",
+    "epic": "DST",
+    "title": "Add visible labels to DSControls inputs \u2014 not just placeholder text",
+    "description": "ONBOARDING AUDIT: The value and index inputs at DataStructuresModule.tsx:2572-2593 have only placeholder text ('value', 'index', 'key / element'). Placeholders disappear when the user starts typing. There are no visible <label> elements and no aria-labels.\n\nAdd:\n1. Visible labels above or beside each input ('Value:', 'Index:', 'Key:')\n2. aria-label attributes for screen readers\n3. Better placeholders with examples: 'e.g., 42' instead of 'value'\n4. Context-sensitive labels that change per DS (Array shows 'Value' + 'Index', Hash shows 'Key' + 'Value', Trie shows 'Word')\n\nEvidence: Onboarding audit input discoverability scored 3/10.",
+    "acceptanceCriteria": [
+      "Visible labels above each input field",
+      "Labels change based on active DS context",
+      "Placeholders include example values (e.g., 42)",
+      "aria-label present on all inputs",
+      "Labels persist when input has focus (not placeholder-only)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "labels",
+      "inputs",
+      "accessibility",
+      "beginner"
+    ]
+  },
+  {
+    "id": "DST-197",
+    "epic": "DST",
+    "title": "Add DS-specific step to global onboarding tour",
+    "description": "ONBOARDING AUDIT: The 5-step OnboardingOverlay at onboarding-overlay.tsx has ZERO DS-specific content. All steps reference System Design concepts (Drag Components, Connect Nodes, Run Simulation). A user entering the DS module sees an irrelevant tour.\n\nAdd a 6th step (or conditional DS-specific steps) that targets the DS sidebar and explains: 'Explore 34 data structures \u2014 from Arrays to B-Trees. Click any structure to visualize it, then use Insert/Delete/Search to see it in action.'\n\nAlternatively: make the tour context-aware \u2014 detect which module is active and show module-specific steps.\n\nEvidence: Onboarding audit scored 0/10 for 'global tour covers DS module'.",
+    "acceptanceCriteria": [
+      "Onboarding tour includes at least 1 DS-specific step",
+      "DS step points to the sidebar structure list",
+      "DS step explains: what structures are available, how to interact",
+      "Step only appears when DS module is active (or is a universal overview step)",
+      "Tour still skippable and not longer than 6-7 steps total"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/onboarding-overlay.tsx",
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "tour",
+      "guided",
+      "first-time"
+    ]
+  },
+  {
+    "id": "DST-198",
+    "epic": "DST",
+    "title": "Add tooltips to all DS control buttons explaining what they do",
+    "description": "ONBOARDING AUDIT: Insert, Delete, Search, Random, Reset, Step buttons have ZERO tooltips. A beginner doesn't know what 'Step' does or that 'Random' generates example data.\n\nAdd title attributes or tooltip components:\n- Insert: 'Add a new element to the data structure'\n- Delete: 'Remove an element by value or index'\n- Search: 'Find an element and highlight the search path'\n- Random: 'Generate random example data to explore'\n- Reset: 'Clear all data and start fresh'\n- Step: 'Advance to the next step in the operation trace'\n\nContextualTooltips component exists but is never rendered for DS module \u2014 either wire it or use simple title attributes.\n\nEvidence: Onboarding audit help system inventory \u2014 0 tooltips on any DS control.",
+    "acceptanceCriteria": [
+      "All 6+ control buttons have visible tooltips on hover",
+      "Tooltip text explains what the button does in plain English",
+      "Tooltips work on both desktop (hover) and mobile (long-press)",
+      "Tooltips don't obstruct other controls"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "tooltips",
+      "help",
+      "discoverability"
+    ]
+  },
+  {
+    "id": "DST-199",
+    "epic": "DST",
+    "title": "Add one-click demo button \u2014 'Watch BST Insert \u2192' in empty states",
+    "description": "ONBOARDING AUDIT: The biggest gap for beginners is the 35-60 second time-to-first-success. Empty states should have a CTA button that auto-runs a demo.\n\nFor key DS empty states, add a button:\n- BST empty: 'Watch BST Insert \u2192' \u2192 auto-inserts [25, 10, 42, 5, 15, 35, 50] one by one with animation\n- Hash Table: 'See Hash Table in Action \u2192' \u2192 inserts 3 key-value pairs\n- Heap: 'Build a Heap \u2192' \u2192 inserts 7 random values\n\nThis is the 'Chrome Music Lab' pattern \u2014 one click to see something magical happen. Reduces time-to-first-success from 35s to 3s for beginners.\n\nEvidence: Onboarding audit \u2014 beginner time-to-aha is 35-60s (accidental). Target: <10s.",
+    "acceptanceCriteria": [
+      "At least 5 DS have a 'Watch X \u2192' demo button in their empty state",
+      "Clicking demo auto-populates with educational example data",
+      "Demo uses handleRandom or a curated insertion sequence",
+      "Demo button is prominent (primary color, centered in empty state)",
+      "After demo, user can interact with the populated DS normally"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "demo",
+      "one-click",
+      "beginner",
+      "time-to-success"
+    ]
+  }
+]

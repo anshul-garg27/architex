@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+.env*
+!.env.example
+*.md
+.storybook
+e2e
+coverage
+.lighthouseci
+.DS_Store

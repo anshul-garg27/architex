@@ -1,0 +1,344 @@
+[
+  {
+    "id": "ALG-231",
+    "epic": "ALG",
+    "title": "Wire algorithm module into existing progress-store for XP and streak tracking",
+    "description": "RETENTION LAYER: progress-store.ts already tracks attempts, XP, streakDays, lastActiveDate via Zustand+localStorage. achievements.ts has 40+ achievements with checkAchievements(). But the Algorithm module (AlgorithmPanel.tsx, AlgorithmModule.tsx) never writes to this store. Wire: (1) Record XP when user completes a visualization (+5 XP), (2) Record attempt when user runs an algorithm, (3) Trigger streak calculation on module visit, (4) Call checkAchievements() after each run to check for earned badges. Infrastructure exists at src/stores/progress-store.ts and src/lib/interview/achievements.ts \u2014 this is a WIRING task, not a building task.",
+    "acceptanceCriteria": [
+      "Running an algorithm increments XP in progress-store",
+      "Watching a visualization to completion records as an 'attempt'",
+      "Visiting the algorithm module on a new day extends streak counter",
+      "Achievements like 'Learning Streak: 3 Days' unlock for algorithm module activity",
+      "XP counter visible somewhere in the algorithm module UI"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/stores/progress-store.ts",
+      "src/lib/interview/achievements.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "progress",
+      "xp",
+      "streaks",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-232",
+    "epic": "ALG",
+    "title": "Wire algorithm module into existing daily-challenge system",
+    "description": "RETENTION LAYER: daily-challenge.ts already has getDailyChallenge() with day-of-week difficulty variance, and streak-protector.ts has 40+ micro-challenges. But these are only used by the Interview module. Add algorithm-specific daily challenges: 'Today: trace Bubble Sort on [7,2,5,1,8]. Predict the number of swaps before running.' Use existing getDailyMicroChallenge() infrastructure with new algorithm-category challenges. Show 'Daily Challenge' banner at top of algorithm sidebar.",
+    "acceptanceCriteria": [
+      "Daily Challenge banner visible at top of algorithm module sidebar",
+      "Challenge changes daily (deterministic by date, same for all users)",
+      "Difficulty varies by day-of-week matching existing pattern",
+      "Completing the challenge awards XP bonus (via progress-store)",
+      "At least 30 algorithm-specific challenges defined (one per month coverage)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/interview/daily-challenge.ts",
+      "src/lib/innovation/streak-protector.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-231"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "daily-challenge",
+      "engagement",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-233",
+    "epic": "ALG",
+    "title": "Add individual URL routes per algorithm for SEO and deep-linking",
+    "description": "DISCOVERY LAYER: The platform has dynamic routes for /problems/[slug], /concepts/[slug], etc. but algorithms live inside the canvas module with NO individual URLs. Add /algorithms/[category]/[slug] routes (e.g., /algorithms/sorting/bubble-sort). Each route loads the algorithm module pre-configured with that algorithm selected, includes meta tags, OG image, and JSON-LD. Use existing OG image generation at /api/og and JSON-LD generators at src/lib/seo/json-ld.ts. This is the #1 SEO gap \u2014 without individual URLs, Google can't index individual algorithms.",
+    "acceptanceCriteria": [
+      "URL /algorithms/sorting/bubble-sort loads algorithm module with Bubble Sort pre-selected",
+      "All 62 algorithms have individual URLs following /algorithms/[category]/[slug] pattern",
+      "Each URL has unique meta title, description, and OG image",
+      "JSON-LD LearningResource schema generated per algorithm page",
+      "URLs included in sitemap.xml",
+      "Sharing the URL on Twitter/LinkedIn shows a rich preview card"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/app/algorithms/[category]/[slug]/page.tsx",
+      "src/app/sitemap.ts",
+      "src/lib/seo/json-ld.ts",
+      "src/lib/seo/meta-templates.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "discovery",
+      "seo",
+      "urls",
+      "deep-linking",
+      "og-images"
+    ]
+  },
+  {
+    "id": "ALG-234",
+    "epic": "ALG",
+    "title": "Add Share button with URL state encoding for algorithm visualizations",
+    "description": "COMMUNITY + DISCOVERY LAYER: shareable-links.ts already has LZ-String compression for encoding diagram data to URL-safe strings. Extend for algorithm module: encode selected algorithm ID, input data, current step index, and speed into URL params. 'Share' button copies URL to clipboard. Recipient opens URL and sees exact same visualization state. This enables: professors sharing specific algorithm states with students, students sharing interesting inputs on Discord, Twitter sharing with rich previews.",
+    "acceptanceCriteria": [
+      "Share button visible in algorithm module toolbar/sidebar",
+      "Clicking Share copies URL with encoded state to clipboard",
+      "URL contains: algorithm ID, input data, step index, speed setting",
+      "Opening the URL loads the exact visualization state",
+      "Toast notification confirms 'Link copied!'",
+      "URL works without requiring login"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/collaboration/shareable-links.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-233"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "community",
+      "sharing",
+      "deep-linking",
+      "viral"
+    ]
+  },
+  {
+    "id": "ALG-235",
+    "epic": "ALG",
+    "title": "Add embeddable iframe widget for algorithm visualizations",
+    "description": "DISCOVERY LAYER: Enable blog authors, professors, and content creators to embed algorithm visualizations in their own websites. Add /embed/algorithms/[slug] route that renders a minimal, chromeless version of the visualizer with playback controls only (no sidebar, no properties panel). Generate embed code: <iframe src='https://architex.dev/embed/algorithms/bubble-sort?data=5,3,8,1' width='600' height='400'></iframe>. Embed button visible next to Share button.",
+    "acceptanceCriteria": [
+      "/embed/algorithms/[slug] route renders chromeless visualizer",
+      "Embed includes playback controls (play/pause/step/speed)",
+      "Data can be passed via URL params",
+      "Embed button generates iframe code and copies to clipboard",
+      "Responsive \u2014 adapts to container width",
+      "Architex watermark/branding visible on embed"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/app/embed/algorithms/[slug]/page.tsx",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-233"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "discovery",
+      "embed",
+      "iframe",
+      "content-marketing",
+      "viral"
+    ]
+  },
+  {
+    "id": "ALG-236",
+    "epic": "ALG",
+    "title": "Create algorithm template generator CLI for rapid content addition",
+    "description": "OPERATIONS LAYER: Adding a new algorithm requires creating 3-5 files manually (engine, config in barrel, tests, optionally visualizer). Create a CLI script (scripts/new-algorithm.ts) that prompts for: algorithm name, category, complexity values, description text. Generates: (1) Engine file from template with typed step recording scaffold, (2) Adds config to category barrel export, (3) Adds runner mapping to AlgorithmPanel.tsx, (4) Creates test file with basic edge case tests, (5) Validates against content style guide. Existing docs/guides/adding-an-algorithm.md documents the process \u2014 this automates it.",
+    "acceptanceCriteria": [
+      "Running 'pnpm new-algorithm' prompts for algorithm details interactively",
+      "Generates engine file with correct AnimationStep recording boilerplate",
+      "Adds AlgorithmConfig to the correct category barrel file",
+      "Adds runner entry to AlgorithmPanel.tsx SORTING_RUNNERS or handleRun",
+      "Creates test file with empty/single/sorted/reverse edge case scaffolds",
+      "Validates: no duplicate IDs, file paths correct, config fields complete"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "scripts/new-algorithm.ts",
+      "docs/guides/adding-an-algorithm.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "operations",
+      "scaffolding",
+      "dx",
+      "content-velocity"
+    ]
+  },
+  {
+    "id": "ALG-237",
+    "epic": "ALG",
+    "title": "Add automated content correctness test suite for all algorithm engines",
+    "description": "OPERATIONS LAYER: Adding algorithms without automated verification leads to bugs (we found post-mutation descriptions, wrong complexity claims, targetId mismatches). Create a meta-test that for EACH algorithm: (1) Runs on 5 standard inputs (empty, single, sorted, reverse, random), (2) Verifies output is sorted/correct, (3) Verifies step count > 0 for non-trivial input, (4) Verifies every step has a non-empty description, (5) Verifies complexity counters are monotonically non-decreasing, (6) Verifies all targetId values reference valid elements, (7) Verifies pseudocode line references are in-bounds. This prevents regression and catches the classes of bugs found in the mega audit.",
+    "acceptanceCriteria": [
+      "Meta-test iterates all algorithms in all 7 category barrel exports",
+      "Each algorithm tested on 5 standard inputs",
+      "Output correctness verified (sorted array, valid graph distances, etc.)",
+      "Step descriptions verified non-empty",
+      "Complexity counters verified non-decreasing across steps",
+      "targetId format verified (matches visualizer expected format)",
+      "pseudocodeLine verified in range [0, pseudocode.length-1]",
+      "Test runs in CI and catches new content bugs automatically"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/algorithms/content-correctness.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "operations",
+      "testing",
+      "quality-gate",
+      "ci",
+      "regression-prevention"
+    ]
+  },
+  {
+    "id": "ALG-238",
+    "epic": "ALG",
+    "title": "Wire existing notification system to show algorithm achievements",
+    "description": "RETENTION LAYER: notification-store.ts already supports 9 notification types including 'achievement' and 'streak' types with max 100 notifications. When a user earns an algorithm-related achievement (e.g., 'Explored all sorting algorithms', 'Completed 10 algorithm visualizations'), show a celebratory toast notification. Wire achievements.ts checkAchievements() to fire notifications via notification-store.ts addNotification(). The notification infrastructure exists \u2014 just needs algorithm-module triggers.",
+    "acceptanceCriteria": [
+      "Earning an achievement shows a toast notification with badge icon",
+      "Streak milestone notifications appear (3-day, 7-day, 14-day, 30-day)",
+      "Notification includes achievement name and XP reward",
+      "Notifications persist in notification panel for review",
+      "At least 5 algorithm-specific achievements defined"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/stores/notification-store.ts",
+      "src/lib/interview/achievements.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-231"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "achievements",
+      "notifications",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-239",
+    "epic": "ALG",
+    "title": "Add algorithm-specific leaderboard entries using existing leaderboard engine",
+    "description": "COMMUNITY LAYER: leaderboard.ts already has generateMockLeaderboard(), calculateRank(), getLeaderboardSlice() with weekly/monthly/all-time periods and badge system. Extend for algorithm module: track per-user stats (algorithms explored, prediction accuracy, challenges completed). Show 'Leaderboard' tab in bottom panel alongside Step Details, Latency Bridge, System Context. Uses existing infrastructure \u2014 just needs algorithm-specific stat tracking.",
+    "acceptanceCriteria": [
+      "Leaderboard tab visible in algorithm module bottom panel",
+      "Shows weekly/monthly/all-time rankings",
+      "Rankings based on: algorithms explored, predictions correct, challenges completed",
+      "User's rank highlighted in the list",
+      "Badges shown next to usernames (Streak Master, Speed Demon, etc.)"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/interview/leaderboard.ts",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-231"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "community",
+      "leaderboard",
+      "gamification",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-240",
+    "epic": "ALG",
+    "title": "Add GIF/video export using existing GifRecorder infrastructure",
+    "description": "DISCOVERY + COMMUNITY LAYER: The mega audit skeptic agent found that GifRecorder already exists at src/lib/export/gif-recorder.ts (405 lines) with MediaRecorder, frame capture, and downloadRecording(). And RecordButton component exists. Currently targets .react-flow canvas \u2014 needs re-targeting to algorithm visualizer container. Add Export button next to Share button. This is the #1 viral feature \u2014 professors embed in slides, students share in Discord, content creators use in tweets. Existing infrastructure makes this M effort not XL.",
+    "acceptanceCriteria": [
+      "Export button visible in algorithm module after running an algorithm",
+      "Clicking Export records the visualizer area during full playback",
+      "Progress indicator shows during recording",
+      "Downloads as WebM (with GIF option if gif.js is added)",
+      "Output includes algorithm name watermark",
+      "File size reasonable (<10MB for typical animation)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/export/gif-recorder.ts",
+      "src/components/shared/RecordButton.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-142"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "discovery",
+      "community",
+      "export",
+      "gif",
+      "viral",
+      "wiring"
+    ]
+  }
+]

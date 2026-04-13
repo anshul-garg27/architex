@@ -1,0 +1,493 @@
+{
+  "id": "typeahead",
+  "name": "Typeahead / Autocomplete",
+  "description": "Design a typeahead suggestion service like Google's search autocomplete. Covers trie data structure, prefix caching, and real-time suggestion ranking.",
+  "difficulty": 2,
+  "category": "classic",
+  "tags": [
+    "typeahead",
+    "autocomplete",
+    "trie",
+    "prefix-tree",
+    "caching",
+    "search-suggestions"
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Search Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": {
+          "concurrentUsers": 1000000,
+          "requestsPerSecond": 500000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "GitBranch",
+        "config": {
+          "algorithm": "round-robin",
+          "healthCheckIntervalMs": 5000,
+          "maxConnectionsPerNode": 50000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "web-server",
+      "type": "web-server",
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "data": {
+        "label": "Suggestion Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 10,
+          "maxConnections": 20000,
+          "processingTimeMs": 2
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": {
+        "x": 750,
+        "y": 100
+      },
+      "data": {
+        "label": "Trie Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 64,
+          "evictionPolicy": "lru",
+          "ttlSeconds": 3600,
+          "cacheHitRate": 0.9
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": {
+        "x": 750,
+        "y": 300
+      },
+      "data": {
+        "label": "Analytics DB (Query Frequencies)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 2,
+          "maxConnections": 200,
+          "storageGB": 500
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 20,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-lb-server",
+      "source": "lb",
+      "target": "web-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-server-cache",
+      "source": "web-server",
+      "target": "cache",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-server-db",
+      "source": "web-server",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-cache-db",
+      "source": "cache",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Trie Data Structure",
+      "description": "The core data structure is a trie (prefix tree). Each node stores a character, and paths from root to node represent prefixes. Each node also stores the top-K suggestions for that prefix, pre-computed and sorted by frequency. This allows O(p) prefix lookup where p is the prefix length.",
+      "highlightNodes": [
+        "cache"
+      ],
+      "highlightEdges": []
+    },
+    {
+      "title": "Prefix Caching Strategy",
+      "description": "The entire trie is held in Redis, sharded by prefix ranges. Common prefixes (1-3 characters) are cached more aggressively as they cover the most queries. The client debounces keystrokes (100ms) and only sends requests after 2+ characters. This reduces query volume by 80%.",
+      "highlightNodes": [
+        "cache",
+        "web-server",
+        "client"
+      ],
+      "highlightEdges": [
+        "e-server-cache",
+        "e-client-lb"
+      ]
+    },
+    {
+      "title": "Frequency-Based Ranking",
+      "description": "Suggestions are ranked by query frequency, freshness, and personalization. The Analytics DB tracks search query frequencies. A batch job periodically rebuilds the trie with updated top-K lists per prefix. Trending queries get a temporary boost factor.",
+      "highlightNodes": [
+        "database",
+        "cache"
+      ],
+      "highlightEdges": [
+        "e-server-db",
+        "e-cache-db"
+      ]
+    },
+    {
+      "title": "Client-Side Optimization",
+      "description": "Clients implement local caching of recent suggestions, debouncing (only query after 100ms of no typing), and optimistic prefetching (pre-request suggestions for the next likely character). These techniques reduce server load by up to 90% while maintaining sub-100ms perceived latency.",
+      "highlightNodes": [
+        "client",
+        "lb"
+      ],
+      "highlightEdges": [
+        "e-client-lb",
+        "e-lb-server"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-trie-corruption",
+        "name": "Trie Index Corruption",
+        "description": "In-memory trie structure becomes corrupted after bad update",
+        "targetNodes": [
+          "trie-server"
+        ],
+        "faultType": "data-corruption",
+        "severity": 4,
+        "expectedBehavior": "Suggestions return incorrect or empty results. Fallback to database prefix query.",
+        "mitigationSteps": [
+          "Rebuild trie from database",
+          "Serve stale suggestions during rebuild",
+          "Switch to hot standby"
+        ]
+      },
+      {
+        "id": "cs-query-flood",
+        "name": "Keystroke Flood",
+        "description": "Bot sends 100K keystrokes/sec overwhelming suggestion service",
+        "targetNodes": [
+          "api-gateway"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Rate limiter activates. Legitimate users see degraded suggestions.",
+        "mitigationSteps": [
+          "Rate limit per IP/user",
+          "Client-side debouncing",
+          "CDN-level bot detection"
+        ]
+      },
+      {
+        "id": "cs-cache-eviction",
+        "name": "Popular Prefix Cache Eviction",
+        "description": "Cache churn evicts popular prefixes during peak traffic",
+        "targetNodes": [
+          "cache"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 2,
+        "expectedBehavior": "Cache miss rate increases. Trie server load rises.",
+        "mitigationSteps": [
+          "Pin popular prefixes in cache",
+          "Increase cache memory",
+          "Use LFU eviction policy"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 10000,
+        "bottleneckNode": "trie-server",
+        "metric": "memory",
+        "description": "Trie memory grows with vocabulary size",
+        "resolution": "Shard trie by prefix range"
+      },
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "cache",
+        "metric": "connections",
+        "description": "Redis connection pool exhausted",
+        "resolution": "Add Redis shards, connection pooling"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-stale-suggestions",
+        "title": "Stale Trending Suggestions",
+        "description": "Trending queries not reflected in suggestions quickly enough",
+        "affectedNodes": [
+          "trie-server"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Real-time trie updates from analytics stream"
+      },
+      {
+        "id": "ei-offensive-content",
+        "title": "Offensive Suggestions",
+        "description": "Inappropriate terms appear in autocomplete",
+        "affectedNodes": [
+          "trie-server"
+        ],
+        "likelihood": 4,
+        "impact": 4,
+        "mitigation": "Blocklist filter, content moderation pipeline"
+      },
+      {
+        "id": "ei-cold-start",
+        "title": "Cold Start for New Terms",
+        "description": "New trending topics not in trie index",
+        "affectedNodes": [
+          "trie-server"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Periodic trie rebuild from analytics, streaming updates"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 4000,
+      "components": [
+        {
+          "nodeId": "trie-server",
+          "label": "Trie Servers",
+          "monthlyCostUsd": 2000,
+          "costDriver": "High-memory instances"
+        },
+        {
+          "nodeId": "cache",
+          "label": "Redis Cache",
+          "monthlyCostUsd": 1000,
+          "costDriver": "16GB"
+        },
+        {
+          "nodeId": "api-gateway",
+          "label": "API Gateway",
+          "monthlyCostUsd": 500,
+          "costDriver": "Requests"
+        },
+        {
+          "nodeId": "analytics-db",
+          "label": "Analytics DB",
+          "monthlyCostUsd": 500,
+          "costDriver": "Query logs"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 5000,
+          "monthlyCostUsd": 2000
+        },
+        {
+          "label": "Medium",
+          "rps": 50000,
+          "monthlyCostUsd": 4000
+        },
+        {
+          "label": "High",
+          "rps": 500000,
+          "monthlyCostUsd": 15000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 50000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 10,
+      "p99LatencyMs": 50,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 50000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "trie-server",
+        "metric": "memory_utilization",
+        "threshold": 80,
+        "scaleUpStep": 1,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 2,
+        "maxInstances": 10
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Suggestion Latency",
+        "metric": "p99_latency_ms",
+        "target": 50,
+        "unit": "ms",
+        "penalty": "10% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "suggestion_latency",
+          "type": "histogram",
+          "description": "Time to return suggestions",
+          "nodeId": "trie-server"
+        },
+        {
+          "name": "trie_memory_usage",
+          "type": "gauge",
+          "description": "Trie memory consumption",
+          "nodeId": "trie-server"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 100ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Typeahead Performance",
+        "Trie Health"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Trie corruption",
+          "severity": "high",
+          "steps": [
+            "Switch to standby",
+            "Rebuild from DB"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Trie Data Structure",
+        "context": "Need prefix-based lookups in O(k) time",
+        "decision": "Use compressed trie (Patricia tree) for prefix matching",
+        "consequences": [
+          "O(k) lookup time",
+          "Memory efficient with compression",
+          "Need periodic rebuild for updates"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Freshness vs Latency",
+        "choice": "Latency",
+        "benefit": "In-memory trie provides sub-10ms lookups",
+        "cost": "New terms may take minutes to appear"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Elasticsearch Prefix Queries",
+        "description": "Use ES for suggestion queries",
+        "prosVsCons": "More flexible but 5-10x slower",
+        "whyNotChosen": "Latency requirements demand in-memory data structure"
+      }
+    ]
+  }
+}

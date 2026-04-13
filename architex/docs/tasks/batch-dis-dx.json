@@ -1,0 +1,235 @@
+[
+  {
+    "id": "DIS-131",
+    "epic": "DIS",
+    "title": "Write 'How to Add a New Distributed Simulation' contributor guide",
+    "description": "CONTRIBUTING.md has guides for adding system design nodes (line 35-46) and algorithms (line 49-60) but NOTHING for distributed simulations. A new contributor must reverse-engineer the pattern from existing code — at least 1 hour wasted.\n\nWrite a section in CONTRIBUTING.md covering:\n1. Prerequisites: understand the module architecture (link to module README)\n2. Files to create: engine in src/lib/distributed/, types in index.ts\n3. Files to modify: DistributedSim type, SIMULATIONS array, canvas/controls/properties switch chains, module-progress.ts\n4. Template: annotated copy of a simple simulation (saga.ts is 122 lines — good template)\n5. Checklist: engine works, canvas renders, controls function, properties filled, tests pass, step descriptions explain WHY\n6. Common mistakes: forgetting the switch chain entry (silent blank canvas), forgetting module-progress entry\n\nThis saves every future contributor 1-2 hours.",
+    "acceptanceCriteria": [
+      "CONTRIBUTING.md has 'How to Add a New Distributed Simulation' section",
+      "Lists all files to create and modify with paths",
+      "Includes annotated template from a simple sim",
+      "Includes checklist (engine, canvas, controls, properties, tests, WHY steps)",
+      "Includes common mistakes section"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["CONTRIBUTING.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "contributor-guide", "p1"]
+  },
+  {
+    "id": "DIS-132",
+    "epic": "DIS",
+    "title": "Write module README with architecture overview and data flow diagram",
+    "description": "No README exists in src/lib/distributed/ or src/components/modules/distributed/. A new developer has no map of the module.\n\nCreate src/lib/distributed/README.md with:\n1. Architecture diagram (Mermaid): DistributedWrapper → useDistributedModule hook → 11 engines → 11 canvases\n2. Data flow: user action → handler → engine.step() → events → canvas re-render\n3. File inventory: which file does what (engine files, god file, learn panel, orphaned viz)\n4. State management: 45 useState vars in hook, engine refs, timer management\n5. Known issues: god file needs splitting, orphaned visualizers exist, progress tracking incomplete\n\nThis is the 'map' that saves every developer their first 2 hours of exploration.",
+    "acceptanceCriteria": [
+      "README.md exists in src/lib/distributed/",
+      "Contains Mermaid architecture diagram",
+      "Contains data flow explanation",
+      "Lists all files with their purpose",
+      "Notes known architectural issues"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/lib/distributed/README.md"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "documentation", "architecture", "p1"]
+  },
+  {
+    "id": "DIS-133",
+    "epic": "DIS",
+    "title": "Consolidate test file locations (currently split across two directories)",
+    "description": "Tests are in TWO locations:\n- src/__tests__/lib/distributed/ (6 files: raft, consistent-hash, gossip, cap-theorem, 2pc, paxos)\n- src/lib/distributed/__tests__/ (1 file: distributed-systems.test.ts)\n\nA developer looking for 'where are the Raft tests' would find one location and miss the other. Consolidate to ONE location. Recommend: src/lib/distributed/__tests__/ (co-located with source, standard pattern).",
+    "acceptanceCriteria": [
+      "All distributed test files in one directory",
+      "No test files in the other directory",
+      "All tests still pass from pnpm test",
+      "Test file names match engine file names"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/distributed/",
+      "src/lib/distributed/__tests__/"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "test-organization", "p2"]
+  },
+  {
+    "id": "DIS-134",
+    "epic": "DIS",
+    "title": "Add exhaustive switch statements to replace if/else chains for simulation routing",
+    "description": "DistributedModule.tsx uses if/else chains for canvas (~:4805), controls (~:4281), and properties (~:2980). Adding a new sim to DistributedSim union doesn't force adding cases — TypeScript won't warn. Silent blank canvas results.\n\nReplace with exhaustive switch + never assertion:\n```typescript\nfunction getCanvas(sim: DistributedSim): React.ReactNode {\n  switch (sim) {\n    case 'raft': return <RaftCanvas ... />;\n    case 'consistent-hashing': return <ConsistentHashCanvas ... />;\n    // ... all 11 cases\n    default: {\n      const _exhaustive: never = sim;\n      throw new Error(`Unknown simulation: ${_exhaustive}`);\n    }\n  }\n}\n```\n\nNow adding 'consistent-broadcast' to the union creates a TypeScript error at every switch. This is the SINGLE biggest DX improvement for type safety.",
+    "acceptanceCriteria": [
+      "All three routing chains (canvas, controls, properties) use exhaustive switch",
+      "Adding a new sim to DistributedSim creates compile errors at every switch",
+      "The `never` assertion in default catches missing cases",
+      "Existing behavior unchanged"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "type-safety", "exhaustive-switch", "p1"]
+  },
+  {
+    "id": "DIS-135",
+    "epic": "DIS",
+    "title": "Add helpful error messages for common developer mistakes",
+    "description": "Common developer mistakes produce silent failures:\n1. Add sim to DistributedSim but forget SIMULATIONS array → sim ID exists but has no name/description, won't appear in sidebar\n2. Add sim to SIMULATIONS but forget canvas switch case → appears in sidebar, clicking shows blank canvas, no error\n3. Forget module-progress entry → sim works but progress not tracked\n\nAdd runtime checks:\n```typescript\n// In useDistributedModule, on mount:\nif (process.env.NODE_ENV === 'development') {\n  for (const sim of ['raft', 'consistent-hashing', ...] as DistributedSim[]) {\n    if (!SIMULATIONS.find(s => s.id === sim)) {\n      console.error(`[Distributed] Simulation '${sim}' is in DistributedSim type but missing from SIMULATIONS array`);\n    }\n  }\n}\n```\n\nSimilar checks for canvas/controls/properties completeness.",
+    "acceptanceCriteria": [
+      "Dev-only console.error for missing SIMULATIONS entry",
+      "Dev-only console.error for missing canvas/controls/properties handler",
+      "Errors only in development (stripped in production)",
+      "Messages include the file path where the fix should be applied"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["src/components/modules/DistributedModule.tsx"],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "error-messages", "developer-feedback", "p2"]
+  },
+  {
+    "id": "DIS-136",
+    "epic": "DIS",
+    "title": "Write content style guide for distributed simulation descriptions and step text",
+    "description": "Teaching quality audit (Audit 3) found all 11 concepts score F or D because content follows no style guide. Without rules, each new contributor writes different quality content.\n\nCreate docs/content-style-guide-distributed.md:\n1. Descriptions: MUST start with a problem, not a definition. Template: '[Problem statement]. [Name] solves this by [mechanism].'\n2. Step descriptions: MUST explain WHY, not just WHAT. Template: '[Action] because [reason].'\n3. Properties panel: MUST include 'Used By' (3+ real systems), 'Key Concepts' (3-5 bullets), 'Common Mistakes' (2+ items), 'Summary' (3 bullet flashcard).\n4. Examples of good vs bad content for each section.\n\nThis ensures every new simulation meets the teaching quality bar.",
+    "acceptanceCriteria": [
+      "Content style guide exists with templates for each section",
+      "Good/bad examples for descriptions, steps, properties",
+      "Linked from CONTRIBUTING.md in the distributed simulation section",
+      "Templates are copy-pasteable (not just principles)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["docs/content-style-guide-distributed.md", "CONTRIBUTING.md"],
+    "dependencies": ["DIS-131"],
+    "blockedBy": [],
+    "tags": ["dx", "content-guide", "quality-bar", "p2"]
+  },
+  {
+    "id": "DIS-137",
+    "epic": "DIS",
+    "title": "Add JSDoc to all public engine methods missing documentation",
+    "description": "25 JSDoc annotations exist across 11 engine files, but coverage is uneven. Classes and constructors have docs; individual public methods often don't.\n\nMissing JSDoc (sample):\n- ConsistentHashRing.getKeyRange() at consistent-hash.ts:206 — no @param, no @returns\n- GossipProtocol.getConvergenceStatus() at gossip.ts:215 — no docs\n- CAPCluster.hasDivergence() at cap-theorem.ts:342 — no docs\n- VectorClockSimulation.areConcurrent() at vector-clock.ts:187 — no docs\n\nAdd JSDoc with @param, @returns, and brief description to all exported public methods. This enables IDE hover documentation for contributors.",
+    "acceptanceCriteria": [
+      "All exported public methods have JSDoc with @param and @returns",
+      "IDE hover shows useful documentation for each method",
+      "No public method left without at least a one-line description"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/lib/distributed/consistent-hash.ts",
+      "src/lib/distributed/gossip.ts",
+      "src/lib/distributed/cap-theorem.ts",
+      "src/lib/distributed/vector-clock.ts",
+      "src/lib/distributed/crdt.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "jsdoc", "documentation", "p2"]
+  },
+  {
+    "id": "DIS-138",
+    "epic": "DIS",
+    "title": "Create PR review checklist for distributed simulation contributions",
+    "description": "No quality checklist exists for PRs adding new distributed simulations. A reviewer must manually check everything found across 9 audits.\n\nCreate .github/PULL_REQUEST_TEMPLATE/distributed-simulation.md:\n- [ ] Engine file in src/lib/distributed/ with class/function export\n- [ ] Types exported from index.ts barrel\n- [ ] Added to DistributedSim union type\n- [ ] Added to SIMULATIONS array with name + description\n- [ ] Canvas component renders correctly\n- [ ] Controls panel with appropriate buttons\n- [ ] Properties panel with Key Concepts, Used By, Summary\n- [ ] Step descriptions explain WHY not just WHAT\n- [ ] At least 6 test cases covering edge cases\n- [ ] No `any` or `unknown` types without justification\n- [ ] Colors from shared palette (no hardcoded hex)\n- [ ] prefers-reduced-motion respected\n- [ ] Added to module-progress.ts features list",
+    "acceptanceCriteria": [
+      "PR template exists for distributed simulation PRs",
+      "Covers engine, UI, content, testing, type safety, accessibility",
+      "Reviewers can check boxes during review",
+      "Template linked from CONTRIBUTING.md"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [".github/PULL_REQUEST_TEMPLATE/distributed-simulation.md"],
+    "dependencies": ["DIS-131"],
+    "blockedBy": [],
+    "tags": ["dx", "pr-template", "review-checklist", "p3"]
+  },
+  {
+    "id": "DIS-139",
+    "epic": "DIS",
+    "title": "Add warning comment to orphaned visualizers explaining they are NOT active",
+    "description": "The orphaned visualizers (RaftVisualizer.tsx, ConsistentHashRingVisualizer.tsx, VectorClockDiagram.tsx) are a developer TRAP. A contributor looking for 'where is the Raft visualization' would find RaftVisualizer.tsx first, modify it, and wonder why nothing changes. The active visualizations are inside DistributedModule.tsx.\n\nUntil DIS-024 (god file split) + DIS-025 (integrate orphaned vizzes) are done, add a prominent warning comment at the top of each orphaned file:\n```\n// ⚠️ WARNING: This component is NOT currently used by the distributed module.\n// The active Raft visualization is embedded in DistributedModule.tsx:175-407.\n// See DIS-024 and DIS-025 for the plan to integrate this component.\n// DO NOT MODIFY THIS FILE expecting changes to appear in the app.\n```",
+    "acceptanceCriteria": [
+      "Warning comment at top of all 3 orphaned files",
+      "Comment points to the actual active location",
+      "Comment references the integration task IDs"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 1,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": [
+      "src/components/visualization/distributed/RaftVisualizer.tsx",
+      "src/components/visualization/distributed/ConsistentHashRingVisualizer.tsx",
+      "src/components/visualization/distributed/VectorClockDiagram.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": ["dx", "trap-prevention", "quick-win", "p1"]
+  },
+  {
+    "id": "DIS-140",
+    "epic": "DIS",
+    "title": "Create scaffold script for new distributed simulations",
+    "description": "Adding a simulation requires creating 1 file and modifying 3 others across 10 locations. A scaffold script would generate the boilerplate and update all registration points.\n\n```bash\npnpm scaffold:distributed-sim --id consistent-broadcast --name 'Consistent Broadcast'\n\nCreates:\n  src/lib/distributed/consistent-broadcast.ts (template with TODOs)\n  src/lib/distributed/__tests__/consistent-broadcast.test.ts (template)\n\nUpdates:\n  src/lib/distributed/index.ts (adds barrel export)\n  src/components/modules/DistributedModule.tsx:\n    - DistributedSim union (adds 'consistent-broadcast')\n    - SIMULATIONS array (adds entry)\n    - switch chains (adds placeholder cases)\n  src/lib/progress/module-progress.ts (adds to features)\n\nPrints:\n  ✓ Created consistent-broadcast. Next steps:\n  1. Implement the engine in consistent-broadcast.ts\n  2. Design the canvas visualization\n  3. Fill in properties panel content\n  4. Write tests\n  5. Run pnpm typecheck && pnpm test\n```\n\nThis saves 30-60 minutes per new simulation and eliminates forgotten registration steps.",
+    "acceptanceCriteria": [
+      "Script creates engine and test template files",
+      "Script updates all registration points (type, array, switches, barrel, progress)",
+      "Generated code compiles and renders a placeholder canvas",
+      "Script prints clear next-steps instructions"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "distributed-systems",
+    "category": "frontend",
+    "files": ["scripts/scaffold-distributed-sim.ts"],
+    "dependencies": ["DIS-024"],
+    "blockedBy": [],
+    "tags": ["dx", "scaffolding", "automation", "p3"]
+  }
+]

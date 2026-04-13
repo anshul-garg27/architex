@@ -1,0 +1,335 @@
+[
+  {
+    "id": "DST-166",
+    "epic": "DST",
+    "title": "Wire DS module to existing progress tracking \u2014 call markFeatureExplored",
+    "description": "module-progress.ts already defines 8 DS features (array-operations, linked-list, hash-table, bst-operations, heap-operations, bloom-filter, skip-list, disjoint-set) but markFeatureExplored is NEVER called from DataStructuresModule.tsx. The /modules page progress bar permanently shows 0% for Data Structures regardless of usage.\n\nFix: Call markFeatureExplored('data-structures', featureId) when user performs 3+ operations on a DS. Expand the feature map from 8 to all 34 DS. This is the lowest-effort retention feature \u2014 the system exists, just needs wiring.\n\nEvidence: module-progress.ts line 59 defines the map. DataStructuresModule.tsx has zero calls to any progress function.",
+    "acceptanceCriteria": [
+      "markFeatureExplored called after 3+ operations on any DS",
+      "All 34 DS mapped in module-progress feature list (not just 8)",
+      "/modules page shows accurate progress percentage for DS module",
+      "Progress persists across page refreshes via existing zustand-persist"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "in_progress",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/progress/module-progress.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "progress",
+      "wiring",
+      "existing-infrastructure"
+    ]
+  },
+  {
+    "id": "DST-167",
+    "epic": "DST",
+    "title": "Wire DS module to existing achievement system \u2014 trigger DS-specific achievements",
+    "description": "achievements.ts (652 lines) has 32 achievements with XP rewards, streak milestones, and rarity tiers. NONE fire from DS module interactions. The notification store supports 'achievement' type notifications.\n\nAdd DS-specific achievement triggers:\n- 'ds-explorer': Explore 5 different data structures\n- 'ds-collector': Explore all 34 data structures\n- 'tree-master': Explore all 14 tree structures\n- 'system-architect': Explore all 6 system design structures\n- 'first-insert': Perform your first DS operation\n\nWire checkAchievements into handleOperation callback.\n\nEvidence: achievements.ts exists at src/lib/interview/achievements.ts. notification-store.ts at src/stores/notification-store.ts.",
+    "acceptanceCriteria": [
+      "At least 5 DS-specific achievements defined",
+      "Achievements fire when conditions are met during DS operations",
+      "Notification toast appears when achievement unlocked",
+      "Achievements visible in existing achievement UI (if any)",
+      "XP awarded for DS achievements"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/interview/achievements.ts",
+      "src/stores/notification-store.ts"
+    ],
+    "dependencies": [
+      "DST-166"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "achievements",
+      "gamification",
+      "wiring"
+    ]
+  },
+  {
+    "id": "DST-168",
+    "epic": "DST",
+    "title": "Add streak counter for DS module using existing SRS infrastructure",
+    "description": "srs.ts (287 lines) already implements FSRS with getRetentionStats computing streakDays. The Interview module uses this. DS module has zero streak tracking.\n\nAdd a lightweight streak counter: track daily DS usage in localStorage. Show streak in sidebar header ('\ud83d\udd25 5 day streak'). Streak increments when user performs any operation on any DS. Streak freezes available (1 per week). Use the existing notification system to show streak milestones.\n\nResearch: Duolingo users with 7-day streaks are 3.6x more likely to stay engaged long-term. Streak wagers boost day-14 retention by 14%.\n\nSource: Duolingo retention mechanics research, Lenny's Newsletter.",
+    "acceptanceCriteria": [
+      "Streak counter visible in DS sidebar header",
+      "Streak increments on daily DS usage",
+      "Streak persists in localStorage",
+      "Streak milestone notifications at 3, 7, 14, 30 days",
+      "Streak freeze available (1 per week, auto-applied)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/stores/notification-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "streak",
+      "gamification",
+      "duolingo",
+      "daily-habit"
+    ]
+  },
+  {
+    "id": "DST-169",
+    "epic": "DST",
+    "title": "Add individual URL routes for all 34 data structures (/ds/[slug])",
+    "description": "ZERO of 34 data structures have crawlable URLs. Everything lives at '/' as client-side state. Google cannot index any DS content. Competitors like algorithm-visualizer.org rank #1 because they have individual URLs.\n\nCreate: src/app/ds/[slug]/page.tsx that renders the DS module with the specified DS pre-selected. URL examples:\n- /ds/bloom-filter\n- /ds/binary-search-tree\n- /ds/consistent-hash-ring\n\nThe slug maps to DS_CATALOG.id. Use Next.js generateStaticParams to pre-render all 34 pages. Each page gets unique meta title/description from the catalog.\n\nEvidence: src/app/sitemap.ts generates URLs for problems, concepts, patterns \u2014 but zero for DS. The OG image system supports custom types but 'data-structure' is not one of them.",
+    "acceptanceCriteria": [
+      "All 34 DS accessible at /ds/[slug] URLs",
+      "Each page has unique <title> and <meta description>",
+      "Pages are server-rendered (SSR/SSG) for SEO",
+      "generateStaticParams pre-renders all 34 pages",
+      "Existing sidebar navigation still works",
+      "Direct URL loads correct DS visualization"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/app/ds/[slug]/page.tsx",
+      "src/lib/data-structures/index.ts",
+      "src/app/sitemap.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "discovery",
+      "seo",
+      "routing",
+      "urls",
+      "indexing"
+    ]
+  },
+  {
+    "id": "DST-170",
+    "epic": "DST",
+    "title": "Add DS pages to sitemap.ts and generate JSON-LD structured data",
+    "description": "sitemap.ts lists problems, blog posts, concepts, patterns, LLD, company pages \u2014 zero DS pages. JSON-LD infrastructure exists (generateLearningResourceJsonLd in seo/json-ld.ts) but is never called for DS.\n\nAdd all 34 DS to sitemap.ts using the /ds/[slug] routes (requires DST-169). Generate JSON-LD LearningResource schema for each DS page with: name, description, educationalLevel, teaches, timeRequired.\n\nResearch: Pages with structured data get 30% more clicks (BrightEdge). GPT-4 accuracy goes from 16% to 54% with structured content.\n\nSource: searchengineland.com structured data 2025, digidop.com structured data AI.",
+    "acceptanceCriteria": [
+      "All 34 DS pages in sitemap.ts",
+      "Each DS page has JSON-LD LearningResource schema",
+      "Schema includes name, description, educationalLevel from DS_CATALOG",
+      "Google Rich Results Test passes for DS pages",
+      "AI search engines can parse DS content from structured data"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/app/sitemap.ts",
+      "src/app/ds/[slug]/page.tsx",
+      "src/lib/seo/json-ld.ts"
+    ],
+    "dependencies": [
+      "DST-169"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "discovery",
+      "seo",
+      "sitemap",
+      "json-ld",
+      "structured-data"
+    ]
+  },
+  {
+    "id": "DST-171",
+    "epic": "DST",
+    "title": "Add Open Graph images and social sharing for DS pages",
+    "description": "OG image system exists at src/app/api/og/route.tsx supporting concept/problem/pattern types but NOT 'data-structure'. Sharing any DS page shows generic Architex preview \u2014 no DS-specific image.\n\nAdd 'data-structure' type to OG image generator. Auto-generate preview image showing: DS name, category badge, complexity summary, and a mini visualization thumbnail. Add Share button to DS controls bar that copies the /ds/[slug] URL with current state encoded.\n\nFor social virality: the OG image should look beautiful enough that someone would share it on LinkedIn/Twitter just because it looks good.\n\nResearch: Native format content (images, short video) get 3-5x more engagement than external links on social platforms.",
+    "acceptanceCriteria": [
+      "Each DS page has unique Open Graph image",
+      "OG image shows DS name, category, and complexity summary",
+      "Share button copies URL with current DS state",
+      "Shared links render beautiful preview cards on Twitter/LinkedIn",
+      "OG image auto-generated (not manually created per DS)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/app/api/og/route.tsx",
+      "src/app/ds/[slug]/page.tsx",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-169"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "discovery",
+      "social",
+      "sharing",
+      "og-image",
+      "viral"
+    ]
+  },
+  {
+    "id": "DST-172",
+    "epic": "DST",
+    "title": "Create DS template generator CLI for adding new data structures",
+    "description": "Adding a new DS requires 9 mandatory edits across 2-3 files with zero scaffolding. Estimated 6-14 hours per DS. Other modules have guides (adding-an-algorithm.md, adding-a-node.md) but DS has none.\n\nCreate a CLI script: `pnpm run add-ds --name 'Cuckoo Hash' --id cuckoo-hash --category hash`\n\nThis should:\n1. Create src/lib/data-structures/cuckoo-hash.ts with type stubs and operation function signatures\n2. Add exports to index.ts barrel\n3. Add DSConfig entry to DS_CATALOG with placeholder description\n4. Add type to ActiveDS union\n5. Add state field to DSModuleState\n6. Add initial state to INITIAL_STATE\n7. Add operation handler case stub\n8. Add random handler case stub\n9. Add reset handler field\n10. Add canvas component stub\n11. Create test file stub\n\nThis reduces add-DS time from 6-14 hours to 2-4 hours.\n\nEvidence: 9 locations documented in operations audit.",
+    "acceptanceCriteria": [
+      "CLI generates all required file stubs from name + id + category",
+      "Generated code compiles without errors",
+      "New DS appears in sidebar after generation",
+      "All 9 mandatory locations are scaffolded",
+      "Test file stub created with basic test structure"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "scripts/add-ds.ts",
+      "src/lib/data-structures/index.ts",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "operations",
+      "developer-experience",
+      "scaffolding",
+      "content-pipeline"
+    ]
+  },
+  {
+    "id": "DST-173",
+    "epic": "DST",
+    "title": "Write 'Adding a Data Structure' content author guide",
+    "description": "docs/guides/ has guides for adding-a-module.md, adding-a-node.md, adding-an-algorithm.md, adding-a-template.md \u2014 but NO adding-a-data-structure.md. Content contributors have zero reference documentation.\n\nWrite comprehensive guide covering:\n1. Architecture overview (engine file \u2192 index.ts \u2192 DataStructuresModule.tsx)\n2. Step-by-step instructions for all 9 mandatory change locations\n3. Naming conventions (file naming, function prefixes, state field names)\n4. Quality checklist (what makes a DS 'done')\n5. Example walkthrough: adding a new DS end-to-end\n6. Step description guidelines (WHY not just WHAT)\n7. Visualization guidelines (colors, animation, metaphor)\n8. Testing requirements\n\nUse the heap-ds.ts implementation as the reference 'gold standard' example (highest quality in the module per implementation audit).",
+    "acceptanceCriteria": [
+      "Guide exists at docs/guides/adding-a-data-structure.md",
+      "Covers all 9 mandatory change locations with file:line references",
+      "Includes quality checklist with minimum requirements",
+      "References heap-ds.ts as the gold standard implementation",
+      "A developer could follow the guide to add a new DS without asking questions"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "docs/guides/adding-a-data-structure.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "operations",
+      "documentation",
+      "content-author",
+      "guide"
+    ]
+  },
+  {
+    "id": "DST-174",
+    "epic": "DST",
+    "title": "Add embeddable widget \u2014 iframe code for DS visualizations in blog posts",
+    "description": "Zero embed/export features exist for DS. Content creators and professors need to embed interactive DS visualizations in their blog posts, slides, and course websites.\n\nCreate an embed endpoint: /embed/ds/[slug] that renders ONLY the canvas + controls (no sidebar, no properties panel, no module chrome). Add an 'Embed' button in DS controls that shows the iframe code:\n\n<iframe src='https://architex.dev/embed/ds/bloom-filter' width='600' height='400'></iframe>\n\nThe embed should be lightweight (~50KB), load fast, and be interactive (user can perform operations).\n\nResearch: Embeddable widgets drive organic discovery \u2014 every blog post embedding the widget is a backlink + traffic source.",
+    "acceptanceCriteria": [
+      "Embed endpoint renders DS canvas only (no app chrome)",
+      "Embed button in controls shows copyable iframe code",
+      "Embedded visualization is interactive (insert/delete/search work)",
+      "Embed loads under 100KB and renders within 2 seconds",
+      "Works in common platforms (WordPress, Medium, Ghost, Notion)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/app/embed/ds/[slug]/page.tsx",
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-169",
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "discovery",
+      "embed",
+      "widget",
+      "content-creator",
+      "organic-growth"
+    ]
+  },
+  {
+    "id": "DST-175",
+    "epic": "DST",
+    "title": "Wire DS module to existing SRS for spaced repetition review prompts",
+    "description": "srs.ts implements full FSRS spaced repetition. When a student explores a DS and answers prediction questions (DST-149), create an SRS review card. After N days, prompt: 'You learned Bloom Filter 3 days ago \u2014 time to check your recall!'\n\nThis is the Ebbinghaus forgetting curve solution. Students forget 80% within a week without review. SRS schedules reviews at optimal intervals.\n\nWire: After completing a prediction challenge (DST-149) or manual trace (DST-150) for a DS, call createCard from srs.ts. On module load, check getDueCards \u2014 if any DS cards are due, show a review prompt banner.\n\nSource: Kang 2016, meta-analysis showing Cohen's d = 0.54-0.80 for spaced retrieval practice.",
+    "acceptanceCriteria": [
+      "SRS cards created when student completes DS practice activities",
+      "getDueCards checked on module load",
+      "Review prompt banner shown for due DS topics",
+      "Clicking review prompt opens the DS with a prediction challenge",
+      "SRS scheduling follows FSRS algorithm from existing srs.ts"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/lib/interview/srs.ts"
+    ],
+    "dependencies": [
+      "DST-149"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "retention",
+      "spaced-repetition",
+      "srs",
+      "forgetting-curve",
+      "review"
+    ]
+  }
+]

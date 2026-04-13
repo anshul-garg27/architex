@@ -1,0 +1,163 @@
+[
+  {
+    "id": "DST-176",
+    "epic": "DST",
+    "title": "Replace linear easing with spring physics across all DS animations",
+    "description": "ALL 28+ canvas components use transition={{ duration: 0.3 }} \u2014 flat linear/ease timing. This makes everything feel mechanical and lifeless. Apple-quality animations use spring physics.\n\nReplace all framer-motion transitions with spring-based easing:\n- Highlight state changes: spring({ damping: 25, stiffness: 400 }) \u2014 snappy\n- Node insertions: spring({ damping: 20, stiffness: 300 }) \u2014 bouncy entrance\n- Node removals: { duration: 0.2, ease: 'easeIn' } \u2014 quick exit\n- Layout shifts (tree rebalance): spring({ damping: 30, stiffness: 200 }) \u2014 smooth repositioning\n\nSearch DataStructuresModule.tsx for all 'transition:' props and replace.\n\nSource: framer-motion spring docs, Apple Human Interface Guidelines.",
+    "acceptanceCriteria": [
+      "Zero instances of transition={{ duration: 0.3 }} remain",
+      "All animations use spring physics or intentional easing curves",
+      "Insert animations feel 'bouncy' \u2014 elements arrive with spring overshoot",
+      "State transitions (comparing \u2192 found) feel 'snappy' \u2014 fast settle",
+      "Animations still respect prefers-reduced-motion (DST-078)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "animation",
+      "spring-physics",
+      "polish"
+    ]
+  },
+  {
+    "id": "DST-177",
+    "epic": "DST",
+    "title": "Add depth and glow effects to node elements \u2014 shadows, gradients, halos",
+    "description": "Currently all nodes are flat circles/rectangles with solid borders. No depth, no glow, no gradients. This makes everything look like a wireframe, not a polished product.\n\nAdd:\n- Subtle box-shadow/filter: drop-shadow on SVG nodes (2px blur, 4px spread, primary color at 20%)\n- Gradient fills: instead of flat #1f2937, use radial gradient from center-light to edge-dark\n- Active state glow: when a node is highlighted, add a soft glow ring (filter: blur + opacity)\n- Depth layers: edges behind nodes (currently they overlap sometimes)\n\nReference: 3Blue1Brown manim style \u2014 nodes have subtle gradients and glow on highlight.\n\nSource: CSS filter: drop-shadow for SVG, radialGradient SVG element.",
+    "acceptanceCriteria": [
+      "All SVG nodes have subtle drop-shadow or gradient fill",
+      "Active/highlighted nodes have visible glow effect",
+      "Edges render behind nodes (proper z-ordering)",
+      "Effects are subtle \u2014 enhance, not distract",
+      "Performance acceptable (no jank on 20+ node trees)"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "polish",
+      "glow",
+      "gradient",
+      "depth"
+    ]
+  },
+  {
+    "id": "DST-178",
+    "epic": "DST",
+    "title": "Create Architex signature color palette for DS visualizations with design tokens",
+    "description": "Current DS_COLORS uses raw hex values (#6b7280, #3b82f6, etc.) that are generic Tailwind colors. No brand identity. No dark/light mode awareness. Research shows limiting to 5-7 hues maximum with 11 steps each for contrast across modes.\n\nDesign a signature 'Architex DS' palette:\n- 5 semantic hues: Explore (blue), Compare (amber), Success (emerald), Danger (rose), Neutral (slate)\n- Each with 11 lightness steps (50-950)\n- Dark mode: steps 50-500 meet 3:1 contrast on dark surfaces\n- Light mode: steps 500-950 meet 3:1 contrast on light surfaces\n- Implement as CSS custom properties: --ds-explore-500, --ds-compare-300, etc.\n\nSource: AWS Cloudscape data-vis colors, Datawrapper color guide, CleanChart 2026 palettes.",
+    "acceptanceCriteria": [
+      "5-hue semantic palette defined as CSS custom properties",
+      "11 lightness steps per hue",
+      "All DS_COLORS map values reference CSS variables",
+      "Palette works in both dark and light mode",
+      "3:1 minimum contrast ratio for all text-on-background combinations",
+      "Palette is visually distinctive \u2014 recognizable as 'Architex'"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx",
+      "src/app/globals.css"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "color",
+      "design-tokens",
+      "brand",
+      "palette"
+    ]
+  },
+  {
+    "id": "DST-179",
+    "epic": "DST",
+    "title": "Add staggered entry animations when data structure first renders",
+    "description": "When navigating to a DS or clicking Random, all elements appear simultaneously. This is flat and lifeless. Apple-quality UIs use staggered animations \u2014 elements appear one by one in sequence.\n\nAdd stagger to:\n- Array: cells fade in left-to-right with 30ms delay between each\n- Tree: nodes appear top-down, level by level, with edges drawing after nodes\n- Hash Table: buckets appear top-to-bottom with chains sliding in from left\n- Bloom Filter: bits ripple in from left-to-right\n- Consistent Hash Ring: ring draws first, then nodes appear, then keys animate in\n\nUse framer-motion variants with staggerChildren.\n\nSource: framer-motion stagger docs, Apple WWDC animation guidelines.",
+    "acceptanceCriteria": [
+      "Elements appear sequentially, not all at once",
+      "Stagger delay is 20-50ms between elements (fast but perceptible)",
+      "Tree visualizations animate level-by-level (root first, then children)",
+      "Edges animate AFTER their connected nodes are visible",
+      "Random/Reset triggers the entry animation"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-069"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "animation",
+      "stagger",
+      "entry",
+      "polish"
+    ]
+  },
+  {
+    "id": "DST-180",
+    "epic": "DST",
+    "title": "Increase highlight state visibility \u2014 brighter colors, scale pulse, border glow",
+    "description": "Current highlight states add color + '20' (12.5% opacity) as background. This is barely visible, especially on dark backgrounds. From the BST screenshot, highlighted nodes look almost identical to non-highlighted ones unless zoomed in.\n\nIncrease visibility:\n- Background: from color+'20' to color+'40' (25% opacity) minimum\n- Border: from 2.5px solid to 3px solid with matching glow (box-shadow: 0 0 8px color)\n- Scale: active node scales to 1.05x during highlight (transform: scale(1.05))\n- Pulse: comparing state adds a subtle pulse animation (0.5s ease-in-out infinite alternate)\n\nThe goal: a student should be able to see which element is active from 3 feet away.",
+    "acceptanceCriteria": [
+      "Highlighted elements are clearly visible from normal viewing distance",
+      "Active/comparing state has visible glow effect",
+      "Scale pulse on active elements (1.05x)",
+      "Background opacity minimum 25% (not 12.5%)",
+      "Different states (comparing vs found vs done) are visually distinct at a glance"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "highlight",
+      "visibility",
+      "accessibility"
+    ]
+  }
+]

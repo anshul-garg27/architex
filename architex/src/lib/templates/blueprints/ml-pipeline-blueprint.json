@@ -1,0 +1,137 @@
+{
+  "id": "bp-ml-pipeline",
+  "name": "ML Pipeline Platform — Production Blueprint",
+  "description": "End-to-end machine learning platform with feature store, training orchestration, model registry, A/B testing, and real-time inference serving. Supports hundreds of models in production.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["ml-pipeline", "feature-store", "model-serving", "training", "mlops", "blueprint"],
+  "nodes": [
+    { "id": "data-sources", "type": "client", "position": { "x": 0, "y": 250 }, "data": { "label": "Data Sources", "category": "client", "componentType": "web-client", "icon": "Database", "config": { "sourceCount": 20, "dailyDataGB": 500 }, "state": "idle" } },
+    { "id": "feature-pipeline", "type": "web-server", "position": { "x": 200, "y": 100 }, "data": { "label": "Feature Pipeline (Spark)", "category": "compute", "componentType": "web-server", "icon": "Workflow", "config": { "instances": 15, "featureCount": 5000, "batchIntervalHours": 1 }, "state": "idle" } },
+    { "id": "feature-store", "type": "database", "position": { "x": 400, "y": 100 }, "data": { "label": "Feature Store (Feast)", "category": "storage", "componentType": "nosql-db", "icon": "Database", "config": { "type": "feast", "onlineStore": "redis", "offlineStore": "s3-parquet", "featureViews": 200 }, "state": "idle" } },
+    { "id": "training-orchestrator", "type": "web-server", "position": { "x": 200, "y": 300 }, "data": { "label": "Training Orchestrator", "category": "compute", "componentType": "web-server", "icon": "PlayCircle", "config": { "instances": 4, "maxConcurrentJobs": 50, "orchestrator": "kubeflow" }, "state": "idle" } },
+    { "id": "gpu-cluster", "type": "web-server", "position": { "x": 400, "y": 300 }, "data": { "label": "GPU Training Cluster", "category": "compute", "componentType": "web-server", "icon": "Cpu", "config": { "gpuCount": 32, "gpuType": "A100", "memoryGB": 2048, "distributedTraining": true }, "state": "idle" } },
+    { "id": "experiment-tracker", "type": "web-server", "position": { "x": 400, "y": 450 }, "data": { "label": "Experiment Tracker (MLflow)", "category": "compute", "componentType": "web-server", "icon": "FlaskConical", "config": { "instances": 2, "totalExperiments": 10000, "artifactStorageGB": 5000 }, "state": "idle" } },
+    { "id": "model-registry", "type": "database", "position": { "x": 600, "y": 300 }, "data": { "label": "Model Registry", "category": "storage", "componentType": "postgresql", "icon": "Package", "config": { "type": "postgresql", "totalModels": 500, "totalVersions": 5000, "storageGB": 100 }, "state": "idle" } },
+    { "id": "model-validator", "type": "web-server", "position": { "x": 600, "y": 450 }, "data": { "label": "Model Validator", "category": "compute", "componentType": "web-server", "icon": "ShieldCheck", "config": { "instances": 3, "validationTests": 50, "biasChecks": true }, "state": "idle" } },
+    { "id": "inference-service", "type": "web-server", "position": { "x": 800, "y": 200 }, "data": { "label": "Inference Service", "category": "compute", "componentType": "web-server", "icon": "Sparkles", "config": { "instances": 16, "gpuEnabled": true, "batchInference": true, "p99LatencyMs": 50 }, "state": "idle" } },
+    { "id": "ab-test-service", "type": "web-server", "position": { "x": 800, "y": 350 }, "data": { "label": "A/B Test Router", "category": "compute", "componentType": "web-server", "icon": "GitBranch", "config": { "instances": 4, "activeCampaigns": 20, "trafficSplitGranularity": 1 }, "state": "idle" } },
+    { "id": "model-cache", "type": "cache", "position": { "x": 1000, "y": 100 }, "data": { "label": "Prediction Cache (Redis)", "category": "storage", "componentType": "redis", "icon": "Zap", "config": { "type": "redis", "memoryGB": 32, "ttlSeconds": 300, "cacheHitRate": 0.40 }, "state": "idle" } },
+    { "id": "monitoring-service", "type": "web-server", "position": { "x": 1000, "y": 300 }, "data": { "label": "Model Monitor", "category": "compute", "componentType": "web-server", "icon": "BarChart3", "config": { "instances": 3, "driftDetectionInterval": 3600, "metricsRetentionDays": 90 }, "state": "idle" } },
+    { "id": "event-bus", "type": "message-queue", "position": { "x": 600, "y": 100 }, "data": { "label": "Kafka (ML Events)", "category": "messaging", "componentType": "kafka", "icon": "ArrowRightLeft", "config": { "partitions": 16, "retentionHours": 168, "throughputMbps": 200 }, "state": "idle" } },
+    { "id": "artifact-store", "type": "database", "position": { "x": 200, "y": 500 }, "data": { "label": "Artifact Store (S3)", "category": "storage", "componentType": "object-storage", "icon": "HardDrive", "config": { "type": "s3", "storageTB": 50, "versioningEnabled": true }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-data-feature", "source": "data-sources", "target": "feature-pipeline", "type": "data-flow", "data": { "edgeType": "batch", "latency": 60000, "animated": false } },
+    { "id": "e-data-train", "source": "data-sources", "target": "training-orchestrator", "type": "data-flow", "data": { "edgeType": "batch", "latency": 1000, "animated": false } },
+    { "id": "e-feature-store-write", "source": "feature-pipeline", "target": "feature-store", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 100, "animated": true } },
+    { "id": "e-train-gpu", "source": "training-orchestrator", "target": "gpu-cluster", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 10, "animated": true } },
+    { "id": "e-gpu-features", "source": "gpu-cluster", "target": "feature-store", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 50, "animated": false } },
+    { "id": "e-gpu-experiment", "source": "gpu-cluster", "target": "experiment-tracker", "type": "data-flow", "data": { "edgeType": "http", "latency": 10, "animated": true } },
+    { "id": "e-gpu-registry", "source": "gpu-cluster", "target": "model-registry", "type": "data-flow", "data": { "edgeType": "http", "latency": 50, "animated": true } },
+    { "id": "e-gpu-artifacts", "source": "gpu-cluster", "target": "artifact-store", "type": "data-flow", "data": { "edgeType": "s3-put", "latency": 200, "animated": false } },
+    { "id": "e-registry-validator", "source": "model-registry", "target": "model-validator", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 5, "animated": true } },
+    { "id": "e-registry-inference", "source": "model-registry", "target": "inference-service", "type": "data-flow", "data": { "edgeType": "http", "latency": 100, "animated": true } },
+    { "id": "e-feature-kafka", "source": "feature-store", "target": "event-bus", "type": "data-flow", "data": { "edgeType": "async", "latency": 5, "animated": false } },
+    { "id": "e-inference-features", "source": "inference-service", "target": "feature-store", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 5, "animated": true } },
+    { "id": "e-inference-cache", "source": "inference-service", "target": "model-cache", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true } },
+    { "id": "e-inference-ab", "source": "inference-service", "target": "ab-test-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 2, "animated": true } },
+    { "id": "e-inference-monitor", "source": "inference-service", "target": "monitoring-service", "type": "data-flow", "data": { "edgeType": "async", "latency": 10, "animated": false } },
+    { "id": "e-kafka-monitor", "source": "event-bus", "target": "monitoring-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 50, "animated": false } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-gpu-failure", "name": "GPU Node Failure", "description": "A GPU node crashes mid-training, losing an hour of training progress", "targetNodes": ["gpu-cluster"], "faultType": "crash", "severity": 3, "expectedBehavior": "Training job restarts from last checkpoint. 1-2 hours of compute wasted. Other training jobs unaffected.", "mitigationSteps": ["Automatic job restart from checkpoint", "Kubernetes rescheduler allocates new GPU node", "Alert on repeated failures", "Consider spot instance interruption patterns"] },
+      { "id": "cs-feature-store-stale", "name": "Feature Store Stale Data", "description": "Feature pipeline fails silently, serving stale features for inference", "targetNodes": ["feature-store", "feature-pipeline"], "faultType": "data-corruption", "severity": 4, "expectedBehavior": "Inference continues with stale features. Model predictions degrade. Monitoring detects drift after detection window.", "mitigationSteps": ["Feature freshness monitoring alerts", "Automatic fallback to backup feature computation", "Pause affected models if staleness exceeds threshold", "Fix and rerun feature pipeline"] },
+      { "id": "cs-model-drift", "name": "Sudden Model Drift", "description": "Data distribution shifts dramatically (e.g., market crash), causing model accuracy to drop", "targetNodes": ["inference-service", "monitoring-service"], "faultType": "error", "severity": 4, "expectedBehavior": "Model predictions become unreliable. Monitoring detects accuracy/drift metrics exceeding thresholds. A/B test metrics diverge.", "mitigationSteps": ["Monitoring triggers drift alert", "Automatically route traffic to fallback model", "Trigger emergency retraining on recent data", "Human review before deploying retrained model"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 5000, "bottleneckNode": "inference-service", "metric": "cpu", "description": "Model inference CPU-bound for complex models", "resolution": "Enable GPU inference, implement model batching" },
+      { "rpsThreshold": 10000, "bottleneckNode": "feature-store", "metric": "connections", "description": "Online feature store (Redis) connection pool exhausted", "resolution": "Add Redis shards, implement connection pooling" },
+      { "rpsThreshold": 20000, "bottleneckNode": "model-cache", "metric": "memory", "description": "Prediction cache memory pressure from diverse request patterns", "resolution": "Increase cache size, improve cache key design" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-training-infra-cost", "title": "GPU Cost Overrun", "description": "Long-running hyperparameter sweeps consume GPU budget faster than planned", "affectedNodes": ["gpu-cluster", "training-orchestrator"], "likelihood": 4, "impact": 3, "mitigation": "GPU budget limits per team, spot instances for non-urgent jobs, early stopping" },
+      { "id": "ei-feature-skew", "title": "Training-Serving Feature Skew", "description": "Features computed differently in training (batch) vs serving (real-time)", "affectedNodes": ["feature-store", "inference-service"], "likelihood": 3, "impact": 4, "mitigation": "Shared feature computation logic, feature store as single source of truth, skew detection tests" },
+      { "id": "ei-model-regression", "title": "Silently Deployed Bad Model", "description": "New model version passes validation but underperforms in production", "affectedNodes": ["model-registry", "inference-service"], "likelihood": 3, "impact": 4, "mitigation": "Canary deployments, gradual rollout via A/B testing, automatic rollback on metric regression" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 120000,
+      "components": [
+        { "nodeId": "gpu-cluster", "label": "GPU Training Cluster", "monthlyCostUsd": 50000, "costDriver": "32x A100 GPUs (mix of on-demand and spot)" },
+        { "nodeId": "inference-service", "label": "Inference Service", "monthlyCostUsd": 20000, "costDriver": "16 GPU instances for real-time serving" },
+        { "nodeId": "feature-pipeline", "label": "Feature Pipeline (Spark)", "monthlyCostUsd": 10000, "costDriver": "15 worker nodes" },
+        { "nodeId": "feature-store", "label": "Feature Store", "monthlyCostUsd": 8000, "costDriver": "Redis online + S3 offline storage" },
+        { "nodeId": "artifact-store", "label": "Artifact Store", "monthlyCostUsd": 5000, "costDriver": "50TB S3 with versioning" },
+        { "nodeId": "event-bus", "label": "Kafka", "monthlyCostUsd": 3000, "costDriver": "3 brokers" },
+        { "nodeId": "model-cache", "label": "Prediction Cache", "monthlyCostUsd": 3000, "costDriver": "Redis 32GB" },
+        { "nodeId": "experiment-tracker", "label": "MLflow", "monthlyCostUsd": 2000, "costDriver": "2 instances + storage" },
+        { "nodeId": "monitoring-service", "label": "Model Monitor", "monthlyCostUsd": 2500, "costDriver": "3 instances" },
+        { "nodeId": "model-registry", "label": "Model Registry DB", "monthlyCostUsd": 1500, "costDriver": "PostgreSQL" },
+        { "nodeId": "ab-test-service", "label": "A/B Test Router", "monthlyCostUsd": 2000, "costDriver": "4 instances" },
+        { "nodeId": "model-validator", "label": "Model Validator", "monthlyCostUsd": 1500, "costDriver": "3 instances" },
+        { "nodeId": "training-orchestrator", "label": "Training Orchestrator", "monthlyCostUsd": 1500, "costDriver": "4 instances" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Startup (5 models)", "rps": 1000, "monthlyCostUsd": 20000 },
+        { "label": "Growth (50 models)", "rps": 5000, "monthlyCostUsd": 60000 },
+        { "label": "Scale (200 models)", "rps": 20000, "monthlyCostUsd": 120000 },
+        { "label": "Enterprise (1000 models)", "rps": 100000, "monthlyCostUsd": 500000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 20000, "trafficProfile": "steady", "p50LatencyMs": 20, "p99LatencyMs": 100, "availabilityTarget": 99.9, "maxErrorRatePercent": 0.1, "throughputRps": 20000 },
+    "scalingPolicies": [
+      { "nodeId": "inference-service", "metric": "gpu_utilization", "threshold": 75, "scaleUpStep": 2, "scaleDownStep": 1, "cooldownSeconds": 120, "minInstances": 4, "maxInstances": 64 },
+      { "nodeId": "gpu-cluster", "metric": "queue_depth", "threshold": 10, "scaleUpStep": 4, "scaleDownStep": 2, "cooldownSeconds": 300, "minInstances": 8, "maxInstances": 64 }
+    ],
+    "slaDefinitions": [
+      { "name": "Inference Latency", "metric": "p99_inference_ms", "target": 100, "unit": "ms", "penalty": "5% credit per 20ms over target" },
+      { "name": "Model Freshness", "metric": "model_age_hours", "target": 24, "unit": "hours", "penalty": "Model must be retrained within 24h of drift detection" },
+      { "name": "Feature Freshness", "metric": "feature_staleness_min", "target": 60, "unit": "minutes", "penalty": "Features must be <1h old for online serving" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "inference_latency", "type": "histogram", "description": "Model inference time including feature fetch", "nodeId": "inference-service" },
+        { "name": "prediction_drift", "type": "gauge", "description": "KL divergence between training and serving distributions", "nodeId": "monitoring-service" },
+        { "name": "feature_freshness", "type": "gauge", "description": "Age of features in online store", "nodeId": "feature-store" },
+        { "name": "training_gpu_utilization", "type": "gauge", "description": "GPU utilization during training", "nodeId": "gpu-cluster" },
+        { "name": "ab_test_conversion", "type": "gauge", "description": "Conversion rate per A/B test variant", "nodeId": "ab-test-service" }
+      ],
+      "alerts": [
+        { "name": "Model Drift Detected", "condition": "prediction_drift > 0.1 for 1h", "severity": "warning", "channel": "slack-ml-eng" },
+        { "name": "Inference Latency SLA", "condition": "p99_inference > 100ms for 5min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Feature Pipeline Failed", "condition": "feature_pipeline_status = failed", "severity": "critical", "channel": "pagerduty" },
+        { "name": "GPU Budget Alert", "condition": "daily_gpu_spend > budget * 1.2", "severity": "warning", "channel": "slack-ml-eng" }
+      ],
+      "dashboards": ["Model Performance", "Training Pipeline", "Feature Store", "Inference Health", "A/B Test Results"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call ML Engineer", "responseTimeMinutes": 5, "contacts": ["oncall-ml-eng"] },
+        { "level": 2, "name": "ML Platform Lead", "responseTimeMinutes": 15, "contacts": ["ml-platform-lead"] },
+        { "level": 3, "name": "VP ML", "responseTimeMinutes": 30, "contacts": ["vp-ml"] }
+      ],
+      "runbooks": [
+        { "incident": "Model accuracy regression", "severity": "high", "steps": ["Check model monitoring dashboard", "Compare with previous model version", "Rollback to previous model version", "Investigate data quality and feature freshness", "Retrain if data issue resolved"], "automatedRecovery": true },
+        { "incident": "Feature pipeline failure", "severity": "critical", "steps": ["Check Spark job logs", "Verify data source availability", "Restart pipeline from checkpoint", "If stale features: alert downstream model owners"], "automatedRecovery": true },
+        { "incident": "GPU cluster outage", "severity": "high", "steps": ["Check Kubernetes node status", "Reschedule training jobs", "Request additional GPU quota", "Prioritize production model retraining"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Feature Store as Central Hub", "context": "Training and serving need consistent features. Computing features differently leads to skew.", "decision": "Use Feast feature store as single source of truth for both training (offline) and serving (online) features.", "consequences": ["Eliminates training-serving skew", "Centralized feature governance and reuse", "Additional infrastructure component to maintain"] },
+      { "title": "Canary Deployments via A/B Testing", "context": "New model versions may underperform. Need safe rollout mechanism.", "decision": "Route a small percentage of traffic to new model version, measure metrics, then gradually increase.", "consequences": ["Safe model rollout with automatic rollback", "Statistical rigor in model comparison", "Slower deployment cycle (days instead of minutes)"] },
+      { "title": "Continuous Model Monitoring", "context": "Models degrade over time as data distributions shift.", "decision": "Continuous monitoring of prediction drift, feature drift, and business metrics with automated retraining triggers.", "consequences": ["Early detection of model degradation", "Automated retraining pipeline", "Monitoring infrastructure adds cost and complexity"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Cost vs Training Speed", "choice": "Cost with spot instances", "benefit": "60-70% cost reduction using spot GPU instances", "cost": "Training jobs may be interrupted, requiring checkpointing" },
+      { "dimension": "Latency vs Accuracy", "choice": "Latency for serving, accuracy for training", "benefit": "Smaller distilled models for real-time serving, full models for batch", "cost": "Model distillation adds pipeline complexity" },
+      { "dimension": "Automation vs Control", "choice": "Automation with human gates", "benefit": "Automated training and validation, human approval for production deployment", "cost": "Slower time to production for new models" }
+    ],
+    "alternatives": [
+      { "name": "Managed ML Platform (SageMaker)", "description": "Use AWS SageMaker for end-to-end ML lifecycle", "prosVsCons": "Pros: managed infrastructure, integrated tools. Cons: vendor lock-in, less customization, higher cost at scale", "whyNotChosen": "Need full control over training infrastructure and custom model serving patterns" },
+      { "name": "Shadow Mode Instead of A/B Testing", "description": "Run new model in shadow mode logging predictions without serving them", "prosVsCons": "Pros: zero risk to users. Cons: cannot measure actual user behavior changes", "whyNotChosen": "A/B testing measures real business impact, not just prediction accuracy" }
+    ]
+  }
+}

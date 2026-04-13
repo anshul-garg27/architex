@@ -1,0 +1,102 @@
+[
+  {
+    "id": "MLD-175",
+    "epic": "MLD",
+    "title": "Unify ActivationType and ActivationName into single ActivationFunction type",
+    "description": "Two incompatible activation type unions exist:\n- neural-net.ts:10 — `ActivationType = 'relu' | 'sigmoid' | 'tanh'`\n- neural-network.ts:31 — `ActivationName = 'relu' | 'sigmoid' | 'tanh' | 'leakyRelu'`\n\nActivationName is a strict superset of ActivationType. Code accepting ActivationType silently rejects 'leakyRelu'. This is a subset incompatibility that will cause bugs when the implementations are consolidated (MLD-035).\n\nFix: Create one canonical type:\n```typescript\nexport type ActivationFunction = 'relu' | 'sigmoid' | 'tanh' | 'leakyRelu' | 'softmax' | 'linear';\n```\nExport from index.ts. Update all consumers.",
+    "acceptanceCriteria": ["Single ActivationFunction type exported from index.ts", "neural-net.ts imports and uses this type", "neural-network.ts imports and uses this type", "MLDesignModule.tsx ACTIVATION_OPTIONS uses this type", "No duplicate activation type definitions remain"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/neural-net.ts", "src/lib/ml-design/neural-network.ts", "src/lib/ml-design/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "consistency", "naming"]
+  },
+  {
+    "id": "MLD-176",
+    "epic": "MLD",
+    "title": "Unify TrainingState and EpochMetrics into single TrainingEpochResult type",
+    "description": "Two types represent per-epoch training results:\n- neural-net.ts:19 — `TrainingState` with epoch, loss, accuracy, activations[][]\n- neural-network.ts:43 — `EpochMetrics` with epoch, loss, accuracy (no activations)\n\nSame concept, different names and shapes. Merge into one type with optional activations:\n```typescript\nexport interface TrainingEpochResult {\n  epoch: number;\n  loss: number;\n  accuracy: number;\n  activations?: number[][];  // optional — only populated by simple NN\n}\n```",
+    "acceptanceCriteria": ["Single TrainingEpochResult type exported from index.ts", "Both NN implementations use this type for onEpoch callback", "MLDesignModule.tsx trainingLog uses TrainingEpochResult[]", "activations field is optional (present in simple NN, absent in advanced)"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/neural-net.ts", "src/lib/ml-design/neural-network.ts", "src/lib/ml-design/index.ts"],
+    "dependencies": ["MLD-175"], "blockedBy": [], "tags": ["types", "consistency", "naming"]
+  },
+  {
+    "id": "MLD-177",
+    "epic": "MLD",
+    "title": "Consolidate Dataset and GeneratedDataset into single format",
+    "description": "Two incompatible dataset formats:\n- datasets.ts:10 — `Dataset { points: [number,number][]; labels: number[] }` (parallel arrays)\n- dataset-generators.ts:16 — `GeneratedDataset { points: DatasetPoint[]; bounds: Bounds }` (object array)\n\nParallel arrays are error-prone (points[i] must match labels[i]). Object-array format is safer and includes bounds for rendering.\n\nConsolidate to GeneratedDataset format. Update MLDesignModule.tsx to use DatasetPoint[] instead of [number,number][] + number[].\n\nBlocked by MLD-035 (consolidate NN implementations) since the simple NN expects parallel array format.",
+    "acceptanceCriteria": ["Single dataset format used throughout the module", "DatasetPoint { x, y, label } is the canonical point type", "GeneratedDataset with bounds is the canonical dataset type", "datasets.ts either updated or deleted", "All visualizations (ScatterPlot, DecisionBoundary) updated to use DatasetPoint"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/datasets.ts", "src/lib/ml-design/dataset-generators.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-035"], "blockedBy": ["MLD-035"], "tags": ["types", "consistency", "schema"]
+  },
+  {
+    "id": "MLD-178",
+    "epic": "MLD",
+    "title": "Narrow BanditStep.strategy from string to literal union type",
+    "description": "multi-armed-bandit.ts:26 defines `strategy: string` which accepts any string. Should be a literal union:\n```typescript\ntype BanditStrategyName = 'epsilon-greedy' | 'ucb1' | 'thompson-sampling';\n\ninterface BanditStep {\n  strategy: BanditStrategyName;  // was: string\n  // ...\n}\n```\nThis enables exhaustive switch checking in consumers and prevents typos.",
+    "acceptanceCriteria": ["BanditStep.strategy typed as literal union, not string", "BanditStrategy type in MLDesignModule.tsx matches the same union", "TypeScript catches if a new strategy is added to simulators but not to the union", "No runtime behavior change"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/multi-armed-bandit.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "narrowing", "safety"]
+  },
+  {
+    "id": "MLD-179",
+    "epic": "MLD",
+    "title": "Narrow FeatureStoreStep.action from string to literal union + make TICK_HIGHLIGHTS exhaustive",
+    "description": "feature-store.ts FeatureStoreStep.action is `string`. MLDesignModule.tsx:2955 TICK_HIGHLIGHTS is `Record<string, ...>`. A typo in action creates a key TICK_HIGHLIGHTS doesn't know about — silent failure, no highlight.\n\nFix:\n```typescript\ntype FeatureStoreAction = \n  | 'data-ingestion' | 'stream-computation' | 'batch-computation'\n  | 'online-store-write' | 'offline-store-write' | 'training-read'\n  | 'serving-read' | 'incremental-update';\n\ninterface FeatureStoreStep {\n  action: FeatureStoreAction;  // narrow from string\n}\n\nconst TICK_HIGHLIGHTS: Record<FeatureStoreAction, ...> = { ... };\n```\nNow TypeScript catches missing/mismatched actions.",
+    "acceptanceCriteria": ["FeatureStoreAction literal union defined and exported", "FeatureStoreStep.action uses this union", "TICK_HIGHLIGHTS typed as Record<FeatureStoreAction, ...>", "TypeScript error if a new action is added to feature-store.ts but not TICK_HIGHLIGHTS", "TypeScript error if TICK_HIGHLIGHTS has a key not in FeatureStoreAction"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/feature-store.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "narrowing", "safety", "exhaustive"]
+  },
+  {
+    "id": "MLD-180",
+    "epic": "MLD",
+    "title": "Replace mode rendering if/else chains with exhaustive switch statements",
+    "description": "MLDesignModule.tsx mode rendering at lines 983-988, 3657-3686, 3688-3715, 3717-3730 uses ternary/if-else chains that don't exhaustively check ModuleMode. Adding a new mode silently falls through to the last else (model-serving as default).\n\nFix: Replace with exhaustive switch statements:\n```typescript\nfunction getCanvas(mode: ModuleMode): ReactNode {\n  switch (mode) {\n    case 'neural-network': return <NNCanvas ... />;\n    case 'pipeline-builder': return <PipelineCanvas ... />;\n    // ...all cases...\n    default: {\n      const _exhaustive: never = mode;\n      return null;\n    }\n  }\n}\n```\nThe `never` assignment causes a compile error if a new ModuleMode value is added but not handled.",
+    "acceptanceCriteria": ["All 4 mode rendering locations use exhaustive switch", "Adding a new ModuleMode value causes TypeScript errors at all 4 locations", "No behavioral change for existing 6 modes", "The 'never' exhaustive check pattern used consistently"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "exhaustive", "extensibility", "safety"]
+  },
+  {
+    "id": "MLD-181",
+    "epic": "MLD",
+    "title": "Extract shared BaseStep interface for all simulation step types",
+    "description": "Three step types share common fields but have no shared base:\n- ServingStep: { tick, description, metrics? }\n- BanditStep: { tick, selectedArm, reward, arms[], strategy }\n- FeatureStoreStep: { tick, action, description, state }\n\nAll have `tick: number`. Most have `description: string`. Extract a shared base:\n```typescript\ninterface BaseSimulationStep {\n  tick: number;\n  description: string;\n}\n\ninterface ServingStep extends BaseSimulationStep {\n  metrics?: Record<string, number>;\n}\n\ninterface BanditStep extends BaseSimulationStep {\n  selectedArm: string;\n  reward: number;\n  arms: BanditArm[];\n  strategy: BanditStrategyName;\n}\n```\nNote: BanditStep currently lacks `description` — it should be added (e.g., 'Round 5: Explored randomly, pulled Arm 3').",
+    "acceptanceCriteria": ["BaseSimulationStep interface with tick + description exported", "All 3 step types extend BaseSimulationStep", "BanditStep gains a description field (generated in simulator)", "Common step rendering can be built on BaseSimulationStep", "No runtime behavior change for existing code"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/serving-patterns.ts", "src/lib/ml-design/multi-armed-bandit.ts", "src/lib/ml-design/feature-store.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "schema", "shared-base"]
+  },
+  {
+    "id": "MLD-182",
+    "epic": "MLD",
+    "title": "Narrow PipelineStage.config from Record<string, string|number> to typed configs",
+    "description": "pipeline-templates.ts:24 uses `config: Record<string, string | number>` which accepts any key-value pair. Config keys are hand-typed strings in each template with zero type checking.\n\nFix: Create per-stage-type config interfaces:\n```typescript\ninterface IngestionConfig {\n  source: string;\n  format: string;\n  partitions: number;\n  retention_hours: number;\n}\ninterface TrainingConfig {\n  model: string;\n  batch_size: number;\n  epochs: number;\n  learning_rate: number;\n  optimizer: string;\n}\n// ... per stage type\n\ntype PipelineStageConfig = IngestionConfig | TrainingConfig | ...;\n```\nThis ensures config keys are correct for each stage type.",
+    "acceptanceCriteria": ["Per-stage-type config interfaces defined", "PipelineStage.config typed as union or generic per stage type", "Existing template configs validated against their type", "TypeScript catches misspelled config keys", "Properties panel rendering updated to use typed configs"],
+    "priority": "P3", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/pipeline-templates.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "narrowing", "schema"]
+  },
+  {
+    "id": "MLD-183",
+    "epic": "MLD",
+    "title": "Create dedicated ML Design Zustand store for persistent state",
+    "description": "ML Design module uses ~30 useState calls in a single hook with zero persistence. All state is lost on module switch or page refresh. Create a dedicated Zustand store:\n```typescript\ninterface MLDesignState {\n  // Persisted\n  lastMode: ModuleMode;\n  nnConfig: { datasetType, layerCount, neuronsPerLayer, activation, learningRate, epochs };\n  \n  // Non-persisted (runtime only)\n  isTraining: boolean;\n  trainingLog: TrainingEpochResult[];\n  trainedNetwork: NeuralNetwork | null;\n  // ... other runtime state\n}\n```\nPersist `lastMode` and `nnConfig` via Zustand persist. Keep runtime state (training results) non-persisted.",
+    "acceptanceCriteria": ["New ml-design-store.ts with Zustand persist", "lastMode and hyperparameter config persisted in localStorage", "Returning to ML Design restores last mode and config", "Runtime state (training results) NOT persisted", "useMLDesignModule hook reads from store instead of useState"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/stores/ml-design-store.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "store", "persistence", "architecture"]
+  },
+  {
+    "id": "MLD-184",
+    "epic": "MLD",
+    "title": "Rename vague types for clarity: Dataset→ClassificationDataset2D, Layer→NeuralNetLayer, Bounds→SpatialBounds2D",
+    "description": "Several type names are vague and could conflict with types from other modules:\n- `Dataset` (datasets.ts:10) → `ClassificationDataset2D` (specific to 2D classification)\n- `Layer` (neural-net.ts:12) → `NeuralNetLayer` (distinguishes from CNN layers)\n- `Bounds` (decision-boundary.ts:14) → `SpatialBounds2D` (specific to 2D spatial bounds)\n- `HeatmapProps` (MLDesignModule.tsx:1144) → `DecisionBoundaryProps` (it's not a generic heatmap)\n\nUpdate barrel exports in index.ts and all consumers.",
+    "acceptanceCriteria": ["All 4 types renamed to more descriptive names", "index.ts re-exports updated", "All import sites updated", "No runtime behavior change", "TypeScript compiles cleanly"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/datasets.ts", "src/lib/ml-design/neural-net.ts", "src/lib/ml-design/decision-boundary.ts", "src/lib/ml-design/index.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["types", "naming", "clarity"]
+  }
+]

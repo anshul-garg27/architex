@@ -1,0 +1,559 @@
+[
+  {
+    "id": "NET-173",
+    "epic": "NET",
+    "title": "Create URL-addressable protocol pages (/learn/networking/[protocol]) for SEO and sharing",
+    "description": "Zero individual URLs exist for networking protocols. The entire module lives inside Zustand state at /. Search engines cannot discover any protocol content. This is the #1 finding across all 5 feature layers and the dependency for 4 other features (sitemap, OG, sharing, embedding). Create /learn/networking/[protocol]/page.tsx routes for each of 9+ protocols. Each renders the protocol visualization with full SSR metadata. The existing monolith component is refactored to accept a protocolId prop.",
+    "acceptanceCriteria": [
+      "Each protocol has its own URL: /learn/networking/tcp-handshake, /learn/networking/tls-1.3, etc.",
+      "URL renders the protocol visualization with SSR metadata (title, description, OG)",
+      "URLs are discoverable by search engines (added to sitemap.ts)",
+      "Back/forward browser navigation works between protocols",
+      "Workspace module switcher also works (URL + Zustand dual path)"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/app/learn/networking/[protocol]/page.tsx",
+      "src/app/sitemap.ts",
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [
+      "NET-026"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "discovery",
+      "seo",
+      "critical-dependency"
+    ]
+  },
+  {
+    "id": "NET-174",
+    "epic": "NET",
+    "title": "Add sitemap entries + OG images + JSON-LD structured data for all protocol pages",
+    "description": "Once protocol URLs exist (NET-173), add to sitemap.ts, generate per-protocol OG images via existing /api/og route, and attach LearningResource JSON-LD. All infrastructure exists (sitemap generator, OG route, JSON-LD components in src/lib/seo/ and src/components/seo/) \u2014 just needs networking entries. Estimated search volume for 'TCP three-way handshake visualization' is significant.",
+    "acceptanceCriteria": [
+      "sitemap.ts includes all 9+ networking protocol URLs",
+      "Each protocol page has unique OG title, description, and image",
+      "LearningResource JSON-LD attached to each protocol page",
+      "Social sharing cards look beautiful on Twitter/LinkedIn",
+      "Google can index all protocol pages"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/app/sitemap.ts",
+      "src/app/learn/networking/[protocol]/page.tsx",
+      "src/lib/seo/json-ld.ts"
+    ],
+    "dependencies": [
+      "NET-173"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "discovery",
+      "seo",
+      "og-meta"
+    ]
+  },
+  {
+    "id": "NET-175",
+    "epic": "NET",
+    "title": "Wire FSRS spaced repetition engine to Networking protocol concepts",
+    "description": "A production-quality FSRS spaced repetition engine exists in src/lib/interview/srs.ts with scheduleReview, getDueCards, getRetentionStats \u2014 but it is completely siloed to the Interview module. Zero references to networking. Fix: add 'Add to Review' button on each protocol card that creates FSRS ReviewCards. Show networking cards in the existing SRS dashboard alongside interview cards. Effort is LOW because the engine is complete \u2014 only the bridge is missing.",
+    "acceptanceCriteria": [
+      "'Add to Review' button on each of 9 protocol cards",
+      "Creates FSRS ReviewCard with protocol concept data",
+      "Networking cards appear in SRS dashboard review queue",
+      "Correct/incorrect answers update FSRS scheduling",
+      "Review questions sourced from protocol-deep-dive.ts data"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/interview/srs.ts",
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "retention",
+      "spaced-repetition",
+      "quick-win"
+    ]
+  },
+  {
+    "id": "NET-176",
+    "epic": "NET",
+    "title": "Add protocol knowledge check quiz auto-generated from deep-dive data",
+    "description": "Zero self-testing for Networking. The deep-dive data (protocol-deep-dive.ts) has header fields, handshake steps, performance numbers, use cases, tradeoffs for 10 protocols \u2014 perfect raw material for auto-generating quiz questions. After completing a protocol walkthrough, show 'Test Yourself' with 5 questions: header field identification, handshake step ordering, performance comparison, use case matching, tradeoff evaluation.",
+    "acceptanceCriteria": [
+      "'Test Yourself' button appears after completing a protocol walkthrough",
+      "5 auto-generated questions per protocol from deep-dive data",
+      "Question types: multiple choice, drag-to-order, true/false",
+      "Score shown with explanations for wrong answers",
+      "Results feed into protocol mastery scoring"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/ProtocolQuiz.tsx",
+      "src/lib/networking/quiz-generator.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "retention",
+      "self-testing"
+    ]
+  },
+  {
+    "id": "NET-177",
+    "epic": "NET",
+    "title": "Add shareable protocol snapshot URLs with encoded state",
+    "description": "ShareDialog.tsx uses useCanvasStore and serializes nodes+edges \u2014 only works for System Design. Cannot share Networking state. Fix: add createProtocolShareLink() that encodes protocol ID + step index + simulation config into URL params (?protocol=tcp&step=5). Receiver opens directly to that state. Integrate with existing ShareDialog social share buttons.",
+    "acceptanceCriteria": [
+      "'Share' button in Networking module generates a URL with protocol + step state",
+      "Receiver opening the URL sees the exact same protocol at the exact same step",
+      "Twitter/LinkedIn social cards show protocol-specific preview",
+      "Copy-to-clipboard works with the deep-linked URL",
+      "URL state survives page refresh"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/ShareDialog.tsx",
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [
+      "NET-173"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "community",
+      "sharing"
+    ]
+  },
+  {
+    "id": "NET-178",
+    "epic": "NET",
+    "title": "Add cross-protocol flow visualization (DNS\u2192TCP\u2192TLS\u2192HTTP as unified sequence)",
+    "description": "No competitor visualizes how a single HTTPS request traverses DNS, TCP, TLS, and HTTP/2 as one unified flow. Individual engines exist for each protocol. Create a 'Full Stack Request' view: user types a URL, visualization shows DNS resolution \u2192 TCP handshake \u2192 TLS handshake \u2192 HTTP/2 request/response as a single animated sequence diagram. Each phase is color-coded and clickable to drill into the individual protocol. This is a 'first in the world' feature.",
+    "acceptanceCriteria": [
+      "User types a URL and sees the full multi-protocol flow",
+      "DNS, TCP, TLS, HTTP phases are color-coded and labeled",
+      "Each phase is clickable to open the individual protocol simulation",
+      "Total latency breakdown shown per phase",
+      "Comparison mode: HTTP/1.1+TCP+TLS 1.2 vs HTTP/3+QUIC+TLS 1.3"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/cross-protocol-flow.ts",
+      "src/components/modules/networking/CrossProtocolFlow.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "innovation",
+      "first-in-world",
+      "defining-feature"
+    ]
+  },
+  {
+    "id": "NET-179",
+    "epic": "NET",
+    "title": "Add protocol failure scenario simulator (expired cert, DNS timeout, connection reset)",
+    "description": "Failure scenarios are the #1 interview topic for networking. No tool lets you inject failures into protocol visualizations interactively. Add 'Inject Failure' dropdown: timeout, certificate error, packet loss, connection reset. Visualization shows the failure path with annotations. FailureModeExplorer already exists for System Design \u2014 adapt pattern for protocols.",
+    "acceptanceCriteria": [
+      "'Inject Failure' dropdown on TCP, TLS, DNS, and HTTP visualizations",
+      "At least 3 failure types per protocol (timeout, error, reset)",
+      "Failure path shown in red with step-by-step annotations",
+      "Normal path vs failure path comparison mode",
+      "Each failure explains the recovery mechanism (retransmission, fallback, etc.)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/failure-scenarios.ts",
+      "src/components/modules/networking/FailureInjector.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "innovation",
+      "interview-prep"
+    ]
+  },
+  {
+    "id": "NET-180",
+    "epic": "NET",
+    "title": "Add bookmark/save-for-later system for protocols",
+    "description": "With 9+ protocols and deep-dive data for 10, users have no way to mark protocols for return visits. Fix: star icon on each protocol card, bookmarks persist in localStorage via new Zustand slice, 'Saved' section in sidebar shows bookmarked protocols.",
+    "acceptanceCriteria": [
+      "Star icon on each protocol card toggles bookmark",
+      "Bookmarks persist in localStorage",
+      "'Saved' section in sidebar shows bookmarked protocols",
+      "Bookmarks sync with cross-module-store for mastery tracking"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "retention",
+      "quick-win"
+    ]
+  },
+  {
+    "id": "NET-181",
+    "epic": "NET",
+    "title": "Add embeddable protocol widget via iframe/oEmbed route",
+    "description": "The oEmbed infrastructure exists (src/app/api/oembed/route.ts) but only for canvas designs. Networking protocol visualizations (TCP, TLS, DNS) are prime candidates for blog embeds. Fix: extend oEmbed route for /embed?protocol=tls-handshake. Create standalone embed rendering. Each embed links back to Architex.",
+    "acceptanceCriteria": [
+      "'Embed' button generates iframe snippet",
+      "oEmbed route supports protocol embeds",
+      "Embedded visualization is interactive (step/play/reset)",
+      "Embed includes Architex branding with link back",
+      "Embed works in Medium, WordPress, Notion, dev.to"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/app/api/oembed/route.ts",
+      "src/app/embed/page.tsx"
+    ],
+    "dependencies": [
+      "NET-173"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "community",
+      "distribution"
+    ]
+  },
+  {
+    "id": "NET-182",
+    "epic": "NET",
+    "title": "Wire real progress data to leaderboard and profile pages (replace mock generators)",
+    "description": "LeaderboardPanel.tsx uses generateMockLeaderboard() and profile/[username]/page.tsx uses getMockProfile(). Real data exists in progress-store and cross-module-store (persisted in localStorage). Fix: replace mock generators with real store reads.",
+    "acceptanceCriteria": [
+      "Profile page shows real XP, streaks, module mastery from stores",
+      "Activity heatmap uses real activity log data",
+      "Leaderboard aggregates real scores (even if single-user for now)",
+      "Zero mock data generators in production builds"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/app/profile/[username]/page.tsx",
+      "src/components/interview/LeaderboardPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "community",
+      "data-integrity"
+    ]
+  },
+  {
+    "id": "NET-183",
+    "epic": "NET",
+    "title": "Add 'Build Your Own Stack' gamified protocol composition challenge",
+    "description": "Interactive exercise: users select protocols for each layer (Transport: TCP/UDP/QUIC, Security: TLS/mTLS/none, Application: HTTP/gRPC/WebSocket/MQTT, Encoding: JSON/Protobuf/MessagePack). System validates choices (HTTP/3 requires QUIC, not TCP) and shows latency/throughput estimates from deep-dive performance data. Gamified: score based on meeting scenario requirements.",
+    "acceptanceCriteria": [
+      "Drag-and-drop protocol selection for 4 layers",
+      "Validation rules check protocol compatibility",
+      "Performance calculator uses protocol-deep-dive.ts data",
+      "3+ scenario challenges (gaming server, mobile app, IoT, microservices)",
+      "Score and explanation for each attempt"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/networking/BuildYourStack.tsx",
+      "src/lib/networking/stack-validator.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "innovation",
+      "gamification",
+      "dream"
+    ]
+  },
+  {
+    "id": "NET-184",
+    "epic": "NET",
+    "title": "Wire Socratic tutor AI to Networking protocol visualizations",
+    "description": "src/lib/ai/socratic-tutor.ts has a networking section with opening assessment ('Walk me through what happens when a user types a URL') and suggestion prompts. But it is NEVER imported or referenced from NetworkingModule.tsx. The tutor should be available as a 'Ask AI Tutor' button in the bottom panel, offering Socratic questioning about the currently viewed protocol.",
+    "acceptanceCriteria": [
+      "'Ask AI Tutor' button in bottom panel or properties panel",
+      "Tutor asks Socratic questions about the current protocol (e.g., 'Why does TCP need a 3-way handshake?')",
+      "Uses existing socratic-tutor.ts networking category",
+      "Works without API key (uses local question bank first)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/ai/socratic-tutor.ts",
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "ai",
+      "socratic-tutor",
+      "gap-from-qa"
+    ]
+  },
+  {
+    "id": "NET-185",
+    "epic": "NET",
+    "title": "Wire hint system to Networking module for contextual guidance",
+    "description": "src/lib/ai/hint-system.ts has a networking section with 3 depth levels (nudge, guided, full) offering advice like 'Trace the full request path: client -> DNS -> CDN -> LB -> Gateway -> Service' and suggesting gRPC vs REST. This system is NOT wired to the Networking module. Wire it to show contextual hints when users seem stuck or request help.",
+    "acceptanceCriteria": [
+      "Hint button available in Networking module UI",
+      "3 hint levels: nudge (1 sentence), guided (paragraph), full (detailed architecture advice)",
+      "Hints are context-aware based on current protocol",
+      "Uses existing hint-system.ts networking data"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/ai/hint-system.ts",
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "ai",
+      "hints",
+      "gap-from-qa"
+    ]
+  },
+  {
+    "id": "NET-186",
+    "epic": "NET",
+    "title": "Add export protocol diagram as PNG/SVG for sharing and documentation",
+    "description": "Zero export capability exists for Networking visualizations. The export-dialog.tsx handles System Design canvas export (JSON, Mermaid, PNG) but nothing for protocol sequence diagrams. Fix: add 'Export as PNG' and 'Export as SVG' buttons that capture the current SequenceDiagram SVG state. Use SVG serialization (for SVG export) or html2canvas/SVG-to-canvas (for PNG). Include protocol name, step count, and Architex branding.",
+    "acceptanceCriteria": [
+      "'Export as PNG' button on protocol visualization",
+      "'Export as SVG' button on protocol visualization",
+      "Export includes current step state (highlighted arrows, colors)",
+      "Export includes protocol name and step counter",
+      "Architex watermark/branding in exported image"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "export",
+      "sharing",
+      "gap-from-qa"
+    ]
+  },
+  {
+    "id": "NET-187",
+    "epic": "NET",
+    "title": "Generate interview questions from protocol deep-dive data for Interview module",
+    "description": "The Interview module (challenges.ts) has system design challenges that mention protocols (WebSocket, CDN, gRPC) but no dedicated networking protocol questions. protocol-deep-dive.ts has header fields, handshake steps, performance data, and tradeoffs for 10 protocols \u2014 perfect for generating interview questions like 'Explain why HTTP/3 uses QUIC instead of TCP' with model answers from the deep-dive data.",
+    "acceptanceCriteria": [
+      "At least 10 networking interview questions generated from deep-dive data",
+      "Questions cover: protocol selection, handshake explanation, performance comparison, failure modes",
+      "Model answers sourced from protocol-deep-dive.ts descriptions",
+      "Questions accessible from Interview module AND from Networking module",
+      "Difficulty levels: easy (recall), medium (explain), hard (design)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/interview/challenges.ts",
+      "src/lib/innovation/protocol-deep-dive.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "interview",
+      "cross-module",
+      "gap-from-qa"
+    ]
+  },
+  {
+    "id": "NET-188",
+    "epic": "NET",
+    "title": "Remove dead code: simulateCDNFlowLegacy and NetworkingModule null stub",
+    "description": "Two pieces of dead code: (1) simulateCDNFlowLegacy (cdn-flow.ts:257) is marked @deprecated and only used in tests, never in production code. (2) NetworkingModule component (NetworkingModule.tsx:2811-2813) returns null \u2014 a vestigial stub imported by ModuleRenderer.tsx:77. The actual module works via useNetworkingModule hook + wrapper. Fix: remove legacy function and its test, remove null stub and update ModuleRenderer.",
+    "acceptanceCriteria": [
+      "simulateCDNFlowLegacy function removed from cdn-flow.ts",
+      "simulateCDNFlowLegacy export removed from index.ts",
+      "simulateCDNFlowLegacy tests removed from cdn-flow.test.ts",
+      "NetworkingModule null stub removed from NetworkingModule.tsx",
+      "ModuleRenderer.tsx updated to not reference dead component",
+      "No functional regression"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/cdn-flow.ts",
+      "src/lib/networking/index.ts",
+      "src/components/modules/NetworkingModule.tsx",
+      "src/components/shared/ModuleRenderer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "cleanup",
+      "dead-code",
+      "gap-from-qa"
+    ]
+  },
+  {
+    "id": "NET-189",
+    "epic": "NET",
+    "title": "Verify Networking module works offline in PWA mode",
+    "description": "The platform has PWA support (manifest.json, InstallPrompt, UpdateToast, offline/page.tsx) but zero verification that the Networking module works offline. The engines are pure computation (no API calls) so they SHOULD work, but this has never been tested. Fix: add a test or manual verification that all 9 protocols render and step through correctly when offline.",
+    "acceptanceCriteria": [
+      "All 9 protocols render correctly in offline/airplane mode",
+      "Step/Play/Reset work without network",
+      "PacketJourney and ConnectionPool simulations work offline",
+      "No failed network requests visible in DevTools when offline",
+      "If any feature requires network, show a graceful offline message"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/NetworkingModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "pwa",
+      "offline",
+      "gap-from-qa"
+    ]
+  },
+  {
+    "id": "NET-190",
+    "epic": "NET",
+    "title": "Seed failure scenario simulator (NET-179) with PaperDraw's 19 network chaos events",
+    "description": "PaperDraw has 19 Network Chaos event types: Network Partition, Packet Loss Injection, High Latency Injection, Bandwidth Throttling, Connection Flapping, LB Failure, TLS Certificate Expired, TLS Protocol Mismatch, DNS Resolution Failure, Routing Blackhole, NAT Gateway Failure, etc. NET-179 covers failure injection but doesn't reference this comprehensive catalog. Use PaperDraw's list to ensure the failure simulator covers all realistic scenarios.",
+    "acceptanceCriteria": [
+      "NET-179 failure scenarios include at least 10 of PaperDraw's 19 chaos types",
+      "Each chaos type mapped to the relevant protocol (TLS Expired \u2192 TLS, DNS Failure \u2192 DNS, etc.)",
+      "Scenarios document which PaperDraw chaos event they correspond to",
+      "PaperDraw chaos catalog referenced in the scenario data file"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "networking",
+    "category": "frontend",
+    "files": [
+      "src/lib/networking/failure-scenarios.ts"
+    ],
+    "dependencies": [
+      "NET-179"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "features",
+      "chaos-engineering",
+      "paperdraw-parity",
+      "gap-from-qa"
+    ]
+  }
+]

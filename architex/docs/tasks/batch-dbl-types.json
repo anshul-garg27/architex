@@ -1,0 +1,184 @@
+[
+  {
+    "id": "DBL-165",
+    "epic": "DBL",
+    "title": "Derive MODES array from DatabaseMode type using satisfies to prevent desync",
+    "description": "DatabaseMode union type (DatabaseModule.tsx:75) and MODES array (:90) are the same data defined in two places. Adding a mode to one but not the other causes no TypeScript error. Fix: use 'as const satisfies' pattern so TypeScript enforces the array matches the type. Additionally, add exhaustive switch in the canvas memo (:4079) by removing the default case \u2014 TypeScript will then error if a new mode is added to the type without handling in the switch.",
+    "acceptanceCriteria": [
+      "MODES array uses 'as const satisfies readonly { id: DatabaseMode; ... }[]'",
+      "Adding a new mode to DatabaseMode type without adding to MODES produces TypeScript error",
+      "Canvas switch at :4079 has no default case \u2014 uses exhaustive check (never type)",
+      "Adding a mode to DatabaseMode without handling in switch produces TypeScript error"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "type-safety",
+      "exhaustive-switch",
+      "single-source-of-truth"
+    ]
+  },
+  {
+    "id": "DBL-166",
+    "epic": "DBL",
+    "title": "Replace module-level mutable ID counters with instance-scoped counters",
+    "description": "btree-viz.ts:27 (_btreeIdCounter), lsm-viz.ts:38 (_lsmIdCounter), query-plan.ts:32 (_planIdCounter) are module-level let variables that persist across all class instances and never reset (except _planIdCounter). This breaks isolation between instances and could cause ID collisions. Move counters inside the class as private instance fields. Also fix sample-er-diagrams.ts:22 (_sampleIdCounter) which uses resetIds() that causes cross-sample ID overlap.",
+    "acceptanceCriteria": [
+      "BTreeViz has private idCounter instance field instead of module-level let",
+      "LSMTreeViz has private idCounter instance field",
+      "QueryPlanNode ID generation is instance-scoped",
+      "Sample ER diagram IDs use UUIDs or non-overlapping ranges instead of shared counter",
+      "Creating two BTreeViz instances produces non-conflicting IDs"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/btree-viz.ts",
+      "src/lib/database/lsm-viz.ts",
+      "src/lib/database/query-plan.ts",
+      "src/lib/database/sample-er-diagrams.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "isolation",
+      "id-generation",
+      "instance-scoping"
+    ]
+  },
+  {
+    "id": "DBL-167",
+    "epic": "DBL",
+    "title": "Unify NormalizationResult type \u2014 remove duplicate definition in DatabaseModule",
+    "description": "NormalizationResult at DatabaseModule.tsx:483 duplicates fields from NormalizationState at types.ts:59. Two types for the same concept in different files. Unify: extend NormalizationState in types.ts with the additional result fields (closure, decomposition) OR define NormalizationResult in types.ts and import it in DatabaseModule. Single source of truth.",
+    "acceptanceCriteria": [
+      "Only ONE normalization result type exists (in types.ts or a dedicated result-types.ts)",
+      "DatabaseModule.tsx imports the type instead of defining its own",
+      "No duplicate interface definitions for the same concept"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/types.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "dedup",
+      "single-source-of-truth"
+    ]
+  },
+  {
+    "id": "DBL-168",
+    "epic": "DBL",
+    "title": "Narrow ERAttribute.type from string to union of known SQL types with string fallback",
+    "description": "ERAttribute.type (types.ts:15) is bare 'string' \u2014 accepts anything. The TYPE_MAP in er-to-sql.ts:17-39 lists 20 known SQL types (INT, VARCHAR, TEXT, BOOLEAN, etc.). Narrow the type to a union of these known types plus string fallback for custom types. This enables autocomplete in the ER builder and catches typos at the type level.",
+    "acceptanceCriteria": [
+      "ERAttribute.type changed from 'string' to 'SQLType | string' where SQLType is a union of known types",
+      "SQLType union includes all 20 types from TYPE_MAP",
+      "ER diagram builder input gets autocomplete suggestions for known types",
+      "Custom types still accepted via string fallback"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/types.ts",
+      "src/lib/database/er-to-sql.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "type-narrowing",
+      "er-diagram",
+      "autocomplete"
+    ]
+  },
+  {
+    "id": "DBL-169",
+    "epic": "DBL",
+    "title": "Separate EREntity domain data from layout position (x, y)",
+    "description": "EREntity at types.ts:28 mixes domain data (name, attributes, isWeak) with layout position (x, y). This violates separation of concerns \u2014 canvas layout should be managed separately from entity data. Split into EREntityData (domain) and EREntityPosition (layout). Benefits: (1) entity data can be serialized without layout, (2) layout can change without touching domain types, (3) enables auto-layout algorithms that only modify positions.",
+    "acceptanceCriteria": [
+      "EREntityData interface contains: id, name, isWeak, attributes (no x, y)",
+      "EREntityPosition interface contains: entityId, x, y",
+      "Canvas manages a separate Map<string, EREntityPosition> for layout",
+      "ER entity serialization (for SQL generation, sample loading) doesn't include x, y",
+      "Existing drag behavior still works via position map"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/types.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "types",
+      "separation-of-concerns",
+      "er-diagram",
+      "architecture"
+    ]
+  },
+  {
+    "id": "DBL-170",
+    "epic": "DBL",
+    "title": "Remove unused TransactionOp type from types.ts",
+    "description": "TransactionOp (types.ts:75) is defined but NEVER used anywhere in the codebase. The actual type used for transaction steps is TransactionStep (transaction-sim.ts:12). TransactionOp was likely an early design that was superseded. Dead types confuse developers and add maintenance burden. Remove it.",
+    "acceptanceCriteria": [
+      "TransactionOp interface removed from types.ts",
+      "No import of TransactionOp exists anywhere in the codebase",
+      "index.ts barrel export updated (if it was exported)",
+      "All tests pass after removal"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/types.ts",
+      "src/lib/database/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "dead-code",
+      "cleanup"
+    ]
+  }
+]

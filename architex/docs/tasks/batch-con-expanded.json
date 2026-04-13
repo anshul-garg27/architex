@@ -1,0 +1,352 @@
+[
+  {
+    "id": "CON-041", "epic": "CON", "title": "Extract Dining Philosophers SVG inline hex colors to design tokens",
+    "description": "DiningPhilosophersViz (ConcurrencyModule.tsx:370-457) has 10+ inline hex: table fill '#1e293b', stroke '#334155', text '#64748b', PHILOSOPHER_STATES map '#6b7280','#f59e0b','#22c55e','#ef4444', fork '#4b5563'/'#f59e0b', label '#9ca3af'. Extract to semantic CSS variables.",
+    "acceptanceCriteria": ["All hex values in DiningPhilosophersViz SVG replaced with CSS custom properties", "PHILOSOPHER_STATES map consumes tokens", "Visual output identical in dark mode"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": ["CON-014"], "blockedBy": [], "tags": ["visual","design-tokens"]
+  },
+  {
+    "id": "CON-042", "epic": "CON", "title": "Extract Thread Lifecycle SVG inline hex colors to design tokens",
+    "description": "ThreadLifecycleViz (ConcurrencyModule.tsx:732-918) + THREAD_STATE_COLORS (thread-lifecycle.ts:56-64) contain 10+ hex values: state colors, SVG strokes '#475569','#f59e0b','#94a3b8','#fbbf24', arrowhead fill '#94a3b8' at line 819.",
+    "acceptanceCriteria": ["THREAD_STATE_COLORS uses CSS variables", "SVG arrow/label colors reference tokens", "Thread indicator dot colors use token system"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/thread-lifecycle.ts"], "dependencies": ["CON-014"], "blockedBy": [], "tags": ["visual","design-tokens"]
+  },
+  {
+    "id": "CON-043", "epic": "CON", "title": "Extract Goroutine SVG inline hex colors to design tokens",
+    "description": "GoroutineViz (ConcurrencyModule.tsx:937-1319) has 20+ inline hex: GOROUTINE_STATE_COLORS at :923-928, sender stroke '#f59e0b' :1048, receiver '#3b82f6' :1076, dot fills '#fbbf24'/'#60a5fa', channel pipe '#1e293b' :1186, buffer slots '#22c55e'/'#334155' :1218, labels throughout.",
+    "acceptanceCriteria": ["GOROUTINE_STATE_COLORS references shared tokens", "All SVG stroke/fill colors use CSS custom properties", "Legend colors driven by same token source"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": ["CON-014"], "blockedBy": [], "tags": ["visual","design-tokens"]
+  },
+  {
+    "id": "CON-044", "epic": "CON", "title": "Extract Deadlock Demo SVG inline hex colors to design tokens",
+    "description": "DeadlockDemoViz (ConcurrencyModule.tsx:1822-2017) has DEADLOCK_THREAD_STATE_COLORS :1816-1820, SVG fills '#334155','#1e293b', strokes '#f59e0b','#475569', arrow markers '#22c55e','#ef4444' :1869-1872, blocked stroke '#fca5a5' :1951-1957, cycle highlight '#ef4444' :1929.",
+    "acceptanceCriteria": ["DEADLOCK_THREAD_STATE_COLORS uses shared tokens", "All renderScene hex values use CSS variables", "Legend colors match arrow tokens"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": ["CON-014"], "blockedBy": [], "tags": ["visual","design-tokens"]
+  },
+  {
+    "id": "CON-045", "epic": "CON", "title": "Replace ThreadPoolSaturationVisualizer STATUS_COLORS with design tokens",
+    "description": "STATUS_COLORS at ThreadPoolSaturationVisualizer.tsx:141-145 uses Tailwind utility classes ('bg-zinc-700','bg-blue-500','bg-red-500') bypassing design tokens. Queue slot colors :249-251 and rejected counter :262 also need tokenization.",
+    "acceptanceCriteria": ["STATUS_COLORS uses semantic CSS variables", "Queue slot and rejected counter colors tokenized", "Visual output unchanged"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"], "dependencies": [], "blockedBy": [], "tags": ["visual","design-tokens"]
+  },
+  {
+    "id": "CON-046", "epic": "CON", "title": "Increase SVG text fontSize values from 7-8px to minimum 9px",
+    "description": "SVG text below 9px: fork labels at :420 (fontSize='7'), philosopher state :449 ('7'), transition labels :800 ('8'), goroutine sub-labels :1162 ('8'), channel buffer :1228 ('7'), deadlock resource :1989 ('7'), legend :1999/2001 ('8'). All illegible at rendered size.",
+    "acceptanceCriteria": ["No SVG fontSize below '9'", "Layout adjusted to prevent text overlap after increase", "Fork labels and resource labels legible at default zoom"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["visual","readability","a11y"]
+  },
+  {
+    "id": "CON-047", "epic": "CON", "title": "Replace text-[9px] Tailwind classes with minimum text-[10px] across module",
+    "description": "5 instances of text-[9px] in ConcurrencyModule.tsx (:230,:2075,:2088,:2189,:2204) and 2 in ThreadPoolSaturationVisualizer.tsx (:230,:248). All below minimum readability. Replace with text-[10px] or text-xs (12px).",
+    "acceptanceCriteria": ["Zero text-[9px] instances remain", "No layout overflow from size increase", "Decorative step counters may stay text-[10px] if documented"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"], "dependencies": [], "blockedBy": [], "tags": ["visual","readability"]
+  },
+  {
+    "id": "CON-048", "epic": "CON", "title": "Replace Sleeping Barber emoji characters with SVG icons for cross-platform consistency",
+    "description": "SleepingBarberViz uses HTML entity emoji: scissors &#9986; :1533, sleeping &#128164; :1540, person &#128100; :1568, door &#128682; :1584. Render differently across Windows/macOS/Linux. Replace with Lucide icons or inline SVG.",
+    "acceptanceCriteria": ["All 4 emoji entities replaced with Lucide icons or custom SVG", "Icons have consistent sizing and inherit foreground color", "Tested on macOS and Windows Chrome"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["visual","cross-platform"]
+  },
+  {
+    "id": "CON-049", "epic": "CON", "title": "Add timeline scrubber slider to jump to any simulation step",
+    "description": "Current controls (ConcurrencyModule.tsx:2656-2684) only offer Step/Play/Reset. Add input[type=range] slider below buttons to scrub to any step 0..maxSteps. Thumb updates stepIndex on change, pauses if playing.",
+    "acceptanceCriteria": ["Range slider visible in sidebar footer", "Dragging updates visualization in real time", "Playback pauses automatically when slider dragged"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","playback","interactivity"]
+  },
+  {
+    "id": "CON-050", "epic": "CON", "title": "Add loop/repeat mode toggle for continuous demo playback",
+    "description": "When simulation reaches maxSteps, playback stops (:2480-2485). Add loop toggle (Repeat icon) next to Reset — when enabled, playback restarts from step 0 instead of stopping.",
+    "acceptanceCriteria": ["Loop toggle visible next to Reset", "When active, playback restarts at step 0 on completion", "Loop state visually indicated"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","playback"]
+  },
+  {
+    "id": "CON-051", "epic": "CON", "title": "Make Play button auto-restart when at final step instead of disabling",
+    "description": "Play button disabled at maxSteps (:2666), requiring Reset+Play (2 actions). ThreadPoolSaturationVisualizer already does auto-restart at :186. Apply same pattern to main controls.",
+    "acceptanceCriteria": ["Clicking Play at maxSteps resets to 0 and starts playback", "Play button never disabled", "Reset behavior unchanged"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","playback"]
+  },
+  {
+    "id": "CON-052", "epic": "CON", "title": "Add skip-to-interesting-moment buttons for key simulation events",
+    "description": "Users step through every tick to find deadlocks/saturation. Add 'Skip to Deadlock'/'Skip to Saturation' buttons that scan precomputed arrays for the first event matching the condition.",
+    "acceptanceCriteria": ["Dining Philosophers has 'Skip to Deadlock' jumping to first deadlock===true event", "Deadlock Demo has similar", "ThreadPoolSaturationVisualizer has 'Skip to Saturation'"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","navigation"]
+  },
+  {
+    "id": "CON-053", "epic": "CON", "title": "Add tooltip on hover for SVG philosopher/goroutine/thread elements",
+    "description": "SVG elements (philosopher circles :424-456, goroutine boxes :1098-1167, thread circles :832-865) have no hover info. Implement via SVG <title> or positioned tooltip showing full state details.",
+    "acceptanceCriteria": ["Hovering philosopher shows ID, state, held forks", "Hovering goroutine shows name, state, channel", "Tooltips appear within 200ms and dismiss on leave"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","interactivity"]
+  },
+  {
+    "id": "CON-054", "epic": "CON", "title": "Add visual progress bar showing simulation completion percentage",
+    "description": "Step counter (:2681-2683) is small monospace text. Add thin horizontal progress bar proportional to stepIndex/maxSteps for at-a-glance progress.",
+    "acceptanceCriteria": ["Horizontal bar in sidebar footer, width = stepIndex/maxSteps", "Smooth animation during playback", "Empty at step 0, full at maxSteps"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","visual"]
+  },
+  {
+    "id": "CON-055", "epic": "CON", "title": "Create useReducedMotion hook and suppress Goroutine animateMotion when active",
+    "description": "GoroutineViz <animateMotion> at :1056-1060/:1084-1088 and <animate> pulse at :1129-1133/:1244-1249 loop indefinitely ignoring prefers-reduced-motion. Create shared hook, conditionally remove animations.",
+    "acceptanceCriteria": ["useReducedMotion hook created and reusable", "All animateMotion/animate in GoroutineViz suppressed when reduced-motion active", "Static fallback shows dot at final position"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/hooks/useReducedMotion.ts"], "dependencies": [], "blockedBy": [], "tags": ["a11y","animation"]
+  },
+  {
+    "id": "CON-056", "epic": "CON", "title": "Suppress Deadlock/Async/ThreadPool pulse animations when reduced-motion active",
+    "description": "Deadlock cycle pulse :1934, blocked thread pulse :1955-1957, Async pending pulse :1751-1753, and goroutine unbuffered rendezvous pulse :1244-1249 all ignore prefers-reduced-motion. Use the useReducedMotion hook from CON-055.",
+    "acceptanceCriteria": ["All pulse animations in Deadlock, Async, and ThreadPool visualizers respect reduced-motion", "Static dashed border used instead of animated opacity", "Hook reused from CON-055"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"], "dependencies": ["CON-055"], "blockedBy": ["CON-055"], "tags": ["a11y","animation"]
+  },
+  {
+    "id": "CON-057", "epic": "CON", "title": "Stop Goroutine animateMotion dots when step advances past sender/receiver",
+    "description": "Animated message dots (:1054-1091) loop indefinitely even after goroutine state changes to 'done' or channel is no longer active. Dots should only render when current step's channel has active senders/receivers.",
+    "acceptanceCriteria": ["Sender dots only render when channel.senders contains goroutine ID", "Receiver dots only when channel.receivers contains ID", "Dots removed when goroutine reaches 'done'"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["animation","correctness"]
+  },
+  {
+    "id": "CON-058", "epic": "CON", "title": "Add CSS transition for state changes in SVG visualization elements",
+    "description": "State changes in all visualizers are instant color swaps with no transition. Philosopher circles jump green→gray, goroutine boxes snap states. Add 200-300ms CSS/SVG transitions for fill color and opacity.",
+    "acceptanceCriteria": ["Philosopher circle color includes 300ms fade", "Goroutine box state includes 200ms background transition", "Thread lifecycle circles pulse briefly on entry"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["visual","animation","polish"]
+  },
+  {
+    "id": "CON-059", "epic": "CON", "title": "Scale Dining Philosophers SVG viewBox from 240x240 to 400x400",
+    "description": "SVG viewBox='0 0 240 240' at :368 with table radius 70, philosopher radius 18 makes fork labels (fontSize='7') illegible. Scale viewBox to 400x400 with proportional element sizes.",
+    "acceptanceCriteria": ["ViewBox at least 400x400 with scaled cx/cy/r", "Fork/state text legible at effective 9px+", "Both naive/ordered tables fit side-by-side"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["visual","readability"]
+  },
+  {
+    "id": "CON-060", "epic": "CON", "title": "Add visual distinction for empty vs filled Event Loop queue columns",
+    "description": "Empty queues show italic 'empty' text inside the same styled container as filled queues (:592). Both share 'border-border bg-elevated/30'. Add dashed border or diagonal stripe pattern for empty columns.",
+    "acceptanceCriteria": ["Empty queue columns have dashed border or pattern background", "Non-empty retain solid border", "Distinction visible without color reliance"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["visual","ux"]
+  },
+  {
+    "id": "CON-061", "epic": "CON", "title": "Add role='img' and aria-label to Dining Philosophers SVG",
+    "description": "SVG at :368 has no role or aria-label. Each philosopher <g> also needs aria-label with ID, state, held forks. Fork elements need labels indicating owner or 'free'.",
+    "acceptanceCriteria": ["<svg> has role='img' and descriptive aria-label", "Each philosopher <g> has aria-label like 'Philosopher 2, eating, holds forks 2 and 3'", "Fork elements have aria-labels"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["a11y"]
+  },
+  {
+    "id": "CON-062", "epic": "CON", "title": "Add role='img' and aria-label to Thread Lifecycle, Goroutine, and Deadlock SVGs",
+    "description": "Three SVGs lack a11y attributes: Thread Lifecycle :736, Goroutine :1013, Deadlock :1866. Clickable transitions in Thread Lifecycle (:774) need role='button' and aria-label.",
+    "acceptanceCriteria": ["All 3 SVGs have role='img' and aria-label", "Clickable transitions have role='button' and descriptive aria-label", "Screen reader can announce visualization type"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["a11y"]
+  },
+  {
+    "id": "CON-063", "epic": "CON", "title": "Add aria-live regions for step descriptions and alert announcements",
+    "description": "6 dynamic regions lack aria-live: EventLoopViz step :530-539, GoroutineViz :1001-1009, AsyncPatternsViz :1702-1705, ThreadPoolSaturation :268, deadlock alerts :364/:1861-1864, thread state badges :888-893.",
+    "acceptanceCriteria": ["All 6 step descriptions have aria-live='polite' aria-atomic='true'", "Deadlock/saturation alerts have aria-live='assertive'", "Step counter has aria-live='off' to avoid spam"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"], "dependencies": [], "blockedBy": [], "tags": ["a11y"]
+  },
+  {
+    "id": "CON-064", "epic": "CON", "title": "Add keyboard navigation for Thread Lifecycle SVG transition arrows",
+    "description": "Transitions (:773-806) use <g onClick style={{cursor:'pointer'}}> with no tabIndex, role, or onKeyDown. Not keyboard-reachable.",
+    "acceptanceCriteria": ["Each <g> has tabIndex={0} and role='button'", "Enter/Space triggers onTransitionClick", "Visible focus ring on focused transition"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["a11y","keyboard"]
+  },
+  {
+    "id": "CON-065", "epic": "CON", "title": "Add non-color state indicators as backup for 8 color-only state displays",
+    "description": "8 instances rely solely on color: philosopher circles :394, thread lifecycle :837, goroutine boxes :1111, ThreadPool slots :225, readers-writers :1353, deadlock circles :1950, lock bars :2181, queue slots :248. CVD users cannot distinguish states.",
+    "acceptanceCriteria": ["Philosopher circles include text abbreviation (T/H/E/W)", "ThreadPool/goroutine/deadlock use pattern fills or icons for state", "At least 5 of 8 instances have secondary non-color indicator"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/ThreadPoolSaturationVisualizer.tsx"], "dependencies": [], "blockedBy": [], "tags": ["a11y","visual"]
+  },
+  {
+    "id": "CON-066", "epic": "CON", "title": "Add unit tests for event-loop simulation engine (3 demos, output verification)",
+    "description": "event-loop.ts has 0 tests. Verify: (1) 'setTimeout-vs-promise' output '1,4,3,2', (2) 'nested-async' output 'C,A,D,B', (3) 'multiple-timeouts' output 'd,c,b,a', (4) microtask queue drains before macrotask.",
+    "acceptanceCriteria": ["Test file exists at __tests__/lib/concurrency/event-loop.test.ts", "All 3 demo outputs verified against expectedOutput", "Queue ordering invariant tested"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/__tests__/lib/concurrency/event-loop.test.ts"], "dependencies": [], "blockedBy": [], "tags": ["testing"]
+  },
+  {
+    "id": "CON-067", "epic": "CON", "title": "Add unit tests for goroutine, producer-consumer, readers-writers, sleeping-barber engines",
+    "description": "4 engines lack tests. Goroutine: verify 5 demos and deadlock has blocked state. Producer-consumer: buffer never exceeds capacity. Readers-writers: no concurrent writer+reader. Sleeping-barber: termination.",
+    "acceptanceCriteria": ["Test files exist for all 4 engines", "Goroutine deadlock demo verified", "Buffer capacity invariant tested"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/__tests__/lib/concurrency/goroutines.test.ts", "src/__tests__/lib/concurrency/producer-consumer.test.ts", "src/__tests__/lib/concurrency/readers-writers.test.ts", "src/__tests__/lib/concurrency/sleeping-barber.test.ts"], "dependencies": [], "blockedBy": [], "tags": ["testing"]
+  },
+  {
+    "id": "CON-068", "epic": "CON", "title": "Add unit tests for async-patterns, deadlock-demo, mutex-comparison engines",
+    "description": "3 engines lack tests. Async: verify settlement order matches combinator semantics. Deadlock: verify circular wait detection. Mutex: verify SpinLock CPU > Mutex CPU for long CS.",
+    "acceptanceCriteria": ["Test files for all 3 engines", "Promise.all reject test verifies early termination", "Mutex metrics CPU comparison verified"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/__tests__/lib/concurrency/async-patterns.test.ts", "src/__tests__/lib/concurrency/deadlock-demo.test.ts", "src/__tests__/lib/concurrency/mutex-comparison.test.ts"], "dependencies": [], "blockedBy": [], "tags": ["testing"]
+  },
+  {
+    "id": "CON-069", "epic": "CON", "title": "Add component smoke tests for all 11 concurrency visualizer components",
+    "description": "Zero render tests exist. Verify each viz component renders without throwing using @testing-library/react. Include ThreadPoolSaturationVisualizer.",
+    "acceptanceCriteria": ["All 11 visualizers + ThreadPoolSaturation render without crashing", "Tests run via vitest", "Each test passes minimal valid props"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/__tests__/components/modules/ConcurrencyModule.test.tsx"], "dependencies": ["CON-014"], "blockedBy": [], "tags": ["testing"]
+  },
+  {
+    "id": "CON-070", "epic": "CON", "title": "Add integration tests for demo switching and state reset behavior",
+    "description": "handleSelect (:2501-2508) resets stepIndex/playing/selectedTransition. Sub-demo changes also reset. Verify no stale timers or state after rapid switching.",
+    "acceptanceCriteria": ["Switching demos mid-simulation resets stepIndex to 0", "Sub-demo changes pause playback", "No stale timer references after rapid switching"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/__tests__/components/modules/ConcurrencyModule.integration.test.tsx"], "dependencies": ["CON-014"], "blockedBy": [], "tags": ["testing"]
+  },
+  {
+    "id": "CON-071", "epic": "CON", "title": "Add edge case tests for engines with boundary inputs (0/1 threads, empty arrays)",
+    "description": "No edge case coverage. Test: simulateNaive(1,1), simulateProducerConsumer with 0 producers, simulateReadersWriters with 0 readers, computeMetrics with empty steps, stepIndex exceeding array length.",
+    "acceptanceCriteria": ["At least 4 engines tested with boundary inputs", "No unhandled exceptions on edge cases", "Expected behavior documented"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/__tests__/lib/concurrency/edge-cases.test.ts"], "dependencies": [], "blockedBy": [], "tags": ["testing","edge-case"]
+  },
+  {
+    "id": "CON-072", "epic": "CON", "title": "Duplicate playback controls near canvas area for spatial proximity",
+    "description": "Controls only in sidebar footer (:2656-2684), far from visualization on wide screens. Add compact control bar at top/bottom of canvas reusing same handlers.",
+    "acceptanceCriteria": ["Compact control bar rendered adjacent to canvas", "Both bars share same handlers and state", "Canvas bar is visually lightweight"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","spatial-contiguity"]
+  },
+  {
+    "id": "CON-073", "epic": "CON", "title": "Add first-run tooltip tour highlighting sidebar, controls, and canvas",
+    "description": "New users see 11 demo buttons and controls with no guidance. Add 3-step tooltip tour: sidebar → controls → canvas. Dismiss on click, store in localStorage.",
+    "acceptanceCriteria": ["Tooltip sequence on first visit highlights sidebar/controls/canvas", "Each tooltip has Next and Skip links", "localStorage flag prevents re-showing"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","onboarding"]
+  },
+  {
+    "id": "CON-074", "epic": "CON", "title": "Add synchronized pseudocode panel highlighting current line during playback",
+    "description": "Event Loop and Goroutine demos show static code snippets (:518-519/:994-996). Add line highlighting that follows stepIndex — each step maps to a code line number.",
+    "acceptanceCriteria": ["Event Loop highlights relevant code line during playback", "Goroutine highlights Go code during channel operations", "Highlight uses visible left-border or background"],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/event-loop.ts", "src/lib/concurrency/goroutines.ts"], "dependencies": [], "blockedBy": [], "tags": ["education","mayer","visual"]
+  },
+  {
+    "id": "CON-075", "epic": "CON", "title": "Move step descriptions spatially adjacent to visualization (Mayer's contiguity)",
+    "description": "Step descriptions inside each Viz are near the canvas but the sidebar step counter (:2681) is far away. Ensure all descriptive text renders within 50px of the visualization edge.",
+    "acceptanceCriteria": ["Step description pinned near canvas in 3+ visualizers", "No scrolling needed to see description when viz visible", "Spatial contiguity improved per Mayer"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","mayer","education"]
+  },
+  {
+    "id": "CON-076", "epic": "CON", "title": "Add Thread Confessional: first-person narration from any thread's perspective",
+    "description": "User clicks any thread/philosopher/goroutine in a visualization and it narrates its experience in first person ('I read counter=5, but by the time I wrote back, someone changed it...'). Generates empathy and understanding. Uses existing step descriptions as base, rephrased to first-person with emotional context.",
+    "acceptanceCriteria": ["Clicking a thread in Race Condition shows first-person narration panel", "Clicking a philosopher shows their perspective", "Narration updates with each step", "Toggle-able via 'Narrate' button"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["innovation","education","emotional-design","first-in-world"]
+  },
+  {
+    "id": "CON-077", "epic": "CON", "title": "Add real parallel threads via SharedArrayBuffer for live non-deterministic race demo",
+    "description": "Use SharedArrayBuffer + Atomics + Web Workers (worker-bridge.ts already exists) to run ACTUAL concurrent increments in the browser. Users see genuinely different counter values each run — not a simulation. This is the first educational tool to show real parallelism in-browser.",
+    "acceptanceCriteria": ["'Run Real Threads' button spawns actual Web Workers with SharedArrayBuffer", "Counter produces genuinely non-deterministic results each run", "Live histogram updates from 100+ real parallel runs", "Fallback to simulated mode if SharedArrayBuffer unavailable"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/real-threads.worker.ts", "src/lib/workers/worker-bridge.ts"], "dependencies": [], "blockedBy": [], "tags": ["innovation","first-in-world","tech-push"]
+  },
+  {
+    "id": "CON-078", "epic": "CON", "title": "Add shareable simulation permalink encoding state in URL query params",
+    "description": "User configures a scenario (demo + params + step) and clicks Share to get a URL that reconstructs the exact state. Encode demo ID, sub-demo, stepIndex, and any custom params in URL search params. Anyone opening the link sees the same view.",
+    "acceptanceCriteria": ["Share button generates URL with demo/step/params encoded", "Opening the URL restores exact demo, sub-demo, and step position", "URL is under 2000 chars for social sharing compatibility"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["feature","shareability"]
+  },
+  {
+    "id": "CON-079", "epic": "CON", "title": "Add Presentation Mode: fullscreen, large fonts, keyboard-only navigation",
+    "description": "Professor presses F11 or clicks 'Present' for distraction-free fullscreen with large fonts, high contrast, keyboard navigation (arrows for steps), and visible step counter — designed for projectors in lecture halls.",
+    "acceptanceCriteria": ["Present button enters fullscreen with large fonts and high contrast", "Arrow keys step forward/back, Space plays/pauses", "Step counter is large and prominent", "Escape exits presentation mode"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["feature","professor","presentation"]
+  },
+  {
+    "id": "CON-080", "epic": "CON", "title": "Add one-click 'Show Me' auto-play button on each demo's initial state",
+    "description": "Every demo shows a static initial state requiring the user to find Play. Add a prominent 'Show Me' button overlaid on the canvas initial state that auto-runs the full simulation at comfortable speed. Zero cognitive load to see the concept. Disappears after first use per session.",
+    "acceptanceCriteria": ["Prominent 'Show Me ▶' button visible on initial canvas state for each demo", "Clicking auto-plays full simulation at 1x speed", "Button disappears after first interaction per demo"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["ux","onboarding","first-time-experience"]
+  },
+  {
+    "id": "CON-081", "epic": "CON", "title": "Add Deadlock Heartbeat Monitor: EKG flatline animation on deadlock detection",
+    "description": "Each running thread displays an animated heartbeat line (like an EKG). When deadlock occurs, all heartbeats flatline simultaneously with a flatline tone via sound-engine.ts. Makes deadlock viscerally alarming and memorable.",
+    "acceptanceCriteria": ["Each thread in Dining Philosophers and Deadlock Demo has a small heartbeat animation", "On deadlock detection, all heartbeats flatline with a visual + audio cue", "Sound respects mute toggle and prefers-reduced-motion"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/audio/sounds.ts"], "dependencies": ["CON-055"], "blockedBy": [], "tags": ["innovation","emotional-design","delight"]
+  },
+  {
+    "id": "CON-082", "epic": "CON", "title": "Add terminology glossary hover tooltips for all technical terms",
+    "description": "Every technical term (mutex, semaphore, deadlock, starvation, critical section, race condition) in properties panel descriptions is underlined. Hovering shows a tooltip with a 3-element visual diagram of the concept — no wall of text. Accessible to non-English speakers.",
+    "acceptanceCriteria": ["At least 15 terms across all properties panels have hover glossary", "Each tooltip includes a small SVG diagram and 1-sentence definition", "Tooltips are keyboard-accessible via focus"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["education","accessibility","i18n"]
+  },
+  {
+    "id": "CON-083", "epic": "CON", "title": "Add Speed-Run Mode: auto-play all 11 demos in 5 minutes with key takeaways",
+    "description": "User clicks 'Speed Run' to blast through all demos with auto-play, key highlight annotations, and a final summary card they can screenshot for exam review. Each demo runs for ~25 seconds with speed-up.",
+    "acceptanceCriteria": ["Speed Run button in sidebar header", "All 11 demos play sequentially with transitions", "Summary card at the end shows key concept per demo", "Total duration under 5 minutes"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": ["CON-017"], "blockedBy": [], "tags": ["feature","cramming","exam-prep"]
+  },
+  {
+    "id": "CON-084", "epic": "CON", "title": "Add 'What Would the Interviewer Ask?' tooltips at key simulation moments",
+    "description": "During playback, hovering over key moments shows interview-style follow-up questions ('What if we added a third resource?', 'How would you detect this at runtime?', 'What is the time complexity of deadlock detection?'). Builds interview readiness alongside understanding.",
+    "acceptanceCriteria": ["At least 3 interview questions per demo (33+ total)", "Questions appear as hover tooltips or sidebar annotations at specific steps", "Questions reference the current simulation state specifically"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["education","interview-prep"]
+  },
+  {
+    "id": "CON-085", "epic": "CON", "title": "Add side-by-side comparator mode for any two lock strategies or demos",
+    "description": "User selects two demos or sub-demos (e.g., SpinLock vs TTAS, Naive vs Ordered philosophers) and sees them play simultaneously in split-screen with synchronized step counters, making performance/behavior differences immediately visible.",
+    "acceptanceCriteria": ["Compare button opens split-screen with two demo selectors", "Both sides advance in sync (shared step counter)", "Metrics table shows side-by-side comparison", "Works for lock-comparison sub-strategies and dining-philosophers strategies"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["feature","comparison","learning"]
+  },
+  {
+    "id": "CON-086", "epic": "CON", "title": "Add Saboteur Mode: user intentionally introduces concurrency bugs",
+    "description": "Given a working concurrent program, user must remove a lock/reorder acquisitions to cause a specific failure the system names. E.g., 'Remove exactly one lock statement to create a race condition.' Teaches by destruction.",
+    "acceptanceCriteria": ["At least 3 saboteur challenges: create race, create deadlock, create starvation", "User modifies the simulation config via toggle switches", "System verifies the specific failure condition was triggered", "Hints available after 2 failed attempts"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/concurrency/saboteur-challenges.ts"], "dependencies": ["CON-018"], "blockedBy": [], "tags": ["innovation","gamification","learning"]
+  },
+  {
+    "id": "CON-087", "epic": "CON", "title": "Add micro-demo carousel: 15-second swipeable story format per concept",
+    "description": "Each concurrency concept distilled into a 15-second auto-playing micro-animation. User swipes through like Instagram stories. Full demo available one tap deeper. Perfect for mobile and ADHD users.",
+    "acceptanceCriteria": ["Carousel accessible from module header", "Each of 11 demos has a 15-second micro-version", "Swipe/arrow navigation between stories", "Tap/click opens full demo"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/MicroDemoCarousel.tsx"], "dependencies": [], "blockedBy": [], "tags": ["innovation","mobile","adhd","engagement"]
+  },
+  {
+    "id": "CON-088", "epic": "CON", "title": "Add Therac-25 historical simulation: real fatal race condition with annotations",
+    "description": "Step through the actual Therac-25 race condition that killed patients in the 1980s. Each step annotated with what happened in the real machine. Ends with memorial and lesson. Concurrency bugs have human consequences. Uses existing simulation engine pattern.",
+    "acceptanceCriteria": ["New 'Therac-25 (Historical)' demo in sidebar under an 'Advanced' or 'Case Studies' section", "6-10 step simulation with historical annotations", "Final step shows consequences and lessons learned", "Properties panel includes citation to Nancy Leveson's investigation"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/therac25.ts", "src/components/modules/ConcurrencyModule.tsx"], "dependencies": [], "blockedBy": [], "tags": ["education","emotional-design","history","case-study"]
+  },
+  {
+    "id": "CON-089", "epic": "CON", "title": "Add thumbnail snapshot mode: export clean PNG of current simulation state",
+    "description": "User pauses at visually interesting moment, clicks 'Capture', gets high-res PNG with clean background and no UI chrome. Ready for YouTube thumbnails, blog headers, slides. Uses existing canvas capture from gif-recorder.ts pattern.",
+    "acceptanceCriteria": ["Capture button visible in canvas toolbar", "PNG export removes sidebar/controls/chrome", "Resolution at least 1920x1080", "Works for SVG visualizers via foreignObject or html2canvas"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/lib/export/gif-recorder.ts"], "dependencies": [], "blockedBy": [], "tags": ["feature","content-creator","shareability"]
+  },
+  {
+    "id": "CON-090", "epic": "CON", "title": "Add Concurrency Bingo: gamified event-spotting across simulation runs",
+    "description": "User gets a bingo card of concurrency events ('Thread starved 5+ ticks', 'Deadlock with 3+ resources', 'Spinlock burns 100+ CPU cycles', 'All consumers waiting') and tries to trigger all by tweaking params and running demos.",
+    "acceptanceCriteria": ["Bingo card accessible from sidebar", "At least 16 events on the card (4x4 grid)", "Events auto-check when triggered during any simulation", "Bingo completion triggers celebration animation"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/modules/concurrency/ConcurrencyBingo.tsx"], "dependencies": ["CON-018"], "blockedBy": [], "tags": ["gamification","engagement","fun"]
+  }
+]

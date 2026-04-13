@@ -1,0 +1,258 @@
+{
+  "id": "youtube",
+  "name": "YouTube Video Platform",
+  "description": "Design YouTube's video upload and streaming platform. Covers video transcoding pipeline, CDN delivery, search indexing, and content metadata management at massive scale.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["video", "streaming", "transcoding", "cdn", "search", "upload-pipeline"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Web / Mobile Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 50000000, "requestsPerSecond": 5000000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": { "x": 250, "y": 0 },
+      "data": {
+        "label": "CDN (Video Delivery)",
+        "category": "load-balancing",
+        "componentType": "reverse-proxy",
+        "icon": "Globe2",
+        "config": { "cacheHitRate": 0.9, "ttlSeconds": 604800, "edgeLocations": 300 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 250, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckIntervalMs": 3000, "maxConnectionsPerNode": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 500, "y": 200 },
+      "data": {
+        "label": "Video API Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 50, "cpuCores": 16, "memoryGB": 64, "processingTimeMs": 15 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 750, "y": 50 },
+      "data": {
+        "label": "Upload Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 256, "retentionHours": 72, "maxThroughputMBps": 1000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "stream-proc",
+      "type": "stream-processor",
+      "position": { "x": 1000, "y": 50 },
+      "data": {
+        "label": "Transcoder (FFmpeg Pipeline)",
+        "category": "compute",
+        "componentType": "stream-processor",
+        "icon": "Activity",
+        "config": { "parallelism": 200, "windowSizeMs": 0, "checkpointIntervalMs": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "storage",
+      "type": "storage",
+      "position": { "x": 1000, "y": 250 },
+      "data": {
+        "label": "Object Storage (Video Blobs)",
+        "category": "storage",
+        "componentType": "s3",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storageGB": 10000000, "replicationFactor": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 750, "y": 250 },
+      "data": {
+        "label": "MySQL (Video Metadata)",
+        "category": "storage",
+        "componentType": "mysql",
+        "icon": "Database",
+        "config": { "type": "mysql", "replicas": 5, "maxConnections": 1000, "storageGB": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "search",
+      "type": "search-engine",
+      "position": { "x": 500, "y": 400 },
+      "data": {
+        "label": "Search Engine (Elasticsearch)",
+        "category": "storage",
+        "componentType": "search-engine",
+        "icon": "Search",
+        "config": { "shards": 100, "replicas": 2, "indexSizeGB": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 500, "y": 0 },
+      "data": {
+        "label": "Cache (Redis — Hot Metadata)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 256, "evictionPolicy": "lru", "ttlSeconds": 3600, "cacheHitRate": 0.92 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-cdn",
+      "source": "client",
+      "target": "cdn",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-transcode",
+      "source": "mq",
+      "target": "stream-proc",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-transcode-storage",
+      "source": "stream-proc",
+      "target": "storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "blob-write", "latency": 100, "animated": true }
+    },
+    {
+      "id": "e-cdn-storage",
+      "source": "cdn",
+      "target": "storage",
+      "sourceHandle": "right",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 20, "animated": false }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-search",
+      "source": "app-server",
+      "target": "search",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "search-query", "latency": 10, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Video Upload Pipeline",
+      "description": "When a creator uploads a video, the API Service stores the raw file in object storage and publishes a transcode job to Kafka. The transcoding pipeline (using FFmpeg) generates multiple resolutions (144p to 4K) and formats (H.264, VP9, AV1). Each resolution is split into small chunks for adaptive bitrate streaming.",
+      "highlightNodes": ["app-server", "mq", "stream-proc", "storage"],
+      "highlightEdges": ["e-app-mq", "e-mq-transcode", "e-transcode-storage"]
+    },
+    {
+      "title": "Video Viewing via CDN",
+      "description": "Viewers stream videos from the nearest CDN edge location. The CDN caches popular video chunks (the top 20% of videos get 80% of views). On a cache miss, the CDN pulls from origin object storage. Adaptive bitrate streaming (DASH/HLS) dynamically switches quality based on the viewer's bandwidth.",
+      "highlightNodes": ["client", "cdn", "storage"],
+      "highlightEdges": ["e-client-cdn", "e-cdn-storage"]
+    },
+    {
+      "title": "Search and Discovery",
+      "description": "Video metadata (title, description, tags, auto-generated captions) is indexed in Elasticsearch. The search engine supports fuzzy matching, relevance scoring (combining text relevance, view count, freshness, and user preferences), and autocomplete suggestions.",
+      "highlightNodes": ["search", "app-server"],
+      "highlightEdges": ["e-app-search"]
+    },
+    {
+      "title": "Metadata and Caching Layer",
+      "description": "Video metadata (view counts, likes, channel info) is stored in sharded MySQL. Redis caches hot metadata — trending videos, popular channels, and session data. With billions of daily views, the cache-aside pattern reduces database load by over 90%. View counts use approximate counters to avoid write contention.",
+      "highlightNodes": ["database", "cache"],
+      "highlightEdges": ["e-app-db", "e-app-cache"]
+    }
+  ]
+}

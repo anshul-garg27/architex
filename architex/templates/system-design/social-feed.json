@@ -1,0 +1,236 @@
+{
+  "id": "social-feed",
+  "name": "Social Media News Feed",
+  "description": "Design a social media news feed like Facebook or Instagram. Covers feed generation (fanout on write vs read), ML-based ranking, caching, and real-time updates.",
+  "difficulty": 4,
+  "category": "advanced",
+  "tags": ["social-feed", "fanout", "ranking", "ml", "caching", "news-feed", "timeline"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Mobile / Web Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 5000000, "requestsPerSecond": 1000000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer",
+        "icon": "GitBranch",
+        "config": { "algorithm": "least-connections", "healthCheckIntervalMs": 5000, "maxConnectionsPerNode": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Feed Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 50, "cpuCores": 8, "memoryGB": 32, "processingTimeMs": 20 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "Feed Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 256, "evictionPolicy": "volatile-lru", "ttlSeconds": 3600, "cacheHitRate": 0.9 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 600, "y": 350 },
+      "data": {
+        "label": "Social Graph DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 5, "maxConnections": 1000, "storageGB": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 400, "y": 400 },
+      "data": {
+        "label": "Post Event Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 128, "retentionHours": 168, "maxThroughputMBps": 200 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "fanout-worker",
+      "type": "worker",
+      "position": { "x": 200, "y": 400 },
+      "data": {
+        "label": "Fanout Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": { "instances": 40, "concurrencyPerInstance": 100, "retryAttempts": 3 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "ml-ranker",
+      "type": "ml-inference",
+      "position": { "x": 600, "y": 200 },
+      "data": {
+        "label": "Feed Ranking Model",
+        "category": "compute",
+        "componentType": "ml-inference",
+        "icon": "Brain",
+        "config": { "modelType": "ranking", "inferenceTimeMs": 10, "batchSize": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "document-db",
+      "type": "document-db",
+      "position": { "x": 800, "y": 200 },
+      "data": {
+        "label": "Post Store (MongoDB)",
+        "category": "storage",
+        "componentType": "document-db",
+        "icon": "Database",
+        "config": { "replicas": 3, "shards": 16, "storageGB": 20000 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-mq-fanout",
+      "source": "mq",
+      "target": "fanout-worker",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-fanout-cache",
+      "source": "fanout-worker",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-update", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-ml",
+      "source": "app-server",
+      "target": "ml-ranker",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-ml-docdb",
+      "source": "ml-ranker",
+      "target": "document-db",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Fanout on Write (Push Model)",
+      "description": "When a user publishes a post, the Fanout Worker pushes the post ID into every follower's feed list in Redis. For a user with 1,000 followers, this means 1,000 Redis writes. This pre-computes feeds so reads are instant (O(1) cache lookup). The trade-off: write amplification is high for users with millions of followers (celebrities).",
+      "highlightNodes": ["mq", "fanout-worker", "cache"],
+      "highlightEdges": ["e-mq-fanout", "e-fanout-cache"]
+    },
+    {
+      "title": "Hybrid Fanout Strategy",
+      "description": "For celebrity users (1M+ followers), fanout on write is too expensive. Instead, the system uses fanout on read for celebrities: when a user loads their feed, the Feed Service merges their pre-computed feed (from Redis) with recent posts from celebrities they follow (queried from MongoDB at read time). This hybrid approach caps write amplification.",
+      "highlightNodes": ["app-server", "cache", "document-db"],
+      "highlightEdges": ["e-app-cache", "e-ml-docdb"]
+    },
+    {
+      "title": "ML-Based Feed Ranking",
+      "description": "The raw feed (chronological post IDs) is passed to the Feed Ranking Model. It scores each post using signals: user affinity, post engagement (likes, comments), content type, recency, and creator quality. The model reorders the feed to maximize engagement. A/B testing different ranking models is done via feature flags.",
+      "highlightNodes": ["app-server", "ml-ranker"],
+      "highlightEdges": ["e-app-ml"]
+    },
+    {
+      "title": "Feed Cache and Pagination",
+      "description": "Each user's feed is a Redis sorted set (score = timestamp or ranking score). The Feed Service reads the top N items with ZREVRANGE for the first page and cursor-based pagination for subsequent pages. The cache holds the latest ~500 posts per user. Stale feeds (inactive users) are evicted via volatile-lru. On cache miss, the feed is regenerated from the social graph DB.",
+      "highlightNodes": ["cache", "database", "app-server"],
+      "highlightEdges": ["e-app-cache", "e-app-db"]
+    }
+  ]
+}

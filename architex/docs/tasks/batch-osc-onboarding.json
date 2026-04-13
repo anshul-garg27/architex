@@ -1,0 +1,196 @@
+[
+  {
+    "id": "OSC-211",
+    "epic": "OSC",
+    "title": "Create OS module guided tour \u2014 6 steps from welcome to first 'aha moment'",
+    "description": "The OnboardingOverlay (299 lines) exists but only covers System Design. OS module has ZERO onboarding steps. A complete beginner opens OS and sees 'Arr: 0, Burst: 5' with no explanation. Create a 6-step OS-specific tour: welcome \u2192 sidebar concepts \u2192 process cards explained \u2192 Run button \u2192 Gantt chart explanation \u2192 Compare All prompt. Use existing onboarding-overlay.tsx infrastructure with data-onboarding attributes on OS elements.",
+    "acceptanceCriteria": [
+      "6-step tour specific to OS module triggers on first visit (useFirstEncounter)",
+      "Step 1: Welcome \u2014 'Explore how your computer manages processes, memory, and resources'",
+      "Step 2: Sidebar spotlight \u2014 '6 OS topics to explore, starting with CPU Scheduling'",
+      "Step 3: Process cards spotlight \u2014 'These are processes with arrival times and burst times'",
+      "Step 4: Run button spotlight \u2014 'Press Run to see FCFS schedule these processes'",
+      "Step 5: Auto-runs FCFS, spotlights Gantt \u2014 'Each block is a process using the CPU'",
+      "Step 6: Compare All spotlight \u2014 'Try Compare All to see which algorithm is best'",
+      "Can skip at any step. Can replay from settings/help menu.",
+      "Works on mobile viewport (375px)"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/onboarding-overlay.tsx",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "tour",
+      "first-time"
+    ]
+  },
+  {
+    "id": "OSC-212",
+    "epic": "OSC",
+    "title": "Rewrite all 8 empty states with actionable CTAs and concept-specific illustrations",
+    "description": "All 8 empty states (6 concept canvases + properties + event log) show generic text like 'Run simulation to see metrics.' with a CPU icon. Rewrite each with: concept-specific description, CTA button that runs the default scenario, and micro-illustration. CPU Scheduling: 'How does the OS decide which program runs next? [Run FCFS \u2192]'. Deadlock: 'Two processes hold resources the other needs. [Detect Deadlock \u2192]'.",
+    "acceptanceCriteria": [
+      "Each of 6 concept canvases has unique empty state text explaining the concept",
+      "Each has a CTA button that runs the default simulation with one click",
+      "Properties empty state shows concept-appropriate illustration",
+      "Event log empty state explains what events will appear",
+      "CTA buttons are prominent (primary color, large enough to notice)",
+      "Empty state creates curiosity: 'Discover Belady's Anomaly \u2014 where MORE memory causes MORE faults!'"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "empty-state",
+      "ux"
+    ]
+  },
+  {
+    "id": "OSC-213",
+    "epic": "OSC",
+    "title": "Add contextual tooltips to all OS module controls using existing ContextualTooltip system",
+    "description": "OS module has 4 title= attributes in 3933 lines. No tooltips on algorithm selector, frame count input, reference string input, thread count, permits, or any other control. The ContextualTooltip system (234 lines, first-encounter detection) exists but has zero OS features configured. Add tooltips: 'Arrival Time: when the process enters the ready queue', 'Burst Time: how many time units the process needs', 'Quantum: how long each process runs before being preempted'.",
+    "acceptanceCriteria": [
+      "Algorithm selector: tooltip explaining what each algorithm does",
+      "Process card fields: tooltips for Arrival, Burst, Priority",
+      "Frame count: 'Number of physical memory frames available'",
+      "Reference string: 'Sequence of page numbers the process will access'",
+      "Quantum (when RR is selected): 'Time units each process gets before preemption'",
+      "Tooltips use useFirstEncounter \u2014 show on first visit, can be dismissed",
+      "At least 15 tooltips across all 6 concepts"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/ContextualTooltip.tsx",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "tooltips",
+      "help"
+    ]
+  },
+  {
+    "id": "OSC-214",
+    "epic": "OSC",
+    "title": "Add 'stuck' detection \u2014 prompt help after 30 seconds of inactivity",
+    "description": "If a user stares at the OS module for 30 seconds without clicking anything, they're probably confused. Add a gentle prompt: a subtle slide-in message at the bottom of the canvas saying 'Not sure where to start? [Watch a quick demo \u2192] [Take the tour \u2192]'. Use idle timer with mousemove/click reset. Dismiss on any interaction. Only show once per session.",
+    "acceptanceCriteria": [
+      "After 30s of no clicks/keypresses in OS module, gentle prompt appears",
+      "Prompt: 'Not sure where to start?' with [Quick Demo] and [Take Tour] buttons",
+      "Quick Demo: auto-runs FCFS with 4 default processes, auto-steps through",
+      "Take Tour: triggers the guided tour (OSC-211)",
+      "Prompt dismisses on any user interaction",
+      "Only shows once per session (localStorage flag)",
+      "Does NOT show if user has already run a simulation"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [
+      "OSC-211"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "stuck-detection",
+      "adaptive-help"
+    ]
+  },
+  {
+    "id": "OSC-215",
+    "epic": "OSC",
+    "title": "Add 'Quick Demo' one-click auto-run for each OS concept",
+    "description": "A beginner should be able to see something impressive with ONE click, zero configuration. Add a 'Watch Demo' button to each concept's empty state that: (1) loads a pre-configured interesting scenario, (2) auto-runs the simulation, (3) auto-steps through at a readable pace with step descriptions highlighted. For CPU Scheduling: runs Compare All on 4 diverse processes. For Page Replacement: runs Belady's Anomaly. For Deadlock: shows a 3-process circular deadlock.",
+    "acceptanceCriteria": [
+      "Each concept has a 'Watch Demo' button in its empty state",
+      "CPU Scheduling demo: Compare All on [P1(0,8), P2(1,2), P3(2,1), P4(3,4)]",
+      "Page Replacement demo: Belady's Anomaly with the classic ref string",
+      "Deadlock demo: 3-process circular deadlock with RAG visualization",
+      "Memory demo: 6 address translations showing TLB hit/miss/fault",
+      "Mem Alloc demo: 8 requests showing fragmentation buildup",
+      "Thread Sync demo: 4 threads competing for mutex with auto-play"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "onboarding",
+      "demo",
+      "first-success"
+    ]
+  },
+  {
+    "id": "OSC-216",
+    "epic": "OSC",
+    "title": "Add data-onboarding attributes to OS module UI elements for tour targeting",
+    "description": "The onboarding overlay uses data-onboarding attributes to spotlight UI elements. OS module has ZERO such attributes. Add: data-onboarding='os-sidebar' to OSSidebar, data-onboarding='os-controls' to control bar, data-onboarding='os-run' to Run button, data-onboarding='os-canvas' to canvas area, data-onboarding='os-properties' to properties panel.",
+    "acceptanceCriteria": [
+      "data-onboarding='os-sidebar' on sidebar container",
+      "data-onboarding='os-algo-selector' on algorithm dropdown",
+      "data-onboarding='os-process-cards' on process input area",
+      "data-onboarding='os-run' on Run button",
+      "data-onboarding='os-compare' on Compare All button",
+      "data-onboarding='os-canvas' on canvas/result area",
+      "data-onboarding='os-properties' on properties panel",
+      "Spotlight masking works for each target"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "OSC-211"
+    ],
+    "tags": [
+      "onboarding",
+      "tour",
+      "infrastructure"
+    ]
+  }
+]

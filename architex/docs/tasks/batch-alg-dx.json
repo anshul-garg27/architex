@@ -1,0 +1,190 @@
+[
+  {
+    "id": "ALG-255",
+    "epic": "ALG",
+    "title": "Create algorithm scaffolding script (pnpm scaffold:algorithm)",
+    "description": "DX AUDIT: Adding a new algorithm requires manually creating 1 file + editing 4 files with no automation. Create a scaffolding script at scripts/new-algorithm.ts that: (1) Prompts for name, category, complexity, description, (2) Creates engine file from template with typed step recording boilerplate, (3) Adds config to category barrel export, (4) Adds runner mapping to AlgorithmPanel.tsx, (5) Creates test file with standard edge case scaffolds, (6) Prints next steps. Saves ~2-3 hours per new algorithm. The guide (adding-an-algorithm.md) documents the process \u2014 this automates it.",
+    "acceptanceCriteria": [
+      "Running 'pnpm scaffold:algorithm' prompts interactively for details",
+      "Generates engine file with AnimationStep recording boilerplate",
+      "Adds config to category barrel with all required AlgorithmConfig fields",
+      "Adds runner entry in AlgorithmPanel.tsx",
+      "Creates test file with empty/single/sorted/reverse edge case templates",
+      "Prints 'Next steps: implement algorithm logic, write tests, run pnpm test'"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "scripts/new-algorithm.ts",
+      "package.json"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "scaffolding",
+      "automation",
+      "contributor"
+    ]
+  },
+  {
+    "id": "ALG-256",
+    "epic": "ALG",
+    "title": "Fix adding-an-algorithm.md \u2014 add missing SORTING_RUNNERS step + link content style guide",
+    "description": "DX AUDIT: The guide (docs/guides/adding-an-algorithm.md) is 416 lines and excellent BUT has two critical omissions: (1) Does NOT mention adding the runner to SORTING_RUNNERS in AlgorithmPanel.tsx:125 \u2014 the most critical registration step. A contributor following the guide creates an algorithm that appears in the dropdown but silently fails on Run. (2) Does NOT link to the content style guide (algorithm-content-style.md) or the world-class content examples. Add both. Also add a completion checklist at the end.",
+    "acceptanceCriteria": [
+      "Guide includes 'Step 3b: Register runner' section explaining SORTING_RUNNERS",
+      "Guide links to algorithm-content-style.md for description quality standards",
+      "Guide links to world-class-algorithm-content.md for A-grade examples",
+      "Completion checklist added at end: config \u2713, runner \u2713, tests \u2713, content quality \u2713",
+      "Note about targetId format consistency (use 'element-{index}' as documented)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "docs/guides/adding-an-algorithm.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "documentation",
+      "guide",
+      "contributor"
+    ]
+  },
+  {
+    "id": "ALG-257",
+    "epic": "ALG",
+    "title": "Add developer-facing console warnings for common algorithm registration mistakes",
+    "description": "DX AUDIT: When a contributor forgets to register a runner, the current feedback is SILENCE \u2014 Run button does nothing. Add console.warn messages in development mode for: (1) 'No runner found for [id]. Add it to SORTING_RUNNERS in AlgorithmPanel.tsx:125', (2) 'targetId [x] does not match expected format. See docs/guides/adding-an-algorithm.md', (3) 'pseudocodeLine [n] is out of range for pseudocode array (length [m])', (4) 'Algorithm [id] produced 0 steps for non-empty input'. Only in NODE_ENV=development. These save hours of debugging per contributor.",
+    "acceptanceCriteria": [
+      "Missing runner: console.warn with file path and line number to add it",
+      "Invalid targetId format: console.warn with link to docs",
+      "Out-of-bounds pseudocodeLine: console.warn with actual vs expected range",
+      "Zero steps on non-empty input: console.warn suggesting engine check",
+      "All warnings only in development mode (not production)"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "error-messages",
+      "debugging",
+      "developer-feedback"
+    ]
+  },
+  {
+    "id": "ALG-258",
+    "epic": "ALG",
+    "title": "Split AlgorithmPanel.tsx handleRun into per-category handler functions",
+    "description": "DX AUDIT: handleRun (AlgorithmPanel.tsx:389-605) is 200+ lines of if/else if chain for 7 categories. A contributor adding a new category must understand the entire function to add their case. Split into: handleRunSorting(), handleRunGraph(), handleRunTree(), handleRunDP(), handleRunString(), handleRunBacktracking(), handleRunGeometry(). Main handleRun dispatches to the right handler via switch. Each handler is 20-40 lines, self-contained, easy to copy-paste for a new category.",
+    "acceptanceCriteria": [
+      "handleRun is a short switch dispatcher (<30 lines)",
+      "Each category has its own handler function (handleRunSorting, etc.)",
+      "Each handler is self-contained (20-40 lines)",
+      "Adding a new category = add one new handler + one switch case",
+      "All existing behavior preserved (no functional change)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "readability",
+      "code-splitting",
+      "contributor"
+    ]
+  },
+  {
+    "id": "ALG-259",
+    "epic": "ALG",
+    "title": "Add pre-commit hooks with lint + typecheck + algorithm integrity check",
+    "description": "DX AUDIT: No pre-commit hooks exist (.husky not configured, no lint-staged). A contributor can commit code that fails typecheck, breaks lint, or has an algorithm config without a runner. Add: (1) Install husky + lint-staged, (2) Pre-commit: lint + typecheck on staged files, (3) Custom check: verify every algorithm ID in SORTING_ALGORITHMS has a matching SORTING_RUNNERS entry (catches the #1 contributor mistake at commit time, not in production).",
+    "acceptanceCriteria": [
+      ".husky/pre-commit hook runs on every commit",
+      "lint-staged runs ESLint + Prettier on staged .ts/.tsx files",
+      "typecheck runs tsc --noEmit on staged files",
+      "Custom script checks: all algorithm config IDs have matching runner entries",
+      "Pre-commit completes in <10 seconds for typical changes"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      ".husky/pre-commit",
+      "package.json",
+      "scripts/check-algorithm-runners.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "automation",
+      "pre-commit",
+      "quality-gate"
+    ]
+  },
+  {
+    "id": "ALG-260",
+    "epic": "ALG",
+    "title": "Add JSDoc to all exported algorithm functions and types",
+    "description": "DX AUDIT: Core types in types.ts have some comments but 62 engine functions (bubbleSort, quickSort, bfs, dijkstra, etc.) have ZERO JSDoc. A contributor hovering over bubbleSort() in their IDE sees only the type signature, not what it does. Add JSDoc to: (1) All 62 exported engine functions with @param and @returns, (2) All fields in AlgorithmConfig, AnimationStep, VisualMutation with usage notes, (3) PlaybackController methods. This gives IDE-level documentation for free.",
+    "acceptanceCriteria": [
+      "All 62 exported engine functions have JSDoc with @param and @returns",
+      "AlgorithmConfig fields have JSDoc explaining each field's purpose",
+      "VisualMutation.targetId has JSDoc explaining format convention per category",
+      "PlaybackController public methods have JSDoc",
+      "Hovering over any exported function in IDE shows documentation"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/graph/bfs.ts",
+      "src/lib/algorithms/playback-controller.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "documentation",
+      "jsdoc",
+      "ide-experience"
+    ]
+  }
+]

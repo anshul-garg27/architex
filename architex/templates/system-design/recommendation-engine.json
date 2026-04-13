@@ -1,0 +1,214 @@
+{
+  "id": "recommendation-engine",
+  "name": "Recommendation Engine (Netflix-style)",
+  "description": "Design a personalized recommendation system like Netflix. Covers real-time inference, collaborative filtering, feature stores, model serving, and offline batch retraining pipelines.",
+  "difficulty": 4,
+  "category": "advanced",
+  "tags": ["recommendation", "netflix", "ml", "collaborative-filtering", "personalization", "inference"],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Client Application",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 500000, "requestsPerSecond": 50000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "lb",
+      "type": "load-balancer",
+      "position": { "x": 200, "y": 200 },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": { "algorithm": "round-robin", "healthCheckInterval": 5, "maxConnections": 300000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": { "x": 400, "y": 200 },
+      "data": {
+        "label": "Recommendation API",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": { "instances": 10, "cpuCores": 8, "memoryGB": 16, "processingTimeMs": 20 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "feature-cache",
+      "type": "cache",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "Feature Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 128, "evictionPolicy": "allkeys-lru", "ttlSeconds": 3600, "cacheHitRate": 0.95 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "ml-inference",
+      "type": "ml-inference",
+      "position": { "x": 600, "y": 200 },
+      "data": {
+        "label": "ML Model Server",
+        "category": "compute",
+        "componentType": "ml-inference",
+        "icon": "Brain",
+        "config": { "modelType": "collaborative-filtering", "batchSize": 32, "latencyMs": 15, "gpuEnabled": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": { "x": 600, "y": 400 },
+      "data": {
+        "label": "User Activity DB (Cassandra)",
+        "category": "storage",
+        "componentType": "cassandra",
+        "icon": "Database",
+        "config": { "type": "cassandra", "replicas": 3, "maxConnections": 500, "storageGB": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": { "x": 200, "y": 425 },
+      "data": {
+        "label": "Event Stream (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": { "type": "kafka", "partitions": 48, "replicationFactor": 3, "retentionHours": 720 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "batch-processor",
+      "type": "batch-processor",
+      "position": { "x": 0, "y": 425 },
+      "data": {
+        "label": "Model Retrainer (Spark)",
+        "category": "compute",
+        "componentType": "batch-processor",
+        "icon": "Layers",
+        "config": { "jobType": "spark", "scheduleCron": "0 2 * * *", "clusterSize": 20, "timeoutMinutes": 180 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "client",
+      "target": "lb",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-lb-app",
+      "source": "lb",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "feature-cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-app-ml",
+      "source": "app-server",
+      "target": "ml-inference",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 15, "animated": true }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "left",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": { "edgeType": "message-queue", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-mq-batch",
+      "source": "mq",
+      "target": "batch-processor",
+      "sourceHandle": "left",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 100, "animated": false }
+    },
+    {
+      "id": "e-ml-cache",
+      "source": "ml-inference",
+      "target": "feature-cache",
+      "sourceHandle": "top",
+      "targetHandle": "right-target",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Real-Time Recommendation Serving",
+      "description": "When a user opens the app, the Recommendation API fetches pre-computed user embeddings from Redis (feature cache) and sends them to the ML Model Server via gRPC. The model performs approximate nearest neighbor (ANN) search against item embeddings to find the top-K most relevant items in ~15ms. Results are personalized by combining collaborative filtering scores with content-based features.",
+      "highlightNodes": ["client", "lb", "app-server", "ml-inference"],
+      "highlightEdges": ["e-client-lb", "e-lb-app", "e-app-ml"]
+    },
+    {
+      "title": "Feature Store and Caching",
+      "description": "The Feature Cache (Redis) stores pre-computed user profiles, item embeddings, and interaction features. User features include viewing history, genre preferences, and recency-weighted ratings. Item features include popularity scores, freshness, and content tags. With 128GB Redis and 95% cache hit rate, feature lookups add only 1ms to the inference path. Cache misses fall back to Cassandra.",
+      "highlightNodes": ["feature-cache", "ml-inference", "database"],
+      "highlightEdges": ["e-app-cache", "e-ml-cache", "e-app-db"]
+    },
+    {
+      "title": "Event Collection and Feedback Loop",
+      "description": "Every user interaction (view, click, watch duration, skip, rating) is published to Kafka as an event. These events serve dual purposes: real-time feature updates (streaming consumer updates Redis) and batch training data (consumed by Spark). This closed feedback loop ensures the model continuously improves. Kafka retains 30 days of events for retraining and A/B test analysis.",
+      "highlightNodes": ["app-server", "mq", "batch-processor"],
+      "highlightEdges": ["e-app-mq", "e-mq-batch"]
+    },
+    {
+      "title": "Offline Model Retraining Pipeline",
+      "description": "The Batch Processor (Spark) runs nightly, consuming historical interaction data from Kafka and Cassandra. It retrains the collaborative filtering model using matrix factorization (ALS) or deep learning. New embeddings are written back to Redis and the updated model is deployed to the ML Server via blue-green deployment. A/B testing compares new model performance against the current production model before full rollout.",
+      "highlightNodes": ["batch-processor", "mq", "ml-inference"],
+      "highlightEdges": ["e-mq-batch"]
+    }
+  ]
+}

@@ -1,0 +1,219 @@
+[
+  {
+    "id": "CON-140", "epic": "CON", "title": "Fix Dining Philosophers visualization — visual lie shows wrong state for 4 of 5 philosophers",
+    "description": "VISUAL LIE (V1=1/3): ConcurrencyModule.tsx:392-393 uses `event.philosopherId === id ? event.state : 'thinking'`, which defaults all non-active philosophers to 'thinking' regardless of actual state. At any step, only the philosopher mentioned in the current event shows their true state. This means a student watching the deadlock scenario sees 4 philosophers as 'thinking' when they are actually 'waiting' with forks held.\n\nFIX: Build a cumulative state map from events[0..stepIndex]. For each philosopher, track their last known state across all events up to the current step. Use this map instead of the single-event lookup.\n\nThis is the P0 visual lie — a student LEARNING FROM THIS will misunderstand what deadlock looks like because most philosophers appear to be thinking when they're actually stuck waiting.",
+    "acceptanceCriteria": [
+      "All 5 philosopher circles show their CORRECT state at every step (not just the active one)",
+      "When deadlock occurs, all 5 circles show 'waiting' state simultaneously (not 4 'thinking' + 1 'waiting')",
+      "Fork ownership indicators match the cumulative state map",
+      "Both naive and ordered tables use the same cumulative state tracking"
+    ],
+    "priority": "P0", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["visual-lie", "P0", "viz-accuracy", "teaching-critical"]
+  },
+  {
+    "id": "CON-141", "epic": "CON", "title": "Fix Sleeping Barber tick double-increment corrupting step generation timing",
+    "description": "STEP GENERATION BUG (I5=1/3): sleeping-barber.ts:191 has an unconditional `tick++` at the end of the while loop body, in addition to `tick++` inside each event push. This causes: (1) tick gaps in the event sequence, (2) the `tick % ARRIVAL_INTERVAL === 0` check at line 93-94 misses expected arrival ticks, (3) customer arrivals are irregularly spaced instead of every 2 ticks.\n\nFIX: Remove the unconditional `tick++` at line 191. Each event already increments tick when pushed. The while loop's `tick < maxTicks` termination condition still works because events increment tick.\n\nVERIFY after fix: customer arrivals occur at exactly every ARRIVAL_INTERVAL ticks, tick numbers in events are sequential without gaps.",
+    "acceptanceCriteria": [
+      "Remove unconditional tick++ at sleeping-barber.ts:191",
+      "Event tick numbers are sequential without gaps",
+      "Customers arrive at exactly every ARRIVAL_INTERVAL ticks",
+      "Simulation still terminates (all customers served or turned away)"
+    ],
+    "priority": "P0", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/sleeping-barber.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["engine-bug", "step-generation", "P0"]
+  },
+  {
+    "id": "CON-142", "epic": "CON", "title": "Add pseudocode display to Race Condition implementation",
+    "description": "I6=0/3: No pseudocode exists. The race condition is the most fundamental concurrency concept and students need to see the canonical pseudocode to understand the read-modify-write pattern.\n\nADD pseudocode:\n```\n// UNSAFE (no synchronization)\nfor each thread:\n  local = read(counter)     // stale read possible\n  counter = local + 1       // last writer wins\n\n// SAFE (mutex-protected)\nfor each thread:\n  lock(mutex)\n  local = read(counter)     // protected read\n  counter = local + 1       // no interleaving possible\n  unlock(mutex)\n```\n\nDisplay in the properties panel or a collapsible code panel adjacent to the visualization.",
+    "acceptanceCriteria": [
+      "Pseudocode for both unsafe and safe versions shown",
+      "Pseudocode is language-agnostic (not TypeScript)",
+      "Current step highlighted in pseudocode during playback",
+      "Pseudocode clearly labels the critical section"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["pseudocode", "teaching", "implementation"]
+  },
+  {
+    "id": "CON-143", "epic": "CON", "title": "Add pseudocode display to Producer-Consumer implementation",
+    "description": "I6=0/3: No pseudocode. The bounded buffer pattern with wait/signal is the canonical teaching example for condition variables. Add:\n```\nproduce(item):\n  lock(mutex)\n  while buffer.full():\n    wait(not_full, mutex)   // release lock, sleep until signaled\n  buffer.add(item)\n  signal(not_empty)         // wake a consumer\n  unlock(mutex)\n\nconsume():\n  lock(mutex)\n  while buffer.empty():\n    wait(not_empty, mutex)  // release lock, sleep until signaled\n  item = buffer.remove()\n  signal(not_full)          // wake a producer\n  unlock(mutex)\n  return item\n```\n\nNOTE: This pseudocode shows the condition variable pattern that our simulation REPRESENTS but doesn't explicitly model. The pseudocode teaches the synchronization mechanism; the visualization shows the behavior.",
+    "acceptanceCriteria": [
+      "Pseudocode shown with wait/signal on condition variables",
+      "The while-loop guard (not if-check) is highlighted as critical",
+      "Pseudocode labels not_full and not_empty conditions explicitly"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["pseudocode", "teaching", "implementation"]
+  },
+  {
+    "id": "CON-144", "epic": "CON", "title": "Add pseudocode display to Dining Philosophers, Deadlock Demo, Readers-Writers",
+    "description": "I6=0/3 for all three. These are classic textbook problems with well-known pseudocode in OSTEP and Tanenbaum. Add:\n\nDining Philosophers (naive):\n```\nphilosopher(id):\n  while true:\n    think()\n    pick_up(left_fork)\n    pick_up(right_fork)  // blocks → potential deadlock\n    eat()\n    put_down(left_fork)\n    put_down(right_fork)\n```\n\nDeadlock Demo:\n```\nthread_A():\n  lock(R1)\n  lock(R2)  // blocks if B holds R2\n  // critical section\n  unlock(R2); unlock(R1)\n\nthread_B():\n  lock(R2)\n  lock(R1)  // blocks if A holds R1 → DEADLOCK\n```\n\nReaders-Writers:\n```\nreader():\n  lock(mutex)\n  readers++\n  if readers == 1: lock(write_lock)\n  unlock(mutex)\n  // read shared data\n  lock(mutex)\n  readers--\n  if readers == 0: unlock(write_lock)\n  unlock(mutex)\n```",
+    "acceptanceCriteria": [
+      "All 3 concepts show pseudocode matching the OSTEP/Tanenbaum formulation",
+      "Dining Philosophers shows both naive and ordered pseudocode",
+      "Pseudocode highlights the deadlock-prone line with a comment",
+      "Readers-Writers pseudocode shows the readers-preference bias explicitly"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["pseudocode", "teaching", "implementation"]
+  },
+  {
+    "id": "CON-145", "epic": "CON", "title": "Add missing legend to Dining Philosophers visualization",
+    "description": "V4=0/3: DiningPhilosophersViz has 4 philosopher state colors (thinking=#6b7280, hungry=#f59e0b, eating=#22c55e, waiting=#ef4444) and 2 fork states (free=#4b5563, held=#f59e0b) but NO legend explaining these. Students must guess what the colors mean. The PHILOSOPHER_STATES map at line 151-156 defines them but they're not shown in the UI.\n\nAdd a compact legend below or beside each SVG table showing:\n• Gray circle = Thinking\n• Amber circle = Hungry\n• Green circle = Eating\n• Red circle = Waiting\n• Gray rectangle = Fork (free)\n• Amber rectangle = Fork (held)",
+    "acceptanceCriteria": [
+      "Legend visible for both naive and ordered philosopher tables",
+      "All 4 philosopher states and 2 fork states included",
+      "Legend uses the same colors as the SVG elements",
+      "Legend does not overlap or clip the SVG visualization"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["viz-accuracy", "legend", "visual"]
+  },
+  {
+    "id": "CON-146", "epic": "CON", "title": "Add missing legend to Sleeping Barber and Readers-Writers visualizations",
+    "description": "V4=0/3 for both. SleepingBarberViz uses 6 action colors (BARBER_ACTION_COLORS at line 1491-1498) and Readers-Writers uses 5 action colors (RW_ACTION_COLORS at line 1324-1329) in their event logs, but neither has a legend explaining what each color means. Students see colored text lines but must infer the meaning.\n\nAdd a compact color legend (inline or collapsible) showing:\nSleeping Barber: enter=gray, wake-barber=green, sit-wait=blue, get-haircut=purple, done=green, leave-full=red\nReaders-Writers: read-start=blue, read-end=light-blue, write-start=red, write-end=light-red, wait=amber",
+    "acceptanceCriteria": [
+      "Color legend visible in both Sleeping Barber and Readers-Writers visualizations",
+      "Legend matches the exact colors used in the event log text",
+      "Legend is compact (one line or collapsible) and doesn't clutter the event log"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["viz-accuracy", "legend", "visual"]
+  },
+  {
+    "id": "CON-147", "epic": "CON", "title": "Add Goroutine basic-channel step 4 clarification — unbuffered channels don't buffer values",
+    "description": "V1 semantic issue: In goroutines.ts basicChannel() tick 4, the channel buffer shows [42] after the rendezvous. But in real Go, unbuffered channels transfer values DIRECTLY from sender to receiver — the value never sits in a buffer. Our visualization shows it briefly in the buffer for visual effect, which could mislead students into thinking unbuffered channels have a temporary buffer.\n\nFIX: Either (1) remove the [42] from the buffer and instead show a direct arrow transfer animation, or (2) add a note in the step description: 'Value 42 passes directly from sender to main (shown in buffer for illustration — real unbuffered channels have no buffer).'",
+    "acceptanceCriteria": [
+      "Either buffer shows empty during unbuffered rendezvous, or description explicitly notes the visualization simplification",
+      "Student cannot confuse unbuffered channel behavior with buffered channel behavior"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/goroutines.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["viz-accuracy", "teaching", "semantic"]
+  },
+  {
+    "id": "CON-148", "epic": "CON", "title": "Enrich Race Condition step descriptions with 'WHY' — explain stale-read consequence at each step",
+    "description": "I5 teaching quality: Current steps say 'thread-0 reads counter = 0' (WHAT). The description includes '(based on stale read 0)' for writes which IS good, but read steps don't explain WHY a stale read is dangerous.\n\nREWRITE examples:\n- Old: 'thread-0 reads counter = 0'\n- New: 'thread-0 reads counter = 0 into its local register. This value is now STALE — if another thread modifies counter before thread-0 writes back, thread-0 won't know.'\n\n- Old: 'thread-1 reads counter = 0'\n- New: 'thread-1 ALSO reads counter = 0. Both threads now hold the same stale value. When they both write back counter+1, one write will be lost.'\n\nThe WRITE steps already have good WHY ('based on stale read'). Focus on enriching READ steps.",
+    "acceptanceCriteria": [
+      "All READ events in unsafeIncrement include a WHY clause about stale values",
+      "First read of each round explicitly says 'this value may become stale'",
+      "Second+ reads of each round explicitly say 'ALSO reads same stale value as thread-0'",
+      "Safe version READ events say 'protected by mutex — value guaranteed fresh'"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/race-condition.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["step-descriptions", "teaching", "WHY"]
+  },
+  {
+    "id": "CON-149", "epic": "CON", "title": "Enrich Producer-Consumer step descriptions with WHY — explain wait/signal reasons",
+    "description": "I5 teaching: Current steps say 'producer-1 produces item 3 (buffer: 3/4)' — WHAT, not WHY. Rewrite to explain the synchronization decision at each step.\n\n- Old: 'producer-1 waits (buffer full, 4/4)'\n- New: 'producer-1 tries to add an item but buffer is FULL (4/4). It must WAIT — adding more items would corrupt the buffer. This is back-pressure: the producer is slowed to match consumer speed.'\n\n- Old: 'consumer-1 signals: buffer not full'\n- New: 'consumer-1 signals NOT_FULL condition. This wakes any blocked producer — the buffer now has space for new items.'",
+    "acceptanceCriteria": [
+      "All produce events explain why the producer CAN produce (buffer has space)",
+      "All wait-full events explain the consequence of overflow",
+      "All signal events explain which condition is being signaled and who it wakes",
+      "Consumer wait-empty events explain why blocking prevents busy-waiting"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/producer-consumer.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["step-descriptions", "teaching", "WHY"]
+  },
+  {
+    "id": "CON-150", "epic": "CON", "title": "Enrich Dining Philosophers step descriptions with WHY — connect to Coffman conditions",
+    "description": "Steps say 'P0 picks up left fork (fork 0)' — WHAT. Should explain WHY this leads to deadlock, connecting each action to the Coffman conditions being satisfied.\n\n- Old: 'P0 picks up left fork (fork 0)'\n- New: 'P0 picks up left fork (fork 0) and holds it while trying for the right. This is HOLD-AND-WAIT — one of the four conditions needed for deadlock.'\n\n- Old: 'P2 waiting for right fork (fork 3)'\n- New: 'P2 is waiting for fork 3, which is held by P3. But P3 is waiting for fork 4, held by P4... This CIRCULAR WAIT is forming — the last Coffman condition.'\n\n- Old: 'DEADLOCK: All philosophers hold left fork and wait for right'\n- New: 'DEADLOCK! All four Coffman conditions are now met: (1) Mutual exclusion — forks can't be shared. (2) Hold and wait — each philosopher holds one fork while waiting. (3) No preemption — forks can't be forcibly taken. (4) Circular wait — P0→P1→P2→P3→P4→P0.'",
+    "acceptanceCriteria": [
+      "Each fork-pick-up step names the Coffman condition being satisfied",
+      "The circular wait formation is narrated step-by-step as it forms",
+      "The final DEADLOCK step explicitly lists all 4 conditions met",
+      "Ordered variant steps explain WHY ordering prevents circular wait"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/dining-philosophers.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["step-descriptions", "teaching", "WHY", "Coffman"]
+  },
+  {
+    "id": "CON-151", "epic": "CON", "title": "Add Readers-Writers writer-preference variant implementation",
+    "description": "I8=1/3: Only reader-preference policy implemented. Missing writer-preference (writers starve readers) and fair/FIFO policy. The readers-writers problem's entire teaching value is in comparing the three policies.\n\nAdd to readers-writers.ts:\n1. simulateWriterPreference() — writers admitted as soon as resource is free, readers blocked while any writer is waiting\n2. simulateFairPolicy() — FIFO ordering, neither side starved\n\nAdd sub-demo tabs in the visualization (like Event Loop's 3 demos).",
+    "acceptanceCriteria": [
+      "Writer-preference variant shows reader starvation under heavy write load",
+      "Fair/FIFO variant shows no starvation for either side",
+      "Sub-demo tabs allow switching between reader-pref, writer-pref, and fair",
+      "Properties panel compares all 3 policies"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/readers-writers.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["variant-coverage", "implementation"]
+  },
+  {
+    "id": "CON-152", "epic": "CON", "title": "Add Dining Philosophers Chandy/Misra variant implementation",
+    "description": "I8=1/3: Only naive + resource ordering. Missing Chandy/Misra (clean/dirty token passing) — the most elegant distributed deadlock prevention algorithm. Teaching value: shows that deadlock can be prevented without global coordination.\n\nAdd to dining-philosophers.ts:\nsimulateChangdyMisra(philosopherCount, ticks) — forks start dirty, philosopher must request clean fork from neighbor, neighbor gives up dirty fork, cleans it, and sends it.",
+    "acceptanceCriteria": [
+      "Chandy/Misra variant added as sub-demo tab",
+      "Fork state shows clean/dirty in addition to owner",
+      "Properties panel explains why distributed prevention matters",
+      "Step descriptions explain the clean/dirty token protocol"
+    ],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/dining-philosophers.ts", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["variant-coverage", "implementation", "advanced"]
+  },
+  {
+    "id": "CON-153", "epic": "CON", "title": "Add multi-representation: Python display code for top 5 concurrency patterns",
+    "description": "I7=0/3 for 9 of 12 implementations. Students want to see code in THEIR language. Add Python display code panels for the 5 most universal patterns:\n1. Race Condition: threading.Thread + shared counter\n2. Producer-Consumer: threading.Condition + queue\n3. Dining Philosophers: threading.Lock + resource ordering\n4. Deadlock: threading.Lock + circular acquisition\n5. Readers-Writers: threading.RLock + threading.Event\n\nDisplay as a collapsible 'Python Code' panel alongside the visualization. Code should match the simulation logic, not be production-optimized.",
+    "acceptanceCriteria": [
+      "5 concepts show Python code in a collapsible panel",
+      "Python code uses threading module (standard library, no external deps)",
+      "Code matches the simulation's behavior (same race condition, same deadlock)",
+      "Code has inline comments explaining the concurrency-relevant lines"
+    ],
+    "priority": "P2", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["multi-language", "multi-representation", "Python"]
+  },
+  {
+    "id": "CON-154", "epic": "CON", "title": "Add multi-representation: Java and Go display code for top 5 patterns",
+    "description": "After Python (CON-153), add Java (synchronized, ReentrantLock, Semaphore, Condition) and Go (goroutine, chan, sync.Mutex, sync.WaitGroup) display code for the same 5 patterns. Java and Go are the two most common languages in concurrency interviews.\n\nDisplay as additional tabs in the code panel: Python | Java | Go",
+    "acceptanceCriteria": [
+      "Java code uses java.util.concurrent classes (ReentrantLock, Condition, Semaphore)",
+      "Go code uses goroutines, channels, sync package",
+      "All 3 languages show the same logical behavior for each pattern",
+      "Tab switching preserves scroll position and current step"
+    ],
+    "priority": "P3", "effort": "L", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-153"], "blockedBy": ["CON-153"], "tags": ["multi-language", "multi-representation"]
+  },
+  {
+    "id": "CON-155", "epic": "CON", "title": "Add real-world production code comparison for Lock Comparison concept",
+    "description": "I9=0/3 across entire module. Lock Comparison is the best candidate for production code comparison because it directly maps to real implementations:\n- SpinLock → Linux kernel spinlock_t (CONFIG_PREEMPT_NONE)\n- Mutex → pthread_mutex / Java ReentrantLock / Go sync.Mutex\n- TTAS → parking_lot::Mutex (Rust) / adaptive mutex (glibc)\n\nAdd a 'Production Code' section showing how each lock type is implemented in real systems, with key differences from our teaching version (e.g., 'our simulation uses 4 cycles/spin; real spinlocks use PAUSE instruction to reduce bus contention').",
+    "acceptanceCriteria": [
+      "Production implementation referenced for each of 3 lock types",
+      "Key differences between teaching version and production version noted",
+      "At least 1 specific production system named per lock type",
+      "Student understands the gap between 'textbook' and 'production'"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["real-world", "production-comparison", "teaching"]
+  },
+  {
+    "id": "CON-156", "epic": "CON", "title": "Add educational inline comments to Race Condition and Producer-Consumer engine code",
+    "description": "I10 varies. Race Condition has excellent file-level docs (I10=3) but Producer-Consumer could be better. More importantly, since these engines ARE the learning material (students may read the source), add inline 'WHY' comments at key decision points:\n\nrace-condition.ts: Add comment at line 59 explaining WHY we interleave all-reads-then-all-writes: 'We deliberately schedule ALL reads before ANY writes to guarantee the race is visible. In real systems, the interleaving is non-deterministic — this synthetic schedule shows the worst case.'\n\nproducer-consumer.ts: Add comment at buffer.length >= bufferSize explaining: 'This is the full-buffer guard. In a real implementation, this would be a condition variable wait: while(buffer.full()) cv.wait(mutex). Our simulation models the behavior without the explicit sync primitive.'",
+    "acceptanceCriteria": [
+      "At least 3 'WHY' comments added to race-condition.ts explaining design choices",
+      "At least 3 'WHY' comments added to producer-consumer.ts explaining sync patterns",
+      "Comments explain what the REAL implementation would look like vs our simulation",
+      "Comments read as a narrative — reading just comments teaches the concept"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/lib/concurrency/race-condition.ts", "src/lib/concurrency/producer-consumer.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["documentation", "inline-comments", "teaching"]
+  }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "MLD-215",
+    "epic": "MLD",
+    "title": "Add custom dataset entry — click to place data points on canvas",
+    "description": "CRITICAL GAP: Users can only choose from 4 preset datasets. Every competitor (TF Playground, ML Visualized, ConvNetJS) supports custom data. Add: click on scatter plot canvas to place a data point. Left-click = class 0 (blue), right-click/shift-click = class 1 (orange). Clear All button to reset.\n\nAlso support: paste from clipboard (CSV format: x,y,label per line), preset buttons still available alongside custom mode.\n\nThis transforms the module from 'watch these 4 shapes' to 'experiment with ANY data you can imagine' — the #1 missing interactivity feature.",
+    "acceptanceCriteria": ["Click on scatter plot places a data point (class 0)", "Shift-click or right-click places class 1 point", "Minimum 2 points required to train", "Clear All button removes custom points", "Paste from clipboard (CSV: x,y,label format) supported", "Preset buttons (Circle/XOR/Spiral/Gaussian) still work alongside custom", "Custom data persists during mode switching within session"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["gap", "interactivity", "custom-input", "competitor-parity"]
+  },
+  {
+    "id": "MLD-216",
+    "epic": "MLD",
+    "title": "Add experiment comparison — save and compare multiple training runs",
+    "description": "CRITICAL GAP: Students can't compare different hyperparameter configurations side by side. After training with 2 layers, they change to 4 layers and train again — but the first result is gone. Must remember numbers mentally.\n\nAdd: 'Save Experiment' button that snapshots current config + results. 'Compare' view shows 2-3 saved experiments side by side: decision boundaries overlaid, loss curves overlaid, accuracy bar chart.\n\nThis is what makes TF Playground addictive — you naturally want to try variations and compare. Without comparison, experimentation has no payoff.",
+    "acceptanceCriteria": ["'Save Experiment' button saves current config + trained network + metrics", "Up to 5 experiments saved in localStorage", "Comparison view shows decision boundaries side by side", "Loss curves overlaid in one chart (different colors per experiment)", "Accuracy bar chart comparing all saved experiments", "Each experiment labeled with its key hyperparameters", "Delete individual experiments or clear all"],
+    "priority": "P1", "effort": "L", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/neural-net.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["gap", "comparison", "experimentation", "high-impact"]
+  },
+  {
+    "id": "MLD-217",
+    "epic": "MLD",
+    "title": "Add animation speed control for serving, bandit, and feature store simulations",
+    "description": "GAP: All three simulation modes run at fixed speeds (serving: 400ms/tick, bandit: dynamic 20-100ms, feature store: 1500ms/tick). No way for users to slow down to study or speed up to see results.\n\nThe platform has `playbackSpeed` in simulation-store.ts (line 51) used by the System Design simulation engine. ML Design should either:\n1. Connect to the same speed control, OR\n2. Add its own speed slider (0.25x, 0.5x, 1x, 2x, 4x)\n\nShow speed control in the sidebar for modes with animations.",
+    "acceptanceCriteria": ["Speed slider visible in sidebar for Serving, Bandit, and Feature Store modes", "Speed options: 0.25x (slow study), 0.5x, 1x (default), 2x, 4x (quick result)", "Serving animation interval adjusts proportionally", "Bandit step timing adjusts", "Feature Store step timing adjusts", "Speed preference persists during session"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["gap", "playback", "speed-control"]
+  },
+  {
+    "id": "MLD-218",
+    "epic": "MLD",
+    "title": "Connect ML Design to ColorblindToggle for colorblind-safe palette",
+    "description": "GAP: ColorblindToggle.tsx exists with IBM Design colorblind-safe palette. ML Design's scatter plot, decision boundary, network diagram, and all SVG visualizations use hardcoded colors that ignore the colorblind toggle. When a user enables colorblind mode, ML Design looks identical.\n\nFix: After MLD-030 (CSS variable migration), ensure all ML visualization colors use CSS variables that the colorblind palette overrides. The colorblind palette (a11y/colorblind-palette.ts) should define ML-specific overrides: --viz-class-0, --viz-class-1, --viz-active, etc.",
+    "acceptanceCriteria": ["When colorblind toggle is enabled, ML Design colors change to colorblind-safe palette", "Scatter plot class 0 and class 1 use colorblind-distinguishable colors", "Decision boundary gradient uses colorblind-safe endpoints", "Pipeline stage colors use colorblind-safe alternatives", "All color changes flow through CSS variables (no JS-level color swapping)", "IBM Design colorblind palette values used (verified accessible)"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/a11y/colorblind-palette.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": ["MLD-030"], "blockedBy": ["MLD-030"], "tags": ["gap", "accessibility", "colorblind", "existing-infrastructure"]
+  },
+  {
+    "id": "MLD-219",
+    "epic": "MLD",
+    "title": "Add training results export — CSV download of loss history and metrics",
+    "description": "GAP: Students can't export their training results for homework, reports, or further analysis. Add 'Export Results' button that downloads:\n- CSV: epoch, loss, accuracy (one row per epoch)\n- JSON: full training config + metrics + network weights (for advanced users)\n- PNG: current decision boundary + scatter plot as image\n\nThis serves the professor persona ('use this tool for your assignment, submit the CSV') and the researcher persona ('I want to plot this in matplotlib').",
+    "acceptanceCriteria": ["'Export Results' button in properties panel after training", "CSV download: columns = epoch, loss, accuracy", "JSON download: includes config + all metrics + serialized weights", "PNG download: captures the canvas area as image", "Downloads use descriptive filenames (ml-training-circle-2layers-sigmoid.csv)", "Button disabled before training (no results to export)"],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["gap", "export", "data", "academic"]
+  },
+  {
+    "id": "MLD-220",
+    "epic": "MLD",
+    "title": "Pause animations when browser tab is hidden (Page Visibility API)",
+    "description": "GAP: Serving canvas dots, bandit bar animations, and feature store glow effects continue running when the browser tab is hidden. This wastes CPU and battery on mobile. ParticleLayer.tsx in the canvas module already handles this via Page Visibility API.\n\nAdd a document.visibilitychange listener that pauses all setInterval and requestAnimationFrame loops when the tab is hidden, and resumes when visible again.",
+    "acceptanceCriteria": ["All ML Design animations pause when tab becomes hidden", "Animations resume exactly where they left off when tab becomes visible", "RAF-based training loop also pauses when hidden", "No visual glitch on resume (no frame-skip jump)", "Battery usage measurably lower when tab is hidden during simulation"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["gap", "performance", "battery", "page-visibility"]
+  },
+  {
+    "id": "MLD-221",
+    "epic": "MLD",
+    "title": "Wire ML Design strings to i18n system for translation readiness",
+    "description": "GAP: i18n/strings.ts has mlDesign and mlDesignDesc entries but ML Design module uses hardcoded English strings everywhere (~200+ user-facing strings: button labels, mode names, descriptions, step text, tooltip content).\n\nExtract all user-facing strings to i18n/strings.ts under an mlDesign section. Components import from strings.ts instead of using inline strings. This doesn't require actual translations — just makes the module translation-READY for future i18n.\n\nNote: Step descriptions in library files (serving-patterns.ts, feature-store.ts) should also use string keys.",
+    "acceptanceCriteria": ["All ML Design user-facing strings extracted to i18n/strings.ts", "Components import strings from the i18n file", "At least: mode names, button labels, sidebar headers, empty state text extracted", "Step descriptions in library files use string templates with parameters", "No user-visible text change (same English strings, different source)"],
+    "priority": "P3", "effort": "L", "status": "ready", "phase": 4, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/i18n/strings.ts", "src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/serving-patterns.ts", "src/lib/ml-design/feature-store.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["gap", "i18n", "translation-readiness"]
+  },
+  {
+    "id": "MLD-222",
+    "epic": "MLD",
+    "title": "Clean barrel exports in index.ts — remove ~40 unused re-exports",
+    "description": "GAP from QA review: index.ts exports ~40 symbols (types, functions, classes) that are only consumed by the 5 orphaned component files. After MLD-026 (wire orphans into module) or MLD-035 (consolidate NNs), these exports will become used. But until then, the barrel is bloated — a developer importing from @/lib/ml-design sees 80+ exports when only ~20 are active.\n\nIf orphaned components are wired in (MLD-026), this task becomes 'verify all exports are consumed.' If orphans are deleted, remove the dead exports.\n\nBlocked by the orphan decision: wire in vs delete.",
+    "acceptanceCriteria": ["Every export from index.ts is imported by at least one non-test file", "No unused exports remain after orphan decision", "Barrel file is organized by category with clear section comments", "Tree-shaking verified: unused exports don't appear in production bundle"],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/index.ts"],
+    "dependencies": ["MLD-026"], "blockedBy": ["MLD-026"], "tags": ["gap", "cleanup", "barrel", "tree-shaking"]
+  }
+]

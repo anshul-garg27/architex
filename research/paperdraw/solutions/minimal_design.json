@@ -1,0 +1,178 @@
+{
+  "metadata": {
+    "systemName": "Design Your Systems",
+    "domain": "distributed-systems",
+    "version": "1.0.0",
+    "author": "Antigravity Designer",
+    "description": "Design a scalable system architecture"
+  },
+  "globals": {
+    "region": "ap-south-1",
+    "environment": "production",
+    "defaultProtocol": "HTTPS",
+    "timeUnit": "ms"
+  },
+  "components": {
+    "api_gateway": {
+      "id": "api_gateway",
+      "name": "API Gateway",
+      "type": "apiGateway",
+      "category": "traffic",
+      "properties": {
+        "provider": "CloudProvider"
+      },
+      "capacity": {
+        "instances": 1,
+        "maxRPSPerInstance": 8000
+      },
+      "scaling": {
+        "autoScale": false,
+        "minInstances": 1,
+        "maxInstances": 10
+      },
+      "position": {"x": 4660, "y": 4968}
+    },
+    "load_balancer": {
+      "id": "load_balancer",
+      "name": "Load Balancer",
+      "type": "loadBalancer",
+      "category": "traffic",
+      "properties": {
+        "algorithm": "round_robin",
+        "layer": "L7",
+        "protocols": ["HTTP", "HTTPS"]
+      },
+      "capacity": {
+        "instances": 1,
+        "maxRPSPerInstance": 12000
+      },
+      "scaling": {
+        "autoScale": false,
+        "minInstances": 1,
+        "maxInstances": 10
+      },
+      "position": {"x": 4860, "y": 4968}
+    },
+    "app_server": {
+      "id": "app_server",
+      "name": "App Server",
+      "type": "appServer",
+      "category": "compute",
+      "properties": {
+        "language": "Go",
+        "framework": "Gin",
+        "stateless": true
+      },
+      "capacity": {
+        "instances": 1,
+        "maxRPSPerInstance": 1000
+      },
+      "scaling": {
+        "autoScale": true,
+        "minInstances": 1,
+        "maxInstances": 2
+      },
+      "position": {"x": 5060, "y": 4968}
+    },
+    "cache": {
+      "id": "cache",
+      "name": "Cache",
+      "type": "cache",
+      "category": "storage",
+      "properties": {
+        "engine": "Redis",
+        "evictionPolicy": "LRU",
+        "ttlSeconds": 10
+      },
+      "capacity": {
+        "instances": 1,
+        "maxRPSPerInstance": 1600
+      },
+      "scaling": {
+        "autoScale": false,
+        "minInstances": 1,
+        "maxInstances": 10
+      },
+      "position": {"x": 5260, "y": 4888}
+    },
+    "database": {
+      "id": "database",
+      "name": "Database",
+      "type": "database",
+      "category": "storage",
+      "properties": {
+        "engine": "StandardDB",
+        "consistency": "strong",
+        "replication": "single-node"
+      },
+      "capacity": {
+        "instances": 1,
+        "maxRPSPerInstance": 1600
+      },
+      "scaling": {
+        "autoScale": false,
+        "minInstances": 1,
+        "maxInstances": 10
+      },
+      "position": {"x": 5260, "y": 5048}
+    }
+  },
+  "connections": [
+    {"id": "c1", "from": "api_gateway", "to": "load_balancer", "protocol": "HTTPS", "sync": true},
+    {"id": "c2", "from": "load_balancer", "to": "app_server", "protocol": "HTTPS", "sync": true},
+    {"id": "c3", "from": "app_server", "to": "cache", "protocol": "HTTPS", "sync": true},
+    {"id": "c4", "from": "app_server", "to": "database", "protocol": "HTTPS", "sync": true}
+  ],
+  "dataFlows": [
+    {
+      "id": "flow-1",
+      "name": "Standard Request Flow",
+      "trigger": "HTTP_GET",
+      "steps": [
+        {"component": "load_balancer", "action": "route"},
+        {"component": "app_server", "action": "process"},
+        {"component": "database", "action": "query"}
+      ]
+    }
+  ],
+  "constraints": {
+    "latency": {"p95Ms": 100, "p99Ms": 150},
+    "availability": {"target": "99.9%"},
+    "cost": {"monthlyUSD": 5000}
+  },
+  "scalingRules": {
+    "app_server": {
+      "scaleOn": "cpu_utilization",
+      "scaleOutThreshold": 70,
+      "scaleInThreshold": 30,
+      "coolDownSeconds": 120
+    }
+  },
+  "failureModes": {
+    "cache_failure": {
+      "affectedComponents": ["cache"],
+      "impact": "service_degradation",
+      "fallback": "circuit_breaker_open"
+    },
+    "database_failure": {
+      "affectedComponents": ["database"],
+      "impact": "service_degradation",
+      "fallback": "circuit_breaker_open"
+    }
+  },
+  "viewState": {
+    "panOffset": {"x": -5312.667764194302, "y": -5612.475010340563},
+    "scale": 1.1912312146697948
+  },
+  "security": {
+    "authentication": "JWT",
+    "authorization": "RBAC",
+    "encryption": {"inTransit": true, "atRest": true},
+    "rateLimiting": {"enabled": true, "requestsPerMinute": 166680}
+  },
+  "observability": {
+    "logging": {"level": "INFO", "centralized": true},
+    "metrics": ["latency", "error_rate", "throughput"],
+    "tracing": {"enabled": true, "samplingRate": 0.1}
+  }
+}

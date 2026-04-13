@@ -1,0 +1,1 @@
+"User-agent: *\nAllow: /\nSitemap: https://uvbvgyepzrfaqpsqphjl.functions.supabase.co/public-sitemap\nSitemap: https://paperdraw.dev/sitemap.xml\n"

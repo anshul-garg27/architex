@@ -1,0 +1,377 @@
+[
+  {
+    "id": "DBL-117",
+    "epic": "DBL",
+    "title": "Rename single-letter variables in BTreeViz for teaching readability",
+    "description": "btree-viz.ts uses 'i' as key comparison index (lines 105-108, 140-161), 'cl' as child layout in renderer (DatabaseModule.tsx:782). Rename: i\u2192keyIndex in searchNode and insertNonFull, newNode\u2192rightSibling in splitChild, cl\u2192childLayout in BTreeCanvas renderer. Code should be readable WITHOUT comments. Source: Sedgewick algs4 BTree.java uses 'numberOfEntries', 'children' \u2014 descriptive names.",
+    "acceptanceCriteria": [
+      "Zero single-letter variable names in btree-viz.ts (except standard loop counters in trivial loops)",
+      "Key comparison index named 'keyIndex' in searchNode and insertNonFull",
+      "Split result named 'rightSibling' instead of 'newNode'",
+      "All variables in BTreeCanvas renderer use full descriptive names"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/btree-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "variable-naming",
+      "readability",
+      "btree"
+    ]
+  },
+  {
+    "id": "DBL-118",
+    "epic": "DBL",
+    "title": "Add inline WHY comments to BTreeViz splice operations",
+    "description": "btree-viz.ts:195-211 splitChild uses 3 consecutive splice() calls that are correct but opaque. A student reading this code cannot understand WHY each splice happens. Add inline comments explaining: (1) splice(midIndex+1) extracts RIGHT half of keys for new sibling, (2) splice(midIndex) removes the MEDIAN key which will be promoted, (3) splice(midIndex+1) on children moves RIGHT half of children to new sibling. Also add 'why' comment to line 143: 'Insert into leaf in sorted order \u2014 find position by scanning from right'.",
+    "acceptanceCriteria": [
+      "Every splice() call in splitChild has a comment explaining WHAT it does and WHY",
+      "Comments form a narrative: 'Step 1: Extract right half \u2192 Step 2: Remove median \u2192 Step 3: Move children'",
+      "The insertNonFull leaf insertion (line 143-147) has a comment explaining the right-to-left scan",
+      "A student reading ONLY the comments can understand the split algorithm"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/btree-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "documentation",
+      "teaching-comments",
+      "btree"
+    ]
+  },
+  {
+    "id": "DBL-119",
+    "epic": "DBL",
+    "title": "Handle duplicate key insertion in BTreeViz",
+    "description": "btree-viz.ts insertNonFull (line 135-181) inserts duplicate keys without checking if the key already exists. CLRS B-Trees assume unique keys. Inserting duplicates produces a tree with multiple copies of the same key, which can confuse search (returns first found). Add: (1) Check if key exists during insert, (2) If exists, generate a step: 'Key X already exists \u2014 B-Trees require unique keys. Skipping.', (3) Return without inserting.",
+    "acceptanceCriteria": [
+      "Inserting a duplicate key produces a 'Key already exists' step instead of inserting",
+      "The tree is not modified on duplicate insert",
+      "Search for a key after attempted duplicate insert returns correctly",
+      "Step description explains WHY duplicates are rejected"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/btree-viz.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "correctness",
+      "edge-case",
+      "btree"
+    ]
+  },
+  {
+    "id": "DBL-120",
+    "epic": "DBL",
+    "title": "Add B-Tree deletion operation to BTreeViz",
+    "description": "BTreeViz only has insert and search. Deletion is missing entirely. CLRS Ch18 covers B-Tree deletion with 3 cases: (1) key in leaf \u2014 remove directly, (2) key in internal node \u2014 replace with predecessor/successor and delete from child, (3) child has minimum keys \u2014 merge or redistribute before descending. Add delete() method with step-by-step trace.",
+    "acceptanceCriteria": [
+      "BTreeViz.delete(key) method returns BTreeStep[] trace",
+      "Handles leaf deletion (direct remove)",
+      "Handles internal node deletion (predecessor replacement)",
+      "Handles underflow: merge or redistribute when child has minimum keys",
+      "Delete button and input field added to B-Tree sidebar controls",
+      "Step descriptions explain each case: 'Key found in leaf \u2014 removing directly'"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/btree-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "missing-operation",
+      "btree",
+      "deletion"
+    ]
+  },
+  {
+    "id": "DBL-121",
+    "epic": "DBL",
+    "title": "Add open addressing variant (linear probing) to HashIndexViz",
+    "description": "HashIndexViz only implements separate chaining. Open addressing (linear probing) is the other major collision resolution strategy and is taught in every algorithms course. Add: (1) LinearProbingHashViz class, (2) On collision, probe next bucket sequentially, (3) Clustering demonstration: show how linear probing creates clusters, (4) Toggle in UI between 'Separate Chaining' and 'Linear Probing'. Source: CLRS Ch11, Sedgewick Ch3.4.",
+    "acceptanceCriteria": [
+      "LinearProbingHashViz class with insert/search/delete returning step traces",
+      "Visualization shows probing sequence: 'Bucket 3 occupied \u2192 trying bucket 4 \u2192 trying bucket 5 \u2192 inserted'",
+      "Clustering visible: consecutive occupied buckets highlighted as a cluster",
+      "Toggle in sidebar between Separate Chaining and Linear Probing",
+      "Comparison metric: average probe length for each strategy"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/hash-index-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "implementation",
+      "variant-missing",
+      "hash-index",
+      "open-addressing",
+      "linear-probing"
+    ]
+  },
+  {
+    "id": "DBL-122",
+    "epic": "DBL",
+    "title": "Add delete/tombstone support to LSMTreeViz",
+    "description": "LSMTreeViz has no delete operation. In real LSM-Trees, deletes write a TOMBSTONE marker to the memtable, which suppresses the key during reads and is cleaned up during compaction. This is a key concept for understanding LSM-Trees. Add: (1) delete(key) writes a tombstone entry, (2) Read returns 'deleted' when tombstone is found, (3) Compaction removes tombstoned entries. Source: DDIA Ch3, LevelDB documentation.",
+    "acceptanceCriteria": [
+      "LSMTreeViz.delete(key) method writes a tombstone marker to memtable",
+      "Read returns 'Key deleted (tombstone found)' step when tombstone encountered",
+      "Compaction removes entries with matching tombstones",
+      "Delete button added to LSM-Tree sidebar controls",
+      "Step description explains: 'Deletes in LSM-Trees don't remove data \u2014 they write a tombstone that hides the old value'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/lsm-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "missing-operation",
+      "lsm-tree",
+      "tombstone",
+      "delete"
+    ]
+  },
+  {
+    "id": "DBL-123",
+    "epic": "DBL",
+    "title": "Add leveled compaction strategy variant to LSMTreeViz",
+    "description": "LSMTreeViz only implements size-tiered compaction (merge all SSTables in a level). Real databases (LevelDB, RocksDB) primarily use LEVELED compaction where only overlapping SSTables are merged. Add: (1) LeveledCompaction variant where each level has non-overlapping key ranges, (2) Compaction selects ONE L0 SSTable and merges with overlapping L1 SSTables, (3) Toggle between 'Size-Tiered' and 'Leveled' strategies. Source: RocksDB compaction docs, Database Internals Ch7.",
+    "acceptanceCriteria": [
+      "Toggle in sidebar between Size-Tiered and Leveled compaction",
+      "Leveled compaction: each level has non-overlapping key ranges (visible in SSTable labels)",
+      "Compaction selects specific overlapping SSTables (highlighted), not the entire level",
+      "Step description explains: 'Leveled compaction reduces read amplification by maintaining sorted runs per level'",
+      "Comparison metric: read vs write amplification for each strategy"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/lsm-viz.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "implementation",
+      "variant-missing",
+      "lsm-tree",
+      "leveled-compaction"
+    ]
+  },
+  {
+    "id": "DBL-124",
+    "epic": "DBL",
+    "title": "Add legends to BTree, Hash, LSM, and Transaction canvases",
+    "description": "4 out of 5 main canvases have NO legend explaining what colors/badges mean. Only QueryPlanCanvas has a 3-state legend (Low/Med/High). Add: BTree legend (insert=green, split=amber, search=blue), Hash legend (hash=violet, insert=green, collision=amber, resize=rose, delete=red, search=blue), LSM legend (write=green, flush=amber, compact=violet, read=blue), Transaction legend (normal=neutral, anomaly=red pulse).",
+    "acceptanceCriteria": [
+      "BTreeCanvas shows legend bar with 3 operation colors + descriptions",
+      "HashIndexCanvas shows legend bar with 6 operation colors + descriptions",
+      "LSMCanvas shows legend bar with 4 operation colors + descriptions",
+      "TransactionCanvas shows legend for normal step vs anomaly step",
+      "Legends are compact (single row) and don't obscure the canvas"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visualization",
+      "legend",
+      "color-truthfulness",
+      "usability"
+    ]
+  },
+  {
+    "id": "DBL-125",
+    "epic": "DBL",
+    "title": "Add pseudocode display for B-Tree, Hash Index, and LSM-Tree algorithms",
+    "description": "Zero pseudocode exists for any algorithm. Students can't map visualization steps to formal algorithm logic. Add collapsible pseudocode panel in Properties view for: (1) B-Tree INSERT (CLRS Ch18 style), (2) B-Tree SEARCH, (3) Hash Insert with chaining, (4) LSM Write\u2192Flush\u2192Compact pipeline. Highlight the CURRENT pseudocode line during step-through animation. Source: CLRS Ch18 pseudocode, Sedgewick Ch3.4.",
+    "acceptanceCriteria": [
+      "Pseudocode panel visible in Properties for B-Tree, Hash Index, LSM-Tree modes",
+      "B-Tree has INSERT and SEARCH pseudocode matching CLRS notation",
+      "Hash Index has INSERT pseudocode with collision handling",
+      "LSM-Tree has WRITE/FLUSH/COMPACT pseudocode",
+      "Current step highlights the corresponding pseudocode line (if in step-through mode)",
+      "Pseudocode uses standard notation (not TypeScript syntax)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "implementation",
+      "pseudocode",
+      "multi-representation",
+      "teaching"
+    ]
+  },
+  {
+    "id": "DBL-126",
+    "epic": "DBL",
+    "title": "Add Python display code for B-Tree and Hash Index implementations",
+    "description": "All implementations are TypeScript-only. Students learning in Python or Java can't read the code. Add Python display code that matches the TypeScript implementation logic: (1) B-Tree insert/search in Python with descriptive variable names, (2) Hash table with separate chaining in Python. Display as syntax-highlighted code panel alongside visualization. Source: GeeksforGeeks B-Tree Python, Real Python Hash Table tutorial.",
+    "acceptanceCriteria": [
+      "Python tab visible in Properties panel for B-Tree and Hash Index modes",
+      "Python code matches the TypeScript implementation logic step-by-step",
+      "Variable names are Pythonic (snake_case): 'key_index', 'right_sibling', 'bucket_index'",
+      "Syntax highlighting with line numbers",
+      "Current line highlighted during step-through (matching pseudocode behavior)"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 6,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-125"
+    ],
+    "tags": [
+      "implementation",
+      "multi-language",
+      "python",
+      "display-code"
+    ]
+  },
+  {
+    "id": "DBL-127",
+    "epic": "DBL",
+    "title": "Add write skew and lost update scenarios to transaction simulation",
+    "description": "transaction-sim.ts only has 4 scenarios (1 per isolation level \u00d7 1 anomaly each). Missing: (1) Write Skew \u2014 two transactions read overlapping data and make conflicting writes (doctor on-call scenario from DDIA Ch7), only prevented by SERIALIZABLE. (2) Lost Update \u2014 two transactions read-modify-write the same row, one update is silently lost. Add as additional scenarios selectable from sidebar. Source: DDIA Ch7, PostgreSQL MVCC docs.",
+    "acceptanceCriteria": [
+      "Write Skew scenario added: two doctors both check on-call count, both go off-call, violating minimum constraint",
+      "Lost Update scenario added: two transactions increment a counter, one increment is lost",
+      "Both scenarios accessible via new buttons in Transaction Isolation sidebar",
+      "Step descriptions explain WHY each anomaly occurs and which isolation level prevents it",
+      "Write Skew description notes: 'Only SERIALIZABLE prevents this \u2014 Repeatable Read is NOT sufficient'"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/lib/database/transaction-sim.ts",
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "variant-missing",
+      "transactions",
+      "write-skew",
+      "lost-update"
+    ]
+  },
+  {
+    "id": "DBL-128",
+    "epic": "DBL",
+    "title": "Add real-world production comparison panels for B-Tree, Hash, and LSM",
+    "description": "Zero connection between our teaching implementations and real database code. Add 'In Production' collapsible panel for: (1) B-Tree: 'PostgreSQL nbtree uses B+ Trees with page-level locking. Our version is simplified: no pages, no locking, no concurrent access.', (2) Hash: 'PostgreSQL hash indexes use linear hashing. Python dict uses open addressing with random probing.', (3) LSM: 'RocksDB adds: WAL, bloom filters, block cache, compression, rate limiting. Our version shows the core pipeline.' Source: PostgreSQL source docs, RocksDB wiki.",
+    "acceptanceCriteria": [
+      "Production comparison panel in Properties for B-Tree, Hash Index, LSM-Tree",
+      "Each panel: 'Our version vs Production version' with 3+ differences listed",
+      "Differences framed as teaching moments: 'We simplified X because the concept is Y'",
+      "At least one link to real source code or documentation per topic"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "implementation",
+      "real-world",
+      "production-comparison",
+      "teaching"
+    ]
+  }
+]

@@ -1,0 +1,127 @@
+{
+  "viewState": {
+    "panOffset": {"x": -4500, "y": -4600},
+    "scale": 0.75
+  },
+  "components": [
+    {
+      "id": "security-perimeter",
+      "type": "container",
+      "customName": "Hardened Perimeter",
+      "position": {"x": 4600, "y": 4550},
+      "size": {"w": 800, "h": 180},
+      "config": {}
+    },
+    {
+      "id": "banking-core",
+      "type": "container",
+      "customName": "Banking Execution Core",
+      "position": {"x": 4600, "y": 4800},
+      "size": {"w": 800, "h": 220},
+      "config": {}
+    },
+    {
+      "id": "secure-vault",
+      "type": "container",
+      "customName": "Secure Data Vault",
+      "position": {"x": 4600, "y": 5080},
+      "size": {"w": 800, "h": 180},
+      "config": {}
+    },
+    {
+      "id": "client",
+      "type": "client",
+      "customName": "Mobile App / ATM",
+      "position": {"x": 4960, "y": 4420},
+      "size": {"w": 80, "h": 64},
+      "config": {"capacity": 10000}
+    },
+    {
+      "id": "ddos",
+      "type": "ddosShield",
+      "position": {"x": 4680, "y": 4620},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "security-perimeter",
+      "config": {}
+    },
+    {
+      "id": "waf",
+      "type": "waf",
+      "position": {"x": 4830, "y": 4620},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "security-perimeter",
+      "config": {}
+    },
+    {
+      "id": "api-gw",
+      "type": "apiGateway",
+      "position": {"x": 5200, "y": 4620},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "security-perimeter",
+      "config": {"rateLimiting": true}
+    },
+    {
+      "id": "tx-svc",
+      "type": "appServer",
+      "customName": "Transaction Svc",
+      "position": {"x": 4680, "y": 4880},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "banking-core",
+      "config": {"instances": 4, "autoScale": true}
+    },
+    {
+      "id": "payment-gw",
+      "type": "paymentGateway",
+      "position": {"x": 4850, "y": 4880},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "banking-core",
+      "config": {}
+    },
+    {
+      "id": "fraud-svc",
+      "type": "fraudDetectionEngine",
+      "position": {"x": 5150, "y": 4880},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "banking-core",
+      "config": {"instances": 2}
+    },
+    {
+      "id": "hsm",
+      "type": "hsm",
+      "position": {"x": 4720, "y": 5140},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "secure-vault",
+      "config": {}
+    },
+    {
+      "id": "ledger",
+      "type": "ledgerService",
+      "customName": "Immutable Ledger",
+      "position": {"x": 4900, "y": 5140},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "secure-vault",
+      "config": {"replication": true}
+    },
+    {
+      "id": "audit-db",
+      "type": "database",
+      "customName": "Audit Logs",
+      "position": {"x": 5150, "y": 5140},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "secure-vault",
+      "config": {"sharding": true}
+    }
+  ],
+  "connections": [
+    {"id": "c1", "sourceId": "client", "targetId": "ddos", "type": "request"},
+    {"id": "c2", "sourceId": "ddos", "targetId": "waf", "type": "request"},
+    {"id": "c3", "sourceId": "waf", "targetId": "api-gw", "type": "request"},
+    {"id": "c4", "sourceId": "api-gw", "targetId": "tx-svc", "type": "request"},
+    {"id": "c5", "sourceId": "tx-svc", "targetId": "fraud-svc", "type": "request"},
+    {"id": "c6", "sourceId": "fraud-svc", "targetId": "tx-svc", "type": "request", "label": "score"},
+    {"id": "c7", "sourceId": "tx-svc", "targetId": "payment-gw", "type": "request"},
+    {"id": "c8", "sourceId": "payment-gw", "targetId": "hsm", "type": "request", "label": "sign"},
+    {"id": "c9", "sourceId": "tx-svc", "targetId": "ledger", "type": "request"},
+    {"id": "c10", "sourceId": "ledger", "targetId": "audit-db", "type": "async"}
+  ]
+}

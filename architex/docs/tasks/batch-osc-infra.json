@@ -1,0 +1,660 @@
+[
+  {
+    "id": "OSC-163",
+    "epic": "OSC",
+    "title": "Create /os/[concept] static routes with server-rendered educational content",
+    "description": "OS module is invisible to search engines \u2014 all content at client-rendered '/' with no dedicated URLs. Create 6 static routes: /os/cpu-scheduling, /os/page-replacement, /os/deadlock, /os/memory, /os/mem-alloc, /os/thread-sync. Each page SSR's concept explanation + embeds interactive canvas client-side. Pattern: mirror /concepts/[slug]/page.tsx which uses generateStaticParams + generateMetadata + JSON-LD. Source: SEO-001 finding.",
+    "acceptanceCriteria": [
+      "6 routes exist under /os/[concept] with generateStaticParams",
+      "Each page has server-rendered concept explanation (2-3 paragraphs)",
+      "Interactive canvas loaded client-side with dynamic(() => import(...), { ssr: false })",
+      "Crawlers receive meaningful HTML content for each concept",
+      "URL structure: /os/cpu-scheduling (not /os?concept=cpu-scheduling)"
+    ],
+    "priority": "P0",
+    "effort": "L",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/app/os/[concept]/page.tsx",
+      "src/lib/seo/os-concepts-data.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "seo",
+      "infrastructure",
+      "discoverability"
+    ]
+  },
+  {
+    "id": "OSC-164",
+    "epic": "OSC",
+    "title": "Add generateMetadata + OG images + JSON-LD to OS concept pages",
+    "description": "Once /os/[concept] routes exist, add: generateMetadata() with concept-specific title/description, OG image via existing /api/og endpoint (supports title+type+difficulty params), generateLearningResourceJsonLd and generateBreadcrumbJsonLd from existing src/lib/seo/json-ld.ts. Source: SEO-002, SEO-005.",
+    "acceptanceCriteria": [
+      "Each OS concept page has unique <title> and <meta description>",
+      "OG image generated via /api/og?title=CPU+Scheduling&type=os-concept&difficulty=Beginner",
+      "LearningResource JSON-LD schema on each page",
+      "BreadcrumbList JSON-LD: Home > OS Concepts > CPU Scheduling",
+      "Twitter card meta tags included"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/app/os/[concept]/page.tsx",
+      "src/lib/seo/os-concepts-data.ts",
+      "src/lib/seo/meta-templates.ts"
+    ],
+    "dependencies": [
+      "OSC-163"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "seo",
+      "meta",
+      "json-ld"
+    ]
+  },
+  {
+    "id": "OSC-165",
+    "epic": "OSC",
+    "title": "Add OS concept slugs to sitemap.ts",
+    "description": "sitemap.ts at src/app/sitemap.ts has entries for /problems/, /blog/, /concepts/, /lld-problems/, /patterns/, /interviews/ \u2014 but zero OS entries. Add 6 OS concept URLs with priority 0.8 and changeFrequency 'monthly'. Source: SEO-004.",
+    "acceptanceCriteria": [
+      "sitemap.ts includes /os/cpu-scheduling through /os/thread-sync",
+      "Priority: 0.8 (same as concepts)",
+      "Change frequency: monthly",
+      "Sitemap validates with Google Search Console"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/app/sitemap.ts"
+    ],
+    "dependencies": [
+      "OSC-163"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "seo",
+      "sitemap"
+    ]
+  },
+  {
+    "id": "OSC-166",
+    "epic": "OSC",
+    "title": "Instrument OS module with analytics \u2014 concept views, simulation runs, comparisons",
+    "description": "OSModule has ZERO analytics events. The useAnalytics() hook and PostHog infrastructure exist but are unused. Add: os_concept_viewed when setActive is called, os_simulation_run on all 7 run callbacks, os_compare_all_used on comparison callbacks, os_belady_anomaly_viewed on Belady demo, os_steps_completed when user reaches last step. Source: ANA-001, ANA-004.",
+    "acceptanceCriteria": [
+      "os_concept_viewed fires on every concept switch (line 1982 setActive call)",
+      "os_simulation_run fires on all run callbacks with concept + algorithm metadata",
+      "os_compare_all_used fires on comparison callbacks",
+      "os_belady_anomaly_viewed fires on Belady demo",
+      "os_steps_completed fires when user clicks 'Show All' or reaches last step",
+      "All events include concept type and algorithm name as properties",
+      "Events no-op gracefully when PostHog key is not configured"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "src/lib/analytics/analytics.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "analytics",
+      "instrumentation"
+    ]
+  },
+  {
+    "id": "OSC-167",
+    "epic": "OSC",
+    "title": "Add OS-specific event names to analytics event catalog",
+    "description": "analytics.ts and posthog.ts event catalogs have generic events but no OS-specific ones. Add: OS_CONCEPT_VIEWED, OS_SIMULATION_RUN, OS_COMPARE_ALL_USED, OS_BELADY_VIEWED, OS_STEPS_COMPLETED, OS_AUTOPLAY_USED, OS_INVALID_INPUT to both catalogs with proper typing. Source: ANA-003.",
+    "acceptanceCriteria": [
+      "AnalyticsEvent enum includes all 7 OS events",
+      "PostHogEvent enum mirrors with same events",
+      "Type-safe event properties defined for each event",
+      "Console.log in dev mode shows event name + properties"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/analytics/analytics.ts",
+      "src/lib/analytics/posthog.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "analytics",
+      "typing"
+    ]
+  },
+  {
+    "id": "OSC-168",
+    "epic": "OSC",
+    "title": "Wire OS module strings through i18n strings.ts \u2014 concept names, algorithm names, UI labels",
+    "description": "strings.ts has modules.os and modules.osDesc but OSModule.tsx doesn't import it. ~200+ English strings are hardcoded. Phase 1: Add os.* section to strings.ts covering concept names (6), algorithm names (14), button labels (~15), section headers (~10), empty state messages (~6). Phase 2: Import and use in OSSidebar, concept arrays, and button labels. Source: I18N-001, I18N-002.",
+    "acceptanceCriteria": [
+      "strings.ts has os.concepts.cpuScheduling.name, os.concepts.cpuScheduling.description, etc.",
+      "strings.ts has os.algorithms.fcfs, os.algorithms.sjf, etc.",
+      "strings.ts has os.ui.run, os.ui.compareAll, os.ui.addProcess, etc.",
+      "OSSidebar reads from strings.os.concepts",
+      "SCHEDULING_ALGOS reads from strings.os.algorithms",
+      "Button labels read from strings.os.ui"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/i18n/strings.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "i18n",
+      "strings"
+    ]
+  },
+  {
+    "id": "OSC-169",
+    "epic": "OSC",
+    "title": "Replace .toFixed() with locale-aware number formatting in OS metrics",
+    "description": "~30 instances of .toFixed(n) in OSModule.tsx produce '2.67' instead of '2,67' for German/French locales. Create a formatNumber(val, decimals) utility and replace all .toFixed() calls in metrics displays (avgWait, TAT, hitRate, cpuUtilization, fragmentation, P50/P99). Source: I18N-004.",
+    "acceptanceCriteria": [
+      "formatNumber utility in src/lib/i18n/format.ts",
+      "All .toFixed() in OSModule.tsx replaced with formatNumber()",
+      "German locale shows '2,67' instead of '2.67'",
+      "Percentage formatting consistent (e.g., '95,5%' in German)"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/i18n/format.ts",
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "i18n",
+      "formatting"
+    ]
+  },
+  {
+    "id": "OSC-170",
+    "epic": "OSC",
+    "title": "Refactor engine event descriptions from baked strings to {type, args} pattern for i18n",
+    "description": "All engine files (scheduling.ts, page-replacement.ts, deadlock.ts, etc.) have ~100+ template literal description strings baked into the engine layer. These are displayed directly in the Event Log. For i18n, engines should return structured {messageKey, args} objects, and a separate formatter generates the localized string. This is a significant refactor but is the only correct approach for translation. Source: I18N-003.",
+    "acceptanceCriteria": [
+      "Engine events return { messageKey: 'os.scheduling.processStarts', args: { name: 'P1', burst: 5 } }",
+      "A formatEventDescription(event, locale) function generates the display string",
+      "English formatter produces identical output to current template literals",
+      "Event Log component calls formatter instead of reading description directly",
+      "No change in visual output for English locale"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/scheduling.ts",
+      "src/lib/os/page-replacement.ts",
+      "src/lib/os/deadlock.ts",
+      "src/lib/os/memory.ts",
+      "src/lib/os/memory-alloc.ts",
+      "src/lib/os/thread-sync.ts",
+      "src/lib/os/mlfq-scheduler.ts",
+      "src/lib/os/bankers-algorithm.ts",
+      "src/lib/i18n/os-formatter.ts"
+    ],
+    "dependencies": [
+      "OSC-168"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "i18n",
+      "refactor",
+      "engine"
+    ]
+  },
+  {
+    "id": "OSC-171",
+    "epic": "OSC",
+    "title": "Add Priority Inversion visualization with Mars Pathfinder case study",
+    "description": "Priority inversion is one of the most famous real-world OS bugs (Mars Pathfinder 1997). Three tasks (high/medium/low priority): low holds mutex needed by high, medium preempts low, high starves. Then show priority inheritance fix. Highly visualizable as a Gantt timeline. Source: Cornell CS4410, Chalmers, curriculum agent P0 finding.",
+    "acceptanceCriteria": [
+      "3-task simulation: high, medium, low priority with shared mutex",
+      "Gantt chart showing the inversion: high blocked, medium running, low holding mutex",
+      "Priority inheritance fix mode: low boosted to high's priority while holding mutex",
+      "Mars Pathfinder story in Learn tab: 'This bug nearly ended a $265M NASA mission'",
+      "Step descriptions explain WHY high is blocked despite being highest priority"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/priority-inversion.ts",
+      "src/components/modules/os/PriorityInversionCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "sync",
+      "case-study"
+    ]
+  },
+  {
+    "id": "OSC-172",
+    "epic": "OSC",
+    "title": "Add Copy-on-Write (COW) fork visualization",
+    "description": "COW fork is a top-10 OS interview question ('How does fork() work?'). After fork, parent and child share physical pages. On write, a page fault triggers a copy. Show: shared page table entries with reference counts, write triggers copy, reference count decrement. Source: MIT 6.1810 COW lab, curriculum agent P0.",
+    "acceptanceCriteria": [
+      "Dual address space view: parent and child processes",
+      "Shared pages shown as single physical frame with arrows from both page tables",
+      "Reference count visible on each physical frame",
+      "Write to shared page triggers: page fault \u2192 copy \u2192 separate frames",
+      "Reference count decrements correctly",
+      "Real-world note: 'Redis uses COW fork for background persistence (RDB snapshots)'"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/cow-fork.ts",
+      "src/components/modules/os/COWForkCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "memory"
+    ]
+  },
+  {
+    "id": "OSC-173",
+    "epic": "OSC",
+    "title": "Add Buffer Overflow + Stack Smashing visualization for security concepts",
+    "description": "Buffer overflow is the single most impactful security visualization. Show: stack frame with local buffer, saved frame pointer, return address. User 'types' input; as it exceeds buffer bounds, it visually overwrites return address. Then show defenses: stack canaries, ASLR, DEP/NX bit. Source: curriculum agent P0, Montana State CS, RIT.",
+    "acceptanceCriteria": [
+      "Interactive stack frame diagram showing buffer, SFP, return address",
+      "User input field that visually 'fills' the buffer",
+      "Overflow visually corrupts return address (color change to red)",
+      "Defense modes: stack canary (detects overflow), ASLR (randomizes addresses)",
+      "Step-through with explanation of each phase",
+      "Real-world: 'Morris Worm (1988) used buffer overflow. Still the #1 vulnerability class.'"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/buffer-overflow.ts",
+      "src/components/modules/os/BufferOverflowCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "security"
+    ]
+  },
+  {
+    "id": "OSC-174",
+    "epic": "OSC",
+    "title": "Add Sleeping Barber Problem to sync visualizations",
+    "description": "Classic sync problem: barber sleeps when no customers, wakes when customer arrives, waiting room with N chairs. Tests semaphore and mutex usage. Excellent visual metaphor (barber shop). Source: Tanenbaum, Silberschatz, curriculum agent P0.",
+    "acceptanceCriteria": [
+      "Animated barber shop: barber chair, waiting room with N chairs, door",
+      "Customer arrival/departure animation",
+      "Semaphore counters visible (waiting customers, barber state)",
+      "Edge case: full waiting room \u2192 customer leaves",
+      "Step descriptions explain synchronization logic"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/sleeping-barber.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "sync"
+    ]
+  },
+  {
+    "id": "OSC-175",
+    "epic": "OSC",
+    "title": "Add H2O Water Molecule Building Problem (LeetCode 1117)",
+    "description": "H2O is a LeetCode Concurrency problem testing barrier/semaphore knowledge. Hydrogen and oxygen atoms arrive; group into 2H+1O molecules. Excellent chemistry metaphor. High interview frequency for concurrency roles. Source: LeetCode 1117, Virginia Tech CS3214, curriculum agent P1.",
+    "acceptanceCriteria": [
+      "Animated atoms: H (blue circles) and O (red circles) arriving from queue",
+      "Waiting area accumulates atoms",
+      "When 2H + 1O ready: bonding animation forming water molecule",
+      "Barrier/semaphore counters visible",
+      "LeetCode reference: 'This is LeetCode 1117 \u2014 commonly asked at Google, Amazon'"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/h2o-problem.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "sync",
+      "interview"
+    ]
+  },
+  {
+    "id": "OSC-176",
+    "epic": "OSC",
+    "title": "Add DMA (Direct Memory Access) visualization",
+    "description": "DMA is a fundamental I/O concept: CPU initiates transfer, DMA controller moves data while CPU does other work, interrupt on completion. Compare with programmed I/O (CPU busy-waiting). Source: all OS textbooks, curriculum agent P1.",
+    "acceptanceCriteria": [
+      "Three-entity diagram: CPU, DMA Controller, Memory",
+      "Animation: CPU configures DMA \u2192 DMA transfers blocks \u2192 CPU works on other tasks \u2192 interrupt",
+      "Comparison mode: programmed I/O (CPU busy-waiting) vs DMA (CPU free)",
+      "Step descriptions explain each phase",
+      "Metric: CPU utilization comparison between PIO and DMA"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/dma.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "io"
+    ]
+  },
+  {
+    "id": "OSC-177",
+    "epic": "OSC",
+    "title": "Add ASLR (Address Space Layout Randomization) visualization",
+    "description": "Side-by-side comparison of fixed vs randomized address space layouts. Show how ASLR prevents return-to-libc attacks by randomizing stack, heap, and library positions. Low effort, high visual impact. Source: curriculum agent P1.",
+    "acceptanceCriteria": [
+      "Two process address space diagrams: fixed layout vs randomized",
+      "Each run randomizes positions differently",
+      "Attacker arrow trying to jump to fixed address: succeeds in fixed layout, fails in randomized",
+      "Explanation: 'ASLR randomizes stack, heap, and shared library addresses on every execution'",
+      "Real-world: 'Enabled by default in Linux since 2.6.12 (2005), Windows since Vista'"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/ASLRCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "security"
+    ]
+  },
+  {
+    "id": "OSC-178",
+    "epic": "OSC",
+    "title": "Add Interrupt Handling visualization \u2014 CPU timeline with ISR execution",
+    "description": "Interrupt handling is a week 1-2 OS topic. Show: CPU executing instructions \u2192 interrupt signal \u2192 context save \u2192 ISR execution \u2192 context restore \u2192 resume. Include interrupt vector table lookup. Source: all OS textbooks, curriculum agent P1.",
+    "acceptanceCriteria": [
+      "CPU execution timeline with running instructions",
+      "Interrupt signal as vertical arrow disrupting timeline",
+      "Context save animation (registers pushed to stack)",
+      "ISR highlighted in different color",
+      "Context restore and resume",
+      "Interrupt vector table shown as lookup step"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/lib/os/interrupts.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "content",
+      "curriculum",
+      "io"
+    ]
+  },
+  {
+    "id": "OSC-179",
+    "epic": "OSC",
+    "title": "Add aria-live='polite' to all 6 concept result containers",
+    "description": "WCAG critical failure: when user clicks Run, results appear silently \u2014 screen readers announce nothing. Zero aria-live regions exist in 3933-line file. Wrap each result display region in <div aria-live='polite' aria-atomic='true'>. Affects scheduling Gantt (line 2465), page grid (line 2583), deadlock RAG (line 2809), memory translation (line 2978), alloc bar (line 3261), sync canvas (line 3665). Source: screen reader audit TASK-A5-01.",
+    "acceptanceCriteria": [
+      "Each concept result area wrapped in aria-live='polite'",
+      "After clicking Run, screen reader announces 'Results available' or result summary",
+      "Step changes announced for step-through concepts",
+      "Comparison results announced when Compare All completes"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "wcag",
+      "screen-reader"
+    ]
+  },
+  {
+    "id": "OSC-180",
+    "epic": "OSC",
+    "title": "Fix SVG legend text contrast \u2014 gray-500 fails AA on dark background",
+    "description": "SVG legend text uses fill='#6b7280' (gray-500) on dark backgrounds. Measured contrast: ~3.5:1, fails WCAG AA requirement of 4.5:1 for normal text. Change to fill='#9ca3af' (gray-400, ~5.7:1) or use CSS variable var(--foreground-muted). Affects RAG legend (lines 1090-1094) and ThreadSync legend (lines 1322-1326). Source: screen reader audit TASK-A5-06.",
+    "acceptanceCriteria": [
+      "All SVG text elements meet 4.5:1 contrast ratio on dark theme",
+      "Legend text in RAG and ThreadSync updated to gray-400 or higher",
+      "SVG process node text (blue-500 at 11px) also passes AA",
+      "Verified with contrast checker tool"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "wcag",
+      "contrast"
+    ]
+  },
+  {
+    "id": "OSC-181",
+    "epic": "OSC",
+    "title": "Honor prefers-reduced-motion in GCPauseLatencyVisualizer",
+    "description": "GCPauseLatencyVisualizer uses motion.div with animate={{ height: ... }} creating 10 new animated elements/second. Does NOT check prefers-reduced-motion despite the project having useReducedMotion() at src/providers/ReducedMotionProvider.tsx. Also animates width on heap bars, violating the project's own performanceLimits.neverAnimateProperties at src/lib/constants/motion.ts:803. Source: screen reader audit TASK-A5-05.",
+    "acceptanceCriteria": [
+      "Import useReducedMotion from ReducedMotionProvider",
+      "When reduced motion preferred: disable animate props on timeline bars and heap bars",
+      "Use CSS transitions gated by prefers-reduced-motion media query instead",
+      "Stop animating width property on heap bars (use opacity or transform instead)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/os/GCPauseLatencyVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "reduced-motion",
+      "performance"
+    ]
+  },
+  {
+    "id": "OSC-182",
+    "epic": "OSC",
+    "title": "Add role='tab'/role='tabpanel' to bottom panel tabs (Event Log / Learn)",
+    "description": "Bottom panel 'Event Log' and 'Learn' buttons are plain <button> elements without tab semantics. Screen readers don't know these are tabs. Add role='tablist' to container, role='tab' to each button, role='tabpanel' to content areas, aria-selected to active tab. Source: screen reader audit TASK-A5-08.",
+    "acceptanceCriteria": [
+      "Tab container has role='tablist'",
+      "Each tab button has role='tab' and aria-selected",
+      "Content areas have role='tabpanel' and aria-labelledby pointing to tab",
+      "Arrow keys navigate between tabs (standard ARIA tab pattern)",
+      "Only active tabpanel is visible to screen reader"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "wcag",
+      "aria"
+    ]
+  },
+  {
+    "id": "OSC-183",
+    "epic": "OSC",
+    "title": "Add virtual scrolling to event log bottom panel for long simulations",
+    "description": "Event log renders ALL events as real DOM nodes with no windowing. A 200-event simulation creates 200+ DOM nodes in the log. Thread sync with 8 threads can produce 100+ events. With MLFQ + 10 processes: 300+ events. Add react-window or similar virtualized list. Source: perf audit finding.",
+    "acceptanceCriteria": [
+      "Event log uses virtualized list rendering (react-window or equivalent)",
+      "Only visible events are in the DOM (typically 15-20 rows)",
+      "Scroll behavior is smooth and native-feeling",
+      "Performance: no jank at 500+ events"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "dom",
+      "scrolling"
+    ]
+  },
+  {
+    "id": "OSC-184",
+    "epic": "OSC",
+    "title": "Remove unused mlfq import and add barrel import tree-shake verification",
+    "description": "OSModule.tsx:22 imports mlfq from @/lib/os but never calls it (mlfqScheduler from mlfq-scheduler.ts is used instead). Also, the barrel import @/lib/os re-exports all 8 engine modules \u2014 if tree-shaking fails, all ~80KB of engine code loads regardless of which concept is active. Remove unused import and verify tree-shaking with ANALYZE=true. Source: perf audit.",
+    "acceptanceCriteria": [
+      "mlfq removed from import statement at OSModule.tsx:22",
+      "ANALYZE=true build run to verify barrel import tree-shakes correctly",
+      "Add 'analyze' script to package.json: 'ANALYZE=true next build'",
+      "If barrel defeats tree-shaking: switch to direct file imports"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 5,
+    "module": "os-concepts",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/OSModule.tsx",
+      "package.json"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "bundle",
+      "tree-shaking"
+    ]
+  }
+]

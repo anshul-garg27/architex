@@ -1,0 +1,198 @@
+[
+  {
+    "id": "ALG-249",
+    "epic": "ALG",
+    "title": "Unify targetId format across all engines \u2014 use consistent 'element-{index}' for sorting",
+    "description": "TYPE SMELL: VisualMutation.targetId is `string` with 7 different formats across categories. Sorting uses '0','1' (plain numbers), graph uses 'node-A', tree uses 'tnode-root', DP uses 'dp-2-3'. This is the ROOT CAUSE of P0-002 (parseStepMutations regex mismatch). Fix ALL sorting engines to use 'element-{index}' format matching what parseStepMutations expects. Consider adding a branded type: type TargetId = string & { __brand: 'TargetId' }. At minimum, document the format convention per category in types.ts.",
+    "acceptanceCriteria": [
+      "All sorting engines use 'element-{index}' format for targetId",
+      "parseStepMutations regex matches the standard format",
+      "targetId format convention documented in types.ts as JSDoc comments",
+      "Graph/Tree/DP/String/Grid/Geometry formats documented (no change needed, they work)",
+      "Unit test validates targetId format per engine category"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts",
+      "src/lib/algorithms/sorting/merge-sort.ts",
+      "src/lib/algorithms/sorting/heap-sort.ts",
+      "src/lib/algorithms/sorting/insertion-sort.ts",
+      "src/lib/algorithms/sorting/selection-sort.ts",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "p0",
+      "targetId",
+      "consistency",
+      "root-cause"
+    ]
+  },
+  {
+    "id": "ALG-250",
+    "epic": "ALG",
+    "title": "Replace AlgorithmResult.finalState with discriminated union per algorithm category",
+    "description": "TYPE SMELL: finalState: number[] means 5 different things (sorted array, distances, MST weight, queen columns, DP row). Consumers must cast/guess. Replace with discriminated union: SortingResult { category:'sorting'; sortedArray:number[] }, GraphResult { category:'graph'; distances:Map<string,number> }, etc. Each engine returns its specific result type. The base AnimationStep[] + config remain shared. This eliminates an entire class of 'what does this number mean?' bugs.",
+    "acceptanceCriteria": [
+      "AlgorithmResult is a discriminated union with category field as discriminant",
+      "Each category has a specific result type with meaningful field names",
+      "All 62 engine functions return their specific result type",
+      "AlgorithmPanel and AlgorithmModule consume result via category switch",
+      "TypeScript narrows the result type after checking category"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/graph/bfs.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "discriminated-union",
+      "semantic-safety",
+      "architecture"
+    ]
+  },
+  {
+    "id": "ALG-251",
+    "epic": "ALG",
+    "title": "Add literal union type for algorithm IDs \u2014 enable exhaustive runner coverage checks",
+    "description": "TYPE SMELL: AlgorithmConfig.id is `string` \u2014 TypeScript can't verify that every config ID has a runner in SORTING_RUNNERS. This is why 24 algorithms silently fail. Change to: type SortingAlgoId = 'bubble-sort' | 'insertion-sort' | ... ; Make SORTING_RUNNERS: Record<SortingAlgoId, RunnerFn> \u2014 TypeScript will ERROR on any missing ID. Same for GRAPH_RUNNERS, TREE_RUNNER_IDS, etc. This makes the 'unwired runner' class of bugs IMPOSSIBLE.",
+    "acceptanceCriteria": [
+      "SortingAlgoId, GraphAlgoId, TreeAlgoId, DPAlgoId, etc. are literal union types",
+      "AlgorithmConfig.id typed as AlgoId (union of all category IDs)",
+      "SORTING_RUNNERS typed as Record<SortingAlgoId, RunnerFn> \u2014 no missing keys allowed",
+      "Adding a new algorithm to SORTING_ALGORITHMS without a runner causes TypeScript error",
+      "handleRun uses exhaustive switch with 'never' default for compile-time coverage"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/sorting/index.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "literal-union",
+      "exhaustive-check",
+      "safety"
+    ]
+  },
+  {
+    "id": "ALG-252",
+    "epic": "ALG",
+    "title": "Refactor AlgorithmModuleState from god-type to discriminated union per visualization type",
+    "description": "TYPE SMELL: AlgorithmModuleState has 21 fields, 16 of which are category-specific nullables. When viewing sorting, 12 fields are null and irrelevant. Refactor to: type AlgorithmModuleState = SortingViewState | GraphViewState | TreeViewState | DPViewState | ... where each variant only has the fields relevant to that visualization type. The visualizationType field becomes the discriminant. This eliminates null-checking everywhere and makes invalid states unrepresentable.",
+    "acceptanceCriteria": [
+      "AlgorithmModuleState is a discriminated union with visualizationType as discriminant",
+      "SortingViewState has only: currentArray, elementStates, comparison fields",
+      "GraphViewState has only: currentGraph, step fields",
+      "Each variant has exactly the fields needed \u2014 no nullable category-specific fields",
+      "useAlgorithmModule() hook preserves shared fields (currentStep, stepIndex, selectedAlgoId) in all variants"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "god-type",
+      "discriminated-union",
+      "state-management"
+    ]
+  },
+  {
+    "id": "ALG-253",
+    "epic": "ALG",
+    "title": "Extract shared BaseElementState and unify per-category state naming",
+    "description": "TYPE SMELL: ElementState, GraphElementState, TreeElementState, GeometryElementState use different names for the same concepts. 'comparing' (sorting) = 'visiting' (graph) = 'current' (tree). This prevents creating shared visualization components. Extract a shared base: type BaseElementState = 'default' | 'active' | 'success' | 'error' | 'highlight'. Each category extends with specific states. Shared color mapping can then work with BaseElementState while category-specific visualizers add their own mappings.",
+    "acceptanceCriteria": [
+      "BaseElementState type defined with 3-5 universal states",
+      "SortingElementState, GraphElementState, TreeElementState extend BaseElementState",
+      "A shared getBaseStateColor(state) works for common states across all visualizers",
+      "Per-category visualizers add their own color mapping for category-specific states",
+      "Documentation in types.ts explains the state naming convention"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/graph/types.ts",
+      "src/lib/algorithms/tree/types.ts",
+      "src/lib/algorithms/geometry/types.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "unification",
+      "naming",
+      "shared-base"
+    ]
+  },
+  {
+    "id": "ALG-254",
+    "epic": "ALG",
+    "title": "Add exhaustive switch in handleRun to make missing category handlers a compile error",
+    "description": "TYPE SMELL: handleRun (AlgorithmPanel.tsx:389-605) uses if/else if chains for vizType. If a new category is added without a handler, there's no compile error \u2014 just a silent return. Add exhaustive switch: switch(vizType) { case 'array': ...; case 'graph': ...; ...; default: const _exhaustive: never = vizType; } TypeScript will ERROR if any visualizationType value is unhandled. This prevents the entire class of 'added to dropdown but no runner' bugs.",
+    "acceptanceCriteria": [
+      "handleRun uses a switch statement on vizType instead of if/else chain",
+      "Default case has never assertion for exhaustiveness",
+      "Adding a new visualizationType to the union WITHOUT adding a switch case causes TypeScript error",
+      "All existing categories have their switch cases",
+      "getVisualizationType function also uses exhaustive switch"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "types",
+      "exhaustive-switch",
+      "compile-safety",
+      "architecture"
+    ]
+  }
+]

@@ -1,0 +1,777 @@
+[
+  {
+    "id": "SDS-559",
+    "epic": "SDS",
+    "title": "Add Budget Siege challenge mode \u2014 CFO cuts budget every 30s, degrade gracefully",
+    "description": "Innovation idea rated HIGH CONVICTION but never made into a task. Mode: user's architecture is running fine, then budget shrinks by 20% every 30 seconds. User must decide: which component gets downgraded first? When do you merge services? At what point does the system break? Scored on: how long the system stays alive, user experience degradation rate, final cost. Teaches cost-performance tradeoffs viscerally \u2014 the exact skill interviewers test when asking 'how would you reduce costs?'",
+    "acceptanceCriteria": [
+      "Budget decreases by 20% every 30 seconds during simulation",
+      "User can downgrade/remove components to stay within budget",
+      "System metrics degrade as components are removed",
+      "Score: time survived, UX degradation, final architecture quality",
+      "3 template-specific budget siege scenarios (URL Shortener, Netflix, Uber)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/BudgetSiege.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "gamification",
+      "cost",
+      "challenge"
+    ]
+  },
+  {
+    "id": "SDS-560",
+    "epic": "SDS",
+    "title": "Add Architecture Escape Room \u2014 puzzle-based sequential debugging challenges",
+    "description": "Innovation idea rated HIGH CONVICTION. User is 'trapped' inside a broken system. Each room is a component with a specific failure. Fix the failure to unlock the next room. Rooms: (1) Database room \u2014 connection pool exhausted, solve by configuring max connections. (2) Cache room \u2014 stampede on expiry, solve by adding jitter to TTL. (3) Queue room \u2014 consumer lag, solve by adding consumers. (4) API room \u2014 no rate limiting, solve by adding token bucket. Time pressure adds urgency. 5 initial escape rooms.",
+    "acceptanceCriteria": [
+      "5 escape room scenarios with sequential puzzle structure",
+      "Each room presents a specific failure with 2-3 solution options",
+      "Wrong solutions explain WHY they don't work",
+      "Correct solutions unlock next room with celebration animation",
+      "Timer tracks total escape time for leaderboard"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/EscapeRoom.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "gamification",
+      "debugging",
+      "challenge"
+    ]
+  },
+  {
+    "id": "SDS-561",
+    "epic": "SDS",
+    "title": "Add Choose Your Own Adventure branching scenarios during design",
+    "description": "Innovation idea rated HIGH CONVICTION. During a design challenge, branch points appear: 'Your traffic just 10x'd. Do you (A) Add more app servers, (B) Add a cache layer, or (C) Switch to async processing?' Each choice leads to different simulation outcomes. The system shows consequences of each choice. 5 initial branching scenarios across different templates.",
+    "acceptanceCriteria": [
+      "Branch point notifications appear mid-design with 2-3 options",
+      "Each option leads to visibly different simulation outcomes",
+      "After choosing, simulation shows WHY that choice helped or hurt",
+      "Can replay and choose differently to compare outcomes",
+      "5 branching scenarios across URL Shortener, Chat, Payment, Netflix, Uber"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/BranchingScenario.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "branching",
+      "consequence",
+      "challenge"
+    ]
+  },
+  {
+    "id": "SDS-562",
+    "epic": "SDS",
+    "title": "Add Packet's Journey \u2014 first-person narrated HTTP request traversal",
+    "description": "Innovation idea rated HIGH CONVICTION. User IS an HTTP request. First-person narration: 'I arrive at the Load Balancer. It looks at my headers and decides to send me to Server 3 because it has the fewest active connections.' Visual: animated dot with speech bubbles at each hop. If the system is poorly designed, the journey is miserable \u2014 long waits, timeouts, retries. Builds empathy for the request path. 3 journey types: happy path, cache miss, error cascade.",
+    "acceptanceCriteria": [
+      "Animated dot traverses architecture with first-person narration bubbles",
+      "Each hop explains WHY the component made its decision",
+      "3 journey types with different narratives and visual moods",
+      "Journey can be paused at any hop to inspect component state",
+      "Works on any loaded template (generates journey from topology)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/PacketJourney.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "narrative",
+      "empathy",
+      "education"
+    ]
+  },
+  {
+    "id": "SDS-563",
+    "epic": "SDS",
+    "title": "Add Expert Replay \u2014 watch an expert design step-by-step with pause and commentary",
+    "description": "Innovation idea from convergence. For each template, record a 'golden path' design sequence: expert adds components one by one with commentary explaining each decision. User watches the replay, can pause at any step, and sees the expert's reasoning. Based on Cognitive Apprenticeship model \u2014 experts externalize their process so novices can learn. 5 initial expert replays for top templates.",
+    "acceptanceCriteria": [
+      "5 expert replay recordings (1 per top template)",
+      "Each step adds/connects a component with text commentary",
+      "User can play/pause/step through the replay",
+      "Commentary explains WHY each component was chosen",
+      "After watching, user can attempt the same design from scratch"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ExpertReplay.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "education",
+      "expert",
+      "cognitive-apprenticeship"
+    ]
+  },
+  {
+    "id": "SDS-564",
+    "epic": "SDS",
+    "title": "Add bundle size monitoring and Lighthouse CI performance budgets",
+    "description": "No performance regression detection exists. Add: (1) Bundle analyzer in build pipeline showing per-module chunk sizes, (2) Lighthouse CI running on every PR with budgets: LCP < 2.5s, FID < 200ms, CLS < 0.1, (3) Performance budget alerts: warn if any module chunk exceeds 200KB, (4) Bundle size tracking over time in CI artifacts.",
+    "acceptanceCriteria": [
+      "next build outputs per-module chunk sizes",
+      "Lighthouse CI runs on PRs with Core Web Vitals budgets",
+      "CI fails if any module chunk exceeds 200KB gzipped",
+      "Bundle size trend visible in CI dashboard/artifacts"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "next.config.ts",
+      ".github/workflows/ci.yml"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "ci",
+      "bundle",
+      "lighthouse"
+    ]
+  },
+  {
+    "id": "SDS-565",
+    "epic": "SDS",
+    "title": "Handle concurrent browser tabs \u2014 prevent localStorage race conditions",
+    "description": "Two browser tabs open simultaneously can corrupt localStorage state. Tab A saves nodes, Tab B saves different nodes, Tab A reads Tab B's state. Add: (1) BroadcastChannel API to sync state between tabs, (2) Leader election \u2014 only one tab writes to storage, others read, (3) Conflict resolution \u2014 last-write-wins with visual notification 'Design updated in another tab. Reload?'",
+    "acceptanceCriteria": [
+      "Two tabs open the same Architex instance without corrupting state",
+      "When Tab A modifies canvas, Tab B shows a notification",
+      "No localStorage race conditions when both tabs write simultaneously",
+      "Tab close properly releases leadership"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/sync/tab-sync.ts",
+      "src/stores/canvas-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "edge-case",
+      "concurrency",
+      "tabs",
+      "localStorage"
+    ]
+  },
+  {
+    "id": "SDS-566",
+    "epic": "SDS",
+    "title": "Add color blindness support \u2014 pattern fills and shape coding alongside colors",
+    "description": "8% of men have color vision deficiency. Current visualizations rely on color alone for: node categories (13 colors), edge types (9 colors), heatmap gradient (green\u2192red), particle types (9 colors), state indicators (6 colors). Add: (1) Pattern fills option (diagonal stripes, dots, crosshatch) as secondary encoding alongside color, (2) Shape distinctiveness already exists for nodes (8 shapes) \u2014 ensure it's sufficient, (3) High-contrast mode toggle that uses only 4 distinguishable colors + patterns, (4) Test with Sim Daltonism or Color Oracle.",
+    "acceptanceCriteria": [
+      "Accessibility settings include 'Color blind friendly' toggle",
+      "When enabled, all color-coded elements add pattern fills as secondary encoding",
+      "Heatmap gradient adds numeric labels alongside color",
+      "Tested with protanopia and deuteranopia simulation tools",
+      "All information conveyed by color is also conveyed by shape/pattern/text"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/BaseNode.tsx",
+      "src/components/canvas/overlays/HeatmapOverlay.tsx",
+      "src/app/globals.css"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "color-blindness",
+      "inclusive"
+    ]
+  },
+  {
+    "id": "SDS-567",
+    "epic": "SDS",
+    "title": "Add low-end device performance degradation \u2014 reduce visual fidelity on slow hardware",
+    "description": "India/SE Asia market uses low-end phones where 2000 particles + heatmap + 50 nodes will lag. Add: (1) Use Compute Pressure API (or performance.now() frame timing) to detect slow devices, (2) Auto-reduce: particle count from 2000\u2192500, disable heatmap overlay, simplify node rendering to text-only at lower threshold, (3) Manual toggle: 'Performance mode' in settings, (4) Target: 30fps minimum on 4-year-old mid-range phone.",
+    "acceptanceCriteria": [
+      "Frame rate drops below 30fps triggers automatic quality reduction",
+      "Particle count reduced, heatmap disabled, node rendering simplified",
+      "Manual 'Performance mode' toggle in settings",
+      "Performance mode persisted across sessions",
+      "Canvas remains functional (all features work, just less pretty)"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ParticleLayer.tsx",
+      "src/stores/ui-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "low-end",
+      "degradation",
+      "inclusive"
+    ]
+  },
+  {
+    "id": "SDS-568",
+    "epic": "SDS",
+    "title": "Add input size validation for large JSON template imports",
+    "description": "DiffPanel and import flow accept JSON files without size limits. A 10MB JSON paste/import could freeze the browser. Add: (1) File size check on import: warn at 1MB, block at 5MB, (2) Node count validation: warn at 200 nodes, block at 500, (3) Paste validation: limit clipboard paste to 1MB, (4) Graceful error message: 'This design is too large. Maximum 500 components supported.'",
+    "acceptanceCriteria": [
+      "Import warns at 1MB file size, blocks at 5MB with clear message",
+      "Node count validation: warns at 200, blocks at 500",
+      "Paste from clipboard validated for size before parsing",
+      "Error messages are user-friendly, not technical"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/DesignCanvas.tsx",
+      "src/components/canvas/overlays/DiffPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "security",
+      "validation",
+      "edge-case",
+      "input"
+    ]
+  },
+  {
+    "id": "SDS-569",
+    "epic": "SDS",
+    "title": "Add error boundaries per-panel \u2014 Properties and BottomPanel crash isolation",
+    "description": "Error boundaries exist per-node (withErrorBoundary on all 72 nodeTypes) but NOT per-panel. If PropertiesPanel or BottomPanel throws, the entire right/bottom section crashes. Add ErrorBoundary wrappers around: (1) PropertiesPanel content, (2) BottomPanel content, (3) SimulationDashboard, (4) Each bottom panel tab individually. Show 'Something went wrong \u2014 Retry' instead of white void.",
+    "acceptanceCriteria": [
+      "PropertiesPanel crash shows retry button instead of white space",
+      "BottomPanel tab crash only affects that tab, not all tabs",
+      "SimulationDashboard crash doesn't take down the entire simulation UI",
+      "Each error boundary shows component name for debugging"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/PropertiesPanel.tsx",
+      "src/components/canvas/panels/BottomPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "error-handling",
+      "resilience",
+      "error-boundary"
+    ]
+  },
+  {
+    "id": "SDS-570",
+    "epic": "SDS",
+    "title": "Add auto-save indicator and manual save/restore functionality",
+    "description": "Users have no visual confirmation that their work is saved. Canvas-store uses Zustand persist but no indicator shows save status. Add: (1) Auto-save indicator in status bar: 'Saved just now' / 'Saving...' / 'Save failed', (2) Manual save button (Cmd+S) with toast confirmation, (3) Named saves: 'Save as [name]' with multiple save slots, (4) Restore from saves list.",
+    "acceptanceCriteria": [
+      "Status bar shows auto-save status (Saved/Saving/Failed)",
+      "Cmd+S triggers manual save with toast confirmation",
+      "Multiple named save slots available",
+      "Restore from any previous save without losing current work"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/shared/status-bar.tsx",
+      "src/stores/canvas-store.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "save",
+      "persistence",
+      "confidence"
+    ]
+  },
+  {
+    "id": "SDS-571",
+    "epic": "SDS",
+    "title": "Add simulation accessibility for screen readers \u2014 live narration of simulation state",
+    "description": "Current a11y covers static canvas (CanvasDescription.tsx with aria-live). But during simulation, a blind user gets NO information about: particle flow, heatmap changes, metric updates, chaos events, bottleneck formation. Add: (1) aria-live region that narrates key simulation events: 'Simulation started. Traffic at 1000 RPS. Cache hit rate 95%.', (2) Periodic summary every 10 seconds: 'System healthy. Throughput 5000 RPS. No errors.', (3) Chaos event announcements: 'Cache failure injected. Error rate rising to 5%.', (4) Completion summary: 'Simulation complete. Peak latency 200ms. 3 bottlenecks detected.'",
+    "acceptanceCriteria": [
+      "Screen reader announces simulation start/stop/pause",
+      "Key metrics announced periodically (every 10 seconds or on significant change)",
+      "Chaos events announced immediately",
+      "Bottleneck detection announced",
+      "Completion summary with key metrics"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/SimulationAnnouncer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "screen-reader",
+      "simulation",
+      "aria-live"
+    ]
+  },
+  {
+    "id": "SDS-572",
+    "epic": "SDS",
+    "title": "Create codebase architecture diagram for developer onboarding",
+    "description": "1000+ files, 13 modules, 34 simulation files, 13 stores \u2014 new developers can't navigate this. Create an interactive architecture diagram (using Architex itself!) showing: (1) Module boundaries, (2) Store relationships, (3) Simulation pipeline, (4) Component hierarchy, (5) Data flow from user input to screen. Store as both a template JSON (eat-your-own-dogfood) and a static Mermaid diagram in docs/.",
+    "acceptanceCriteria": [
+      "Architecture diagram in docs/architecture.md using Mermaid",
+      "Shows all 13 modules and their relationships",
+      "Shows store dependency graph",
+      "Shows simulation pipeline (10-stage)",
+      "New developer can understand the codebase structure in 10 minutes"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "docs/architecture.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "documentation",
+      "architecture",
+      "onboarding"
+    ]
+  },
+  {
+    "id": "SDS-573",
+    "epic": "SDS",
+    "title": "Write 'How to add a new module' developer guide",
+    "description": "13 modules exist but no guide for adding module #14. Write docs/guides/adding-a-module.md covering: (1) Create wrapper component implementing ModuleContent interface, (2) Register in MODULE_COMPONENTS map in page.tsx, (3) Add to ModuleType union in types.ts, (4) Add activity bar icon, (5) Add keyboard shortcut, (6) Add to command palette, (7) Add store if needed, (8) Add to cross-module bridge registry. Include a worked example.",
+    "acceptanceCriteria": [
+      "Step-by-step guide from zero to working module",
+      "References exact files and line numbers to modify",
+      "Includes a minimal worked example",
+      "Covers: wrapper, registration, types, navigation, store, bridges",
+      "A developer can add a new module in under 2 hours following the guide"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "docs/guides/adding-a-module.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "documentation",
+      "guide",
+      "contributor"
+    ]
+  },
+  {
+    "id": "SDS-574",
+    "epic": "SDS",
+    "title": "Write 'How to add a simulation engine feature' developer guide",
+    "description": "34 simulation files with complex inter-dependencies but no guide for extending the simulation. Write docs/guides/extending-simulation.md covering: (1) 10-stage pipeline overview, (2) How to add a new chaos event type, (3) How to add a new pressure counter, (4) How to add a new issue type, (5) How to add a new topology profile, (6) How to add a new narrative template. Include code examples for each.",
+    "acceptanceCriteria": [
+      "Guide covers all 6 extension points with code examples",
+      "Pipeline diagram showing where each extension point fits",
+      "A developer can add a new chaos event in under 30 minutes following the guide",
+      "References simulation-orchestrator.ts pipeline stages"
+    ],
+    "priority": "P3",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "docs/guides/extending-simulation.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "documentation",
+      "simulation",
+      "contributor"
+    ]
+  },
+  {
+    "id": "SDS-575",
+    "epic": "SDS",
+    "title": "Add Storybook stories for top 10 canvas components",
+    "description": "Only BaseNode.stories.tsx exists. No visual component catalog for the other 20+ canvas components. Add Storybook stories for: (1) DataFlowEdge (9 edge types), (2) SimulationDashboard (running/paused states), (3) ChaosQuickBar (expanded/collapsed), (4) EmptyState, (5) NodeContextMenu, (6) HeatmapOverlay (3 metrics), (7) TimeTravelScrubber (with breakpoints), (8) WhatIfPanel, (9) CanvasToolbar (wide/compact), (10) ComponentPalette (search/filter). Each story shows all visual states.",
+    "acceptanceCriteria": [
+      "10 new Storybook story files created",
+      "Each story shows all visual states (idle, active, error, loading)",
+      "Stories are interactive (controls for props)",
+      "Storybook builds without errors"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/*.stories.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "dx",
+      "storybook",
+      "visual-testing",
+      "documentation"
+    ]
+  },
+  {
+    "id": "SDS-576",
+    "epic": "SDS",
+    "title": "Add E2E test suite with Playwright for critical user flows",
+    "description": "Zero E2E tests exist. All browser testing is manual. Add Playwright E2E tests for the 5 most critical flows: (1) Load template \u2192 verify nodes render, (2) Start simulation \u2192 verify dashboard appears, (3) Drag node from palette \u2192 verify node created, (4) Open command palette \u2192 switch module \u2192 switch back, (5) Export as JSON \u2192 re-import \u2192 verify identical. Run in CI on every PR.",
+    "acceptanceCriteria": [
+      "5 Playwright E2E test files created",
+      "Tests run in CI (GitHub Actions) on every PR",
+      "Tests pass on Chrome and Firefox",
+      "Total E2E suite completes in under 60 seconds",
+      "Screenshots captured on failure for debugging"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "e2e/system-design.spec.ts",
+      ".github/workflows/e2e.yml"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "e2e",
+      "playwright",
+      "ci"
+    ]
+  },
+  {
+    "id": "SDS-577",
+    "epic": "SDS",
+    "title": "Add RTL (right-to-left) language support for Arabic/Hebrew users",
+    "description": "Entire UI is LTR only. For Arabic/Hebrew markets, add: (1) dir='rtl' support on root layout, (2) Flip sidebar to right side, properties to left, (3) Mirror all directional CSS (margins, paddings, flex-direction), (4) Use CSS logical properties (margin-inline-start instead of margin-left), (5) Test with Arabic locale. Use Tailwind RTL plugin.",
+    "acceptanceCriteria": [
+      "Adding dir='rtl' to html tag correctly mirrors the entire layout",
+      "Sidebar appears on right, properties on left in RTL mode",
+      "All directional CSS uses logical properties (inline-start/end)",
+      "Canvas remains LTR (diagrams are universal)",
+      "Text alignment correct in RTL"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/app/layout.tsx",
+      "tailwind.config.ts",
+      "src/app/globals.css"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "i18n",
+      "rtl",
+      "accessibility",
+      "inclusive"
+    ]
+  },
+  {
+    "id": "SDS-578",
+    "epic": "SDS",
+    "title": "Activate PostHog analytics with key user behavior events",
+    "description": "PostHog analytics infrastructure is ready (AnalyticsProvider.tsx, posthog.ts) but not activated \u2014 needs API key. Define and track these events: (1) template_loaded (which template, difficulty), (2) simulation_started / simulation_completed (duration, chaos events used), (3) challenge_attempted / challenge_completed (score, time, hints used), (4) module_switched (from, to), (5) export_used (format), (6) feature_discovered (first use of heatmap, chaos, what-if). These inform product decisions about what users actually use.",
+    "acceptanceCriteria": [
+      "PostHog initialized with API key (env variable)",
+      "10+ key events tracked with relevant properties",
+      "Events fire correctly (verified in PostHog dashboard)",
+      "No PII in event properties (no names, emails, API keys)",
+      "Event tracking respects user consent/do-not-track"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/lib/analytics/posthog.ts",
+      "src/lib/analytics/analytics.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "analytics",
+      "posthog",
+      "tracking",
+      "product"
+    ]
+  },
+  {
+    "id": "SDS-579",
+    "epic": "SDS",
+    "title": "Add template validation to CI pipeline \u2014 prevent broken templates from merging",
+    "description": "Templates can be committed with invalid JSON, missing required fields, or references to non-existent node IDs (found in Notification System and Twitter simulation chaos scenarios). Add CI validation: (1) JSON schema validation against DiagramTemplate type, (2) Node ID reference check \u2014 all simulation chaos targetNodes exist in template, (3) Difficulty range check (1-5), (4) LearnSteps count check (minimum 3 for difficulty >= 3), (5) Run on every PR that touches templates/.",
+    "acceptanceCriteria": [
+      "CI step validates all template JSON files on every PR",
+      "Catches: missing fields, invalid difficulty, orphan node references",
+      "Clear error messages with file:field path",
+      "PR blocked if any template is invalid",
+      "Existing invalid templates (Notification, Twitter sim refs) caught and documented"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "scripts/validate-templates.ts",
+      ".github/workflows/ci.yml"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ci",
+      "validation",
+      "templates",
+      "quality-gate"
+    ]
+  },
+  {
+    "id": "SDS-580",
+    "epic": "SDS",
+    "title": "Add long node label overflow handling \u2014 truncate with tooltip",
+    "description": "Node labels are rendered with `whitespace-nowrap` in BaseNode.tsx:470. A label like 'Machine Learning Inference Service with GPU Acceleration' would overflow the 260px max-width. Add: (1) Text truncation with ellipsis at max-width, (2) Full label shown in tooltip on hover, (3) Simplified LOD label also truncated, (4) Test with 50+ character labels.",
+    "acceptanceCriteria": [
+      "Labels longer than node width truncate with ellipsis",
+      "Tooltip shows full label on hover",
+      "Truncation works at all 3 LOD tiers",
+      "No horizontal overflow or layout breaking"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/BaseNode.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "edge-case",
+      "overflow",
+      "ux",
+      "label"
+    ]
+  },
+  {
+    "id": "SDS-601",
+    "epic": "SDS",
+    "title": "Fix 3 eslint-disable comments in production canvas code \u2014 BottomPanel, TimeTravelScrubber, HeatmapOverlay",
+    "description": "3 eslint-disable-next-line react-hooks/exhaustive-deps comments in production code: BottomPanel.tsx:78, TimeTravelScrubber.tsx:207, HeatmapOverlay.tsx:190. Each suppresses a hooks dependency warning. Fix the underlying deps issue instead of suppressing.",
+    "acceptanceCriteria": [
+      "All 3 eslint-disable comments removed",
+      "Hooks deps arrays corrected",
+      "No functional regression"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/BottomPanel.tsx",
+      "src/components/canvas/overlays/TimeTravelScrubber.tsx",
+      "src/components/canvas/overlays/HeatmapOverlay.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-final",
+      "eslint",
+      "hooks-deps"
+    ]
+  },
+  {
+    "id": "SDS-602",
+    "epic": "SDS",
+    "title": "Replace 16 as-any casts in SystemDesignNodes.test.tsx with proper typed props",
+    "description": "SystemDesignNodes.test.tsx uses (props as any) 16 times to render node components. Create a properly typed makeNodeProps() helper that satisfies NodeProps<SystemDesignNode> without any casts.",
+    "acceptanceCriteria": [
+      "Zero as-any casts in test file",
+      "Typed makeNodeProps helper created",
+      "All tests still pass"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/nodes/system-design/__tests__/SystemDesignNodes.test.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-final",
+      "type-safety",
+      "test"
+    ]
+  },
+  {
+    "id": "SDS-603",
+    "epic": "SDS",
+    "title": "Test 1-node architecture edge case \u2014 single node with no edges on canvas",
+    "description": "No task tests the single-node edge case. A canvas with 1 node and 0 edges should: (1) render the node correctly, (2) show properties when clicked, (3) NOT crash simulation (should show warning instead), (4) export correctly as JSON/PNG. Verify and add test.",
+    "acceptanceCriteria": [
+      "1-node canvas renders without errors",
+      "Simulation on 1 node shows warning not crash",
+      "Export produces valid output for single node"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/DesignCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-final",
+      "edge-case",
+      "single-node"
+    ]
+  },
+  {
+    "id": "SDS-604",
+    "epic": "SDS",
+    "title": "Test browser zoom 150%+ layout \u2014 ensure no overflow or clipping",
+    "description": "Browser zoom (Cmd++) is different from canvas zoom. At 150%+ browser zoom, toolbar buttons may overflow, sidebar may clip, status bar text may truncate. Test at 125%, 150%, 200% browser zoom and fix any layout issues. Use CSS clamp() or responsive units where needed.",
+    "acceptanceCriteria": [
+      "No layout overflow at 150% browser zoom",
+      "All toolbar buttons accessible",
+      "Status bar text readable",
+      "Sidebar scrollable if needed"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 2,
+    "module": "system-design",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/CanvasToolbar.tsx",
+      "src/components/shared/status-bar.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "qa-final",
+      "edge-case",
+      "browser-zoom"
+    ]
+  }
+]

@@ -1,0 +1,519 @@
+{
+  "id": "rate-limiter",
+  "name": "Rate Limiter",
+  "description": "Design a distributed rate limiter for API traffic. Covers token bucket, sliding window, and distributed coordination with Redis.",
+  "difficulty": 2,
+  "category": "infrastructure",
+  "tags": [
+    "rate-limiter",
+    "token-bucket",
+    "sliding-window",
+    "throttling",
+    "infrastructure"
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": {
+          "concurrentUsers": 5000,
+          "requestsPerSecond": 2000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": {
+          "rateLimitRps": 10000,
+          "authType": "api-key",
+          "timeoutMs": 30000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "rate-limiter-svc",
+      "type": "web-server",
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "data": {
+        "label": "Rate Limiter Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 5,
+          "maxConnections": 20000,
+          "processingTimeMs": 1
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "web-server",
+      "type": "web-server",
+      "position": {
+        "x": 750,
+        "y": 200
+      },
+      "data": {
+        "label": "Application Server",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 3,
+          "maxConnections": 10000,
+          "processingTimeMs": 20
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": {
+        "x": 500,
+        "y": 425
+      },
+      "data": {
+        "label": "Rate Limit Store (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 8,
+          "evictionPolicy": "volatile-ttl",
+          "ttlSeconds": 60
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": {
+        "x": 750,
+        "y": 425
+      },
+      "data": {
+        "label": "Rules DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 1,
+          "maxConnections": 50,
+          "storageGB": 10
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 50,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-gw-rl",
+      "source": "api-gw",
+      "target": "rate-limiter-svc",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-rl-server",
+      "source": "rate-limiter-svc",
+      "target": "web-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-rl-cache",
+      "source": "rate-limiter-svc",
+      "target": "cache",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-server-db",
+      "source": "web-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Token Bucket Algorithm",
+      "description": "Each client gets a bucket with N tokens (e.g., 1000). Each request consumes one token. Tokens refill at a fixed rate (e.g., 100/sec). If the bucket is empty, the request is rejected with HTTP 429. Redis stores the token count and last-refill timestamp per client key. A Lua script atomically checks-and-decrements to avoid race conditions.",
+      "highlightNodes": [
+        "rate-limiter-svc",
+        "cache"
+      ],
+      "highlightEdges": [
+        "e-rl-cache"
+      ]
+    },
+    {
+      "title": "Sliding Window Counter",
+      "description": "An alternative to token bucket: count requests in the current window and a weighted portion of the previous window. For a 1-minute window at 30 seconds in, the count is: (current_count) + (previous_count * 0.5). This smooths out bursts at window boundaries. Redis sorted sets with timestamps enable precise sliding windows.",
+      "highlightNodes": [
+        "rate-limiter-svc",
+        "cache"
+      ],
+      "highlightEdges": [
+        "e-rl-cache"
+      ]
+    },
+    {
+      "title": "Distributed Rate Limiting",
+      "description": "With multiple Rate Limiter instances, Redis acts as the shared state. Each instance runs an atomic Lua script: EVALSHA to check and update the counter. Rate limit rules (per-client, per-endpoint, global) are stored in PostgreSQL and cached. The API Gateway extracts the client identifier (API key, IP, user ID) and routes to the limiter.",
+      "highlightNodes": [
+        "api-gw",
+        "rate-limiter-svc",
+        "cache",
+        "database"
+      ],
+      "highlightEdges": [
+        "e-gw-rl",
+        "e-rl-cache",
+        "e-server-db"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-token-bucket-overflow",
+        "name": "Token Bucket Overflow",
+        "description": "Token bucket refill rate misconfigured, allowing burst beyond limits",
+        "targetNodes": [
+          "rate-limiter"
+        ],
+        "faultType": "error",
+        "severity": 3,
+        "expectedBehavior": "Downstream services receive more traffic than expected.",
+        "mitigationSteps": [
+          "Validate bucket config on startup",
+          "Secondary rate limit at downstream",
+          "Config change requires approval"
+        ]
+      },
+      {
+        "id": "cs-distributed-counter-lag",
+        "name": "Distributed Counter Lag",
+        "description": "Counter synchronization lag between rate limiter nodes",
+        "targetNodes": [
+          "rate-limiter",
+          "redis-store"
+        ],
+        "faultType": "latency",
+        "severity": 2,
+        "expectedBehavior": "Brief over-admission at window boundaries",
+        "mitigationSteps": [
+          "Sliding window algorithm",
+          "Local + global counter hybrid"
+        ]
+      },
+      {
+        "id": "cs-redis-store-crash",
+        "name": "Counter Store Crash",
+        "description": "Redis backing store crashes",
+        "targetNodes": [
+          "redis-store"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Rate limiting disabled or all traffic blocked based on fail policy",
+        "mitigationSteps": [
+          "Local in-memory counters as fallback",
+          "Redis failover",
+          "Configurable fail-open vs fail-closed"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "rate-limiter",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "rate-limiter",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-rate-limiter-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "rate-limiter"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-rate-limiter-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "redis-store"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-rate-limiter-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "rate-limiter"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 3000,
+      "components": [
+        {
+          "nodeId": "rate-limiter",
+          "label": "Primary Service",
+          "monthlyCostUsd": 1000,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "redis-store",
+          "label": "Storage",
+          "monthlyCostUsd": 1000,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 1000,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 10000,
+          "monthlyCostUsd": 1000
+        },
+        {
+          "label": "Medium",
+          "rps": 100000,
+          "monthlyCostUsd": 3000
+        },
+        {
+          "label": "High",
+          "rps": 500000,
+          "monthlyCostUsd": 9000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 1,
+      "p99LatencyMs": 5,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "rate-limiter",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 5,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "rate-limiter"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "rate-limiter"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 10ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

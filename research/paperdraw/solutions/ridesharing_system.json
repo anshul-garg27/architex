@@ -1,0 +1,119 @@
+{
+  "viewState": {
+    "panOffset": {"x": -4500, "y": -4600},
+    "scale": 0.75
+  },
+  "components": [
+    {
+      "id": "edge-layer",
+      "type": "container",
+      "customName": "Edge & API Gateway",
+      "position": {"x": 4550, "y": 4550},
+      "size": {"w": 400, "h": 200},
+      "config": {}
+    },
+    {
+      "id": "realtime-layer",
+      "type": "container",
+      "customName": "Real-time Matching Hub",
+      "position": {"x": 5000, "y": 4550},
+      "size": {"w": 500, "h": 220},
+      "config": {}
+    },
+    {
+      "id": "state-layer",
+      "type": "container",
+      "customName": "Geospatial State & Cache",
+      "position": {"x": 5000, "y": 4820},
+      "size": {"w": 500, "h": 200},
+      "config": {}
+    },
+    {
+      "id": "background-layer",
+      "type": "container",
+      "customName": "Async Ops & Analytics",
+      "position": {"x": 4550, "y": 4800},
+      "size": {"w": 400, "h": 220},
+      "config": {}
+    },
+    {
+      "id": "riders",
+      "type": "client",
+      "customName": "Rider Apps",
+      "position": {"x": 4650, "y": 4400},
+      "size": {"w": 80, "h": 64},
+      "config": {"capacity": 50000}
+    },
+    {
+      "id": "drivers",
+      "type": "client",
+      "customName": "Driver Apps",
+      "position": {"x": 4770, "y": 4400},
+      "size": {"w": 80, "h": 64},
+      "config": {"capacity": 20000}
+    },
+    {
+      "id": "api-gw",
+      "type": "apiGateway",
+      "position": {"x": 4710, "y": 4620},
+      "size": {"w": 80, "h": 64},
+      "parentContainerId": "edge-layer",
+      "config": {"rateLimiting": true}
+    },
+    {
+      "id": "matching-svc",
+      "type": "customService",
+      "customName": "Matching Engine",
+      "position": {"x": 5050, "y": 4640},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "realtime-layer",
+      "config": {"instances": 8, "autoScale": true}
+    },
+    {
+      "id": "pricing-svc",
+      "type": "customService",
+      "customName": "Dynamic Pricing",
+      "position": {"x": 5250, "y": 4640},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "realtime-layer",
+      "config": {"instances": 4}
+    },
+    {
+      "id": "redis-geo",
+      "type": "cache",
+      "customName": "Redis Geospatial",
+      "position": {"x": 5100, "y": 4900},
+      "size": {"w": 120, "h": 80},
+      "parentContainerId": "state-layer",
+      "config": {"capacity": 500000}
+    },
+    {
+      "id": "notif-svc",
+      "type": "notificationService",
+      "position": {"x": 4650, "y": 4880},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "background-layer",
+      "config": {"instances": 3}
+    },
+    {
+      "id": "analytics-svc",
+      "type": "analyticsService",
+      "position": {"x": 4800, "y": 4880},
+      "size": {"w": 100, "h": 70},
+      "parentContainerId": "background-layer",
+      "config": {"instances": 2}
+    }
+  ],
+  "connections": [
+    {"id": "c1", "sourceId": "riders", "targetId": "api-gw", "type": "request", "label": "Request Ride"},
+    {"id": "c2", "sourceId": "drivers", "targetId": "api-gw", "type": "request", "label": "Update Location"},
+    {"id": "c3", "sourceId": "api-gw", "targetId": "redis-geo", "type": "request"},
+    {"id": "c4", "sourceId": "api-gw", "targetId": "matching-svc", "type": "request"},
+    {"id": "c5", "sourceId": "matching-svc", "targetId": "redis-geo", "type": "request", "label": "Query Proximity"},
+    {"id": "c6", "sourceId": "matching-svc", "targetId": "pricing-svc", "type": "request"},
+    {"id": "c7", "sourceId": "matching-svc", "targetId": "notif-svc", "type": "async", "label": "Match Alert"},
+    {"id": "c8", "sourceId": "notif-svc", "targetId": "drivers", "type": "async", "label": "Websocket/Push"},
+    {"id": "c9", "sourceId": "notif-svc", "targetId": "riders", "type": "async"},
+    {"id": "c10", "sourceId": "api-gw", "targetId": "analytics-svc", "type": "async"}
+  ]
+}

@@ -1,0 +1,314 @@
+{
+  "id": "bp-social-feed",
+  "name": "Social Feed — Production Blueprint",
+  "description": "High-throughput social media feed with fanout-on-write for normal users and fanout-on-read for celebrities. Supports real-time feed updates, rich media, and personalized ranking.",
+  "difficulty": 4,
+  "category": "advanced",
+  "tags": ["social-feed", "fanout", "timeline", "ranking", "real-time", "blueprint"],
+  "nodes": [
+    {
+      "id": "mobile-client",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Mobile App",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "concurrentUsers": 10000000, "requestsPerSecond": 200000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "web-client",
+      "type": "client",
+      "position": { "x": 0, "y": 400 },
+      "data": {
+        "label": "Web Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 5000000, "requestsPerSecond": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "load-balancer",
+      "type": "load-balancer",
+      "position": { "x": 200, "y": 300 },
+      "data": {
+        "label": "Load Balancer (L7)",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": { "algorithm": "least-connections", "healthCheckIntervalS": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "post-service",
+      "type": "web-server",
+      "position": { "x": 400, "y": 150 },
+      "data": {
+        "label": "Post Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "FileText",
+        "config": { "instances": 15, "maxConnections": 20000, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "feed-service",
+      "type": "web-server",
+      "position": { "x": 400, "y": 300 },
+      "data": {
+        "label": "Feed Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Newspaper",
+        "config": { "instances": 20, "feedPageSize": 20, "processingTimeMs": 15 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "fanout-service",
+      "type": "web-server",
+      "position": { "x": 400, "y": 450 },
+      "data": {
+        "label": "Fanout Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Share2",
+        "config": { "instances": 30, "batchSize": 500, "celebrityThreshold": 100000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "ranking-service",
+      "type": "web-server",
+      "position": { "x": 400, "y": 600 },
+      "data": {
+        "label": "Feed Ranker (ML)",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Sparkles",
+        "config": { "instances": 8, "modelVersion": "v4", "inferenceTimeMs": 20 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "feed-cache",
+      "type": "cache",
+      "position": { "x": 650, "y": 250 },
+      "data": {
+        "label": "Feed Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 256, "shards": 16, "cacheHitRate": 0.90 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "post-db",
+      "type": "database",
+      "position": { "x": 650, "y": 100 },
+      "data": {
+        "label": "Post DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 5, "maxConnections": 1000, "storageGB": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "graph-db",
+      "type": "database",
+      "position": { "x": 650, "y": 450 },
+      "data": {
+        "label": "Social Graph (Neo4j)",
+        "category": "storage",
+        "componentType": "nosql-db",
+        "icon": "Network",
+        "config": { "type": "neo4j", "nodes": 500000000, "edges": 50000000000, "clusterSize": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "fanout-queue",
+      "type": "message-queue",
+      "position": { "x": 650, "y": 600 },
+      "data": {
+        "label": "Kafka (Fanout)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 64, "retentionHours": 24, "throughputMbps": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "media-storage",
+      "type": "database",
+      "position": { "x": 850, "y": 150 },
+      "data": {
+        "label": "Media Storage (S3)",
+        "category": "storage",
+        "componentType": "object-storage",
+        "icon": "Image",
+        "config": { "type": "s3", "storagePB": 2, "cdnIntegrated": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "notification-service",
+      "type": "web-server",
+      "position": { "x": 850, "y": 500 },
+      "data": {
+        "label": "Push Notifications",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Bell",
+        "config": { "instances": 10, "channels": ["push", "email"], "deliveryLatencyMs": 200 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e-mobile-lb", "source": "mobile-client", "target": "load-balancer", "type": "data-flow", "data": { "edgeType": "https", "latency": 20, "animated": true } },
+    { "id": "e-web-lb", "source": "web-client", "target": "load-balancer", "type": "data-flow", "data": { "edgeType": "https", "latency": 15, "animated": true } },
+    { "id": "e-lb-post", "source": "load-balancer", "target": "post-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 1, "animated": true } },
+    { "id": "e-lb-feed", "source": "load-balancer", "target": "feed-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 1, "animated": true } },
+    { "id": "e-post-db", "source": "post-service", "target": "post-db", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 5, "animated": true } },
+    { "id": "e-post-media", "source": "post-service", "target": "media-storage", "type": "data-flow", "data": { "edgeType": "s3-put", "latency": 50, "animated": false } },
+    { "id": "e-post-kafka", "source": "post-service", "target": "fanout-queue", "type": "data-flow", "data": { "edgeType": "async", "latency": 3, "animated": true } },
+    { "id": "e-kafka-fanout", "source": "fanout-queue", "target": "fanout-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 10, "animated": true } },
+    { "id": "e-fanout-cache", "source": "fanout-service", "target": "feed-cache", "type": "data-flow", "data": { "edgeType": "cache-write", "latency": 1, "animated": true } },
+    { "id": "e-fanout-graph", "source": "fanout-service", "target": "graph-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": false } },
+    { "id": "e-feed-cache", "source": "feed-service", "target": "feed-cache", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true } },
+    { "id": "e-feed-ranker", "source": "feed-service", "target": "ranking-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 20, "animated": true } },
+    { "id": "e-feed-db", "source": "feed-service", "target": "post-db", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 5, "animated": false } },
+    { "id": "e-kafka-notify", "source": "fanout-queue", "target": "notification-service", "type": "data-flow", "data": { "edgeType": "stream", "latency": 50, "animated": true } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-feed-cache-crash",
+        "name": "Feed Cache Cluster Failure",
+        "description": "Redis feed cache cluster goes down, losing all pre-computed timelines",
+        "targetNodes": ["feed-cache"],
+        "faultType": "crash",
+        "severity": 5,
+        "expectedBehavior": "Feed reads fall through to database. Response times increase 10-50x. Database connections saturate within minutes.",
+        "mitigationSteps": ["Failover to Redis standby cluster", "Rate-limit feed requests to protect DB", "Serve stale cached feeds from CDN", "Gradually rebuild timelines from post DB"]
+      },
+      {
+        "id": "cs-celebrity-post",
+        "name": "Celebrity Post Storm",
+        "description": "Top 10 celebrities post simultaneously, triggering massive fanout-on-read queries",
+        "targetNodes": ["fanout-service", "feed-service"],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Fanout-on-read path load spikes. Feed latency increases for followers of celebrities. Normal user feeds unaffected.",
+        "mitigationSteps": ["Pre-compute celebrity posts in hot cache", "Async fanout for celebrity content", "Rate-limit celebrity post frequency", "Scale feed service instances"]
+      },
+      {
+        "id": "cs-graph-db-slowdown",
+        "name": "Social Graph Query Slowdown",
+        "description": "Neo4j cluster experiences GC pauses causing query timeouts",
+        "targetNodes": ["graph-db"],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "Fanout service cannot resolve follower lists. New posts not distributed to timelines. Existing cached feeds continue serving.",
+        "mitigationSteps": ["Cache follower lists in Redis as backup", "Reduce graph query complexity", "Investigate and tune GC settings", "Consider follower list denormalization"]
+      }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 100000, "bottleneckNode": "feed-cache", "metric": "memory", "description": "Redis memory fills with pre-computed timelines for 500M+ users", "resolution": "Evict inactive user timelines, add Redis shards" },
+      { "rpsThreshold": 200000, "bottleneckNode": "fanout-service", "metric": "cpu", "description": "Fanout workers CPU-bound when distributing posts to millions of followers", "resolution": "Batch fanout writes, increase worker count" },
+      { "rpsThreshold": 500000, "bottleneckNode": "post-db", "metric": "disk-io", "description": "Write amplification from post creation + fanout-on-read queries", "resolution": "Shard post DB by user_id, add read replicas" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-feed-staleness", "title": "Feed Staleness for Inactive Users", "description": "Users who log in after days see stale feeds because their timeline cache was evicted", "affectedNodes": ["feed-cache", "feed-service"], "likelihood": 4, "impact": 2, "mitigation": "Rebuild timeline on-demand for returning users, pre-fetch on app open" },
+      { "id": "ei-celebrity-fanout", "title": "Celebrity Fanout Latency", "description": "Users with 50M+ followers cause fanout-on-write to take minutes", "affectedNodes": ["fanout-service", "graph-db"], "likelihood": 5, "impact": 3, "mitigation": "Hybrid fanout: on-write for users with <100K followers, on-read for celebrities" },
+      { "id": "ei-ranking-bias", "title": "Feed Ranking Filter Bubble", "description": "ML ranking creates echo chambers by optimizing for engagement", "affectedNodes": ["ranking-service"], "likelihood": 4, "impact": 3, "mitigation": "Diversity injection in ranking, expose chronological feed option, regular bias audits" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 180000,
+      "components": [
+        { "nodeId": "feed-cache", "label": "Redis Feed Cache", "monthlyCostUsd": 45000, "costDriver": "256GB across 16 shards" },
+        { "nodeId": "fanout-service", "label": "Fanout Workers", "monthlyCostUsd": 30000, "costDriver": "30 compute instances" },
+        { "nodeId": "post-db", "label": "Post Database", "monthlyCostUsd": 25000, "costDriver": "Primary + 5 replicas, 5TB" },
+        { "nodeId": "graph-db", "label": "Social Graph (Neo4j)", "monthlyCostUsd": 20000, "costDriver": "5-node enterprise cluster" },
+        { "nodeId": "media-storage", "label": "Media Storage (S3)", "monthlyCostUsd": 18000, "costDriver": "2PB media + CDN egress" },
+        { "nodeId": "fanout-queue", "label": "Kafka Cluster", "monthlyCostUsd": 12000, "costDriver": "12 brokers, 64 partitions" },
+        { "nodeId": "feed-service", "label": "Feed Service", "monthlyCostUsd": 10000, "costDriver": "20 instances" },
+        { "nodeId": "ranking-service", "label": "Feed Ranker", "monthlyCostUsd": 8000, "costDriver": "8 GPU instances" },
+        { "nodeId": "notification-service", "label": "Notifications", "monthlyCostUsd": 7000, "costDriver": "APNS/FCM at scale" },
+        { "nodeId": "post-service", "label": "Post Service", "monthlyCostUsd": 5000, "costDriver": "15 instances" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Startup (1M users)", "rps": 10000, "monthlyCostUsd": 15000 },
+        { "label": "Growth (50M users)", "rps": 100000, "monthlyCostUsd": 60000 },
+        { "label": "Scale (500M users)", "rps": 500000, "monthlyCostUsd": 180000 },
+        { "label": "Global (2B users)", "rps": 2000000, "monthlyCostUsd": 600000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 500000, "trafficProfile": "diurnal", "p50LatencyMs": 30, "p99LatencyMs": 150, "availabilityTarget": 99.99, "maxErrorRatePercent": 0.01, "throughputRps": 500000 },
+    "scalingPolicies": [
+      { "nodeId": "fanout-service", "metric": "kafka_consumer_lag", "threshold": 10000, "scaleUpStep": 5, "scaleDownStep": 2, "cooldownSeconds": 60, "minInstances": 10, "maxInstances": 100 },
+      { "nodeId": "feed-service", "metric": "cpu_utilization", "threshold": 70, "scaleUpStep": 5, "scaleDownStep": 2, "cooldownSeconds": 120, "minInstances": 10, "maxInstances": 80 }
+    ],
+    "slaDefinitions": [
+      { "name": "Feed Load Time", "metric": "p99_feed_latency_ms", "target": 150, "unit": "ms", "penalty": "10% credit for degraded feed performance" },
+      { "name": "Post Visibility", "metric": "post_fanout_delay_s", "target": 5, "unit": "s", "penalty": "Post should appear in follower feeds within 5s" },
+      { "name": "Availability", "metric": "uptime_percent", "target": 99.99, "unit": "%", "penalty": "25% credit per 0.01% below target" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "feed_latency", "type": "histogram", "description": "Time to load a page of feed items", "nodeId": "feed-service" },
+        { "name": "fanout_lag", "type": "gauge", "description": "Kafka consumer lag for fanout workers", "nodeId": "fanout-service" },
+        { "name": "cache_hit_rate", "type": "gauge", "description": "Feed cache hit rate", "nodeId": "feed-cache" },
+        { "name": "posts_per_second", "type": "counter", "description": "New posts created per second", "nodeId": "post-service" },
+        { "name": "graph_query_latency", "type": "histogram", "description": "Social graph query duration", "nodeId": "graph-db" }
+      ],
+      "alerts": [
+        { "name": "Feed Latency Spike", "condition": "p99_feed_latency > 300ms for 3min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Fanout Lag High", "condition": "consumer_lag > 50000 for 5min", "severity": "warning", "channel": "slack-eng" },
+        { "name": "Cache Hit Rate Drop", "condition": "cache_hit_rate < 0.85 for 5min", "severity": "warning", "channel": "slack-eng" },
+        { "name": "Graph DB Slow", "condition": "graph_p99_latency > 100ms for 2min", "severity": "warning", "channel": "slack-eng" }
+      ],
+      "dashboards": ["Feed Performance", "Fanout Pipeline", "Social Graph", "Content Moderation", "User Engagement"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call SRE", "responseTimeMinutes": 3, "contacts": ["oncall-feed-sre"] },
+        { "level": 2, "name": "Feed Team Lead", "responseTimeMinutes": 10, "contacts": ["feed-team-lead"] },
+        { "level": 3, "name": "VP Engineering", "responseTimeMinutes": 20, "contacts": ["vp-eng"] }
+      ],
+      "runbooks": [
+        { "incident": "Feed cache failure", "severity": "critical", "steps": ["Trigger Redis failover", "Enable CDN stale cache serving", "Rate-limit feed requests", "Monitor DB connection count", "Rebuild timelines incrementally"], "automatedRecovery": true },
+        { "incident": "Fanout pipeline stuck", "severity": "high", "steps": ["Check Kafka broker health", "Restart lagging consumer groups", "Scale fanout workers", "Monitor post visibility delay"], "automatedRecovery": true },
+        { "incident": "Viral content spike", "severity": "medium", "steps": ["Cache viral post at CDN edge", "Pre-compute interactions for viral post", "Scale media serving capacity", "Monitor system-wide latency impact"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Hybrid Fanout Strategy", "context": "Pure fanout-on-write is expensive for celebrities with millions of followers. Pure fanout-on-read is slow for regular users.", "decision": "Fanout-on-write for users with <100K followers, fanout-on-read merged at query time for celebrities.", "consequences": ["Optimal latency for 99% of feed reads", "Celebrity posts may have slight delay in appearing", "Complex merging logic in feed service"] },
+      { "title": "Neo4j for Social Graph", "context": "Need efficient traversal queries for follower lists, mutual friends, and graph-based recommendations.", "decision": "Use Neo4j as the primary social graph store with Redis-cached follower lists for fanout.", "consequences": ["Fast graph traversals for complex queries", "Higher operational complexity than RDBMS", "Need to keep Redis follower cache in sync with Neo4j"] },
+      { "title": "ML-Based Feed Ranking", "context": "Chronological feeds lead to information overload. Users engage more with relevant content.", "decision": "ML ranking model scores and reorders feed items based on engagement prediction.", "consequences": ["Higher user engagement and retention", "Potential for filter bubbles", "Need diverse content injection to avoid echo chambers"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Freshness vs Cost", "choice": "Balanced", "benefit": "Active user feeds are always fresh (pre-computed)", "cost": "Inactive user feeds require on-demand rebuild" },
+      { "dimension": "Engagement vs Diversity", "choice": "Engagement with diversity guardrails", "benefit": "ML ranking optimizes for engagement metrics", "cost": "Need explicit diversity injection to prevent filter bubbles" },
+      { "dimension": "Write Amplification vs Read Latency", "choice": "Low Read Latency", "benefit": "Fanout-on-write pre-computes timelines, enabling sub-50ms reads", "cost": "Each post generates N writes (one per follower) to feed cache" }
+    ],
+    "alternatives": [
+      { "name": "Pure Fanout-on-Read", "description": "Compute feed at query time by fetching posts from all followed users", "prosVsCons": "Pros: no write amplification. Cons: high read latency, complex query", "whyNotChosen": "Feed read latency would be unacceptable at scale (100ms+ per read)" },
+      { "name": "PostgreSQL for Social Graph", "description": "Store follow relationships in PostgreSQL with adjacency list", "prosVsCons": "Pros: simpler ops. Cons: recursive graph queries very slow at scale", "whyNotChosen": "Graph traversals for mutual friends and recommendations need native graph DB performance" }
+    ]
+  }
+}

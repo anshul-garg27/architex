@@ -1,0 +1,445 @@
+{
+  "id": "bp-ai-agent",
+  "name": "AI Agent Orchestration — Production Blueprint",
+  "description": "Multi-agent AI orchestration platform with tool use, memory, retrieval-augmented generation, and human-in-the-loop workflows. Manages complex reasoning chains across LLM providers.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["ai-agent", "llm", "rag", "orchestration", "tool-use", "multi-agent", "blueprint"],
+  "nodes": [
+    {
+      "id": "user-client",
+      "type": "client",
+      "position": { "x": 0, "y": 250 },
+      "data": {
+        "label": "User Interface",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 50000, "requestsPerSecond": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gateway",
+      "type": "api-gateway",
+      "position": { "x": 200, "y": 250 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 10000, "authType": "oauth2", "timeoutMs": 120000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "orchestrator",
+      "type": "web-server",
+      "position": { "x": 400, "y": 250 },
+      "data": {
+        "label": "Agent Orchestrator",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Workflow",
+        "config": { "instances": 8, "maxConcurrentChains": 2000, "timeoutMs": 300000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "llm-router",
+      "type": "web-server",
+      "position": { "x": 600, "y": 100 },
+      "data": {
+        "label": "LLM Router",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "GitBranch",
+        "config": { "instances": 4, "providers": ["anthropic", "openai", "google"], "routingStrategy": "cost-quality" },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "tool-executor",
+      "type": "web-server",
+      "position": { "x": 600, "y": 250 },
+      "data": {
+        "label": "Tool Executor",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Wrench",
+        "config": { "instances": 12, "sandboxed": true, "maxExecutionMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "rag-service",
+      "type": "web-server",
+      "position": { "x": 600, "y": 400 },
+      "data": {
+        "label": "RAG Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Search",
+        "config": { "instances": 6, "chunkSize": 512, "topK": 10, "rerankEnabled": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "vector-db",
+      "type": "database",
+      "position": { "x": 850, "y": 400 },
+      "data": {
+        "label": "Vector Store (Pinecone)",
+        "category": "storage",
+        "componentType": "nosql-db",
+        "icon": "Database",
+        "config": { "type": "pinecone", "dimensions": 1536, "indexCount": 50000000, "pods": 4 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "memory-store",
+      "type": "cache",
+      "position": { "x": 850, "y": 250 },
+      "data": {
+        "label": "Agent Memory (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Brain",
+        "config": { "type": "redis", "memoryGB": 32, "ttlSeconds": 86400, "cacheHitRate": 0.85 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "session-db",
+      "type": "database",
+      "position": { "x": 850, "y": 100 },
+      "data": {
+        "label": "Session DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 200, "storageGB": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "task-queue",
+      "type": "message-queue",
+      "position": { "x": 400, "y": 450 },
+      "data": {
+        "label": "Task Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 16, "retentionHours": 48, "throughputMbps": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "eval-service",
+      "type": "web-server",
+      "position": { "x": 200, "y": 450 },
+      "data": {
+        "label": "Eval & Guard Rails",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "ShieldCheck",
+        "config": { "instances": 4, "toxicityThreshold": 0.1, "hallucCheckEnabled": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "human-review-queue",
+      "type": "message-queue",
+      "position": { "x": 200, "y": 100 },
+      "data": {
+        "label": "Human Review Queue",
+        "category": "messaging",
+        "componentType": "sqs",
+        "icon": "UserCheck",
+        "config": { "maxQueueDepth": 10000, "visibilityTimeoutS": 300 },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-user-gw",
+      "source": "user-client",
+      "target": "api-gateway",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-gw-orch",
+      "source": "api-gateway",
+      "target": "orchestrator",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-orch-llm",
+      "source": "orchestrator",
+      "target": "llm-router",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-orch-tools",
+      "source": "orchestrator",
+      "target": "tool-executor",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-orch-rag",
+      "source": "orchestrator",
+      "target": "rag-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-rag-vector",
+      "source": "rag-service",
+      "target": "vector-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-orch-memory",
+      "source": "orchestrator",
+      "target": "memory-store",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-llm-session",
+      "source": "llm-router",
+      "target": "session-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-orch-queue",
+      "source": "orchestrator",
+      "target": "task-queue",
+      "type": "data-flow",
+      "data": { "edgeType": "async", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-queue-tools",
+      "source": "task-queue",
+      "target": "tool-executor",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-orch-eval",
+      "source": "orchestrator",
+      "target": "eval-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-eval-human",
+      "source": "eval-service",
+      "target": "human-review-queue",
+      "type": "data-flow",
+      "data": { "edgeType": "async", "latency": 50, "animated": false }
+    },
+    {
+      "id": "e-human-orch",
+      "source": "human-review-queue",
+      "target": "orchestrator",
+      "type": "data-flow",
+      "data": { "edgeType": "callback", "latency": 60000, "animated": false }
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-llm-provider-outage",
+        "name": "Primary LLM Provider Outage",
+        "description": "Anthropic API returns 503 for all requests",
+        "targetNodes": ["llm-router"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "LLM router fails over to secondary provider (OpenAI). Response quality may differ slightly. Latency may increase during failover.",
+        "mitigationSteps": ["LLM router detects provider health via circuit breaker", "Automatic failover to secondary provider", "Queue non-urgent requests if all providers degraded", "Notify users of potential quality change"]
+      },
+      {
+        "id": "cs-vector-db-latency",
+        "name": "Vector Store Latency Spike",
+        "description": "Pinecone query latency increases 10x due to index rebalancing",
+        "targetNodes": ["vector-db"],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "RAG retrieval times out. Agent proceeds without retrieval context, relying solely on LLM knowledge. Answer quality degrades for knowledge-intensive queries.",
+        "mitigationSteps": ["Cache recent retrieval results in Redis", "Fallback to keyword search on PostgreSQL", "Skip retrieval for simple queries", "Alert on degraded RAG quality"]
+      },
+      {
+        "id": "cs-tool-sandbox-escape",
+        "name": "Tool Execution Sandbox Breach",
+        "description": "Malicious tool invocation attempts to escape sandboxed execution environment",
+        "targetNodes": ["tool-executor"],
+        "faultType": "data-corruption",
+        "severity": 5,
+        "expectedBehavior": "Sandbox detects escape attempt and terminates execution. Agent chain fails for that specific tool call. Security alert triggered.",
+        "mitigationSteps": ["gVisor sandbox terminates process", "Block the specific tool/input pattern", "Quarantine the agent session", "Security team investigation", "Update tool allowlist"]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 1000,
+        "bottleneckNode": "llm-router",
+        "metric": "connections",
+        "description": "LLM API rate limits hit, causing request queuing",
+        "resolution": "Increase rate limit tier with providers, implement request batching"
+      },
+      {
+        "rpsThreshold": 3000,
+        "bottleneckNode": "tool-executor",
+        "metric": "cpu",
+        "description": "Concurrent tool executions exhaust compute resources",
+        "resolution": "Add tool executor instances, implement tool execution prioritization"
+      },
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "vector-db",
+        "metric": "connections",
+        "description": "Vector search query throughput saturates",
+        "resolution": "Add Pinecone pods, implement query result caching"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hallucination",
+        "title": "LLM Hallucination in Tool Calls",
+        "description": "LLM generates invalid tool parameters or calls nonexistent tools",
+        "affectedNodes": ["orchestrator", "tool-executor"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Schema validation on all tool calls, retry with corrective prompt, fallback to simpler tool set"
+      },
+      {
+        "id": "ei-infinite-loop",
+        "title": "Agent Reasoning Loop",
+        "description": "Agent enters infinite reasoning loop, consuming tokens without progress",
+        "affectedNodes": ["orchestrator", "llm-router"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Max step count per chain (20), token budget per session, loop detection via state hash comparison"
+      },
+      {
+        "id": "ei-context-overflow",
+        "title": "Context Window Overflow",
+        "description": "Long conversations exceed LLM context window, causing truncation of critical information",
+        "affectedNodes": ["orchestrator", "memory-store"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Sliding window with summarization, store full history in memory store, retrieve relevant context via RAG"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 65000,
+      "components": [
+        { "nodeId": "llm-router", "label": "LLM API Costs", "monthlyCostUsd": 30000, "costDriver": "Token usage across providers (~50M tokens/day)" },
+        { "nodeId": "vector-db", "label": "Pinecone", "monthlyCostUsd": 8000, "costDriver": "4 pods, 50M vectors" },
+        { "nodeId": "tool-executor", "label": "Tool Execution", "monthlyCostUsd": 8000, "costDriver": "12 sandboxed instances" },
+        { "nodeId": "orchestrator", "label": "Orchestrator", "monthlyCostUsd": 5000, "costDriver": "8 instances" },
+        { "nodeId": "rag-service", "label": "RAG Service", "monthlyCostUsd": 4000, "costDriver": "6 instances + embedding API" },
+        { "nodeId": "memory-store", "label": "Redis Memory", "monthlyCostUsd": 3000, "costDriver": "32GB cluster" },
+        { "nodeId": "session-db", "label": "Session DB", "monthlyCostUsd": 2000, "costDriver": "PostgreSQL + replicas" },
+        { "nodeId": "eval-service", "label": "Eval & Guardrails", "monthlyCostUsd": 3000, "costDriver": "4 instances + classifier models" },
+        { "nodeId": "task-queue", "label": "Kafka", "monthlyCostUsd": 2000, "costDriver": "3 brokers" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Prototype (100 users)", "rps": 100, "monthlyCostUsd": 5000 },
+        { "label": "Growth (5K users)", "rps": 1000, "monthlyCostUsd": 25000 },
+        { "label": "Scale (50K users)", "rps": 5000, "monthlyCostUsd": 65000 },
+        { "label": "Enterprise (500K users)", "rps": 20000, "monthlyCostUsd": 250000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 5000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 2000,
+      "p99LatencyMs": 15000,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.5,
+      "throughputRps": 5000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "tool-executor",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 4,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 60,
+        "minInstances": 4,
+        "maxInstances": 48
+      },
+      {
+        "nodeId": "orchestrator",
+        "metric": "active_chains",
+        "threshold": 200,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 32
+      }
+    ],
+    "slaDefinitions": [
+      { "name": "Agent Response Time", "metric": "p99_agent_response_ms", "target": 15000, "unit": "ms", "penalty": "Credit for responses exceeding 30s" },
+      { "name": "Tool Execution Success", "metric": "tool_success_rate", "target": 95, "unit": "%", "penalty": "5% credit per 1% below target" },
+      { "name": "Platform Availability", "metric": "uptime_percent", "target": 99.9, "unit": "%", "penalty": "10% credit per 0.1% below target" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "agent_chain_duration", "type": "histogram", "description": "End-to-end agent reasoning chain duration", "nodeId": "orchestrator" },
+        { "name": "llm_tokens_per_second", "type": "counter", "description": "Token throughput across all LLM providers", "nodeId": "llm-router" },
+        { "name": "tool_execution_success_rate", "type": "gauge", "description": "Percentage of tool invocations that succeed", "nodeId": "tool-executor" },
+        { "name": "rag_retrieval_relevance", "type": "gauge", "description": "Average relevance score of retrieved documents", "nodeId": "rag-service" },
+        { "name": "guardrail_block_rate", "type": "counter", "description": "Requests blocked by safety guardrails", "nodeId": "eval-service" }
+      ],
+      "alerts": [
+        { "name": "LLM Provider Down", "condition": "provider_error_rate > 50% for 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "High Hallucination Rate", "condition": "hallucination_rate > 5% for 10min", "severity": "warning", "channel": "slack-ai-eng" },
+        { "name": "Agent Loop Detected", "condition": "chain_steps > 15 for any session", "severity": "warning", "channel": "slack-ai-eng" },
+        { "name": "Token Budget Exceeded", "condition": "daily_token_spend > budget * 1.5", "severity": "critical", "channel": "pagerduty" }
+      ],
+      "dashboards": ["Agent Performance", "LLM Provider Health", "Tool Execution", "RAG Quality", "Safety & Guardrails"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call AI Engineer", "responseTimeMinutes": 5, "contacts": ["oncall-ai-eng"] },
+        { "level": 2, "name": "AI Platform Lead", "responseTimeMinutes": 15, "contacts": ["ai-platform-lead"] },
+        { "level": 3, "name": "VP AI + Security", "responseTimeMinutes": 30, "contacts": ["vp-ai", "security-lead"] }
+      ],
+      "runbooks": [
+        { "incident": "LLM provider outage", "severity": "critical", "steps": ["Verify provider status page", "LLM router auto-failover to secondary", "Monitor response quality on backup provider", "Notify users of potential quality change", "Resume primary when available"], "automatedRecovery": true },
+        { "incident": "Sandbox security breach attempt", "severity": "critical", "steps": ["Terminate affected executor instance", "Quarantine session and inputs", "Block the tool/input pattern", "Security team forensic analysis", "Update sandbox security policies"], "automatedRecovery": true },
+        { "incident": "Token cost spike", "severity": "high", "steps": ["Identify high-token sessions", "Check for infinite loops or prompt injection", "Apply per-session token budgets", "Throttle non-essential requests"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Multi-Provider LLM Router", "context": "Reliance on a single LLM provider creates availability risk and vendor lock-in.", "decision": "Implement an LLM router that distributes requests across providers based on cost, quality, and availability.", "consequences": ["No single provider dependency", "Can optimize cost by routing simple queries to cheaper models", "Added complexity of maintaining provider abstractions", "Response quality varies across providers"] },
+      { "title": "Sandboxed Tool Execution", "context": "Agents invoke external tools (code execution, API calls) that could be exploited via prompt injection.", "decision": "Run all tool executions in gVisor sandboxed containers with strict resource limits and network policies.", "consequences": ["Strong security isolation", "Higher latency per tool call (~50ms overhead)", "Resource limits may constrain legitimate tool use"] },
+      { "title": "RAG Over Fine-Tuning", "context": "Need to incorporate domain-specific knowledge without retraining LLMs.", "decision": "Use retrieval-augmented generation with a vector store for domain knowledge instead of fine-tuning.", "consequences": ["Knowledge can be updated without model retraining", "Retrieval adds 10-50ms latency per query", "Quality depends on chunking strategy and embedding model"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Safety vs Speed", "choice": "Safety", "benefit": "All responses pass through guardrails before delivery to user", "cost": "20ms additional latency per response for eval check" },
+      { "dimension": "Cost vs Quality", "choice": "Adaptive", "benefit": "Route complex queries to best model, simple queries to cheapest", "cost": "Quality inconsistency between providers" },
+      { "dimension": "Autonomy vs Control", "choice": "Control with human-in-the-loop", "benefit": "High-risk actions require human approval", "cost": "Some workflows take minutes instead of seconds" }
+    ],
+    "alternatives": [
+      { "name": "Single-Provider Direct API", "description": "Call one LLM provider directly without routing layer", "prosVsCons": "Pros: simpler, lower latency. Cons: single point of failure, no cost optimization", "whyNotChosen": "Provider outages would take down the entire platform" },
+      { "name": "Fine-Tuned Models Instead of RAG", "description": "Fine-tune models on domain data instead of retrieval at query time", "prosVsCons": "Pros: lower latency, potentially higher quality. Cons: expensive retraining, stale knowledge", "whyNotChosen": "Knowledge changes frequently; RAG allows real-time updates without retraining" }
+    ]
+  }
+}

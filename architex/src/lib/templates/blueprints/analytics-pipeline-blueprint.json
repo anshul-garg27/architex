@@ -1,0 +1,132 @@
+{
+  "id": "bp-analytics-pipeline",
+  "name": "Data Analytics Pipeline — Production Blueprint",
+  "description": "Real-time and batch data analytics pipeline with stream processing, data lake, OLAP warehouse, and self-service dashboards. Processes billions of events daily with sub-minute freshness.",
+  "difficulty": 4,
+  "category": "infrastructure",
+  "tags": ["analytics", "data-pipeline", "streaming", "data-lake", "warehouse", "blueprint"],
+  "nodes": [
+    { "id": "event-sources", "type": "client", "position": { "x": 0, "y": 200 }, "data": { "label": "Event Sources (Apps)", "category": "client", "componentType": "web-client", "icon": "Layers", "config": { "concurrentSources": 50, "eventsPerSecond": 500000 }, "state": "idle" } },
+    { "id": "iot-sources", "type": "client", "position": { "x": 0, "y": 400 }, "data": { "label": "IoT / Telemetry", "category": "client", "componentType": "web-client", "icon": "Radio", "config": { "deviceCount": 100000, "eventsPerSecond": 200000 }, "state": "idle" } },
+    { "id": "ingestion-gateway", "type": "api-gateway", "position": { "x": 200, "y": 300 }, "data": { "label": "Ingestion Gateway", "category": "load-balancing", "componentType": "api-gateway", "icon": "Shield", "config": { "rateLimitRps": 1000000, "authType": "api-key", "timeoutMs": 5000 }, "state": "idle" } },
+    { "id": "kafka-ingest", "type": "message-queue", "position": { "x": 400, "y": 300 }, "data": { "label": "Kafka (Raw Events)", "category": "messaging", "componentType": "kafka", "icon": "ArrowRightLeft", "config": { "partitions": 128, "retentionHours": 168, "throughputMbps": 5000 }, "state": "idle" } },
+    { "id": "stream-processor", "type": "web-server", "position": { "x": 600, "y": 150 }, "data": { "label": "Flink Stream Processor", "category": "compute", "componentType": "web-server", "icon": "Zap", "config": { "instances": 20, "parallelism": 64, "checkpointIntervalMs": 10000 }, "state": "idle" } },
+    { "id": "batch-processor", "type": "web-server", "position": { "x": 600, "y": 450 }, "data": { "label": "Spark Batch Processor", "category": "compute", "componentType": "web-server", "icon": "Clock", "config": { "instances": 30, "batchIntervalMinutes": 60, "workerMemoryGB": 32 }, "state": "idle" } },
+    { "id": "schema-registry", "type": "web-server", "position": { "x": 400, "y": 100 }, "data": { "label": "Schema Registry", "category": "compute", "componentType": "web-server", "icon": "FileCode", "config": { "instances": 2, "schemaCount": 500, "compatibilityMode": "backward" }, "state": "idle" } },
+    { "id": "data-lake", "type": "database", "position": { "x": 850, "y": 350 }, "data": { "label": "Data Lake (S3 + Iceberg)", "category": "storage", "componentType": "object-storage", "icon": "HardDrive", "config": { "type": "s3", "storagePB": 10, "format": "iceberg-parquet", "partitioning": "date-hour" }, "state": "idle" } },
+    { "id": "olap-warehouse", "type": "database", "position": { "x": 850, "y": 150 }, "data": { "label": "OLAP Warehouse (ClickHouse)", "category": "storage", "componentType": "timeseries-db", "icon": "Database", "config": { "type": "clickhouse", "nodes": 8, "storageGB": 20000, "replicationFactor": 2 }, "state": "idle" } },
+    { "id": "redis-realtime", "type": "cache", "position": { "x": 850, "y": 50 }, "data": { "label": "Real-Time Cache (Redis)", "category": "storage", "componentType": "redis", "icon": "Zap", "config": { "type": "redis", "memoryGB": 32, "ttlSeconds": 300, "shards": 4 }, "state": "idle" } },
+    { "id": "dashboard-service", "type": "web-server", "position": { "x": 1050, "y": 150 }, "data": { "label": "Dashboard Service", "category": "compute", "componentType": "web-server", "icon": "BarChart3", "config": { "instances": 4, "concurrentQueries": 500, "cacheEnabled": true }, "state": "idle" } },
+    { "id": "alerting-service", "type": "web-server", "position": { "x": 1050, "y": 350 }, "data": { "label": "Alerting Engine", "category": "compute", "componentType": "web-server", "icon": "Bell", "config": { "instances": 3, "evaluationIntervalS": 30, "ruleCount": 1000 }, "state": "idle" } },
+    { "id": "metadata-db", "type": "database", "position": { "x": 600, "y": 600 }, "data": { "label": "Metadata (PostgreSQL)", "category": "storage", "componentType": "postgresql", "icon": "Database", "config": { "type": "postgresql", "replicas": 1, "storageGB": 100 }, "state": "idle" } }
+  ],
+  "edges": [
+    { "id": "e-events-gw", "source": "event-sources", "target": "ingestion-gateway", "type": "data-flow", "data": { "edgeType": "https", "latency": 10, "animated": true } },
+    { "id": "e-iot-gw", "source": "iot-sources", "target": "ingestion-gateway", "type": "data-flow", "data": { "edgeType": "mqtt", "latency": 20, "animated": true } },
+    { "id": "e-gw-kafka", "source": "ingestion-gateway", "target": "kafka-ingest", "type": "data-flow", "data": { "edgeType": "async", "latency": 2, "animated": true } },
+    { "id": "e-kafka-schema", "source": "kafka-ingest", "target": "schema-registry", "type": "data-flow", "data": { "edgeType": "schema-validation", "latency": 1, "animated": false } },
+    { "id": "e-kafka-stream", "source": "kafka-ingest", "target": "stream-processor", "type": "data-flow", "data": { "edgeType": "stream", "latency": 5, "animated": true } },
+    { "id": "e-kafka-batch", "source": "kafka-ingest", "target": "batch-processor", "type": "data-flow", "data": { "edgeType": "batch", "latency": 60000, "animated": false } },
+    { "id": "e-stream-olap", "source": "stream-processor", "target": "olap-warehouse", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 50, "animated": true } },
+    { "id": "e-stream-redis", "source": "stream-processor", "target": "redis-realtime", "type": "data-flow", "data": { "edgeType": "cache-write", "latency": 1, "animated": true } },
+    { "id": "e-batch-lake", "source": "batch-processor", "target": "data-lake", "type": "data-flow", "data": { "edgeType": "s3-put", "latency": 100, "animated": false } },
+    { "id": "e-batch-olap", "source": "batch-processor", "target": "olap-warehouse", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 200, "animated": false } },
+    { "id": "e-olap-dashboard", "source": "olap-warehouse", "target": "dashboard-service", "type": "data-flow", "data": { "edgeType": "db-query", "latency": 50, "animated": true } },
+    { "id": "e-redis-dashboard", "source": "redis-realtime", "target": "dashboard-service", "type": "data-flow", "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true } },
+    { "id": "e-stream-alert", "source": "stream-processor", "target": "alerting-service", "type": "data-flow", "data": { "edgeType": "grpc", "latency": 10, "animated": true } },
+    { "id": "e-batch-metadata", "source": "batch-processor", "target": "metadata-db", "type": "data-flow", "data": { "edgeType": "db-write", "latency": 5, "animated": false } }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      { "id": "cs-kafka-broker-loss", "name": "Kafka Broker Loss", "description": "Two Kafka brokers crash simultaneously, causing under-replicated partitions", "targetNodes": ["kafka-ingest"], "faultType": "crash", "severity": 4, "expectedBehavior": "Producer writes slow down during leader re-election. Some partitions temporarily unavailable. No data loss if replication factor > broker failures.", "mitigationSteps": ["Kafka controller triggers leader re-election", "Producers retry with backpressure", "Replace failed brokers", "Run partition reassignment"] },
+      { "id": "cs-flink-checkpoint-fail", "name": "Flink Checkpoint Failure", "description": "Stream processor checkpointing fails due to state backend storage issues", "targetNodes": ["stream-processor"], "faultType": "error", "severity": 3, "expectedBehavior": "Processing continues but cannot recover to consistent state on failure. Risk of duplicate or lost events on restart.", "mitigationSteps": ["Investigate state backend health", "Fix storage issue", "Restart from last successful checkpoint", "Verify exactly-once guarantees"] },
+      { "id": "cs-data-lake-corruption", "name": "Data Lake Partition Corruption", "description": "Bad batch write corrupts an Iceberg table partition", "targetNodes": ["data-lake"], "faultType": "data-corruption", "severity": 3, "expectedBehavior": "Queries hitting corrupted partition return errors. Other partitions unaffected. Historical data intact via Iceberg time travel.", "mitigationSteps": ["Identify corrupted partition", "Roll back via Iceberg snapshot", "Reprocess affected time window from Kafka", "Validate data quality post-repair"] }
+    ],
+    "bottleneckProgression": [
+      { "rpsThreshold": 200000, "bottleneckNode": "kafka-ingest", "metric": "network", "description": "Kafka broker network saturates from high-volume event ingestion", "resolution": "Add brokers, increase partition count, enable compression" },
+      { "rpsThreshold": 500000, "bottleneckNode": "stream-processor", "metric": "memory", "description": "Flink state size grows beyond available memory for windowed aggregations", "resolution": "Use RocksDB state backend, increase checkpointing, optimize window sizes" },
+      { "rpsThreshold": 1000000, "bottleneckNode": "olap-warehouse", "metric": "disk-io", "description": "ClickHouse merge operations compete with query workload", "resolution": "Separate insert and query clusters, optimize materialized views" }
+    ],
+    "expectedIssues": [
+      { "id": "ei-schema-evolution", "title": "Schema Evolution Breaking Consumers", "description": "Producer schema changes break downstream Flink jobs", "affectedNodes": ["schema-registry", "stream-processor"], "likelihood": 3, "impact": 4, "mitigation": "Enforce backward compatibility in schema registry, version all schemas" },
+      { "id": "ei-late-arriving-data", "title": "Late-Arriving Events", "description": "Events arrive hours after their timestamp, causing incorrect windowed aggregations", "affectedNodes": ["stream-processor", "olap-warehouse"], "likelihood": 4, "impact": 2, "mitigation": "Allowed lateness window in Flink, periodic batch reprocessing to correct" },
+      { "id": "ei-query-explosion", "title": "Dashboard Query Explosion", "description": "Too many concurrent dashboard users issuing expensive analytical queries", "affectedNodes": ["olap-warehouse", "dashboard-service"], "likelihood": 3, "impact": 3, "mitigation": "Query result caching, query cost limits, pre-computed materialized views" }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 75000,
+      "components": [
+        { "nodeId": "kafka-ingest", "label": "Kafka Cluster", "monthlyCostUsd": 15000, "costDriver": "12 brokers, 5Gbps throughput" },
+        { "nodeId": "data-lake", "label": "Data Lake (S3)", "monthlyCostUsd": 12000, "costDriver": "10PB storage" },
+        { "nodeId": "stream-processor", "label": "Flink Cluster", "monthlyCostUsd": 12000, "costDriver": "20 task managers" },
+        { "nodeId": "olap-warehouse", "label": "ClickHouse", "monthlyCostUsd": 10000, "costDriver": "8 nodes, 20TB" },
+        { "nodeId": "batch-processor", "label": "Spark Cluster", "monthlyCostUsd": 10000, "costDriver": "30 workers (spot instances)" },
+        { "nodeId": "redis-realtime", "label": "Redis Cache", "monthlyCostUsd": 3000, "costDriver": "32GB cluster" },
+        { "nodeId": "dashboard-service", "label": "Dashboard Service", "monthlyCostUsd": 3000, "costDriver": "4 instances" },
+        { "nodeId": "ingestion-gateway", "label": "Ingestion Gateway", "monthlyCostUsd": 3000, "costDriver": "High-throughput ALB" },
+        { "nodeId": "alerting-service", "label": "Alerting Engine", "monthlyCostUsd": 2500, "costDriver": "3 instances" },
+        { "nodeId": "schema-registry", "label": "Schema Registry", "monthlyCostUsd": 1500, "costDriver": "2 instances" },
+        { "nodeId": "metadata-db", "label": "Metadata DB", "monthlyCostUsd": 1500, "costDriver": "PostgreSQL" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Small (100K events/s)", "rps": 100000, "monthlyCostUsd": 25000 },
+        { "label": "Medium (500K events/s)", "rps": 500000, "monthlyCostUsd": 50000 },
+        { "label": "Large (1M events/s)", "rps": 1000000, "monthlyCostUsd": 75000 },
+        { "label": "XL (5M events/s)", "rps": 5000000, "monthlyCostUsd": 250000 }
+      ]
+    },
+    "performanceTargets": { "defaultRps": 1000000, "trafficProfile": "steady", "p50LatencyMs": 100, "p99LatencyMs": 1000, "availabilityTarget": 99.9, "maxErrorRatePercent": 0.1, "throughputRps": 1000000 },
+    "scalingPolicies": [
+      { "nodeId": "stream-processor", "metric": "consumer_lag", "threshold": 100000, "scaleUpStep": 5, "scaleDownStep": 2, "cooldownSeconds": 120, "minInstances": 10, "maxInstances": 80 },
+      { "nodeId": "kafka-ingest", "metric": "disk_utilization", "threshold": 70, "scaleUpStep": 2, "scaleDownStep": 1, "cooldownSeconds": 600, "minInstances": 6, "maxInstances": 24 }
+    ],
+    "slaDefinitions": [
+      { "name": "Data Freshness", "metric": "max_event_lag_seconds", "target": 60, "unit": "s", "penalty": "Dashboard data must be <60s old" },
+      { "name": "Query Latency", "metric": "p99_query_latency_ms", "target": 5000, "unit": "ms", "penalty": "Dashboard queries complete in <5s" },
+      { "name": "Data Completeness", "metric": "event_loss_rate", "target": 0.001, "unit": "%", "penalty": "Less than 0.001% event loss" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "events_ingested_per_sec", "type": "counter", "description": "Raw events ingested per second", "nodeId": "kafka-ingest" },
+        { "name": "consumer_lag", "type": "gauge", "description": "Flink consumer lag behind Kafka head", "nodeId": "stream-processor" },
+        { "name": "query_latency", "type": "histogram", "description": "OLAP query execution time", "nodeId": "olap-warehouse" },
+        { "name": "data_freshness", "type": "gauge", "description": "Age of most recent data in dashboard", "nodeId": "dashboard-service" },
+        { "name": "batch_job_duration", "type": "histogram", "description": "Spark batch job execution time", "nodeId": "batch-processor" }
+      ],
+      "alerts": [
+        { "name": "Consumer Lag Critical", "condition": "consumer_lag > 500000 for 5min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Kafka Under-Replicated", "condition": "under_replicated_partitions > 0 for 2min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Batch Job Failed", "condition": "batch_job_status = failed", "severity": "warning", "channel": "slack-data-eng" },
+        { "name": "Data Freshness Stale", "condition": "data_age > 300s for 5min", "severity": "warning", "channel": "slack-data-eng" }
+      ],
+      "dashboards": ["Ingestion Pipeline", "Stream Processing", "Data Lake Health", "Query Performance", "Data Quality"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call Data Engineer", "responseTimeMinutes": 5, "contacts": ["oncall-data-eng"] },
+        { "level": 2, "name": "Data Platform Lead", "responseTimeMinutes": 15, "contacts": ["data-platform-lead"] },
+        { "level": 3, "name": "VP Data", "responseTimeMinutes": 30, "contacts": ["vp-data"] }
+      ],
+      "runbooks": [
+        { "incident": "Kafka broker failure", "severity": "critical", "steps": ["Verify ISR status for all partitions", "Replace failed broker", "Run partition reassignment", "Monitor producer retry rates"], "automatedRecovery": true },
+        { "incident": "Flink job failure", "severity": "high", "steps": ["Check Flink job manager logs", "Identify savepoint or checkpoint to recover from", "Restart job from checkpoint", "Monitor consumer lag recovery"], "automatedRecovery": true },
+        { "incident": "Data quality issue", "severity": "medium", "steps": ["Identify affected time range and tables", "Quarantine bad data", "Reprocess from Kafka if within retention", "Update data quality rules"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Lambda Architecture (Stream + Batch)", "context": "Need both real-time dashboards and historically accurate batch analytics.", "decision": "Implement Lambda architecture with Flink for stream processing and Spark for batch, converging in ClickHouse.", "consequences": ["Real-time dashboards with <60s freshness", "Batch reprocessing corrects stream approximations", "Two code paths to maintain (stream + batch)"] },
+      { "title": "Apache Iceberg on S3", "context": "Need a cost-effective data lake with ACID transactions and time travel.", "decision": "Use Apache Iceberg table format on S3 for the data lake tier.", "consequences": ["ACID transactions on object storage", "Time travel for debugging and recovery", "Efficient partition pruning for queries", "Storage cost is fraction of database storage"] },
+      { "title": "ClickHouse as OLAP Engine", "context": "Need sub-second analytical queries on billions of rows.", "decision": "Use ClickHouse as the primary OLAP engine for dashboard queries.", "consequences": ["10-100x faster than PostgreSQL for analytical queries", "Columnar storage compression reduces costs", "Limited support for point updates (append-optimized)"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Freshness vs Accuracy", "choice": "Freshness for real-time, accuracy for batch", "benefit": "Real-time dashboards show approximate data immediately, batch corrects within hours", "cost": "Two processing pipelines to maintain" },
+      { "dimension": "Cost vs Query Speed", "choice": "Tiered (hot/warm/cold)", "benefit": "Recent data in ClickHouse (fast), older data in S3 (cheap)", "cost": "Query routing complexity for cross-tier queries" },
+      { "dimension": "Schema Flexibility vs Data Quality", "choice": "Data Quality", "benefit": "Schema registry enforces data contracts", "cost": "Producers must register schemas before publishing" }
+    ],
+    "alternatives": [
+      { "name": "Kappa Architecture (Stream-Only)", "description": "Process everything as a stream, no batch layer", "prosVsCons": "Pros: single code path. Cons: harder to do historical reprocessing, accuracy issues with late data", "whyNotChosen": "Batch reprocessing needed for historical corrections and complex aggregations" },
+      { "name": "Snowflake/BigQuery (Managed OLAP)", "description": "Use a managed OLAP warehouse instead of self-hosted ClickHouse", "prosVsCons": "Pros: zero ops. Cons: higher cost at this volume, less control", "whyNotChosen": "At 1M events/s, managed warehouse costs exceed self-hosted by 3-5x" }
+    ]
+  }
+}

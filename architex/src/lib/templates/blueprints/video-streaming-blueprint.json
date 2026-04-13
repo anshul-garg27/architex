@@ -1,0 +1,493 @@
+{
+  "id": "bp-video-streaming",
+  "name": "Video Streaming Platform — Production Blueprint",
+  "description": "Netflix-scale video streaming with adaptive bitrate, global CDN, content encoding pipeline, and personalized recommendations. Supports millions of concurrent streams.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["video-streaming", "cdn", "transcoding", "adaptive-bitrate", "recommendations", "blueprint"],
+  "nodes": [
+    {
+      "id": "smart-tv",
+      "type": "client",
+      "position": { "x": 0, "y": 150 },
+      "data": {
+        "label": "Smart TV / STB",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Tv",
+        "config": { "concurrentUsers": 5000000, "avgBitrateMbps": 15 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mobile-client",
+      "type": "client",
+      "position": { "x": 0, "y": 350 },
+      "data": {
+        "label": "Mobile App",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "concurrentUsers": 3000000, "avgBitrateMbps": 5 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cdn-edge",
+      "type": "cdn",
+      "position": { "x": 200, "y": 250 },
+      "data": {
+        "label": "CDN Edge (Global PoPs)",
+        "category": "load-balancing",
+        "componentType": "reverse-proxy",
+        "icon": "Globe2",
+        "config": { "cacheHitRate": 0.95, "edgeLocations": 300, "storageTB": 50 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gateway",
+      "type": "api-gateway",
+      "position": { "x": 400, "y": 100 },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 500000, "authType": "jwt", "timeoutMs": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "playback-service",
+      "type": "web-server",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "Playback Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Play",
+        "config": { "instances": 20, "manifestGenTimeMs": 5, "drmEnabled": true },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "content-catalog",
+      "type": "web-server",
+      "position": { "x": 600, "y": 200 },
+      "data": {
+        "label": "Content Catalog",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Library",
+        "config": { "instances": 8, "totalTitles": 50000, "processingTimeMs": 10 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "recommendation-engine",
+      "type": "web-server",
+      "position": { "x": 600, "y": 350 },
+      "data": {
+        "label": "Recommendation Engine",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Sparkles",
+        "config": { "instances": 10, "modelType": "collaborative-filtering", "inferenceTimeMs": 30 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "transcoding-pipeline",
+      "type": "web-server",
+      "position": { "x": 600, "y": 500 },
+      "data": {
+        "label": "Transcoding Pipeline",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Film",
+        "config": { "instances": 50, "codecFormats": ["h264", "h265", "av1"], "resolutions": ["480p", "720p", "1080p", "4k"] },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "video-storage",
+      "type": "database",
+      "position": { "x": 850, "y": 400 },
+      "data": {
+        "label": "Video Storage (S3)",
+        "category": "storage",
+        "componentType": "object-storage",
+        "icon": "HardDrive",
+        "config": { "type": "s3", "storagePB": 5, "redundancy": "cross-region" },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "metadata-db",
+      "type": "database",
+      "position": { "x": 850, "y": 150 },
+      "data": {
+        "label": "Metadata DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 4, "maxConnections": 500, "storageGB": 500 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "user-profile-cache",
+      "type": "cache",
+      "position": { "x": 850, "y": 50 },
+      "data": {
+        "label": "Profile Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 64, "cacheHitRate": 0.98, "shards": 8 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "viewing-history-db",
+      "type": "database",
+      "position": { "x": 850, "y": 280 },
+      "data": {
+        "label": "Viewing History (Cassandra)",
+        "category": "storage",
+        "componentType": "nosql-db",
+        "icon": "Database",
+        "config": { "type": "cassandra", "nodes": 12, "replicationFactor": 3, "storageGB": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "event-bus",
+      "type": "message-queue",
+      "position": { "x": 400, "y": 450 },
+      "data": {
+        "label": "Kafka (Events)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 64, "retentionHours": 168, "throughputMbps": 2000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "analytics-pipeline",
+      "type": "web-server",
+      "position": { "x": 400, "y": 600 },
+      "data": {
+        "label": "Analytics Pipeline (Spark)",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "BarChart3",
+        "config": { "instances": 30, "batchIntervalMinutes": 5, "streamingEnabled": true },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-tv-cdn",
+      "source": "smart-tv",
+      "target": "cdn-edge",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-mobile-cdn",
+      "source": "mobile-client",
+      "target": "cdn-edge",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-cdn-gw",
+      "source": "cdn-edge",
+      "target": "api-gateway",
+      "type": "data-flow",
+      "data": { "edgeType": "https", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-gw-playback",
+      "source": "api-gateway",
+      "target": "playback-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-gw-catalog",
+      "source": "api-gateway",
+      "target": "content-catalog",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-gw-recs",
+      "source": "api-gateway",
+      "target": "recommendation-engine",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-playback-cache",
+      "source": "playback-service",
+      "target": "user-profile-cache",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-catalog-metadata",
+      "source": "content-catalog",
+      "target": "metadata-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-recs-history",
+      "source": "recommendation-engine",
+      "target": "viewing-history-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-cdn-storage",
+      "source": "cdn-edge",
+      "target": "video-storage",
+      "type": "data-flow",
+      "data": { "edgeType": "http", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-transcode-storage",
+      "source": "transcoding-pipeline",
+      "target": "video-storage",
+      "type": "data-flow",
+      "data": { "edgeType": "s3-put", "latency": 100, "animated": false }
+    },
+    {
+      "id": "e-transcode-metadata",
+      "source": "transcoding-pipeline",
+      "target": "metadata-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-write", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-playback-kafka",
+      "source": "playback-service",
+      "target": "event-bus",
+      "type": "data-flow",
+      "data": { "edgeType": "async", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-kafka-analytics",
+      "source": "event-bus",
+      "target": "analytics-pipeline",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 100, "animated": true }
+    },
+    {
+      "id": "e-analytics-history",
+      "source": "analytics-pipeline",
+      "target": "viewing-history-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-write", "latency": 10, "animated": false }
+    },
+    {
+      "id": "e-playback-cdn",
+      "source": "playback-service",
+      "target": "cdn-edge",
+      "type": "data-flow",
+      "data": { "edgeType": "manifest-url", "latency": 2, "animated": true }
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-cdn-pop-failure",
+        "name": "CDN PoP Outage",
+        "description": "Major CDN point-of-presence goes offline affecting a geographic region",
+        "targetNodes": ["cdn-edge"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Clients in affected region rerouted to next-nearest PoP. Latency increases by 20-50ms. Video quality may temporarily drop due to increased latency.",
+        "mitigationSteps": ["DNS failover to alternate PoP", "Anycast routing automatically reroutes", "Pre-warm alternate PoP caches for popular content", "Monitor rebuffering rates in affected region"]
+      },
+      {
+        "id": "cs-origin-storage-latency",
+        "name": "Origin Storage Degradation",
+        "description": "S3 experiences elevated latency in primary region",
+        "targetNodes": ["video-storage"],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "CDN cache hits unaffected (95% of traffic). Cache misses experience 2-5x latency increase. New content uploads delayed.",
+        "mitigationSteps": ["Increase CDN cache TTL to reduce origin fetches", "Failover reads to cross-region replica", "Queue non-urgent transcoding jobs", "Alert content ops team"]
+      },
+      {
+        "id": "cs-recommendation-crash",
+        "name": "Recommendation Engine Failure",
+        "description": "Recommendation service crashes, unable to generate personalized content lists",
+        "targetNodes": ["recommendation-engine"],
+        "faultType": "crash",
+        "severity": 2,
+        "expectedBehavior": "Users see trending/popular content instead of personalized recommendations. Engagement metrics may dip but streaming continues unaffected.",
+        "mitigationSteps": ["Fall back to cached recommendations (up to 6h old)", "Show trending content as default", "Restart recommendation service", "Backfill recommendations when service recovers"]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "cdn-edge",
+        "metric": "network",
+        "description": "CDN edge bandwidth saturates in popular regions during prime time",
+        "resolution": "Add edge nodes in saturated regions, enable mid-tier caching"
+      },
+      {
+        "rpsThreshold": 500000,
+        "bottleneckNode": "playback-service",
+        "metric": "cpu",
+        "description": "Manifest generation and DRM token computation becomes CPU-bound",
+        "resolution": "Pre-generate manifests for popular content, cache DRM tokens"
+      },
+      {
+        "rpsThreshold": 1000000,
+        "bottleneckNode": "viewing-history-db",
+        "metric": "disk-io",
+        "description": "Cassandra write amplification from millions of concurrent viewing position updates",
+        "resolution": "Batch viewing position updates, increase compaction throughput"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-rebuffering",
+        "title": "Adaptive Bitrate Rebuffering",
+        "description": "Aggressive bitrate adaptation causes rebuffering on fluctuating network connections",
+        "affectedNodes": ["playback-service", "cdn-edge"],
+        "likelihood": 4,
+        "impact": 4,
+        "mitigation": "Conservative ABR algorithm with buffer-based switching, maintain 30s buffer before quality increase"
+      },
+      {
+        "id": "ei-transcoding-queue",
+        "title": "Transcoding Queue Backlog",
+        "description": "Large content ingestion (e.g., studio partnership) overwhelms transcoding pipeline",
+        "affectedNodes": ["transcoding-pipeline"],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Priority queue for high-value content, auto-scale GPU instances, stagger ingestion batches"
+      },
+      {
+        "id": "ei-cold-start-latency",
+        "title": "Cold Start Playback Latency",
+        "description": "First playback request for rarely-watched content misses CDN cache, requiring origin fetch",
+        "affectedNodes": ["cdn-edge", "video-storage"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Predictive pre-warming based on recommendation signals, fast-start with lower quality segment"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 250000,
+      "components": [
+        { "nodeId": "cdn-edge", "label": "CDN (Global PoPs)", "monthlyCostUsd": 80000, "costDriver": "Bandwidth: 50PB/mo egress" },
+        { "nodeId": "video-storage", "label": "Video Storage (S3)", "monthlyCostUsd": 50000, "costDriver": "5PB cross-region storage" },
+        { "nodeId": "transcoding-pipeline", "label": "Transcoding Pipeline", "monthlyCostUsd": 40000, "costDriver": "50 GPU instances" },
+        { "nodeId": "viewing-history-db", "label": "Cassandra Cluster", "monthlyCostUsd": 20000, "costDriver": "12 nodes, 10TB" },
+        { "nodeId": "event-bus", "label": "Kafka Cluster", "monthlyCostUsd": 15000, "costDriver": "12 brokers, 2Gbps" },
+        { "nodeId": "analytics-pipeline", "label": "Spark Analytics", "monthlyCostUsd": 12000, "costDriver": "30 worker nodes" },
+        { "nodeId": "recommendation-engine", "label": "Recommendation Engine", "monthlyCostUsd": 10000, "costDriver": "10 ML inference instances" },
+        { "nodeId": "metadata-db", "label": "Metadata DB", "monthlyCostUsd": 8000, "costDriver": "Primary + 4 replicas" },
+        { "nodeId": "playback-service", "label": "Playback Service", "monthlyCostUsd": 8000, "costDriver": "20 compute instances" },
+        { "nodeId": "user-profile-cache", "label": "Redis Cache", "monthlyCostUsd": 7000, "costDriver": "64GB across 8 shards" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Startup (100K users)", "rps": 10000, "monthlyCostUsd": 30000 },
+        { "label": "Growth (5M users)", "rps": 100000, "monthlyCostUsd": 80000 },
+        { "label": "Scale (50M users)", "rps": 500000, "monthlyCostUsd": 250000 },
+        { "label": "Global (200M users)", "rps": 2000000, "monthlyCostUsd": 800000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 500000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 20,
+      "p99LatencyMs": 100,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 500000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "playback-service",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 5,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 120,
+        "minInstances": 10,
+        "maxInstances": 100
+      },
+      {
+        "nodeId": "transcoding-pipeline",
+        "metric": "queue_depth",
+        "threshold": 100,
+        "scaleUpStep": 10,
+        "scaleDownStep": 5,
+        "cooldownSeconds": 300,
+        "minInstances": 10,
+        "maxInstances": 200
+      }
+    ],
+    "slaDefinitions": [
+      { "name": "Stream Start Time", "metric": "time_to_first_byte_ms", "target": 2000, "unit": "ms", "penalty": "10% credit if TTFB > 3s for >1% of starts" },
+      { "name": "Rebuffer Rate", "metric": "rebuffer_rate_percent", "target": 1, "unit": "%", "penalty": "Quality credit for sessions with >3% rebuffering" },
+      { "name": "Platform Availability", "metric": "uptime_percent", "target": 99.99, "unit": "%", "penalty": "Pro-rated subscription credit" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "time_to_first_byte", "type": "histogram", "description": "Time from play press to first video byte rendered", "nodeId": "playback-service" },
+        { "name": "rebuffer_ratio", "type": "gauge", "description": "Percentage of viewing time spent rebuffering", "nodeId": "cdn-edge" },
+        { "name": "cdn_cache_hit_rate", "type": "gauge", "description": "Percentage of video segment requests served from CDN cache", "nodeId": "cdn-edge" },
+        { "name": "transcoding_queue_depth", "type": "gauge", "description": "Number of pending transcoding jobs", "nodeId": "transcoding-pipeline" },
+        { "name": "concurrent_streams", "type": "gauge", "description": "Active concurrent streaming sessions", "nodeId": "playback-service" }
+      ],
+      "alerts": [
+        { "name": "High Rebuffer Rate", "condition": "rebuffer_rate > 2% for 5min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "CDN Cache Hit Drop", "condition": "cache_hit_rate < 90% for 10min", "severity": "warning", "channel": "slack-cdn" },
+        { "name": "Slow Stream Start", "condition": "p99_ttfb > 3000ms for 3min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Transcoding Backlog", "condition": "queue_depth > 500 for 15min", "severity": "warning", "channel": "slack-content-ops" }
+      ],
+      "dashboards": ["Streaming Quality", "CDN Performance", "Content Pipeline", "Recommendations", "Revenue & Engagement"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call SRE", "responseTimeMinutes": 3, "contacts": ["oncall-streaming-sre"] },
+        { "level": 2, "name": "CDN Team Lead", "responseTimeMinutes": 10, "contacts": ["cdn-team-lead", "streaming-eng-lead"] },
+        { "level": 3, "name": "VP Infrastructure", "responseTimeMinutes": 20, "contacts": ["vp-infra", "cto"] }
+      ],
+      "runbooks": [
+        { "incident": "Regional CDN outage", "severity": "critical", "steps": ["Verify DNS failover activated", "Check anycast routing rerouting traffic", "Monitor rebuffer rates in affected region", "Pre-warm alternate PoP caches", "Communicate ETA to customer support"], "automatedRecovery": true },
+        { "incident": "Transcoding pipeline stuck", "severity": "high", "steps": ["Check GPU instance health", "Verify input file formats", "Clear stuck jobs from queue", "Scale up GPU fleet", "Re-queue failed jobs"], "automatedRecovery": true },
+        { "incident": "Recommendation engine degraded", "severity": "medium", "steps": ["Activate cached recommendations fallback", "Show trending content as default", "Investigate model serving issues", "Rollback model if recent deployment"], "automatedRecovery": true }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Adaptive Bitrate Streaming (ABR)", "context": "Users have varying network conditions. Fixed bitrate causes either waste or buffering.", "decision": "Generate multiple quality tiers (480p-4K) per title and use client-side ABR to dynamically select the best quality.", "consequences": ["Smooth playback across network conditions", "4-8x storage per title for multiple encodings", "Transcoding pipeline must process every title at all quality tiers"] },
+      { "title": "Cassandra for Viewing History", "context": "Need to store billions of viewing records with high write throughput and tunable consistency.", "decision": "Use Cassandra with local quorum writes for viewing history and playback positions.", "consequences": ["Linear horizontal scalability for writes", "Tunable consistency per query", "Operational complexity of running Cassandra cluster"] },
+      { "title": "CDN with Origin Shield", "context": "CDN cache misses create thundering herd to origin storage.", "decision": "Implement mid-tier origin shield between CDN edge and S3 to coalesce cache misses.", "consequences": ["Reduces origin load by 90%", "Additional CDN cost for mid-tier caching", "Slightly higher latency for cache misses (extra hop)"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Storage Cost vs Startup Latency", "choice": "Low Startup Latency", "benefit": "Pre-encoded at all quality tiers means instant quality selection on playback start", "cost": "4-8x storage overhead per title" },
+      { "dimension": "Personalization vs Cold Start", "choice": "Personalization", "benefit": "ML-based recommendations drive 80% of content discovery", "cost": "New users get generic recommendations until sufficient viewing history" },
+      { "dimension": "Freshness vs CDN Cost", "choice": "CDN Cost Efficiency", "benefit": "95% cache hit rate minimizes origin bandwidth costs", "cost": "Content updates take up to 1h to propagate to all edge locations" }
+    ],
+    "alternatives": [
+      { "name": "Server-Side Bitrate Selection", "description": "Server decides quality instead of client ABR", "prosVsCons": "Pros: more control. Cons: server doesn't know real-time client network conditions", "whyNotChosen": "Client-side ABR responds faster to network changes, better user experience" },
+      { "name": "Real-Time Transcoding", "description": "Transcode on-demand instead of pre-encoding all quality tiers", "prosVsCons": "Pros: massive storage savings. Cons: high compute cost per stream, cold start latency", "whyNotChosen": "At millions of concurrent streams, pre-encoding is far more cost-effective" }
+    ]
+  }
+}

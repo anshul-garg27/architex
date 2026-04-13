@@ -1,0 +1,582 @@
+{
+  "id": "hotel-reservation",
+  "name": "Hotel Reservation System",
+  "description": "Design a hotel booking system like Booking.com or Marriott. Covers inventory management, double-booking prevention, pricing, and confirmation notification flow.",
+  "difficulty": 3,
+  "category": "classic",
+  "tags": [
+    "hotel",
+    "reservation",
+    "booking",
+    "inventory",
+    "idempotency",
+    "notification"
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "label": "Web / Mobile Client",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": {
+          "concurrentUsers": 50000,
+          "requestsPerSecond": 5000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gw",
+      "type": "api-gateway",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "API Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": {
+          "rateLimitRps": 20000,
+          "authType": "jwt",
+          "timeoutMs": 30000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "app-server",
+      "type": "app-server",
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "data": {
+        "label": "Reservation Service",
+        "category": "compute",
+        "componentType": "app-server",
+        "icon": "Server",
+        "config": {
+          "instances": 6,
+          "cpuCores": 4,
+          "memoryGB": 16,
+          "processingTimeMs": 20
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": {
+        "x": 750,
+        "y": 50
+      },
+      "data": {
+        "label": "Inventory Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 32,
+          "evictionPolicy": "lru",
+          "ttlSeconds": 300,
+          "cacheHitRate": 0.9
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": {
+        "x": 750,
+        "y": 350
+      },
+      "data": {
+        "label": "Reservation DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 2,
+          "maxConnections": 300,
+          "storageGB": 1000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "mq",
+      "type": "message-queue",
+      "position": {
+        "x": 500,
+        "y": 400
+      },
+      "data": {
+        "label": "Booking Event Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": {
+          "partitions": 12,
+          "retentionHours": 72,
+          "maxThroughputMBps": 50
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "notification-worker",
+      "type": "worker",
+      "position": {
+        "x": 750,
+        "y": 500
+      },
+      "data": {
+        "label": "Notification Worker",
+        "category": "compute",
+        "componentType": "worker",
+        "icon": "Cog",
+        "config": {
+          "instances": 4,
+          "concurrencyPerInstance": 20,
+          "retryAttempts": 3
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-gw",
+      "source": "client",
+      "target": "api-gw",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 50,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-gw-app",
+      "source": "api-gw",
+      "target": "app-server",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-app-cache",
+      "source": "app-server",
+      "target": "cache",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-app-db",
+      "source": "app-server",
+      "target": "database",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-app-mq",
+      "source": "app-server",
+      "target": "mq",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-mq-worker",
+      "source": "mq",
+      "target": "notification-worker",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message",
+        "latency": 5,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-worker-db",
+      "source": "notification-worker",
+      "target": "database",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Inventory Check and Double-Booking Prevention",
+      "description": "The Reservation Service checks room availability via Redis cache first (sub-millisecond). On booking, it uses a PostgreSQL row-level lock (SELECT FOR UPDATE) or an optimistic concurrency check (version column) to prevent double-booking the same room for the same dates. This is the critical correctness invariant of the system.",
+      "highlightNodes": [
+        "app-server",
+        "cache",
+        "database"
+      ],
+      "highlightEdges": [
+        "e-app-cache",
+        "e-app-db"
+      ]
+    },
+    {
+      "title": "Idempotent Booking with Reservation ID",
+      "description": "The API Gateway assigns a unique idempotency key to each booking request. If a client retries (network timeout, 5xx), the service checks for an existing reservation with that key before creating a new one. This prevents duplicate charges and ghost bookings \u2014 essential for payment-adjacent workflows.",
+      "highlightNodes": [
+        "api-gw",
+        "app-server"
+      ],
+      "highlightEdges": [
+        "e-client-gw",
+        "e-gw-app"
+      ]
+    },
+    {
+      "title": "Asynchronous Confirmation Notifications",
+      "description": "After a successful booking, the Reservation Service publishes a BookingConfirmed event to Kafka. The Notification Worker consumes this event and sends email/SMS confirmations, triggers calendar invites, and notifies the hotel's PMS. Decoupling via the queue means booking latency is unaffected by slow downstream services.",
+      "highlightNodes": [
+        "mq",
+        "notification-worker"
+      ],
+      "highlightEdges": [
+        "e-app-mq",
+        "e-mq-worker"
+      ]
+    },
+    {
+      "title": "Cache Invalidation for Room Inventory",
+      "description": "Room availability in Redis is updated on every booking and cancellation. A short TTL (5 min) ensures stale data self-heals. For flash sales or peak periods, the cache is warmed proactively. The write-through pattern ensures the cache and DB stay consistent for high-traffic inventory queries.",
+      "highlightNodes": [
+        "cache",
+        "database",
+        "app-server"
+      ],
+      "highlightEdges": [
+        "e-app-cache",
+        "e-app-db"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-double-booking",
+        "name": "Double Booking Race Condition",
+        "description": "Concurrent reservations for last room succeed simultaneously",
+        "targetNodes": [
+          "reservation-service",
+          "inventory-db"
+        ],
+        "faultType": "data-corruption",
+        "severity": 5,
+        "expectedBehavior": "Two guests booked for same room. Manual resolution required.",
+        "mitigationSteps": [
+          "Pessimistic locking on room inventory",
+          "Database-level constraints",
+          "Overbooking compensation policy"
+        ]
+      },
+      {
+        "id": "cs-payment-failure",
+        "name": "Payment Gateway Timeout",
+        "description": "Payment provider experiences widespread latency",
+        "targetNodes": [
+          "payment-service"
+        ],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "Bookings stuck in pending state. Inventory held but not confirmed.",
+        "mitigationSteps": [
+          "Reservation hold with TTL",
+          "Retry payment async",
+          "Alternative payment provider"
+        ]
+      },
+      {
+        "id": "cs-search-degraded",
+        "name": "Search Index Degraded",
+        "description": "Elasticsearch cluster loses a node during peak search",
+        "targetNodes": [
+          "search-service"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Search latency increases. Some search features degraded.",
+        "mitigationSteps": [
+          "ES replica promotion",
+          "Fallback to simpler DB queries",
+          "Cached popular searches"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "reservation-service",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 10000,
+        "bottleneckNode": "payment-service",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hotel-reservation-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "reservation-service"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-hotel-reservation-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "search-service"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-hotel-reservation-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "reservation-service"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 18000,
+      "components": [
+        {
+          "nodeId": "reservation-service",
+          "label": "Primary Service",
+          "monthlyCostUsd": 6000,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "search-service",
+          "label": "Storage",
+          "monthlyCostUsd": 6000,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 6000,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 1000,
+          "monthlyCostUsd": 6000
+        },
+        {
+          "label": "Medium",
+          "rps": 10000,
+          "monthlyCostUsd": 18000
+        },
+        {
+          "label": "High",
+          "rps": 50000,
+          "monthlyCostUsd": 54000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 10000,
+      "trafficProfile": "event-driven",
+      "p50LatencyMs": 50,
+      "p99LatencyMs": 300,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 10000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "reservation-service",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 300,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "reservation-service"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "reservation-service"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 600ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

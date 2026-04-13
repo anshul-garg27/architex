@@ -1,0 +1,1203 @@
+[
+  {
+    "id": "ALG-142",
+    "epic": "ALG",
+    "title": "Fix sorting targetId format mismatch in parseStepMutations",
+    "description": "parseStepMutations at AlgorithmModule.tsx:82 uses regex /element-(\\d+)/ but all sorting engines (bubble-sort.ts:60, quick-sort.ts, etc.) emit targetId as plain String(j) like '0','5'. Regex never matches, so all sorting bars stay gray (default state) throughout animation. Fix: change regex to /(?:element-)?(\\d+)/ or update all sorting engines to use 'element-{index}' format.",
+    "acceptanceCriteria": [
+      "Running Bubble Sort on [5,3,8,1] shows blue bars during comparison steps",
+      "Running Quick Sort shows purple pivot bar during partitioning",
+      "Sorted bars turn green at completion",
+      "All 6 runnable sorting algorithms display correct color states"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "critical",
+      "visual",
+      "sorting"
+    ]
+  },
+  {
+    "id": "ALG-143",
+    "epic": "ALG",
+    "title": "Wire 10 missing sorting algorithms to SORTING_RUNNERS",
+    "description": "AlgorithmPanel.tsx:125-132 SORTING_RUNNERS only maps 6 of 16 sorting algorithms. Shell, Counting, Radix, Bucket, Tim, Cocktail-Shaker, Comb, Pancake, Bogo, Radix-MSD are all exported and implemented but not in the runner map. Clicking Run silently returns at line 567. Add all 10 to SORTING_RUNNERS.",
+    "acceptanceCriteria": [
+      "All 16 sorting algorithms in SORTING_ALGORITHMS have matching entries in SORTING_RUNNERS",
+      "Selecting Shell Sort and clicking Run produces animation steps",
+      "Selecting Tim Sort and clicking Run produces animation steps",
+      "No algorithm in the Sorting category silently fails on Run"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "critical",
+      "sorting",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-144",
+    "epic": "ALG",
+    "title": "Wire 4 missing tree algorithms (Red-Black, B-Tree, Huffman, Trie) in handleRun",
+    "description": "AlgorithmPanel.tsx handleRun tree section (lines 392-449) only handles bst-operations, avl-tree, tree-traversals, heap-operations. Red-Black (red-black-tree), B-Tree (b-tree), Huffman (huffman-tree), Trie (trie-operations) have engine code but no handleRun cases. Engines: rbInsert, bTreeInsert, huffmanBuild, trieInsertAlgo are exported from barrel.",
+    "acceptanceCriteria": [
+      "Selecting Red-Black Tree and clicking Run produces visualization",
+      "Selecting B-Tree and clicking Run produces visualization",
+      "Selecting Huffman Tree and clicking Run produces visualization",
+      "Selecting Trie Operations and clicking Run produces visualization"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "critical",
+      "tree",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-145",
+    "epic": "ALG",
+    "title": "Wire 6 missing DP algorithms (LIS, Matrix-Chain, Rod-Cutting, Subset-Sum, Palindrome, Catalan) in handleRun",
+    "description": "AlgorithmPanel.tsx handleRun DP section (lines 461-510) only handles fibonacci-dp, lcs, edit-distance, knapsack, coin-change. Six DP algorithms have engine code but no handleRun cases: lis, matrix-chain, rod-cutting, subset-sum, longest-palindrome, catalan. All are exported from dp/index.ts.",
+    "acceptanceCriteria": [
+      "Selecting LIS and clicking Run produces DP table visualization",
+      "Selecting Matrix Chain Multiplication and clicking Run produces DP table",
+      "Selecting Rod Cutting and clicking Run produces visualization",
+      "All 11 DP algorithms produce results when Run is clicked"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "critical",
+      "dp",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-146",
+    "epic": "ALG",
+    "title": "Wire 2 missing string algorithms (Boyer-Moore, Z-Algorithm) and 2 backtracking (Knight's Tour, Subset-Generation) in handleRun",
+    "description": "AlgorithmPanel.tsx handleRun string section (lines 512-527) only handles kmp, rabin-karp. Boyer-Moore and Z-Algorithm have engines (boyerMooreSearch, zAlgorithmSearch) but no cases. Backtracking section (lines 528-536) only handles n-queens, sudoku. Knight's Tour (solveKnightsTour) and Subset Generation (generateSubsets) have engines but no cases.",
+    "acceptanceCriteria": [
+      "Boyer-Moore search runs and shows pattern matching visualization",
+      "Z-Algorithm search runs and shows visualization",
+      "Knight's Tour runs and shows grid visualization",
+      "Subset Generation runs and shows results"
+    ],
+    "priority": "P0",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "critical",
+      "string",
+      "backtracking",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-147",
+    "epic": "ALG",
+    "title": "Add onComplete callback to PlaybackController to fix stuck play state",
+    "description": "playback-controller.ts:128-129 sets this.playing=false when reaching end but fires no callback. AlgorithmPanel.tsx playing state stays true, showing Pause icon. User clicks Play again but ctrl.play() returns immediately at line 33 because currentIndex >= steps.length. Fix: add onComplete callback to constructor, fire it when playback ends. In AlgorithmPanel, set playing=false in the callback.",
+    "acceptanceCriteria": [
+      "After playback reaches the last step, Play button shows Play icon (not Pause)",
+      "Clicking Play after natural completion restarts from beginning or does nothing gracefully",
+      "Comparison controller also properly reports completion"
+    ],
+    "priority": "P0",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/playback-controller.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "bug",
+      "critical",
+      "playback"
+    ]
+  },
+  {
+    "id": "ALG-148",
+    "epic": "ALG",
+    "title": "Show error message when clicking Run on unimplemented algorithm",
+    "description": "AlgorithmPanel.tsx:567 silently returns when sortingRunner is undefined. Same for tree:449, dp:510, string:526, backtracking:535. Add visual feedback: show inline error 'This algorithm visualization is coming soon' or disable Run button with tooltip when no runner exists.",
+    "acceptanceCriteria": [
+      "Clicking Run on an unwired algorithm shows visible error text near the Run button",
+      "Error disappears when switching to a working algorithm",
+      "No silent failures \u2014 every Run click produces either visualization or error message"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "error-handling",
+      "feedback"
+    ]
+  },
+  {
+    "id": "ALG-149",
+    "epic": "ALG",
+    "title": "Fix comparison mode to track separate array state for comparison algorithm",
+    "description": "AlgorithmModule.tsx:830 passes values={values} (primary array) to comparison ArrayVisualizer. Both sides show the same array. The comparison algorithm sorts its own copy but the sorted state is never tracked/displayed. Fix: maintain comparisonArray in state, update it from comparison controller steps, pass to the comparison visualizer.",
+    "acceptanceCriteria": [
+      "In comparison mode, left side shows primary algorithm's array state",
+      "Right side shows comparison algorithm's different array state",
+      "Both sides animate independently based on their respective steps"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-142"
+    ],
+    "blockedBy": [
+      "ALG-142"
+    ],
+    "tags": [
+      "bug",
+      "comparison",
+      "visual"
+    ]
+  },
+  {
+    "id": "ALG-150",
+    "epic": "ALG",
+    "title": "Add ErrorBoundary around each visualizer in AlgorithmCanvas",
+    "description": "AlgorithmModule.tsx:623-938 AlgorithmCanvas renders visualizers without error boundaries. A throw in layoutTree (null tree), graph layout (empty nodes), or any visualizer crashes the entire module. Wrap each visualizer in React ErrorBoundary with 'Something went wrong \u2014 try a different algorithm' fallback.",
+    "acceptanceCriteria": [
+      "If TreeVisualizer throws, canvas shows error fallback instead of blank screen",
+      "User can select a different algorithm without refreshing",
+      "ErrorBoundary resets when algorithm selection changes"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "reliability",
+      "error-handling"
+    ]
+  },
+  {
+    "id": "ALG-151",
+    "epic": "ALG",
+    "title": "Add reduced motion support to all 7 visualizers",
+    "description": "All visualizers (ArrayVisualizer.tsx, GraphVisualizer.tsx, TreeVisualizer.tsx, DPVisualizer.tsx, StringMatchVisualizer.tsx, GridVisualizer.tsx, GeometryVisualizer.tsx) use motion/react animations with no prefers-reduced-motion support. Either configure MotionConfig with reducedMotion='user' at a provider level, or add useReducedMotion hook and skip animations when enabled.",
+    "acceptanceCriteria": [
+      "With prefers-reduced-motion: reduce enabled, animations are instant or disabled",
+      "State changes still visible (colors change, but no spring/transition)",
+      "Playback still functions correctly with reduced motion"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx",
+      "src/components/canvas/overlays/TreeVisualizer.tsx",
+      "src/components/canvas/overlays/DPVisualizer.tsx",
+      "src/components/canvas/overlays/StringMatchVisualizer.tsx",
+      "src/components/canvas/overlays/GridVisualizer.tsx",
+      "src/components/canvas/overlays/GeometryVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "motion"
+    ]
+  },
+  {
+    "id": "ALG-152",
+    "epic": "ALG",
+    "title": "Add ARIA roles, labels, and live regions to algorithm panel and visualizers",
+    "description": "Zero ARIA attributes across entire module. Buttons at AlgorithmPanel.tsx:1230-1260 have title but no aria-label. Visualizers have no role. Step changes not announced. Add: role='region' to visualizers, aria-label to all buttons, aria-live='polite' region for step descriptions, role='status' for step counter.",
+    "acceptanceCriteria": [
+      "All playback buttons have aria-label describing their action",
+      "Step description changes are announced to screen readers via aria-live",
+      "Visualizer containers have role='img' with aria-label describing current state",
+      "Algorithm dropdown has accessible label"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "aria"
+    ]
+  },
+  {
+    "id": "ALG-153",
+    "epic": "ALG",
+    "title": "Extract hardcoded hex colors to shared design token constants",
+    "description": "80+ hardcoded hex colors across 7 visualizers: ArrayVisualizer.tsx:12-18, GraphVisualizer.tsx:14-30, TreeVisualizer.tsx:15-24, DPVisualizer.tsx:16-38, StringMatchVisualizer.tsx:17-33, GridVisualizer.tsx:21-48, GeometryVisualizer.tsx:14-22. Create shared ALGO_STATE_COLORS constant (or CSS custom properties) and import in all visualizers. Existing src/lib/visualization/colors.ts has ALGO_STATE_COLORS but it's not used by active overlays.",
+    "acceptanceCriteria": [
+      "All visualizer state colors come from a single shared source",
+      "Changing a color in one place updates all visualizers",
+      "No hardcoded hex in any visualizer component file for state colors",
+      "Dark/light theme switching works if tokens use CSS custom properties"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx",
+      "src/components/canvas/overlays/GraphVisualizer.tsx",
+      "src/components/canvas/overlays/TreeVisualizer.tsx",
+      "src/components/canvas/overlays/DPVisualizer.tsx",
+      "src/components/canvas/overlays/StringMatchVisualizer.tsx",
+      "src/components/canvas/overlays/GridVisualizer.tsx",
+      "src/components/canvas/overlays/GeometryVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "design-system",
+      "tokens",
+      "visual"
+    ]
+  },
+  {
+    "id": "ALG-154",
+    "epic": "ALG",
+    "title": "Add color-independent state indicators (patterns/shapes) to visualizers",
+    "description": "All visualizers use color as sole differentiator for states. Colorblind users cannot distinguish comparing (blue) from swapping (red) from sorted (green). Add secondary indicators: hatching patterns for comparing, dot patterns for swapping, solid fills for sorted, border dashes for pivot. Start with ArrayVisualizer as proof-of-concept.",
+    "acceptanceCriteria": [
+      "ArrayVisualizer bars have distinct visual patterns in addition to colors",
+      "A monochrome screenshot still shows which bars are comparing vs swapping vs sorted",
+      "Legend includes both color and pattern"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/ArrayVisualizer.tsx"
+    ],
+    "dependencies": [
+      "ALG-153"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "a11y",
+      "visual"
+    ]
+  },
+  {
+    "id": "ALG-155",
+    "epic": "ALG",
+    "title": "Add keyboard shortcuts for playback controls",
+    "description": "No keyboard event handlers in AlgorithmPanel.tsx or AlgorithmModule.tsx. Add: Space=play/pause, Left=step-backward, Right=step-forward, Home=stop, 1-5=speed presets. Use global keydown listener with proper focus management so shortcuts work when any module element is focused.",
+    "acceptanceCriteria": [
+      "Pressing Space toggles play/pause when algorithm panel has focus",
+      "Left/Right arrows step backward/forward",
+      "Number keys 1-5 change speed",
+      "Shortcuts don't fire when typing in input fields"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "keyboard",
+      "accessibility"
+    ]
+  },
+  {
+    "id": "ALG-156",
+    "epic": "ALG",
+    "title": "De-duplicate algorithm config: single source of truth per engine",
+    "description": "Each sorting algorithm has its config defined twice: once in the engine file (e.g., bubble-sort.ts:12-34 CONFIG) and once in sorting/index.ts:26-47 SORTING_ALGORITHMS array. Same for all categories. These can drift. Fix: have SORTING_ALGORITHMS import config from each engine, e.g., import { CONFIG as BUBBLE_SORT_CONFIG } from './bubble-sort', or have engines export config and barrel re-export.",
+    "acceptanceCriteria": [
+      "Each algorithm config is defined exactly once",
+      "SORTING_ALGORITHMS/GRAPH_ALGORITHMS/etc. arrays reference the engine configs",
+      "No duplicate description/complexity/pseudocode definitions"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/tree/index.ts",
+      "src/lib/algorithms/dp/index.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "dry",
+      "maintenance"
+    ]
+  },
+  {
+    "id": "ALG-157",
+    "epic": "ALG",
+    "title": "Add step description overlay on canvas (reduce split-attention)",
+    "description": "Step description is in the properties panel (AlgorithmModule.tsx:484-494) while visualization is in the canvas (AlgorithmModule.tsx:842+). User must look back and forth \u2014 classic split-attention effect violating Mayer's Spatial Contiguity principle. Add a semi-transparent overlay at the top or bottom of the canvas showing the current step description and pseudocode line.",
+    "acceptanceCriteria": [
+      "Current step description appears overlaid on the canvas area",
+      "Overlay doesn't obstruct the visualization significantly",
+      "Overlay updates in sync with step changes",
+      "User can still access full step detail in properties panel"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "educational",
+      "mayer"
+    ]
+  },
+  {
+    "id": "ALG-158",
+    "epic": "ALG",
+    "title": "Replace native select with searchable algorithm combobox",
+    "description": "AlgorithmPanel.tsx:685-721 uses native <select> with <optgroup> for 62 algorithms. No search, no filtering. As the catalog grows, this becomes unusable. Replace with a searchable combobox (headless UI or custom) that supports typing to filter, keyboard navigation, and category grouping.",
+    "acceptanceCriteria": [
+      "User can type to filter algorithms by name",
+      "Categories are still visible as group headers",
+      "Keyboard navigation (up/down/enter) works",
+      "Selected algorithm is clearly indicated"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "search",
+      "navigation"
+    ]
+  },
+  {
+    "id": "ALG-159",
+    "epic": "ALG",
+    "title": "Add WHY explanations to sorting step descriptions",
+    "description": "Step descriptions (e.g., bubble-sort.ts:77 'Compare arr[0]=5 with arr[1]=3') say WHAT but not WHY. Educational tools must explain reasoning. Add pedagogical context: 'Compare adjacent elements \u2014 if left > right, they're out of order and need swapping' on first occurrence, then shorter on subsequent. Apply to all 6 runnable sorting engines initially.",
+    "acceptanceCriteria": [
+      "First comparison step includes WHY explanation",
+      "First swap step explains why the swap is needed",
+      "Sorted-marking step explains what it means to be in final position",
+      "Descriptions are readable by a beginner with no prior sorting knowledge"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/sorting/bubble-sort.ts",
+      "src/lib/algorithms/sorting/insertion-sort.ts",
+      "src/lib/algorithms/sorting/selection-sort.ts",
+      "src/lib/algorithms/sorting/merge-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts",
+      "src/lib/algorithms/sorting/heap-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "educational",
+      "content",
+      "descriptions"
+    ]
+  },
+  {
+    "id": "ALG-160",
+    "epic": "ALG",
+    "title": "Move engine execution to existing Web Worker",
+    "description": "AlgorithmPanel.tsx:389-605 runs all engines synchronously on the main thread. Large inputs (array of 100+ elements, N-Queens with N=12) can freeze the UI. src/lib/workers/algorithm-worker.ts already exists but is unused. Move engine calls to the worker, show a loading spinner during computation, and handle results via message passing.",
+    "acceptanceCriteria": [
+      "Engine computation happens in Web Worker, not main thread",
+      "UI remains responsive during computation",
+      "Loading indicator shown while worker is computing",
+      "Error from worker is caught and displayed to user"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/lib/workers/algorithm-worker.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "worker",
+      "ux"
+    ]
+  },
+  {
+    "id": "ALG-161",
+    "epic": "ALG",
+    "title": "Auto-play algorithm after clicking Run",
+    "description": "AlgorithmPanel.tsx:602 sets playing=false after creating PlaybackController. User must click Run, then separately click Play \u2014 2 actions for 1 intent. Change behavior: after Run creates the controller, automatically start playback (ctrl.play() + setPlaying(true)). Add a user preference toggle if needed.",
+    "acceptanceCriteria": [
+      "Clicking Run immediately starts animation playback",
+      "Play button shows Pause icon after Run",
+      "User can still Pause to stop auto-play",
+      "Step counter advances immediately after Run"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-147"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "playback",
+      "convenience"
+    ]
+  },
+  {
+    "id": "ALG-162",
+    "epic": "ALG",
+    "title": "Memoize allAlgorithms array to prevent recreation every render",
+    "description": "AlgorithmModule.tsx:299, 522, 660 and AlgorithmPanel.tsx:313 all create [...SORTING_ALGORITHMS, ...GRAPH_ALGORITHMS, ...TREE_ALGORITHMS, ...DP_ALGORITHMS, ...STRING_ALGORITHMS, ...BACKTRACKING_ALGORITHMS, ...GEOMETRY_ALGORITHMS] on every render. Extract to module-level constant (arrays are static) or useMemo.",
+    "acceptanceCriteria": [
+      "allAlgorithms is defined once at module scope or memoized",
+      "No spread operations for static arrays inside render functions",
+      "All 4 usage sites reference the shared constant"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "performance",
+      "optimization"
+    ]
+  },
+  {
+    "id": "ALG-163",
+    "epic": "ALG",
+    "title": "Increase touch target sizes for mobile compliance",
+    "description": "Playback buttons at AlgorithmPanel.tsx:1230-1260 are h-7 w-7 (28x28px). Play button is h-8 w-8 (32x32px). Speed buttons are ~30px. All below WCAG 44x44px minimum. Increase all interactive targets to minimum 44x44px using padding or sizing.",
+    "acceptanceCriteria": [
+      "All playback buttons have minimum 44x44px touch target",
+      "Speed selector buttons have minimum 44x44px touch target",
+      "Preset buttons have minimum 44x44px touch target",
+      "Visual appearance remains clean (use padding not just button size if needed)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "accessibility",
+      "mobile",
+      "touch"
+    ]
+  },
+  {
+    "id": "ALG-164",
+    "epic": "ALG",
+    "title": "Add parseStepMutations and PlaybackController unit tests",
+    "description": "parseStepMutations (AlgorithmModule.tsx:71-106) has zero tests \u2014 the targetId format mismatch bug would have been caught. PlaybackController (playback-controller.ts) has zero tests \u2014 the stuck-play-state bug would have been caught. Write unit tests for both: various targetId formats, edge cases (empty mutations, invalid indices), and controller lifecycle (play, pause, stop, completion, speed change).",
+    "acceptanceCriteria": [
+      "parseStepMutations test covers: element-N format, plain-N format, mixed formats, empty mutations, out-of-bounds index",
+      "PlaybackController test covers: constructor, play/pause/stop, stepForward/stepBackward, completion callback, speed change, destroy",
+      "Tests run and pass in CI"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/algorithms/parseStepMutations.test.ts",
+      "src/__tests__/lib/algorithms/playback-controller.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "unit-test",
+      "quality"
+    ]
+  },
+  {
+    "id": "ALG-165",
+    "epic": "ALG",
+    "title": "Add integration test: all algorithm IDs have matching runners",
+    "description": "Write a test that iterates all algorithm config arrays (SORTING_ALGORITHMS, GRAPH_ALGORITHMS, etc.), and for each algorithm ID, verifies a runner exists in the corresponding runner map or handleRun code path. This prevents future regressions where a new algorithm is added to config but not wired up.",
+    "acceptanceCriteria": [
+      "Test iterates all 62 algorithm IDs across 7 categories",
+      "Test fails if any algorithm ID lacks a runner mapping",
+      "Test runs in CI and would have caught the 24 missing runners"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/__tests__/lib/algorithms/runner-coverage.test.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "testing",
+      "integration",
+      "wiring"
+    ]
+  },
+  {
+    "id": "ALG-166",
+    "epic": "ALG",
+    "title": "Delete dead duplicate visualizer files under visualization/algorithms/",
+    "description": "src/components/visualization/algorithms/ contains SortingVisualizer.tsx, GraphVisualizer.tsx, StringMatchVisualizer.tsx, DPTableVisualizer.tsx. These are NOT imported by AlgorithmModule or any active component. They use a different color system (ALGO_STATE_COLORS from lib/visualization/colors) than the active overlays. Delete or consolidate.",
+    "acceptanceCriteria": [
+      "Duplicate visualizer files are removed",
+      "No broken imports after deletion",
+      "Active visualizers under canvas/overlays/ remain functional"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/visualization/algorithms/SortingVisualizer.tsx",
+      "src/components/visualization/algorithms/GraphVisualizer.tsx",
+      "src/components/visualization/algorithms/StringMatchVisualizer.tsx",
+      "src/components/visualization/algorithms/DPTableVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "cleanup",
+      "dead-code"
+    ]
+  },
+  {
+    "id": "ALG-167",
+    "epic": "ALG",
+    "title": "Split AlgorithmModule.tsx (1201 lines) and AlgorithmPanel.tsx (1415 lines) into smaller files",
+    "description": "AlgorithmModule.tsx contains AlgorithmSidebar, AlgorithmProperties, AlgorithmBottomPanel, AlgorithmCanvas, ComplexityComparisonChart, useAlgorithmModule, parseStepMutations, theoreticalComparisons \u2014 all in one 1201-line file. AlgorithmPanel.tsx is 1415 lines with handleRun spanning 200+ lines. Extract: AlgorithmCanvas into own file, AlgorithmProperties into own file, BottomPanel into own file, handleRun into per-category handler files.",
+    "acceptanceCriteria": [
+      "No file exceeds 500 lines",
+      "Each component is in its own file",
+      "handleRun is split into handleRunSorting, handleRunGraph, etc.",
+      "All functionality preserved"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "architecture",
+      "maintenance",
+      "readability"
+    ]
+  },
+  {
+    "id": "ALG-168",
+    "epic": "ALG",
+    "title": "Reset DP/String/Backtracking input state when switching algorithms",
+    "description": "AlgorithmPanel.tsx:688-708 resets some state on algorithm switch but not category-specific inputs. dpString1, dpString2, dpNumber, dpCoins, dpItems, searchText, searchPattern, treeValueInput persist when switching between algorithms in the same category. User sees stale input from previous algorithm.",
+    "acceptanceCriteria": [
+      "Switching from LCS to Edit Distance clears dpString1/dpString2",
+      "Switching from Knapsack to Coin Change clears dpItems",
+      "Switching from KMP to Rabin-Karp clears searchText/searchPattern",
+      "Only inputs relevant to the selected algorithm are shown"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "state-management"
+    ]
+  },
+  {
+    "id": "ALG-169",
+    "epic": "ALG",
+    "title": "Add max-length guard on array text input to prevent memory exhaustion",
+    "description": "AlgorithmPanel.tsx:1140 textarea has no maxLength. User could paste 100,000 comma-separated numbers, causing the engine to run synchronously and freeze/crash. Add maxLength={500} (roughly 100 elements) and show character count or element count.",
+    "acceptanceCriteria": [
+      "Array input textarea has maxLength attribute",
+      "User sees feedback when approaching the limit",
+      "Pasting very large data is truncated gracefully"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "security",
+      "input-validation"
+    ]
+  },
+  {
+    "id": "ALG-170",
+    "epic": "ALG",
+    "title": "Standardize naming: selectedId vs selectedAlgoId",
+    "description": "AlgorithmPanel.tsx:273 uses selectedId while AlgorithmModule.tsx:948 uses selectedAlgoId for the same concept. Standardize to selectedAlgoId across both files for consistency.",
+    "acceptanceCriteria": [
+      "Both files use the same variable name for the selected algorithm ID",
+      "No functional regressions"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "cleanup",
+      "naming"
+    ]
+  },
+  {
+    "id": "ALG-171",
+    "epic": "ALG",
+    "title": "Add difficulty labels and learning path ordering to algorithm catalog",
+    "description": "All 62 algorithms are presented equally with no difficulty indicators. Add difficulty field (beginner/intermediate/advanced/expert) to AlgorithmConfig type. Add recommended-order field. Show difficulty badge next to algorithm name in dropdown. Consider adding 'Suggested for beginners' section at top of dropdown.",
+    "acceptanceCriteria": [
+      "Each algorithm has a difficulty level visible in the dropdown",
+      "Difficulty badges are color-coded (green/amber/red/purple)",
+      "A 'Start Here' or 'Beginner' section appears at the top of the dropdown",
+      "Difficulty data defined in algorithm configs"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/sorting/index.ts",
+      "src/lib/algorithms/graph/index.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "educational",
+      "learning-path",
+      "ux"
+    ]
+  },
+  {
+    "id": "ALG-172",
+    "epic": "ALG",
+    "title": "Add auto-generated sample data on first load for instant visualization",
+    "description": "Currently the canvas shows an empty state on load (AlgorithmModule.tsx:853-933). User sees 'Select a sorting algorithm...' text. Instead, auto-generate a small sample array (e.g., 10 elements) on first render and show it in the visualizer immediately. This gives an instant 'wow' moment and shows the user what the tool does before any interaction.",
+    "acceptanceCriteria": [
+      "On first load, ArrayVisualizer shows a pre-generated array of 10 colored bars",
+      "Array input field is populated with the sample data",
+      "User can immediately click Run to see Bubble Sort animate",
+      "Time from page load to seeing bars is <1 second"
+    ],
+    "priority": "P1",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "onboarding",
+      "first-impression"
+    ]
+  },
+  {
+    "id": "ALG-173",
+    "epic": "ALG",
+    "title": "Add worst-case input finder with scoring for sorting algorithms",
+    "description": "Validated by 3-agent review + dpvis SIGCSE 2025 paper showing self-testing improves DP learning. Add 'Worst Case Challenge' mode: user crafts an input array aiming to maximize comparisons/swaps. Tool runs the selected sorting algorithm, displays step count, compares against known theoretical worst-case (already in AlgorithmConfig.timeComplexity.worst). Score = actual_steps / theoretical_worst_steps * 100. Leaderboard for best (worst) inputs per algorithm. Start with sorting only.",
+    "acceptanceCriteria": [
+      "Worst Case Challenge button visible in sidebar when a sorting algorithm is selected",
+      "User can type a custom array and see comparison/swap count after run",
+      "Score displayed as percentage of theoretical worst case achieved",
+      "Known worst-case hint shown after 3 failed attempts (e.g., 'Try a reverse-sorted array')",
+      "Works for all 16 sorting algorithms"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/lib/algorithms/sorting/index.ts"
+    ],
+    "dependencies": [
+      "ALG-142",
+      "ALG-143"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "active-learning",
+      "gamification",
+      "research-validated"
+    ]
+  },
+  {
+    "id": "ALG-174",
+    "epic": "ALG",
+    "title": "Add 'Predict the Next Step' interactive mode",
+    "description": "Instead of passively watching, user clicks 'Predict Mode'. Animation pauses before each step. User is asked 'What happens next?' with multiple choice options (e.g., 'Compare 5 and 3', 'Swap 5 and 3', 'Mark as sorted'). Correct answer advances; wrong answer shows explanation. This is active learning (Mayer's Generative Activity principle). Build as a wrapper around PlaybackController that pauses before each step.",
+    "acceptanceCriteria": [
+      "Predict Mode toggle visible in playback section",
+      "In Predict Mode, playback pauses before each step",
+      "3 multiple-choice options shown based on current state",
+      "Correct answer advances with positive feedback",
+      "Wrong answer shows explanation of what actually happens and why",
+      "Score tracked during session (N/M correct)"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-142",
+      "ALG-147"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "gamification",
+      "active-learning"
+    ]
+  },
+  {
+    "id": "ALG-175",
+    "epic": "ALG",
+    "title": "Add one-click export of algorithm animation as GIF/video",
+    "description": "Use MediaRecorder API or canvas-based frame capture to export the current algorithm animation as a shareable GIF or MP4. Add 'Export' button in playback controls. Record the canvas area during playback, add algorithm name as watermark, and offer download. This makes the tool viral \u2014 students share animations in study groups, professors use in slides.",
+    "acceptanceCriteria": [
+      "Export button visible after running an algorithm",
+      "Clicking Export records a full playback and downloads as MP4/GIF",
+      "Output includes algorithm name and step count",
+      "File size is reasonable (<5MB for typical animation)"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-142"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "sharing",
+      "export",
+      "viral"
+    ]
+  },
+  {
+    "id": "ALG-176",
+    "epic": "ALG",
+    "title": "Add mobile-responsive layout with touch gesture controls",
+    "description": "Every competitor comparison article (daily.dev, codewave.com 2026) cites 'no mobile optimization' as a universal gap. AlgorithmPanel sidebar is fixed-width, canvas collapses on narrow screens, playback buttons are 28x28px (below 44px min). Add: collapsible sidebar as bottom sheet on mobile, swipe left/right for step forward/backward, pinch-zoom on visualizers, bottom-anchored playback controls, breakpoints at 375px and 768px.",
+    "acceptanceCriteria": [
+      "At viewport width <=768px, sidebar collapses to a bottom sheet with algorithm selector",
+      "Swipe left/right on the canvas steps forward/backward through algorithm steps",
+      "All playback buttons meet 44x44px minimum touch target on mobile",
+      "Visualization is readable and usable at 375px width (iPhone SE)",
+      "No horizontal scrolling at any supported viewport width"
+    ],
+    "priority": "P1",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/components/canvas/overlays/ArrayVisualizer.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "mobile",
+      "responsive",
+      "touch",
+      "research-validated",
+      "competitive-gap"
+    ]
+  },
+  {
+    "id": "ALG-177",
+    "epic": "ALG",
+    "title": "Add code-alongside-visualization panel showing algorithm source code",
+    "description": "Top user request per codewave.com 2026 analysis: 'IDE integration / real-time code feedback.' Algorithm Visualizer (47k GitHub stars) wins over VisuAlgo specifically because it shows code alongside visualization. Add a toggleable code panel that displays the actual TypeScript engine source for the selected algorithm (e.g., bubble-sort.ts), with the current line highlighted in sync with pseudocodeLine from AnimationStep. Reuse existing pseudocode highlighting logic from AlgorithmModule.tsx:460.",
+    "acceptanceCriteria": [
+      "Code panel toggleable via button in properties panel header",
+      "Shows the actual engine source code for the selected algorithm",
+      "Current execution line is highlighted in sync with animation step's pseudocodeLine",
+      "Syntax highlighting for TypeScript code",
+      "Panel is scrollable and doesn't obstruct the visualization"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/lib/algorithms/sorting/bubble-sort.ts"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "code-view",
+      "research-validated",
+      "competitive-advantage"
+    ]
+  },
+  {
+    "id": "ALG-178",
+    "epic": "ALG",
+    "title": "Add scoring system with stars and progress tracking per algorithm",
+    "description": "DSA Visualizer (visualizedsa.com) has 'Test Your Knowledge' with +1 per correct answer and star ratings (max 5). VisuAlgo has auto-grading. Architex has neither. Add: progress state per algorithm (not-started/in-progress/completed), completion = watched all steps to end, stars earned from Predict Mode (ALG-174) score. Show progress bar in sidebar: 'Sorting: 3/16 completed \u2605\u2605\u2606'. Persist in localStorage.",
+    "acceptanceCriteria": [
+      "Each algorithm shows completion status icon (empty/half/full circle) in the dropdown",
+      "Watching an algorithm to the final step marks it as 'completed'",
+      "Progress bar shows 'X/Y completed' per category in sidebar",
+      "Stars (1-3) awarded based on Predict Mode score if available",
+      "Progress persists across page refreshes via localStorage",
+      "Reset button to clear all progress"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/components/modules/AlgorithmModule.tsx"
+    ],
+    "dependencies": [
+      "ALG-171"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "gamification",
+      "progress",
+      "retention",
+      "research-validated"
+    ]
+  },
+  {
+    "id": "ALG-179",
+    "epic": "ALG",
+    "title": "Add recursive call stack visualizer for recursive algorithms",
+    "description": "Stack Overflow research confirms recursion and DP are the most-confused topics. No current visualizer shows the recursive call tree alongside the algorithm animation. For recursive algorithms (Quick Sort, Merge Sort, tree traversals, N-Queens), add a collapsible call stack panel showing: current call depth, parameters, return values, which call is active. Renders as a nested tree view that grows/shrinks with each recursive call/return. Inspired by VS Code debugger call stack panel.",
+    "acceptanceCriteria": [
+      "When running Merge Sort, a call stack panel shows the current recursive call tree",
+      "Active call is highlighted, completed calls are grayed out",
+      "Each call shows its parameters (e.g., mergeSort(arr, 0, 4))",
+      "Call stack updates in sync with animation steps",
+      "Panel is collapsible/toggleable to not overwhelm beginners"
+    ],
+    "priority": "P2",
+    "effort": "XL",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/AlgorithmModule.tsx",
+      "src/lib/algorithms/sorting/merge-sort.ts",
+      "src/lib/algorithms/sorting/quick-sort.ts"
+    ],
+    "dependencies": [
+      "ALG-142"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "recursion",
+      "educational",
+      "research-validated"
+    ]
+  },
+  {
+    "id": "ALG-180",
+    "epic": "ALG",
+    "title": "Add dpvis-style self-testing to DP visualizer (must-answer-before-advance)",
+    "description": "dpvis (SIGCSE 2025, 19/24 students found useful) uses a self-testing feature where students must answer 'What cells are written to next?' and 'What is the value of cell (x,y)?' before the animation advances. 75% of initially uncomfortable students reported positive impact. Implement similar for Architex DPVisualizer: in test mode, pause before each step, ask which cell is computed next and what its value will be. Requires answer before advancing. Track correct/total score.",
+    "acceptanceCriteria": [
+      "Test Mode toggle visible when viewing any DP algorithm",
+      "In Test Mode, animation pauses before each cell computation",
+      "User is asked 'Which cell will be computed next?' with clickable cells",
+      "After selecting the cell, user is asked 'What will its value be?' with numeric input",
+      "Correct answer advances with green feedback, wrong answer shows explanation",
+      "Score displayed as fraction (e.g., 15/23 correct)"
+    ],
+    "priority": "P1",
+    "effort": "L",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/components/canvas/overlays/DPVisualizer.tsx",
+      "src/components/canvas/panels/AlgorithmPanel.tsx",
+      "src/lib/algorithms/dp/types.ts"
+    ],
+    "dependencies": [
+      "ALG-145"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "innovation",
+      "active-learning",
+      "dp",
+      "research-validated",
+      "dpvis-inspired"
+    ]
+  },
+  {
+    "id": "ALG-181",
+    "epic": "ALG",
+    "title": "Add prerequisite links between algorithms ('Learn BFS before Dijkstra')",
+    "description": "D19 finding: no prerequisites stated anywhere. Add prerequisite field to AlgorithmConfig. When user selects an advanced algorithm, show a gentle notice: 'This builds on BFS \u2014 have you seen it yet?' with link to the prerequisite. If prerequisite is not completed (per ALG-178 progress tracking), show recommendation but do NOT gate access. VisuAlgo does this with structured e-lectures.",
+    "acceptanceCriteria": [
+      "AlgorithmConfig type has optional prerequisites: string[] field",
+      "At least 15 algorithms have prerequisites defined (e.g., Dijkstra needs BFS, AVL needs BST)",
+      "When selecting an algorithm with unmet prerequisites, an inline notice appears",
+      "Notice links to the prerequisite algorithm (clicking navigates to it)",
+      "Notice is dismissible and does not block usage"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "algorithms",
+    "category": "frontend",
+    "files": [
+      "src/lib/algorithms/types.ts",
+      "src/lib/algorithms/graph/index.ts",
+      "src/lib/algorithms/tree/index.ts",
+      "src/components/canvas/panels/AlgorithmPanel.tsx"
+    ],
+    "dependencies": [
+      "ALG-171",
+      "ALG-178"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "educational",
+      "learning-path",
+      "prerequisites",
+      "research-validated"
+    ]
+  }
+]

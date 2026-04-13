@@ -1,0 +1,621 @@
+{
+  "id": "twitter-fanout",
+  "name": "Twitter/X Timeline",
+  "description": "Design a Twitter-like timeline with fanout-on-write for most users and fanout-on-read for celebrity accounts. Covers Kafka-based async fanout and timeline caching.",
+  "difficulty": 4,
+  "category": "advanced",
+  "tags": [
+    "twitter",
+    "fanout",
+    "timeline",
+    "kafka",
+    "social-media",
+    "feed"
+  ],
+  "nodes": [
+    {
+      "id": "mobile-client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 250
+      },
+      "data": {
+        "label": "Mobile Client",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": {
+          "requestsPerSecond": 50000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "load-balancer",
+      "type": "load-balancer",
+      "position": {
+        "x": 250,
+        "y": 250
+      },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": {
+          "algorithm": "round-robin",
+          "healthCheckInterval": 10,
+          "maxConnections": 100000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "tweet-service",
+      "type": "web-server",
+      "position": {
+        "x": 500,
+        "y": 150
+      },
+      "data": {
+        "label": "Tweet Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 10,
+          "maxConnections": 10000,
+          "processingTimeMs": 15
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "fanout-service",
+      "type": "web-server",
+      "position": {
+        "x": 500,
+        "y": 400
+      },
+      "data": {
+        "label": "Fanout Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 20,
+          "maxConnections": 5000,
+          "processingTimeMs": 50
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "message-queue",
+      "type": "message-queue",
+      "position": {
+        "x": 750,
+        "y": 400
+      },
+      "data": {
+        "label": "Kafka",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": {
+          "type": "kafka",
+          "partitions": 12,
+          "replicationFactor": 3,
+          "retentionHours": 168
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "timeline-cache",
+      "type": "cache",
+      "position": {
+        "x": 1000,
+        "y": 250
+      },
+      "data": {
+        "label": "Timeline Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 64,
+          "evictionPolicy": "lru",
+          "ttlSeconds": 86400,
+          "cacheHitRate": 0.9
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "user-db",
+      "type": "database",
+      "position": {
+        "x": 750,
+        "y": 100
+      },
+      "data": {
+        "label": "User DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": {
+          "type": "postgresql",
+          "replicas": 3,
+          "maxConnections": 500,
+          "storageGB": 2000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cdn",
+      "type": "cdn",
+      "position": {
+        "x": 1000,
+        "y": 50
+      },
+      "data": {
+        "label": "CDN (Media)",
+        "category": "load-balancing",
+        "componentType": "reverse-proxy",
+        "icon": "Globe2",
+        "config": {
+          "cacheHitRate": 0.95,
+          "ttlSeconds": 604800,
+          "edgeLocations": 100
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "mobile-client",
+      "target": "load-balancer",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 50,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-lb-tweet",
+      "source": "load-balancer",
+      "target": "tweet-service",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-lb-fanout",
+      "source": "load-balancer",
+      "target": "fanout-service",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 2,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-tweet-db",
+      "source": "tweet-service",
+      "target": "user-db",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 5,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-fanout-kafka",
+      "source": "fanout-service",
+      "target": "message-queue",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message-queue",
+        "latency": 10,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-kafka-cache",
+      "source": "message-queue",
+      "target": "timeline-cache",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message-queue",
+        "latency": 5,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-tweet-cdn",
+      "source": "tweet-service",
+      "target": "cdn",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 15,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-tweet-cache",
+      "source": "tweet-service",
+      "target": "timeline-cache",
+      "sourceHandle": "right",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "Fanout-on-Write (Push Model)",
+      "description": "When a user posts a tweet, the Fanout Service pushes the tweet ID to every follower's timeline in Redis. This pre-computes timelines so reads are instant (O(1) cache lookup). Kafka decouples the write from fanout, allowing async processing of millions of follower updates.",
+      "highlightNodes": [
+        "fanout-service",
+        "message-queue",
+        "timeline-cache"
+      ],
+      "highlightEdges": [
+        "e-fanout-kafka",
+        "e-kafka-cache"
+      ]
+    },
+    {
+      "title": "Fanout-on-Read for Hot Users",
+      "description": "Celebrity accounts with millions of followers make fanout-on-write expensive (1 tweet = millions of cache writes). For hot users, their tweets are merged at read time instead. The Tweet Service fetches followed celebrity tweets from the DB and merges with the cached timeline.",
+      "highlightNodes": [
+        "tweet-service",
+        "user-db"
+      ],
+      "highlightEdges": [
+        "e-tweet-db",
+        "e-tweet-cache"
+      ]
+    },
+    {
+      "title": "Timeline Cache Architecture",
+      "description": "Each user's timeline is stored as a Redis sorted set (score = timestamp). The cache holds the last ~800 tweet IDs per user. With a 90% cache hit rate, most timeline reads are sub-millisecond. Redis cluster is sharded by userId for horizontal scaling.",
+      "highlightNodes": [
+        "timeline-cache"
+      ],
+      "highlightEdges": [
+        "e-kafka-cache",
+        "e-tweet-cache"
+      ]
+    },
+    {
+      "title": "Kafka Partitioning Strategy",
+      "description": "Kafka topics are partitioned by userId (12 partitions). This ensures all fanout events for a user's followers go to the same partition, maintaining ordering. The replication factor of 3 provides fault tolerance. Consumer groups process partitions in parallel.",
+      "highlightNodes": [
+        "message-queue"
+      ],
+      "highlightEdges": [
+        "e-fanout-kafka",
+        "e-kafka-cache"
+      ]
+    },
+    {
+      "title": "Media Delivery via CDN",
+      "description": "Tweet images and videos are served through the CDN with a 95% hit rate at 100+ edge locations. Media is stored in object storage and cached at the edge with long TTLs (7 days). This offloads 95% of media bandwidth from origin servers.",
+      "highlightNodes": [
+        "cdn"
+      ],
+      "highlightEdges": [
+        "e-tweet-cdn"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-fanout-lag",
+        "name": "Fanout Worker Lag",
+        "description": "Fanout workers fall behind during celebrity tweet storm",
+        "targetNodes": [
+          "fanout-workers"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Timeline updates delayed by minutes for followers. Celebrity tweets take longer to appear.",
+        "mitigationSteps": [
+          "Scale fanout workers",
+          "Switch celebrity to fanout-on-read",
+          "Priority queue for high-engagement users"
+        ]
+      },
+      {
+        "id": "cs-timeline-cache-crash",
+        "name": "Timeline Cache Failure",
+        "description": "Redis timeline cache cluster goes down",
+        "targetNodes": [
+          "timeline-cache"
+        ],
+        "faultType": "crash",
+        "severity": 5,
+        "expectedBehavior": "All timeline reads hit database. Massive latency increase. Some timelines unavailable.",
+        "mitigationSteps": [
+          "Redis failover to standby",
+          "Rate-limit timeline reads",
+          "Serve stale CDN-cached timelines"
+        ]
+      },
+      {
+        "id": "cs-tweet-storm",
+        "name": "Viral Tweet Cascade",
+        "description": "Single tweet gets 1M retweets in 5 minutes",
+        "targetNodes": [
+          "fanout-workers",
+          "timeline-cache"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Fanout queue backs up. Hot tweet cached at CDN edge.",
+        "mitigationSteps": [
+          "Deduplicate retweet fanout",
+          "CDN cache for hot tweets",
+          "Rate-limit retweet fanout per tweet"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "fanout-workers",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "timeline-cache",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-twitter-fanout-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "fanout-workers"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-twitter-fanout-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "fanout-workers"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-twitter-fanout-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "fanout-workers"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 120000,
+      "components": [
+        {
+          "nodeId": "fanout-workers",
+          "label": "Primary Service",
+          "monthlyCostUsd": 40000,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "fanout-workers",
+          "label": "Storage",
+          "monthlyCostUsd": 40000,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 40000,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 10000,
+          "monthlyCostUsd": 40000
+        },
+        {
+          "label": "Medium",
+          "rps": 100000,
+          "monthlyCostUsd": 120000
+        },
+        {
+          "label": "High",
+          "rps": 500000,
+          "monthlyCostUsd": 360000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 30,
+      "p99LatencyMs": 150,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "fanout-workers",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 150,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "fanout-workers"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "fanout-workers"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 300ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

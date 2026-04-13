@@ -1,0 +1,50 @@
+name: Feature Request
+description: Suggest a new feature or improvement for Architex
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for suggesting a feature! Please describe your idea below."
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the feature or improvement you'd like.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: Describe how you think this feature should work.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any alternative solutions or features you've considered.
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module affected
+      options:
+        - System Design
+        - Algorithms
+        - Data Structures
+        - LLD Studio
+        - Database Lab
+        - Distributed Systems
+        - Networking
+        - OS Concepts
+        - Concurrency
+        - Security
+        - ML Design
+        - Interview Engine
+        - Other
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Any other context, screenshots, or mockups for the feature request.

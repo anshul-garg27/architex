@@ -1,0 +1,142 @@
+[
+  {
+    "id": "MLD-114",
+    "epic": "MLD",
+    "title": "Complete rewrite of Neural Network mode content — current grade F (3/36)",
+    "description": "The NN mode has zero teaching content. No hook, no intuition, no step explanations, no complexity discussion, no real-world connection, no summary. User sees sliders and numbers with no context.\n\nRewrite with:\n- HOOK: 'Your brain has 86 billion neurons connected by trillions of synapses. Each connection has a strength that determines how signals flow. A neural network is the same idea — but with math.'\n- INTUITION: 'Think of a neural network like a chain of voting committees. The first committee looks at raw features...'\n- STEP DESCRIPTIONS: Replace silent training with epoch commentary: 'Epoch 1: Network makes random predictions (loss = 0.48, barely better than guessing). Watch the decision boundary — it is a straight line because the network hasn't found the pattern.'\n- COMPLEXITY: 'Our tiny network has 17 parameters and trains in milliseconds. GPT-4 has 1.8 trillion parameters and took months.'\n- REAL-WORLD: 'Tesla Autopilot (vision), Google Translate (language), Spotify Discover Weekly (recommendations).'\n- SUMMARY: 3-bullet flashcard summary.\n\nThis is the module's flagship concept. Currently it teaches nothing.",
+    "acceptanceCriteria": ["Sidebar has a 'What you'll learn' hook paragraph", "Each epoch milestone (1, 25, 50, 100) has a descriptive commentary in bottom panel", "Properties panel explains what loss and accuracy MEAN", "Architecture diagram has tooltip explaining what each layer does", "Summary section with 3-bullet takeaway appears after training"],
+    "priority": "P0", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "rewrite", "teaching", "grade-F"]
+  },
+  {
+    "id": "MLD-115",
+    "epic": "MLD",
+    "title": "Complete rewrite of Dataset descriptions — all 4 score F (1/36)",
+    "description": "Dataset buttons (Circle, XOR, Spiral, Gaussian) are bare labels. A beginner has no idea why these shapes matter or what makes each challenging.\n\nRewrite each with 1-sentence explanation:\n- CIRCLE: 'Two rings of data — a linear classifier draws a straight line, so it will FAIL here. The NN must learn a curved boundary.'\n- XOR: 'Opposite corners share a class. This is the famous problem that proved single-layer networks can't solve everything (Minsky & Papert, 1969).'\n- SPIRAL: 'Interleaving spirals — the hardest pattern. Requires multiple hidden layers to untangle. If your NN struggles here, try adding layers.'\n- GAUSSIAN: 'Two blobs — the easiest dataset. Even a single neuron can draw a line between these. Good for testing that training works.'\n\nShow these as tooltips on hover or as subtitle text under each button.",
+    "acceptanceCriteria": ["Each dataset button has a subtitle or tooltip with explanation", "Explanations mention difficulty level and what the NN needs to learn", "XOR mentions historical significance (Minsky & Papert)", "Spiral description suggests adding layers if it fails", "Gaussian labeled as 'easiest — good for sanity checking'"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "rewrite", "teaching", "grade-F"]
+  },
+  {
+    "id": "MLD-116",
+    "epic": "MLD",
+    "title": "Complete rewrite of Activation function descriptions — all 3 score F (0/36)",
+    "description": "Activation buttons (ReLU, Sigmoid, Tanh) are just labels. Score 0/36 — literally zero teaching content.\n\nAdd tooltip or sidebar explanation for each:\n- RELU: 'Passes positive values through, blocks negatives (like a valve). Fast to compute. Problem: neurons can 'die' if they always output 0.'\n- SIGMOID: 'Squashes any value to the 0-1 range (like a probability). Used in the output layer for classification. Problem: gradients vanish for extreme inputs.'\n- TANH: 'Like sigmoid but outputs -1 to 1. Zero-centered, which helps training converge faster. Same vanishing gradient issue at extremes.'\n\nAlso add a 'When to use' comparison: 'ReLU for hidden layers (fast, effective). Sigmoid for output (probability). Tanh when you need zero-centered outputs.'",
+    "acceptanceCriteria": ["Each activation button has tooltip with function behavior explanation", "Tooltips mention strengths AND weaknesses", "A comparison note explains when to use each", "If possible, show a tiny function curve plot next to each button", "Language is beginner-friendly (no unexplained jargon)"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "rewrite", "teaching", "grade-F"]
+  },
+  {
+    "id": "MLD-117",
+    "epic": "MLD",
+    "title": "Complete rewrite of CNN Demo content — current grade F (3/36)",
+    "description": "CNN Demo step description says 'Window at (0,0): element-wise multiply & sum = 1.23' — tells WHAT but not WHY.\n\nRewrite step descriptions:\n- Step 1: 'The filter slides to position (0,0). It looks at a 3×3 patch of the input. Each filter value is multiplied with the corresponding input value and summed. This dot product measures HOW MUCH this patch resembles the filter pattern. Result: 1.23 (moderate match).'\n- Step 18 (last): 'The filter has scanned the entire input. The output grid shows WHERE the filter pattern was detected. Bright values = strong match. This is how CNNs detect edges, textures, and eventually objects — one filter at a time.'\n\nAlso add intro text:\n- HOOK: 'How does a computer recognize a face? It starts by detecting simple patterns — edges, corners, textures. Convolution is the operation that detects these patterns.'\n- FILTER EXPLANATIONS: Edge filter = 'detects boundaries between light and dark regions.' Sharpen = 'amplifies differences, making details pop.' Blur = 'averages neighbors, smoothing out noise.'",
+    "acceptanceCriteria": ["Intro paragraph explains WHY convolution matters", "Each filter has a 1-sentence explanation of what it detects", "Step descriptions include WHY (pattern matching explanation)", "First and last step descriptions provide conceptual framing", "A 'What you should notice' callout appears after stepping through"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx", "src/lib/ml-design/cnn-layer.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "rewrite", "teaching", "grade-F"]
+  },
+  {
+    "id": "MLD-118",
+    "epic": "MLD",
+    "title": "Complete rewrite of A/B Testing mode content — current grade F (2/36)",
+    "description": "A/B Testing shows sliders and a bar chart with p-value but never explains what any of it means.\n\nRewrite with:\n- HOOK: 'Netflix changes a button from blue to green. 50,000 users see each. Green gets 3.2% clicks, blue gets 3.0%. Is green better — or did we just get lucky? A/B testing answers this with math.'\n- INTUITION: 'Imagine flipping a coin 100 times and getting 53 heads. Is it biased? Probably not — that is random noise. But 80 heads? Very suspicious. A/B testing is the same question: is the difference between groups real, or just noise?'\n- EXPLAIN p-value: 'p-value = 0.03 means: IF there were NO real difference, there is only a 3% chance we would see a difference this large by random chance. Below 0.05, we call it statistically significant.'\n- EXPLAIN sample size: 'Small differences need HUGE samples to detect. A 0.2% difference needs 40,000+ users per group. This is why big companies run experiments on millions of users.'\n- COMMON MISTAKE: 'Never peek at results early and stop when it looks significant. This inflates false positive rate dramatically.'",
+    "acceptanceCriteria": ["Sidebar has hook paragraph explaining the Netflix example", "p-value has an inline explanation (not just a number)", "'Significant' badge has a tooltip explaining what significance means", "Sample size section explains WHY more samples help", "Common mistake warning about early stopping/peeking"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "rewrite", "teaching", "grade-F"]
+  },
+  {
+    "id": "MLD-119",
+    "epic": "MLD",
+    "title": "Complete rewrite of Bandit strategy descriptions — all 3 score F (3/36)",
+    "description": "Bandit 'About' section gives one sentence per strategy with no motivation.\n\nRewrite with:\n- SHARED HOOK (top of Experimentation mode): 'You are in a casino with N slot machines. Each has a different (hidden) payout rate. You have 200 coins. How do you maximize winnings? If you always play the best-so-far, you might miss a better one you haven't tried. If you explore too much, you waste coins. This is the explore-exploit dilemma.'\n- EPSILON-GREEDY: 'The simplest strategy: with probability ε, pull a random arm (explore). Otherwise, pull the best-so-far (exploit). Dumb-but-effective. Downside: even after 1000 rounds, still wasting ε% on random pulls.'\n- UCB1: 'Be optimistic under uncertainty. Each arm gets a bonus proportional to HOW LITTLE we have tried it. Formula: average_reward + sqrt(2·ln(total_pulls) / this_arm_pulls). Arms we have not tried much get a big exploration bonus. As we try them more, the bonus shrinks.'\n- THOMPSON: 'Model your uncertainty as a probability distribution. For each arm, sample from its distribution. Play the arm with the highest sample. Early on (wide distributions), this naturally explores. Later (narrow distributions), it naturally exploits. Elegant and optimal in practice.'\n\nAlso add: regret comparison text after simulation: 'Cumulative regret = total reward you MISSED by not always playing the best arm. Lower regret = better strategy.'",
+    "acceptanceCriteria": ["Shared hook paragraph at top of Experimentation mode about the casino dilemma", "Each strategy has a 3-4 sentence description with WHY it works and its weakness", "UCB1 formula explained in words, not just shown", "Thompson sampling describes the Bayesian intuition", "After simulation, a 'What to notice' section explains the results"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "rewrite", "teaching", "grade-F"]
+  },
+  {
+    "id": "MLD-120",
+    "epic": "MLD",
+    "title": "Complete rewrite of Dropout description — current grade F (5/36)",
+    "description": "Dropout has the best existing explanation in the module (inverted dropout scaling text) but still lacks hook, intuition, and context.\n\nRewrite with:\n- HOOK: 'If you study for an exam by only reading one textbook, you will do great on questions from that book — and terribly on anything else. Dropout prevents neural networks from making the same mistake.'\n- INTUITION: 'During training, randomly turn off neurons (set them to 0). This forces the remaining neurons to learn independently — no neuron can rely on any specific other neuron. It is like training multiple slightly different networks and averaging their predictions.'\n- KEEP existing scaling explanation (it is good).\n- ADD: Real-world connection: 'Dropout was invented by Geoffrey Hinton in 2012 and is used in almost every deep learning model. The original paper showed it reduced overfitting on ImageNet dramatically.'\n- ADD: Comparison: 'Dropout vs L2 regularization: both prevent overfitting, but dropout works by adding noise during training while L2 works by penalizing large weights. They can be used together.'",
+    "acceptanceCriteria": ["Hook paragraph about studying from one textbook", "Intuition paragraph about forcing independent learning", "Existing inverted dropout explanation preserved", "Real-world connection mentions Hinton 2012 and ImageNet", "Comparison note with L2 regularization"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "rewrite", "teaching", "grade-F"]
+  },
+  {
+    "id": "MLD-121",
+    "epic": "MLD",
+    "title": "Complete rewrite of Serving Pattern descriptions — all 3 score F (5/36)",
+    "description": "Serving pattern step descriptions say WHAT but not WHY.\n\nRewrite A/B Test steps:\n- Tick 1-4: 'Collecting data: 2000 requests processed. WHY: We need enough samples to distinguish a real difference from random noise. At this point, we do not have enough data to draw conclusions — any apparent difference could be a fluke.'\n- Tick 5-7: 'Measuring significance: p-value converging toward 0.03. WHY: As we collect more data, the confidence interval narrows. We are getting closer to a definitive answer.'\n- Tick 8-10: 'Results stabilizing: lift = 2.5%. WHY: With 10,000 requests, we can now confidently say Model B outperforms Model A by ~2.5%. The probability this is due to chance is <5%.'\n\nRewrite Canary steps:\n- 'Canary at 1%: monitoring error rate and latency. WHY: We expose only 1% of users to risk. If the new model has a critical bug, only 1% of traffic is affected — not 100%. This is damage limitation.'\n\nRewrite Shadow steps:\n- 'Shadow warm-up: collecting prediction agreement data. WHY: The shadow model receives real traffic but its predictions are thrown away. This is zero-risk testing — users are never affected. We compare shadow predictions to production to find where they disagree.'",
+    "acceptanceCriteria": ["Every serving step description includes a WHY clause", "A/B Test steps explain the statistical reasoning at each phase", "Canary steps explain the risk management logic", "Shadow steps explain the zero-risk testing concept", "WHY clauses use beginner-friendly language"],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/serving-patterns.ts"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "rewrite", "teaching", "grade-F"]
+  },
+  {
+    "id": "MLD-122",
+    "epic": "MLD",
+    "title": "Add 'What you should notice' callouts after every simulation",
+    "description": "After any simulation runs (NN training, bandit, serving, feature store), there is no teaching moment. Add a post-simulation callout that draws attention to what the student should have observed.\n\nExamples:\n- After NN training: 'Notice how the decision boundary started as a straight line and became curved. This is the power of hidden layers — they allow the network to learn non-linear patterns.'\n- After bandit simulation: 'Notice how Thompson Sampling converges to the best arm faster than ε-greedy. This is because Thompson samples from a posterior — it naturally explores uncertain arms more.'\n- After feature store: 'Notice that the online store (Redis) was populated BEFORE the offline store (S3). This is intentional — serving needs low-latency access first, training can wait for batch writes.'\n- After serving A/B test: 'Notice the lift stabilized around 2.5% after ~8000 requests. Early in the experiment, the lift fluctuated wildly. This is why you should never peek at A/B test results early.'",
+    "acceptanceCriteria": ["Every mode shows a 'What you should notice' callout after simulation", "Callouts highlight the KEY insight from the simulation", "Callouts appear as a distinct UI element (bordered box or highlighted text)", "At least 6 callouts total (one per mode)", "Language connects the observation to the underlying concept"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "teaching", "observation"]
+  },
+  {
+    "id": "MLD-123",
+    "epic": "MLD",
+    "title": "Enhance Feature Store content to grade B — current grade D (12/36)",
+    "description": "Feature Store is the best content in the module but still lacks: hook, intuition analogy, complexity discussion, edge cases, comparison, mistakes, and self-test.\n\nAdd:\n- HOOK: 'Why does Uber know your ETA within seconds? Behind the scenes, a Feature Store serves precomputed features (your ride history, traffic patterns, driver ratings) to the prediction model in <5ms. Without a feature store, every prediction would need to recompute features from raw data — taking minutes instead of milliseconds.'\n- COMMON MISTAKE: 'The #1 mistake in ML feature engineering: training-serving skew. If you compute features differently in training vs serving, your model is learning from different data than it will see in production. A feature store prevents this by using the same computation path for both.'\n- SELF-TEST: 'Before clicking Run, predict: will the online store or offline store be populated first? Why?'\n- COMPARISON: 'Feature Store vs computing features on-the-fly: Feature Store adds infrastructure complexity but eliminates redundant computation and ensures consistency.'",
+    "acceptanceCriteria": ["Hook paragraph about Uber ETA prediction speed", "Common mistake section about training-serving skew", "Self-test question before simulation", "Comparison with alternative approach", "Overall score should reach B (24+/36)"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "enhancement", "grade-D"]
+  },
+  {
+    "id": "MLD-124",
+    "epic": "MLD",
+    "title": "Enhance Pipeline template descriptions to grade B — current near-F (11/36)",
+    "description": "Pipeline templates have excellent stage descriptions but no hook, intuition, comparison, mistakes, or self-test.\n\nAdd per pipeline:\n- Spotify HOOK: 'How does Spotify know you will love a song you have never heard? A recommendation pipeline processes 600M+ users' listening habits to find your musical soulmates.'\n- TikTok HOOK: 'TikTok's For You page is generated by a multi-stage ranking pipeline that processes billions of engagement signals per hour. Here is how it works.'\n- Fraud HOOK: 'Your credit card company has 20ms to decide if a transaction is fraudulent — before the merchant's payment terminal times out. Here is the pipeline that makes that possible.'\n\nAdd for ALL:\n- COMMON MISTAKE: 'Building the model first and the pipeline last. In production, 80% of ML effort is data and infrastructure. The model is the easy part.'\n- COMPARISON: 'Batch vs streaming pipeline: batch is simpler but has hours of latency. Streaming is complex but enables real-time predictions. Most production systems use both (lambda architecture).'",
+    "acceptanceCriteria": ["Each pipeline template has a compelling hook sentence", "Shared 'common mistakes' section about pipeline-first thinking", "Batch vs streaming comparison note", "Each hook mentions scale (600M users, billions of signals, 20ms)", "Overall pipeline template scores should reach 20+/36"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/lib/ml-design/pipeline-templates.ts", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "enhancement"]
+  },
+  {
+    "id": "MLD-125",
+    "epic": "MLD",
+    "title": "Add self-test prediction prompts before every simulation",
+    "description": "T11 (Self-Test) scores 0 across the ENTIRE module. No concept asks the student to predict before revealing.\n\nAdd prediction prompts:\n- NN Training: 'Before clicking Train: which dataset do you think will be hardest for a 2-layer network? (Hint: think about which pattern needs the most curved boundary.)'\n- CNN Demo: 'Before stepping through: the edge detection filter has -1s surrounding an 8 in the center. Predict: will the output be high or low in areas of uniform color?'\n- Bandits: 'Before running: with ε=0.10 and 4 arms, predict how many rounds it will take to identify the best arm. More than 50? More than 100?'\n- A/B Testing: 'Before running: with control=10% and treatment=13%, will 1000 samples be enough for significance? Predict.'\n- Feature Store: 'Before running: will the online store or offline store be populated first? Why?'\n\nShow predictions as a collapsible prompt above the canvas, revealed after simulation with a 'Check your answer' comparison.",
+    "acceptanceCriteria": ["Each mode has a prediction prompt visible before running", "Prompts are specific and answerable (not vague)", "After simulation, a 'Check your prediction' reveal explains the answer", "Predictions can be dismissed for returning users", "At least 5 prediction prompts across all modes"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 3, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "self-test", "bloom-taxonomy"]
+  },
+  {
+    "id": "MLD-126",
+    "epic": "MLD",
+    "title": "Add memorable 3-bullet summaries for every concept",
+    "description": "T12 (Summary) scores 0 across the entire module except Feature Store (1). No concept has a crisp takeaway.\n\nAdd a 'Key Takeaways' section in the properties panel for each mode:\n- NN: '1) A neural network learns by adjusting weights to minimize loss. 2) More layers = more complex patterns. 3) Overfitting = memorizing data instead of learning patterns.'\n- A/B Testing: '1) Statistical significance means the difference is unlikely due to chance. 2) More samples = more confidence. 3) Never peek at results early.'\n- Bandits: '1) Explore-exploit: try new things vs stick with what works. 2) UCB1 = optimism under uncertainty. 3) Thompson = let uncertainty guide exploration naturally.'\n- Feature Store: '1) Online store = fast (Redis, <5ms). Offline store = historical (S3). 2) Point-in-time correctness prevents data leakage. 3) Same computation path for training and serving.'\n- Serving: '1) A/B test = measure before committing. 2) Canary = gradual rollout with safety nets. 3) Shadow = zero-risk comparison.'",
+    "acceptanceCriteria": ["Every mode has a 'Key Takeaways' section with exactly 3 bullets", "Bullets are concise enough to fit on a flashcard", "Bullets capture the MOST IMPORTANT insight, not just a fact", "Section appears in properties panel or as a bottom-panel tab", "Takeaways are written in plain language (no jargon without explanation)"],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 2, "module": "ml-design", "category": "frontend",
+    "files": ["src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "summary", "flashcard"]
+  },
+  {
+    "id": "MLD-127",
+    "epic": "MLD",
+    "title": "Create ML Design content style guide for consistent teaching quality",
+    "description": "THE ONE CHANGE: Every concept needs a consistent content template. Currently content quality is random — Feature Store has decent descriptions while NN mode has none. Create a mandatory template:\n\n1. HOOK (1-2 sentences): Real-world problem or motivation. Never start with a definition.\n2. INTUITION (2-3 sentences): Analogy or concrete example. No math, no code.\n3. HOW IT WORKS (sidebar): Parameters with tooltips explaining each control.\n4. STEP DESCRIPTIONS: Every step says WHAT happened AND WHY.\n5. WHAT TO NOTICE (post-simulation): 1-2 key observations.\n6. REAL-WORLD (1 sentence + company name): Where this is used.\n7. KEY TAKEAWAYS (3 bullets): Flashcard-ready summary.\n8. INTERVIEW TIP (1 sentence): What companies ask about this.\n\nThis template should be documented and enforced for all new content.",
+    "acceptanceCriteria": ["Template documented in a content-guidelines.md file", "Template has concrete examples for each section", "At least 3 existing concepts updated to follow the template as proof", "Template is referenced in PR review checklist", "New concept contributions must follow the template"],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 1, "module": "ml-design", "category": "frontend",
+    "files": ["docs/content-guidelines.md", "src/components/modules/MLDesignModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["concept-quality", "process", "guidelines", "the-one-change"]
+  }
+]

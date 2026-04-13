@@ -1,0 +1,467 @@
+{
+  "id": "bp-banking-system",
+  "name": "Banking System — Production Blueprint",
+  "description": "Core banking platform with real-time transactions, fraud detection, ledger consistency, and regulatory compliance. Supports millions of daily transactions with strong consistency guarantees.",
+  "difficulty": 5,
+  "category": "advanced",
+  "tags": ["banking", "fintech", "transactions", "fraud-detection", "ledger", "compliance", "blueprint"],
+  "nodes": [
+    {
+      "id": "mobile-app",
+      "type": "client",
+      "position": { "x": 0, "y": 200 },
+      "data": {
+        "label": "Mobile Banking App",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": { "concurrentUsers": 500000, "requestsPerSecond": 10000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "web-portal",
+      "type": "client",
+      "position": { "x": 0, "y": 400 },
+      "data": {
+        "label": "Web Portal",
+        "category": "client",
+        "componentType": "web-client",
+        "icon": "Monitor",
+        "config": { "concurrentUsers": 100000, "requestsPerSecond": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "api-gateway",
+      "type": "api-gateway",
+      "position": { "x": 250, "y": 300 },
+      "data": {
+        "label": "API Gateway (mTLS)",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": { "rateLimitRps": 50000, "authType": "mtls-oauth2", "timeoutMs": 30000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "account-service",
+      "type": "web-server",
+      "position": { "x": 500, "y": 100 },
+      "data": {
+        "label": "Account Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Users",
+        "config": { "instances": 6, "maxConnections": 5000, "processingTimeMs": 15 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "transaction-service",
+      "type": "web-server",
+      "position": { "x": 500, "y": 300 },
+      "data": {
+        "label": "Transaction Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "ArrowLeftRight",
+        "config": { "instances": 10, "maxConnections": 10000, "processingTimeMs": 50 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "fraud-engine",
+      "type": "web-server",
+      "position": { "x": 500, "y": 500 },
+      "data": {
+        "label": "Fraud Detection Engine",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "ShieldAlert",
+        "config": { "instances": 4, "mlModelVersion": "v7", "decisionTimeMs": 20 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "ledger-db",
+      "type": "database",
+      "position": { "x": 800, "y": 200 },
+      "data": {
+        "label": "Ledger DB (PostgreSQL)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "Database",
+        "config": { "type": "postgresql", "replicas": 2, "maxConnections": 1000, "storageGB": 5000 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "event-store",
+      "type": "database",
+      "position": { "x": 800, "y": 400 },
+      "data": {
+        "label": "Event Store (Immutable Log)",
+        "category": "storage",
+        "componentType": "postgresql",
+        "icon": "ScrollText",
+        "config": { "type": "postgresql", "appendOnly": true, "storageGB": 10000, "retentionYears": 7 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "redis-session",
+      "type": "cache",
+      "position": { "x": 800, "y": 50 },
+      "data": {
+        "label": "Session Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": { "type": "redis", "memoryGB": 16, "ttlSeconds": 1800, "cacheHitRate": 0.95 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "event-bus",
+      "type": "message-queue",
+      "position": { "x": 500, "y": 650 },
+      "data": {
+        "label": "Kafka Event Bus",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ArrowRightLeft",
+        "config": { "partitions": 24, "retentionHours": 720, "throughputMbps": 200 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "notification-service",
+      "type": "web-server",
+      "position": { "x": 800, "y": 600 },
+      "data": {
+        "label": "Notification Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Bell",
+        "config": { "instances": 3, "channels": ["push", "sms", "email"], "processingTimeMs": 100 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "compliance-service",
+      "type": "web-server",
+      "position": { "x": 250, "y": 550 },
+      "data": {
+        "label": "Compliance & AML",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "FileCheck",
+        "config": { "instances": 2, "regulatoryChecks": ["aml", "kyc", "pep"], "processingTimeMs": 200 },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "audit-log",
+      "type": "database",
+      "position": { "x": 1050, "y": 400 },
+      "data": {
+        "label": "Audit Log (S3 + Glacier)",
+        "category": "storage",
+        "componentType": "object-storage",
+        "icon": "Archive",
+        "config": { "type": "s3", "storageGB": 50000, "retentionYears": 10, "encrypted": true },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-mobile-gw",
+      "source": "mobile-app",
+      "target": "api-gateway",
+      "type": "data-flow",
+      "data": { "edgeType": "https-mtls", "latency": 30, "animated": true }
+    },
+    {
+      "id": "e-web-gw",
+      "source": "web-portal",
+      "target": "api-gateway",
+      "type": "data-flow",
+      "data": { "edgeType": "https-mtls", "latency": 20, "animated": true }
+    },
+    {
+      "id": "e-gw-account",
+      "source": "api-gateway",
+      "target": "account-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-gw-txn",
+      "source": "api-gateway",
+      "target": "transaction-service",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 2, "animated": true }
+    },
+    {
+      "id": "e-txn-fraud",
+      "source": "transaction-service",
+      "target": "fraud-engine",
+      "type": "data-flow",
+      "data": { "edgeType": "grpc", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-txn-ledger",
+      "source": "transaction-service",
+      "target": "ledger-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 10, "animated": true }
+    },
+    {
+      "id": "e-txn-events",
+      "source": "transaction-service",
+      "target": "event-store",
+      "type": "data-flow",
+      "data": { "edgeType": "db-write", "latency": 5, "animated": true }
+    },
+    {
+      "id": "e-account-redis",
+      "source": "account-service",
+      "target": "redis-session",
+      "type": "data-flow",
+      "data": { "edgeType": "cache-lookup", "latency": 1, "animated": true }
+    },
+    {
+      "id": "e-account-ledger",
+      "source": "account-service",
+      "target": "ledger-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    },
+    {
+      "id": "e-txn-kafka",
+      "source": "transaction-service",
+      "target": "event-bus",
+      "type": "data-flow",
+      "data": { "edgeType": "async", "latency": 3, "animated": true }
+    },
+    {
+      "id": "e-kafka-notify",
+      "source": "event-bus",
+      "target": "notification-service",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 50, "animated": true }
+    },
+    {
+      "id": "e-kafka-compliance",
+      "source": "event-bus",
+      "target": "compliance-service",
+      "type": "data-flow",
+      "data": { "edgeType": "stream", "latency": 100, "animated": false }
+    },
+    {
+      "id": "e-events-audit",
+      "source": "event-store",
+      "target": "audit-log",
+      "type": "data-flow",
+      "data": { "edgeType": "batch-export", "latency": 5000, "animated": false }
+    },
+    {
+      "id": "e-fraud-ledger",
+      "source": "fraud-engine",
+      "target": "ledger-db",
+      "type": "data-flow",
+      "data": { "edgeType": "db-query", "latency": 5, "animated": false }
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-ledger-corruption",
+        "name": "Ledger Database Failover",
+        "description": "Primary ledger database crashes, triggering automatic failover to synchronous replica",
+        "targetNodes": ["ledger-db"],
+        "faultType": "crash",
+        "severity": 5,
+        "expectedBehavior": "Transactions pause for 15-30s during failover. No data loss due to synchronous replication. Event store provides audit trail for recovery verification.",
+        "mitigationSteps": ["Automatic failover to synchronous standby", "Verify ledger consistency via event store replay", "Resume transaction processing", "Post-incident reconciliation check"]
+      },
+      {
+        "id": "cs-fraud-latency",
+        "name": "Fraud Engine Latency Spike",
+        "description": "ML model inference latency spikes to 500ms due to resource contention",
+        "targetNodes": ["fraud-engine"],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "Transaction approval latency increases. Circuit breaker opens after timeout. Transactions below risk threshold auto-approved; high-risk transactions queued.",
+        "mitigationSteps": ["Circuit breaker bypasses fraud check for low-risk transactions", "Queue high-risk transactions for async review", "Scale fraud engine horizontally", "Investigate model inference bottleneck"]
+      },
+      {
+        "id": "cs-kafka-partition",
+        "name": "Event Bus Partition",
+        "description": "Kafka cluster experiences network partition between brokers",
+        "targetNodes": ["event-bus"],
+        "faultType": "partition",
+        "severity": 4,
+        "expectedBehavior": "Event publishing delays. Notifications and compliance checks delayed. Core transaction processing continues as event publishing is async.",
+        "mitigationSteps": ["Kafka controller triggers leader re-election", "Producers retry with idempotency keys", "Consumers resume from last committed offset", "Verify no duplicate processing"]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "ledger-db",
+        "metric": "connections",
+        "description": "Ledger DB connection pool saturates due to long-running transactions with row-level locking",
+        "resolution": "Implement connection pooling with PgBouncer, optimize transaction scope"
+      },
+      {
+        "rpsThreshold": 10000,
+        "bottleneckNode": "fraud-engine",
+        "metric": "cpu",
+        "description": "ML model inference becomes CPU-bound, increasing transaction latency",
+        "resolution": "Add GPU instances for inference, implement model batching"
+      },
+      {
+        "rpsThreshold": 25000,
+        "bottleneckNode": "event-bus",
+        "metric": "queue-depth",
+        "description": "Kafka consumer lag grows, delaying notifications and compliance checks",
+        "resolution": "Add consumer instances, increase partition count"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-double-spend",
+        "title": "Double-Spend Race Condition",
+        "description": "Concurrent transfers from same account could overdraw if balance check and debit are not atomic",
+        "affectedNodes": ["transaction-service", "ledger-db"],
+        "likelihood": 3,
+        "impact": 5,
+        "mitigation": "Serializable isolation level for transfers, pessimistic locking on account balance row"
+      },
+      {
+        "id": "ei-reconciliation-drift",
+        "title": "Ledger Reconciliation Drift",
+        "description": "Running balances may drift from event-sourced balances over time due to rounding or failed compensating transactions",
+        "affectedNodes": ["ledger-db", "event-store"],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Nightly reconciliation job comparing ledger state with event replay, alerting on any discrepancy"
+      },
+      {
+        "id": "ei-compliance-backlog",
+        "title": "AML Processing Backlog",
+        "description": "Compliance service falls behind during peak hours, delaying suspicious activity reports",
+        "affectedNodes": ["compliance-service", "event-bus"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Priority queue for high-risk transactions, auto-scaling compliance workers, batch processing for low-risk"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 45000,
+      "components": [
+        { "nodeId": "ledger-db", "label": "Ledger DB (PostgreSQL)", "monthlyCostUsd": 8500, "costDriver": "db.r6g.4xlarge + 5TB storage + sync replica" },
+        { "nodeId": "event-store", "label": "Event Store", "monthlyCostUsd": 5000, "costDriver": "db.r6g.2xlarge + 10TB append-only storage" },
+        { "nodeId": "transaction-service", "label": "Transaction Service", "monthlyCostUsd": 6000, "costDriver": "10 Fargate tasks (2vCPU/4GB)" },
+        { "nodeId": "fraud-engine", "label": "Fraud Engine", "monthlyCostUsd": 8000, "costDriver": "4 GPU instances for ML inference" },
+        { "nodeId": "event-bus", "label": "Kafka (MSK)", "monthlyCostUsd": 4500, "costDriver": "6 brokers, 24 partitions, 30-day retention" },
+        { "nodeId": "redis-session", "label": "Redis Sessions", "monthlyCostUsd": 1500, "costDriver": "r6g.xlarge cluster" },
+        { "nodeId": "audit-log", "label": "Audit Log (S3)", "monthlyCostUsd": 2500, "costDriver": "50TB encrypted storage + Glacier" },
+        { "nodeId": "compliance-service", "label": "Compliance & AML", "monthlyCostUsd": 3000, "costDriver": "External API calls + compute" },
+        { "nodeId": "notification-service", "label": "Notifications", "monthlyCostUsd": 2000, "costDriver": "SMS/push gateway fees" },
+        { "nodeId": "api-gateway", "label": "API Gateway", "monthlyCostUsd": 2000, "costDriver": "mTLS termination + WAF" },
+        { "nodeId": "account-service", "label": "Account Service", "monthlyCostUsd": 2000, "costDriver": "6 Fargate tasks" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low (1K TPS)", "rps": 1000, "monthlyCostUsd": 25000 },
+        { "label": "Medium (5K TPS)", "rps": 5000, "monthlyCostUsd": 35000 },
+        { "label": "High (15K TPS)", "rps": 15000, "monthlyCostUsd": 45000 },
+        { "label": "Peak (50K TPS)", "rps": 50000, "monthlyCostUsd": 120000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 15000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 50,
+      "p99LatencyMs": 200,
+      "availabilityTarget": 99.999,
+      "maxErrorRatePercent": 0.001,
+      "throughputRps": 15000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "transaction-service",
+        "metric": "cpu_utilization",
+        "threshold": 60,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 180,
+        "minInstances": 6,
+        "maxInstances": 40
+      },
+      {
+        "nodeId": "fraud-engine",
+        "metric": "inference_latency_p99",
+        "threshold": 30,
+        "scaleUpStep": 1,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 2,
+        "maxInstances": 16
+      }
+    ],
+    "slaDefinitions": [
+      { "name": "Transaction Processing", "metric": "p99_transaction_latency_ms", "target": 200, "unit": "ms", "penalty": "Financial compensation per SLA breach" },
+      { "name": "System Availability", "metric": "uptime_percent", "target": 99.999, "unit": "%", "penalty": "Regulatory reporting required below 99.99%" },
+      { "name": "Fraud Detection", "metric": "fraud_detection_rate", "target": 99.5, "unit": "%", "penalty": "Regulatory fine for undetected fraud" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "transaction_latency", "type": "histogram", "description": "End-to-end transaction processing time", "nodeId": "transaction-service" },
+        { "name": "fraud_score_distribution", "type": "histogram", "description": "Distribution of fraud risk scores", "nodeId": "fraud-engine" },
+        { "name": "ledger_balance_check_time", "type": "histogram", "description": "Time to verify account balance", "nodeId": "ledger-db" },
+        { "name": "event_publish_rate", "type": "counter", "description": "Events published per second to Kafka", "nodeId": "event-bus" },
+        { "name": "compliance_processing_lag", "type": "gauge", "description": "How far behind compliance processing is", "nodeId": "compliance-service" }
+      ],
+      "alerts": [
+        { "name": "Transaction Latency SLA Breach", "condition": "p99_txn_latency > 200ms for 1min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Fraud Engine Down", "condition": "fraud_engine_health != healthy for 30s", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Ledger Reconciliation Mismatch", "condition": "reconciliation_diff > 0", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Compliance Lag High", "condition": "compliance_lag > 5min", "severity": "warning", "channel": "slack-compliance" }
+      ],
+      "dashboards": ["Transaction Overview", "Fraud Detection", "Ledger Health", "Compliance Status", "Event Pipeline"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call SRE", "responseTimeMinutes": 2, "contacts": ["oncall-banking-sre"] },
+        { "level": 2, "name": "Senior Backend Engineer", "responseTimeMinutes": 10, "contacts": ["senior-banking-eng"] },
+        { "level": 3, "name": "VP Engineering + Compliance", "responseTimeMinutes": 15, "contacts": ["vp-eng", "compliance-officer"] }
+      ],
+      "runbooks": [
+        { "incident": "Ledger DB failover", "severity": "critical", "steps": ["Verify automatic failover completed", "Check zero data loss via WAL verification", "Run ledger reconciliation against event store", "Resume transaction processing", "Notify compliance team"], "automatedRecovery": true },
+        { "incident": "Fraud engine latency spike", "severity": "high", "steps": ["Activate low-risk auto-approve circuit breaker", "Queue high-risk transactions", "Scale GPU instances", "Investigate model inference bottleneck"], "automatedRecovery": true },
+        { "incident": "Suspected data breach", "severity": "critical", "steps": ["Activate incident response team", "Isolate affected services", "Rotate credentials and tokens", "Notify regulatory bodies within 72h", "Forensic analysis"], "automatedRecovery": false }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      { "title": "Event Sourcing for Transactions", "context": "Financial transactions require complete audit trail and ability to reconstruct state at any point in time.", "decision": "Implement event sourcing with an append-only event store alongside the materialized ledger view.", "consequences": ["Complete audit trail for regulatory compliance", "Ability to replay events for reconciliation", "Higher storage costs for dual-write pattern", "Increased complexity in maintaining consistency"] },
+      { "title": "Synchronous Fraud Check", "context": "Fraud detection must happen before transaction approval to prevent financial loss.", "decision": "Inline synchronous fraud scoring for all transactions with circuit breaker for degraded mode.", "consequences": ["Every transaction incurs ~20ms fraud check latency", "Circuit breaker allows low-risk transactions through during fraud engine issues", "High-risk transactions are never auto-approved"] },
+      { "title": "Synchronous Replication for Ledger", "context": "Financial data cannot tolerate any data loss, even during database failover.", "decision": "Use synchronous replication between primary and standby ledger databases.", "consequences": ["Zero data loss guarantee (RPO=0)", "Slightly higher write latency due to sync commit", "Failover takes 15-30s instead of near-instant"] }
+    ],
+    "tradeoffs": [
+      { "dimension": "Consistency vs Latency", "choice": "Consistency", "benefit": "Serializable transactions ensure no double-spend or overdraft", "cost": "Higher latency per transaction due to row-level locking" },
+      { "dimension": "Security vs Usability", "choice": "Security", "benefit": "mTLS, encryption at rest, field-level encryption for PII", "cost": "More complex deployment, higher operational overhead" },
+      { "dimension": "Cost vs Durability", "choice": "Durability", "benefit": "7-year event retention, 10-year audit log", "cost": "Significant storage costs for regulatory compliance" }
+    ],
+    "alternatives": [
+      { "name": "CQRS Without Event Sourcing", "description": "Separate read and write models without maintaining full event history", "prosVsCons": "Pros: simpler implementation. Cons: no replay capability, weaker audit trail", "whyNotChosen": "Regulatory requirements mandate complete transaction history and reconstruction capability" },
+      { "name": "Async Fraud Detection", "description": "Check fraud asynchronously and reverse fraudulent transactions after the fact", "prosVsCons": "Pros: lower latency. Cons: financial exposure during detection window, poor user experience for reversals", "whyNotChosen": "Unacceptable financial risk and regulatory non-compliance" }
+    ]
+  }
+}

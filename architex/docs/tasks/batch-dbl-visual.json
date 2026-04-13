@@ -1,0 +1,287 @@
+[
+  {
+    "id": "DBL-156",
+    "epic": "DBL",
+    "title": "Add spring entry/exit animations to B-Tree canvas nodes and edges",
+    "description": "Live browser testing confirms: B-Tree canvas has ZERO animation between steps. Nodes teleport. Tree redraws instantly. Compare with btree.app which smoothly animates insertions. Add: (1) New node fades in with opacity 0\u21921 over 200ms ease-out, (2) Promoted key during split slides upward via CSS transform translateY over 300ms, (3) Child nodes spread apart via transform translateX over 200ms, (4) Active node gets a soft glow filter: drop-shadow(0 0 8px rgba(59,130,246,0.4)). Use CSS transitions on SVG group transforms \u2014 no additional library needed.",
+    "acceptanceCriteria": [
+      "Inserting a key shows the new node fading in (opacity transition 200ms)",
+      "B-Tree split shows the promoted key animating upward to the parent",
+      "Child nodes spread apart during split with smooth horizontal movement",
+      "Active/highlighted node has a soft blue glow (drop-shadow filter)",
+      "All transitions use ease-out or spring timing, NOT linear",
+      "Animations are GPU-composited (transform + opacity only, no layout-triggering properties)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/canvases/BTreeCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "visual",
+      "animation",
+      "btree",
+      "spring-physics",
+      "cinematic"
+    ]
+  },
+  {
+    "id": "DBL-157",
+    "epic": "DBL",
+    "title": "Add spring animations to Hash Index canvas for insert/resize/overflow",
+    "description": "Hash Index canvas has zero animation. Insert appears instantly. Resize (doubling buckets) \u2014 the most dramatic visual operation \u2014 happens in one frame. Add: (1) New entry slides into bucket from top (translateY + opacity, 200ms), (2) Overflow chain extends with new bucket sliding down (300ms), (3) Resize: old buckets fade out, new buckets fade in with stagger (50ms per bucket), entries animate to new positions. (4) Collision: brief shake animation on colliding bucket (CSS keyframe, 200ms).",
+    "acceptanceCriteria": [
+      "Insert: new entry slides into bucket from above with fade-in",
+      "Collision: bucket briefly shakes when a collision occurs",
+      "Overflow: new overflow bucket slides down below the parent bucket",
+      "Resize: old layout fades out, new layout fades in with per-bucket stagger",
+      "All animations use transform/opacity only (GPU composited)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/canvases/HashIndexCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "visual",
+      "animation",
+      "hash-index",
+      "spring-physics"
+    ]
+  },
+  {
+    "id": "DBL-158",
+    "epic": "DBL",
+    "title": "Add flush and compaction animations to LSM-Tree canvas",
+    "description": "LSM-Tree flush (memtable\u2192L0 SSTable) and compaction (L0+L1\u2192L1) are the most important visual operations but happen instantly. Add: (1) Flush: memtable box shrinks and transforms into a new L0 SSTable box that slides down to the L0 level (500ms spring), (2) Compaction: source SSTables glow, merge lines draw between them, result SSTable fades in at target level (600ms), (3) Write: new key entry pulses in memtable (100ms green glow).",
+    "acceptanceCriteria": [
+      "Flush: memtable content visually moves down to become a new L0 SSTable (slide + fade)",
+      "Compaction: source SSTables highlighted, merge animation, result appears at target level",
+      "Write: new entry briefly glows green in memtable",
+      "Arrow animations: flow arrows pulse briefly during data movement",
+      "All animations respect the step-through pace (don't block user interaction)"
+    ],
+    "priority": "P1",
+    "effort": "M",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/database/canvases/LSMCanvas.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "visual",
+      "animation",
+      "lsm-tree",
+      "flush",
+      "compaction"
+    ]
+  },
+  {
+    "id": "DBL-159",
+    "epic": "DBL",
+    "title": "Replace flat hex fills with subtle gradients and soft glow on all SVG canvases",
+    "description": "Live screenshots show every SVG node is flat #0f172a with #334155 stroke \u2014 monotone and lifeless. Add: (1) SVG linearGradient defs for node fills: from var(--surface) to var(--elevated), (2) Active node filter: drop-shadow(0 0 8px var(--primary)/40) for soft glow, (3) Relationship diamonds: radial gradient from center (primary/10 to transparent), (4) ER entity headers: gradient from var(--elevated) to var(--surface). This replaces hardcoded hex with themed gradients.",
+    "acceptanceCriteria": [
+      "All B-Tree nodes use gradient fill instead of flat color",
+      "All Hash buckets use gradient fill instead of flat color",
+      "ER entity rectangles and relationship diamonds use gradient fills",
+      "Active/highlighted elements have a soft glow (drop-shadow filter)",
+      "Gradients use CSS variables for theme compatibility",
+      "Visual result: nodes look 3D/polished instead of flat rectangles"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "ready",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-026"
+    ],
+    "tags": [
+      "visual",
+      "gradients",
+      "glow",
+      "polish",
+      "all-canvases"
+    ]
+  },
+  {
+    "id": "DBL-160",
+    "epic": "DBL",
+    "title": "Add current-step indicator and past-step dimming to Transaction Timeline",
+    "description": "Live screenshot shows all visible step cards look identical \u2014 you can't tell which step you're currently viewing vs which already happened. Add: (1) Current step card: left accent bar (border-l-3 border-primary), slight scale (transform: scale(1.02)), full brightness, (2) Past steps: reduced opacity (0.6), no accent bar, (3) Future steps: not rendered until reached (currently all visible steps are past+current). This creates a clear 'you are here' indicator.",
+    "acceptanceCriteria": [
+      "Current step card has a visible left accent bar in primary color",
+      "Current step card is slightly scaled up (1.02x) compared to others",
+      "Past step cards have reduced opacity (0.6) to recede visually",
+      "Clear visual distinction: past (dim) \u2192 current (bright + accent) \u2192 future (not yet visible)",
+      "Scrolls to keep current step visible as user advances"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "transaction",
+      "step-indicator",
+      "ux"
+    ]
+  },
+  {
+    "id": "DBL-161",
+    "epic": "DBL",
+    "title": "Add hover interactions to ER diagram entities and B-Tree nodes",
+    "description": "Live testing shows zero hover feedback on any SVG element. No glow, no scale, no tooltip. Hovering over an ER entity or B-Tree node gives NO visual response \u2014 the user doesn't know it's interactive. Add: (1) ER entities: on hover, subtle scale(1.02) + elevated shadow + cursor:pointer, (2) B-Tree nodes: on hover, border brightens + tooltip showing 'Click to select', (3) Hash buckets: on hover, slight brightness increase. Use CSS :hover on SVG groups or onMouseEnter/Leave handlers.",
+    "acceptanceCriteria": [
+      "Hovering ER entity shows subtle scale increase and elevated shadow",
+      "Hovering B-Tree node brightens the border color",
+      "Hovering Hash bucket shows slight brightness increase",
+      "Cursor changes to pointer on all hoverable SVG elements",
+      "Hover transitions are smooth (150ms ease-out)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "hover",
+      "micro-interaction",
+      "feedback"
+    ]
+  },
+  {
+    "id": "DBL-162",
+    "epic": "DBL",
+    "title": "Add zoom/pan controls to B-Tree and Hash Index SVG canvases",
+    "description": "Live testing shows B-Tree and Hash canvases have no zoom or pan. Large trees run off-screen with no way to navigate. Hash tables after resize need horizontal scrolling. Add: (1) Mouse wheel zoom (scale 0.5x to 3x) with smooth transition, (2) Click-drag to pan (when not on a node), (3) Minimap in corner for large visualizations, (4) 'Fit to screen' button that auto-zooms to show entire tree/table. Reference: React Flow (used elsewhere in the app) has these built in.",
+    "acceptanceCriteria": [
+      "Mouse wheel zooms in/out on B-Tree and Hash canvases (0.5x to 3x range)",
+      "Click-drag on empty canvas area pans the view",
+      "Fit-to-screen button visible in canvas toolbar",
+      "Zoom level indicator showing current scale",
+      "Smooth zoom transition (not instant jump)"
+    ],
+    "priority": "P2",
+    "effort": "L",
+    "status": "ready",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [
+      "DBL-028"
+    ],
+    "tags": [
+      "visual",
+      "zoom",
+      "pan",
+      "navigation",
+      "responsive"
+    ]
+  },
+  {
+    "id": "DBL-163",
+    "epic": "DBL",
+    "title": "Replace key emoji \ud83d\udd11 with proper SVG icon for primary keys in ER diagram",
+    "description": "Live screenshot shows \ud83d\udd11 emoji used as PK indicator in ER entities. Emojis render inconsistently across platforms (different on Mac/Windows/Linux/Android) and look informal. Replace with a small SVG key icon that matches the design system \u2014 consistent size, consistent color (gold for PK), crisp at all zoom levels.",
+    "acceptanceCriteria": [
+      "PK indicator uses SVG icon instead of \ud83d\udd11 emoji",
+      "Icon is 12x12px, consistent across all platforms",
+      "Icon color matches the PK gold color (#fbbf24 or var(--warning))",
+      "FK indicator (if present) uses a different icon (link icon in purple)"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "ready",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DatabaseModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "icons",
+      "er-diagram",
+      "consistency"
+    ]
+  },
+  {
+    "id": "DBL-164",
+    "epic": "DBL",
+    "title": "Create consistent visual design language document for all database visualizations",
+    "description": "The module has NO visual identity \u2014 screenshots look like any generic tool. Create a design spec: (1) Color tokens: primary nodes=var(--primary)/10 fill, active=var(--primary) glow, success=green, warning=amber, error=red, (2) Node shapes: rounded-rect(8px) for all containers, (3) Edge style: 1.5px stroke, rounded joins, arrow markers, (4) Animation timing: entries=200ms ease-out, movements=300ms spring(damping:20), exits=150ms ease-in, (5) Typography: values=monospace 13px, labels=sans 11px, badges=sans 10px bold. This becomes the reference for all future visualization work.",
+    "acceptanceCriteria": [
+      "Design spec document at docs/design/database-visual-language.md",
+      "Covers: color tokens, node shapes, edge styles, animation timing, typography",
+      "Includes visual examples (can be text descriptions with hex/CSS values)",
+      "All future visualization tasks reference this document",
+      "At least 5 specific 'before \u2192 after' examples showing the style change"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 7,
+    "module": "database",
+    "category": "frontend",
+    "files": [
+      "docs/design/database-visual-language.md"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "visual",
+      "design-language",
+      "consistency",
+      "documentation"
+    ]
+  }
+]

@@ -1,0 +1,627 @@
+{
+  "id": "chat-system",
+  "name": "WhatsApp-style Chat",
+  "description": "Design a real-time messaging system like WhatsApp. Covers WebSocket connections, message ordering, offline delivery, and media storage.",
+  "difficulty": 4,
+  "category": "modern",
+  "tags": [
+    "chat",
+    "whatsapp",
+    "websocket",
+    "messaging",
+    "real-time",
+    "offline-delivery"
+  ],
+  "nodes": [
+    {
+      "id": "mobile-client",
+      "type": "client",
+      "position": {
+        "x": 0,
+        "y": 250
+      },
+      "data": {
+        "label": "Mobile Client",
+        "category": "client",
+        "componentType": "mobile-client",
+        "icon": "Smartphone",
+        "config": {
+          "requestsPerSecond": 100000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "load-balancer",
+      "type": "load-balancer",
+      "position": {
+        "x": 250,
+        "y": 250
+      },
+      "data": {
+        "label": "Load Balancer",
+        "category": "load-balancing",
+        "componentType": "load-balancer-l7",
+        "icon": "GitBranch",
+        "config": {
+          "algorithm": "least-connections",
+          "healthCheckInterval": 5,
+          "maxConnections": 500000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "ws-gateway",
+      "type": "api-gateway",
+      "position": {
+        "x": 500,
+        "y": 250
+      },
+      "data": {
+        "label": "WebSocket Gateway",
+        "category": "load-balancing",
+        "componentType": "api-gateway",
+        "icon": "Shield",
+        "config": {
+          "rateLimitRps": 100000,
+          "authType": "jwt",
+          "timeoutMs": 0
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "chat-service",
+      "type": "web-server",
+      "position": {
+        "x": 750,
+        "y": 150
+      },
+      "data": {
+        "label": "Chat Service",
+        "category": "compute",
+        "componentType": "web-server",
+        "icon": "Globe",
+        "config": {
+          "instances": 20,
+          "maxConnections": 50000,
+          "processingTimeMs": 5
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "message-queue",
+      "type": "message-queue",
+      "position": {
+        "x": 750,
+        "y": 400
+      },
+      "data": {
+        "label": "Message Queue (Kafka)",
+        "category": "messaging",
+        "componentType": "kafka",
+        "icon": "ListOrdered",
+        "config": {
+          "type": "kafka",
+          "partitions": 24,
+          "replicationFactor": 3,
+          "retentionHours": 168
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "position": {
+        "x": 1000,
+        "y": 50
+      },
+      "data": {
+        "label": "Message DB (Cassandra)",
+        "category": "storage",
+        "componentType": "cassandra",
+        "icon": "Database",
+        "config": {
+          "type": "cassandra",
+          "replicas": 3,
+          "maxConnections": 500,
+          "storageGB": 5000
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "object-storage",
+      "type": "storage",
+      "position": {
+        "x": 1000,
+        "y": 400
+      },
+      "data": {
+        "label": "Media Storage (S3)",
+        "category": "storage",
+        "componentType": "object-storage",
+        "icon": "HardDrive",
+        "config": {
+          "storageTB": 500,
+          "replication": 3
+        },
+        "state": "idle"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "cache",
+      "position": {
+        "x": 1000,
+        "y": 225
+      },
+      "data": {
+        "label": "Session Cache (Redis)",
+        "category": "storage",
+        "componentType": "redis",
+        "icon": "Zap",
+        "config": {
+          "type": "redis",
+          "memoryGB": 32,
+          "evictionPolicy": "volatile-lru",
+          "ttlSeconds": 86400,
+          "cacheHitRate": 0.95
+        },
+        "state": "idle"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-client-lb",
+      "source": "mobile-client",
+      "target": "load-balancer",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "websocket",
+        "latency": 50,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-lb-ws",
+      "source": "load-balancer",
+      "target": "ws-gateway",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "websocket",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-ws-chat",
+      "source": "ws-gateway",
+      "target": "chat-service",
+      "sourceHandle": "top",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "grpc",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-ws-queue",
+      "source": "ws-gateway",
+      "target": "message-queue",
+      "sourceHandle": "bottom",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message-queue",
+        "latency": 5,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-chat-db",
+      "source": "chat-service",
+      "target": "database",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "db-query",
+        "latency": 3,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-chat-cache",
+      "source": "chat-service",
+      "target": "cache",
+      "sourceHandle": "right",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "cache-lookup",
+        "latency": 1,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-chat-storage",
+      "source": "chat-service",
+      "target": "object-storage",
+      "sourceHandle": "bottom",
+      "targetHandle": "top-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "http",
+        "latency": 25,
+        "animated": false
+      }
+    },
+    {
+      "id": "e-queue-chat",
+      "source": "message-queue",
+      "target": "chat-service",
+      "sourceHandle": "top",
+      "targetHandle": "bottom-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "message-queue",
+        "latency": 5,
+        "animated": true
+      }
+    },
+    {
+      "id": "e-queue-storage",
+      "source": "message-queue",
+      "target": "object-storage",
+      "sourceHandle": "right",
+      "targetHandle": "left-target",
+      "type": "data-flow",
+      "data": {
+        "edgeType": "event-stream",
+        "latency": 50,
+        "animated": false
+      }
+    }
+  ],
+  "learnSteps": [
+    {
+      "title": "WebSocket Connection Management",
+      "description": "Each mobile client maintains a persistent WebSocket connection through the Load Balancer to a WebSocket Gateway. The gateway maps userId to connectionId in Redis, enabling O(1) message routing. With least-connections balancing, each gateway handles up to 500K concurrent connections. Heartbeats detect stale connections.",
+      "highlightNodes": [
+        "mobile-client",
+        "load-balancer",
+        "ws-gateway"
+      ],
+      "highlightEdges": [
+        "e-client-lb",
+        "e-lb-ws"
+      ]
+    },
+    {
+      "title": "Message Ordering & Delivery",
+      "description": "Messages are published to Kafka partitioned by conversationId, guaranteeing per-conversation ordering. The Chat Service consumes messages and writes to Cassandra (partition key = chatId, clustering key = timestamp). Each message gets a server-assigned monotonic sequence number for gap detection.",
+      "highlightNodes": [
+        "ws-gateway",
+        "message-queue",
+        "chat-service"
+      ],
+      "highlightEdges": [
+        "e-ws-queue",
+        "e-queue-chat",
+        "e-chat-db"
+      ]
+    },
+    {
+      "title": "Offline Message Delivery",
+      "description": "When a recipient is offline (no WebSocket connection in Redis), the Chat Service stores the message in Cassandra with a 'pending' status. When the user reconnects, the gateway queries for pending messages since the client's last-seen sequence number and pushes them in order. Read receipts update message status asynchronously via Kafka.",
+      "highlightNodes": [
+        "cache",
+        "database",
+        "chat-service"
+      ],
+      "highlightEdges": [
+        "e-chat-cache",
+        "e-chat-db"
+      ]
+    },
+    {
+      "title": "Media Message Pipeline",
+      "description": "Images, videos, and documents are uploaded directly to S3 via a pre-signed URL. The Chat Service stores only the media reference (URL + metadata) in the message body. Kafka triggers async processing (thumbnail generation, virus scanning). Clients download media lazily, reducing bandwidth for inactive chats.",
+      "highlightNodes": [
+        "object-storage",
+        "message-queue"
+      ],
+      "highlightEdges": [
+        "e-chat-storage",
+        "e-queue-storage"
+      ]
+    }
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-ws-disconnect",
+        "name": "WebSocket Mass Disconnect",
+        "description": "Load balancer config change disconnects all WebSocket connections",
+        "targetNodes": [
+          "ws-gateway"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "All users disconnect. Messages queued for offline delivery. Reconnection storm.",
+        "mitigationSteps": [
+          "Clients auto-reconnect with jitter",
+          "Message queue buffers during reconnection",
+          "Scale gateway for reconnection surge"
+        ]
+      },
+      {
+        "id": "cs-message-db-latency",
+        "name": "Message DB Latency Spike",
+        "description": "Cassandra compaction causes read latency spike",
+        "targetNodes": [
+          "message-store"
+        ],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "Message history loading slow. Real-time delivery unaffected (via WebSocket).",
+        "mitigationSteps": [
+          "Tune compaction schedule",
+          "Add Cassandra nodes",
+          "Cache recent messages in Redis"
+        ]
+      },
+      {
+        "id": "cs-presence-stale",
+        "name": "Presence Data Stale",
+        "description": "Presence heartbeat processing falls behind",
+        "targetNodes": [
+          "presence-service"
+        ],
+        "faultType": "latency",
+        "severity": 2,
+        "expectedBehavior": "Users shown as online when actually offline. No message delivery impact.",
+        "mitigationSteps": [
+          "Scale presence workers",
+          "Increase heartbeat timeout tolerance",
+          "Client-side presence fallback"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "ws-gateway",
+        "metric": "cpu",
+        "description": "Primary service CPU saturates",
+        "resolution": "Horizontal scaling, optimize hot paths"
+      },
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "message-store",
+        "metric": "connections",
+        "description": "Connection pool exhaustion on storage tier",
+        "resolution": "Add connection pooling, increase limits"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-chat-system-1",
+        "title": "Peak Traffic Degradation",
+        "description": "Service degrades during traffic spikes",
+        "affectedNodes": [
+          "ws-gateway"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Auto-scaling policies, load shedding"
+      },
+      {
+        "id": "ei-chat-system-2",
+        "title": "Data Consistency Issue",
+        "description": "Eventual consistency causes brief stale reads",
+        "affectedNodes": [
+          "presence-service"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Read-your-writes consistency for critical paths"
+      },
+      {
+        "id": "ei-chat-system-3",
+        "title": "Dependency Failure Impact",
+        "description": "Upstream dependency failure cascades to this service",
+        "affectedNodes": [
+          "ws-gateway"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Circuit breaker pattern, graceful degradation"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 35000,
+      "components": [
+        {
+          "nodeId": "ws-gateway",
+          "label": "Primary Service",
+          "monthlyCostUsd": 11666,
+          "costDriver": "Compute instances"
+        },
+        {
+          "nodeId": "presence-service",
+          "label": "Storage",
+          "monthlyCostUsd": 11666,
+          "costDriver": "Storage and I/O"
+        },
+        {
+          "nodeId": "misc",
+          "label": "Networking & Misc",
+          "monthlyCostUsd": 11666,
+          "costDriver": "Data transfer"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 10000,
+          "monthlyCostUsd": 11666
+        },
+        {
+          "label": "Medium",
+          "rps": 100000,
+          "monthlyCostUsd": 35000
+        },
+        {
+          "label": "High",
+          "rps": 500000,
+          "monthlyCostUsd": 105000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 20,
+      "p99LatencyMs": 100,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "ws-gateway",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 2,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Latency",
+        "metric": "p99_latency_ms",
+        "target": 100,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "25% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Request processing time",
+          "nodeId": "ws-gateway"
+        },
+        {
+          "name": "error_rate",
+          "type": "gauge",
+          "description": "Error percentage",
+          "nodeId": "ws-gateway"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "High Latency",
+          "condition": "p99 > 200ms for 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Error Rate Spike",
+          "condition": "error_rate > 1% for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Service Overview",
+        "Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Senior Eng",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "senior-eng"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Service degradation",
+          "severity": "high",
+          "steps": [
+            "Check service health",
+            "Scale if needed",
+            "Investigate root cause"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Microservice Architecture",
+        "context": "Need independent scaling and deployment",
+        "decision": "Separate concerns into focused services",
+        "consequences": [
+          "Independent scaling",
+          "Team autonomy",
+          "Network overhead"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Availability",
+        "benefit": "System stays up during partial failures",
+        "cost": "Brief windows of stale data possible"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Architecture",
+        "description": "Single deployable unit",
+        "prosVsCons": "Simpler but harder to scale independently",
+        "whyNotChosen": "Need independent scaling of components"
+      }
+    ]
+  }
+}

@@ -1,0 +1,108 @@
+[
+  {
+    "id": "CON-212", "epic": "CON", "title": "Create concurrency-specific onboarding tour — 4 steps from sidebar to first animation",
+    "description": "CRITICAL GAP: The platform's OnboardingOverlay (onboarding-overlay.tsx) has 5 steps but ALL target System Design module (component palette, canvas, simulation). When a user navigates to Concurrency, there is ZERO onboarding. They see 11 demo buttons, playback controls, and a static visualization with no guidance.\n\nCreate a concurrency-specific tour using the same OnboardingOverlay pattern:\n\nStep 1 (center, no target): 'Welcome to the Concurrency Lab. Here you'll visualize race conditions, deadlocks, and thread synchronization — step by step.'\n\nStep 2 (target: concurrency sidebar demo list): 'Pick a concept from this list. Start with Race Condition — it's the most fundamental concurrency bug.'\n\nStep 3 (target: playback controls area): 'Use Play to animate, Step to advance one tick, or press Space for a keyboard shortcut. Watch the visualization update in real time.'\n\nStep 4 (target: properties panel): 'Each concept includes an explanation, real-world connections, and live state tracking. Read this panel to understand WHY things happen, not just WHAT.'\n\nTrigger: when user switches to Concurrency module for the first time (check localStorage 'concurrency_tour_completed'). Skip button always visible. Replay from Settings.",
+    "acceptanceCriteria": [
+      "4-step concurrency tour with spotlight targets on sidebar, controls, and properties panel",
+      "Tour triggers on first visit to Concurrency module (not on every visit)",
+      "Tour uses existing OnboardingOverlay component pattern with data-onboarding attributes",
+      "Skip button on every step, replay from Settings",
+      "After tour completes, the first demo (Race Condition) is selected and ready to Play"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/shared/onboarding-overlay.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "first-time-experience", "tour"]
+  },
+  {
+    "id": "CON-213", "epic": "CON", "title": "Add 'Show Me' auto-play overlay on canvas initial state for every demo",
+    "description": "FIRST SUCCESS BARRIER: When a user selects any concurrency demo, the canvas shows the initial state (counter=0, empty buffer, philosophers thinking) with no indication of what to do. The Play button is in the sidebar footer — far from the canvas.\n\nAdd a prominent overlay on the canvas initial state (stepIndex===0 && !playing):\n\n```\n┌─────────────────────────────────────────────────┐\n│                                                  │\n│   ▶  Show Me How Race Conditions Work            │\n│                                                  │\n│   Click to watch 3 threads compete for a         │\n│   shared counter — and see what goes wrong.      │\n│                                                  │\n│         [ ▶ Show Me ]    [ I'll Step Through ]   │\n│                                                  │\n└─────────────────────────────────────────────────┘\n```\n\n- 'Show Me' auto-plays at 1x speed\n- 'I'll Step Through' dismisses the overlay and lets user use manual controls\n- Overlay disappears after first interaction (Play/Step/dismiss)\n- Different text per demo (Race Condition, Producer-Consumer, etc.)\n- Does not reappear for the same demo after first viewing (localStorage per-demo flag)",
+    "acceptanceCriteria": [
+      "Overlay visible on canvas when stepIndex===0 and not playing",
+      "Demo-specific text for all 12 demos",
+      "'Show Me' button triggers auto-play at 1x speed",
+      "Overlay disappears after first interaction",
+      "Per-demo localStorage flag prevents re-showing"
+    ],
+    "priority": "P1", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "first-time-experience", "CTA", "empty-state"]
+  },
+  {
+    "id": "CON-214", "epic": "CON", "title": "Add sidebar 'Start Here' badge and recommended order for new users",
+    "description": "The sidebar shows 11 demos in a flat list with no indication of where to start. A new user doesn't know if they should start with Race Condition or Lock Comparison.\n\nADD:\n1. 'Start Here →' badge on Race Condition (first demo in recommended order)\n2. Subtle numbered badges (1, 2, 3...) showing recommended order: Race Condition → Producer-Consumer → Dining Philosophers → Event Loop → Thread Lifecycle\n3. 'Beginner' / 'Intermediate' / 'Advanced' section headers grouping the demos\n4. Check mark on demos that have been viewed (from MODULE_FEATURES progress tracking)\n\nBadge disappears after the user has viewed 3+ demos (no longer a 'new' user).",
+    "acceptanceCriteria": [
+      "'Start Here →' badge visible on Race Condition for new users",
+      "Demos grouped into Beginner/Intermediate/Advanced sections",
+      "Check marks appear on viewed demos (from progress tracking)",
+      "Badges disappear after 3+ demos viewed"
+    ],
+    "priority": "P1", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "navigation", "progressive-disclosure"]
+  },
+  {
+    "id": "CON-215", "epic": "CON", "title": "Add contextual tooltips to concurrency playback controls (Play, Step, Reset, speed)",
+    "description": "The contextual tooltip system (ContextualTooltip.tsx with useFirstEncounter hook) exists but has ZERO concurrency entries. The 4 platform tooltips all target System Design UI elements.\n\nAdd concurrency-specific tooltips that appear on FIRST encounter:\n1. Play button: 'Animate the simulation step by step. Press Space as a shortcut.'\n2. Step button: 'Advance one tick at a time. Perfect for understanding each operation.'\n3. Reset button: 'Return to the beginning. Try a different demo or watch again.'\n4. Demo selector: 'Each demo visualizes a different concurrency concept. Start with Race Condition.'\n5. Properties panel: 'Read here for explanations, real-world connections, and live state tracking.'\n\nUse the existing CONTEXTUAL_FEATURES pattern — add entries and place data-onboarding attributes on the controls.",
+    "acceptanceCriteria": [
+      "At least 5 concurrency contextual tooltips defined in CONTEXTUAL_FEATURES or a concurrency-specific array",
+      "Tooltips appear on first encounter only (useFirstEncounter hook)",
+      "data-onboarding attributes added to Play, Step, Reset buttons and demo selector",
+      "Tooltips position correctly relative to their targets"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/shared/ContextualTooltip.tsx", "src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "tooltips", "contextual-help"]
+  },
+  {
+    "id": "CON-216", "epic": "CON", "title": "Add idle detection — show help prompt after 15s of no interaction on first visit",
+    "description": "STUCK DETECTION: If a new user sits on the Concurrency module for 15+ seconds without clicking anything (sidebar, play, step), they're likely confused. Show a gentle prompt:\n\n'Not sure where to start? Click the ▶ Play button to watch a race condition happen in real time. Or press Space.'\n\nImplement as a setTimeout that resets on any click/keypress. Only triggers once per session. Only on first module visit (check localStorage).",
+    "acceptanceCriteria": [
+      "Prompt appears after 15 seconds of no interaction on first visit",
+      "Prompt dismisses on any click, keypress, or explicit dismiss",
+      "Prompt does not reappear after dismissal (session-scoped)",
+      "Only triggers on first-ever Concurrency module visit (localStorage flag)"
+    ],
+    "priority": "P2", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "stuck-detection", "help"]
+  },
+  {
+    "id": "CON-217", "epic": "CON", "title": "Add properties panel empty state with concept preview and CTA",
+    "description": "The properties panel shows concept explanations AFTER a demo is selected. But the initial load also shows Race Condition content immediately (because it's the default). For demos OTHER than the default, the properties panel content is static text — no interactive CTA.\n\nRewrite the properties panel for each demo to include:\n1. HOOK sentence (from CON-125-129 concept rewrites) as the first thing visible\n2. 'Learn More' expandable section for detailed explanation\n3. A CTA at the bottom: 'Try it: Click ▶ Play or press Space to see this concept in action'\n4. After the demo has been played, the CTA changes to: 'Try Next: [next recommended demo name] →'",
+    "acceptanceCriteria": [
+      "Properties panel opens with hook sentence for every demo",
+      "Detailed explanation is in a collapsible 'Learn More' section",
+      "CTA button at bottom of properties panel links to Play action",
+      "After completion, CTA suggests next demo in learning order"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx"],
+    "dependencies": ["CON-129", "CON-125"], "blockedBy": [], "tags": ["onboarding", "empty-state", "CTA", "progressive-disclosure"]
+  },
+  {
+    "id": "CON-218", "epic": "CON", "title": "Add 'Replay Tour' and 'Keyboard Shortcuts' entries to concurrency module help menu",
+    "description": "The platform has a keyboard-shortcuts-dialog.tsx and settings page. But there's no way to replay the concurrency onboarding tour after it's been dismissed.\n\nAdd:\n1. 'Replay Tour' button in the sidebar header or settings that resets the localStorage flag and triggers the tour\n2. Concurrency-specific keyboard shortcuts registered in the keyboard shortcuts dialog (Play=Space, Step=→, Step Back=←, Reset=R)\n3. A '?' help icon in the sidebar header that shows:\n   - 'Replay Tour'\n   - 'Keyboard Shortcuts' (opens dialog)\n   - 'About Concurrency Lab' (brief module description)",
+    "acceptanceCriteria": [
+      "'?' help icon visible in concurrency sidebar header",
+      "Clicking '?' shows dropdown with Replay Tour, Keyboard Shortcuts, About",
+      "Replay Tour resets localStorage flag and triggers onboarding tour",
+      "Concurrency shortcuts appear in the global keyboard shortcuts dialog"
+    ],
+    "priority": "P3", "effort": "S", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/shared/keyboard-shortcuts-dialog.tsx"],
+    "dependencies": ["CON-212"], "blockedBy": [], "tags": ["onboarding", "help", "keyboard-shortcuts"]
+  },
+  {
+    "id": "CON-219", "epic": "CON", "title": "Add mobile-specific onboarding for concurrency — swipe hint and bottom nav guidance",
+    "description": "The activity bar renders as a horizontal bottom nav on mobile (MOBILE_VISIBLE_COUNT = 5 at activity-bar.tsx:61). But the concurrency module (shortcut='9') is NOT in the first 5 — it's behind the 'more' overflow menu. A mobile user must: tap '...', find Concurrency, tap it. Then they see the module with no mobile-specific guidance.\n\nAdd:\n1. Mobile discovery: if user hasn't tried Concurrency, show a periodic 'Explore more modules →' badge on the overflow '...' button\n2. Once in Concurrency on mobile: show a swipe hint ('Swipe left/right to switch demos')\n3. Properties panel accessible via swipe-up gesture (it's a BottomSheet on mobile per workspace-layout.tsx:14)\n4. Playback controls should be visible without scrolling on mobile (currently in sidebar footer which is hidden on mobile)",
+    "acceptanceCriteria": [
+      "Overflow '...' button shows badge when unvisited modules exist",
+      "Swipe hint appears on first mobile visit to Concurrency",
+      "Playback controls are accessible on mobile without opening sidebar",
+      "Properties BottomSheet has a peek indicator showing it contains content"
+    ],
+    "priority": "P2", "effort": "M", "status": "ready", "phase": 5, "module": "concurrency", "category": "frontend",
+    "files": ["src/components/modules/ConcurrencyModule.tsx", "src/components/shared/activity-bar.tsx", "src/components/mobile/BottomSheet.tsx"],
+    "dependencies": [], "blockedBy": [], "tags": ["onboarding", "mobile", "first-time-experience"]
+  }
+]

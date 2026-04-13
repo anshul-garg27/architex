@@ -1,0 +1,195 @@
+[
+  {
+    "id": "DST-200",
+    "epic": "DST",
+    "title": "Add search/filter input to DS sidebar for finding structures quickly",
+    "description": "QA REVIEW GAP: 34 structures in sidebar with no search capability. User must scroll through 6 categories to find 'Bloom Filter'. Algorithm module has a dropdown selector \u2014 DS module has nothing.\n\nAdd a search input at top of DSSidebar (below 'Data Structures / 34 structures' header). Typing 'bloom' filters the list to show only Bloom Filter. Typing 'tree' shows all 14 tree structures. Empty search shows all.\n\nThis is how every IDE file browser works \u2014 instant search over a list.",
+    "acceptanceCriteria": [
+      "Search input at top of DS sidebar",
+      "Typing filters structures by name in real-time",
+      "Search is case-insensitive",
+      "Empty search shows all 34 structures",
+      "Categories auto-collapse if they have zero matching items",
+      "Keyboard shortcut (Cmd+F or /) focuses the search input"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "search",
+      "sidebar",
+      "filter",
+      "discoverability"
+    ]
+  },
+  {
+    "id": "DST-201",
+    "epic": "DST",
+    "title": "Add bulk data import \u2014 paste array from clipboard or enter comma-separated values",
+    "description": "QA REVIEW GAP: Currently users must type values one at a time and click Insert repeatedly. No way to paste '[5, 3, 8, 1, 9, 2]' and build a BST with 6 nodes in one action.\n\nAdd a 'Paste Data' or 'Import' button next to Random that opens a small textarea. User pastes comma-separated values (e.g., '5, 3, 8, 1, 9, 2') and clicks 'Build'. The module inserts all values sequentially with step generation.\n\nAlternatively: detect paste event in the value input and parse multi-value input automatically.",
+    "acceptanceCriteria": [
+      "Users can input multiple values at once (comma-separated)",
+      "Works for: Array (direct set), BST/AVL/RB (sequential insert), Heap (build), Hash (sequential insert)",
+      "Paste event in value input detected and parsed",
+      "Invalid values highlighted with error message",
+      "At least 100 values supported"
+    ],
+    "priority": "P2",
+    "effort": "M",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "import",
+      "paste",
+      "bulk-data",
+      "productivity"
+    ]
+  },
+  {
+    "id": "DST-202",
+    "epic": "DST",
+    "title": "Add animation speed slider to playback controls (0.25x to 4x)",
+    "description": "QA REVIEW GAP: DST-071 adds auto-play but no user-controlled speed. Students need to slow down for complex operations (AVL rotations) and speed up for simple ones (array traverse).\n\nAdd a speed slider or speed buttons (0.25x, 0.5x, 1x, 2x, 4x) next to the Step/Play controls. Speed multiplies the base animation duration (currently 0.3s). At 0.25x: 1.2s per step. At 4x: 0.075s per step.\n\nAlgorithm module comparison: the Algorithm module sidebar has a 'Random Size' slider (5-100). DS module has no equivalent control.",
+    "acceptanceCriteria": [
+      "Speed control visible in playback controls area",
+      "Speed options: 0.25x, 0.5x, 1x, 2x, 4x",
+      "Speed affects both auto-play interval and animation transition duration",
+      "Current speed displayed visually",
+      "Speed persists within session (not across refresh)"
+    ],
+    "priority": "P2",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-071"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "speed",
+      "playback",
+      "animation",
+      "control"
+    ]
+  },
+  {
+    "id": "DST-203",
+    "epic": "DST",
+    "title": "Add copy-to-clipboard buttons for pseudocode, summaries, and complexity tables",
+    "description": "QA REVIEW GAP: DST-134 adds pseudocode panel and DST-145 adds 3-bullet summaries, but neither specifies a copy button. Students need to copy complexity info, pseudocode, and summaries to their notes/flashcards.\n\nAdd a small copy icon button (clipboard icon) to:\n1. Pseudocode panel (copy entire pseudocode block)\n2. Complexity table (copy as formatted text)\n3. Summary bullets (copy as text)\n4. Step descriptions (copy current step)\n\nUse navigator.clipboard.writeText() with a brief 'Copied!' toast feedback.",
+    "acceptanceCriteria": [
+      "Copy button on pseudocode panel copies pseudocode text",
+      "Copy button on complexity table copies formatted complexity info",
+      "Copy button on summary copies 3-bullet takeaway",
+      "Brief 'Copied!' toast feedback on click",
+      "Buttons are small/unobtrusive (icon only, no label)"
+    ],
+    "priority": "P3",
+    "effort": "S",
+    "status": "done",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [
+      "DST-134",
+      "DST-145"
+    ],
+    "blockedBy": [],
+    "tags": [
+      "ux",
+      "clipboard",
+      "copy",
+      "productivity",
+      "export"
+    ]
+  },
+  {
+    "id": "DST-204",
+    "epic": "DST",
+    "title": "Add export DS visualization as PDF cheat sheet",
+    "description": "QA REVIEW GAP: Zero print/PDF export capability. Students want a printable one-pager per DS showing: name, description, complexity table, visualization snapshot, key operations pseudocode, real-world applications.\n\nImplement: 'Export PDF' button in properties panel. Uses browser print or html2canvas + jspdf to generate a clean one-page summary. Alternatively: a 'Print View' mode that reformats the current DS into a printer-friendly layout.\n\nThis enables: flashcard creation, study sheets, professor handouts.",
+    "acceptanceCriteria": [
+      "Export/Print button accessible from properties panel",
+      "Generated PDF includes: name, description, complexity, visualization snapshot",
+      "PDF is clean and printer-friendly (no dark background)",
+      "Works for all 34 DS",
+      "File named '{ds-name}-cheatsheet.pdf'"
+    ],
+    "priority": "P3",
+    "effort": "L",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/components/modules/DataStructuresModule.tsx"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "export",
+      "pdf",
+      "print",
+      "cheatsheet",
+      "study"
+    ]
+  },
+  {
+    "id": "DST-205",
+    "epic": "DST",
+    "title": "Add i18n infrastructure for DS descriptions and step text",
+    "description": "QA REVIEW GAP: Non-English speaker persona identified in Phase 4 innovation but zero i18n tasks created. All descriptions and step text are hardcoded English strings.\n\nAdd i18n infrastructure:\n1. Extract all DS_CATALOG descriptions into a locale file (en.json)\n2. Create translation keys for step description templates\n3. Add language selector (initially: English only, but infrastructure ready for Spanish, Chinese, Hindi)\n4. Use next-intl or react-i18next for the translation layer\n\nThis is infrastructure \u2014 actual translations come later. But the architecture must support it.\n\nNote: Priority P3 because this is infrastructure for future expansion, not an immediate user need.",
+    "acceptanceCriteria": [
+      "DS descriptions loaded from locale file, not hardcoded",
+      "Step description templates use interpolation-safe format",
+      "Language selector UI exists (even if only English available)",
+      "Adding a new language requires only adding a JSON file",
+      "No hardcoded English strings in engine files"
+    ],
+    "priority": "P3",
+    "effort": "XL",
+    "status": "ready",
+    "phase": 3,
+    "module": "data-structures",
+    "category": "frontend",
+    "files": [
+      "src/lib/data-structures/index.ts",
+      "src/lib/data-structures/types.ts",
+      "src/locales/en/data-structures.json"
+    ],
+    "dependencies": [],
+    "blockedBy": [],
+    "tags": [
+      "i18n",
+      "internationalization",
+      "localization",
+      "infrastructure"
+    ]
+  }
+]
