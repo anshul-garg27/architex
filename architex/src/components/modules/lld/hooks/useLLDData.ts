@@ -70,12 +70,16 @@ export function useLLDData(): LLDDataResult {
       sequenceQuery.isLoading ||
       stateMachineQuery.isLoading;
 
+    // Map API items: slug → id (API uses slug, DesignPattern uses id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mapItem = (item: any) => ({ ...item, id: item.slug ?? item.id });
+
     return {
-      patterns: (patternsQuery.data?.items ?? []) as unknown as DesignPattern[],
-      solidDemos: (solidQuery.data?.items ?? []) as unknown as SOLIDDemo[],
-      problems: (problemsQuery.data?.items ?? []) as unknown as LLDProblem[],
-      sequenceExamples: (sequenceQuery.data?.items ?? []) as unknown as typeof SEQUENCE_EXAMPLES,
-      stateMachineExamples: (stateMachineQuery.data?.items ?? []) as unknown as typeof STATE_MACHINE_EXAMPLES,
+      patterns: (patternsQuery.data?.items ?? []).map(mapItem) as DesignPattern[],
+      solidDemos: (solidQuery.data?.items ?? []).map(mapItem) as SOLIDDemo[],
+      problems: (problemsQuery.data?.items ?? []).map(mapItem) as LLDProblem[],
+      sequenceExamples: (sequenceQuery.data?.items ?? []).map(mapItem) as typeof SEQUENCE_EXAMPLES,
+      stateMachineExamples: (stateMachineQuery.data?.items ?? []).map(mapItem) as typeof STATE_MACHINE_EXAMPLES,
       isLoading,
     };
   }, [

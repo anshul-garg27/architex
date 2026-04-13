@@ -41,19 +41,22 @@ export function buildCSP(options: CSPOptions = {}): {
   // can't receive the middleware nonce). Per CSP spec, 'unsafe-inline' is
   // IGNORED when a nonce is present, so in dev we skip the nonce entirely.
   const isDev = process.env.NODE_ENV === 'development';
+  // Clerk needs its accounts domain for script loading + API calls
+  const clerkDomain = '*.clerk.accounts.dev';
+
   const scriptSrc = isDev
-    ? `'self' 'unsafe-eval' 'unsafe-inline'`
+    ? `'self' 'unsafe-eval' 'unsafe-inline' https: ${clerkDomain}`
     : nonce
-      ? `'self' 'nonce-${nonce}'`
-      : `'self'`;
+      ? `'self' 'nonce-${nonce}' ${clerkDomain}`
+      : `'self' ${clerkDomain}`;
 
   const directives: string[] = [
     `default-src 'self'`,
     `script-src ${scriptSrc}`,
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' data: blob:${imgSrcExtra.length ? ' ' + imgSrcExtra.join(' ') : ''}`,
+    `img-src 'self' data: blob: https://img.clerk.com${imgSrcExtra.length ? ' ' + imgSrcExtra.join(' ') : ''}`,
     `font-src 'self'`,
-    `connect-src 'self'${connectSrcExtra.length ? ' ' + connectSrcExtra.join(' ') : ''}`,
+    `connect-src 'self' ${clerkDomain} https://api.clerk.com${connectSrcExtra.length ? ' ' + connectSrcExtra.join(' ') : ''}`,
     `frame-src 'none'`,
     `object-src 'none'`,
     `base-uri 'self'`,
