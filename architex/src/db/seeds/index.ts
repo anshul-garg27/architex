@@ -9,8 +9,7 @@
 import { getDb } from "@/db";
 
 const SEED_MODULES: Record<string, () => Promise<{ seed: (db: ReturnType<typeof getDb>) => Promise<void> }>> = {
-  // Populated as modules are migrated:
-  // lld: () => import("./lld"),
+  lld: () => import("./lld"),
   // "system-design": () => import("./system-design"),
   // algorithms: () => import("./algorithms"),
   // "data-structures": () => import("./data-structures"),
