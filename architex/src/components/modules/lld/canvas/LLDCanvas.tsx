@@ -413,10 +413,19 @@ const UMLClassBox = memo(function UMLClassBox({
 
   return (
     <motion.g
+      tabIndex={0}
+      role="button"
+      aria-label={`${cls.stereotype} ${cls.name}: ${cls.attributes.length} attributes, ${cls.methods.length} methods`}
       onPointerDown={handlePointerDown}
       onPointerEnter={() => onHover(cls.id)}
       onPointerLeave={() => onHover(null)}
-      style={{ cursor: "grab" }}
+      onKeyDown={(e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(cls.id);
+        }
+      }}
+      style={{ cursor: "grab", outline: "none" }}
       filter={isSelected ? "url(#glow)" : undefined}
       {...(reducedMotion
         ? {}
