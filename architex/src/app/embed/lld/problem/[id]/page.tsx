@@ -1,30 +1,39 @@
 // ---------------------------------------------------------------------------
 // Embed: LLD Problem UML Canvas (LLD-141)
 // ---------------------------------------------------------------------------
-// Renders the starter UML class diagram for an LLD interview problem.
-// ---------------------------------------------------------------------------
 
 import { notFound } from "next/navigation";
-import {
-  LLD_PROBLEMS,
-  getProblemById,
-} from "@/lib/lld";
+import { getSEOContent, getSEOContentBySlug } from "@/lib/seo/content-from-db";
+import { LLD_PROBLEMS, getProblemById } from "@/lib/lld";
 import { EmbedUMLCanvas } from "../../_components/EmbedUMLCanvas";
 
-// ---------------------------------------------------------------------------
-// Static generation for all LLD problems
-// ---------------------------------------------------------------------------
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const dbItems = await getSEOContent("lld", "problem");
+  if (dbItems.length > 0) return dbItems.map((p) => ({ id: p.slug }));
   return LLD_PROBLEMS.map((p) => ({ id: p.id }));
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
+export const revalidate = 86400;
+
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EmbedProblemPage({ params }: Props) {
   const { id } = await params;
+
+  const dbItem = await getSEOContentBySlug("lld", "problem", id);
+  if (dbItem) {
+    const content = dbItem.content as Record<string, unknown>;
+    return (
+      <EmbedUMLCanvas
+        title={dbItem.name}
+        category={`Difficulty ${content.difficulty ?? "?"}/5`}
+        classes={(content.starterClasses as any[]) ?? []}
+        relationships={(content.starterRelationships as any[]) ?? []}
+        linkHref={`/?lld=problem:${id}`}
+      />
+    );
+  }
+
   const problem = getProblemById(id);
   if (!problem) notFound();
 

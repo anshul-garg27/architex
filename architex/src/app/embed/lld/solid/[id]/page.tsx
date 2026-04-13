@@ -1,30 +1,39 @@
 // ---------------------------------------------------------------------------
 // Embed: SOLID Principle UML Canvas (LLD-141)
 // ---------------------------------------------------------------------------
-// Renders the "after" (refactored) UML for a SOLID principle demo.
-// ---------------------------------------------------------------------------
 
 import { notFound } from "next/navigation";
-import {
-  SOLID_DEMOS,
-  getSOLIDDemoById,
-} from "@/lib/lld";
+import { getSEOContent, getSEOContentBySlug } from "@/lib/seo/content-from-db";
+import { SOLID_DEMOS, getSOLIDDemoById } from "@/lib/lld";
 import { EmbedUMLCanvas } from "../../_components/EmbedUMLCanvas";
 
-// ---------------------------------------------------------------------------
-// Static generation for all SOLID demos
-// ---------------------------------------------------------------------------
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const dbItems = await getSEOContent("lld", "solid-demo");
+  if (dbItems.length > 0) return dbItems.map((d) => ({ id: d.slug }));
   return SOLID_DEMOS.map((d) => ({ id: d.id }));
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
+export const revalidate = 86400;
+
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EmbedSOLIDPage({ params }: Props) {
   const { id } = await params;
+
+  const dbItem = await getSEOContentBySlug("lld", "solid-demo", id);
+  if (dbItem) {
+    const content = dbItem.content as Record<string, unknown>;
+    return (
+      <EmbedUMLCanvas
+        title={`${content.principle ?? ""} — ${dbItem.name}`}
+        category={(content.principle as string) ?? "SOLID"}
+        classes={(content.afterClasses as any[]) ?? []}
+        relationships={(content.afterRelationships as any[]) ?? []}
+        linkHref={`/?lld=solid:${id}`}
+      />
+    );
+  }
+
   const demo = getSOLIDDemoById(id);
   if (!demo) notFound();
 
@@ -34,7 +43,7 @@ export default async function EmbedSOLIDPage({ params }: Props) {
       category={demo.principle}
       classes={demo.afterClasses}
       relationships={demo.afterRelationships}
-      linkHref={`/?solid=${demo.id}`}
+      linkHref={`/?lld=solid:${demo.id}`}
     />
   );
 }
