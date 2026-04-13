@@ -11,8 +11,8 @@ import { getDb } from "@/db";
 const SEED_MODULES: Record<string, () => Promise<{ seed: (db: ReturnType<typeof getDb>) => Promise<void> }>> = {
   lld: () => import("./lld"),
   "system-design": () => import("./system-design"),
-  // algorithms: () => import("./algorithms"),
-  // "data-structures": () => import("./data-structures"),
+  algorithms: () => import("./algorithms"),
+  "data-structures": () => import("./data-structures"),
   // database: () => import("./database"),
   // networking: () => import("./networking"),
   // security: () => import("./security"),
