@@ -25,6 +25,14 @@ export {
   type ModuleContent,
   type NewModuleContent,
 } from "./module-content";
+export {
+  achievements,
+  userAchievements,
+  type Achievement,
+  type NewAchievement,
+  type UserAchievement,
+  type NewUserAchievement,
+} from "./achievements";
 
 // Relations (defined in a single file to avoid circular imports)
 export {
