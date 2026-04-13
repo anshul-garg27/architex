@@ -20,6 +20,8 @@ const SEED_MODULES: Record<string, () => Promise<{ seed: (db: ReturnType<typeof 
   os: () => import("./os"),
   "ml-design": () => import("./ml-design"),
   concurrency: () => import("./concurrency"),
+  "pattern-walkthroughs": () => import("./pattern-walkthroughs"),
+  "interview-qa": () => import("./interview-qa"),
 };
 
 async function main() {
