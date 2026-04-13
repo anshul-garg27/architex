@@ -48,6 +48,8 @@ export interface ContentDetailResponse {
 export interface CatalogFilters {
   category?: string;
   difficulty?: string;
+  /** When true, includes full JSONB content (not just metadata). */
+  full?: boolean;
 }
 
 // ── Query key factories ──────────────────────────────────────
@@ -72,6 +74,7 @@ async function fetchCatalog(
   const params = new URLSearchParams({ module: moduleId, type });
   if (filters?.category) params.set("category", filters.category);
   if (filters?.difficulty) params.set("difficulty", filters.difficulty);
+  if (filters?.full) params.set("full", "true");
 
   const res = await fetch(`/api/content?${params}`);
   if (!res.ok) {

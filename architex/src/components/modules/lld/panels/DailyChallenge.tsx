@@ -51,15 +51,17 @@ function getDailyPattern(patterns: DesignPattern[]): DesignPattern {
 
 /** Generate 3 progressive hints for a pattern. */
 function generateHints(pattern: DesignPattern): [string, string, string] {
-  const categoryHint = `This is a ${pattern.category} pattern.`;
+  const categoryHint = `This is a ${pattern.category ?? "design"} pattern.`;
 
-  const structureHint = pattern.classes.length > 0
-    ? `It involves ${pattern.classes.length} participant${pattern.classes.length === 1 ? "" : "s"} and uses ${pattern.relationships.length > 0 ? `a ${pattern.relationships[0].type} relationship` : "a simple class structure"}.`
-    : `It is a commonly used ${pattern.category} pattern.`;
+  const classes = pattern.classes ?? [];
+  const relationships = pattern.relationships ?? [];
+  const structureHint = classes.length > 0
+    ? `It involves ${classes.length} participant${classes.length === 1 ? "" : "s"} and uses ${relationships.length > 0 ? `a ${relationships[0].type} relationship` : "a simple class structure"}.`
+    : `It is a commonly used ${pattern.category ?? "design"} pattern.`;
 
   const analogyHint = pattern.analogy
     ? `Analogy: "${pattern.analogy.slice(0, 120)}${pattern.analogy.length > 120 ? "..." : ""}"`
-    : `Difficulty: ${pattern.difficulty}/5. ${pattern.description.slice(0, 100)}...`;
+    : `Difficulty: ${pattern.difficulty ?? "?"}/5. ${(pattern.description ?? "").slice(0, 100)}...`;
 
   return [categoryHint, structureHint, analogyHint];
 }

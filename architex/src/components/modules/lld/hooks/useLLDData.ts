@@ -45,11 +45,13 @@ interface LLDDataResult {
  * to fetch the full content when a user selects an item.
  */
 export function useLLDData(): LLDDataResult {
-  const patternsQuery = useCatalog("lld", "pattern");
-  const problemsQuery = useCatalog("lld", "problem");
-  const solidQuery = useCatalog("lld", "solid-demo");
-  const sequenceQuery = useCatalog("lld", "sequence-example");
-  const stateMachineQuery = useCatalog("lld", "state-machine");
+  // full: true → include JSONB content (classes, code, relationships, etc.)
+  // Components need the full data, not just metadata
+  const patternsQuery = useCatalog("lld", "pattern", { full: true });
+  const problemsQuery = useCatalog("lld", "problem", { full: true });
+  const solidQuery = useCatalog("lld", "solid-demo", { full: true });
+  const sequenceQuery = useCatalog("lld", "sequence-example", { full: true });
+  const stateMachineQuery = useCatalog("lld", "state-machine", { full: true });
 
   return useMemo(() => {
     if (!USE_API) {
@@ -70,9 +72,12 @@ export function useLLDData(): LLDDataResult {
       sequenceQuery.isLoading ||
       stateMachineQuery.isLoading;
 
-    // Map API items: slug → id (API uses slug, DesignPattern uses id)
+    // Map API items: merge content JSONB into top-level + slug → id
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mapItem = (item: any) => ({ ...item, id: item.slug ?? item.id });
+    const mapItem = (item: any) => {
+      const content = item.content ?? {};
+      return { ...content, ...item, id: item.slug ?? item.id };
+    };
 
     return {
       patterns: (patternsQuery.data?.items ?? []).map(mapItem) as DesignPattern[],

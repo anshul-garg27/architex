@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const contentType = searchParams.get("type");
     const category = searchParams.get("category");
     const difficulty = searchParams.get("difficulty");
+    const full = searchParams.get("full") === "true";
 
     if (!moduleId || !contentType) {
       return NextResponse.json(
@@ -54,21 +55,24 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(moduleContent.difficulty, difficulty));
     }
 
-    // Select metadata only — exclude full content JSONB for list views
-    const rows = await db
-      .select({
-        id: moduleContent.id,
-        moduleId: moduleContent.moduleId,
-        contentType: moduleContent.contentType,
-        slug: moduleContent.slug,
-        name: moduleContent.name,
-        category: moduleContent.category,
-        difficulty: moduleContent.difficulty,
-        sortOrder: moduleContent.sortOrder,
-        summary: moduleContent.summary,
-        tags: moduleContent.tags,
-      })
-      .from(moduleContent)
+    // When full=true, include content JSONB (for components that need classes, code, etc.)
+    // Otherwise, return metadata only for lightweight list views.
+    const query = full
+      ? db.select().from(moduleContent)
+      : db.select({
+          id: moduleContent.id,
+          moduleId: moduleContent.moduleId,
+          contentType: moduleContent.contentType,
+          slug: moduleContent.slug,
+          name: moduleContent.name,
+          category: moduleContent.category,
+          difficulty: moduleContent.difficulty,
+          sortOrder: moduleContent.sortOrder,
+          summary: moduleContent.summary,
+          tags: moduleContent.tags,
+        }).from(moduleContent);
+
+    const rows = await query
       .where(and(...conditions))
       .orderBy(asc(moduleContent.sortOrder));
 
