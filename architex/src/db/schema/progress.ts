@@ -10,6 +10,7 @@ import {
   uuid,
   varchar,
   real,
+  integer,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -30,6 +31,24 @@ export const progress = pgTable(
     /** Mastery score from 0.0 to 1.0. */
     score: real("score").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // ── FSRS spaced repetition fields ──────────────────────
+    /** Memory stability — days until 90% recall probability drops. */
+    stability: real("stability"),
+    /** Item difficulty — inherent hardness (0.0 to 1.0). */
+    difficulty: real("difficulty"),
+    /** Days elapsed since last review. */
+    elapsedDays: integer("elapsed_days"),
+    /** Days scheduled until next review. */
+    scheduledDays: integer("scheduled_days"),
+    /** Total successful review count. */
+    reps: integer("reps").default(0),
+    /** Total lapse (forgotten) count. */
+    lapses: integer("lapses").default(0),
+    /** FSRS state: 0=new, 1=learning, 2=review, 3=relearning. */
+    fsrsState: integer("fsrs_state").default(0),
+    /** Next scheduled review date. */
+    nextReviewAt: timestamp("next_review_at", { withTimezone: true }),
+    // ── End FSRS fields ────────────────────────────────────
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
