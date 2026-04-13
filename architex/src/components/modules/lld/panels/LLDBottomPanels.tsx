@@ -10,7 +10,7 @@ import { Code, Copy, Check, AlertTriangle } from "lucide-react";
 import { BottomPanelEmptyState } from "@/components/shared/lld-empty-states";
 import { cn } from "@/lib/utils";
 import type { UMLClass, UMLRelationship, DesignPattern, SOLIDDemo, LLDProblem } from "@/lib/lld";
-import { SEQUENCE_EXAMPLES, STATE_MACHINE_EXAMPLES, generateTypeScript, generatePython, generateMermaid } from "@/lib/lld";
+import { generateTypeScript, generatePython, generateMermaid } from "@/lib/lld";
 import PatternBehavioralSimulator from "@/components/modules/lld/PatternBehavioralSimulator";
 import SequenceDiagramLatencyOverlay from "@/components/modules/lld/SequenceDiagramLatencyOverlay";
 import { PatternQuiz } from "./PatternQuiz";
@@ -223,7 +223,7 @@ export const LLDProblemBottomPanel = memo(function LLDProblemBottomPanel({
 export const SequenceBottomPanel = memo(function SequenceBottomPanel({
   example,
 }: {
-  example: (typeof SEQUENCE_EXAMPLES)[number] | null;
+  example: { id: string; name: string; [key: string]: any } | null;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -279,7 +279,7 @@ export const SequenceBottomPanel = memo(function SequenceBottomPanel({
 export const StateMachineBottomPanel = memo(function StateMachineBottomPanel({
   example,
 }: {
-  example: (typeof STATE_MACHINE_EXAMPLES)[number] | null;
+  example: { id: string; name: string; [key: string]: any } | null;
 }) {
   return (
     <div className="flex h-full flex-col">

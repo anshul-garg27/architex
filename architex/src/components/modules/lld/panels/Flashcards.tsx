@@ -23,8 +23,8 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DESIGN_PATTERNS, SOLID_DEMOS } from "@/lib/lld";
 import type { DesignPattern, SOLIDDemo } from "@/lib/lld";
+import { useLLDDataContext } from "../LLDDataContext";
 import { CATEGORY_LABELS, SOLID_PRINCIPLE_LABELS } from "../constants";
 
 // ── Flashcard Data Model ────────────────────────────────────
@@ -143,6 +143,7 @@ function shuffleArray<T>(arr: T[]): T[] {
 type FilterMode = "all" | "patterns" | "solid";
 
 export const Flashcards = memo(function Flashcards() {
+  const { patterns: DESIGN_PATTERNS, solidDemos: SOLID_DEMOS } = useLLDDataContext();
   const allCards = useMemo(() => {
     const patternCards = DESIGN_PATTERNS.map(generatePatternCard);
     const solidCards = SOLID_DEMOS.map(generateSOLIDCard);

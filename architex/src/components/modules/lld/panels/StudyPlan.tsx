@@ -16,8 +16,8 @@
 import React, { memo, useState, useCallback, useMemo } from "react";
 import { Calendar, Download, ChevronRight, BookOpen, Layers, Code, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DESIGN_PATTERNS } from "@/lib/lld";
 import type { DesignPattern, PatternCategory } from "@/lib/lld";
+import { useLLDDataContext } from "../LLDDataContext";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "../constants";
 
 // ── Study Topic Types ──────────────────────────────────────
@@ -74,7 +74,7 @@ const PROBLEM_TOPICS = [
 
 // ── Plan Generation ────────────────────────────────────────
 
-function generatePlan(interviewDate: Date): StudyDay[] {
+function generatePlan(interviewDate: Date, DESIGN_PATTERNS: DesignPattern[]): StudyDay[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(interviewDate);
@@ -233,6 +233,7 @@ function exportAsText(days: StudyDay[], interviewDate: Date): void {
 // ── Component ──────────────────────────────────────────────
 
 export const StudyPlan = memo(function StudyPlan() {
+  const { patterns: DESIGN_PATTERNS } = useLLDDataContext();
   const [interviewDate, setInterviewDate] = useState<string>("");
   const [plan, setPlan] = useState<StudyDay[] | null>(null);
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
@@ -249,7 +250,7 @@ export const StudyPlan = memo(function StudyPlan() {
   const handleGenerate = useCallback(() => {
     if (!interviewDate) return;
     const target = new Date(interviewDate + "T00:00:00");
-    const generated = generatePlan(target);
+    const generated = generatePlan(target, DESIGN_PATTERNS);
     setPlan(generated);
     setExpandedDay(null);
   }, [interviewDate]);

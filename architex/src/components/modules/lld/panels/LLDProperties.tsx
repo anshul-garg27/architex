@@ -36,7 +36,7 @@ import type {
   SequenceMessage,
   StateNode,
 } from "@/lib/lld";
-import { SEQUENCE_EXAMPLES, STATE_MACHINE_EXAMPLES } from "@/lib/lld";
+import { useLLDDataContext } from "../LLDDataContext";
 import {
   STEREOTYPE_BORDER_COLOR,
   PRINCIPLE_COLORS,
@@ -593,7 +593,7 @@ export const SequenceProperties = memo(function SequenceProperties({
   example,
   selectedMessage,
 }: {
-  example: (typeof SEQUENCE_EXAMPLES)[number] | null;
+  example: { id: string; name: string; [key: string]: any } | null;
   selectedMessage: SequenceMessage | null;
 }) {
   if (!example && !selectedMessage) {
@@ -721,7 +721,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
   example,
   selectedState,
 }: {
-  example: (typeof STATE_MACHINE_EXAMPLES)[number] | null;
+  example: { id: string; name: string; [key: string]: any } | null;
   selectedState: StateNode | null;
 }) {
   if (!example && !selectedState) {

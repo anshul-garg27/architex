@@ -44,6 +44,7 @@ import {
   addRelationship,
 } from "@/lib/lld";
 import { useLLDData, useLLDFullPattern } from "./useLLDData";
+import { LLDDataProvider } from "../LLDDataContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { trackLLDExploration } from "@/lib/progress/module-progress";
@@ -1020,5 +1021,28 @@ export function useLLDModule() {
     />
   );
 
-  return { sidebar, canvas, properties, bottomPanel, mockOverlay: presentationOverlay, confirmDialog };
+  // Wrap all panels with LLD data context so child components (quiz tabs, flashcards, etc.)
+  // can access patterns/demos without prop threading
+  const dataContextValue = {
+    patterns: DESIGN_PATTERNS,
+    solidDemos: SOLID_DEMOS,
+    problems: LLD_PROBLEMS,
+    sequenceExamples: SEQUENCE_EXAMPLES,
+    stateMachineExamples: STATE_MACHINE_EXAMPLES,
+    isLoading: isDataLoading,
+  };
+
+  const wrappedBottomPanel = (
+    <LLDDataProvider value={dataContextValue}>
+      {bottomPanel}
+    </LLDDataProvider>
+  );
+
+  const wrappedProperties = (
+    <LLDDataProvider value={dataContextValue}>
+      {properties}
+    </LLDDataProvider>
+  );
+
+  return { sidebar, canvas, properties: wrappedProperties, bottomPanel: wrappedBottomPanel, mockOverlay: presentationOverlay, confirmDialog };
 }

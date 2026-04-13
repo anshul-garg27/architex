@@ -16,8 +16,8 @@
 import { memo, useState, useCallback, useEffect, useMemo } from "react";
 import { Calendar, Lightbulb, Trophy, Check, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DESIGN_PATTERNS } from "@/lib/lld";
 import type { DesignPattern } from "@/lib/lld";
+import { useLLDDataContext } from "../LLDDataContext";
 import { trackLLDExploration } from "@/lib/progress/module-progress";
 
 // ── Deterministic daily pattern selection ───────────────────
@@ -41,12 +41,12 @@ function seededRandom(seed: number): number {
   return x - Math.floor(x);
 }
 
-function getDailyPattern(): DesignPattern {
+function getDailyPattern(patterns: DesignPattern[]): DesignPattern {
   const day = getDayOfYear();
   const year = new Date().getFullYear();
   const seed = year * 366 + day;
-  const idx = Math.floor(seededRandom(seed) * DESIGN_PATTERNS.length);
-  return DESIGN_PATTERNS[idx];
+  const idx = Math.floor(seededRandom(seed) * patterns.length);
+  return patterns[idx];
 }
 
 /** Generate 3 progressive hints for a pattern. */
@@ -102,8 +102,9 @@ function writeState(state: DailyChallengeState): void {
 // ── Component ───────────────────────────────────────────────
 
 export const DailyChallenge = memo(function DailyChallenge() {
+  const { patterns: DESIGN_PATTERNS } = useLLDDataContext();
   const todayKey = useMemo(() => getTodayKey(), []);
-  const pattern = useMemo(() => getDailyPattern(), []);
+  const pattern = useMemo(() => getDailyPattern(DESIGN_PATTERNS), [DESIGN_PATTERNS]);
   const hints = useMemo(() => generateHints(pattern), [pattern]);
 
   const [hintsRevealed, setHintsRevealed] = useState(0);

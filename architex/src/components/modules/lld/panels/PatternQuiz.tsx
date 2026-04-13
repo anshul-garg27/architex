@@ -9,7 +9,7 @@ import React, { memo, useState, useCallback } from "react";
 import { Trophy, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DesignPattern, UMLRelationshipType } from "@/lib/lld";
-import { DESIGN_PATTERNS } from "@/lib/lld";
+import { useLLDDataContext } from "../LLDDataContext";
 import { RelationshipDefs } from "../canvas/LLDCanvas";
 import {
   CLASS_BOX_WIDTH,
@@ -31,7 +31,7 @@ interface QuizQuestion {
   correctIndex: number;
 }
 
-function generateQuizQuestions(count: number): QuizQuestion[] {
+function generateQuizQuestions(count: number, DESIGN_PATTERNS: DesignPattern[]): QuizQuestion[] {
   const allPatterns = [...DESIGN_PATTERNS];
   for (let i = allPatterns.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -86,6 +86,7 @@ const QUIZ_HINTS: Record<string, string> = {
 // ── PatternQuiz Component ────────────────────────────────
 
 export const PatternQuiz = memo(function PatternQuiz() {
+  const { patterns: DESIGN_PATTERNS } = useLLDDataContext();
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -95,7 +96,7 @@ export const PatternQuiz = memo(function PatternQuiz() {
   const [feedbackShown, setFeedbackShown] = useState(false);
 
   const startQuiz = useCallback(() => {
-    const q = generateQuizQuestions(8);
+    const q = generateQuizQuestions(8, DESIGN_PATTERNS);
     setQuestions(q);
     setCurrentIdx(0);
     setSelectedAnswer(null);
