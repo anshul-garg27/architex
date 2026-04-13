@@ -601,8 +601,8 @@ export const SequenceProperties = memo(function SequenceProperties({
   }
 
   if (selectedMessage && example) {
-    const fromP = example.data.participants.find((p) => p.id === selectedMessage.from);
-    const toP = example.data.participants.find((p) => p.id === selectedMessage.to);
+    const fromP = example.data.participants.find((p: any) => p.id === selectedMessage.from);
+    const toP = example.data.participants.find((p: any) => p.id === selectedMessage.to);
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/30 px-3 py-3">
@@ -680,7 +680,7 @@ export const SequenceProperties = memo(function SequenceProperties({
             </h3>
           </div>
           <div className="space-y-1">
-            {example!.data.participants.map((p) => (
+            {example!.data.participants.map((p: any) => (
               <div
                 key={p.id}
                 className="flex items-center gap-2 rounded-md px-2 py-1 text-[11px] text-foreground-muted"
@@ -730,8 +730,8 @@ export const StateMachineProperties = memo(function StateMachineProperties({
 
   if (selectedState && example) {
     const color = smStateColor(selectedState);
-    const outgoing = example.data.transitions.filter((t) => t.from === selectedState.id);
-    const incoming = example.data.transitions.filter((t) => t.to === selectedState.id);
+    const outgoing = example.data.transitions.filter((t: any) => t.from === selectedState.id);
+    const incoming = example.data.transitions.filter((t: any) => t.to === selectedState.id);
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/30 px-3 py-3">
@@ -780,8 +780,8 @@ export const StateMachineProperties = memo(function StateMachineProperties({
                 Outgoing Transitions ({outgoing.length})
               </h3>
               <div className="space-y-1">
-                {outgoing.map((t) => {
-                  const target = example.data.states.find((s) => s.id === t.to);
+                {outgoing.map((t: any) => {
+                  const target = example.data.states.find((s: any) => s.id === t.to);
                   return (
                     <div key={t.id} className="rounded-xl bg-elevated/50 backdrop-blur-sm px-2 py-1 text-[11px] text-foreground-muted">
                       <span className="font-mono text-foreground">{t.trigger}</span>
@@ -799,8 +799,8 @@ export const StateMachineProperties = memo(function StateMachineProperties({
                 Incoming Transitions ({incoming.length})
               </h3>
               <div className="space-y-1">
-                {incoming.map((t) => {
-                  const source = example.data.states.find((s) => s.id === t.from);
+                {incoming.map((t: any) => {
+                  const source = example.data.states.find((s: any) => s.id === t.from);
                   return (
                     <div key={t.id} className="rounded-xl bg-elevated/50 backdrop-blur-sm px-2 py-1 text-[11px] text-foreground-muted">
                       <span className="text-foreground-subtle">{source?.name ?? t.from} {"\u2192"}</span>
@@ -839,7 +839,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
             </h3>
           </div>
           <div className="space-y-1">
-            {example!.data.states.map((s) => (
+            {example!.data.states.map((s: any) => (
               <div
                 key={s.id}
                 className="flex items-center gap-2 rounded-md px-2 py-1 text-[11px] text-foreground-muted"

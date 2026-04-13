@@ -13,6 +13,7 @@
 import React, { memo, useState, useCallback, useMemo } from "react";
 import { Trophy, Zap, ChevronRight, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuiz } from "@/hooks/use-quiz";
 
 // ── Scenario Data ───────────────────────────────────────────
 
@@ -227,6 +228,22 @@ function shuffleArray<T>(arr: T[]): T[] {
 // ── Component ───────────────────────────────────────────────
 
 export const ScenarioChallenge = memo(function ScenarioChallenge() {
+  // Try DB-backed quiz data; fall back to inline SCENARIOS
+  const { questions: dbQuestions } = useQuiz("lld", "scenario");
+  const allScenarios = useMemo<Scenario[]>(() => {
+    if (dbQuestions.length > 0) {
+      return dbQuestions.map((q) => ({
+        id: q.slug,
+        question: q.question,
+        context: q.context ?? "",
+        options: q.options.map((o) => ({ pattern: o.label, whyWrong: o.whyWrong ?? "" })) as [ScenarioOption, ScenarioOption, ScenarioOption, ScenarioOption],
+        correctIndex: q.correctIndex,
+        explanation: q.explanation,
+      }));
+    }
+    return SCENARIOS; // fallback to inline data
+  }, [dbQuestions]);
+
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -236,7 +253,7 @@ export const ScenarioChallenge = memo(function ScenarioChallenge() {
   const [feedbackShown, setFeedbackShown] = useState(false);
 
   const startChallenge = useCallback(() => {
-    setScenarios(shuffleArray(SCENARIOS));
+    setScenarios(shuffleArray(allScenarios));
     setCurrentIdx(0);
     setSelectedAnswer(null);
     setScore(0);
@@ -285,7 +302,7 @@ export const ScenarioChallenge = memo(function ScenarioChallenge() {
             onClick={startChallenge}
             className="rounded-full bg-primary px-4 py-2 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]"
           >
-            Start Challenge ({SCENARIOS.length} Scenarios)
+            Start Challenge ({allScenarios.length} Scenarios)
           </button>
         </div>
       </div>

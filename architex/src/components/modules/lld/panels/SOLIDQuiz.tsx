@@ -10,6 +10,7 @@ import { Trophy, Code, AlertTriangle, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SOLIDPrinciple, SOLIDQuizQuestion } from "@/lib/lld";
 import { SOLID_QUIZ_QUESTIONS, getSOLIDDemoByPrinciple } from "@/lib/lld";
+import { useQuiz } from "@/hooks/use-quiz";
 import {
   PRINCIPLE_COLORS,
   SOLID_PRINCIPLE_LABELS,
@@ -17,6 +18,8 @@ import {
 } from "../constants";
 
 export const SOLIDQuiz = memo(function SOLIDQuiz() {
+  // DB-backed quiz data with static fallback
+  const { questions: dbQuestions } = useQuiz("lld", "solid");
   const [questions, setQuestions] = useState<SOLIDQuizQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<SOLIDPrinciple | null>(null);

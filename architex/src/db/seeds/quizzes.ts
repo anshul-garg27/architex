@@ -20,7 +20,7 @@ export async function seed(db: Database) {
   const { SOLID_QUIZ_QUESTIONS } = await import("@/lib/lld/solid-demos");
 
   for (let i = 0; i < SOLID_QUIZ_QUESTIONS.length; i++) {
-    const q = SOLID_QUIZ_QUESTIONS[i] as Record<string, unknown>;
+    const q = SOLID_QUIZ_QUESTIONS[i] as unknown as Record<string, unknown>;
     // SOLID quiz: user identifies which principle is violated
     // Options are always the 5 SOLID principles
     const principles = ["SRP", "OCP", "LSP", "ISP", "DIP"];

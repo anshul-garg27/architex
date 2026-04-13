@@ -250,7 +250,7 @@ export const SequenceBottomPanel = memo(function SequenceBottomPanel({
               {example.description}
             </p>
             <div className="flex flex-wrap gap-2">
-              {example.data.participants.map((p) => (
+              {example.data.participants.map((p: any) => (
                 <span
                   key={p.id}
                   className="inline-flex items-center gap-1 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-2 py-0.5 text-[10px] text-foreground-muted"
@@ -306,7 +306,7 @@ export const StateMachineBottomPanel = memo(function StateMachineBottomPanel({
               {example.description}
             </p>
             <div className="flex flex-wrap gap-2">
-              {example.data.states.map((s) => (
+              {example.data.states.map((s: any) => (
                 <span
                   key={s.id}
                   className="inline-flex items-center gap-1 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-2 py-0.5 text-[10px] text-foreground-muted"
