@@ -38,6 +38,16 @@ export {
   type ActivityEvent,
   type NewActivityEvent,
 } from "./activity";
+export {
+  quizQuestions,
+  type QuizQuestion,
+  type NewQuizQuestion,
+} from "./quiz-questions";
+export {
+  diagramTemplates,
+  type DiagramTemplate,
+  type NewDiagramTemplate,
+} from "./diagram-templates";
 
 // Relations (defined in a single file to avoid circular imports)
 export {
