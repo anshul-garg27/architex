@@ -1556,13 +1556,14 @@ export const LLDCanvas = memo(function LLDCanvas({
             </TooltipProvider>
             {classes.length > 0 && (
               <>
-                <div className="mx-1 h-3 w-px bg-border/30" />
-                <div className="flex items-center gap-0.5">
-                  <button onClick={zoomOut} className="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom out" aria-label="Zoom out">-</button>
-                  <span className="min-w-[2.5rem] text-center text-[9px] font-medium text-foreground-subtle">{zoomPercent}%</span>
-                  <button onClick={zoomIn} className="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom in" aria-label="Zoom in">+</button>
-                  <button onClick={() => zoomFit(contentBounds)} className="ml-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted hover:bg-accent hover:text-foreground" title="Fit to view" aria-label="Fit to view">Fit</button>
-                  <button onClick={zoomReset} className="rounded px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted hover:bg-accent hover:text-foreground" title="Reset to 100%" aria-label="Reset to 100%">100%</button>
+                <div className="mx-2 h-4 w-px bg-border/50" />
+                <div className="flex items-center gap-1 rounded-lg border border-border/30 bg-background/60 px-1.5 py-0.5">
+                  <button onClick={zoomOut} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom out" aria-label="Zoom out">−</button>
+                  <span className="min-w-[2.5rem] text-center text-[10px] font-semibold text-foreground-subtle">{zoomPercent}%</span>
+                  <button onClick={zoomIn} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom in" aria-label="Zoom in">+</button>
+                  <div className="mx-0.5 h-3 w-px bg-border/30" />
+                  <button onClick={() => zoomFit(contentBounds)} className="rounded px-2 py-0.5 text-[10px] font-semibold text-foreground-muted hover:bg-accent hover:text-foreground" title="Fit to view" aria-label="Fit to view">Fit</button>
+                  <button onClick={zoomReset} className="rounded px-2 py-0.5 text-[10px] font-semibold text-foreground-muted hover:bg-accent hover:text-foreground" title="Reset to 100%" aria-label="Reset to 100%">100%</button>
                 </div>
               </>
             )}
