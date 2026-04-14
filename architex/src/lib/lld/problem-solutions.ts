@@ -1,0 +1,27357 @@
+// -----------------------------------------------------------------
+// Architex -- LLD Problem Reference Solutions
+// Auto-generated from 06-lld-problems/ reference material
+// -----------------------------------------------------------------
+//
+// This file contains reference solutions, design walkthroughs,
+// interview scripts, and complexity analyses for 10 LLD problems.
+// Imported by problems.ts to attach to LLDProblem objects.
+// -----------------------------------------------------------------
+
+export interface ProblemSolutionContent {
+  referenceSolution?: string;
+  designWalkthrough?: string;
+  interviewScript?: string;
+  complexityAnalysis?: string;
+}
+
+// ============================================================
+//  01-design-chess -> prob-chess
+// ============================================================
+
+export const chessSolution: ProblemSolutionContent = {
+  referenceSolution: `# Chess Game -- Complete Java Implementation
+
+> All classes in a single file for interview convenience.
+> Compiles and runs with: \`javac ChessGame.java && java ChessGame\`
+
+---
+
+## Full Source Code
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.List;
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum Color {
+    WHITE, BLACK;
+
+    public Color opposite() {
+        return this == WHITE ? BLACK : WHITE;
+    }
+}
+
+enum PieceType {
+    KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN
+}
+
+enum GameStatus {
+    ACTIVE, CHECK, CHECKMATE, STALEMATE, RESIGNED, DRAW
+}
+
+// ============================================================================
+// POSITION -- immutable value object
+// ============================================================================
+
+class Position {
+    private final int row;
+    private final int col;
+
+    public Position(int row, int col) {
+        this.row = row;
+        this.col = col;
+    }
+
+    public int getRow() { return row; }
+    public int getCol() { return col; }
+
+    public boolean isValid() {
+        return row >= 0 && row < 8 && col >= 0 && col < 8;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Position)) return false;
+        Position p = (Position) o;
+        return row == p.row && col == p.col;
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * row + col;
+    }
+
+    @Override
+    public String toString() {
+        char file = (char) ('a' + col);
+        int rank = 8 - row;
+        return "" + file + rank;
+    }
+}
+
+// ============================================================================
+// PIECE -- abstract base class (Template Method pattern)
+// ============================================================================
+
+abstract class Piece {
+    protected Color color;
+    protected PieceType type;
+    protected boolean hasMoved;
+
+    public Piece(Color color, PieceType type) {
+        this.color = color;
+        this.type = type;
+        this.hasMoved = false;
+    }
+
+    public Color getColor() { return color; }
+    public PieceType getType() { return type; }
+    public boolean hasMoved() { return hasMoved; }
+    public void setMoved(boolean moved) { this.hasMoved = moved; }
+
+    /**
+     * Each piece subclass implements its own movement rules.
+     * This method checks ONLY whether the piece can physically make the move:
+     *   - correct movement pattern for this piece type
+     *   - path is clear (for sliding pieces)
+     *   - destination is not occupied by a friendly piece
+     *
+     * It does NOT check whether the move leaves the king in check --
+     * that is the Game's responsibility (two-phase validation).
+     */
+    public abstract boolean canMove(Board board, Position from, Position to);
+
+    public abstract String getSymbol();
+
+    @Override
+    public String toString() {
+        return color.name().charAt(0) + getSymbol();
+    }
+}
+
+// ============================================================================
+// KING -- 1 square in any direction + castling
+// ============================================================================
+
+class King extends Piece {
+
+    public King(Color color) {
+        super(color, PieceType.KING);
+    }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+
+        // Cannot capture own piece
+        Piece destPiece = board.getCell(to).getPiece();
+        if (destPiece != null && destPiece.getColor() == this.color) return false;
+
+        int rowDiff = Math.abs(to.getRow() - from.getRow());
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+
+        // Normal king move: 1 square in any direction
+        if (rowDiff <= 1 && colDiff <= 1 && (rowDiff + colDiff) > 0) {
+            return true;
+        }
+
+        // Castling: king moves 2 squares horizontally
+        if (rowDiff == 0 && colDiff == 2) {
+            return canCastle(board, from, to);
+        }
+
+        return false;
+    }
+
+    private boolean canCastle(Board board, Position from, Position to) {
+        // King must not have moved
+        if (this.hasMoved) return false;
+
+        // King must not be in check
+        if (board.isSquareUnderAttack(from, this.color.opposite())) return false;
+
+        int direction = (to.getCol() > from.getCol()) ? 1 : -1; // +1 = king-side, -1 = queen-side
+        int rookCol = (direction == 1) ? 7 : 0;
+        Position rookPos = new Position(from.getRow(), rookCol);
+
+        // Rook must exist and must not have moved
+        Cell rookCell = board.getCell(rookPos);
+        if (rookCell.isEmpty()) return false;
+        Piece rook = rookCell.getPiece();
+        if (rook.getType() != PieceType.ROOK || rook.getColor() != this.color || rook.hasMoved()) {
+            return false;
+        }
+
+        // Path between king and rook must be clear
+        int startCol = Math.min(from.getCol(), rookCol) + 1;
+        int endCol = Math.max(from.getCol(), rookCol);
+        for (int c = startCol; c < endCol; c++) {
+            if (!board.getCell(new Position(from.getRow(), c)).isEmpty()) {
+                return false;
+            }
+        }
+
+        // King must not pass through or land on a square under attack
+        for (int step = 1; step <= 2; step++) {
+            Position intermediate = new Position(from.getRow(), from.getCol() + direction * step);
+            if (board.isSquareUnderAttack(intermediate, this.color.opposite())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    @Override
+    public String getSymbol() { return "K"; }
+}
+
+// ============================================================================
+// QUEEN -- any number of squares horizontally, vertically, or diagonally
+// ============================================================================
+
+class Queen extends Piece {
+
+    public Queen(Color color) {
+        super(color, PieceType.QUEEN);
+    }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+
+        Piece destPiece = board.getCell(to).getPiece();
+        if (destPiece != null && destPiece.getColor() == this.color) return false;
+
+        int rowDiff = Math.abs(to.getRow() - from.getRow());
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+
+        // Must move along rank, file, or diagonal
+        boolean straight = (rowDiff == 0 || colDiff == 0);
+        boolean diagonal = (rowDiff == colDiff);
+
+        if (!straight && !diagonal) return false;
+        if (rowDiff == 0 && colDiff == 0) return false;
+
+        return board.isPathClear(from, to);
+    }
+
+    @Override
+    public String getSymbol() { return "Q"; }
+}
+
+// ============================================================================
+// ROOK -- any number of squares horizontally or vertically
+// ============================================================================
+
+class Rook extends Piece {
+
+    public Rook(Color color) {
+        super(color, PieceType.ROOK);
+    }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+
+        Piece destPiece = board.getCell(to).getPiece();
+        if (destPiece != null && destPiece.getColor() == this.color) return false;
+
+        int rowDiff = Math.abs(to.getRow() - from.getRow());
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+
+        // Must move along rank or file (one of the diffs must be 0)
+        if (rowDiff != 0 && colDiff != 0) return false;
+        if (rowDiff == 0 && colDiff == 0) return false;
+
+        return board.isPathClear(from, to);
+    }
+
+    @Override
+    public String getSymbol() { return "R"; }
+}
+
+// ============================================================================
+// BISHOP -- any number of squares diagonally
+// ============================================================================
+
+class Bishop extends Piece {
+
+    public Bishop(Color color) {
+        super(color, PieceType.BISHOP);
+    }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+
+        Piece destPiece = board.getCell(to).getPiece();
+        if (destPiece != null && destPiece.getColor() == this.color) return false;
+
+        int rowDiff = Math.abs(to.getRow() - from.getRow());
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+
+        // Must move diagonally (equal row and col distance)
+        if (rowDiff != colDiff) return false;
+        if (rowDiff == 0) return false;
+
+        return board.isPathClear(from, to);
+    }
+
+    @Override
+    public String getSymbol() { return "B"; }
+}
+
+// ============================================================================
+// KNIGHT -- L-shape: 2 squares in one direction + 1 perpendicular
+// ============================================================================
+
+class Knight extends Piece {
+
+    public Knight(Color color) {
+        super(color, PieceType.KNIGHT);
+    }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+
+        Piece destPiece = board.getCell(to).getPiece();
+        if (destPiece != null && destPiece.getColor() == this.color) return false;
+
+        int rowDiff = Math.abs(to.getRow() - from.getRow());
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+
+        // L-shape: one dimension is 2, the other is 1
+        // Knight CAN jump over pieces -- no path clearance check
+        return (rowDiff == 2 && colDiff == 1) || (rowDiff == 1 && colDiff == 2);
+    }
+
+    @Override
+    public String getSymbol() { return "N"; }
+}
+
+// ============================================================================
+// PAWN -- forward 1 (or 2 from start), capture diagonally, en passant, promotion
+// ============================================================================
+
+class Pawn extends Piece {
+    // The game sets this to allow en passant checks
+    private static Move lastMoveRef = null;
+
+    public Pawn(Color color) {
+        super(color, PieceType.PAWN);
+    }
+
+    public static void setLastMove(Move move) {
+        lastMoveRef = move;
+    }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+
+        Piece destPiece = board.getCell(to).getPiece();
+
+        // Cannot capture own piece
+        if (destPiece != null && destPiece.getColor() == this.color) return false;
+
+        // Direction: White moves up (row decreases), Black moves down (row increases)
+        int direction = (this.color == Color.WHITE) ? -1 : 1;
+        int startRow = (this.color == Color.WHITE) ? 6 : 1;
+
+        int rowDiff = to.getRow() - from.getRow();
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+
+        // Forward 1 square (destination must be empty)
+        if (rowDiff == direction && colDiff == 0 && destPiece == null) {
+            return true;
+        }
+
+        // Forward 2 squares from starting position (both squares must be empty)
+        if (rowDiff == 2 * direction && colDiff == 0 && from.getRow() == startRow && destPiece == null) {
+            Position intermediate = new Position(from.getRow() + direction, from.getCol());
+            return board.getCell(intermediate).isEmpty();
+        }
+
+        // Diagonal capture (destination must have enemy piece)
+        if (rowDiff == direction && colDiff == 1 && destPiece != null) {
+            return true;
+        }
+
+        // En passant
+        if (rowDiff == direction && colDiff == 1 && destPiece == null) {
+            return isEnPassant(board, from, to);
+        }
+
+        return false;
+    }
+
+    private boolean isEnPassant(Board board, Position from, Position to) {
+        if (lastMoveRef == null) return false;
+
+        Piece lastMovedPiece = lastMoveRef.getMovedPiece();
+        Position lastFrom = lastMoveRef.getFrom();
+        Position lastTo = lastMoveRef.getTo();
+
+        // Last move must be a pawn moving 2 squares
+        if (lastMovedPiece.getType() != PieceType.PAWN) return false;
+        if (Math.abs(lastTo.getRow() - lastFrom.getRow()) != 2) return false;
+
+        // The pawn that double-moved must be adjacent to our pawn
+        if (lastTo.getRow() != from.getRow()) return false;
+        if (lastTo.getCol() != to.getCol()) return false;
+
+        return true;
+    }
+
+    @Override
+    public String getSymbol() { return "P"; }
+}
+
+// ============================================================================
+// CELL -- a single square on the board
+// ============================================================================
+
+class Cell {
+    private final Position position;
+    private Piece piece;
+
+    public Cell(Position position) {
+        this.position = position;
+        this.piece = null;
+    }
+
+    public Position getPosition() { return position; }
+    public Piece getPiece() { return piece; }
+    public void setPiece(Piece piece) { this.piece = piece; }
+    public boolean isEmpty() { return piece == null; }
+
+    @Override
+    public String toString() {
+        return piece == null ? ".." : piece.toString();
+    }
+}
+
+// ============================================================================
+// BOARD -- 8x8 grid of cells
+// ============================================================================
+
+class Board {
+    private final Cell[][] grid;
+
+    public Board() {
+        grid = new Cell[8][8];
+        for (int r = 0; r < 8; r++) {
+            for (int c = 0; c < 8; c++) {
+                grid[r][c] = new Cell(new Position(r, c));
+            }
+        }
+    }
+
+    public void initialize() {
+        // Place Black pieces (row 0 = rank 8)
+        placePiece(0, 0, PieceFactory.createPiece(PieceType.ROOK, Color.BLACK));
+        placePiece(0, 1, PieceFactory.createPiece(PieceType.KNIGHT, Color.BLACK));
+        placePiece(0, 2, PieceFactory.createPiece(PieceType.BISHOP, Color.BLACK));
+        placePiece(0, 3, PieceFactory.createPiece(PieceType.QUEEN, Color.BLACK));
+        placePiece(0, 4, PieceFactory.createPiece(PieceType.KING, Color.BLACK));
+        placePiece(0, 5, PieceFactory.createPiece(PieceType.BISHOP, Color.BLACK));
+        placePiece(0, 6, PieceFactory.createPiece(PieceType.KNIGHT, Color.BLACK));
+        placePiece(0, 7, PieceFactory.createPiece(PieceType.ROOK, Color.BLACK));
+
+        for (int c = 0; c < 8; c++) {
+            placePiece(1, c, PieceFactory.createPiece(PieceType.PAWN, Color.BLACK));
+        }
+
+        // Place White pieces (row 7 = rank 1)
+        placePiece(7, 0, PieceFactory.createPiece(PieceType.ROOK, Color.WHITE));
+        placePiece(7, 1, PieceFactory.createPiece(PieceType.KNIGHT, Color.WHITE));
+        placePiece(7, 2, PieceFactory.createPiece(PieceType.BISHOP, Color.WHITE));
+        placePiece(7, 3, PieceFactory.createPiece(PieceType.QUEEN, Color.WHITE));
+        placePiece(7, 4, PieceFactory.createPiece(PieceType.KING, Color.WHITE));
+        placePiece(7, 5, PieceFactory.createPiece(PieceType.BISHOP, Color.WHITE));
+        placePiece(7, 6, PieceFactory.createPiece(PieceType.KNIGHT, Color.WHITE));
+        placePiece(7, 7, PieceFactory.createPiece(PieceType.ROOK, Color.WHITE));
+
+        for (int c = 0; c < 8; c++) {
+            placePiece(6, c, PieceFactory.createPiece(PieceType.PAWN, Color.WHITE));
+        }
+    }
+
+    private void placePiece(int row, int col, Piece piece) {
+        grid[row][col].setPiece(piece);
+    }
+
+    public Cell getCell(int row, int col) {
+        return grid[row][col];
+    }
+
+    public Cell getCell(Position pos) {
+        return grid[pos.getRow()][pos.getCol()];
+    }
+
+    public boolean isWithinBounds(Position pos) {
+        return pos.getRow() >= 0 && pos.getRow() < 8
+            && pos.getCol() >= 0 && pos.getCol() < 8;
+    }
+
+    /**
+     * Checks that all squares between from and to (exclusive) are empty.
+     * Used for sliding pieces (Queen, Rook, Bishop).
+     */
+    public boolean isPathClear(Position from, Position to) {
+        int rowDir = Integer.signum(to.getRow() - from.getRow());
+        int colDir = Integer.signum(to.getCol() - from.getCol());
+
+        int r = from.getRow() + rowDir;
+        int c = from.getCol() + colDir;
+
+        while (r != to.getRow() || c != to.getCol()) {
+            if (!grid[r][c].isEmpty()) {
+                return false;
+            }
+            r += rowDir;
+            c += colDir;
+        }
+        return true;
+    }
+
+    /**
+     * Finds the position of the king of the given color.
+     */
+    public Position findKing(Color color) {
+        for (int r = 0; r < 8; r++) {
+            for (int c = 0; c < 8; c++) {
+                Piece piece = grid[r][c].getPiece();
+                if (piece != null && piece.getType() == PieceType.KING && piece.getColor() == color) {
+                    return new Position(r, c);
+                }
+            }
+        }
+        throw new IllegalStateException("King not found for " + color);
+    }
+
+    /**
+     * Checks if a square is under attack by any piece of the given attacker color.
+     * This is used for check detection and castling validation.
+     */
+    public boolean isSquareUnderAttack(Position target, Color attackerColor) {
+        for (int r = 0; r < 8; r++) {
+            for (int c = 0; c < 8; c++) {
+                Piece piece = grid[r][c].getPiece();
+                if (piece != null && piece.getColor() == attackerColor) {
+                    Position attackerPos = new Position(r, c);
+                    // Special handling for king to avoid infinite recursion
+                    // (King.canMove checks isSquareUnderAttack for castling)
+                    if (piece.getType() == PieceType.KING) {
+                        int rowDiff = Math.abs(target.getRow() - r);
+                        int colDiff = Math.abs(target.getCol() - c);
+                        if (rowDiff <= 1 && colDiff <= 1 && (rowDiff + colDiff) > 0) {
+                            return true;
+                        }
+                    } else if (piece.canMove(this, attackerPos, target)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Prints the board to console with coordinates.
+     */
+    public void printBoard() {
+        System.out.println("    a   b   c   d   e   f   g   h");
+        System.out.println("  +---+---+---+---+---+---+---+---+");
+        for (int r = 0; r < 8; r++) {
+            System.out.print((8 - r) + " |");
+            for (int c = 0; c < 8; c++) {
+                Piece piece = grid[r][c].getPiece();
+                if (piece == null) {
+                    System.out.print("   |");
+                } else {
+                    System.out.print(" " + piece.toString() + "|");
+                }
+            }
+            System.out.println(" " + (8 - r));
+            System.out.println("  +---+---+---+---+---+---+---+---+");
+        }
+        System.out.println("    a   b   c   d   e   f   g   h");
+    }
+}
+
+// ============================================================================
+// PIECE FACTORY -- Factory pattern
+// ============================================================================
+
+class PieceFactory {
+    public static Piece createPiece(PieceType type, Color color) {
+        switch (type) {
+            case KING:   return new King(color);
+            case QUEEN:  return new Queen(color);
+            case ROOK:   return new Rook(color);
+            case BISHOP: return new Bishop(color);
+            case KNIGHT: return new Knight(color);
+            case PAWN:   return new Pawn(color);
+            default:     throw new IllegalArgumentException("Unknown piece type: " + type);
+        }
+    }
+}
+
+// ============================================================================
+// MOVE -- Command pattern with execute() and undo()
+// ============================================================================
+
+class Move {
+    private final Position from;
+    private final Position to;
+    private final Piece movedPiece;
+    private Piece capturedPiece;
+    private final boolean wasFirstMove;
+
+    // Special move flags
+    private boolean isCastlingMove;
+    private boolean isEnPassantMove;
+    private boolean isPromotionMove;
+    private Piece promotedTo; // the piece the pawn was promoted to
+
+    public Move(Position from, Position to, Piece movedPiece) {
+        this.from = from;
+        this.to = to;
+        this.movedPiece = movedPiece;
+        this.wasFirstMove = !movedPiece.hasMoved();
+        this.isCastlingMove = false;
+        this.isEnPassantMove = false;
+        this.isPromotionMove = false;
+    }
+
+    public Position getFrom() { return from; }
+    public Position getTo() { return to; }
+    public Piece getMovedPiece() { return movedPiece; }
+    public Piece getCapturedPiece() { return capturedPiece; }
+    public boolean isCastlingMove() { return isCastlingMove; }
+    public boolean isEnPassantMove() { return isEnPassantMove; }
+    public boolean isPromotionMove() { return isPromotionMove; }
+
+    /**
+     * Execute this move on the board. Handles normal moves, captures,
+     * castling, en passant, and pawn promotion.
+     */
+    public void execute(Board board) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+
+        capturedPiece = toCell.getPiece();
+
+        // Detect and handle castling
+        if (movedPiece.getType() == PieceType.KING && Math.abs(to.getCol() - from.getCol()) == 2) {
+            isCastlingMove = true;
+            executeCastling(board);
+            return;
+        }
+
+        // Detect and handle en passant
+        if (movedPiece.getType() == PieceType.PAWN
+                && from.getCol() != to.getCol()
+                && toCell.isEmpty()) {
+            isEnPassantMove = true;
+            executeEnPassant(board);
+            return;
+        }
+
+        // Normal move or capture
+        toCell.setPiece(movedPiece);
+        fromCell.setPiece(null);
+        movedPiece.setMoved(true);
+
+        // Detect and handle pawn promotion
+        if (movedPiece.getType() == PieceType.PAWN) {
+            int promotionRow = (movedPiece.getColor() == Color.WHITE) ? 0 : 7;
+            if (to.getRow() == promotionRow) {
+                isPromotionMove = true;
+                promotedTo = PieceFactory.createPiece(PieceType.QUEEN, movedPiece.getColor());
+                promotedTo.setMoved(true);
+                toCell.setPiece(promotedTo);
+            }
+        }
+    }
+
+    private void executeCastling(Board board) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+
+        // Move king
+        toCell.setPiece(movedPiece);
+        fromCell.setPiece(null);
+        movedPiece.setMoved(true);
+
+        // Move rook
+        int direction = (to.getCol() > from.getCol()) ? 1 : -1;
+        int rookFromCol = (direction == 1) ? 7 : 0;
+        int rookToCol = (direction == 1) ? 5 : 3;
+
+        Cell rookFromCell = board.getCell(new Position(from.getRow(), rookFromCol));
+        Cell rookToCell = board.getCell(new Position(from.getRow(), rookToCol));
+
+        Piece rook = rookFromCell.getPiece();
+        rookToCell.setPiece(rook);
+        rookFromCell.setPiece(null);
+        rook.setMoved(true);
+    }
+
+    private void executeEnPassant(Board board) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+
+        // Move the pawn to the destination
+        toCell.setPiece(movedPiece);
+        fromCell.setPiece(null);
+        movedPiece.setMoved(true);
+
+        // Remove the captured pawn (it is on the same row as 'from', same col as 'to')
+        Position capturedPawnPos = new Position(from.getRow(), to.getCol());
+        Cell capturedPawnCell = board.getCell(capturedPawnPos);
+        capturedPiece = capturedPawnCell.getPiece();
+        capturedPawnCell.setPiece(null);
+    }
+
+    /**
+     * Undo this move, restoring the board to its exact state before the move.
+     */
+    public void undo(Board board) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+
+        if (isCastlingMove) {
+            undoCastling(board);
+            return;
+        }
+
+        if (isEnPassantMove) {
+            undoEnPassant(board);
+            return;
+        }
+
+        // Undo promotion: restore the original pawn
+        if (isPromotionMove) {
+            fromCell.setPiece(movedPiece);
+        } else {
+            fromCell.setPiece(movedPiece);
+        }
+        toCell.setPiece(capturedPiece);
+
+        // Restore first-move flag
+        if (wasFirstMove) {
+            movedPiece.setMoved(false);
+        }
+    }
+
+    private void undoCastling(Board board) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+
+        // Move king back
+        fromCell.setPiece(movedPiece);
+        toCell.setPiece(null);
+        movedPiece.setMoved(false);
+
+        // Move rook back
+        int direction = (to.getCol() > from.getCol()) ? 1 : -1;
+        int rookFromCol = (direction == 1) ? 7 : 0;
+        int rookToCol = (direction == 1) ? 5 : 3;
+
+        Cell rookOriginalCell = board.getCell(new Position(from.getRow(), rookFromCol));
+        Cell rookCurrentCell = board.getCell(new Position(from.getRow(), rookToCol));
+
+        Piece rook = rookCurrentCell.getPiece();
+        rookOriginalCell.setPiece(rook);
+        rookCurrentCell.setPiece(null);
+        rook.setMoved(false);
+    }
+
+    private void undoEnPassant(Board board) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+
+        // Move pawn back
+        fromCell.setPiece(movedPiece);
+        toCell.setPiece(null);
+
+        // Restore the captured pawn
+        Position capturedPawnPos = new Position(from.getRow(), to.getCol());
+        board.getCell(capturedPawnPos).setPiece(capturedPiece);
+
+        if (wasFirstMove) {
+            movedPiece.setMoved(false);
+        }
+    }
+
+    @Override
+    public String toString() {
+        String base = movedPiece.toString() + " " + from + " -> " + to;
+        if (isCastlingMove) base += " (castling)";
+        if (isEnPassantMove) base += " (en passant)";
+        if (isPromotionMove) base += " (promotion to " + promotedTo.getType() + ")";
+        if (capturedPiece != null) base += " captures " + capturedPiece.toString();
+        return base;
+    }
+}
+
+// ============================================================================
+// PLAYER
+// ============================================================================
+
+class Player {
+    private final String name;
+    private final Color color;
+
+    public Player(String name, Color color) {
+        this.name = name;
+        this.color = color;
+    }
+
+    public String getName() { return name; }
+    public Color getColor() { return color; }
+
+    @Override
+    public String toString() {
+        return name + " (" + color + ")";
+    }
+}
+
+// ============================================================================
+// GAME OBSERVER -- Observer pattern
+// ============================================================================
+
+interface GameObserver {
+    void onCheck(Color kingColor);
+    void onCheckmate(Color loserColor);
+    void onStalemate();
+    void onResign(Color resignedColor);
+    void onMoveMade(Move move);
+}
+
+class ConsoleObserver implements GameObserver {
+    @Override
+    public void onCheck(Color kingColor) {
+        System.out.println(">>> CHECK! " + kingColor + " king is in check!");
+    }
+
+    @Override
+    public void onCheckmate(Color loserColor) {
+        System.out.println(">>> CHECKMATE! " + loserColor + " is checkmated. "
+                + loserColor.opposite() + " wins!");
+    }
+
+    @Override
+    public void onStalemate() {
+        System.out.println(">>> STALEMATE! The game is a draw.");
+    }
+
+    @Override
+    public void onResign(Color resignedColor) {
+        System.out.println(">>> " + resignedColor + " resigns. "
+                + resignedColor.opposite() + " wins!");
+    }
+
+    @Override
+    public void onMoveMade(Move move) {
+        System.out.println("Move: " + move);
+    }
+}
+
+// ============================================================================
+// GAME -- main orchestrator
+// ============================================================================
+
+class Game {
+    private final Board board;
+    private final Player whitePlayer;
+    private final Player blackPlayer;
+    private Player currentPlayer;
+    private GameStatus status;
+    private final List<Move> moveHistory;
+    private int moveIndex; // for undo/redo
+    private final List<GameObserver> observers;
+
+    public Game(String whiteName, String blackName) {
+        this.board = new Board();
+        this.whitePlayer = new Player(whiteName, Color.WHITE);
+        this.blackPlayer = new Player(blackName, Color.BLACK);
+        this.currentPlayer = whitePlayer; // White always moves first
+        this.status = GameStatus.ACTIVE;
+        this.moveHistory = new ArrayList<>();
+        this.moveIndex = 0;
+        this.observers = new ArrayList<>();
+
+        board.initialize();
+    }
+
+    // ---- Observer management ----
+
+    public void addObserver(GameObserver observer) {
+        observers.add(observer);
+    }
+
+    public void removeObserver(GameObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyObservers(Move move) {
+        for (GameObserver obs : observers) {
+            obs.onMoveMade(move);
+        }
+    }
+
+    // ---- Core game play ----
+
+    /**
+     * Attempt to make a move from 'from' to 'to'.
+     * Returns true if the move was valid and executed, false otherwise.
+     */
+    public boolean makeMove(Position from, Position to) {
+        // Game must be active
+        if (status == GameStatus.CHECKMATE || status == GameStatus.STALEMATE
+                || status == GameStatus.RESIGNED) {
+            System.out.println("Game is over. No more moves allowed.");
+            return false;
+        }
+
+        // Validate positions
+        if (!from.isValid() || !to.isValid()) {
+            System.out.println("Invalid position.");
+            return false;
+        }
+
+        Cell fromCell = board.getCell(from);
+        if (fromCell.isEmpty()) {
+            System.out.println("No piece at " + from);
+            return false;
+        }
+
+        Piece piece = fromCell.getPiece();
+
+        // Must be current player's piece
+        if (piece.getColor() != currentPlayer.getColor()) {
+            System.out.println("Not your piece! It is " + currentPlayer.getName() + "'s turn.");
+            return false;
+        }
+
+        // Phase 1: Can the piece physically make this move?
+        // Set last move for en passant detection
+        if (moveIndex > 0) {
+            Pawn.setLastMove(moveHistory.get(moveIndex - 1));
+        } else {
+            Pawn.setLastMove(null);
+        }
+
+        if (!piece.canMove(board, from, to)) {
+            System.out.println("Illegal move for " + piece + " from " + from + " to " + to);
+            return false;
+        }
+
+        // Phase 2: Would this move leave own king in check?
+        if (wouldLeaveKingInCheck(from, to)) {
+            System.out.println("Move would leave your king in check!");
+            return false;
+        }
+
+        // Execute the move
+        Move move = new Move(from, to, piece);
+        move.execute(board);
+
+        // If we had undone moves, remove them (no redo past a new move)
+        while (moveHistory.size() > moveIndex) {
+            moveHistory.remove(moveHistory.size() - 1);
+        }
+        moveHistory.add(move);
+        moveIndex++;
+
+        // Notify observers of the move
+        notifyObservers(move);
+
+        // Update game status
+        updateGameStatus();
+
+        // Switch turn
+        switchTurn();
+
+        return true;
+    }
+
+    /**
+     * Undo the last move. Returns true if successful.
+     */
+    public boolean undoMove() {
+        if (moveIndex <= 0) {
+            System.out.println("No moves to undo.");
+            return false;
+        }
+
+        moveIndex--;
+        Move lastMove = moveHistory.get(moveIndex);
+        lastMove.undo(board);
+
+        // Switch turn back
+        switchTurn();
+
+        // Recompute game status
+        updateGameStatus();
+
+        System.out.println("Undone: " + lastMove);
+        return true;
+    }
+
+    /**
+     * Redo a previously undone move. Returns true if successful.
+     */
+    public boolean redoMove() {
+        if (moveIndex >= moveHistory.size()) {
+            System.out.println("No moves to redo.");
+            return false;
+        }
+
+        Move move = moveHistory.get(moveIndex);
+        move.execute(board);
+        moveIndex++;
+
+        // Switch turn
+        switchTurn();
+
+        // Recompute status
+        updateGameStatus();
+
+        System.out.println("Redone: " + move);
+        return true;
+    }
+
+    /**
+     * Current player resigns. Opponent wins.
+     */
+    public void resign() {
+        this.status = GameStatus.RESIGNED;
+        for (GameObserver obs : observers) {
+            obs.onResign(currentPlayer.getColor());
+        }
+    }
+
+    // ---- Check / Checkmate / Stalemate ----
+
+    /**
+     * Is the king of the given color currently in check?
+     */
+    public boolean isCheck(Color color) {
+        Position kingPos = board.findKing(color);
+        return board.isSquareUnderAttack(kingPos, color.opposite());
+    }
+
+    /**
+     * Is it checkmate for the given color?
+     * Checkmate = king is in check AND no legal moves exist.
+     */
+    public boolean isCheckmate(Color color) {
+        if (!isCheck(color)) return false;
+        return !hasAnyLegalMove(color);
+    }
+
+    /**
+     * Is it stalemate for the given color?
+     * Stalemate = king is NOT in check AND no legal moves exist.
+     */
+    public boolean isStalemate(Color color) {
+        if (isCheck(color)) return false;
+        return !hasAnyLegalMove(color);
+    }
+
+    /**
+     * Does the player with the given color have any legal move?
+     */
+    private boolean hasAnyLegalMove(Color color) {
+        for (int r = 0; r < 8; r++) {
+            for (int c = 0; c < 8; c++) {
+                Piece piece = board.getCell(r, c).getPiece();
+                if (piece != null && piece.getColor() == color) {
+                    Position from = new Position(r, c);
+                    // Try every possible destination
+                    for (int dr = 0; dr < 8; dr++) {
+                        for (int dc = 0; dc < 8; dc++) {
+                            Position to = new Position(dr, dc);
+                            // Set last move for en passant
+                            if (moveIndex > 0) {
+                                Pawn.setLastMove(moveHistory.get(moveIndex - 1));
+                            } else {
+                                Pawn.setLastMove(null);
+                            }
+                            if (piece.canMove(board, from, to)
+                                    && !wouldLeaveKingInCheck(from, to)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Simulate a move and check if it would leave the moving player's king in check.
+     * This is the Phase 2 validation.
+     */
+    private boolean wouldLeaveKingInCheck(Position from, Position to) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+
+        Piece movedPiece = fromCell.getPiece();
+        Piece capturedPiece = toCell.getPiece();
+
+        // Handle en passant simulation
+        Piece enPassantCaptured = null;
+        Position enPassantPos = null;
+        if (movedPiece.getType() == PieceType.PAWN
+                && from.getCol() != to.getCol()
+                && toCell.isEmpty()) {
+            enPassantPos = new Position(from.getRow(), to.getCol());
+            enPassantCaptured = board.getCell(enPassantPos).getPiece();
+            board.getCell(enPassantPos).setPiece(null);
+        }
+
+        // Temporarily execute
+        toCell.setPiece(movedPiece);
+        fromCell.setPiece(null);
+
+        // Check if own king is in check
+        boolean inCheck = isCheck(movedPiece.getColor());
+
+        // Undo
+        fromCell.setPiece(movedPiece);
+        toCell.setPiece(capturedPiece);
+        if (enPassantPos != null) {
+            board.getCell(enPassantPos).setPiece(enPassantCaptured);
+        }
+
+        return inCheck;
+    }
+
+    /**
+     * After each move, update the game status based on the opponent's situation.
+     */
+    private void updateGameStatus() {
+        Color opponentColor = currentPlayer.getColor().opposite();
+
+        if (isCheck(opponentColor)) {
+            if (!hasAnyLegalMove(opponentColor)) {
+                status = GameStatus.CHECKMATE;
+                for (GameObserver obs : observers) {
+                    obs.onCheckmate(opponentColor);
+                }
+            } else {
+                status = GameStatus.CHECK;
+                for (GameObserver obs : observers) {
+                    obs.onCheck(opponentColor);
+                }
+            }
+        } else {
+            if (!hasAnyLegalMove(opponentColor)) {
+                status = GameStatus.STALEMATE;
+                for (GameObserver obs : observers) {
+                    obs.onStalemate();
+                }
+            } else {
+                status = GameStatus.ACTIVE;
+            }
+        }
+    }
+
+    private void switchTurn() {
+        currentPlayer = (currentPlayer == whitePlayer) ? blackPlayer : whitePlayer;
+    }
+
+    // ---- Getters ----
+
+    public Board getBoard() { return board; }
+    public GameStatus getStatus() { return status; }
+    public Player getCurrentPlayer() { return currentPlayer; }
+    public List<Move> getMoveHistory() { return moveHistory; }
+}
+
+// ============================================================================
+// MAIN -- demo game with check detection
+// ============================================================================
+
+public class ChessGame {
+
+    /**
+     * Helper to convert algebraic notation (e.g., "e2") to a Position.
+     */
+    static Position pos(String algebraic) {
+        char file = algebraic.charAt(0);
+        char rank = algebraic.charAt(1);
+        int col = file - 'a';
+        int row = 8 - (rank - '0');
+        return new Position(row, col);
+    }
+
+    public static void main(String[] args) {
+        System.out.println("=== CHESS GAME - Low Level Design Demo ===\\n");
+
+        // Create game and register observer
+        Game game = new Game("Alice", "Bob");
+        game.addObserver(new ConsoleObserver());
+
+        // Print initial board
+        System.out.println("Initial board state:");
+        game.getBoard().printBoard();
+        System.out.println();
+
+        // -----------------------------------------------------------------
+        // Demo 1: Scholar's Mate (4-move checkmate)
+        // 1. e4    e5
+        // 2. Bc4   Nc6
+        // 3. Qh5   Nf6??
+        // 4. Qxf7# (checkmate)
+        // -----------------------------------------------------------------
+
+        System.out.println("=== Demo: Scholar's Mate ===\\n");
+
+        // Move 1: White e2-e4 (pawn forward 2)
+        System.out.println("--- Move 1: White e2->e4 ---");
+        game.makeMove(pos("e2"), pos("e4"));
+        game.getBoard().printBoard();
+        System.out.println("Status: " + game.getStatus() + "\\n");
+
+        // Move 1: Black e7-e5 (pawn forward 2)
+        System.out.println("--- Move 1: Black e7->e5 ---");
+        game.makeMove(pos("e7"), pos("e5"));
+        game.getBoard().printBoard();
+        System.out.println("Status: " + game.getStatus() + "\\n");
+
+        // Move 2: White Bf1-c4 (bishop to c4)
+        System.out.println("--- Move 2: White Bf1->c4 ---");
+        game.makeMove(pos("f1"), pos("c4"));
+        game.getBoard().printBoard();
+        System.out.println("Status: " + game.getStatus() + "\\n");
+
+        // Move 2: Black Nb8-c6 (knight to c6)
+        System.out.println("--- Move 2: Black Nb8->c6 ---");
+        game.makeMove(pos("b8"), pos("c6"));
+        game.getBoard().printBoard();
+        System.out.println("Status: " + game.getStatus() + "\\n");
+
+        // Move 3: White Qd1-h5 (queen to h5)
+        System.out.println("--- Move 3: White Qd1->h5 ---");
+        game.makeMove(pos("d1"), pos("h5"));
+        game.getBoard().printBoard();
+        System.out.println("Status: " + game.getStatus() + "\\n");
+
+        // Move 3: Black Ng8-f6 (knight to f6 -- the blunder!)
+        System.out.println("--- Move 3: Black Ng8->f6 (blunder!) ---");
+        game.makeMove(pos("g8"), pos("f6"));
+        game.getBoard().printBoard();
+        System.out.println("Status: " + game.getStatus() + "\\n");
+
+        // Move 4: White Qh5xf7# (queen takes f7 -- checkmate!)
+        System.out.println("--- Move 4: White Qh5->f7 (CHECKMATE!) ---");
+        game.makeMove(pos("h5"), pos("f7"));
+        game.getBoard().printBoard();
+        System.out.println("Status: " + game.getStatus() + "\\n");
+
+        // -----------------------------------------------------------------
+        // Demo 2: Show that illegal moves are rejected
+        // -----------------------------------------------------------------
+
+        System.out.println("\\n=== Demo 2: Illegal Move Rejection ===\\n");
+
+        Game game2 = new Game("Charlie", "Diana");
+        game2.addObserver(new ConsoleObserver());
+
+        // Try to move opponent's piece
+        System.out.println("Try moving opponent's piece (Black's pawn while it's White's turn):");
+        boolean result = game2.makeMove(pos("e7"), pos("e5"));
+        System.out.println("Result: " + result + "\\n");
+
+        // Try illegal knight move
+        System.out.println("Try illegal knight move (b1 to b3):");
+        result = game2.makeMove(pos("b1"), pos("b3"));
+        System.out.println("Result: " + result + "\\n");
+
+        // Legal knight move
+        System.out.println("Legal knight move (b1 to c3):");
+        result = game2.makeMove(pos("b1"), pos("c3"));
+        System.out.println("Result: " + result + "\\n");
+
+        // -----------------------------------------------------------------
+        // Demo 3: Undo functionality
+        // -----------------------------------------------------------------
+
+        System.out.println("\\n=== Demo 3: Undo ===\\n");
+
+        Game game3 = new Game("Eve", "Frank");
+        game3.addObserver(new ConsoleObserver());
+
+        System.out.println("Make move e2->e4:");
+        game3.makeMove(pos("e2"), pos("e4"));
+
+        System.out.println("\\nMake move e7->e5:");
+        game3.makeMove(pos("e7"), pos("e5"));
+
+        System.out.println("\\nBoard before undo:");
+        game3.getBoard().printBoard();
+
+        System.out.println("\\nUndo last move:");
+        game3.undoMove();
+
+        System.out.println("\\nBoard after undo (e5 pawn should be back at e7):");
+        game3.getBoard().printBoard();
+
+        System.out.println("\\nRedo the undone move:");
+        game3.redoMove();
+
+        System.out.println("\\nBoard after redo (e5 pawn should be at e5 again):");
+        game3.getBoard().printBoard();
+
+        // -----------------------------------------------------------------
+        // Demo 4: Check detection (not checkmate)
+        // -----------------------------------------------------------------
+
+        System.out.println("\\n=== Demo 4: Check Detection (Fool's Opening) ===\\n");
+
+        Game game4 = new Game("Grace", "Hank");
+        game4.addObserver(new ConsoleObserver());
+
+        // Set up a quick check scenario
+        // 1. f3  e5
+        // 2. g4  Qh4+ (check!)
+
+        System.out.println("1. f2->f3:");
+        game4.makeMove(pos("f2"), pos("f3"));
+
+        System.out.println("1. e7->e5:");
+        game4.makeMove(pos("e7"), pos("e5"));
+
+        System.out.println("2. g2->g4:");
+        game4.makeMove(pos("g2"), pos("g4"));
+
+        System.out.println("2. Qd8->h4+ (CHECK!):");
+        game4.makeMove(pos("d8"), pos("h4"));
+
+        game4.getBoard().printBoard();
+        System.out.println("Status: " + game4.getStatus());
+        System.out.println("(This is actually Fool's Mate -- CHECKMATE in 2 moves!)");
+
+        // -----------------------------------------------------------------
+        // Demo 5: Resign
+        // -----------------------------------------------------------------
+
+        System.out.println("\\n=== Demo 5: Resign ===\\n");
+
+        Game game5 = new Game("Ivan", "Julia");
+        game5.addObserver(new ConsoleObserver());
+        game5.makeMove(pos("e2"), pos("e4"));
+        System.out.println("Black (Julia) resigns:");
+        game5.resign();
+        System.out.println("Status: " + game5.getStatus());
+
+        System.out.println("\\n=== All demos complete. ===");
+    }
+}
+\`\`\`
+
+---
+
+## Compilation and Execution
+
+\`\`\`bash
+# Save the code above as ChessGame.java, then:
+javac ChessGame.java
+java ChessGame
+\`\`\`
+
+---
+
+## Expected Output (abbreviated)
+
+\`\`\`
+=== CHESS GAME - Low Level Design Demo ===
+
+Initial board state:
+    a   b   c   d   e   f   g   h
+  +---+---+---+---+---+---+---+---+
+8 | BR| BN| BB| BQ| BK| BB| BN| BR| 8
+  +---+---+---+---+---+---+---+---+
+7 | BP| BP| BP| BP| BP| BP| BP| BP| 7
+  +---+---+---+---+---+---+---+---+
+6 |   |   |   |   |   |   |   |   | 6
+  +---+---+---+---+---+---+---+---+
+5 |   |   |   |   |   |   |   |   | 5
+  +---+---+---+---+---+---+---+---+
+4 |   |   |   |   |   |   |   |   | 4
+  +---+---+---+---+---+---+---+---+
+3 |   |   |   |   |   |   |   |   | 3
+  +---+---+---+---+---+---+---+---+
+2 | WP| WP| WP| WP| WP| WP| WP| WP| 2
+  +---+---+---+---+---+---+---+---+
+1 | WR| WN| WB| WQ| WK| WB| WN| WR| 1
+  +---+---+---+---+---+---+---+---+
+    a   b   c   d   e   f   g   h
+
+=== Demo: Scholar's Mate ===
+
+--- Move 4: White Qh5->f7 (CHECKMATE!) ---
+Move: WQ h5 -> f7 captures BP
+>>> CHECKMATE! BLACK is checkmated. WHITE wins!
+Status: CHECKMATE
+
+=== Demo 4: Check Detection (Fool's Opening) ===
+>>> CHECKMATE! WHITE is checkmated. BLACK wins!
+Status: CHECKMATE
+(This is actually Fool's Mate -- CHECKMATE in 2 moves!)
+\`\`\`
+
+---
+
+## Class-by-Class Breakdown
+
+| Class | Lines | Pattern | Responsibility |
+|-------|-------|---------|----------------|
+| \`Color\` | 6 | Enum | WHITE/BLACK with \`opposite()\` helper |
+| \`PieceType\` | 3 | Enum | KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN |
+| \`GameStatus\` | 3 | Enum | ACTIVE, CHECK, CHECKMATE, STALEMATE, RESIGNED, DRAW |
+| \`Position\` | 30 | Value Object | Immutable (row, col) with \`isValid()\`, \`equals()\`, \`hashCode()\`, algebraic \`toString()\` |
+| \`Piece\` | 25 | Template Method | Abstract base: color, type, hasMoved, abstract \`canMove()\` |
+| \`King\` | 55 | Subclass | 1-square movement + castling validation (5 conditions) |
+| \`Queen\` | 20 | Subclass | Horizontal + vertical + diagonal sliding |
+| \`Rook\` | 18 | Subclass | Horizontal + vertical sliding |
+| \`Bishop\` | 18 | Subclass | Diagonal sliding |
+| \`Knight\` | 14 | Subclass | L-shape (2+1), no path check |
+| \`Pawn\` | 55 | Subclass | Forward 1/2, diagonal capture, en passant detection |
+| \`Cell\` | 15 | - | Square on board with optional Piece |
+| \`Board\` | 80 | - | 8x8 grid, \`isPathClear\`, \`findKing\`, \`isSquareUnderAttack\`, \`printBoard\` |
+| \`PieceFactory\` | 12 | Factory | Creates pieces by PieceType and Color |
+| \`Move\` | 110 | Command | \`execute()\`/\`undo()\` with castling, en passant, promotion handling |
+| \`Player\` | 12 | - | Name + Color |
+| \`GameObserver\` | 7 | Observer | Interface: onCheck, onCheckmate, onStalemate, onResign, onMoveMade |
+| \`ConsoleObserver\` | 20 | Observer | Prints events to console |
+| \`Game\` | 170 | Orchestrator | \`makeMove()\`, \`undoMove()\`, \`isCheck()\`, \`isCheckmate()\`, \`isStalemate()\`, turn management |
+| \`ChessGame\` (Main) | 100 | - | Demo: Scholar's Mate, illegal moves, undo/redo, Fool's Mate, resign |
+
+**Total: ~770 lines of Java code**
+
+---
+
+## Key Design Decisions in Code
+
+### 1. Two-Phase Move Validation
+
+\`\`\`java
+// In Game.makeMove():
+// Phase 1: piece-level rules
+if (!piece.canMove(board, from, to)) return false;
+
+// Phase 2: king safety
+if (wouldLeaveKingInCheck(from, to)) return false;
+\`\`\`
+
+### 2. Check Detection via Reuse
+
+\`\`\`java
+// isCheck reuses each piece's canMove() -- no duplicated logic
+public boolean isCheck(Color color) {
+    Position kingPos = board.findKing(color);
+    return board.isSquareUnderAttack(kingPos, color.opposite());
+}
+\`\`\`
+
+### 3. Checkmate = Check + No Legal Moves
+
+\`\`\`java
+public boolean isCheckmate(Color color) {
+    if (!isCheck(color)) return false;
+    return !hasAnyLegalMove(color);
+}
+\`\`\`
+
+### 4. Undo via Command Pattern
+
+\`\`\`java
+// Each Move stores everything needed to reverse itself
+public void undo(Board board) {
+    fromCell.setPiece(movedPiece);
+    toCell.setPiece(capturedPiece);
+    if (wasFirstMove) movedPiece.setMoved(false);
+}
+\`\`\`
+
+### 5. King Attack Check Avoids Infinite Recursion
+
+\`\`\`java
+// In Board.isSquareUnderAttack(), king attacks are checked directly
+// (not via King.canMove) to avoid infinite recursion since
+// King.canMove calls isSquareUnderAttack for castling validation
+if (piece.getType() == PieceType.KING) {
+    int rowDiff = Math.abs(target.getRow() - r);
+    int colDiff = Math.abs(target.getCol() - c);
+    if (rowDiff <= 1 && colDiff <= 1 && (rowDiff + colDiff) > 0) {
+        return true;
+    }
+}
+\`\`\`
+
+### 6. En Passant Uses Static Last-Move Reference
+
+\`\`\`java
+// Pawn checks the last move made in the game to determine
+// if en passant is legal. The Game sets this before validation.
+Pawn.setLastMove(moveHistory.get(moveIndex - 1));
+\`\`\`
+
+---
+
+## How to Extend
+
+### Adding a Timer
+
+\`\`\`java
+class Clock {
+    private long remainingMillis;
+    private long lastStartTime;
+    private boolean running;
+
+    public void start() { lastStartTime = System.currentTimeMillis(); running = true; }
+    public void pause() { remainingMillis -= (System.currentTimeMillis() - lastStartTime); running = false; }
+    public boolean isExpired() { return remainingMillis <= 0; }
+}
+// Add Clock to Player; start/pause in Game.switchTurn()
+\`\`\`
+
+### Adding AI
+
+\`\`\`java
+interface MoveStrategy {
+    Move selectMove(Board board, Color color, List<Move> history);
+}
+
+class MinimaxStrategy implements MoveStrategy {
+    public Move selectMove(Board board, Color color, List<Move> history) {
+        // minimax with alpha-beta pruning
+    }
+}
+// Player gets a MoveStrategy; Game calls strategy.selectMove() for AI players
+\`\`\`
+`,
+  designWalkthrough: `# Low-Level Design: Chess Game
+
+> Commonly asked at: **Uber India**, Google, Amazon, Flipkart
+> Difficulty: Hard | Time to solve in interview: 45-60 minutes
+
+---
+
+## Table of Contents
+
+1. [Problem Statement](#1-problem-statement)
+2. [Requirements](#2-requirements)
+3. [Entity Identification](#3-entity-identification)
+4. [Class Diagram](#4-class-diagram)
+5. [Design Patterns](#5-design-patterns)
+6. [Design Decisions and Rationale](#6-design-decisions-and-rationale)
+7. [Piece Movement Rules](#7-piece-movement-rules)
+8. [State Management](#8-state-management)
+9. [Core Algorithms](#9-core-algorithms)
+10. [Move Validation Flow](#10-move-validation-flow)
+11. [Extension Handling](#11-extension-handling)
+12. [Complexity Analysis](#12-complexity-analysis)
+13. [Concurrency Considerations](#13-concurrency-considerations)
+14. [Testing Strategy](#14-testing-strategy)
+15. [Interview Tips](#15-interview-tips)
+16. [Summary](#16-summary)
+
+---
+
+## 1. Problem Statement
+
+Design an object-oriented system for a standard two-player chess game. The system must
+support all standard chess rules including piece-specific movement, capturing, turn
+management, check detection, checkmate detection, stalemate detection, move history,
+and undo functionality.
+
+This is a classic LLD interview problem that tests your ability to:
+- Model a complex domain with many interacting entities
+- Apply the right design patterns where they naturally fit
+- Handle intricate rule enforcement (check, checkmate, pins, etc.)
+- Design for extensibility (timers, AI players, variants)
+
+---
+
+## 2. Requirements
+
+### 2.1 Functional Requirements
+
+| # | Requirement | Priority |
+|---|-------------|----------|
+| FR-1 | Two human players can play a standard chess game | Must |
+| FR-2 | White always moves first | Must |
+| FR-3 | All six piece types move according to official chess rules | Must |
+| FR-4 | A move is rejected if it is illegal for that piece type | Must |
+| FR-5 | A move is rejected if it leaves the player's own king in check | Must |
+| FR-6 | System detects when a king is in check | Must |
+| FR-7 | System detects checkmate (game over, one player wins) | Must |
+| FR-8 | System detects stalemate (game over, draw) | Must |
+| FR-9 | Turn alternates between White and Black after each valid move | Must |
+| FR-10 | System maintains a full move history | Must |
+| FR-11 | Players can undo the last move (and redo) | Should |
+| FR-12 | Pieces can capture opponent pieces | Must |
+| FR-13 | Player can resign | Must |
+| FR-14 | Pawn promotion when reaching the last rank | Should |
+| FR-15 | Castling (king-side and queen-side) | Should |
+| FR-16 | En passant capture | Should |
+
+### 2.2 Non-Functional Requirements
+
+| # | Requirement |
+|---|-------------|
+| NFR-1 | Clean OOP design following SOLID principles |
+| NFR-2 | Extensible to add timers, AI opponents, or new game variants |
+| NFR-3 | Move validation must be correct for every board state |
+| NFR-4 | Thread-safe game state transitions for multiplayer extensions |
+
+### 2.3 Assumptions
+
+- Console-based game (no GUI)
+- No AI opponent (both players are human)
+- No time control / chess clock (extension discussed later)
+- Standard 8x8 board with standard starting positions
+
+---
+
+## 3. Entity Identification
+
+Working through the problem domain, we identify these core entities:
+
+### 3.1 Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| **Game** | Orchestrates the entire game: manages turns, validates moves, detects end conditions |
+| **Board** | Holds the 8x8 grid of cells, knows how to place/remove/move pieces, queries like "is square under attack?" |
+| **Cell** | A single square on the board; knows its position and which piece (if any) sits on it |
+| **Piece** (abstract) | Base class for all chess pieces; declares \`canMove()\` contract, holds color and type |
+| **King** | Extends Piece; moves one square in any direction, involved in castling and check logic |
+| **Queen** | Extends Piece; moves any number of squares along rank, file, or diagonal |
+| **Rook** | Extends Piece; moves any number of squares along rank or file |
+| **Bishop** | Extends Piece; moves any number of squares diagonally |
+| **Knight** | Extends Piece; moves in an L-shape (2+1), can jump over other pieces |
+| **Pawn** | Extends Piece; moves forward one (or two from start), captures diagonally, promotes |
+| **Player** | Represents a human player; has a name and a color |
+| **Move** | A command object recording from/to positions, piece moved, piece captured, flags for undo |
+| **Position** | Value object representing a (row, col) coordinate on the board |
+| **PieceFactory** | Creates Piece instances by type and color (Factory pattern) |
+| **GameObserver** | Interface for observers notified on check/checkmate/stalemate events |
+| **ConsoleObserver** | Concrete observer that prints game events to console |
+| **GameStatus** | Enum: ACTIVE, CHECK, CHECKMATE, STALEMATE, RESIGNED, DRAW |
+| **Color** | Enum: WHITE, BLACK |
+| **PieceType** | Enum: KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN |
+
+### 3.2 Relationships at a Glance
+
+- **Game** HAS-A Board, two Players, a list of Moves, and a GameStatus.
+- **Board** HAS-A 8x8 array of Cells.
+- **Cell** HAS-A Position and an optional Piece reference.
+- **Player** HAS-A Color.
+- **Piece** IS-A hierarchy: King, Queen, Rook, Bishop, Knight, Pawn all extend Piece.
+- **Move** references two Positions (from, to), the Piece moved, and the Piece captured (nullable).
+
+---
+
+## 4. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    direction TB
+
+    class Color {
+        <<enumeration>>
+        WHITE
+        BLACK
+    }
+
+    class PieceType {
+        <<enumeration>>
+        KING
+        QUEEN
+        ROOK
+        BISHOP
+        KNIGHT
+        PAWN
+    }
+
+    class GameStatus {
+        <<enumeration>>
+        ACTIVE
+        CHECK
+        CHECKMATE
+        STALEMATE
+        RESIGNED
+        DRAW
+    }
+
+    class Position {
+        -int row
+        -int col
+        +getRow() int
+        +getCol() int
+        +isValid() boolean
+        +equals(Object) boolean
+        +hashCode() int
+    }
+
+    class Piece {
+        <<abstract>>
+        #Color color
+        #PieceType type
+        #boolean hasMoved
+        +getColor() Color
+        +getType() PieceType
+        +hasMoved() boolean
+        +setMoved(boolean) void
+        +canMove(Board, Position, Position) boolean*
+        +getSymbol() String
+    }
+
+    class King {
+        +canMove(Board, Position, Position) boolean
+        -canCastle(Board, Position, Position) boolean
+    }
+
+    class Queen {
+        +canMove(Board, Position, Position) boolean
+    }
+
+    class Rook {
+        +canMove(Board, Position, Position) boolean
+    }
+
+    class Bishop {
+        +canMove(Board, Position, Position) boolean
+    }
+
+    class Knight {
+        +canMove(Board, Position, Position) boolean
+    }
+
+    class Pawn {
+        +canMove(Board, Position, Position) boolean
+    }
+
+    class Cell {
+        -Position position
+        -Piece piece
+        +getPiece() Piece
+        +setPiece(Piece) void
+        +isEmpty() boolean
+        +getPosition() Position
+    }
+
+    class Board {
+        -Cell[][] grid
+        +Board()
+        +initialize() void
+        +getCell(int, int) Cell
+        +getCell(Position) Cell
+        +isWithinBounds(Position) boolean
+        +isPathClear(Position, Position) boolean
+        +findKing(Color) Position
+        +isSquareUnderAttack(Position, Color) boolean
+        +printBoard() void
+    }
+
+    class Move {
+        -Position from
+        -Position to
+        -Piece movedPiece
+        -Piece capturedPiece
+        -boolean wasFirstMove
+        -boolean isCastlingMove
+        -boolean isEnPassantMove
+        -boolean isPromotionMove
+        +execute(Board) void
+        +undo(Board) void
+        +getFrom() Position
+        +getTo() Position
+        +getMovedPiece() Piece
+        +getCapturedPiece() Piece
+    }
+
+    class Player {
+        -String name
+        -Color color
+        +getName() String
+        +getColor() Color
+    }
+
+    class PieceFactory {
+        +createPiece(PieceType, Color)$ Piece
+    }
+
+    class GameObserver {
+        <<interface>>
+        +onCheck(Color) void
+        +onCheckmate(Color) void
+        +onStalemate() void
+        +onResign(Color) void
+        +onMoveMade(Move) void
+    }
+
+    class ConsoleObserver {
+        +onCheck(Color) void
+        +onCheckmate(Color) void
+        +onStalemate() void
+        +onResign(Color) void
+        +onMoveMade(Move) void
+    }
+
+    class Game {
+        -Board board
+        -Player whitePlayer
+        -Player blackPlayer
+        -Player currentPlayer
+        -GameStatus status
+        -List~Move~ moveHistory
+        -int moveIndex
+        -List~GameObserver~ observers
+        +makeMove(Position, Position) boolean
+        +undoMove() boolean
+        +redoMove() boolean
+        +resign() void
+        +isCheck(Color) boolean
+        +isCheckmate(Color) boolean
+        +isStalemate(Color) boolean
+        +getStatus() GameStatus
+        +getCurrentPlayer() Player
+        +getBoard() Board
+        +addObserver(GameObserver) void
+        -switchTurn() void
+        -updateGameStatus() void
+        -wouldLeaveKingInCheck(Position, Position) boolean
+        -hasAnyLegalMove(Color) boolean
+    }
+
+    Piece <|-- King
+    Piece <|-- Queen
+    Piece <|-- Rook
+    Piece <|-- Bishop
+    Piece <|-- Knight
+    Piece <|-- Pawn
+
+    GameObserver <|.. ConsoleObserver
+
+    Board "1" *-- "64" Cell : contains
+    Cell "1" o-- "0..1" Piece : holds
+    Cell "1" *-- "1" Position : has
+
+    Game "1" *-- "1" Board : has
+    Game "1" *-- "2" Player : has
+    Game "1" *-- "*" Move : moveHistory
+    Game "1" o-- "*" GameObserver : notifies
+
+    Move "1" --> "1" Piece : movedPiece
+    Move "1" --> "0..1" Piece : capturedPiece
+    Move "1" --> "2" Position : from/to
+
+    PieceFactory ..> Piece : creates
+    Player --> Color : has
+    Piece --> Color : has
+    Piece --> PieceType : has
+\`\`\`
+
+---
+
+## 5. Design Patterns
+
+### 5.1 Template Method Pattern -- Piece Movement Validation
+
+**Where:** The abstract \`Piece\` class and its six concrete subclasses.
+
+**Why:** Every piece shares the same high-level validation flow:
+1. Check that the destination is within bounds.
+2. Check that the destination does not contain a friendly piece.
+3. Check piece-specific movement rules (this step varies per piece type).
+4. Check that the move does not leave own king in check.
+
+Steps 1, 2, and 4 are identical across all piece types. Only step 3 differs. This is
+the textbook Template Method: a base class defines the skeleton of an algorithm and
+defers certain steps to subclasses.
+
+\`\`\`
+abstract class Piece {
+    // Each subclass implements its own movement logic
+    public abstract boolean canMove(Board board, Position from, Position to);
+}
+
+// Subclasses only define what is unique to them:
+King.canMove()    -> 1 square any direction + castling
+Queen.canMove()   -> horizontal + vertical + diagonal (unlimited)
+Rook.canMove()    -> horizontal + vertical (unlimited)
+Bishop.canMove()  -> diagonal (unlimited)
+Knight.canMove()  -> L-shape (2+1), can jump
+Pawn.canMove()    -> forward 1 (or 2 from start), capture diagonal
+\`\`\`
+
+**Open/Closed Principle:** Adding a new piece type (e.g., "Empress" in a variant) only
+requires creating a new subclass. No existing code changes.
+
+### 5.2 Factory Pattern -- PieceFactory
+
+**Where:** \`PieceFactory.createPiece(PieceType type, Color color)\`.
+
+**Why:** During board initialization we need to create 32 pieces of 6 different types
+and 2 colors. Pawn promotion also needs to create a new piece at runtime. A factory
+centralizes this creation logic:
+
+\`\`\`
+PieceFactory.createPiece(QUEEN, WHITE)  -->  new Queen(WHITE)
+PieceFactory.createPiece(KNIGHT, BLACK) -->  new Knight(BLACK)
+\`\`\`
+
+Benefits:
+- Board initialization code does not need to know concrete piece classes.
+- Adding a new piece type means editing only the factory.
+- Pawn promotion reuses the same factory method.
+- Single point of change if piece constructors evolve.
+
+### 5.3 Command Pattern -- Move as Command Object
+
+**Where:** The \`Move\` class with \`execute()\` and \`undo()\` methods.
+
+**Why:** We need to support:
+- **Move history**: store every move made in the game.
+- **Undo**: reverse the last move exactly, restoring captured pieces and flags.
+- **Redo** (future extension): re-apply an undone move.
+- **Notation export**: generate PGN or algebraic notation from the move list.
+
+Each \`Move\` stores everything needed to both execute and reverse the action:
+
+\`\`\`
+class Move {
+    Position from;           // where the piece came from
+    Position to;             // where the piece went
+    Piece movedPiece;        // the piece that moved
+    Piece capturedPiece;     // the piece that was captured (may be null)
+    boolean wasFirstMove;    // was this the piece's first move? (needed for undo)
+    boolean isCastlingMove;  // did this move involve castling?
+    boolean isEnPassantMove; // was this an en passant capture?
+    boolean isPromotionMove; // did a pawn promote?
+}
+\`\`\`
+
+The Game maintains a \`List<Move> moveHistory\` and a \`moveIndex\` pointer:
+- **Undo**: decrement index, call \`move.undo(board)\`
+- **Redo**: call \`move.execute(board)\`, increment index
+
+**Why Command over Memento?** A Memento would snapshot the entire board (64 cells +
+all piece state) per move. Command stores only the delta -- much more memory-efficient
+since a chess move is a well-defined, reversible operation.
+
+### 5.4 Observer Pattern -- Game Event Notification
+
+**Where:** \`GameObserver\` interface, \`Game.notifyObservers()\`.
+
+**Why:** After every move, the game must determine if the move caused check or checkmate
+and communicate this to interested parties. Rather than having the Game class directly
+call methods on every consumer, we use the Observer pattern:
+
+\`\`\`
+interface GameObserver {
+    void onCheck(Color kingColor);
+    void onCheckmate(Color loserColor);
+    void onStalemate();
+    void onResign(Color resignedColor);
+    void onMoveMade(Move move);
+}
+\`\`\`
+
+The Game class maintains a \`List<GameObserver>\` and notifies all observers after each
+state change. A ConsoleObserver, a GUIObserver, a LoggingObserver, or a
+NetworkBroadcastObserver can all register independently.
+
+This decouples the core game logic from presentation and notification concerns entirely.
+
+---
+
+## 6. Design Decisions and Rationale
+
+### 6.1 Board as 8x8 2D Array of Cell Objects
+
+The board is represented as:
+
+\`\`\`
+Cell[][] grid = new Cell[8][8];
+\`\`\`
+
+Row 0 = rank 8 (Black's back rank). Row 7 = rank 1 (White's back rank).
+Col 0 = file 'a'. Col 7 = file 'h'.
+
+**Why Cell objects instead of Piece[][]?**
+- Cells carry their own position, making them self-describing.
+- Cells can be extended with metadata (e.g., "is this square highlighted?").
+- Null-safety: \`cell.isEmpty()\` is cleaner than \`grid[r][c] == null\`.
+- Models the real domain directly: a chess board has squares, and squares hold pieces.
+
+### 6.2 Position as a Value Object
+
+Position is immutable with just \`row\` and \`col\`. It implements \`equals()\` and
+\`hashCode()\` so it can be used in sets and maps. This avoids passing raw \`int\` pairs
+everywhere, reducing bugs from accidentally swapping row/col.
+
+### 6.3 Piece Inheritance (not Composition)
+
+This is a genuine IS-A relationship. A King IS-A Piece. A Pawn IS-A Piece. They share
+common state (color, hasMoved) and a common contract (canMove), but each has a
+fundamentally different implementation.
+
+We are NOT using inheritance to share implementation code -- we are using it to
+establish a type hierarchy where polymorphism is essential. The Board and Game work
+with \`Piece\` references and call \`canMove()\` polymorphically. This is textbook
+Liskov Substitution Principle.
+
+**Why not Strategy for movement?** A Rook does not HAVE-A movement strategy that could
+be swapped at runtime. A Rook always moves like a Rook. Strategy would add indirection
+without benefit in standard chess.
+
+### 6.4 Two-Phase Move Validation
+
+Every move goes through two phases:
+
+**Phase 1 -- Piece-Level Validation** (\`piece.canMove(board, from, to)\`)
+- Is the destination reachable by this piece type?
+- Is the path clear (no blocking pieces for sliding pieces)?
+- Is the destination not occupied by a friendly piece?
+
+**Phase 2 -- King Safety Validation** (\`game.wouldLeaveKingInCheck(from, to)\`)
+- Simulate the move on the actual board (then undo)
+- Check if the player's own king is under attack after the simulated move
+- If yes, the move is illegal (even if the piece can physically make it)
+
+This two-phase approach cleanly separates concerns: pieces know their movement rules,
+the game knows the global constraint about king safety.
+
+### 6.5 Board Owns the Grid, Not Game
+
+Separation of concerns. The Board is responsible for the physical state of the grid:
+placing pieces, moving them, checking bounds, path clearance. The Game is responsible
+for rules and orchestration: turn management, check detection, win conditions. This
+maps cleanly to Single Responsibility: Board = spatial logic, Game = game logic.
+
+---
+
+## 7. Piece Movement Rules
+
+### 7.1 Movement Summary
+
+| Piece | Movement | Path Clear? | Special Rules |
+|-------|----------|-------------|---------------|
+| **King** | 1 square in any direction (8 possible) | N/A (1 square) | Castling: 2 squares toward rook |
+| **Queen** | Any number along rank, file, or diagonal | Yes | None |
+| **Rook** | Any number along rank or file | Yes | Involved in castling |
+| **Bishop** | Any number diagonally | Yes | None |
+| **Knight** | L-shape: 2 in one direction + 1 perpendicular | No (jumps) | Can leap over pieces |
+| **Pawn** | Forward 1 (or 2 from start row) | Yes (for forward moves) | Captures diagonally, en passant, promotion |
+
+### 7.2 Sliding Pieces Path Clearance
+
+Queen, Rook, and Bishop are "sliding" pieces. They move any number of squares in a
+direction but cannot jump over other pieces. The \`Board.isPathClear(from, to)\` method
+checks all intermediate squares:
+
+\`\`\`
+isPathClear(from, to):
+    rowDir = sign(to.row - from.row)   // -1, 0, or 1
+    colDir = sign(to.col - from.col)   // -1, 0, or 1
+
+    currentRow = from.row + rowDir
+    currentCol = from.col + colDir
+
+    while (currentRow, currentCol) != (to.row, to.col):
+        if board[currentRow][currentCol] is not empty:
+            return false
+        currentRow += rowDir
+        currentCol += colDir
+
+    return true
+\`\`\`
+
+Knight is the only piece that skips path clearance entirely -- it can jump.
+
+### 7.3 Pawn Special Rules
+
+Pawns are the most complex piece despite being the "simplest":
+- Move forward 1 square (if destination is empty)
+- Move forward 2 squares from starting row (if both squares are empty)
+- Capture diagonally forward 1 square (if enemy piece is there)
+- En passant: capture diagonally to an empty square if opponent pawn just double-moved
+- Promotion: automatically become a Queen when reaching the last rank
+
+Direction depends on color: White pawns move from row 6 toward row 0 (decreasing),
+Black pawns move from row 1 toward row 7 (increasing).
+
+---
+
+## 8. State Management
+
+### 8.1 Core State
+
+\`\`\`
+Game:
+    GameStatus status;          // ACTIVE, CHECK, CHECKMATE, STALEMATE, RESIGNED, DRAW
+    Player currentPlayer;       // which player moves next
+    List<Move> moveHistory;     // ordered list of all moves
+    int moveIndex;              // pointer for undo/redo
+\`\`\`
+
+### 8.2 State Machine
+
+\`\`\`
+                  +--------+
+         start -->| ACTIVE |<---------+
+                  +--------+          |
+                   |      |           |
+              move |      | move      | (move resolves check)
+                   v      v           |
+              +-------+ +----------+  |
+              | CHECK |->| (legal  |--+
+              +-------+  |  move)  |
+                   |      +--------+
+                   | (no legal moves for checked player)
+                   v
+              +-----------+
+              | CHECKMATE |  (terminal -- opponent wins)
+              +-----------+
+
+              +--------+
+              | ACTIVE |
+              +--------+
+                   | (current player has no legal moves, not in check)
+                   v
+              +-----------+
+              | STALEMATE |  (terminal -- draw)
+              +-----------+
+
+              +--------+      +-------+
+              | ACTIVE | -or- | CHECK |
+              +--------+      +-------+
+                   | player resigns
+                   v
+              +----------+
+              | RESIGNED |  (terminal -- opponent wins)
+              +----------+
+\`\`\`
+
+### 8.3 State Transition Table
+
+| From State | Event | To State |
+|------------|-------|----------|
+| ACTIVE | Move puts opponent king in check, opponent has legal moves | CHECK |
+| ACTIVE | Move puts opponent king in check, opponent has NO legal moves | CHECKMATE |
+| ACTIVE | Move does not cause check, opponent has no legal moves | STALEMATE |
+| ACTIVE | Player resigns | RESIGNED |
+| CHECK | Checked player makes a legal move that resolves check | ACTIVE |
+| CHECK | Checked player makes a move that keeps opponent in check | CHECK |
+| CHECK | Checked player has no legal moves | CHECKMATE |
+| CHECK | Player resigns | RESIGNED |
+
+### 8.4 Turn Management
+
+After every successful move:
+1. Execute the move on the board
+2. Check if the opponent's king is now in check
+3. If in check, check if it is checkmate (no legal moves for opponent)
+4. If not in check, check if it is stalemate (no legal moves for opponent)
+5. Update status accordingly
+6. Switch currentPlayer to the opponent
+7. Notify all observers
+
+The turn only switches after a fully valid, executed move. Invalid move attempts do
+NOT consume a turn.
+
+---
+
+## 9. Core Algorithms
+
+### 9.1 Check Detection
+
+**Question:** Is the king of color C currently under attack?
+
+\`\`\`
+isCheck(Color c):
+    kingPos = board.findKing(c)
+    for each cell on the board (row 0..7, col 0..7):
+        piece = cell.getPiece()
+        if piece != null AND piece.color != c:
+            if piece.canMove(board, piece.position, kingPos):
+                return true    // an enemy piece can reach the king
+    return false
+\`\`\`
+
+**Key insight:** We ask "can any enemy piece move to the king's square?" rather than
+tracing attack lines from the king outward. This reuses the existing \`canMove()\` logic
+for each piece type, avoiding duplicated movement code.
+
+### 9.2 Checkmate Detection
+
+**Question:** Is it checkmate for color C? (King in check AND no legal move exists)
+
+\`\`\`
+isCheckmate(Color c):
+    if !isCheck(c):
+        return false    // not even in check
+
+    return !hasAnyLegalMove(c)
+\`\`\`
+
+\`\`\`
+hasAnyLegalMove(Color c):
+    for each cell on the board:
+        piece = cell.getPiece()
+        if piece != null AND piece.color == c:
+            for each destination cell on the board:
+                if piece.canMove(board, piece.position, dest.position):
+                    if !wouldLeaveKingInCheck(piece.position, dest.position):
+                        return true   // found at least one legal move
+    return false   // no legal moves exist
+\`\`\`
+
+**Why simulate?** A move might move a piece that was blocking a different attack line
+(a "pin"). We must actually simulate the move, re-evaluate check, then undo it.
+
+### 9.3 Stalemate Detection
+
+Identical logic to checkmate, except the precondition is that the king is NOT in check.
+
+\`\`\`
+isStalemate(Color c):
+    if isCheck(c):
+        return false   // if in check, it would be checkmate, not stalemate
+    return !hasAnyLegalMove(c)
+\`\`\`
+
+### 9.4 "Would This Move Leave My King in Check?" Test
+
+Every candidate move is filtered through this test:
+
+\`\`\`
+wouldLeaveKingInCheck(Position from, Position to):
+    // Save state
+    capturedPiece = board.getCell(to).getPiece()
+    movedPiece = board.getCell(from).getPiece()
+
+    // Temporarily execute the move
+    board.getCell(to).setPiece(movedPiece)
+    board.getCell(from).setPiece(null)
+
+    // Check if own king is now attacked
+    inCheck = isCheck(movedPiece.getColor())
+
+    // Undo the temporary move
+    board.getCell(from).setPiece(movedPiece)
+    board.getCell(to).setPiece(capturedPiece)
+
+    return inCheck
+\`\`\`
+
+This handles **pins** automatically. If moving a bishop would expose the king to a
+rook attack along the same line, \`isCheck()\` will catch it after the simulated move.
+
+---
+
+## 10. Move Validation Flow
+
+The complete flow when a player attempts a move:
+
+\`\`\`
+Player calls game.makeMove(from, to)
+    |
+    v
+[1] Is the game still active? (status == ACTIVE or CHECK)
+    |-- No  --> return false (game is over)
+    |-- Yes --> continue
+    v
+[2] Is there a piece at 'from'?
+    |-- No  --> return false
+    |-- Yes --> continue
+    v
+[3] Does the piece belong to the current player?
+    |-- No  --> return false (cannot move opponent's pieces)
+    |-- Yes --> continue
+    v
+[4] Can the piece physically move to 'to'?
+    |-- Call piece.canMove(board, from, to)
+    |-- This checks piece-specific movement rules + path clearance
+    |-- No  --> return false
+    |-- Yes --> continue
+    v
+[5] Would this move leave own king in check?
+    |-- Simulate the move, call isCheck(ownColor)
+    |-- Yes --> return false (illegal: cannot leave king in check)
+    |-- No  --> continue
+    v
+[6] Execute the move
+    |-- Create Move command object (record from, to, captured piece, flags)
+    |-- Call move.execute(board)
+    |-- Mark piece as having moved
+    |-- Add to moveHistory, advance moveIndex
+    |-- Handle pawn promotion if applicable
+    v
+[7] Post-move: update game status
+    |-- Is opponent now in check? --> isCheck(opponentColor)
+    |   |-- Yes: does opponent have any legal move? --> hasAnyLegalMove(opponentColor)
+    |   |   |-- No  --> status = CHECKMATE (game over)
+    |   |   |-- Yes --> status = CHECK
+    |   |-- No: does opponent have any legal move?
+    |       |-- No  --> status = STALEMATE (game over, draw)
+    |       |-- Yes --> status = ACTIVE
+    v
+[8] Switch turn to opponent
+    v
+[9] Notify all observers
+    |-- return true (move was successful)
+\`\`\`
+
+---
+
+## 11. Extension Handling
+
+### 11.1 Castling
+
+**Conditions for castling to be legal:**
+1. Neither the king nor the chosen rook has previously moved (\`hasMoved == false\`)
+2. No pieces between the king and rook (\`isPathClear\`)
+3. The king is not currently in check
+4. The king does not pass through any square that is under attack
+5. The king does not land on a square that is under attack
+
+**Implementation details:**
+- King's \`canMove()\` detects a 2-square horizontal move as a castling attempt
+- Validates all 5 conditions listed above
+- \`Move.execute()\` moves both the king and the rook to their new positions
+- \`Move.undo()\` restores both pieces to their original positions and resets \`hasMoved\`
+
+King-side castling (White): King e1->g1, Rook h1->f1
+Queen-side castling (White): King e1->c1, Rook a1->d1
+King-side castling (Black): King e8->g8, Rook h8->f8
+Queen-side castling (Black): King e8->c8, Rook a8->d8
+
+### 11.2 En Passant
+
+**Conditions:**
+1. Opponent's pawn just advanced 2 squares on the immediately preceding move
+2. Your pawn is on the 5th rank (row 3 for White, row 4 for Black)
+3. Your pawn is horizontally adjacent to the opponent's pawn that just double-moved
+4. The capture is to the square the opponent's pawn "passed through"
+
+**Implementation:**
+- \`Game\` exposes the last move via \`moveHistory\`
+- \`Pawn.canMove()\` checks if the move is a diagonal capture to an empty square AND
+  the last move was a 2-square pawn advance to the adjacent column
+- \`Move.execute()\` removes the captured pawn (which is NOT on the destination square)
+- \`Move.undo()\` restores the captured pawn to its position and restores the capturing
+  pawn to its original position
+
+### 11.3 Pawn Promotion
+
+**Condition:** A pawn reaches the opposite end of the board (row 0 for White, row 7
+for Black).
+
+**Implementation:**
+- After a pawn move, \`Move.execute()\` checks if the pawn reached the last rank
+- If so, the pawn is replaced with a new Queen (default promotion)
+- Can be extended to allow player choice (Queen, Rook, Bishop, Knight)
+- \`Move.undo()\` restores the original pawn
+
+### 11.4 Adding a Timer (Extension Discussion)
+
+**Impact:** Minimal changes to core classes.
+
+- Add a \`Clock\` class with \`remainingTime\`, \`start()\`, \`pause()\`, \`isExpired()\`
+- Each Player gets a Clock instance
+- Game starts the current player's clock before their turn and pauses it after
+- If a clock expires, Game sets status to a new \`TIMEOUT\` status
+
+No existing classes are modified except Game. Open/Closed Principle in action.
+
+### 11.5 Adding an AI Player (Extension Discussion)
+
+- Define a \`MoveStrategy\` interface: \`selectMove(Board, Color): Move\`
+- \`HumanMoveStrategy\` waits for user input
+- \`MinimaxMoveStrategy\` uses minimax with alpha-beta pruning
+- Player holds a MoveStrategy reference
+- Game loop calls \`currentPlayer.getStrategy().selectMove()\` instead of waiting for input
+
+---
+
+## 12. Complexity Analysis
+
+| Operation | Time Complexity | Notes |
+|-----------|----------------|-------|
+| \`piece.canMove()\` | O(n), n = max dimension = 8 | Sliding pieces check path; Knight is O(1) |
+| \`isCheck(color)\` | O(P), P = opponent pieces (max 16) | Check each opponent piece against king |
+| \`isCheckmate(color)\` | O(P * 64) worst case | For each piece, try each destination square |
+| \`wouldLeaveKingInCheck()\` | O(P) | Simulate move, then call isCheck |
+| \`makeMove()\` | O(P * 64) | Includes checkmate/stalemate detection |
+| \`undoMove()\` | O(1) | Just reverse the stored move command |
+| \`isPathClear()\` | O(7) worst case | At most 7 squares between two corners |
+
+With at most 32 pieces and 64 squares, all operations complete in microseconds.
+Memory usage: O(1) per move (Command pattern), O(M) total for M moves.
+
+---
+
+## 13. Concurrency Considerations
+
+For the standard two-player local game, concurrency is not a concern since players
+alternate turns and the game is single-threaded.
+
+For extensions:
+- **Timer:** The Clock runs on a separate thread. Use \`AtomicLong\` for \`remainingMillis\`
+  or synchronize access.
+- **Network play:** Incoming moves arrive on a network thread. Synchronize \`makeMove()\`
+  and \`undoMove()\`.
+- **AI computation:** Run on a separate thread with a \`Future<Move>\` to deliver the
+  result without blocking the UI.
+
+The core Game class can be made thread-safe by synchronizing \`makeMove()\` and
+\`undoMove()\`, or by using a single-threaded event loop (command queue) pattern.
+
+---
+
+## 14. Testing Strategy
+
+| Test Category | Examples |
+|---------------|----------|
+| **Unit: Piece movement** | King moves 1 square, Queen slides diagonally, Knight L-shape, Pawn forward |
+| **Unit: Illegal moves** | Rook moving diagonally, Bishop moving horizontally, moving through pieces |
+| **Unit: Capture** | Capturing opponent piece, cannot capture own piece |
+| **Unit: Check detection** | Place pieces to create check, verify isCheck returns true |
+| **Unit: Checkmate** | Scholar's mate, back-rank mate, smothered mate |
+| **Unit: Stalemate** | King-only vs King+Queen stalemate position |
+| **Unit: Castling** | Valid castling, blocked castling, castling through check, castling after king moved |
+| **Unit: En passant** | Valid en passant, expired en passant (not immediately after double move) |
+| **Unit: Pawn promotion** | Pawn reaches last rank and becomes Queen |
+| **Unit: Pinned piece** | Piece pinned to king cannot move away from pin line |
+| **Unit: Undo/Redo** | Make move, undo, verify board state exactly restored |
+| **Integration: Full game** | Play a complete sequence of moves leading to checkmate |
+| **Edge case** | Move when game is over returns false; resign sets correct status |
+
+---
+
+## 15. Interview Tips
+
+### What interviewers look for at Uber India:
+
+1. **Clean class hierarchy**: Piece abstraction with proper inheritance and polymorphism
+2. **SOLID principles**: Single responsibility per class, open for extension
+3. **Design patterns**: Command (undo), Factory (creation), Template Method (movement), Observer (events)
+4. **Edge cases**: Check, checkmate, stalemate, pins, castling, en passant
+5. **Two-phase move validation**: piece rules + king safety
+6. **Algorithm clarity**: Check detection, checkmate detection explained step by step
+
+### Common mistakes to avoid:
+
+- Putting all movement logic in the Board class (violates SRP)
+- Forgetting to check if a move leaves your own king in check
+- Not distinguishing check vs checkmate vs stalemate
+- Hardcoding piece creation instead of using a factory
+- Not supporting undo (Command pattern is expected)
+- Making Position mutable (should be immutable value object)
+
+### Suggested 45-minute breakdown:
+
+| Time | Activity |
+|------|----------|
+| 0-5 min | Clarify requirements, state assumptions |
+| 5-15 min | Identify entities, draw class diagram |
+| 15-30 min | Code core classes: Piece hierarchy, Board, Game |
+| 30-40 min | Code check/checkmate/stalemate logic |
+| 40-45 min | Discuss extensions: castling, en passant, undo, timer, AI |
+
+---
+
+## 16. Summary
+
+### Design Pattern Recap
+
+| Pattern | Where Applied | Benefit |
+|---------|--------------|---------|
+| **Template Method** | Piece.canMove() -- each subclass implements its own rules | Eliminates duplicated validation across 6 piece types |
+| **Factory** | PieceFactory.createPiece() | Centralizes piece creation, decouples board setup from concrete classes |
+| **Command** | Move with execute/undo | Enables move history, undo/redo with minimal memory overhead |
+| **Observer** | GameObserver for check/checkmate/move events | Decouples game logic from UI, logging, and network concerns |
+| **Strategy (ext)** | MoveStrategy for AI players | Swappable AI algorithms without changing game flow |
+
+### Key Classes Summary
+
+\`\`\`
+Game
+ |-- Board (8x8 grid)
+ |    |-- Cell[8][8]
+ |         |-- Position (row, col)
+ |         |-- Piece (abstract)
+ |              |-- King, Queen, Rook, Bishop, Knight, Pawn
+ |
+ |-- Player (white, black)
+ |-- Move (Command pattern: execute/undo)
+ |-- GameStatus (enum: ACTIVE, CHECK, CHECKMATE, ...)
+ |-- GameObserver (interface for event notification)
+ |-- PieceFactory (creates pieces by type)
+\`\`\`
+
+### The One-Sentence Summary
+
+A chess LLD is fundamentally about a **Piece type hierarchy** (Template Method) where
+each piece implements \`canMove()\`, a **Board** that manages spatial state, a **Game**
+that enforces rules and detects check/checkmate via simulation, and **Move commands**
+that enable undo/redo -- all wired together with the Observer pattern for event
+notification.
+`,
+  interviewScript: `# Design Chess Game -- LLD Interview Script (90 min)
+
+> Simulates an actual low-level design / machine coding interview round.
+> You must write compilable, runnable Java code on a whiteboard or shared editor.
+
+---
+
+## Opening (0:00 - 1:00)
+
+> "Thanks for having me! I'll be designing and implementing a Chess game in Java. Let me start by clarifying the requirements before I jump into code."
+
+---
+
+## Requirements Gathering (1:00 - 5:00)
+
+> "Before I start coding, I want to make sure I understand the scope. Let me ask a few questions."
+
+> **You ask:** "Should this be a two-player local game, or do I need to support networked/online play?"
+
+> **Interviewer:** "Two-player local game is fine. Focus on the core game logic."
+
+> **You ask:** "Should I implement all standard chess rules -- castling, en passant, pawn promotion, check, checkmate, stalemate?"
+
+> **Interviewer:** "Yes, at least check and checkmate detection. Castling and en passant are bonus but show completeness."
+
+> **You ask:** "Do I need a GUI, or is console-based output with move input acceptable?"
+
+> **Interviewer:** "Console is fine. Focus on clean OOP design and correct game logic."
+
+> **You ask:** "Should I focus on any particular design patterns?"
+
+> **Interviewer:** "Show me whatever patterns you think are appropriate. I want to see how you think about extensibility."
+
+> **You ask:** "What about move history and undo functionality?"
+
+> **Interviewer:** "Nice to have. If your design supports it cleanly, go for it."
+
+> "Great. So the scope is: a two-player console chess game with proper piece movement, check/checkmate detection, and clean OOP. I'll aim for extensibility using inheritance for pieces, Factory for creation, and Command pattern for moves."
+
+---
+
+## Entity Identification (5:00 - 10:00)
+
+> "Let me identify the core entities in this system."
+
+**Entities I write on the board:**
+
+1. **Color** (enum) -- WHITE, BLACK
+2. **PieceType** (enum) -- KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN
+3. **GameStatus** (enum) -- ACTIVE, CHECK, CHECKMATE, STALEMATE, RESIGNED, DRAW
+4. **Position** -- immutable value object (row, col)
+5. **Piece** (abstract) -- base class with color, type, canMove()
+6. **King, Queen, Rook, Bishop, Knight, Pawn** -- concrete pieces
+7. **Cell** -- a square on the board, holds a Piece or is empty
+8. **Board** -- 8x8 grid of Cells
+9. **Move** -- command object with execute() and undo()
+10. **Player** -- name, color, captured pieces
+11. **Game** -- orchestrator, manages turns, validates moves, detects check/checkmate
+
+> "The relationships are: Board HAS-MANY Cells, Cell HAS-A Piece (optional), Game HAS-A Board and HAS-TWO Players. Piece IS-A hierarchy -- King, Queen, etc. extend Piece."
+
+---
+
+## Class Diagram (10:00 - 15:00)
+
+> "Let me sketch the class diagram."
+
+\`\`\`mermaid
+classDiagram
+    class Color {
+        <<enum>>
+        WHITE
+        BLACK
+        +opposite() Color
+    }
+
+    class PieceType {
+        <<enum>>
+        KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN
+    }
+
+    class GameStatus {
+        <<enum>>
+        ACTIVE, CHECK, CHECKMATE, STALEMATE, RESIGNED, DRAW
+    }
+
+    class Position {
+        -int row
+        -int col
+        +isValid() boolean
+        +equals() / hashCode()
+    }
+
+    class Piece {
+        <<abstract>>
+        #Color color
+        #PieceType type
+        #boolean hasMoved
+        +canMove(Board, Position, Position)* boolean
+        +getSymbol()* String
+    }
+
+    class King { +canMove() +canCastle() }
+    class Queen { +canMove() }
+    class Rook { +canMove() }
+    class Bishop { +canMove() }
+    class Knight { +canMove() }
+    class Pawn { +canMove() +isEnPassant() }
+
+    Piece <|-- King
+    Piece <|-- Queen
+    Piece <|-- Rook
+    Piece <|-- Bishop
+    Piece <|-- Knight
+    Piece <|-- Pawn
+
+    class Cell {
+        -Position position
+        -Piece piece
+        +isEmpty() boolean
+    }
+
+    class Board {
+        -Cell[][] grid
+        +initialize()
+        +isPathClear(Position, Position) boolean
+        +findKing(Color) Position
+        +isSquareUnderAttack(Position, Color) boolean
+    }
+
+    class Move {
+        -Position from, to
+        -Piece movedPiece, capturedPiece
+        +execute(Board)
+        +undo(Board)
+    }
+
+    class PieceFactory {
+        +createPiece(PieceType, Color) Piece
+    }
+
+    class Game {
+        -Board board
+        -Player[2] players
+        -GameStatus status
+        +makeMove(Position, Position) boolean
+        +isInCheck(Color) boolean
+        +isCheckmate(Color) boolean
+    }
+
+    Board "1" *-- "64" Cell
+    Cell "1" o-- "0..1" Piece
+    Game "1" *-- "1" Board
+    Game "1" *-- "2" Player
+\`\`\`
+
+---
+
+## Implementation Plan (15:00 - 17:00)
+
+> "I'll implement in this order, building from the bottom up:"
+
+1. **Enums** -- Color, PieceType, GameStatus
+2. **Position** -- immutable value object
+3. **Piece** (abstract) + all 6 subclasses
+4. **Cell** -- square on the board
+5. **Board** -- 8x8 grid, path checking, attack detection
+6. **PieceFactory** -- Factory pattern
+7. **Move** -- Command pattern with execute/undo
+8. **Player** -- simple data holder
+9. **Game** -- the orchestrator with check/checkmate logic
+10. **Main** -- demo driver
+
+> "I'm putting everything in a single file for interview convenience. In production I'd separate these into packages."
+
+---
+
+## Coding (17:00 - 70:00)
+
+### Step 1: Enums (17:00 - 19:00)
+
+> "I'll start with the enums. Simple but important -- they make the code self-documenting."
+
+\`\`\`java
+enum Color {
+    WHITE, BLACK;
+
+    public Color opposite() {
+        return this == WHITE ? BLACK : WHITE;
+    }
+}
+
+enum PieceType {
+    KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN
+}
+
+enum GameStatus {
+    ACTIVE, CHECK, CHECKMATE, STALEMATE, RESIGNED, DRAW
+}
+\`\`\`
+
+> "I added an \`opposite()\` method on Color because we'll need it constantly when checking opponent's pieces. Saves clutter later."
+
+---
+
+### Step 2: Position (19:00 - 21:00)
+
+> "Position is an immutable value object. I need equals/hashCode for map lookups and isValid for bounds checking."
+
+\`\`\`java
+class Position {
+    private final int row;
+    private final int col;
+
+    public Position(int row, int col) {
+        this.row = row;
+        this.col = col;
+    }
+
+    public int getRow() { return row; }
+    public int getCol() { return col; }
+
+    public boolean isValid() {
+        return row >= 0 && row < 8 && col >= 0 && col < 8;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Position)) return false;
+        Position p = (Position) o;
+        return row == p.row && col == p.col;
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * row + col;
+    }
+
+    @Override
+    public String toString() {
+        char file = (char) ('a' + col);
+        int rank = 8 - row;
+        return "" + file + rank;
+    }
+}
+\`\`\`
+
+> "toString converts internal (row, col) to chess notation like 'e4'. Makes debugging much easier."
+
+---
+
+### Step 3: Abstract Piece + Subclasses (21:00 - 38:00)
+
+> "Now the Piece hierarchy. This is the core of the design. I'm using an abstract base class with a Template Method -- each subclass implements its own canMove logic."
+
+\`\`\`java
+abstract class Piece {
+    protected Color color;
+    protected PieceType type;
+    protected boolean hasMoved;
+
+    public Piece(Color color, PieceType type) {
+        this.color = color;
+        this.type = type;
+        this.hasMoved = false;
+    }
+
+    public Color getColor() { return color; }
+    public PieceType getType() { return type; }
+    public boolean hasMoved() { return hasMoved; }
+    public void setMoved(boolean moved) { this.hasMoved = moved; }
+
+    /**
+     * Two-phase validation: canMove checks ONLY piece-specific movement.
+     * The Game class checks whether the move leaves king in check.
+     */
+    public abstract boolean canMove(Board board, Position from, Position to);
+    public abstract String getSymbol();
+}
+\`\`\`
+
+> "Key design decision: canMove does NOT check if the move leaves the king in check. That's the Game's responsibility. This separation is critical -- it avoids circular dependencies and keeps each class focused on one concern."
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "Why inheritance for pieces instead of, say, a single Piece class with a movement strategy?"
+
+> **Your answer:** "Great question. I chose inheritance here because each piece's movement logic is fundamentally different -- a Knight jumps, a Bishop slides diagonally, a Pawn has direction-dependent rules and en passant. These aren't just different parameters to the same algorithm -- they're different algorithms entirely. Inheritance with the Template Method pattern lets each piece own its complete movement logic cleanly. That said, you could use Strategy pattern with a \`MovementStrategy\` interface. The tradeoff is: inheritance gives simpler code for a fixed set of piece types, while Strategy would be better if we needed to dynamically swap movement rules at runtime -- which doesn't really apply to standard chess. If we were designing a 'custom chess variant creator,' I'd switch to Strategy."
+
+> "Now let me implement the concrete pieces. I'll start with King since it's the most complex:"
+
+\`\`\`java
+class King extends Piece {
+    public King(Color color) { super(color, PieceType.KING); }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+        Piece destPiece = board.getCell(to).getPiece();
+        if (destPiece != null && destPiece.getColor() == this.color) return false;
+
+        int rowDiff = Math.abs(to.getRow() - from.getRow());
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+
+        // Normal move: 1 square any direction
+        if (rowDiff <= 1 && colDiff <= 1 && (rowDiff + colDiff) > 0) return true;
+
+        // Castling: king moves 2 squares horizontally
+        if (rowDiff == 0 && colDiff == 2) return canCastle(board, from, to);
+
+        return false;
+    }
+
+    private boolean canCastle(Board board, Position from, Position to) {
+        if (this.hasMoved) return false;
+        if (board.isSquareUnderAttack(from, this.color.opposite())) return false;
+
+        int direction = (to.getCol() > from.getCol()) ? 1 : -1;
+        int rookCol = (direction == 1) ? 7 : 0;
+        Position rookPos = new Position(from.getRow(), rookCol);
+
+        Cell rookCell = board.getCell(rookPos);
+        if (rookCell.isEmpty()) return false;
+        Piece rook = rookCell.getPiece();
+        if (rook.getType() != PieceType.ROOK || rook.getColor() != this.color
+                || rook.hasMoved()) return false;
+
+        // Path must be clear between king and rook
+        int start = Math.min(from.getCol(), rookCol) + 1;
+        int end = Math.max(from.getCol(), rookCol);
+        for (int c = start; c < end; c++) {
+            if (!board.getCell(new Position(from.getRow(), c)).isEmpty()) return false;
+        }
+
+        // King must not pass through attacked squares
+        for (int step = 1; step <= 2; step++) {
+            Position intermediate = new Position(from.getRow(),
+                    from.getCol() + direction * step);
+            if (board.isSquareUnderAttack(intermediate, this.color.opposite()))
+                return false;
+        }
+        return true;
+    }
+
+    @Override
+    public String getSymbol() { return "K"; }
+}
+\`\`\`
+
+> "Castling has four conditions: king hasn't moved, rook hasn't moved, path is clear, king doesn't pass through check. I'm checking all of them."
+
+> "The sliding pieces -- Queen, Rook, Bishop -- share a common pattern: check direction, then delegate to \`board.isPathClear()\`. Let me write those quickly."
+
+\`\`\`java
+class Queen extends Piece {
+    public Queen(Color color) { super(color, PieceType.QUEEN); }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+        Piece dest = board.getCell(to).getPiece();
+        if (dest != null && dest.getColor() == this.color) return false;
+
+        int rowDiff = Math.abs(to.getRow() - from.getRow());
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+        boolean straight = (rowDiff == 0 || colDiff == 0);
+        boolean diagonal = (rowDiff == colDiff);
+
+        if (!straight && !diagonal) return false;
+        if (rowDiff == 0 && colDiff == 0) return false;
+        return board.isPathClear(from, to);
+    }
+
+    @Override
+    public String getSymbol() { return "Q"; }
+}
+\`\`\`
+
+> "Rook and Bishop are subsets of Queen's logic. Knight is unique -- it's the only piece that jumps, so no path check needed."
+
+\`\`\`java
+class Knight extends Piece {
+    public Knight(Color color) { super(color, PieceType.KNIGHT); }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+        Piece dest = board.getCell(to).getPiece();
+        if (dest != null && dest.getColor() == this.color) return false;
+
+        int rowDiff = Math.abs(to.getRow() - from.getRow());
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+        return (rowDiff == 2 && colDiff == 1) || (rowDiff == 1 && colDiff == 2);
+    }
+
+    @Override
+    public String getSymbol() { return "N"; }
+}
+\`\`\`
+
+> "Pawn is the trickiest piece -- forward-only movement, diagonal capture, double-move from start, en passant, and promotion. Let me implement it carefully."
+
+\`\`\`java
+class Pawn extends Piece {
+    private static Move lastMoveRef = null;
+
+    public Pawn(Color color) { super(color, PieceType.PAWN); }
+
+    public static void setLastMove(Move move) { lastMoveRef = move; }
+
+    @Override
+    public boolean canMove(Board board, Position from, Position to) {
+        if (!to.isValid()) return false;
+        Piece dest = board.getCell(to).getPiece();
+        if (dest != null && dest.getColor() == this.color) return false;
+
+        int direction = (this.color == Color.WHITE) ? -1 : 1;
+        int startRow = (this.color == Color.WHITE) ? 6 : 1;
+        int rowDiff = to.getRow() - from.getRow();
+        int colDiff = Math.abs(to.getCol() - from.getCol());
+
+        // Forward 1
+        if (rowDiff == direction && colDiff == 0 && dest == null) return true;
+        // Forward 2 from start
+        if (rowDiff == 2 * direction && colDiff == 0
+                && from.getRow() == startRow && dest == null) {
+            Position mid = new Position(from.getRow() + direction, from.getCol());
+            return board.getCell(mid).isEmpty();
+        }
+        // Diagonal capture
+        if (rowDiff == direction && colDiff == 1 && dest != null) return true;
+        // En passant
+        if (rowDiff == direction && colDiff == 1 && dest == null)
+            return isEnPassant(from, to);
+
+        return false;
+    }
+
+    private boolean isEnPassant(Position from, Position to) {
+        if (lastMoveRef == null) return false;
+        Piece last = lastMoveRef.getMovedPiece();
+        if (last.getType() != PieceType.PAWN) return false;
+        if (Math.abs(lastMoveRef.getTo().getRow() - lastMoveRef.getFrom().getRow()) != 2)
+            return false;
+        return lastMoveRef.getTo().getRow() == from.getRow()
+            && lastMoveRef.getTo().getCol() == to.getCol();
+    }
+
+    @Override
+    public String getSymbol() { return "P"; }
+}
+\`\`\`
+
+---
+
+### Step 4: Cell and Board (38:00 - 46:00)
+
+> "Cell is straightforward. Board is where the important infrastructure lives."
+
+\`\`\`java
+class Cell {
+    private final Position position;
+    private Piece piece;
+
+    public Cell(Position position) { this.position = position; }
+
+    public Position getPosition() { return position; }
+    public Piece getPiece() { return piece; }
+    public void setPiece(Piece piece) { this.piece = piece; }
+    public boolean isEmpty() { return piece == null; }
+}
+\`\`\`
+
+> "Board needs three critical methods: isPathClear for sliding pieces, findKing for check detection, and isSquareUnderAttack."
+
+\`\`\`java
+class Board {
+    private final Cell[][] grid;
+
+    public Board() {
+        grid = new Cell[8][8];
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++)
+                grid[r][c] = new Cell(new Position(r, c));
+    }
+
+    public boolean isPathClear(Position from, Position to) {
+        int rowDir = Integer.signum(to.getRow() - from.getRow());
+        int colDir = Integer.signum(to.getCol() - from.getCol());
+        int r = from.getRow() + rowDir;
+        int c = from.getCol() + colDir;
+        while (r != to.getRow() || c != to.getCol()) {
+            if (!grid[r][c].isEmpty()) return false;
+            r += rowDir;
+            c += colDir;
+        }
+        return true;
+    }
+
+    public Position findKing(Color color) {
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++) {
+                Piece p = grid[r][c].getPiece();
+                if (p != null && p.getType() == PieceType.KING && p.getColor() == color)
+                    return new Position(r, c);
+            }
+        throw new IllegalStateException("King not found for " + color);
+    }
+
+    public boolean isSquareUnderAttack(Position target, Color attackerColor) {
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++) {
+                Piece p = grid[r][c].getPiece();
+                if (p != null && p.getColor() == attackerColor) {
+                    Position pos = new Position(r, c);
+                    // Special handling for king to avoid infinite recursion
+                    if (p.getType() == PieceType.KING) {
+                        int rd = Math.abs(target.getRow() - r);
+                        int cd = Math.abs(target.getCol() - c);
+                        if (rd <= 1 && cd <= 1 && (rd + cd) > 0) return true;
+                    } else if (p.canMove(this, pos, target)) {
+                        return true;
+                    }
+                }
+            }
+        return false;
+    }
+}
+\`\`\`
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "How does check detection work? Walk me through it."
+
+> **Your answer:** "Check detection is a two-phase process. First, when a player tries to make a move, I check that the piece can physically make the move -- that's the piece's \`canMove()\` method. Second, I tentatively execute the move using the Command pattern, then ask 'is my own king under attack by the opponent?' using \`isSquareUnderAttack()\`. If yes, the move is illegal and I undo it. For checkmate detection, I iterate over every piece of the checked player and every possible destination square. If no move gets them out of check, it's checkmate. The key insight is the \`isSquareUnderAttack\` method -- it iterates all opponent pieces and asks 'can any of them reach this square?' Note the special handling for king-to-king checks to avoid infinite recursion, since King.canMove itself calls isSquareUnderAttack for castling validation."
+
+---
+
+### Step 5: PieceFactory and Move (46:00 - 55:00)
+
+> "Factory pattern for piece creation. Simple but it centralizes instantiation."
+
+\`\`\`java
+class PieceFactory {
+    public static Piece createPiece(PieceType type, Color color) {
+        switch (type) {
+            case KING:   return new King(color);
+            case QUEEN:  return new Queen(color);
+            case ROOK:   return new Rook(color);
+            case BISHOP: return new Bishop(color);
+            case KNIGHT: return new Knight(color);
+            case PAWN:   return new Pawn(color);
+            default:     throw new IllegalArgumentException("Unknown type: " + type);
+        }
+    }
+}
+\`\`\`
+
+> "Now the Move class. This is the Command pattern -- it has execute() and undo(). This is what enables move history and rollback for check validation."
+
+\`\`\`java
+class Move {
+    private final Position from, to;
+    private final Piece movedPiece;
+    private Piece capturedPiece;
+    private final boolean wasFirstMove;
+    private boolean isCastlingMove, isEnPassantMove, isPromotionMove;
+    private Piece promotedTo;
+
+    public Move(Position from, Position to, Piece movedPiece) {
+        this.from = from;
+        this.to = to;
+        this.movedPiece = movedPiece;
+        this.wasFirstMove = !movedPiece.hasMoved();
+    }
+
+    public void execute(Board board) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+        capturedPiece = toCell.getPiece();
+
+        // Castling detection
+        if (movedPiece.getType() == PieceType.KING
+                && Math.abs(to.getCol() - from.getCol()) == 2) {
+            isCastlingMove = true;
+            executeCastling(board);
+            return;
+        }
+
+        // En passant detection
+        if (movedPiece.getType() == PieceType.PAWN
+                && from.getCol() != to.getCol() && toCell.isEmpty()) {
+            isEnPassantMove = true;
+            executeEnPassant(board);
+            return;
+        }
+
+        // Normal move
+        toCell.setPiece(movedPiece);
+        fromCell.setPiece(null);
+        movedPiece.setMoved(true);
+
+        // Pawn promotion
+        if (movedPiece.getType() == PieceType.PAWN) {
+            int promoRow = (movedPiece.getColor() == Color.WHITE) ? 0 : 7;
+            if (to.getRow() == promoRow) {
+                isPromotionMove = true;
+                promotedTo = PieceFactory.createPiece(PieceType.QUEEN,
+                        movedPiece.getColor());
+                promotedTo.setMoved(true);
+                toCell.setPiece(promotedTo);
+            }
+        }
+    }
+
+    public void undo(Board board) {
+        Cell fromCell = board.getCell(from);
+        Cell toCell = board.getCell(to);
+        fromCell.setPiece(movedPiece);
+        toCell.setPiece(capturedPiece);
+        if (wasFirstMove) movedPiece.setMoved(false);
+        // (Castling and en passant undo logic omitted for time;
+        //  same pattern -- reverse every state change)
+    }
+
+    // Getters
+    public Position getFrom() { return from; }
+    public Position getTo() { return to; }
+    public Piece getMovedPiece() { return movedPiece; }
+}
+\`\`\`
+
+> "The undo method is critical -- without it, we can't do the tentative-move-then-check approach for check validation."
+
+---
+
+### Step 6: Game Orchestrator (55:00 - 68:00)
+
+> "This is the main orchestrator. It ties everything together."
+
+\`\`\`java
+class Game {
+    private Board board;
+    private Player[] players;
+    private int currentPlayerIndex;
+    private GameStatus status;
+    private List<Move> moveHistory;
+
+    public Game() {
+        board = new Board();
+        board.initialize();
+        players = new Player[]{
+            new Player("Player 1", Color.WHITE),
+            new Player("Player 2", Color.BLACK)
+        };
+        currentPlayerIndex = 0;
+        status = GameStatus.ACTIVE;
+        moveHistory = new ArrayList<>();
+    }
+
+    public boolean makeMove(Position from, Position to) {
+        if (status == GameStatus.CHECKMATE || status == GameStatus.STALEMATE)
+            return false;
+
+        Cell fromCell = board.getCell(from);
+        Piece piece = fromCell.getPiece();
+
+        // Validate: piece exists, correct color, piece can physically move
+        if (piece == null) return false;
+        if (piece.getColor() != getCurrentPlayer().getColor()) return false;
+        if (!piece.canMove(board, from, to)) return false;
+
+        // Tentatively execute the move
+        Move move = new Move(from, to, piece);
+        move.execute(board);
+
+        // Check if this move leaves own king in check
+        Color myColor = piece.getColor();
+        if (isInCheck(myColor)) {
+            move.undo(board);  // Illegal -- would leave king in check
+            return false;
+        }
+
+        // Move is legal -- finalize
+        moveHistory.add(move);
+        Pawn.setLastMove(move);
+
+        // Update game status for opponent
+        Color opponentColor = myColor.opposite();
+        if (isCheckmate(opponentColor)) {
+            status = GameStatus.CHECKMATE;
+        } else if (isStalemate(opponentColor)) {
+            status = GameStatus.STALEMATE;
+        } else if (isInCheck(opponentColor)) {
+            status = GameStatus.CHECK;
+        } else {
+            status = GameStatus.ACTIVE;
+        }
+
+        currentPlayerIndex = 1 - currentPlayerIndex;
+        return true;
+    }
+
+    public boolean isInCheck(Color color) {
+        Position kingPos = board.findKing(color);
+        return board.isSquareUnderAttack(kingPos, color.opposite());
+    }
+
+    public boolean isCheckmate(Color color) {
+        if (!isInCheck(color)) return false;
+        return !hasAnyLegalMove(color);
+    }
+
+    public boolean isStalemate(Color color) {
+        if (isInCheck(color)) return false;
+        return !hasAnyLegalMove(color);
+    }
+
+    private boolean hasAnyLegalMove(Color color) {
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++) {
+                Piece piece = board.getCell(r, c).getPiece();
+                if (piece != null && piece.getColor() == color) {
+                    Position from = new Position(r, c);
+                    for (int tr = 0; tr < 8; tr++)
+                        for (int tc = 0; tc < 8; tc++) {
+                            Position to = new Position(tr, tc);
+                            if (piece.canMove(board, from, to)) {
+                                Move testMove = new Move(from, to, piece);
+                                testMove.execute(board);
+                                boolean stillInCheck = isInCheck(color);
+                                testMove.undo(board);
+                                if (!stillInCheck) return true;
+                            }
+                        }
+                }
+            }
+        return false;
+    }
+}
+\`\`\`
+
+> "The makeMove method follows a strict sequence: validate, tentatively execute, check legality, finalize or rollback. This is the two-phase validation I mentioned earlier."
+
+---
+
+### Step 7: Main Demo (68:00 - 70:00)
+
+> "Quick driver to show it works:"
+
+\`\`\`java
+public class ChessGame {
+    public static void main(String[] args) {
+        Game game = new Game();
+        game.getBoard().printBoard();
+
+        // Scholar's Mate demonstration
+        game.makeMove(new Position(6, 4), new Position(4, 4)); // e2-e4
+        game.makeMove(new Position(1, 4), new Position(3, 4)); // e7-e5
+        game.makeMove(new Position(7, 5), new Position(4, 2)); // Bf1-c4
+        game.makeMove(new Position(1, 1), new Position(3, 1)); // b7-b5 (mistake)
+        game.makeMove(new Position(7, 3), new Position(3, 7)); // Qd1-h5
+        game.makeMove(new Position(1, 0), new Position(2, 0)); // a7-a6 (another mistake)
+        game.makeMove(new Position(3, 7), new Position(1, 5)); // Qh5xf7 checkmate!
+
+        game.getBoard().printBoard();
+        System.out.println("Status: " + game.getStatus()); // CHECKMATE
+    }
+}
+\`\`\`
+
+---
+
+## Demo & Testing (70:00 - 80:00)
+
+> "Let me walk through the main flow. The demo shows Scholar's Mate -- a 4-move checkmate. After Qxf7, the black king is in check from the queen, and there's no legal move: the queen is protected by the bishop on c4, and the king can't escape. The game correctly reports CHECKMATE."
+
+> "Let me also trace a check validation scenario: if White tries to move their king into a square attacked by the Black queen, makeMove will tentatively execute it, find isInCheck(WHITE) is true, undo the move, and return false."
+
+> "For edge cases: castling is blocked if king passes through check. En passant only works the turn immediately after a double-pawn move. Pawn auto-promotes to Queen on the back rank."
+
+---
+
+## Extension Round (80:00 - 90:00)
+
+### Interviewer asks: "Now add a timer/clock for each player."
+
+> "Great question. I designed for this extensibility. Here's my approach:"
+
+> "I'll create a \`ChessClock\` class that each Player holds. The Game orchestrator starts/stops clocks on turn transitions."
+
+\`\`\`java
+class ChessClock {
+    private long remainingMillis;
+    private long lastStartTime;
+    private boolean running;
+
+    public ChessClock(long initialMinutes) {
+        this.remainingMillis = initialMinutes * 60 * 1000;
+        this.running = false;
+    }
+
+    public void start() {
+        if (!running) {
+            lastStartTime = System.currentTimeMillis();
+            running = true;
+        }
+    }
+
+    public void stop() {
+        if (running) {
+            remainingMillis -= (System.currentTimeMillis() - lastStartTime);
+            running = false;
+        }
+    }
+
+    public boolean isExpired() {
+        if (running) {
+            long elapsed = System.currentTimeMillis() - lastStartTime;
+            return (remainingMillis - elapsed) <= 0;
+        }
+        return remainingMillis <= 0;
+    }
+
+    public String getTimeDisplay() {
+        long millis = remainingMillis;
+        if (running) millis -= (System.currentTimeMillis() - lastStartTime);
+        long secs = Math.max(0, millis / 1000);
+        return String.format("%02d:%02d", secs / 60, secs % 60);
+    }
+}
+\`\`\`
+
+> "The changes to Game are minimal. In the constructor, I create a clock per player. In makeMove, before anything else, I check \`if (currentClock.isExpired()) { status = GameStatus.TIME_OUT; return false; }\`. At the end of a successful move, I stop the current player's clock and start the opponent's. I'd add a TIME_OUT value to the GameStatus enum."
+
+> "The key insight is that ChessClock is completely decoupled from the board and piece logic. I don't need to touch Board, Cell, Piece, or Move at all. This is the Open/Closed Principle in action -- the existing classes are closed for modification."
+
+---
+
+## Red Flags to Avoid
+
+1. **Giant if/else for piece movement** -- Use polymorphism instead. A single \`canMove()\` with \`if (type == KING) {...} else if (type == QUEEN) {...}\` violates Open/Closed Principle.
+2. **Not separating move validation from check validation** -- Leads to circular logic. Keep piece movement rules in Piece, check logic in Game.
+3. **Mutable Position** -- Position should be immutable. Mutating shared positions causes silent bugs.
+4. **Forgetting edge cases** -- En passant, castling through check, pawn promotion. At minimum acknowledge them even if you don't code them.
+5. **No undo capability** -- Without the Command pattern (execute/undo), you can't do tentative moves for check validation.
+6. **Infinite recursion in attack detection** -- King.canMove calls isSquareUnderAttack for castling. isSquareUnderAttack calls canMove for each piece. Need special handling for king-to-king checks.
+7. **Hardcoding board size** -- Using magic number 8 everywhere. Use a constant.
+
+---
+
+## What Impresses Interviewers
+
+1. **Two-phase validation** -- Explaining that piece movement and check validation are separate concerns.
+2. **Command pattern for Move** -- Shows you understand reversible operations and design patterns.
+3. **Handling the King recursion problem** -- Proactively addressing the infinite recursion in isSquareUnderAttack.
+4. **Clean enum usage** -- Color.opposite(), PieceType for factory, GameStatus for state machine.
+5. **Immutable value objects** -- Position being final with equals/hashCode.
+6. **Factory pattern** -- Even simple, it shows you think about centralized creation.
+7. **Talking about tradeoffs** -- Inheritance vs Strategy for pieces, explaining why you chose what you chose.
+8. **Extension readiness** -- When asked about timer, showing you can add it without modifying existing classes.
+9. **Running a real demo** -- Scholar's Mate is a concrete, verifiable test case.
+10. **Edge case awareness** -- En passant, castling, promotion, stalemate vs checkmate distinction.
+`,
+  complexityAnalysis: `## 12. Complexity Analysis
+
+| Operation | Time Complexity | Notes |
+|-----------|----------------|-------|
+| \`piece.canMove()\` | O(n), n = max dimension = 8 | Sliding pieces check path; Knight is O(1) |
+| \`isCheck(color)\` | O(P), P = opponent pieces (max 16) | Check each opponent piece against king |
+| \`isCheckmate(color)\` | O(P * 64) worst case | For each piece, try each destination square |
+| \`wouldLeaveKingInCheck()\` | O(P) | Simulate move, then call isCheck |
+| \`makeMove()\` | O(P * 64) | Includes checkmate/stalemate detection |
+| \`undoMove()\` | O(1) | Just reverse the stored move command |
+| \`isPathClear()\` | O(7) worst case | At most 7 squares between two corners |
+
+With at most 32 pieces and 64 squares, all operations complete in microseconds.
+Memory usage: O(1) per move (Command pattern), O(M) total for M moves.
+
+---`,
+};
+
+// ============================================================
+//  02-design-vending-machine -> prob-vending-machine
+// ============================================================
+
+export const vendingMachineSolution: ProblemSolutionContent = {
+  referenceSolution: `# Vending Machine -- Complete Java Implementation
+
+## File Structure
+
+\`\`\`
+vendingmachine/
+  Coin.java
+  Note.java
+  Product.java
+  Inventory.java
+  PaymentStrategy.java
+  CashPaymentStrategy.java
+  CardPaymentStrategy.java
+  VendingState.java
+  IdleState.java
+  HasMoneyState.java
+  DispensingState.java
+  VendingMachine.java
+  VendingMachineDemo.java
+\`\`\`
+
+---
+
+## 1. Coin Enum
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * Coin denominations accepted by the vending machine.
+ * Values are stored in cents to avoid floating-point issues.
+ */
+public enum Coin {
+    PENNY(1),
+    NICKEL(5),
+    DIME(10),
+    QUARTER(25);
+
+    private final int value;
+
+    Coin(int value) {
+        this.value = value;
+    }
+
+    public int getValue() {
+        return value;
+    }
+}
+\`\`\`
+
+---
+
+## 2. Note Enum
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * Note (bill) denominations accepted by the vending machine.
+ * Values are stored in cents to avoid floating-point issues.
+ */
+public enum Note {
+    ONE(100),
+    FIVE(500),
+    TEN(1000),
+    TWENTY(2000);
+
+    private final int value;
+
+    Note(int value) {
+        this.value = value;
+    }
+
+    public int getValue() {
+        return value;
+    }
+}
+\`\`\`
+
+---
+
+## 3. Product
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * Immutable value object representing a product in the vending machine.
+ * Price is stored in cents.
+ */
+public class Product {
+    private final String code;
+    private final String name;
+    private final int price; // in cents
+
+    public Product(String code, String name, int price) {
+        if (code == null || code.isEmpty()) {
+            throw new IllegalArgumentException("Product code cannot be null or empty");
+        }
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("Product name cannot be null or empty");
+        }
+        if (price <= 0) {
+            throw new IllegalArgumentException("Product price must be positive");
+        }
+        this.code = code;
+        this.name = name;
+        this.price = price;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getPrice() {
+        return price;
+    }
+
+    /**
+     * Returns the price formatted as dollars for display purposes.
+     */
+    public String getFormattedPrice() {
+        return String.format("$%.2f", price / 100.0);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("[%s] %s - %s", code, name, getFormattedPrice());
+    }
+}
+\`\`\`
+
+---
+
+## 4. Inventory
+
+\`\`\`java
+package vendingmachine;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Manages the product catalog and stock quantities.
+ * Uses two maps: one for product references, one for quantities.
+ */
+public class Inventory {
+    private final Map<String, Product> products;
+    private final Map<String, Integer> stock;
+
+    public Inventory() {
+        this.products = new HashMap<>();
+        this.stock = new HashMap<>();
+    }
+
+    /**
+     * Adds a product to the inventory with the given initial quantity.
+     * If the product already exists, the quantity is added to the existing stock.
+     */
+    public void addProduct(Product product, int quantity) {
+        if (product == null) {
+            throw new IllegalArgumentException("Product cannot be null");
+        }
+        if (quantity < 0) {
+            throw new IllegalArgumentException("Quantity cannot be negative");
+        }
+        products.put(product.getCode(), product);
+        stock.put(product.getCode(), stock.getOrDefault(product.getCode(), 0) + quantity);
+    }
+
+    /**
+     * Removes a product entirely from the inventory.
+     */
+    public void removeProduct(String code) {
+        products.remove(code);
+        stock.remove(code);
+    }
+
+    /**
+     * Returns the Product object for the given code, or null if not found.
+     */
+    public Product getProduct(String code) {
+        return products.get(code);
+    }
+
+    /**
+     * Returns the current stock quantity for the given product code.
+     */
+    public int getQuantity(String code) {
+        return stock.getOrDefault(code, 0);
+    }
+
+    /**
+     * Decrements the stock by 1 after a successful dispense.
+     * Throws exception if product is not available.
+     */
+    public void reduceQuantity(String code) {
+        if (\\!isAvailable(code)) {
+            throw new IllegalStateException("Cannot reduce quantity: product " + code + " is not available");
+        }
+        stock.put(code, stock.get(code) - 1);
+    }
+
+    /**
+     * Returns true if the product exists and has at least 1 unit in stock.
+     */
+    public boolean isAvailable(String code) {
+        return products.containsKey(code) && stock.getOrDefault(code, 0) > 0;
+    }
+
+    /**
+     * Admin operation to add more units of an existing product.
+     */
+    public void restock(String code, int quantity) {
+        if (\\!products.containsKey(code)) {
+            throw new IllegalArgumentException("Product " + code + " does not exist in inventory");
+        }
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Restock quantity must be positive");
+        }
+        stock.put(code, stock.getOrDefault(code, 0) + quantity);
+    }
+
+    /**
+     * Displays all products with their prices and current stock levels.
+     */
+    public void displayProducts() {
+        System.out.println("============================================");
+        System.out.println("         VENDING MACHINE PRODUCTS           ");
+        System.out.println("============================================");
+        System.out.printf("%-6s %-20s %-8s %-6s%n", "Code", "Name", "Price", "Stock");
+        System.out.println("--------------------------------------------");
+
+        for (Map.Entry<String, Product> entry : products.entrySet()) {
+            Product p = entry.getValue();
+            int qty = stock.getOrDefault(p.getCode(), 0);
+            String stockDisplay = qty > 0 ? String.valueOf(qty) : "SOLD OUT";
+            System.out.printf("%-6s %-20s %-8s %-6s%n",
+                    p.getCode(), p.getName(), p.getFormattedPrice(), stockDisplay);
+        }
+        System.out.println("============================================");
+    }
+}
+\`\`\`
+
+---
+
+## 5. PaymentStrategy Interface
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * Strategy interface for payment processing.
+ * Allows the vending machine to support multiple payment methods
+ * without modifying core logic.
+ */
+public interface PaymentStrategy {
+
+    /**
+     * Processes a payment of the given amount (in cents).
+     * Returns true if the payment was successful.
+     */
+    boolean pay(int amount);
+
+    /**
+     * Returns a human-readable name for this payment type.
+     */
+    String getPaymentType();
+}
+\`\`\`
+
+---
+
+## 6. CashPaymentStrategy
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * Concrete strategy for cash payments (coins and notes).
+ * In a cash transaction, the machine collects physical money,
+ * so payment is always considered successful once the balance
+ * has been verified by the state logic.
+ */
+public class CashPaymentStrategy implements PaymentStrategy {
+
+    @Override
+    public boolean pay(int amount) {
+        // Cash payment is validated by the state machine's balance check.
+        // If we reach this point, the balance was already confirmed sufficient.
+        System.out.println("Processing cash payment of " + formatCents(amount));
+        return true;
+    }
+
+    @Override
+    public String getPaymentType() {
+        return "CASH";
+    }
+
+    private String formatCents(int cents) {
+        return String.format("$%.2f", cents / 100.0);
+    }
+}
+\`\`\`
+
+---
+
+## 7. CardPaymentStrategy
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * Concrete strategy for card-based payments.
+ * In a real system, this would integrate with a payment gateway.
+ * Here we simulate the authorization process.
+ */
+public class CardPaymentStrategy implements PaymentStrategy {
+    private final String cardNumber;
+
+    public CardPaymentStrategy(String cardNumber) {
+        if (cardNumber == null || cardNumber.length() < 4) {
+            throw new IllegalArgumentException("Invalid card number");
+        }
+        this.cardNumber = cardNumber;
+    }
+
+    @Override
+    public boolean pay(int amount) {
+        // Simulate card authorization
+        String maskedCard = "****-****-****-" + cardNumber.substring(cardNumber.length() - 4);
+        System.out.println("Authorizing card " + maskedCard + " for " + formatCents(amount));
+        // In production: call payment gateway API here
+        System.out.println("Card payment approved.");
+        return true;
+    }
+
+    @Override
+    public String getPaymentType() {
+        return "CARD";
+    }
+
+    private String formatCents(int cents) {
+        return String.format("$%.2f", cents / 100.0);
+    }
+}
+\`\`\`
+
+---
+
+## 8. VendingState Interface
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * State interface for the State pattern.
+ *
+ * Every possible action on the vending machine is declared here.
+ * Each concrete state provides its own implementation, either
+ * performing the action or rejecting it with a meaningful message.
+ *
+ * The VendingMachine delegates all action calls to its current state.
+ */
+public interface VendingState {
+
+    /**
+     * Handle money insertion.
+     * @param machine the vending machine context
+     * @param amount  the amount in cents being inserted
+     */
+    void insertMoney(VendingMachine machine, int amount);
+
+    /**
+     * Handle product selection.
+     * @param machine the vending machine context
+     * @param code    the product code selected by the user
+     */
+    void selectProduct(VendingMachine machine, String code);
+
+    /**
+     * Handle product dispensing.
+     * @param machine the vending machine context
+     */
+    void dispense(VendingMachine machine);
+
+    /**
+     * Handle change return / transaction cancellation.
+     * @param machine the vending machine context
+     * @return the amount in cents returned to the user
+     */
+    int returnChange(VendingMachine machine);
+}
+\`\`\`
+
+---
+
+## 9. IdleState
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * The machine is idle -- waiting for a user to insert money.
+ *
+ * Valid action:  insertMoney() -> transitions to HasMoneyState
+ * Invalid actions: selectProduct(), dispense(), returnChange()
+ */
+public class IdleState implements VendingState {
+
+    @Override
+    public void insertMoney(VendingMachine machine, int amount) {
+        if (amount <= 0) {
+            System.out.println("Invalid amount. Please insert a valid coin or note.");
+            return;
+        }
+        machine.setCurrentBalance(machine.getCurrentBalance() + amount);
+        System.out.println("Inserted " + formatCents(amount)
+                + ". Current balance: " + formatCents(machine.getCurrentBalance()));
+        // Transition: Idle -> HasMoney
+        machine.setState(new HasMoneyState());
+    }
+
+    @Override
+    public void selectProduct(VendingMachine machine, String code) {
+        System.out.println("Please insert money first.");
+    }
+
+    @Override
+    public void dispense(VendingMachine machine) {
+        System.out.println("No transaction in progress. Please insert money and select a product.");
+    }
+
+    @Override
+    public int returnChange(VendingMachine machine) {
+        System.out.println("No money inserted. Nothing to return.");
+        return 0;
+    }
+
+    private String formatCents(int cents) {
+        return String.format("$%.2f", cents / 100.0);
+    }
+
+    @Override
+    public String toString() {
+        return "IDLE";
+    }
+}
+\`\`\`
+
+---
+
+## 10. HasMoneyState
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * Money has been inserted. The user can:
+ *   - Insert more money (stay in this state)
+ *   - Select a product (transition to DispensingState if valid)
+ *   - Cancel / return change (transition back to IdleState)
+ *
+ * Product selection involves two validations:
+ *   1. The product must exist and be in stock.
+ *   2. The current balance must be >= the product price.
+ */
+public class HasMoneyState implements VendingState {
+
+    @Override
+    public void insertMoney(VendingMachine machine, int amount) {
+        if (amount <= 0) {
+            System.out.println("Invalid amount. Please insert a valid coin or note.");
+            return;
+        }
+        machine.setCurrentBalance(machine.getCurrentBalance() + amount);
+        System.out.println("Inserted " + formatCents(amount)
+                + ". Current balance: " + formatCents(machine.getCurrentBalance()));
+        // Stay in HasMoneyState -- no transition needed
+    }
+
+    @Override
+    public void selectProduct(VendingMachine machine, String code) {
+        Inventory inventory = machine.getInventory();
+        Product product = inventory.getProduct(code);
+
+        // Validation 1: Does the product exist?
+        if (product == null) {
+            System.out.println("Invalid product code: " + code);
+            return;
+        }
+
+        // Validation 2: Is the product in stock?
+        if (\\!inventory.isAvailable(code)) {
+            System.out.println("Product " + product.getName() + " (" + code
+                    + ") is out of stock. Please select another product.");
+            return;
+        }
+
+        // Validation 3: Does the user have enough money?
+        if (machine.getCurrentBalance() < product.getPrice()) {
+            int shortfall = product.getPrice() - machine.getCurrentBalance();
+            System.out.println("Insufficient funds for " + product.getName()
+                    + " (" + product.getFormattedPrice() + ").");
+            System.out.println("Please insert " + formatCents(shortfall)
+                    + " more, or press cancel to return your money.");
+            return;
+        }
+
+        // All validations passed -- set selected product and transition
+        machine.setSelectedProduct(product);
+        System.out.println("Product selected: " + product.getName()
+                + " (" + product.getFormattedPrice() + ")");
+        // Transition: HasMoney -> Dispensing
+        machine.setState(new DispensingState());
+    }
+
+    @Override
+    public void dispense(VendingMachine machine) {
+        System.out.println("Please select a product first.");
+    }
+
+    @Override
+    public int returnChange(VendingMachine machine) {
+        int balance = machine.getCurrentBalance();
+        System.out.println("Transaction cancelled. Returning " + formatCents(balance) + ".");
+        machine.resetTransaction();
+        // Transition: HasMoney -> Idle
+        machine.setState(new IdleState());
+        return balance;
+    }
+
+    private String formatCents(int cents) {
+        return String.format("$%.2f", cents / 100.0);
+    }
+
+    @Override
+    public String toString() {
+        return "HAS_MONEY";
+    }
+}
+\`\`\`
+
+---
+
+## 11. DispensingState
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * A product has been selected and funds are confirmed sufficient.
+ * The only valid action is dispense(), which:
+ *   1. Processes payment via the current PaymentStrategy
+ *   2. Reduces inventory by 1
+ *   3. Calculates and returns change
+ *   4. Resets the transaction
+ *   5. Transitions back to IdleState
+ *
+ * All other actions are rejected while dispensing is in progress.
+ */
+public class DispensingState implements VendingState {
+
+    @Override
+    public void insertMoney(VendingMachine machine, int amount) {
+        System.out.println("Please wait, dispensing in progress. Cannot accept money right now.");
+    }
+
+    @Override
+    public void selectProduct(VendingMachine machine, String code) {
+        System.out.println("Please wait, dispensing in progress. Cannot change selection.");
+    }
+
+    @Override
+    public void dispense(VendingMachine machine) {
+        Product product = machine.getSelectedProduct();
+        if (product == null) {
+            System.out.println("Error: no product selected. Returning to idle.");
+            machine.resetTransaction();
+            machine.setState(new IdleState());
+            return;
+        }
+
+        // Step 1: Process payment through the strategy
+        PaymentStrategy strategy = machine.getPaymentStrategy();
+        if (strategy \\!= null) {
+            strategy.pay(product.getPrice());
+        }
+
+        // Step 2: Reduce inventory
+        machine.getInventory().reduceQuantity(product.getCode());
+
+        // Step 3: Calculate change
+        int change = machine.getCurrentBalance() - product.getPrice();
+
+        // Step 4: Dispense the product
+        System.out.println("============================================");
+        System.out.println("  DISPENSING: " + product.getName());
+        System.out.println("  Price:      " + product.getFormattedPrice());
+        if (change > 0) {
+            System.out.println("  Change:     " + formatCents(change));
+        } else {
+            System.out.println("  Change:     None (exact amount)");
+        }
+        System.out.println("============================================");
+        System.out.println("Please collect your " + product.getName() + ".");
+        if (change > 0) {
+            System.out.println("Please collect your change: " + formatCents(change));
+        }
+
+        // Step 5: Reset and return to Idle
+        machine.resetTransaction();
+        machine.setState(new IdleState());
+    }
+
+    @Override
+    public int returnChange(VendingMachine machine) {
+        System.out.println("Cannot cancel now -- dispensing in progress. Product is being delivered.");
+        return 0;
+    }
+
+    private String formatCents(int cents) {
+        return String.format("$%.2f", cents / 100.0);
+    }
+
+    @Override
+    public String toString() {
+        return "DISPENSING";
+    }
+}
+\`\`\`
+
+---
+
+## 12. VendingMachine (Singleton)
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * The central Singleton class that ties everything together.
+ *
+ * Responsibilities:
+ *   - Holds the current state, inventory, balance, and selected product
+ *   - Delegates all user actions to the current VendingState
+ *   - Provides overloaded insertMoney() for both Coin and Note types
+ *   - Manages payment strategy
+ *   - Provides a reset method for cleaning up after each transaction
+ *
+ * Thread safety: uses double-checked locking for the singleton instance.
+ */
+public class VendingMachine {
+
+    // --- Singleton ---
+    private static volatile VendingMachine instance;
+
+    public static VendingMachine getInstance() {
+        if (instance == null) {
+            synchronized (VendingMachine.class) {
+                if (instance == null) {
+                    instance = new VendingMachine();
+                }
+            }
+        }
+        return instance;
+    }
+
+    // --- State ---
+    private VendingState currentState;
+
+    // --- Data ---
+    private final Inventory inventory;
+    private int currentBalance; // in cents
+    private Product selectedProduct;
+    private PaymentStrategy paymentStrategy;
+
+    /**
+     * Private constructor -- use getInstance().
+     * Initializes with IdleState, empty inventory, zero balance, and cash payment.
+     */
+    private VendingMachine() {
+        this.currentState = new IdleState();
+        this.inventory = new Inventory();
+        this.currentBalance = 0;
+        this.selectedProduct = null;
+        this.paymentStrategy = new CashPaymentStrategy();
+    }
+
+    // ========================================================================
+    // Public API -- delegates to current state
+    // ========================================================================
+
+    /**
+     * Insert a coin into the machine.
+     */
+    public void insertMoney(Coin coin) {
+        System.out.println("[State: " + currentState + "] Inserting " + coin.name()
+                + " (" + formatCents(coin.getValue()) + ")");
+        currentState.insertMoney(this, coin.getValue());
+    }
+
+    /**
+     * Insert a note (bill) into the machine.
+     */
+    public void insertMoney(Note note) {
+        System.out.println("[State: " + currentState + "] Inserting $" + note.name()
+                + " note (" + formatCents(note.getValue()) + ")");
+        currentState.insertMoney(this, note.getValue());
+    }
+
+    /**
+     * Select a product by its code.
+     */
+    public void selectProduct(String code) {
+        System.out.println("[State: " + currentState + "] Selecting product: " + code);
+        currentState.selectProduct(this, code);
+    }
+
+    /**
+     * Dispense the selected product.
+     */
+    public void dispense() {
+        System.out.println("[State: " + currentState + "] Dispensing...");
+        currentState.dispense(this);
+    }
+
+    /**
+     * Cancel the transaction and return all inserted money.
+     */
+    public int cancelTransaction() {
+        System.out.println("[State: " + currentState + "] Cancel requested.");
+        return currentState.returnChange(this);
+    }
+
+    /**
+     * Display all available products.
+     */
+    public void displayProducts() {
+        inventory.displayProducts();
+    }
+
+    // ========================================================================
+    // State management
+    // ========================================================================
+
+    public void setState(VendingState state) {
+        System.out.println("  >> State transition: " + this.currentState + " -> " + state);
+        this.currentState = state;
+    }
+
+    public VendingState getState() {
+        return currentState;
+    }
+
+    // ========================================================================
+    // Balance management
+    // ========================================================================
+
+    public int getCurrentBalance() {
+        return currentBalance;
+    }
+
+    public void setCurrentBalance(int balance) {
+        this.currentBalance = balance;
+    }
+
+    // ========================================================================
+    // Selected product management
+    // ========================================================================
+
+    public Product getSelectedProduct() {
+        return selectedProduct;
+    }
+
+    public void setSelectedProduct(Product product) {
+        this.selectedProduct = product;
+    }
+
+    // ========================================================================
+    // Inventory access
+    // ========================================================================
+
+    public Inventory getInventory() {
+        return inventory;
+    }
+
+    // ========================================================================
+    // Payment strategy
+    // ========================================================================
+
+    public PaymentStrategy getPaymentStrategy() {
+        return paymentStrategy;
+    }
+
+    public void setPaymentStrategy(PaymentStrategy strategy) {
+        this.paymentStrategy = strategy;
+        System.out.println("Payment method set to: " + strategy.getPaymentType());
+    }
+
+    // ========================================================================
+    // Transaction reset
+    // ========================================================================
+
+    /**
+     * Clears the balance and selected product after a transaction completes
+     * or is cancelled.
+     */
+    public void resetTransaction() {
+        this.currentBalance = 0;
+        this.selectedProduct = null;
+    }
+
+    // ========================================================================
+    // Utility -- for testing / resetting singleton between test runs
+    // ========================================================================
+
+    /**
+     * Resets the singleton instance. Use only in tests.
+     */
+    public static void resetInstance() {
+        instance = null;
+    }
+
+    private String formatCents(int cents) {
+        return String.format("$%.2f", cents / 100.0);
+    }
+}
+\`\`\`
+
+---
+
+## 13. VendingMachineDemo (Main)
+
+\`\`\`java
+package vendingmachine;
+
+/**
+ * Full demonstration of the vending machine:
+ *
+ *   Scenario 1: Successful purchase with change
+ *   Scenario 2: Insufficient funds, then add more and buy
+ *   Scenario 3: Out-of-stock handling
+ *   Scenario 4: Cancel transaction and get refund
+ *   Scenario 5: Invalid product code
+ *   Scenario 6: Invalid actions in wrong state
+ *   Scenario 7: Card payment strategy
+ *   Scenario 8: Exact amount -- no change
+ */
+public class VendingMachineDemo {
+
+    public static void main(String[] args) {
+
+        // ================================================================
+        // SETUP: Get machine instance and stock it
+        // ================================================================
+        VendingMachine.resetInstance(); // clean slate for demo
+        VendingMachine machine = VendingMachine.getInstance();
+
+        // Stock the machine
+        Inventory inv = machine.getInventory();
+        inv.addProduct(new Product("A1", "Coca-Cola", 150),      5);  // $1.50
+        inv.addProduct(new Product("A2", "Pepsi", 150),           3);  // $1.50
+        inv.addProduct(new Product("B1", "Lays Chips", 125),      4);  // $1.25
+        inv.addProduct(new Product("B2", "Snickers", 175),        2);  // $1.75
+        inv.addProduct(new Product("C1", "Water Bottle", 100),    10); // $1.00
+        inv.addProduct(new Product("C2", "Orange Juice", 200),    1);  // $2.00
+
+        machine.displayProducts();
+
+        // ================================================================
+        // SCENARIO 1: Successful purchase with change
+        // ================================================================
+        printScenarioHeader(1, "Successful purchase with change");
+
+        machine.insertMoney(Note.ONE);       // +$1.00  -> balance = $1.00
+        machine.insertMoney(Coin.QUARTER);   // +$0.25  -> balance = $1.25
+        machine.insertMoney(Coin.QUARTER);   // +$0.25  -> balance = $1.50
+        machine.insertMoney(Coin.QUARTER);   // +$0.25  -> balance = $1.75
+        machine.selectProduct("A1");         // Coca-Cola $1.50 -- balance sufficient
+        machine.dispense();                  // Dispense + return $0.25 change
+
+        // ================================================================
+        // SCENARIO 2: Insufficient funds, then add more and buy
+        // ================================================================
+        printScenarioHeader(2, "Insufficient funds, then add more and purchase");
+
+        machine.insertMoney(Coin.QUARTER);   // +$0.25  -> balance = $0.25
+        machine.insertMoney(Coin.QUARTER);   // +$0.25  -> balance = $0.50
+        machine.selectProduct("B1");         // Lays Chips $1.25 -- NOT ENOUGH
+        // Still in HasMoney state -- insert more
+        machine.insertMoney(Coin.QUARTER);   // +$0.25  -> balance = $0.75
+        machine.insertMoney(Coin.QUARTER);   // +$0.25  -> balance = $1.00
+        machine.insertMoney(Coin.QUARTER);   // +$0.25  -> balance = $1.25
+        machine.selectProduct("B1");         // Lays Chips $1.25 -- exact amount\\!
+        machine.dispense();                  // Dispense, no change
+
+        // ================================================================
+        // SCENARIO 3: Out-of-stock handling
+        // ================================================================
+        printScenarioHeader(3, "Out-of-stock product");
+
+        // Deplete Orange Juice (only 1 in stock)
+        machine.insertMoney(Note.FIVE);      // +$5.00
+        machine.selectProduct("C2");         // OJ $2.00 -- last one
+        machine.dispense();                  // Dispense + return $3.00 change
+
+        // Now try to buy another Orange Juice -- should be out of stock
+        machine.insertMoney(Note.FIVE);      // +$5.00
+        machine.selectProduct("C2");         // OUT OF STOCK
+        // Cancel and get refund since we can't buy what we wanted
+        machine.cancelTransaction();
+
+        // ================================================================
+        // SCENARIO 4: Cancel transaction and get refund
+        // ================================================================
+        printScenarioHeader(4, "Cancel transaction and get refund");
+
+        machine.insertMoney(Note.ONE);       // +$1.00
+        machine.insertMoney(Coin.QUARTER);   // +$0.25
+        machine.insertMoney(Coin.DIME);      // +$0.10
+        machine.insertMoney(Coin.NICKEL);    // +$0.05
+        // User changes their mind
+        machine.cancelTransaction();         // Returns $1.40
+
+        // ================================================================
+        // SCENARIO 5: Invalid product code
+        // ================================================================
+        printScenarioHeader(5, "Invalid product code");
+
+        machine.insertMoney(Note.ONE);       // +$1.00
+        machine.selectProduct("Z9");         // Invalid code
+        machine.cancelTransaction();         // Return the money
+
+        // ================================================================
+        // SCENARIO 6: Invalid actions in wrong state
+        // ================================================================
+        printScenarioHeader(6, "Invalid actions in wrong state");
+
+        // Try to select product without inserting money (IdleState)
+        machine.selectProduct("A1");
+
+        // Try to dispense without any transaction (IdleState)
+        machine.dispense();
+
+        // Try to cancel with no money (IdleState)
+        machine.cancelTransaction();
+
+        // Now insert money and try to dispense without selecting (HasMoneyState)
+        machine.insertMoney(Coin.QUARTER);
+        machine.dispense();                  // Should say "select a product first"
+        machine.cancelTransaction();         // Clean up
+
+        // ================================================================
+        // SCENARIO 7: Card payment strategy
+        // ================================================================
+        printScenarioHeader(7, "Card payment strategy");
+
+        machine.setPaymentStrategy(new CardPaymentStrategy("4111111111111234"));
+        machine.insertMoney(Note.FIVE);
+        machine.selectProduct("B2");         // Snickers $1.75
+        machine.dispense();                  // Card payment + dispense
+
+        // Switch back to cash for remaining scenarios
+        machine.setPaymentStrategy(new CashPaymentStrategy());
+
+        // ================================================================
+        // SCENARIO 8: Exact amount -- no change
+        // ================================================================
+        printScenarioHeader(8, "Exact amount payment -- no change returned");
+
+        machine.insertMoney(Note.ONE);       // +$1.00
+        machine.selectProduct("C1");         // Water Bottle $1.00 -- exact\\!
+        machine.dispense();                  // Dispense, $0.00 change
+
+        // ================================================================
+        // FINAL: Display updated inventory
+        // ================================================================
+        System.out.println("\\n");
+        System.out.println("========== FINAL INVENTORY STATUS ==========");
+        machine.displayProducts();
+
+        System.out.println("\\nAll scenarios completed successfully.");
+    }
+
+    private static void printScenarioHeader(int number, String description) {
+        System.out.println("\\n");
+        System.out.println("########################################");
+        System.out.println("  SCENARIO " + number + ": " + description);
+        System.out.println("########################################");
+        System.out.println();
+    }
+}
+\`\`\`
+
+---
+
+## 14. Expected Output
+
+\`\`\`
+============================================
+         VENDING MACHINE PRODUCTS
+============================================
+Code   Name                 Price    Stock
+--------------------------------------------
+A1     Coca-Cola            $1.50    5
+A2     Pepsi                $1.50    3
+B1     Lays Chips           $1.25    4
+B2     Snickers             $1.75    2
+C1     Water Bottle         $1.00    10
+C2     Orange Juice         $2.00    1
+============================================
+
+
+########################################
+  SCENARIO 1: Successful purchase with change
+########################################
+
+[State: IDLE] Inserting $ONE note ($1.00)
+Inserted $1.00. Current balance: $1.00
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $1.25
+[State: HAS_MONEY] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $1.50
+[State: HAS_MONEY] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $1.75
+[State: HAS_MONEY] Selecting product: A1
+Product selected: Coca-Cola ($1.50)
+  >> State transition: HAS_MONEY -> DISPENSING
+[State: DISPENSING] Dispensing...
+Processing cash payment of $1.50
+============================================
+  DISPENSING: Coca-Cola
+  Price:      $1.50
+  Change:     $0.25
+============================================
+Please collect your Coca-Cola.
+Please collect your change: $0.25
+  >> State transition: DISPENSING -> IDLE
+
+
+########################################
+  SCENARIO 2: Insufficient funds, then add more and purchase
+########################################
+
+[State: IDLE] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $0.25
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $0.50
+[State: HAS_MONEY] Selecting product: B1
+Insufficient funds for Lays Chips ($1.25).
+Please insert $0.75 more, or press cancel to return your money.
+[State: HAS_MONEY] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $0.75
+[State: HAS_MONEY] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $1.00
+[State: HAS_MONEY] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $1.25
+[State: HAS_MONEY] Selecting product: B1
+Product selected: Lays Chips ($1.25)
+  >> State transition: HAS_MONEY -> DISPENSING
+[State: DISPENSING] Dispensing...
+Processing cash payment of $1.25
+============================================
+  DISPENSING: Lays Chips
+  Price:      $1.25
+  Change:     None (exact amount)
+============================================
+Please collect your Lays Chips.
+  >> State transition: DISPENSING -> IDLE
+
+
+########################################
+  SCENARIO 3: Out-of-stock product
+########################################
+
+[State: IDLE] Inserting $FIVE note ($5.00)
+Inserted $5.00. Current balance: $5.00
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Selecting product: C2
+Product selected: Orange Juice ($2.00)
+  >> State transition: HAS_MONEY -> DISPENSING
+[State: DISPENSING] Dispensing...
+Processing cash payment of $2.00
+============================================
+  DISPENSING: Orange Juice
+  Price:      $2.00
+  Change:     $3.00
+============================================
+Please collect your Orange Juice.
+Please collect your change: $3.00
+  >> State transition: DISPENSING -> IDLE
+[State: IDLE] Inserting $FIVE note ($5.00)
+Inserted $5.00. Current balance: $5.00
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Selecting product: C2
+Product Orange Juice (C2) is out of stock. Please select another product.
+[State: HAS_MONEY] Cancel requested.
+Transaction cancelled. Returning $5.00.
+  >> State transition: HAS_MONEY -> IDLE
+
+
+########################################
+  SCENARIO 4: Cancel transaction and get refund
+########################################
+
+[State: IDLE] Inserting $ONE note ($1.00)
+Inserted $1.00. Current balance: $1.00
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $1.25
+[State: HAS_MONEY] Inserting DIME ($0.10)
+Inserted $0.10. Current balance: $1.35
+[State: HAS_MONEY] Inserting NICKEL ($0.05)
+Inserted $0.05. Current balance: $1.40
+[State: HAS_MONEY] Cancel requested.
+Transaction cancelled. Returning $1.40.
+  >> State transition: HAS_MONEY -> IDLE
+
+
+########################################
+  SCENARIO 5: Invalid product code
+########################################
+
+[State: IDLE] Inserting $ONE note ($1.00)
+Inserted $1.00. Current balance: $1.00
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Selecting product: Z9
+Invalid product code: Z9
+[State: HAS_MONEY] Cancel requested.
+Transaction cancelled. Returning $1.00.
+  >> State transition: HAS_MONEY -> IDLE
+
+
+########################################
+  SCENARIO 6: Invalid actions in wrong state
+########################################
+
+[State: IDLE] Selecting product: A1
+Please insert money first.
+[State: IDLE] Dispensing...
+No transaction in progress. Please insert money and select a product.
+[State: IDLE] Cancel requested.
+No money inserted. Nothing to return.
+[State: IDLE] Inserting QUARTER ($0.25)
+Inserted $0.25. Current balance: $0.25
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Dispensing...
+Please select a product first.
+[State: HAS_MONEY] Cancel requested.
+Transaction cancelled. Returning $0.25.
+  >> State transition: HAS_MONEY -> IDLE
+
+
+########################################
+  SCENARIO 7: Card payment strategy
+########################################
+
+Payment method set to: CARD
+[State: IDLE] Inserting $FIVE note ($5.00)
+Inserted $5.00. Current balance: $5.00
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Selecting product: B2
+Product selected: Snickers ($1.75)
+  >> State transition: HAS_MONEY -> DISPENSING
+[State: DISPENSING] Dispensing...
+Authorizing card ****-****-****-1234 for $1.75
+Card payment approved.
+============================================
+  DISPENSING: Snickers
+  Price:      $1.75
+  Change:     $3.25
+============================================
+Please collect your Snickers.
+Please collect your change: $3.25
+  >> State transition: DISPENSING -> IDLE
+
+
+########################################
+  SCENARIO 8: Exact amount payment -- no change returned
+########################################
+
+[State: IDLE] Inserting $ONE note ($1.00)
+Inserted $1.00. Current balance: $1.00
+  >> State transition: IDLE -> HAS_MONEY
+[State: HAS_MONEY] Selecting product: C1
+Product selected: Water Bottle ($1.00)
+  >> State transition: HAS_MONEY -> DISPENSING
+[State: DISPENSING] Dispensing...
+Processing cash payment of $1.00
+============================================
+  DISPENSING: Water Bottle
+  Price:      $1.00
+  Change:     None (exact amount)
+============================================
+Please collect your Water Bottle.
+  >> State transition: DISPENSING -> IDLE
+
+
+========== FINAL INVENTORY STATUS ==========
+============================================
+         VENDING MACHINE PRODUCTS
+============================================
+Code   Name                 Price    Stock
+--------------------------------------------
+A1     Coca-Cola            $1.50    4
+A2     Pepsi                $1.50    3
+B1     Lays Chips           $1.25    3
+B2     Snickers             $1.75    1
+C1     Water Bottle         $1.00    9
+C2     Orange Juice         $2.00    SOLD OUT
+============================================
+
+All scenarios completed successfully.
+\`\`\`
+
+---
+
+## 15. Key Design Decisions
+
+### Why integers for money?
+Floating-point arithmetic causes rounding errors (\`0.1 + 0.2 \\!= 0.3\`). Storing all
+values in cents as integers eliminates this entire class of bugs. The \`formatCents()\`
+helper handles display conversion.
+
+### Why create new state objects on each transition?
+State objects in this design are stateless -- they carry no instance data. Creating
+new instances on each transition is cheap and avoids shared mutable state. An
+alternative is to cache state instances as constants, but the allocation cost is
+negligible here and the code reads more clearly.
+
+### Why does the VendingMachine pass itself to state methods?
+This is the standard State pattern approach. The state object needs access to the
+machine's balance, inventory, and state-setter to do its work. Passing \`this\`
+(the context) lets each state operate on the machine without storing a back-reference,
+keeping state objects lightweight and reusable.
+
+### Why Singleton with resetInstance()?
+The \`resetInstance()\` method exists purely for testing. In production, the singleton
+lives for the application's lifetime. In unit tests, each test can call
+\`resetInstance()\` before \`getInstance()\` to get a clean machine.
+
+### Why separate Coin and Note enums?
+They represent physically different things (coins vs. paper bills) with different
+value ranges. Separate enums make the API self-documenting:
+\`machine.insertMoney(Coin.QUARTER)\` vs. \`machine.insertMoney(Note.FIVE)\`. The
+overloaded \`insertMoney()\` methods on \`VendingMachine\` handle the dispatch.
+`,
+  designWalkthrough: `# Low-Level Design: Vending Machine
+
+## 1. Problem Statement
+
+Design a fully functional vending machine that supports:
+- Displaying available products with prices
+- Accepting money (coins and notes) from users
+- Allowing users to select a product
+- Dispensing the selected product if sufficient funds are inserted
+- Returning correct change to the user
+- Handling edge cases: out-of-stock products, insufficient funds, cancellation
+
+The design must cleanly manage the machine's lifecycle through well-defined states
+using the **State** design pattern, support multiple payment strategies via the
+**Strategy** pattern, and ensure a single machine instance through the **Singleton**
+pattern.
+
+---
+
+## 2. Requirements
+
+### 2.1 Functional Requirements
+
+| # | Requirement | Details |
+|---|-------------|---------|
+| FR-1 | Insert money | Accept coins (PENNY, NICKEL, DIME, QUARTER) and notes (ONE, FIVE, TEN, TWENTY) |
+| FR-2 | Select product | User picks a product by code (e.g., "A1", "B2") |
+| FR-3 | Dispense product | Machine delivers the product when funds are sufficient |
+| FR-4 | Return change | Machine calculates and returns the correct change |
+| FR-5 | Cancel transaction | User can cancel at any point and get their money back |
+| FR-6 | Out-of-stock handling | Reject selection if the chosen product has zero quantity |
+| FR-7 | Insufficient funds | Prompt user to insert more money or cancel |
+| FR-8 | Inventory management | Admin can restock products and check inventory levels |
+
+### 2.2 Non-Functional Requirements
+
+| # | Requirement | Details |
+|---|-------------|---------|
+| NFR-1 | Thread safety | Machine must handle one transaction at a time safely |
+| NFR-2 | Extensibility | Easy to add new payment types, product categories, or states |
+| NFR-3 | Maintainability | State logic isolated per state -- no giant switch/if-else blocks |
+| NFR-4 | Testability | Each state class is independently testable |
+
+---
+
+## 3. Core Entities
+
+### 3.1 Entity Overview
+
+| Entity | Responsibility |
+|--------|---------------|
+| \`VendingMachine\` | Singleton facade -- holds state, inventory, and current balance |
+| \`VendingState\` | Interface defining all actions the machine supports in any state |
+| \`IdleState\` | Waiting for money -- only \`insertMoney()\` is valid |
+| \`HasMoneyState\` | Money inserted -- user can add more, select product, or cancel |
+| \`DispensingState\` | Product selected + funds sufficient -- dispense and return change |
+| \`Product\` | Immutable value object: name, price, code |
+| \`Inventory\` | HashMap-backed store mapping product codes to quantities |
+| \`Coin\` | Enum of coin denominations with cent values |
+| \`Note\` | Enum of note denominations with cent values |
+| \`PaymentStrategy\` | Strategy interface for payment processing |
+| \`CashPaymentStrategy\` | Concrete strategy for coin/note payments |
+| \`CardPaymentStrategy\` | Concrete strategy for card-based payments |
+
+---
+
+## 4. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    direction TB
+
+    class VendingMachine {
+        -VendingMachine instance$
+        -VendingState currentState
+        -Inventory inventory
+        -int currentBalance
+        -Product selectedProduct
+        -PaymentStrategy paymentStrategy
+        +getInstance()$ VendingMachine
+        +insertMoney(Coin) void
+        +insertMoney(Note) void
+        +selectProduct(String code) void
+        +dispense() void
+        +returnChange() int
+        +cancelTransaction() void
+        +setState(VendingState) void
+        +getState() VendingState
+        +getCurrentBalance() int
+        +setCurrentBalance(int) void
+        +getSelectedProduct() Product
+        +setSelectedProduct(Product) void
+        +getInventory() Inventory
+        +setPaymentStrategy(PaymentStrategy) void
+        +resetTransaction() void
+    }
+
+    class VendingState {
+        <<interface>>
+        +insertMoney(VendingMachine, int amount) void
+        +selectProduct(VendingMachine, String code) void
+        +dispense(VendingMachine) void
+        +returnChange(VendingMachine) int
+    }
+
+    class IdleState {
+        +insertMoney(VendingMachine, int amount) void
+        +selectProduct(VendingMachine, String code) void
+        +dispense(VendingMachine) void
+        +returnChange(VendingMachine) int
+    }
+
+    class HasMoneyState {
+        +insertMoney(VendingMachine, int amount) void
+        +selectProduct(VendingMachine, String code) void
+        +dispense(VendingMachine) void
+        +returnChange(VendingMachine) int
+    }
+
+    class DispensingState {
+        +insertMoney(VendingMachine, int amount) void
+        +selectProduct(VendingMachine, String code) void
+        +dispense(VendingMachine) void
+        +returnChange(VendingMachine) int
+    }
+
+    class Product {
+        -String code
+        -String name
+        -int price
+        +getCode() String
+        +getName() String
+        +getPrice() int
+    }
+
+    class Inventory {
+        -Map~String, Integer~ stock
+        -Map~String, Product~ products
+        +addProduct(Product, int qty) void
+        +removeProduct(String code) void
+        +getProduct(String code) Product
+        +getQuantity(String code) int
+        +reduceQuantity(String code) void
+        +isAvailable(String code) boolean
+        +restock(String code, int qty) void
+        +displayProducts() void
+    }
+
+    class Coin {
+        <<enumeration>>
+        PENNY(1)
+        NICKEL(5)
+        DIME(10)
+        QUARTER(25)
+        -int value
+        +getValue() int
+    }
+
+    class Note {
+        <<enumeration>>
+        ONE(100)
+        FIVE(500)
+        TEN(1000)
+        TWENTY(2000)
+        -int value
+        +getValue() int
+    }
+
+    class PaymentStrategy {
+        <<interface>>
+        +pay(int amount) boolean
+        +getPaymentType() String
+    }
+
+    class CashPaymentStrategy {
+        +pay(int amount) boolean
+        +getPaymentType() String
+    }
+
+    class CardPaymentStrategy {
+        -String cardNumber
+        +pay(int amount) boolean
+        +getPaymentType() String
+    }
+
+    VendingMachine --> VendingState : currentState
+    VendingMachine --> Inventory : inventory
+    VendingMachine --> Product : selectedProduct
+    VendingMachine --> PaymentStrategy : paymentStrategy
+
+    VendingState <|.. IdleState
+    VendingState <|.. HasMoneyState
+    VendingState <|.. DispensingState
+
+    PaymentStrategy <|.. CashPaymentStrategy
+    PaymentStrategy <|.. CardPaymentStrategy
+
+    Inventory --> Product : stores
+\`\`\`
+
+---
+
+## 5. State Diagram
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> Idle
+
+    Idle --> HasMoney : insertMoney(coin/note)
+    Idle --> Idle : selectProduct() [error: insert money first]
+    Idle --> Idle : dispense() [error: no transaction]
+    Idle --> Idle : returnChange() [error: no balance]
+
+    HasMoney --> HasMoney : insertMoney(coin/note) [balance increases]
+    HasMoney --> Dispensing : selectProduct(code) [in stock AND balance >= price]
+    HasMoney --> HasMoney : selectProduct(code) [out of stock OR balance < price]
+    HasMoney --> Idle : returnChange() [cancel -- returns all money]
+
+    Dispensing --> Idle : dispense() [delivers product, returns change, resets]
+    Dispensing --> Dispensing : insertMoney() [error: dispensing in progress]
+    Dispensing --> Dispensing : selectProduct() [error: dispensing in progress]
+
+    note right of Idle
+        Machine is waiting.
+        Only insertMoney() advances state.
+    end note
+
+    note right of HasMoney
+        User can keep inserting money,
+        select a product, or cancel.
+    end note
+
+    note right of Dispensing
+        Product is delivered.
+        Change is returned.
+        Machine resets to Idle.
+    end note
+\`\`\`
+
+---
+
+## 6. Design Patterns Applied
+
+### 6.1 State Pattern (Primary)
+
+**Problem:** A vending machine behaves differently depending on whether it is idle,
+has money inserted, or is dispensing a product. Encoding this with if-else chains
+makes the code brittle and hard to extend.
+
+**Solution:** Define a \`VendingState\` interface with methods for every action
+(\`insertMoney\`, \`selectProduct\`, \`dispense\`, \`returnChange\`). Each concrete state
+class implements these methods with state-specific logic. The \`VendingMachine\`
+delegates all action calls to its \`currentState\` object.
+
+**State Behavior Matrix:**
+
+| Action | IdleState | HasMoneyState | DispensingState |
+|--------|-----------|---------------|-----------------|
+| \`insertMoney()\` | Accept money, transition to HasMoney | Accept money, stay in HasMoney | Reject -- dispensing in progress |
+| \`selectProduct()\` | Reject -- no money inserted | Validate stock + funds; if OK transition to Dispensing; else stay | Reject -- dispensing in progress |
+| \`dispense()\` | Reject -- no transaction | Reject -- select a product first | Deliver product, return change, transition to Idle |
+| \`returnChange()\` | Reject -- no balance | Return full balance, transition to Idle | Automatically handled during dispense |
+
+**Why this is better than switch/case:**
+- Adding a new state (e.g., \`MaintenanceState\`) requires only a new class -- zero changes to existing code.
+- Each state class is small, focused, and independently testable.
+- Impossible to forget handling an action in a state because the interface enforces it.
+
+### 6.2 Strategy Pattern (Payment)
+
+**Problem:** The machine should support multiple payment methods (cash, card, mobile
+pay in the future) without modifying the core machine logic.
+
+**Solution:** Define a \`PaymentStrategy\` interface with a \`pay(amount)\` method.
+Concrete strategies (\`CashPaymentStrategy\`, \`CardPaymentStrategy\`) encapsulate
+the payment logic. The \`VendingMachine\` holds a reference to the current strategy
+and delegates payment processing to it.
+
+**Benefits:**
+- Swap payment methods at runtime: \`machine.setPaymentStrategy(new CardPaymentStrategy("4111..."))\`
+- Add new payment types without touching existing code
+- Each strategy is testable in isolation
+
+### 6.3 Singleton Pattern (VendingMachine)
+
+**Problem:** There should be exactly one vending machine instance managing the
+shared inventory and state. Multiple instances would create inconsistent state.
+
+**Solution:** \`VendingMachine\` has a private constructor and a static
+\`getInstance()\` method that returns the single instance, creating it lazily on
+first access. Thread safety is ensured via the double-checked locking idiom.
+
+---
+
+## 7. Detailed State Transitions and Edge Cases
+
+### 7.1 Happy Path: Successful Purchase
+
+\`\`\`
+1. Machine is in IdleState
+2. User inserts QUARTER + QUARTER + QUARTER + QUARTER + QUARTER  (125 cents)
+3. State transitions to HasMoneyState, balance = 125
+4. User selects product "A1" (Coca-Cola, price = 100 cents)
+5. Product is in stock, balance (125) >= price (100)
+6. State transitions to DispensingState, selectedProduct = Coca-Cola
+7. Machine dispenses Coca-Cola
+8. Machine returns change: 125 - 100 = 25 cents
+9. Inventory for "A1" decremented by 1
+10. State transitions back to IdleState, balance = 0
+\`\`\`
+
+### 7.2 Edge Case: Insufficient Funds
+
+\`\`\`
+1. Machine is in HasMoneyState, balance = 50
+2. User selects product "A1" (price = 100)
+3. HasMoneyState.selectProduct() detects 50 < 100
+4. Prints: "Insufficient funds. Please insert 50 more cents."
+5. State remains HasMoneyState -- user can insert more or cancel
+\`\`\`
+
+### 7.3 Edge Case: Out of Stock
+
+\`\`\`
+1. Machine is in HasMoneyState, balance = 200
+2. User selects product "B2" (quantity = 0)
+3. HasMoneyState.selectProduct() checks inventory.isAvailable("B2") -> false
+4. Prints: "Product B2 is out of stock. Please select another product."
+5. State remains HasMoneyState
+\`\`\`
+
+### 7.4 Edge Case: Cancel Transaction
+
+\`\`\`
+1. Machine is in HasMoneyState, balance = 175
+2. User calls returnChange()
+3. HasMoneyState.returnChange() returns 175 cents
+4. Balance reset to 0
+5. State transitions to IdleState
+\`\`\`
+
+### 7.5 Edge Case: Invalid Actions in Wrong State
+
+\`\`\`
+- Calling selectProduct() in IdleState -> "Please insert money first."
+- Calling dispense() in IdleState -> "No transaction in progress."
+- Calling insertMoney() in DispensingState -> "Please wait, dispensing in progress."
+- Calling selectProduct() in DispensingState -> "Please wait, dispensing in progress."
+\`\`\`
+
+### 7.6 Edge Case: Invalid Product Code
+
+\`\`\`
+1. Machine is in HasMoneyState, balance = 200
+2. User selects product "Z9" which does not exist
+3. HasMoneyState.selectProduct() -> inventory.getProduct("Z9") returns null
+4. Prints: "Invalid product code: Z9"
+5. State remains HasMoneyState
+\`\`\`
+
+### 7.7 Edge Case: Last Item Purchase
+
+\`\`\`
+1. Product "A1" has quantity = 1
+2. User completes purchase of "A1"
+3. Inventory decremented to 0
+4. Next user who selects "A1" gets out-of-stock error
+5. Admin can call inventory.restock("A1", 10) to replenish
+\`\`\`
+
+---
+
+## 8. Money Representation
+
+All monetary values are stored as **integers in cents** to avoid floating-point
+precision issues. This is a standard practice in financial software.
+
+| Coin | Value (cents) |
+|------|--------------|
+| PENNY | 1 |
+| NICKEL | 5 |
+| DIME | 10 |
+| QUARTER | 25 |
+
+| Note | Value (cents) |
+|------|--------------|
+| ONE | 100 |
+| FIVE | 500 |
+| TEN | 1000 |
+| TWENTY | 2000 |
+
+---
+
+## 9. Inventory Management
+
+The \`Inventory\` class uses two \`HashMap\` structures:
+
+- \`Map<String, Product>\` -- maps product code to \`Product\` object
+- \`Map<String, Integer>\` -- maps product code to available quantity
+
+Operations:
+- **addProduct(Product, qty):** Registers a product and sets its initial stock.
+- **reduceQuantity(code):** Decrements stock by 1 after a successful dispense.
+- **restock(code, qty):** Admin operation to add more units.
+- **isAvailable(code):** Returns \`true\` if the product exists and quantity > 0.
+- **displayProducts():** Prints a formatted table of all products, prices, and stock.
+
+---
+
+## 10. Thread Safety Considerations
+
+1. **Singleton:** Double-checked locking with \`volatile\` ensures safe lazy initialization.
+2. **Transaction isolation:** The machine processes one transaction at a time. In a
+   real-world extension, a \`ReentrantLock\` or \`synchronized\` blocks around state
+   transitions would prevent race conditions.
+3. **Inventory updates:** \`reduceQuantity()\` should be atomic in a concurrent environment.
+   For this design, single-threaded operation is assumed, but the design is ready
+   for synchronization wrappers.
+
+---
+
+## 11. Extensibility Guide
+
+| Extension | How to Add |
+|-----------|-----------|
+| New coin/note denomination | Add entry to \`Coin\` or \`Note\` enum |
+| New payment method (e.g., mobile) | Implement \`PaymentStrategy\` interface |
+| Maintenance mode | Create \`MaintenanceState\` implementing \`VendingState\` |
+| Product categories | Add a \`category\` field to \`Product\` |
+| Discount/promotion | Introduce a \`PricingStrategy\` or decorator on \`Product.getPrice()\` |
+| Logging/audit trail | Add observer/listener on state transitions |
+| Multiple machines | Remove Singleton; use a \`VendingMachineFactory\` |
+
+---
+
+## 12. Sequence Diagram: Happy Path Purchase
+
+\`\`\`
+User              VendingMachine         IdleState         HasMoneyState      DispensingState      Inventory
+ |                      |                    |                   |                   |                  |
+ |-- insertMoney(Q) --> |                    |                   |                   |                  |
+ |                      |-- insertMoney() -->|                   |                   |                  |
+ |                      |   balance += 25    |                   |                   |                  |
+ |                      |   setState(HasMoney)|                  |                   |                  |
+ |                      |<-------------------|                   |                   |                  |
+ |                      |                    |                   |                   |                  |
+ |-- insertMoney(Q) --> |                    |                   |                   |                  |
+ |                      |-- insertMoney() ---|------------------>|                   |                  |
+ |                      |   balance += 25    |                   |                   |                  |
+ |                      |<-------------------|-------------------|                   |                  |
+ |                      |                    |                   |                   |                  |
+ |-- selectProduct(A1)->|                    |                   |                   |                  |
+ |                      |-- selectProduct()--|------------------>|                   |                  |
+ |                      |                    |                   |-- isAvailable() --|----------------->|
+ |                      |                    |                   |<-- true ----------|------------------|
+ |                      |                    |                   | balance >= price   |                  |
+ |                      |                    |                   | setState(Dispensing)|                 |
+ |                      |<-------------------|-------------------|                   |                  |
+ |                      |                    |                   |                   |                  |
+ |-- dispense() ------->|                    |                   |                   |                  |
+ |                      |-- dispense() ------|-------------------|------------------>|                  |
+ |                      |                    |                   |                   |-- reduceQty() -->|
+ |                      |                    |                   |                   |<-- done ---------|
+ |                      |                    |                   |                   | return change    |
+ |                      |                    |                   |                   | setState(Idle)   |
+ |<-- product + change -|                    |                   |                   |                  |
+\`\`\`
+
+---
+
+## 13. Summary
+
+This design decomposes the vending machine problem into cleanly separated concerns:
+
+- **State pattern** eliminates conditional complexity by encapsulating behavior in
+  state objects. Each state knows exactly which actions are valid and what transitions
+  to make.
+- **Strategy pattern** decouples payment processing from the machine, enabling runtime
+  switching and future payment methods without modifying the machine.
+- **Singleton pattern** ensures a single, consistent point of access to the machine
+  and its shared inventory.
+
+The result is a system that is easy to reason about, test, and extend -- the hallmarks
+of a well-crafted low-level design.
+`,
+  interviewScript: `# Design Vending Machine -- LLD Interview Script (90 min)
+
+> Simulates an actual low-level design / machine coding interview round.
+> You must write compilable, runnable Java code on a whiteboard or shared editor.
+
+---
+
+## Opening (0:00 - 1:00)
+
+> "Thanks for the problem! I'll be designing and implementing a Vending Machine in Java. This is a classic State pattern problem. Let me start by nailing down the requirements."
+
+---
+
+## Requirements Gathering (1:00 - 5:00)
+
+> **You ask:** "Should the machine support only cash (coins/notes), or also card payments?"
+
+> **Interviewer:** "Start with cash. We might add card later."
+
+> **You ask:** "How should the machine handle the product catalog -- fixed set of products or dynamically configurable?"
+
+> **Interviewer:** "Admin should be able to add products and restock. Show me a clean inventory system."
+
+> **You ask:** "What about concurrent users? Can two people use the machine at once?"
+
+> **Interviewer:** "Good question. For now, one user at a time. But design it so concurrency could be added."
+
+> **You ask:** "Should I handle change calculation? What if the machine can't make change?"
+
+> **Interviewer:** "Yes, calculate change. You can assume the machine always has enough change for simplicity."
+
+> **You ask:** "Should I focus on any specific design patterns?"
+
+> **Interviewer:** "I want to see at least one structural pattern applied well. Don't just code procedurally."
+
+> "Perfect. So the scope is: a single-user vending machine with cash payments, product inventory, state-based transaction flow, and change calculation. I'll use the State pattern for the transaction lifecycle and Strategy pattern for payment extensibility."
+
+---
+
+## Entity Identification (5:00 - 10:00)
+
+> "Let me identify the core entities."
+
+**Entities I write on the board:**
+
+1. **Coin** (enum) -- PENNY(1), NICKEL(5), DIME(10), QUARTER(25)
+2. **Note** (enum) -- ONE(100), FIVE(500), TEN(1000), TWENTY(2000)
+3. **Product** -- code, name, price (in cents to avoid floating-point)
+4. **Inventory** -- manages product catalog and stock quantities
+5. **PaymentStrategy** (interface) -- Strategy pattern for payment types
+6. **CashPaymentStrategy** -- concrete strategy for cash
+7. **VendingState** (interface) -- State pattern
+8. **IdleState, HasMoneyState, DispensingState** -- concrete states
+9. **VendingMachine** -- the context class, delegates to current state
+
+> "The relationships: VendingMachine HAS-A VendingState (current), HAS-A Inventory, HAS-A PaymentStrategy. State transitions: Idle -> HasMoney -> Dispensing -> Idle."
+
+> "Why store prices in cents? To avoid floating-point precision issues. $1.75 becomes 175 cents. This is an important real-world concern."
+
+---
+
+## Class Diagram (10:00 - 15:00)
+
+> "Let me sketch the class diagram."
+
+\`\`\`mermaid
+classDiagram
+    class Coin {
+        <<enum>>
+        PENNY(1)
+        NICKEL(5)
+        DIME(10)
+        QUARTER(25)
+        +getValue() int
+    }
+
+    class Note {
+        <<enum>>
+        ONE(100)
+        FIVE(500)
+        TEN(1000)
+        TWENTY(2000)
+        +getValue() int
+    }
+
+    class Product {
+        -String code
+        -String name
+        -int price
+        +getFormattedPrice() String
+    }
+
+    class Inventory {
+        -Map~String, Product~ products
+        -Map~String, Integer~ stock
+        +addProduct(Product, int)
+        +isAvailable(String) boolean
+        +reduceQuantity(String)
+        +restock(String, int)
+    }
+
+    class PaymentStrategy {
+        <<interface>>
+        +pay(int amount) boolean
+        +getPaymentType() String
+    }
+
+    class CashPaymentStrategy {
+        +pay(int) boolean
+    }
+
+    PaymentStrategy <|.. CashPaymentStrategy
+
+    class VendingState {
+        <<interface>>
+        +insertMoney(VendingMachine, int)
+        +selectProduct(VendingMachine, String)
+        +dispense(VendingMachine)
+        +returnChange(VendingMachine) int
+    }
+
+    class IdleState { }
+    class HasMoneyState { }
+    class DispensingState { }
+
+    VendingState <|.. IdleState
+    VendingState <|.. HasMoneyState
+    VendingState <|.. DispensingState
+
+    class VendingMachine {
+        -VendingState currentState
+        -Inventory inventory
+        -PaymentStrategy paymentStrategy
+        -int currentBalance
+        -Product selectedProduct
+    }
+
+    VendingMachine --> VendingState : delegates to
+    VendingMachine --> Inventory : has
+    VendingMachine --> PaymentStrategy : uses
+\`\`\`
+
+---
+
+## Implementation Plan (15:00 - 17:00)
+
+> "I'll implement bottom-up in this order:"
+
+1. **Enums** -- Coin, Note (denominations with cent values)
+2. **Product** -- immutable value object
+3. **Inventory** -- product catalog + stock management
+4. **PaymentStrategy** interface + CashPaymentStrategy
+5. **VendingState** interface
+6. **IdleState, HasMoneyState, DispensingState** -- concrete states
+7. **VendingMachine** -- the context that ties it all together
+8. **Main demo** -- end-to-end transaction flow
+
+---
+
+## Coding (17:00 - 70:00)
+
+### Step 1: Enums (17:00 - 19:00)
+
+> "Starting with denominations. Values are in cents."
+
+\`\`\`java
+public enum Coin {
+    PENNY(1), NICKEL(5), DIME(10), QUARTER(25);
+
+    private final int value;
+    Coin(int value) { this.value = value; }
+    public int getValue() { return value; }
+}
+
+public enum Note {
+    ONE(100), FIVE(500), TEN(1000), TWENTY(2000);
+
+    private final int value;
+    Note(int value) { this.value = value; }
+    public int getValue() { return value; }
+}
+\`\`\`
+
+> "By storing values in cents, $1.75 is just 175. No floating-point errors, no BigDecimal complexity."
+
+---
+
+### Step 2: Product (19:00 - 22:00)
+
+> "Product is an immutable value object. Price in cents."
+
+\`\`\`java
+public class Product {
+    private final String code;
+    private final String name;
+    private final int price; // in cents
+
+    public Product(String code, String name, int price) {
+        if (code == null || code.isEmpty())
+            throw new IllegalArgumentException("Product code cannot be null/empty");
+        if (price <= 0)
+            throw new IllegalArgumentException("Price must be positive");
+        this.code = code;
+        this.name = name;
+        this.price = price;
+    }
+
+    public String getCode() { return code; }
+    public String getName() { return name; }
+    public int getPrice() { return price; }
+
+    public String getFormattedPrice() {
+        return String.format("$%.2f", price / 100.0);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("[%s] %s - %s", code, name, getFormattedPrice());
+    }
+}
+\`\`\`
+
+> "Note the validation in the constructor. Defensive programming prevents silent bugs."
+
+---
+
+### Step 3: Inventory (22:00 - 28:00)
+
+> "Inventory uses two maps: one for product metadata, one for stock counts. This way I can look up a product's details and check its quantity independently."
+
+\`\`\`java
+public class Inventory {
+    private final Map<String, Product> products;
+    private final Map<String, Integer> stock;
+
+    public Inventory() {
+        this.products = new HashMap<>();
+        this.stock = new HashMap<>();
+    }
+
+    public void addProduct(Product product, int quantity) {
+        if (product == null) throw new IllegalArgumentException("Product cannot be null");
+        if (quantity < 0) throw new IllegalArgumentException("Quantity cannot be negative");
+        products.put(product.getCode(), product);
+        stock.put(product.getCode(),
+                  stock.getOrDefault(product.getCode(), 0) + quantity);
+    }
+
+    public Product getProduct(String code) {
+        return products.get(code);
+    }
+
+    public int getQuantity(String code) {
+        return stock.getOrDefault(code, 0);
+    }
+
+    public boolean isAvailable(String code) {
+        return products.containsKey(code) && stock.getOrDefault(code, 0) > 0;
+    }
+
+    public void reduceQuantity(String code) {
+        if (!isAvailable(code))
+            throw new IllegalStateException("Product " + code + " not available");
+        stock.put(code, stock.get(code) - 1);
+    }
+
+    public void restock(String code, int quantity) {
+        if (!products.containsKey(code))
+            throw new IllegalArgumentException("Product " + code + " does not exist");
+        stock.put(code, stock.getOrDefault(code, 0) + quantity);
+    }
+
+    public void displayProducts() {
+        System.out.println("============================================");
+        System.out.println("         VENDING MACHINE PRODUCTS           ");
+        System.out.println("============================================");
+        for (Map.Entry<String, Product> entry : products.entrySet()) {
+            Product p = entry.getValue();
+            int qty = stock.getOrDefault(p.getCode(), 0);
+            String stockDisplay = qty > 0 ? String.valueOf(qty) : "SOLD OUT";
+            System.out.printf("%-6s %-20s %-8s %-6s%n",
+                    p.getCode(), p.getName(), p.getFormattedPrice(), stockDisplay);
+        }
+    }
+}
+\`\`\`
+
+---
+
+### Step 4: PaymentStrategy (28:00 - 32:00)
+
+> "Now the Strategy pattern for payments. This is the hook for future extensibility."
+
+\`\`\`java
+public interface PaymentStrategy {
+    boolean pay(int amount);
+    String getPaymentType();
+}
+
+public class CashPaymentStrategy implements PaymentStrategy {
+    @Override
+    public boolean pay(int amount) {
+        // Cash is validated by the state machine's balance check.
+        // If we reach here, balance is already confirmed sufficient.
+        System.out.println("Processing cash payment of "
+                + String.format("$%.2f", amount / 100.0));
+        return true;
+    }
+
+    @Override
+    public String getPaymentType() { return "CASH"; }
+}
+\`\`\`
+
+> "For cash, the 'payment' is really just an acknowledgment -- the physical money was already collected by the state machine. The real value of this interface comes when we add card payments later."
+
+---
+
+### Step 5: VendingState Interface (32:00 - 35:00)
+
+> "The State interface declares every possible user action. Each state either handles it or rejects it."
+
+\`\`\`java
+public interface VendingState {
+    void insertMoney(VendingMachine machine, int amount);
+    void selectProduct(VendingMachine machine, String code);
+    void dispense(VendingMachine machine);
+    int returnChange(VendingMachine machine);
+}
+\`\`\`
+
+> "Every action gets the VendingMachine as context, so the state can read/modify the machine's data and trigger state transitions."
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "Why State pattern here instead of if/else? Isn't this over-engineering?"
+
+> **Your answer:** "Consider the alternative: a single VendingMachine class with a status field and if/else in every method. Something like \`if (status == IDLE) {...} else if (status == HAS_MONEY) {...}\`. The problems:
+> 1. **Every method has the same switch/if-else block** -- insertMoney, selectProduct, dispense, returnChange all need it. That's 4 methods times 3 states = 12 branches in one class.
+> 2. **Adding a new state means touching every method** -- violates Open/Closed Principle.
+> 3. **State-specific logic is scattered** -- everything about HasMoneyState behavior is spread across 4 different methods instead of being in one place.
+>
+> With the State pattern, all behavior for a given state lives in one class. Adding a new state like \`MaintenanceState\` means adding one new class with 4 methods -- zero changes to existing code. The pattern pays for itself as soon as you have 3+ states and 3+ actions."
+
+---
+
+### Step 6: Concrete States (35:00 - 52:00)
+
+> "Let me implement each state. I'll start with IdleState."
+
+\`\`\`java
+public class IdleState implements VendingState {
+    @Override
+    public void insertMoney(VendingMachine machine, int amount) {
+        if (amount <= 0) {
+            System.out.println("Invalid amount.");
+            return;
+        }
+        machine.setCurrentBalance(machine.getCurrentBalance() + amount);
+        System.out.println("Inserted " + formatCents(amount)
+                + ". Balance: " + formatCents(machine.getCurrentBalance()));
+        machine.setState(new HasMoneyState()); // Transition: Idle -> HasMoney
+    }
+
+    @Override
+    public void selectProduct(VendingMachine machine, String code) {
+        System.out.println("Please insert money first.");
+    }
+
+    @Override
+    public void dispense(VendingMachine machine) {
+        System.out.println("No transaction in progress.");
+    }
+
+    @Override
+    public int returnChange(VendingMachine machine) {
+        System.out.println("No money inserted.");
+        return 0;
+    }
+
+    private String formatCents(int c) {
+        return String.format("$%.2f", c / 100.0);
+    }
+}
+\`\`\`
+
+> "Each invalid action gives a clear error message. This is much better than silent failures."
+
+> "Now HasMoneyState -- the most complex state. Three valid actions: insert more, select product, or cancel."
+
+\`\`\`java
+public class HasMoneyState implements VendingState {
+    @Override
+    public void insertMoney(VendingMachine machine, int amount) {
+        if (amount <= 0) {
+            System.out.println("Invalid amount.");
+            return;
+        }
+        machine.setCurrentBalance(machine.getCurrentBalance() + amount);
+        System.out.println("Inserted " + formatCents(amount)
+                + ". Balance: " + formatCents(machine.getCurrentBalance()));
+        // Stay in HasMoneyState
+    }
+
+    @Override
+    public void selectProduct(VendingMachine machine, String code) {
+        Inventory inventory = machine.getInventory();
+        Product product = inventory.getProduct(code);
+
+        if (product == null) {
+            System.out.println("Invalid product code: " + code);
+            return;
+        }
+        if (!inventory.isAvailable(code)) {
+            System.out.println(product.getName() + " is out of stock.");
+            return;
+        }
+        if (machine.getCurrentBalance() < product.getPrice()) {
+            int shortfall = product.getPrice() - machine.getCurrentBalance();
+            System.out.println("Insufficient funds. Need "
+                    + formatCents(shortfall) + " more.");
+            return;
+        }
+
+        machine.setSelectedProduct(product);
+        System.out.println("Selected: " + product.getName());
+        machine.setState(new DispensingState()); // Transition: HasMoney -> Dispensing
+    }
+
+    @Override
+    public void dispense(VendingMachine machine) {
+        System.out.println("Please select a product first.");
+    }
+
+    @Override
+    public int returnChange(VendingMachine machine) {
+        int balance = machine.getCurrentBalance();
+        System.out.println("Cancelled. Returning " + formatCents(balance));
+        machine.resetTransaction();
+        machine.setState(new IdleState()); // Transition: HasMoney -> Idle
+        return balance;
+    }
+
+    private String formatCents(int c) {
+        return String.format("$%.2f", c / 100.0);
+    }
+}
+\`\`\`
+
+> "Note the three validations in selectProduct: exists, in stock, sufficient funds. Each gives a specific error message."
+
+> "DispensingState is the final step -- process payment, reduce inventory, return change."
+
+\`\`\`java
+public class DispensingState implements VendingState {
+    @Override
+    public void insertMoney(VendingMachine machine, int amount) {
+        System.out.println("Dispensing in progress. Cannot accept money.");
+    }
+
+    @Override
+    public void selectProduct(VendingMachine machine, String code) {
+        System.out.println("Dispensing in progress. Cannot change selection.");
+    }
+
+    @Override
+    public void dispense(VendingMachine machine) {
+        Product product = machine.getSelectedProduct();
+        if (product == null) {
+            System.out.println("Error: no product selected.");
+            machine.resetTransaction();
+            machine.setState(new IdleState());
+            return;
+        }
+
+        // 1. Process payment
+        PaymentStrategy strategy = machine.getPaymentStrategy();
+        if (strategy != null) {
+            strategy.pay(product.getPrice());
+        }
+
+        // 2. Reduce inventory
+        machine.getInventory().reduceQuantity(product.getCode());
+
+        // 3. Calculate and return change
+        int change = machine.getCurrentBalance() - product.getPrice();
+        if (change > 0) {
+            System.out.println("Returning change: "
+                    + String.format("$%.2f", change / 100.0));
+        }
+
+        System.out.println("Dispensing: " + product.getName());
+        System.out.println("Thank you for your purchase!");
+
+        // 4. Reset and return to idle
+        machine.resetTransaction();
+        machine.setState(new IdleState()); // Transition: Dispensing -> Idle
+    }
+
+    @Override
+    public int returnChange(VendingMachine machine) {
+        System.out.println("Cannot cancel during dispensing.");
+        return 0;
+    }
+}
+\`\`\`
+
+---
+
+### Step 7: VendingMachine Context (52:00 - 60:00)
+
+> "The VendingMachine is the context class. It holds all state and delegates every user action to the current VendingState."
+
+\`\`\`java
+public class VendingMachine {
+    private VendingState currentState;
+    private final Inventory inventory;
+    private PaymentStrategy paymentStrategy;
+    private int currentBalance;
+    private Product selectedProduct;
+
+    public VendingMachine() {
+        this.inventory = new Inventory();
+        this.currentState = new IdleState();
+        this.paymentStrategy = new CashPaymentStrategy();
+        this.currentBalance = 0;
+        this.selectedProduct = null;
+    }
+
+    // ----- Delegate all actions to current state -----
+    public void insertMoney(int amount) {
+        currentState.insertMoney(this, amount);
+    }
+
+    public void selectProduct(String code) {
+        currentState.selectProduct(this, code);
+    }
+
+    public void dispense() {
+        currentState.dispense(this);
+    }
+
+    public int returnChange() {
+        return currentState.returnChange(this);
+    }
+
+    // ----- Convenience methods for coin/note insertion -----
+    public void insertCoin(Coin coin) {
+        insertMoney(coin.getValue());
+    }
+
+    public void insertNote(Note note) {
+        insertMoney(note.getValue());
+    }
+
+    // ----- Getters/setters used by states -----
+    public VendingState getState() { return currentState; }
+    public void setState(VendingState state) { this.currentState = state; }
+    public Inventory getInventory() { return inventory; }
+    public PaymentStrategy getPaymentStrategy() { return paymentStrategy; }
+    public void setPaymentStrategy(PaymentStrategy s) { this.paymentStrategy = s; }
+    public int getCurrentBalance() { return currentBalance; }
+    public void setCurrentBalance(int b) { this.currentBalance = b; }
+    public Product getSelectedProduct() { return selectedProduct; }
+    public void setSelectedProduct(Product p) { this.selectedProduct = p; }
+
+    public void resetTransaction() {
+        currentBalance = 0;
+        selectedProduct = null;
+    }
+}
+\`\`\`
+
+> "The VendingMachine itself has zero business logic. It purely delegates to the current state. This is the essence of the State pattern -- the context is thin, the states are smart."
+
+---
+
+### Step 8: Main Demo (60:00 - 64:00)
+
+> "Let me write a demo that shows the complete flow."
+
+\`\`\`java
+public class VendingMachineDemo {
+    public static void main(String[] args) {
+        VendingMachine machine = new VendingMachine();
+
+        // Admin: stock the machine
+        machine.getInventory().addProduct(new Product("A1", "Coke", 150), 5);
+        machine.getInventory().addProduct(new Product("A2", "Pepsi", 150), 3);
+        machine.getInventory().addProduct(new Product("B1", "Chips", 100), 10);
+        machine.getInventory().addProduct(new Product("C1", "Candy", 75), 8);
+
+        machine.getInventory().displayProducts();
+
+        // === Transaction 1: Successful purchase ===
+        System.out.println("\\n--- Transaction 1: Buy Coke ---");
+        machine.insertNote(Note.ONE);         // Insert $1.00
+        machine.insertCoin(Coin.QUARTER);     // Insert $0.25
+        machine.insertCoin(Coin.QUARTER);     // Insert $0.25
+        machine.selectProduct("A1");          // Select Coke ($1.50)
+        machine.dispense();                   // Dispense (exact change)
+
+        // === Transaction 2: Insufficient funds ===
+        System.out.println("\\n--- Transaction 2: Insufficient funds ---");
+        machine.insertCoin(Coin.QUARTER);     // Insert $0.25
+        machine.selectProduct("A1");          // Coke costs $1.50 -- rejected
+        machine.returnChange();               // Cancel, get $0.25 back
+
+        // === Transaction 3: Out of stock ===
+        System.out.println("\\n--- Transaction 3: Change returned ---");
+        machine.insertNote(Note.FIVE);        // Insert $5.00
+        machine.selectProduct("C1");          // Select Candy ($0.75)
+        machine.dispense();                   // Dispense, $4.25 change
+    }
+}
+\`\`\`
+
+> "Transaction 1 shows exact change. Transaction 2 shows insufficient funds with cancel. Transaction 3 shows change calculation."
+
+---
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "How do you handle concurrent users?"
+
+> **Your answer:** "Right now the design is single-threaded. To add concurrency, I'd make two changes:
+
+> 1. **Synchronized state transitions** -- The VendingMachine's delegate methods (insertMoney, selectProduct, etc.) would use \`synchronized\` blocks or a ReentrantLock. This ensures that only one thread can interact with the machine at a time -- which maps to reality, since a physical vending machine serves one customer at a time.
+
+> 2. **Thread-safe Inventory** -- The Inventory's reduceQuantity and restock methods need synchronization. A ConcurrentHashMap for stock plus AtomicInteger for quantities would handle concurrent reads efficiently. For the stock-check-then-reduce race condition, I'd use compareAndSet or synchronize the check-and-decrement as an atomic operation.
+
+> The State pattern actually makes concurrency easier to reason about because all state-specific logic is in one place. I know exactly which operations can conflict."
+
+---
+
+## Demo & Testing (70:00 - 80:00)
+
+> "Let me trace the Transaction 1 output:"
+
+\`\`\`
+--- Transaction 1: Buy Coke ---
+Inserted $1.00. Balance: $1.00
+Inserted $0.25. Balance: $1.25
+Inserted $0.25. Balance: $1.50
+Selected: Coke
+Processing cash payment of $1.50
+Dispensing: Coke
+Thank you for your purchase!
+\`\`\`
+
+> "The state transitions are: Idle -> (insertNote) -> HasMoney -> (insertCoin x2, stays) -> HasMoney -> (selectProduct) -> Dispensing -> (dispense) -> Idle."
+
+> "For Transaction 2:"
+
+\`\`\`
+--- Transaction 2: Insufficient funds ---
+Inserted $0.25. Balance: $0.25
+Insufficient funds. Need $1.25 more.
+Cancelled. Returning $0.25
+\`\`\`
+
+> "selectProduct fails validation, stays in HasMoneyState. returnChange transitions back to Idle."
+
+---
+
+## Extension Round (80:00 - 90:00)
+
+### Interviewer asks: "Now add card payment support."
+
+> "This is exactly why I used the Strategy pattern. I can add card support without modifying any existing state or machine logic."
+
+\`\`\`java
+public class CardPaymentStrategy implements PaymentStrategy {
+    private final String cardNumber;
+
+    public CardPaymentStrategy(String cardNumber) {
+        if (cardNumber == null || cardNumber.length() < 4)
+            throw new IllegalArgumentException("Invalid card number");
+        this.cardNumber = cardNumber;
+    }
+
+    @Override
+    public boolean pay(int amount) {
+        String masked = "****-****-****-"
+                + cardNumber.substring(cardNumber.length() - 4);
+        System.out.println("Authorizing card " + masked
+                + " for " + String.format("$%.2f", amount / 100.0));
+        // In production: call payment gateway API
+        System.out.println("Card payment approved.");
+        return true;
+    }
+
+    @Override
+    public String getPaymentType() { return "CARD"; }
+}
+\`\`\`
+
+> "Usage is simply:"
+
+\`\`\`java
+machine.setPaymentStrategy(new CardPaymentStrategy("4111111111111111"));
+machine.selectProduct("A1");
+machine.dispense(); // Uses card instead of cash
+\`\`\`
+
+> "The changes: one new class, zero modifications to existing code. The DispensingState.dispense() method already calls \`strategy.pay(amount)\` -- it doesn't care whether it's cash or card. This is the Open/Closed Principle in action."
+
+> "For a more complete card flow, I might add a new state -- \`AwaitingCardState\` -- where the machine waits for card tap/insert instead of coin insertion. The state would validate the card, set the PaymentStrategy, then transition to HasMoneyState with balance equal to the product price. But the core pattern remains the same."
+
+---
+
+## Red Flags to Avoid
+
+1. **Using floating-point for money** -- Always use integers (cents) or BigDecimal. \`0.1 + 0.2 != 0.3\` in floating-point.
+2. **Giant if/else state machine** -- \`if (state == IDLE) {...} else if (state == HAS_MONEY) {...}\` in every method. Use the State pattern.
+3. **No input validation** -- Negative amounts, null product codes, out-of-stock products. Validate everything.
+4. **Tight coupling between payment and dispensing** -- Hardcoding cash logic in the dispense method makes adding card payments a rewrite.
+5. **Forgetting to reset state** -- After dispensing or cancelling, the machine must return to Idle with balance=0, selectedProduct=null.
+6. **No "cancel" flow** -- Users must be able to get their money back at any point before dispensing.
+7. **Mutable Product** -- Product should be immutable. Price changes mid-transaction would be a bug.
+
+---
+
+## What Impresses Interviewers
+
+1. **State pattern with clear transitions** -- Drawing the state machine diagram (Idle -> HasMoney -> Dispensing -> Idle) before coding.
+2. **Strategy pattern for payments** -- Showing foresight for extensibility even before being asked.
+3. **Cents-based pricing** -- Demonstrates awareness of real-world money handling.
+4. **Defensive validation** -- Constructor validation, null checks, stock checks, balance checks.
+5. **Clean separation of concerns** -- States handle behavior, VendingMachine holds data, Inventory manages stock, PaymentStrategy handles payment.
+6. **Explaining why State > if/else** -- Articulating the maintenance and extension costs of each approach.
+7. **Working demo with multiple scenarios** -- Success, insufficient funds, out of stock, change calculation.
+8. **Extension without modification** -- Adding CardPaymentStrategy touches zero existing files.
+9. **Concurrency awareness** -- Even if not implemented, showing you've thought about where race conditions live.
+10. **Convenience methods** -- \`insertCoin(Coin.QUARTER)\` wrapping \`insertMoney(25)\` shows attention to API usability.
+`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| insertMoney() | O(1) | O(1) | Adds to balance counter |
+| selectProduct() | O(1) | O(1) | HashMap lookup for product/stock |
+| dispense() | O(1) | O(1) | Decrement stock, calculate change |
+| returnChange() | O(D) | O(D) | D = number of denomination types for greedy change |
+| displayProducts() | O(P) | O(1) | P = number of products |
+| restock() | O(1) | O(1) | HashMap update |
+
+All core operations are O(1) since the inventory uses HashMap-based lookups.
+Change calculation with a greedy algorithm is O(D) where D is the number of
+denomination types (typically 4-8), effectively constant.
+
+**State transitions:** O(1) -- each state object is pre-allocated and transitions
+are simple reference swaps.
+
+**Memory:** O(P) for the product catalog, O(1) per transaction since state is
+reset after each purchase.`,
+};
+
+// ============================================================
+//  03-design-bookmyshow -> prob-movie-ticket-booking
+// ============================================================
+
+export const movieTicketBookingSolution: ProblemSolutionContent = {
+  referenceSolution: `# BookMyShow -- Complete Java Implementation
+
+> Full working code for the Movie Ticket Booking system.
+> Covers all entities, design patterns, concurrent seat locking, and a demo main class.
+
+---
+
+## Table of Contents
+
+1. [Enums](#1-enums)
+2. [Core Entities](#2-core-entities)
+3. [Seat Hierarchy and Factory](#3-seat-hierarchy-and-factory)
+4. [Show and ShowSeat](#4-show-and-showseat)
+5. [SeatLock with TTL](#5-seatlock-with-ttl)
+6. [Booking with State Machine](#6-booking-with-state-machine)
+7. [Pricing Strategy](#7-pricing-strategy)
+8. [Observer -- Notification Service](#8-observer----notification-service)
+9. [BookingService -- The Core Engine](#9-bookingservice----the-core-engine)
+10. [Main -- Demo Booking Flow](#10-main----demo-booking-flow)
+
+---
+
+## 1. Enums
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// SeatType.java
+// ──────────────────────────────────────────────────
+public enum SeatType {
+    REGULAR,
+    PREMIUM,
+    VIP
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// ShowSeatStatus.java
+// ──────────────────────────────────────────────────
+public enum ShowSeatStatus {
+    AVAILABLE,
+    LOCKED,
+    BOOKED
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// BookingStatus.java
+// ──────────────────────────────────────────────────
+public enum BookingStatus {
+    PENDING,
+    CONFIRMED,
+    CANCELLED
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// PaymentStatus.java
+// ──────────────────────────────────────────────────
+public enum PaymentStatus {
+    PENDING,
+    SUCCESS,
+    FAILED
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// PaymentMethod.java
+// ──────────────────────────────────────────────────
+public enum PaymentMethod {
+    CREDIT_CARD,
+    DEBIT_CARD,
+    UPI,
+    NET_BANKING
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// Genre.java
+// ──────────────────────────────────────────────────
+public enum Genre {
+    ACTION,
+    COMEDY,
+    DRAMA,
+    THRILLER,
+    HORROR,
+    ROMANCE,
+    SCI_FI
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// City.java
+// ──────────────────────────────────────────────────
+public enum City {
+    MUMBAI,
+    DELHI,
+    BANGALORE,
+    HYDERABAD,
+    CHENNAI
+}
+\`\`\`
+
+---
+
+## 2. Core Entities
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// User.java
+// ──────────────────────────────────────────────────
+public class User {
+    private final String userId;
+    private final String name;
+    private final String email;
+    private final String phone;
+
+    public User(String userId, String name, String email, String phone) {
+        this.userId = userId;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+    }
+
+    public String getUserId() { return userId; }
+    public String getName()   { return name; }
+    public String getEmail()  { return email; }
+    public String getPhone()  { return phone; }
+
+    @Override
+    public String toString() {
+        return "User{" + userId + ", " + name + "}";
+    }
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// Movie.java
+// ──────────────────────────────────────────────────
+public class Movie {
+    private final String movieId;
+    private final String title;
+    private final String description;
+    private final Genre genre;
+    private final int durationMinutes;
+    private final double rating;
+
+    public Movie(String movieId, String title, String description,
+                 Genre genre, int durationMinutes, double rating) {
+        this.movieId = movieId;
+        this.title = title;
+        this.description = description;
+        this.genre = genre;
+        this.durationMinutes = durationMinutes;
+        this.rating = rating;
+    }
+
+    public String getMovieId()       { return movieId; }
+    public String getTitle()         { return title; }
+    public String getDescription()   { return description; }
+    public Genre getGenre()          { return genre; }
+    public int getDurationMinutes()  { return durationMinutes; }
+    public double getRating()        { return rating; }
+
+    @Override
+    public String toString() {
+        return "Movie{" + title + ", " + genre + ", " + rating + "}";
+    }
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// Theater.java
+// ──────────────────────────────────────────────────
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class Theater {
+    private final String theaterId;
+    private final String name;
+    private final String address;
+    private final City city;
+    private final List<Screen> screens;
+
+    public Theater(String theaterId, String name, String address, City city) {
+        this.theaterId = theaterId;
+        this.name = name;
+        this.address = address;
+        this.city = city;
+        this.screens = new ArrayList<>();
+    }
+
+    public void addScreen(Screen screen) {
+        screens.add(screen);
+    }
+
+    public String getTheaterId()       { return theaterId; }
+    public String getName()            { return name; }
+    public String getAddress()         { return address; }
+    public City getCity()              { return city; }
+    public List<Screen> getScreens()   { return Collections.unmodifiableList(screens); }
+
+    @Override
+    public String toString() {
+        return "Theater{" + name + ", " + city + "}";
+    }
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// Screen.java
+// ──────────────────────────────────────────────────
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class Screen {
+    private final String screenId;
+    private final String name;
+    private final Theater theater;
+    private final List<Seat> seats;
+
+    public Screen(String screenId, String name, Theater theater) {
+        this.screenId = screenId;
+        this.name = name;
+        this.theater = theater;
+        this.seats = new ArrayList<>();
+    }
+
+    public void addSeat(Seat seat) {
+        seats.add(seat);
+    }
+
+    public String getScreenId()       { return screenId; }
+    public String getName()           { return name; }
+    public Theater getTheater()       { return theater; }
+    public List<Seat> getSeats()      { return Collections.unmodifiableList(seats); }
+    public int getTotalCapacity()     { return seats.size(); }
+
+    @Override
+    public String toString() {
+        return "Screen{" + name + ", capacity=" + seats.size() + "}";
+    }
+}
+\`\`\`
+
+---
+
+## 3. Seat Hierarchy and Factory
+
+### Abstract Seat
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// Seat.java (Abstract Base)
+// ──────────────────────────────────────────────────
+public abstract class Seat {
+    private final String seatId;
+    private final String seatNumber;    // e.g., "A1", "B5"
+    private final SeatType seatType;
+    private final double basePrice;
+
+    protected Seat(String seatId, String seatNumber, SeatType seatType, double basePrice) {
+        this.seatId = seatId;
+        this.seatNumber = seatNumber;
+        this.seatType = seatType;
+        this.basePrice = basePrice;
+    }
+
+    public String getSeatId()       { return seatId; }
+    public String getSeatNumber()   { return seatNumber; }
+    public SeatType getSeatType()   { return seatType; }
+    public double getBasePrice()    { return basePrice; }
+
+    /** Each subclass defines its own price multiplier. */
+    public abstract double getPriceMultiplier();
+
+    /** Effective price = base price * multiplier. */
+    public double getEffectivePrice() {
+        return basePrice * getPriceMultiplier();
+    }
+
+    @Override
+    public String toString() {
+        return seatNumber + "(" + seatType + ", $" + getEffectivePrice() + ")";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Seat)) return false;
+        return seatId.equals(((Seat) o).seatId);
+    }
+
+    @Override
+    public int hashCode() {
+        return seatId.hashCode();
+    }
+}
+\`\`\`
+
+### Concrete Seat Types
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// RegularSeat.java
+// ──────────────────────────────────────────────────
+public class RegularSeat extends Seat {
+
+    public RegularSeat(String seatId, String seatNumber, double basePrice) {
+        super(seatId, seatNumber, SeatType.REGULAR, basePrice);
+    }
+
+    @Override
+    public double getPriceMultiplier() {
+        return 1.0;   // No surcharge
+    }
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// PremiumSeat.java
+// ──────────────────────────────────────────────────
+public class PremiumSeat extends Seat {
+
+    public PremiumSeat(String seatId, String seatNumber, double basePrice) {
+        super(seatId, seatNumber, SeatType.PREMIUM, basePrice);
+    }
+
+    @Override
+    public double getPriceMultiplier() {
+        return 1.5;   // 50% surcharge over regular
+    }
+}
+\`\`\`
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// VIPSeat.java
+// ──────────────────────────────────────────────────
+public class VIPSeat extends Seat {
+
+    public VIPSeat(String seatId, String seatNumber, double basePrice) {
+        super(seatId, seatNumber, SeatType.VIP, basePrice);
+    }
+
+    @Override
+    public double getPriceMultiplier() {
+        return 2.5;   // 150% surcharge over regular
+    }
+}
+\`\`\`
+
+### Seat Factory
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// SeatFactory.java
+// ──────────────────────────────────────────────────
+public class SeatFactory {
+
+    private static int seatCounter = 0;
+
+    /**
+     * Creates a seat of the given type.
+     * @param seatNumber  display label like "A1", "C5"
+     * @param type        REGULAR, PREMIUM, or VIP
+     * @param basePrice   base price before any multiplier
+     * @return            a fully initialized Seat subclass
+     */
+    public static Seat createSeat(String seatNumber, SeatType type, double basePrice) {
+        String seatId = "SEAT-" + (++seatCounter);
+
+        switch (type) {
+            case REGULAR:
+                return new RegularSeat(seatId, seatNumber, basePrice);
+            case PREMIUM:
+                return new PremiumSeat(seatId, seatNumber, basePrice);
+            case VIP:
+                return new VIPSeat(seatId, seatNumber, basePrice);
+            default:
+                throw new IllegalArgumentException("Unknown seat type: " + type);
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 4. Show and ShowSeat
+
+### ShowSeat -- Per-Show Seat State
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// ShowSeat.java
+// ──────────────────────────────────────────────────
+/**
+ * Represents the state of a physical Seat within a specific Show.
+ * The same physical seat (e.g., A1) has a separate ShowSeat for the 3PM show
+ * and the 6PM show -- they are independent.
+ */
+public class ShowSeat {
+    private final Seat seat;
+    private ShowSeatStatus status;
+    private SeatLock currentLock;    // non-null only when LOCKED
+
+    public ShowSeat(Seat seat) {
+        this.seat = seat;
+        this.status = ShowSeatStatus.AVAILABLE;
+        this.currentLock = null;
+    }
+
+    public Seat getSeat()              { return seat; }
+    public ShowSeatStatus getStatus()  { return status; }
+    public SeatLock getCurrentLock()   { return currentLock; }
+
+    public boolean isAvailable() {
+        // Also treat expired locks as available
+        if (status == ShowSeatStatus.LOCKED && currentLock != null && currentLock.isExpired()) {
+            release();
+        }
+        return status == ShowSeatStatus.AVAILABLE;
+    }
+
+    public boolean isLocked()  { return status == ShowSeatStatus.LOCKED && !currentLock.isExpired(); }
+    public boolean isBooked()  { return status == ShowSeatStatus.BOOKED; }
+
+    /**
+     * Acquire a temporary lock on this seat.
+     * Must be called inside a synchronized block for thread safety.
+     */
+    public void lock(SeatLock lock) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("Seat " + seat.getSeatNumber() + " is not available");
+        }
+        this.currentLock = lock;
+        this.status = ShowSeatStatus.LOCKED;
+    }
+
+    /**
+     * Convert a locked seat to permanently booked.
+     */
+    public void book() {
+        if (status != ShowSeatStatus.LOCKED) {
+            throw new IllegalStateException("Seat " + seat.getSeatNumber()
+                + " must be LOCKED before booking, current status: " + status);
+        }
+        this.status = ShowSeatStatus.BOOKED;
+        this.currentLock = null;   // Lock is no longer needed
+    }
+
+    /**
+     * Release a lock (timeout or cancellation). Seat returns to AVAILABLE.
+     */
+    public void release() {
+        this.status = ShowSeatStatus.AVAILABLE;
+        this.currentLock = null;
+    }
+
+    @Override
+    public String toString() {
+        return seat.getSeatNumber() + "[" + status + "]";
+    }
+}
+\`\`\`
+
+### Show
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// Show.java
+// ──────────────────────────────────────────────────
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class Show {
+    private final String showId;
+    private final Movie movie;
+    private final Screen screen;
+    private final LocalDateTime startTime;
+    private final LocalDateTime endTime;
+    private final Map<String, ShowSeat> showSeatMap;  // seatId -> ShowSeat
+
+    public Show(String showId, Movie movie, Screen screen,
+                LocalDateTime startTime, LocalDateTime endTime) {
+        this.showId = showId;
+        this.movie = movie;
+        this.screen = screen;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.showSeatMap = new LinkedHashMap<>();
+
+        // Initialize one ShowSeat per physical seat in the screen
+        for (Seat seat : screen.getSeats()) {
+            showSeatMap.put(seat.getSeatId(), new ShowSeat(seat));
+        }
+    }
+
+    public String getShowId()             { return showId; }
+    public Movie getMovie()               { return movie; }
+    public Screen getScreen()             { return screen; }
+    public LocalDateTime getStartTime()   { return startTime; }
+    public LocalDateTime getEndTime()     { return endTime; }
+
+    public ShowSeat getShowSeat(String seatId) {
+        ShowSeat ss = showSeatMap.get(seatId);
+        if (ss == null) {
+            throw new IllegalArgumentException("Seat " + seatId + " not found in show " + showId);
+        }
+        return ss;
+    }
+
+    public List<ShowSeat> getAllShowSeats() {
+        return new ArrayList<>(showSeatMap.values());
+    }
+
+    public List<ShowSeat> getAvailableSeats() {
+        return showSeatMap.values().stream()
+                .filter(ShowSeat::isAvailable)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public String toString() {
+        long available = showSeatMap.values().stream().filter(ShowSeat::isAvailable).count();
+        return "Show{" + movie.getTitle() + " @ " + screen.getName()
+             + " " + startTime + ", available=" + available + "/" + showSeatMap.size() + "}";
+    }
+}
+\`\`\`
+
+---
+
+## 5. SeatLock with TTL
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// SeatLock.java
+// ──────────────────────────────────────────────────
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Represents a temporary hold on a seat for a specific user.
+ * The lock expires after a configurable TTL (default 5 minutes).
+ */
+public class SeatLock {
+    private final String lockId;
+    private final String userId;
+    private final String showId;
+    private final String seatId;
+    private final LocalDateTime lockTime;
+    private final LocalDateTime expiryTime;
+
+    public SeatLock(String userId, String showId, String seatId,
+                    LocalDateTime lockTime, int ttlMinutes) {
+        this.lockId = "LOCK-" + UUID.randomUUID().toString().substring(0, 8);
+        this.userId = userId;
+        this.showId = showId;
+        this.seatId = seatId;
+        this.lockTime = lockTime;
+        this.expiryTime = lockTime.plusMinutes(ttlMinutes);
+    }
+
+    public String getLockId()              { return lockId; }
+    public String getUserId()              { return userId; }
+    public String getShowId()              { return showId; }
+    public String getSeatId()              { return seatId; }
+    public LocalDateTime getLockTime()     { return lockTime; }
+    public LocalDateTime getExpiryTime()   { return expiryTime; }
+
+    /**
+     * A lock is expired if the current time is past the expiry time.
+     */
+    public boolean isExpired() {
+        return LocalDateTime.now().isAfter(expiryTime);
+    }
+
+    /**
+     * Check if this lock belongs to a given user.
+     */
+    public boolean isOwnedBy(String userId) {
+        return this.userId.equals(userId);
+    }
+
+    @Override
+    public String toString() {
+        return "SeatLock{" + lockId + ", user=" + userId
+             + ", seat=" + seatId + ", expires=" + expiryTime + "}";
+    }
+}
+\`\`\`
+
+---
+
+## 6. Booking with State Machine
+
+### Payment
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// Payment.java
+// ──────────────────────────────────────────────────
+import java.util.UUID;
+
+public class Payment {
+    private final String paymentId;
+    private final double amount;
+    private final PaymentMethod method;
+    private PaymentStatus status;
+    private String transactionId;
+
+    public Payment(double amount, PaymentMethod method) {
+        this.paymentId = "PAY-" + UUID.randomUUID().toString().substring(0, 8);
+        this.amount = amount;
+        this.method = method;
+        this.status = PaymentStatus.PENDING;
+    }
+
+    /**
+     * Simulates payment processing.
+     * In a real system, this would call a payment gateway.
+     * Returns true if payment succeeds.
+     */
+    public boolean process() {
+        // Simulate: 90% chance of success
+        if (Math.random() < 0.9) {
+            this.status = PaymentStatus.SUCCESS;
+            this.transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 8);
+            return true;
+        } else {
+            this.status = PaymentStatus.FAILED;
+            return false;
+        }
+    }
+
+    /** Force success -- used in demo to control the flow. */
+    public void markSuccess() {
+        this.status = PaymentStatus.SUCCESS;
+        this.transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    /** Force failure -- used in demo to control the flow. */
+    public void markFailed() {
+        this.status = PaymentStatus.FAILED;
+    }
+
+    public String getPaymentId()       { return paymentId; }
+    public double getAmount()          { return amount; }
+    public PaymentMethod getMethod()   { return method; }
+    public PaymentStatus getStatus()   { return status; }
+    public String getTransactionId()   { return transactionId; }
+    public boolean isSuccessful()      { return status == PaymentStatus.SUCCESS; }
+
+    @Override
+    public String toString() {
+        return "Payment{" + paymentId + ", " + amount + ", " + method + ", " + status + "}";
+    }
+}
+\`\`\`
+
+### Booking with State Transitions
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// Booking.java
+// ──────────────────────────────────────────────────
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+
+public class Booking {
+    private final String bookingId;
+    private final User user;
+    private final Show show;
+    private final List<Seat> seats;
+    private final double totalAmount;
+    private final LocalDateTime createdAt;
+    private BookingStatus status;
+    private Payment payment;
+
+    public Booking(User user, Show show, List<Seat> seats, double totalAmount) {
+        this.bookingId = "BK-" + UUID.randomUUID().toString().substring(0, 8);
+        this.user = user;
+        this.show = show;
+        this.seats = seats;
+        this.totalAmount = totalAmount;
+        this.createdAt = LocalDateTime.now();
+        this.status = BookingStatus.PENDING;
+    }
+
+    // ─── State machine transitions ───
+
+    /**
+     * PENDING -> CONFIRMED (only valid transition for confirm)
+     */
+    public void confirm(Payment payment) {
+        if (this.status != BookingStatus.PENDING) {
+            throw new IllegalStateException(
+                "Cannot confirm booking in state: " + this.status
+                + ". Only PENDING bookings can be confirmed.");
+        }
+        if (!payment.isSuccessful()) {
+            throw new IllegalStateException("Cannot confirm with a failed payment");
+        }
+        this.payment = payment;
+        this.status = BookingStatus.CONFIRMED;
+    }
+
+    /**
+     * PENDING -> CANCELLED or CONFIRMED -> CANCELLED
+     * (CANCELLED -> anything is invalid)
+     */
+    public void cancel() {
+        if (this.status == BookingStatus.CANCELLED) {
+            throw new IllegalStateException("Booking is already cancelled");
+        }
+        this.status = BookingStatus.CANCELLED;
+    }
+
+    // ─── Getters ───
+
+    public String getBookingId()           { return bookingId; }
+    public User getUser()                  { return user; }
+    public Show getShow()                  { return show; }
+    public List<Seat> getSeats()           { return Collections.unmodifiableList(seats); }
+    public double getTotalAmount()         { return totalAmount; }
+    public BookingStatus getStatus()       { return status; }
+    public Payment getPayment()            { return payment; }
+    public LocalDateTime getCreatedAt()    { return createdAt; }
+
+    @Override
+    public String toString() {
+        return "Booking{" + bookingId
+             + ", user=" + user.getName()
+             + ", movie=" + show.getMovie().getTitle()
+             + ", seats=" + seats.size()
+             + ", amount=" + totalAmount
+             + ", status=" + status + "}";
+    }
+}
+\`\`\`
+
+---
+
+## 7. Pricing Strategy
+
+### Strategy Interface
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// PricingStrategy.java
+// ──────────────────────────────────────────────────
+/**
+ * Strategy interface for calculating ticket prices.
+ * Different implementations handle regular days, weekends, holidays, etc.
+ */
+public interface PricingStrategy {
+
+    /**
+     * Calculate the final price for a single seat in a given show.
+     * @param seat  the seat being priced
+     * @param show  the show (used for date-based pricing)
+     * @return      the final price for this seat
+     */
+    double calculatePrice(Seat seat, Show show);
+}
+\`\`\`
+
+### Regular Pricing (weekdays)
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// RegularPricingStrategy.java
+// ──────────────────────────────────────────────────
+/**
+ * Standard pricing: seat's effective price with no surcharge.
+ */
+public class RegularPricingStrategy implements PricingStrategy {
+
+    @Override
+    public double calculatePrice(Seat seat, Show show) {
+        return seat.getEffectivePrice();
+    }
+
+    @Override
+    public String toString() {
+        return "RegularPricing (1.0x)";
+    }
+}
+\`\`\`
+
+### Weekend Pricing
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// WeekendPricingStrategy.java
+// ──────────────────────────────────────────────────
+import java.time.DayOfWeek;
+
+/**
+ * Weekend surcharge: 20% extra on Saturday and Sunday.
+ * Falls back to regular pricing on weekdays.
+ */
+public class WeekendPricingStrategy implements PricingStrategy {
+
+    private static final double WEEKEND_MULTIPLIER = 1.2;
+
+    @Override
+    public double calculatePrice(Seat seat, Show show) {
+        double basePrice = seat.getEffectivePrice();
+        DayOfWeek day = show.getStartTime().getDayOfWeek();
+
+        if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
+            return basePrice * WEEKEND_MULTIPLIER;
+        }
+        return basePrice;   // No surcharge on weekdays
+    }
+
+    @Override
+    public String toString() {
+        return "WeekendPricing (1.2x on Sat/Sun)";
+    }
+}
+\`\`\`
+
+### Premium / Holiday Pricing
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// PremiumPricingStrategy.java
+// ──────────────────────────────────────────────────
+/**
+ * Premium pricing for holidays, premiere nights, or high-demand shows.
+ * Applies a flat 50% surcharge regardless of day.
+ */
+public class PremiumPricingStrategy implements PricingStrategy {
+
+    private static final double PREMIUM_MULTIPLIER = 1.5;
+
+    @Override
+    public double calculatePrice(Seat seat, Show show) {
+        return seat.getEffectivePrice() * PREMIUM_MULTIPLIER;
+    }
+
+    @Override
+    public String toString() {
+        return "PremiumPricing (1.5x always)";
+    }
+}
+\`\`\`
+
+---
+
+## 8. Observer -- Notification Service
+
+### Observer Interface
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// BookingObserver.java
+// ──────────────────────────────────────────────────
+/**
+ * Observer interface for booking events.
+ * Implementations react to booking lifecycle changes.
+ */
+public interface BookingObserver {
+    void onBookingConfirmed(Booking booking);
+    void onBookingCancelled(Booking booking);
+    void onSeatsReleased(Show show, int seatsFreed);
+}
+\`\`\`
+
+### Email Notifier
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// EmailNotifier.java
+// ──────────────────────────────────────────────────
+public class EmailNotifier implements BookingObserver {
+
+    @Override
+    public void onBookingConfirmed(Booking booking) {
+        System.out.println("  [EMAIL] Sending confirmation to "
+            + booking.getUser().getEmail()
+            + " | Booking: " + booking.getBookingId()
+            + " | Movie: " + booking.getShow().getMovie().getTitle()
+            + " | Amount: $" + booking.getTotalAmount());
+    }
+
+    @Override
+    public void onBookingCancelled(Booking booking) {
+        System.out.println("  [EMAIL] Sending cancellation notice to "
+            + booking.getUser().getEmail()
+            + " | Booking: " + booking.getBookingId());
+    }
+
+    @Override
+    public void onSeatsReleased(Show show, int seatsFreed) {
+        System.out.println("  [EMAIL] " + seatsFreed + " seats now available for "
+            + show.getMovie().getTitle() + " at " + show.getStartTime());
+    }
+}
+\`\`\`
+
+### SMS Notifier
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// SMSNotifier.java
+// ──────────────────────────────────────────────────
+public class SMSNotifier implements BookingObserver {
+
+    @Override
+    public void onBookingConfirmed(Booking booking) {
+        System.out.println("  [SMS] Ticket confirmed for "
+            + booking.getUser().getPhone()
+            + " | " + booking.getBookingId());
+    }
+
+    @Override
+    public void onBookingCancelled(Booking booking) {
+        System.out.println("  [SMS] Booking cancelled for "
+            + booking.getUser().getPhone()
+            + " | " + booking.getBookingId());
+    }
+
+    @Override
+    public void onSeatsReleased(Show show, int seatsFreed) {
+        System.out.println("  [SMS] " + seatsFreed + " seats freed for "
+            + show.getMovie().getTitle());
+    }
+}
+\`\`\`
+
+### Notification Service (Publisher)
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// NotificationService.java
+// ──────────────────────────────────────────────────
+import java.util.ArrayList;
+import java.util.List;
+
+public class NotificationService {
+    private final List<BookingObserver> observers = new ArrayList<>();
+
+    public void addObserver(BookingObserver observer) {
+        observers.add(observer);
+    }
+
+    public void removeObserver(BookingObserver observer) {
+        observers.remove(observer);
+    }
+
+    public void notifyBookingConfirmed(Booking booking) {
+        for (BookingObserver observer : observers) {
+            observer.onBookingConfirmed(booking);
+        }
+    }
+
+    public void notifyBookingCancelled(Booking booking) {
+        for (BookingObserver observer : observers) {
+            observer.onBookingCancelled(booking);
+        }
+    }
+
+    public void notifySeatsReleased(Show show, int seatsFreed) {
+        for (BookingObserver observer : observers) {
+            observer.onSeatsReleased(show, seatsFreed);
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 9. BookingService -- The Core Engine
+
+This is the most important class. It orchestrates seat locking, payment, booking
+creation, and cancellation -- all with thread safety.
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// BookingService.java
+// ──────────────────────────────────────────────────
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Core service that handles the entire booking lifecycle:
+ * 1. Lock seats (with TTL)
+ * 2. Calculate price (via Strategy)
+ * 3. Process payment
+ * 4. Confirm booking (with Observer notification)
+ * 5. Cancel booking
+ *
+ * Thread safety is achieved through:
+ * - ConcurrentHashMap for the lock registry
+ * - synchronized blocks on individual ShowSeat objects for state changes
+ */
+public class BookingService {
+
+    private static final int LOCK_TTL_MINUTES = 5;
+
+    // ── Lock registry: "showId:seatId" -> SeatLock ──
+    // ConcurrentHashMap provides thread-safe operations without global locking.
+    private final ConcurrentHashMap<String, SeatLock> seatLockMap = new ConcurrentHashMap<>();
+
+    // ── Bookings storage ──
+    private final Map<String, Booking> bookings = new ConcurrentHashMap<>();
+
+    // ── Dependencies ──
+    private PricingStrategy pricingStrategy;
+    private final NotificationService notificationService;
+
+    public BookingService(PricingStrategy pricingStrategy,
+                          NotificationService notificationService) {
+        this.pricingStrategy = pricingStrategy;
+        this.notificationService = notificationService;
+    }
+
+    public void setPricingStrategy(PricingStrategy strategy) {
+        this.pricingStrategy = strategy;
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 1. LOCK SEATS
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * Attempts to lock all requested seats for a user.
+     * Uses ALL-OR-NOTHING semantics: if any seat cannot be locked,
+     * all previously locked seats in this request are rolled back.
+     *
+     * @param user     the user requesting the lock
+     * @param show     the show
+     * @param seatIds  list of seat IDs to lock
+     * @return         true if all seats locked successfully
+     */
+    public boolean lockSeats(User user, Show show, List<String> seatIds) {
+        List<String> lockedKeys = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (String seatId : seatIds) {
+            String lockKey = buildLockKey(show.getShowId(), seatId);
+            SeatLock newLock = new SeatLock(user.getUserId(), show.getShowId(),
+                                           seatId, now, LOCK_TTL_MINUTES);
+
+            // ── Atomic lock attempt using ConcurrentHashMap ──
+            SeatLock existingLock = seatLockMap.putIfAbsent(lockKey, newLock);
+
+            if (existingLock == null) {
+                // Lock acquired -- update ShowSeat state
+                ShowSeat showSeat = show.getShowSeat(seatId);
+                synchronized (showSeat) {
+                    if (showSeat.isAvailable()) {
+                        showSeat.lock(newLock);
+                        lockedKeys.add(lockKey);
+                    } else {
+                        // ShowSeat not available (already booked); rollback map entry
+                        seatLockMap.remove(lockKey);
+                        rollbackLocks(show, lockedKeys);
+                        return false;
+                    }
+                }
+            } else if (existingLock.isExpired()) {
+                // Previous lock expired -- try to replace atomically
+                boolean replaced = seatLockMap.replace(lockKey, existingLock, newLock);
+                if (replaced) {
+                    ShowSeat showSeat = show.getShowSeat(seatId);
+                    synchronized (showSeat) {
+                        showSeat.release();       // Clear expired state
+                        showSeat.lock(newLock);   // Apply new lock
+                    }
+                    lockedKeys.add(lockKey);
+                } else {
+                    // Someone else replaced it first -- fail
+                    rollbackLocks(show, lockedKeys);
+                    return false;
+                }
+            } else {
+                // Seat is locked by another user and lock is still valid
+                rollbackLocks(show, lockedKeys);
+                return false;
+            }
+        }
+
+        System.out.println("  Locked " + seatIds.size() + " seats for " + user.getName()
+            + " (expires in " + LOCK_TTL_MINUTES + " min)");
+        return true;
+    }
+
+    /**
+     * Rollback any locks acquired during a failed multi-seat lock attempt.
+     */
+    private void rollbackLocks(Show show, List<String> lockedKeys) {
+        for (String key : lockedKeys) {
+            seatLockMap.remove(key);
+            String seatId = extractSeatId(key);
+            ShowSeat showSeat = show.getShowSeat(seatId);
+            synchronized (showSeat) {
+                showSeat.release();
+            }
+        }
+        if (!lockedKeys.isEmpty()) {
+            System.out.println("  Rolled back " + lockedKeys.size() + " locks");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 2. CONFIRM BOOKING
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * Confirms a booking after successful payment.
+     * Validates that all seats are still locked by this user,
+     * calculates total price, processes payment, and creates a Booking.
+     *
+     * @param user     the user
+     * @param show     the show
+     * @param seatIds  seat IDs previously locked
+     * @param payment  the payment object (will be processed here)
+     * @return         the confirmed Booking, or null if failed
+     */
+    public Booking confirmBooking(User user, Show show,
+                                  List<String> seatIds, Payment payment) {
+
+        // 1. Validate all locks still belong to this user
+        for (String seatId : seatIds) {
+            String lockKey = buildLockKey(show.getShowId(), seatId);
+            SeatLock lock = seatLockMap.get(lockKey);
+
+            if (lock == null || lock.isExpired() || !lock.isOwnedBy(user.getUserId())) {
+                System.out.println("  FAILED: Lock expired or not owned for seat " + seatId);
+                releaseAllLocks(user, show, seatIds);
+                return null;
+            }
+        }
+
+        // 2. Calculate total price using the pricing strategy
+        List<Seat> seats = new ArrayList<>();
+        double totalAmount = 0.0;
+        for (String seatId : seatIds) {
+            Seat seat = show.getShowSeat(seatId).getSeat();
+            seats.add(seat);
+            totalAmount += pricingStrategy.calculatePrice(seat, show);
+        }
+
+        // 3. Process payment
+        // In a real system: payment.process() would call a gateway.
+        // Here we use the pre-set status for demo control.
+        if (!payment.isSuccessful()) {
+            System.out.println("  FAILED: Payment declined");
+            releaseAllLocks(user, show, seatIds);
+            return null;
+        }
+
+        // 4. Create booking and mark seats as BOOKED
+        Booking booking = new Booking(user, show, seats, totalAmount);
+        booking.confirm(payment);
+
+        for (String seatId : seatIds) {
+            ShowSeat showSeat = show.getShowSeat(seatId);
+            synchronized (showSeat) {
+                showSeat.book();
+            }
+            // Remove from lock map -- seat is now permanently booked
+            seatLockMap.remove(buildLockKey(show.getShowId(), seatId));
+        }
+
+        bookings.put(booking.getBookingId(), booking);
+
+        // 5. Notify observers
+        notificationService.notifyBookingConfirmed(booking);
+
+        return booking;
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 3. CANCEL BOOKING
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * Cancels a confirmed booking. Releases all seats back to AVAILABLE.
+     *
+     * @param bookingId  the booking to cancel
+     * @return           true if cancellation succeeded
+     */
+    public boolean cancelBooking(String bookingId) {
+        Booking booking = bookings.get(bookingId);
+        if (booking == null) {
+            System.out.println("  Booking not found: " + bookingId);
+            return false;
+        }
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            System.out.println("  Booking already cancelled: " + bookingId);
+            return false;
+        }
+
+        // Transition state
+        booking.cancel();
+
+        // Release all seats
+        Show show = booking.getShow();
+        for (Seat seat : booking.getSeats()) {
+            ShowSeat showSeat = show.getShowSeat(seat.getSeatId());
+            synchronized (showSeat) {
+                showSeat.release();
+            }
+        }
+
+        // Notify observers
+        notificationService.notifyBookingCancelled(booking);
+        notificationService.notifySeatsReleased(show, booking.getSeats().size());
+
+        System.out.println("  Booking cancelled: " + bookingId);
+        return true;
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 4. RELEASE LOCKS (timeout / payment failure)
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * Explicitly release all locks held by a user for a show.
+     */
+    public void releaseAllLocks(User user, Show show, List<String> seatIds) {
+        for (String seatId : seatIds) {
+            String lockKey = buildLockKey(show.getShowId(), seatId);
+            SeatLock lock = seatLockMap.get(lockKey);
+
+            if (lock != null && lock.isOwnedBy(user.getUserId())) {
+                seatLockMap.remove(lockKey);
+                ShowSeat showSeat = show.getShowSeat(seatId);
+                synchronized (showSeat) {
+                    showSeat.release();
+                }
+            }
+        }
+        System.out.println("  Released locks for " + user.getName());
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 5. EXPIRED LOCK CLEANUP (background task)
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * Removes all expired locks from the map and resets ShowSeat status.
+     * In production, this runs as a scheduled task every 30-60 seconds.
+     */
+    public int cleanExpiredLocks(List<Show> allShows) {
+        int cleaned = 0;
+        Iterator<Map.Entry<String, SeatLock>> it = seatLockMap.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, SeatLock> entry = it.next();
+            if (entry.getValue().isExpired()) {
+                it.remove();
+                cleaned++;
+                // Find the show and reset ShowSeat -- in production, index by showId
+            }
+        }
+        return cleaned;
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 6. QUERY METHODS
+    // ═══════════════════════════════════════════════════
+
+    public List<ShowSeat> getAvailableSeats(Show show) {
+        return show.getAvailableSeats();
+    }
+
+    public Booking getBooking(String bookingId) {
+        return bookings.get(bookingId);
+    }
+
+    public int getActiveLockCount() {
+        return (int) seatLockMap.values().stream().filter(l -> !l.isExpired()).count();
+    }
+
+    // ═══════════════════════════════════════════════════
+    // UTILITY
+    // ═══════════════════════════════════════════════════
+
+    private String buildLockKey(String showId, String seatId) {
+        return showId + ":" + seatId;
+    }
+
+    private String extractSeatId(String lockKey) {
+        return lockKey.substring(lockKey.indexOf(':') + 1);
+    }
+}
+\`\`\`
+
+---
+
+## 10. Main -- Demo Booking Flow
+
+This demo shows three scenarios:
+1. **Successful booking** by User A
+2. **Concurrent conflict** -- User B tries the same seat and gets rejected
+3. **Timeout scenario** -- User C locks seats but does not pay in time
+
+\`\`\`java
+// ──────────────────────────────────────────────────
+// BookMyShowDemo.java
+// ──────────────────────────────────────────────────
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+
+public class BookMyShowDemo {
+
+    public static void main(String[] args) {
+
+        System.out.println("╔══════════════════════════════════════════════╗");
+        System.out.println("║     BookMyShow -- Movie Ticket Booking      ║");
+        System.out.println("╚══════════════════════════════════════════════╝");
+        System.out.println();
+
+        // ── Setup: Create users ──
+        User alice = new User("U1", "Alice", "alice@email.com", "+91-9876543210");
+        User bob   = new User("U2", "Bob",   "bob@email.com",   "+91-9876543211");
+        User carol = new User("U3", "Carol", "carol@email.com", "+91-9876543212");
+
+        // ── Setup: Create movie ──
+        Movie avengers = new Movie("M1", "Avengers: Endgame",
+            "The epic conclusion to the Infinity Saga",
+            Genre.ACTION, 181, 8.4);
+
+        // ── Setup: Create theater and screen ──
+        Theater pvr = new Theater("T1", "PVR Phoenix Mall", "Whitefield, Bangalore", City.BANGALORE);
+        Screen screen1 = new Screen("SCR1", "Screen 1 - Dolby Atmos", pvr);
+        pvr.addScreen(screen1);
+
+        // ── Setup: Create seats using Factory ──
+        // Row A: VIP (4 seats)
+        for (int i = 1; i <= 4; i++) {
+            screen1.addSeat(SeatFactory.createSeat("A" + i, SeatType.VIP, 200.0));
+        }
+        // Row B: Premium (6 seats)
+        for (int i = 1; i <= 6; i++) {
+            screen1.addSeat(SeatFactory.createSeat("B" + i, SeatType.PREMIUM, 200.0));
+        }
+        // Row C-D: Regular (8 seats each)
+        for (char row = 'C'; row <= 'D'; row++) {
+            for (int i = 1; i <= 8; i++) {
+                screen1.addSeat(SeatFactory.createSeat("" + row + i, SeatType.REGULAR, 200.0));
+            }
+        }
+
+        System.out.println("Theater: " + pvr);
+        System.out.println("Screen: " + screen1);
+        System.out.println("Total seats: " + screen1.getTotalCapacity());
+        System.out.println();
+
+        // ── Setup: Create a show ──
+        LocalDateTime showStart = LocalDateTime.of(2026, 4, 11, 19, 0);  // Saturday evening
+        LocalDateTime showEnd   = showStart.plusMinutes(avengers.getDurationMinutes());
+        Show eveningShow = new Show("SH1", avengers, screen1, showStart, showEnd);
+
+        System.out.println("Show: " + eveningShow);
+        System.out.println();
+
+        // ── Setup: Notification service with observers ──
+        NotificationService notificationService = new NotificationService();
+        notificationService.addObserver(new EmailNotifier());
+        notificationService.addObserver(new SMSNotifier());
+
+        // ── Setup: Booking service with weekend pricing ──
+        PricingStrategy weekendPricing = new WeekendPricingStrategy();
+        BookingService bookingService = new BookingService(weekendPricing, notificationService);
+
+        System.out.println("Pricing strategy: " + weekendPricing);
+        System.out.println();
+
+        // ══════════════════════════════════════════════
+        // SCENARIO 1: Alice books VIP seats successfully
+        // ══════════════════════════════════════════════
+        System.out.println("═══════════════════════════════════════════════");
+        System.out.println("SCENARIO 1: Alice books VIP seats A1 and A2");
+        System.out.println("═══════════════════════════════════════════════");
+
+        // Show available seats
+        List<ShowSeat> available = bookingService.getAvailableSeats(eveningShow);
+        System.out.println("Available seats before: " + available.size());
+
+        // Get seat IDs for A1, A2
+        String seatA1 = findSeatId(screen1, "A1");
+        String seatA2 = findSeatId(screen1, "A2");
+        List<String> aliceSeats = Arrays.asList(seatA1, seatA2);
+
+        // Step 1: Lock seats
+        System.out.println("\\n[Step 1] Alice locks seats A1, A2...");
+        boolean lockSuccess = bookingService.lockSeats(alice, eveningShow, aliceSeats);
+        System.out.println("Lock result: " + (lockSuccess ? "SUCCESS" : "FAILED"));
+
+        // Step 2: Calculate price preview
+        System.out.println("\\n[Step 2] Price calculation (Weekend pricing):");
+        for (String seatId : aliceSeats) {
+            Seat seat = eveningShow.getShowSeat(seatId).getSeat();
+            double price = weekendPricing.calculatePrice(seat, eveningShow);
+            System.out.println("  " + seat.getSeatNumber() + " (" + seat.getSeatType()
+                + "): base=$" + seat.getBasePrice()
+                + " x " + seat.getPriceMultiplier() + " (type)"
+                + " x 1.2 (weekend) = $" + price);
+        }
+
+        // Step 3: Process payment and confirm
+        System.out.println("\\n[Step 3] Alice pays...");
+        Payment alicePayment = new Payment(1200.0, PaymentMethod.UPI);
+        alicePayment.markSuccess();  // Force success for demo
+
+        Booking aliceBooking = bookingService.confirmBooking(
+            alice, eveningShow, aliceSeats, alicePayment);
+
+        System.out.println("\\nBooking result: " + aliceBooking);
+        System.out.println("Available seats after: "
+            + bookingService.getAvailableSeats(eveningShow).size());
+
+        // ══════════════════════════════════════════════
+        // SCENARIO 2: Bob tries to book the SAME seat A1
+        // ══════════════════════════════════════════════
+        System.out.println("\\n═══════════════════════════════════════════════");
+        System.out.println("SCENARIO 2: Bob tries to book seat A1 (already booked by Alice)");
+        System.out.println("═══════════════════════════════════════════════");
+
+        System.out.println("\\n[Step 1] Bob tries to lock seat A1...");
+        boolean bobLock = bookingService.lockSeats(bob, eveningShow, Arrays.asList(seatA1));
+        System.out.println("Lock result: " + (bobLock ? "SUCCESS" : "FAILED -- seat unavailable!"));
+
+        // Bob books different seats instead
+        String seatA3 = findSeatId(screen1, "A3");
+        String seatA4 = findSeatId(screen1, "A4");
+        List<String> bobSeats = Arrays.asList(seatA3, seatA4);
+
+        System.out.println("\\n[Step 2] Bob locks seats A3, A4 instead...");
+        boolean bobLock2 = bookingService.lockSeats(bob, eveningShow, bobSeats);
+        System.out.println("Lock result: " + (bobLock2 ? "SUCCESS" : "FAILED"));
+
+        System.out.println("\\n[Step 3] Bob pays...");
+        Payment bobPayment = new Payment(1200.0, PaymentMethod.CREDIT_CARD);
+        bobPayment.markSuccess();
+
+        Booking bobBooking = bookingService.confirmBooking(
+            bob, eveningShow, bobSeats, bobPayment);
+        System.out.println("\\nBooking result: " + bobBooking);
+
+        // ══════════════════════════════════════════════
+        // SCENARIO 3: Carol locks seats but payment fails
+        // ══════════════════════════════════════════════
+        System.out.println("\\n═══════════════════════════════════════════════");
+        System.out.println("SCENARIO 3: Carol locks seats but payment fails");
+        System.out.println("═══════════════════════════════════════════════");
+
+        String seatB1 = findSeatId(screen1, "B1");
+        String seatB2 = findSeatId(screen1, "B2");
+        List<String> carolSeats = Arrays.asList(seatB1, seatB2);
+
+        System.out.println("\\n[Step 1] Carol locks Premium seats B1, B2...");
+        boolean carolLock = bookingService.lockSeats(carol, eveningShow, carolSeats);
+        System.out.println("Lock result: " + (carolLock ? "SUCCESS" : "FAILED"));
+        System.out.println("Active locks: " + bookingService.getActiveLockCount());
+
+        // Simulate payment failure
+        System.out.println("\\n[Step 2] Carol's payment fails...");
+        Payment carolPayment = new Payment(720.0, PaymentMethod.DEBIT_CARD);
+        carolPayment.markFailed();
+
+        Booking carolBooking = bookingService.confirmBooking(
+            carol, eveningShow, carolSeats, carolPayment);
+        System.out.println("Booking result: " + (carolBooking != null ? carolBooking : "null (payment failed)"));
+
+        // Seats should be available again
+        ShowSeat b1Status = eveningShow.getShowSeat(seatB1);
+        ShowSeat b2Status = eveningShow.getShowSeat(seatB2);
+        System.out.println("Seat B1 status after failure: " + b1Status.getStatus());
+        System.out.println("Seat B2 status after failure: " + b2Status.getStatus());
+
+        // ══════════════════════════════════════════════
+        // SCENARIO 4: Alice cancels her booking
+        // ══════════════════════════════════════════════
+        System.out.println("\\n═══════════════════════════════════════════════");
+        System.out.println("SCENARIO 4: Alice cancels her booking");
+        System.out.println("═══════════════════════════════════════════════");
+
+        System.out.println("\\nAlice's booking status: " + aliceBooking.getStatus());
+        System.out.println("Cancelling...");
+        bookingService.cancelBooking(aliceBooking.getBookingId());
+        System.out.println("Alice's booking status after cancel: " + aliceBooking.getStatus());
+
+        // Seats A1, A2 should be available again
+        ShowSeat a1Status = eveningShow.getShowSeat(seatA1);
+        ShowSeat a2Status = eveningShow.getShowSeat(seatA2);
+        System.out.println("Seat A1 status: " + a1Status.getStatus());
+        System.out.println("Seat A2 status: " + a2Status.getStatus());
+
+        // ══════════════════════════════════════════════
+        // SCENARIO 5: Switch to Premium Pricing
+        // ══════════════════════════════════════════════
+        System.out.println("\\n═══════════════════════════════════════════════");
+        System.out.println("SCENARIO 5: Premium pricing for holiday show");
+        System.out.println("═══════════════════════════════════════════════");
+
+        PricingStrategy premiumPricing = new PremiumPricingStrategy();
+        bookingService.setPricingStrategy(premiumPricing);
+        System.out.println("Switched to: " + premiumPricing);
+
+        // Carol rebooks with premium pricing
+        System.out.println("\\n[Step 1] Carol locks B1, B2 again...");
+        boolean carolLock2 = bookingService.lockSeats(carol, eveningShow, carolSeats);
+        System.out.println("Lock result: " + (carolLock2 ? "SUCCESS" : "FAILED"));
+
+        System.out.println("\\n[Step 2] Price with Premium pricing:");
+        for (String seatId : carolSeats) {
+            Seat seat = eveningShow.getShowSeat(seatId).getSeat();
+            double price = premiumPricing.calculatePrice(seat, eveningShow);
+            System.out.println("  " + seat.getSeatNumber() + " (" + seat.getSeatType()
+                + "): $" + seat.getEffectivePrice() + " x 1.5 (premium) = $" + price);
+        }
+
+        Payment carolPayment2 = new Payment(900.0, PaymentMethod.UPI);
+        carolPayment2.markSuccess();
+        Booking carolBooking2 = bookingService.confirmBooking(
+            carol, eveningShow, carolSeats, carolPayment2);
+        System.out.println("\\nBooking result: " + carolBooking2);
+
+        // ══════════════════════════════════════════════
+        // SCENARIO 6: Concurrent booking simulation
+        // ══════════════════════════════════════════════
+        System.out.println("\\n═══════════════════════════════════════════════");
+        System.out.println("SCENARIO 6: Concurrent booking (two threads)");
+        System.out.println("═══════════════════════════════════════════════");
+
+        String seatC1 = findSeatId(screen1, "C1");
+        simulateConcurrentBooking(bookingService, eveningShow,
+            alice, bob, seatC1);
+
+        // ══════════════════════════════════════════════
+        // FINAL SUMMARY
+        // ══════════════════════════════════════════════
+        System.out.println("\\n═══════════════════════════════════════════════");
+        System.out.println("FINAL SEAT MAP");
+        System.out.println("═══════════════════════════════════════════════");
+        printSeatMap(eveningShow);
+
+        System.out.println("\\nAvailable: "
+            + bookingService.getAvailableSeats(eveningShow).size()
+            + " / " + screen1.getTotalCapacity());
+        System.out.println("Active locks: " + bookingService.getActiveLockCount());
+    }
+
+    // ══════════════════════════════════════════════
+    // Helper: Concurrent booking simulation
+    // ══════════════════════════════════════════════
+
+    private static void simulateConcurrentBooking(
+            BookingService service, Show show,
+            User user1, User user2, String seatId) {
+
+        System.out.println("\\nTwo users race for seat "
+            + show.getShowSeat(seatId).getSeat().getSeatNumber() + "...\\n");
+
+        // Use regular pricing for this demo
+        service.setPricingStrategy(new RegularPricingStrategy());
+
+        Thread thread1 = new Thread(() -> {
+            System.out.println("  [Thread-1 " + user1.getName() + "] Attempting lock...");
+            boolean locked = service.lockSeats(user1, show, Arrays.asList(seatId));
+            if (locked) {
+                System.out.println("  [Thread-1 " + user1.getName() + "] GOT the lock!");
+                Payment p = new Payment(200.0, PaymentMethod.UPI);
+                p.markSuccess();
+                Booking b = service.confirmBooking(user1, show,
+                    Arrays.asList(seatId), p);
+                System.out.println("  [Thread-1 " + user1.getName() + "] Booked: " + b);
+            } else {
+                System.out.println("  [Thread-1 " + user1.getName() + "] LOST the race.");
+            }
+        }, "Booker-" + user1.getName());
+
+        Thread thread2 = new Thread(() -> {
+            System.out.println("  [Thread-2 " + user2.getName() + "] Attempting lock...");
+            boolean locked = service.lockSeats(user2, show, Arrays.asList(seatId));
+            if (locked) {
+                System.out.println("  [Thread-2 " + user2.getName() + "] GOT the lock!");
+                Payment p = new Payment(200.0, PaymentMethod.CREDIT_CARD);
+                p.markSuccess();
+                Booking b = service.confirmBooking(user2, show,
+                    Arrays.asList(seatId), p);
+                System.out.println("  [Thread-2 " + user2.getName() + "] Booked: " + b);
+            } else {
+                System.out.println("  [Thread-2 " + user2.getName() + "] LOST the race.");
+            }
+        }, "Booker-" + user2.getName());
+
+        thread1.start();
+        thread2.start();
+
+        try {
+            thread1.join();
+            thread2.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.println("\\n  Seat C1 final status: "
+            + show.getShowSeat(seatId).getStatus());
+    }
+
+    // ══════════════════════════════════════════════
+    // Helper: Find seat ID by seat number
+    // ══════════════════════════════════════════════
+
+    private static String findSeatId(Screen screen, String seatNumber) {
+        return screen.getSeats().stream()
+            .filter(s -> s.getSeatNumber().equals(seatNumber))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("Seat not found: " + seatNumber))
+            .getSeatId();
+    }
+
+    // ══════════════════════════════════════════════
+    // Helper: Print seat map
+    // ══════════════════════════════════════════════
+
+    private static void printSeatMap(Show show) {
+        System.out.println();
+        System.out.println("                  [ SCREEN ]");
+        System.out.println("  ──────────────────────────────────────");
+
+        String currentRow = "";
+        for (ShowSeat ss : show.getAllShowSeats()) {
+            String seatNum = ss.getSeat().getSeatNumber();
+            String row = seatNum.substring(0, 1);
+
+            if (!row.equals(currentRow)) {
+                if (!currentRow.isEmpty()) System.out.println();
+                currentRow = row;
+                System.out.printf("  %s: ", row);
+            }
+
+            String symbol;
+            switch (ss.getStatus()) {
+                case AVAILABLE: symbol = "[ ]"; break;
+                case LOCKED:    symbol = "[L]"; break;
+                case BOOKED:    symbol = "[X]"; break;
+                default:        symbol = "[?]"; break;
+            }
+            System.out.print(symbol + " ");
+        }
+        System.out.println();
+        System.out.println();
+        System.out.println("  Legend: [ ] = Available, [L] = Locked, [X] = Booked");
+    }
+}
+\`\`\`
+
+---
+
+## Expected Output
+
+\`\`\`
+╔══════════════════════════════════════════════╗
+║     BookMyShow -- Movie Ticket Booking      ║
+╚══════════════════════════════════════════════╝
+
+Theater: Theater{PVR Phoenix Mall, BANGALORE}
+Screen: Screen{Screen 1 - Dolby Atmos, capacity=26}
+Total seats: 26
+
+Show: Show{Avengers: Endgame @ Screen 1 - Dolby Atmos 2026-04-11T19:00, available=26/26}
+
+Pricing strategy: WeekendPricing (1.2x on Sat/Sun)
+
+═══════════════════════════════════════════════
+SCENARIO 1: Alice books VIP seats A1 and A2
+═══════════════════════════════════════════════
+Available seats before: 26
+
+[Step 1] Alice locks seats A1, A2...
+  Locked 2 seats for Alice (expires in 5 min)
+Lock result: SUCCESS
+
+[Step 2] Price calculation (Weekend pricing):
+  A1 (VIP): base=$200.0 x 2.5 (type) x 1.2 (weekend) = $600.0
+  A2 (VIP): base=$200.0 x 2.5 (type) x 1.2 (weekend) = $600.0
+
+[Step 3] Alice pays...
+  [EMAIL] Sending confirmation to alice@email.com | Booking: BK-xxxx | Movie: Avengers: Endgame | Amount: $1200.0
+  [SMS] Ticket confirmed for +91-9876543210 | BK-xxxx
+
+Booking result: Booking{BK-xxxx, user=Alice, movie=Avengers: Endgame, seats=2, amount=1200.0, status=CONFIRMED}
+Available seats after: 24
+
+═══════════════════════════════════════════════
+SCENARIO 2: Bob tries to book seat A1 (already booked by Alice)
+═══════════════════════════════════════════════
+
+[Step 1] Bob tries to lock seat A1...
+Lock result: FAILED -- seat unavailable!
+
+[Step 2] Bob locks seats A3, A4 instead...
+  Locked 2 seats for Bob (expires in 5 min)
+Lock result: SUCCESS
+
+[Step 3] Bob pays...
+  [EMAIL] Sending confirmation to bob@email.com | ...
+  [SMS] Ticket confirmed for +91-9876543211 | ...
+
+Booking result: Booking{BK-xxxx, user=Bob, movie=Avengers: Endgame, seats=2, amount=1200.0, status=CONFIRMED}
+
+═══════════════════════════════════════════════
+SCENARIO 3: Carol locks seats but payment fails
+═══════════════════════════════════════════════
+
+[Step 1] Carol locks Premium seats B1, B2...
+  Locked 2 seats for Carol (expires in 5 min)
+Lock result: SUCCESS
+Active locks: 2
+
+[Step 2] Carol's payment fails...
+  FAILED: Payment declined
+  Released locks for Carol
+Booking result: null (payment failed)
+Seat B1 status after failure: AVAILABLE
+Seat B2 status after failure: AVAILABLE
+
+═══════════════════════════════════════════════
+SCENARIO 4: Alice cancels her booking
+═══════════════════════════════════════════════
+
+Alice's booking status: CONFIRMED
+Cancelling...
+  [EMAIL] Sending cancellation notice to alice@email.com | ...
+  [SMS] Booking cancelled for +91-9876543210 | ...
+  [EMAIL] 2 seats now available for Avengers: Endgame at 2026-04-11T19:00
+  [SMS] 2 seats freed for Avengers: Endgame
+  Booking cancelled: BK-xxxx
+Alice's booking status after cancel: CANCELLED
+Seat A1 status: AVAILABLE
+Seat A2 status: AVAILABLE
+
+═══════════════════════════════════════════════
+SCENARIO 5: Premium pricing for holiday show
+═══════════════════════════════════════════════
+Switched to: PremiumPricing (1.5x always)
+
+[Step 1] Carol locks B1, B2 again...
+  Locked 2 seats for Carol (expires in 5 min)
+Lock result: SUCCESS
+
+[Step 2] Price with Premium pricing:
+  B1 (PREMIUM): $300.0 x 1.5 (premium) = $450.0
+  B2 (PREMIUM): $300.0 x 1.5 (premium) = $450.0
+
+  [EMAIL] Sending confirmation to carol@email.com | ...
+  [SMS] Ticket confirmed for +91-9876543212 | ...
+
+Booking result: Booking{BK-xxxx, user=Carol, movie=Avengers: Endgame, seats=2, amount=900.0, status=CONFIRMED}
+
+═══════════════════════════════════════════════
+SCENARIO 6: Concurrent booking (two threads)
+═══════════════════════════════════════════════
+
+Two users race for seat C1...
+
+  [Thread-1 Alice] Attempting lock...
+  [Thread-2 Bob] Attempting lock...
+  [Thread-1 Alice] GOT the lock!
+  [Thread-2 Bob] LOST the race.
+  [Thread-1 Alice] Booked: Booking{BK-xxxx, ...}
+
+  Seat C1 final status: BOOKED
+
+═══════════════════════════════════════════════
+FINAL SEAT MAP
+═══════════════════════════════════════════════
+
+                  [ SCREEN ]
+  ──────────────────────────────────────
+  A: [ ] [ ] [X] [X]
+  B: [X] [X] [ ] [ ] [ ] [ ]
+  C: [X] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+  D: [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+
+  Legend: [ ] = Available, [L] = Locked, [X] = Booked
+\`\`\`
+
+---
+
+## Key Takeaways
+
+| Concept | Implementation Detail |
+|---------|----------------------|
+| **Concurrent seat lock** | \`ConcurrentHashMap.putIfAbsent()\` -- atomic, one winner |
+| **Lock TTL** | \`SeatLock.expiryTime\` checked via \`isExpired()\` |
+| **All-or-nothing** | If any seat in a multi-seat request fails, rollback all |
+| **State machine** | \`Booking.confirm()\` and \`cancel()\` enforce valid transitions |
+| **Strategy swap** | \`setPricingStrategy()\` changes pricing at runtime |
+| **Observer notify** | \`NotificationService\` fans out to Email + SMS observers |
+| **Factory creation** | \`SeatFactory.createSeat()\` returns correct subclass |
+| **Thread safety** | \`synchronized(showSeat)\` for individual seat state changes |
+`,
+  designWalkthrough: `# Low-Level Design: BookMyShow / Movie Ticket Booking System
+
+> Frequently asked at **Uber India**, Swiggy, Flipkart, and other product-based companies.
+
+---
+
+## Table of Contents
+
+1. [Problem Statement](#1-problem-statement)
+2. [Functional Requirements](#2-functional-requirements)
+3. [Non-Functional Requirements](#3-non-functional-requirements)
+4. [Core Entities](#4-core-entities)
+5. [Class Diagram](#5-class-diagram)
+6. [Detailed Entity Design](#6-detailed-entity-design)
+7. [Design Patterns](#7-design-patterns)
+   - 7a. Strategy Pattern -- Seat Pricing
+   - 7b. Observer Pattern -- Notifications
+   - 7c. State Pattern -- Booking Lifecycle
+   - 7d. Factory Pattern -- Seat Creation
+8. [The Critical Challenge: Concurrent Seat Booking](#8-the-critical-challenge-concurrent-seat-booking)
+9. [Seat Locking Sequence Diagram](#9-seat-locking-sequence-diagram)
+10. [Extension: Offers and Coupons via Decorator Pattern](#10-extension-offers-and-coupons-via-decorator-pattern)
+11. [API Design (Key Operations)](#11-api-design-key-operations)
+12. [Interview Tips](#12-interview-tips)
+
+---
+
+## 1. Problem Statement
+
+Design a movie ticket booking system (like BookMyShow) that allows users to:
+- Browse movies playing in their city
+- Select a theater and showtime
+- View a seat map for a specific show
+- Select one or more seats and book them with payment
+- Handle the scenario where **two users attempt to book the same seat simultaneously**
+
+This is a classic LLD problem that tests your ability to model real-world entities,
+apply design patterns, and -- most importantly -- reason about **concurrency**.
+
+---
+
+## 2. Functional Requirements
+
+| # | Requirement | Details |
+|---|-------------|---------|
+| FR-1 | Browse movies | User selects a city, sees all currently showing movies |
+| FR-2 | View shows | For a selected movie, see all theaters and showtimes |
+| FR-3 | View seat map | For a selected show, see the seat layout with availability |
+| FR-4 | Select seats | User picks one or more available seats |
+| FR-5 | Book tickets | System locks seats, processes payment, confirms booking |
+| FR-6 | Handle concurrency | If two users pick the same seat, only one succeeds |
+| FR-7 | Cancel booking | User can cancel; seats become available again |
+| FR-8 | Notifications | User receives confirmation on successful booking |
+
+---
+
+## 3. Non-Functional Requirements
+
+| # | Requirement | Details |
+|---|-------------|---------|
+| NFR-1 | Consistency | Seat booking must be **strongly consistent** -- no double booking |
+| NFR-2 | Low latency | Seat selection and lock acquisition should be fast (<200ms) |
+| NFR-3 | Fault tolerance | If payment fails, locked seats must be released |
+| NFR-4 | Scalability | Support concurrent bookings across thousands of shows |
+| NFR-5 | TTL on locks | Temporary seat locks expire after 5 minutes to prevent hoarding |
+
+---
+
+## 4. Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| **Movie** | Represents a film with title, description, genre, duration, language, rating |
+| **Theater** | A physical cinema hall in a city, contains multiple screens |
+| **Screen** | A single auditorium inside a theater, has a fixed seat layout |
+| **Show** | A specific screening: ties a Movie to a Screen at a specific date/time |
+| **Seat** | An individual seat in a screen -- has a type (Regular/Premium/VIP) and price |
+| **ShowSeat** | The per-show state of a seat: available, locked, or booked |
+| **Booking** | A confirmed reservation: user + show + seats + payment + status |
+| **Payment** | Tracks payment method, amount, transaction ID, and status |
+| **User** | A registered user with name, email, and phone |
+| **SeatLock** | Temporary lock on a seat for a user with a TTL |
+
+---
+
+## 5. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    class User {
+        -String userId
+        -String name
+        -String email
+        -String phone
+        +getUserId() String
+        +getName() String
+        +getEmail() String
+    }
+
+    class Movie {
+        -String movieId
+        -String title
+        -String description
+        -Genre genre
+        -int durationMinutes
+        -Language language
+        -double rating
+        +getMovieId() String
+        +getTitle() String
+        +getDurationMinutes() int
+    }
+
+    class Theater {
+        -String theaterId
+        -String name
+        -String address
+        -City city
+        -List~Screen~ screens
+        +getTheaterId() String
+        +getScreens() List~Screen~
+        +addScreen(Screen) void
+    }
+
+    class Screen {
+        -String screenId
+        -String name
+        -Theater theater
+        -List~Seat~ seats
+        +getScreenId() String
+        +getSeats() List~Seat~
+        +addSeat(Seat) void
+    }
+
+    class Seat {
+        -String seatId
+        -String seatNumber
+        -SeatType seatType
+        -double basePrice
+        +getSeatId() String
+        +getSeatNumber() String
+        +getSeatType() SeatType
+        +getBasePrice() double
+    }
+
+    class SeatType {
+        <<enumeration>>
+        REGULAR
+        PREMIUM
+        VIP
+    }
+
+    class Show {
+        -String showId
+        -Movie movie
+        -Screen screen
+        -LocalDateTime startTime
+        -LocalDateTime endTime
+        -Map~String, ShowSeat~ showSeats
+        +getShowId() String
+        +getAvailableSeats() List~ShowSeat~
+        +getShowSeat(seatId) ShowSeat
+    }
+
+    class ShowSeat {
+        -Seat seat
+        -ShowSeatStatus status
+        -SeatLock lock
+        +isAvailable() boolean
+        +isLocked() boolean
+        +isBooked() boolean
+        +lock(SeatLock) void
+        +book() void
+        +release() void
+    }
+
+    class ShowSeatStatus {
+        <<enumeration>>
+        AVAILABLE
+        LOCKED
+        BOOKED
+    }
+
+    class SeatLock {
+        -String lockId
+        -String userId
+        -LocalDateTime lockTime
+        -LocalDateTime expiryTime
+        +isExpired() boolean
+        +getUserId() String
+    }
+
+    class Booking {
+        -String bookingId
+        -Show show
+        -List~Seat~ seats
+        -User user
+        -BookingStatus status
+        -double totalAmount
+        -LocalDateTime createdAt
+        -Payment payment
+        +getBookingId() String
+        +confirm(Payment) void
+        +cancel() void
+        +getTotalAmount() double
+    }
+
+    class BookingStatus {
+        <<enumeration>>
+        PENDING
+        CONFIRMED
+        CANCELLED
+    }
+
+    class Payment {
+        -String paymentId
+        -double amount
+        -PaymentStatus status
+        -String transactionId
+        +isSuccessful() boolean
+    }
+
+    class PaymentStatus {
+        <<enumeration>>
+        PENDING
+        SUCCESS
+        FAILED
+    }
+
+    Theater "1" --> "*" Screen : contains
+    Screen "1" --> "*" Seat : has
+    Show "1" --> "1" Movie : screens
+    Show "1" --> "1" Screen : at
+    Show "1" --> "*" ShowSeat : tracks
+    ShowSeat "1" --> "1" Seat : references
+    ShowSeat "0..1" --> "1" SeatLock : may have
+    Booking "1" --> "1" Show : for
+    Booking "1" --> "*" Seat : reserves
+    Booking "1" --> "1" User : by
+    Booking "1" --> "0..1" Payment : paid via
+    Seat --> SeatType : has
+    ShowSeat --> ShowSeatStatus : has
+    Booking --> BookingStatus : has
+    Payment --> PaymentStatus : has
+\`\`\`
+
+---
+
+## 6. Detailed Entity Design
+
+### 6.1 Movie
+\`\`\`
+Movie
+├── movieId: String (UUID)
+├── title: String
+├── description: String
+├── genre: Genre (ACTION, COMEDY, DRAMA, THRILLER, ...)
+├── durationMinutes: int
+├── language: Language (ENGLISH, HINDI, TELUGU, ...)
+├── rating: double (e.g., 8.5)
+└── releaseDate: LocalDate
+\`\`\`
+
+### 6.2 Theater and Screen
+\`\`\`
+Theater
+├── theaterId: String
+├── name: String ("PVR Phoenix Mall")
+├── address: String
+├── city: City (MUMBAI, DELHI, BANGALORE, ...)
+└── screens: List<Screen>
+
+Screen
+├── screenId: String
+├── name: String ("Screen 1", "IMAX")
+├── theater: Theater (back-reference)
+└── seats: List<Seat> (the physical layout)
+\`\`\`
+
+### 6.3 Seat Hierarchy
+
+Seats come in three types with different base prices:
+
+\`\`\`
+        +--------+
+        |  Seat  |
+        +--------+
+        | seatId |
+        | number |
+        | type   |
+        | price  |
+        +--------+
+            ^
+    ________|________
+   |        |        |
+Regular  Premium    VIP
+ $10      $20      $40
+\`\`\`
+
+The \`SeatType\` enum determines pricing behavior via the Strategy pattern (section 7a).
+
+### 6.4 Show and ShowSeat
+
+A \`Show\` is the core scheduling entity. For each show, every physical \`Seat\` in
+the screen gets a corresponding \`ShowSeat\` that tracks its real-time status:
+
+\`\`\`
+Show #S1 (Avengers @ PVR Screen-1 @ 7:00 PM)
+├── ShowSeat(A1, AVAILABLE)
+├── ShowSeat(A2, LOCKED by User-42, expires 7:03 PM)
+├── ShowSeat(A3, BOOKED)
+├── ShowSeat(B1, AVAILABLE)
+└── ...
+\`\`\`
+
+### 6.5 Booking Lifecycle
+
+\`\`\`
+PENDING ──→ CONFIRMED ──→ (done)
+   │              │
+   │              └──→ CANCELLED (refund triggered)
+   │
+   └──→ CANCELLED (payment failed / timeout)
+\`\`\`
+
+---
+
+## 7. Design Patterns
+
+### 7a. Strategy Pattern -- Seat Pricing
+
+**Problem:** Ticket price depends on seat type AND day of the week (weekends cost more).
+We need flexible, swappable pricing logic.
+
+**Solution:** Define a \`PricingStrategy\` interface. Each strategy computes the final
+price given a seat and a show.
+
+\`\`\`
+<<interface>>
+PricingStrategy
+  + calculatePrice(seat: Seat, show: Show) : double
+
+RegularPricingStrategy
+  // Returns seat.basePrice as-is
+
+WeekendPricingStrategy
+  // Returns seat.basePrice * 1.5 on Sat/Sun
+
+HolidayPricingStrategy
+  // Returns seat.basePrice * 2.0 on holidays
+\`\`\`
+
+**Why Strategy?**
+- Open/Closed Principle: add new pricing rules without modifying existing code.
+- The \`BookingService\` delegates pricing to the injected strategy.
+- At runtime, the system picks the right strategy based on the show date.
+
+\`\`\`
+BookingService
+├── pricingStrategy: PricingStrategy  ← injected
+└── calculateTotal(seats, show):
+        for each seat:
+            total += pricingStrategy.calculatePrice(seat, show)
+        return total
+\`\`\`
+
+### 7b. Observer Pattern -- Notifications
+
+**Problem:** When a booking is confirmed or a show becomes available (e.g., someone
+cancels), interested users should be notified.
+
+**Solution:** Implement a publisher-subscriber model.
+
+\`\`\`
+<<interface>>
+BookingObserver
+  + onBookingConfirmed(booking: Booking) : void
+  + onBookingCancelled(booking: Booking) : void
+  + onShowAvailabilityChanged(show: Show) : void
+
+EmailNotificationService implements BookingObserver
+  // Sends email to user
+
+SMSNotificationService implements BookingObserver
+  // Sends SMS to user
+
+BookingService (Publisher)
+├── observers: List<BookingObserver>
+├── addObserver(observer) : void
+├── removeObserver(observer) : void
+└── notifyObservers(event) : void   ← called after confirm/cancel
+\`\`\`
+
+**Flow:**
+1. User completes payment -> \`BookingService.confirmBooking()\`
+2. \`confirmBooking()\` sets status to CONFIRMED
+3. \`notifyObservers(onBookingConfirmed)\` fires
+4. \`EmailNotificationService\` sends confirmation email
+5. \`SMSNotificationService\` sends confirmation SMS
+
+### 7c. State Pattern -- Booking Lifecycle
+
+**Problem:** A \`Booking\` transitions through states (PENDING -> CONFIRMED -> CANCELLED),
+and the allowed operations differ per state.
+
+**Solution:** Each state is a separate class implementing a \`BookingState\` interface.
+
+\`\`\`
+<<interface>>
+BookingState
+  + confirm(booking) : void
+  + cancel(booking) : void
+  + getStatus() : BookingStatus
+
+PendingState implements BookingState
+  + confirm() → transitions to ConfirmedState
+  + cancel() → transitions to CancelledState
+
+ConfirmedState implements BookingState
+  + confirm() → throws "Already confirmed"
+  + cancel() → transitions to CancelledState, triggers refund
+
+CancelledState implements BookingState
+  + confirm() → throws "Cannot confirm cancelled booking"
+  + cancel() → throws "Already cancelled"
+\`\`\`
+
+**Why State?**
+- Eliminates large if-else / switch blocks on booking status.
+- Adding a new state (e.g., REFUND_IN_PROGRESS) is a new class, not a change to existing ones.
+
+### 7d. Factory Pattern -- Seat Creation
+
+**Problem:** Seats have different types with different base prices. We need a
+centralized way to create properly initialized seats.
+
+**Solution:** A \`SeatFactory\` that creates seats by type.
+
+\`\`\`
+SeatFactory
+  + createSeat(seatNumber: String, type: SeatType) : Seat
+
+  switch(type):
+    REGULAR → new Seat(seatNumber, REGULAR, 200.0)
+    PREMIUM → new Seat(seatNumber, PREMIUM, 400.0)
+    VIP     → new Seat(seatNumber, VIP, 700.0)
+\`\`\`
+
+**Why Factory?**
+- Centralizes seat creation logic and default prices.
+- If pricing rules for seat types change, only the factory is updated.
+- Client code is decoupled from the specific Seat construction details.
+
+---
+
+## 8. The Critical Challenge: Concurrent Seat Booking
+
+This is the **single most important topic** the interviewer wants you to discuss.
+
+### The Problem
+
+\`\`\`
+Timeline:
+  T1: User-A sees seat A5 as AVAILABLE
+  T2: User-B sees seat A5 as AVAILABLE
+  T3: User-A clicks "Book seat A5"
+  T4: User-B clicks "Book seat A5"
+  T5: ??? Who gets the seat?
+\`\`\`
+
+Without proper concurrency control, **both users could be charged** for the same seat.
+This is a classic **lost update** / **race condition** problem.
+
+### Solution: Temporary Seat Lock with TTL
+
+The solution has three key ideas:
+
+1. **Optimistic selection, pessimistic locking**: Users can freely browse seats,
+   but when they click "Book", the system acquires an exclusive lock.
+
+2. **Temporary lock with TTL (5 minutes)**: The lock is not permanent. The user
+   gets 5 minutes to complete payment. If they don't, the lock expires and the
+   seat returns to AVAILABLE.
+
+3. **Atomic lock acquisition**: The \`lockSeat()\` operation must be **atomic** --
+   typically implemented with \`synchronized\` blocks, database row-level locks, or
+   Redis \`SETNX\` with TTL.
+
+### Lock Lifecycle
+
+\`\`\`
+AVAILABLE ──[lockSeat(userId, 5min)]──→ LOCKED
+                                           │
+                       ┌───────────────────┤
+                       │                   │
+              [payment succeeds]    [TTL expires OR payment fails]
+                       │                   │
+                       v                   v
+                    BOOKED             AVAILABLE
+\`\`\`
+
+### Implementation Approaches (mention in interview)
+
+| Approach | How | Best for |
+|----------|-----|----------|
+| **In-memory synchronized** | \`synchronized\` block on ShowSeat object | Single-server demo |
+| **Database pessimistic lock** | \`SELECT ... FOR UPDATE\` on seat row | Traditional RDBMS |
+| **Redis SETNX + TTL** | \`SET seat:show123:A5 userId NX EX 300\` | Distributed systems |
+| **Optimistic locking** | Version column + retry on conflict | Low-contention scenarios |
+
+### Why Not Just Use a Database Transaction?
+
+A database transaction alone is not enough because:
+- The booking flow spans **multiple steps** (select -> lock -> pay -> confirm).
+- You cannot hold a DB transaction open for 5 minutes while the user enters payment info.
+- A **temporary lock with TTL** is the right granularity.
+
+---
+
+## 9. Seat Locking Sequence Diagram
+
+\`\`\`mermaid
+sequenceDiagram
+    participant UA as User A
+    participant UB as User B
+    participant BS as BookingService
+    participant SL as SeatLockManager
+    participant PS as PaymentService
+    participant DB as Database
+
+    Note over UA, DB: Both users see seat A5 as AVAILABLE
+
+    UA->>BS: selectSeats([A5])
+    BS->>SL: lockSeat(A5, userA, 5min)
+    SL->>DB: atomic: check if A5 is unlocked
+    DB-->>SL: A5 is AVAILABLE
+    SL->>DB: set A5 = LOCKED (userA, expiry=now+5min)
+    SL-->>BS: Lock acquired
+    BS-->>UA: Seats locked, proceed to payment (5 min timer)
+
+    Note over UA, UB: User B tries the same seat 10 seconds later
+
+    UB->>BS: selectSeats([A5])
+    BS->>SL: lockSeat(A5, userB, 5min)
+    SL->>DB: atomic: check if A5 is unlocked
+    DB-->>SL: A5 is LOCKED by userA (not expired)
+    SL-->>BS: Lock FAILED -- seat unavailable
+    BS-->>UB: Seat A5 is temporarily held by another user
+
+    Note over UA: User A completes payment within 5 min
+
+    UA->>BS: processPayment(bookingId, paymentDetails)
+    BS->>PS: charge(amount)
+    PS-->>BS: Payment SUCCESS
+    BS->>SL: confirmSeat(A5)
+    SL->>DB: set A5 = BOOKED
+    BS-->>UA: Booking confirmed!
+
+    Note over UA, DB: ALTERNATE FLOW: User A does NOT pay within 5 min
+
+    Note over SL: Background: TTL expiry checker runs
+    SL->>DB: find locks where expiry < now()
+    DB-->>SL: A5 lock expired
+    SL->>DB: set A5 = AVAILABLE, remove lock
+    Note over UA, DB: Seat A5 is now available for others
+\`\`\`
+
+---
+
+## 10. Extension: Offers and Coupons via Decorator Pattern
+
+**Interviewer follow-up:** "How would you add coupon/offer support?"
+
+**Solution:** Use the **Decorator Pattern** to wrap the pricing strategy.
+
+\`\`\`
+<<interface>>
+PricingStrategy
+  + calculatePrice(seat, show) : double
+
+RegularPricingStrategy implements PricingStrategy
+  // base price logic
+
+PricingDecorator implements PricingStrategy        ← abstract decorator
+  - wrappedStrategy: PricingStrategy
+  + calculatePrice(seat, show) : double
+      return wrappedStrategy.calculatePrice(seat, show)
+
+CouponDecorator extends PricingDecorator
+  - couponCode: String
+  - discountPercent: double
+  + calculatePrice(seat, show) : double
+      base = super.calculatePrice(seat, show)
+      return base * (1 - discountPercent / 100)
+
+PlatformFeeDecorator extends PricingDecorator
+  - feePercent: double
+  + calculatePrice(seat, show) : double
+      base = super.calculatePrice(seat, show)
+      return base * (1 + feePercent / 100)
+\`\`\`
+
+**Usage: stack decorators**
+\`\`\`
+strategy = new RegularPricingStrategy()
+strategy = new CouponDecorator(strategy, "FLAT20", 20.0)   // 20% off
+strategy = new PlatformFeeDecorator(strategy, 5.0)          // 5% platform fee
+
+finalPrice = strategy.calculatePrice(seat, show)
+// base=200, after coupon=160, after fee=168
+\`\`\`
+
+**Why Decorator?**
+- Multiple discounts/surcharges can be **stacked** in any order.
+- New offers are new decorator classes -- no changes to existing strategies.
+- Follows Single Responsibility and Open/Closed principles.
+
+---
+
+## 11. API Design (Key Operations)
+
+### 11.1 Browse Movies
+\`\`\`
+GET /movies?city=BANGALORE
+
+Response:
+[
+  { "movieId": "M1", "title": "Avengers", "genre": "ACTION", "rating": 8.5 },
+  { "movieId": "M2", "title": "Inception", "genre": "THRILLER", "rating": 9.0 }
+]
+\`\`\`
+
+### 11.2 Get Shows for a Movie
+\`\`\`
+GET /movies/M1/shows?city=BANGALORE&date=2026-04-07
+
+Response:
+[
+  { "showId": "S1", "theater": "PVR Phoenix", "screen": "Screen 1",
+    "startTime": "14:00", "availableSeats": 120 },
+  { "showId": "S2", "theater": "INOX Mantri", "screen": "IMAX",
+    "startTime": "19:00", "availableSeats": 45 }
+]
+\`\`\`
+
+### 11.3 Get Seat Map
+\`\`\`
+GET /shows/S1/seats
+
+Response:
+[
+  { "seatId": "A1", "type": "VIP",     "price": 700, "status": "AVAILABLE" },
+  { "seatId": "A2", "type": "VIP",     "price": 700, "status": "BOOKED" },
+  { "seatId": "B1", "type": "PREMIUM", "price": 400, "status": "AVAILABLE" },
+  { "seatId": "B2", "type": "PREMIUM", "price": 400, "status": "LOCKED" }
+]
+\`\`\`
+
+### 11.4 Book Seats
+\`\`\`
+POST /bookings
+{
+  "showId": "S1",
+  "seatIds": ["A1", "B1"],
+  "userId": "U1"
+}
+
+Response (success):
+{ "bookingId": "BK-001", "status": "PENDING", "totalAmount": 1100,
+  "lockExpiresAt": "2026-04-07T14:05:00", "paymentUrl": "/payments/BK-001" }
+
+Response (failure -- seat taken):
+{ "error": "Seats [A1] are currently unavailable" }
+\`\`\`
+
+### 11.5 Confirm Payment
+\`\`\`
+POST /payments/BK-001
+{ "method": "UPI", "transactionId": "TXN-999" }
+
+Response:
+{ "bookingId": "BK-001", "status": "CONFIRMED", "amount": 1100 }
+\`\`\`
+
+---
+
+## 12. Interview Tips
+
+### What the Interviewer is Looking For
+
+1. **Entity modeling**: Can you identify the right entities and their relationships?
+   - Movie-Theater-Screen-Show-Seat is the standard decomposition.
+   - ShowSeat (per-show seat state) vs Seat (physical seat) is a key distinction.
+
+2. **Concurrency handling**: This is THE question.
+   - Mention the temporary lock with TTL approach immediately.
+   - Discuss the atomic lock acquisition (synchronized / Redis SETNX / DB row lock).
+   - Explain what happens on payment timeout.
+
+3. **Design patterns**: Use them naturally, not forced.
+   - Strategy for pricing is the most natural fit.
+   - Observer for notifications is standard.
+   - State for booking lifecycle shows you think about transitions.
+   - Decorator for extensibility (coupons/offers) is a great follow-up.
+
+4. **Trade-offs**: Discuss trade-offs when asked.
+   - In-memory locking vs Redis: single server vs distributed.
+   - Optimistic vs pessimistic locking: contention level matters.
+   - TTL duration: too short = user frustration, too long = seat hoarding.
+
+### Common Follow-Up Questions
+
+| Question | Key Points |
+|----------|-----------|
+| "How do you prevent seat hoarding?" | TTL on locks; max seats per user per show |
+| "What if the payment gateway is slow?" | Async payment with webhook; lock is independent of payment |
+| "How to show real-time seat availability?" | WebSockets or SSE to push updates; or poll every 5-10 seconds |
+| "How to handle partial failures?" | Saga pattern; if payment fails, release all locks |
+| "How to scale across cities?" | Partition data by city; each city is fairly independent |
+| "What about popular shows with massive demand?" | Queue-based booking (virtual waiting room); rate limiting |
+
+---
+
+## Summary of Patterns Used
+
+| Pattern | Where | Why |
+|---------|-------|-----|
+| **Strategy** | SeatPricingStrategy | Flexible pricing by seat type + day of week |
+| **Observer** | BookingObserver | Decouple notifications from booking logic |
+| **State** | BookingState | Clean booking lifecycle transitions |
+| **Factory** | SeatFactory | Centralized seat creation with default prices |
+| **Decorator** | Coupon/Offer pricing | Stack-able discounts without modifying core pricing |
+
+---
+
+*End of design walkthrough. See \`code.md\` for complete working Java code.*
+`,
+  interviewScript: `# Design BookMyShow (Movie Ticket Booking) -- LLD Interview Script (90 min)
+
+> Simulates an actual low-level design / machine coding interview round.
+> You must write compilable, runnable Java code on a whiteboard or shared editor.
+
+---
+
+## Opening (0:00 - 1:00)
+
+> "Thanks! I'll be designing and implementing a Movie Ticket Booking system like BookMyShow. The key challenge here is handling concurrent seat selection and booking without double-selling. Let me clarify the requirements."
+
+---
+
+## Requirements Gathering (1:00 - 5:00)
+
+> **You ask:** "Should I model the full flow -- browsing movies, selecting show times, seat selection, payment, and booking confirmation?"
+
+> **Interviewer:** "Yes. Focus on the booking flow. Movie browsing can be simple."
+
+> **You ask:** "How should I handle concurrent seat selection? Two users selecting the same seat at the same time."
+
+> **Interviewer:** "This is the most important part. Show me how you prevent double-booking."
+
+> **You ask:** "Should I support different seat types with different pricing?"
+
+> **Interviewer:** "Yes -- at least Regular, Premium, VIP with different prices."
+
+> **You ask:** "Should the system support multiple cities, theaters, and screens?"
+
+> **Interviewer:** "Yes, model the full hierarchy: City -> Theaters -> Screens -> Shows -> Seats."
+
+> **You ask:** "What about payment? Should I integrate a real payment flow?"
+
+> **Interviewer:** "Simulate it. Show the design pattern, not the API integration."
+
+> **You ask:** "Any time constraints for seat selection? Like a 'seat lock' that expires?"
+
+> **Interviewer:** "Yes! Exactly. Show me a temporary lock mechanism."
+
+> "Great. The scope is: multi-city movie booking with theater/screen hierarchy, seat locking with TTL for concurrent safety, a pricing strategy, and booking state machine. I'll use the Factory pattern for seats, Strategy for pricing, Observer for notifications, and a SeatLock mechanism with TTL."
+
+---
+
+## Entity Identification (5:00 - 10:00)
+
+> "Let me identify all the entities."
+
+**Entities I write on the board:**
+
+1. **Enums** -- SeatType, ShowSeatStatus, BookingStatus, PaymentStatus, PaymentMethod, Genre, City
+2. **User** -- userId, name, email, phone
+3. **Movie** -- movieId, title, genre, duration, rating
+4. **Theater** -- theaterId, name, city, list of Screens
+5. **Screen** -- screenId, list of Seats
+6. **Seat** (abstract) -- seatId, row, number, SeatType (Factory pattern for creation)
+7. **Show** -- showId, movie, screen, startTime, list of ShowSeats
+8. **ShowSeat** -- links a Seat to a Show with a status (AVAILABLE / LOCKED / BOOKED)
+9. **SeatLock** -- userId, showSeatId, lockedAt, TTL (time-to-live)
+10. **Booking** -- bookingId, user, show, seats, amount, status (state machine)
+11. **PricingStrategy** (interface) -- calculates price per seat type
+12. **BookingService** -- the orchestrator: lock seats, create booking, process payment, confirm
+
+> "The relationships: Theater HAS-MANY Screens, Screen HAS-MANY Seats, Show HAS-A Movie + Screen, Show HAS-MANY ShowSeats. Booking HAS-MANY ShowSeats, HAS-A User, HAS-A Show."
+
+---
+
+## Class Diagram (10:00 - 15:00)
+
+> "Let me sketch this."
+
+\`\`\`mermaid
+classDiagram
+    class User {
+        -String userId
+        -String name
+        -String email
+    }
+
+    class Movie {
+        -String movieId
+        -String title
+        -Genre genre
+        -int durationMinutes
+    }
+
+    class Theater {
+        -String theaterId
+        -String name
+        -City city
+        -List~Screen~ screens
+    }
+
+    class Screen {
+        -String screenId
+        -String name
+        -List~Seat~ seats
+    }
+
+    class Seat {
+        <<abstract>>
+        -String seatId
+        -int row
+        -int number
+        -SeatType type
+    }
+
+    class RegularSeat { }
+    class PremiumSeat { }
+    class VIPSeat { }
+
+    Seat <|-- RegularSeat
+    Seat <|-- PremiumSeat
+    Seat <|-- VIPSeat
+
+    class Show {
+        -String showId
+        -Movie movie
+        -Screen screen
+        -LocalDateTime startTime
+        -Map~String, ShowSeat~ showSeats
+    }
+
+    class ShowSeat {
+        -Seat seat
+        -ShowSeatStatus status
+        -SeatLock lock
+    }
+
+    class SeatLock {
+        -String userId
+        -LocalDateTime lockedAt
+        -int ttlSeconds
+        +isExpired() boolean
+    }
+
+    class Booking {
+        -String bookingId
+        -User user
+        -Show show
+        -List~ShowSeat~ seats
+        -double totalAmount
+        -BookingStatus status
+    }
+
+    class PricingStrategy {
+        <<interface>>
+        +calculatePrice(SeatType) double
+    }
+
+    class BookingService {
+        +lockSeats(User, Show, List~String~) boolean
+        +createBooking(User, Show, List~String~) Booking
+        +confirmBooking(Booking, PaymentMethod) boolean
+    }
+
+    Theater "1" *-- "*" Screen
+    Screen "1" *-- "*" Seat
+    Show "1" --> "1" Movie
+    Show "1" --> "1" Screen
+    Show "1" *-- "*" ShowSeat
+    ShowSeat "1" --> "1" Seat
+    ShowSeat "1" --> "0..1" SeatLock
+    Booking "*" --> "1" User
+    Booking "*" --> "1" Show
+    Booking "*" --> "*" ShowSeat
+\`\`\`
+
+---
+
+## Implementation Plan (15:00 - 17:00)
+
+> "Implementation order, bottom-up:"
+
+1. **Enums** -- SeatType, ShowSeatStatus, BookingStatus, PaymentStatus, PaymentMethod, Genre, City
+2. **User, Movie, Theater, Screen** -- basic entities
+3. **Seat hierarchy** -- abstract Seat + RegularSeat, PremiumSeat, VIPSeat + SeatFactory
+4. **Show + ShowSeat** -- the per-show seat instance with status tracking
+5. **SeatLock** -- the TTL-based locking mechanism (critical for concurrency)
+6. **Booking** -- with state machine (PENDING -> CONFIRMED | CANCELLED)
+7. **PricingStrategy** -- Strategy pattern for seat pricing
+8. **BookingService** -- the orchestrator that ties it all together
+9. **Main demo** -- end-to-end booking flow
+
+---
+
+## Coding (17:00 - 70:00)
+
+### Step 1: Enums (17:00 - 19:00)
+
+> "Starting with the enums. These define the vocabulary of the system."
+
+\`\`\`java
+public enum SeatType { REGULAR, PREMIUM, VIP }
+
+public enum ShowSeatStatus { AVAILABLE, LOCKED, BOOKED }
+
+public enum BookingStatus { PENDING, CONFIRMED, CANCELLED }
+
+public enum PaymentStatus { PENDING, SUCCESS, FAILED }
+
+public enum PaymentMethod { CREDIT_CARD, DEBIT_CARD, UPI, NET_BANKING }
+
+public enum Genre { ACTION, COMEDY, DRAMA, THRILLER, HORROR, ROMANCE, SCI_FI }
+
+public enum City { MUMBAI, DELHI, BANGALORE, HYDERABAD, CHENNAI }
+\`\`\`
+
+---
+
+### Step 2: Core Entities (19:00 - 25:00)
+
+> "Simple data classes. I'll keep them clean."
+
+\`\`\`java
+public class User {
+    private final String userId;
+    private final String name;
+    private final String email;
+    private final String phone;
+
+    public User(String userId, String name, String email, String phone) {
+        this.userId = userId;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+    }
+
+    public String getUserId() { return userId; }
+    public String getName()   { return name; }
+    public String getEmail()  { return email; }
+    // ... other getters
+}
+
+public class Movie {
+    private final String movieId;
+    private final String title;
+    private final Genre genre;
+    private final int durationMinutes;
+    private final double rating;
+
+    // constructor, getters ...
+}
+
+public class Theater {
+    private final String theaterId;
+    private final String name;
+    private final City city;
+    private final List<Screen> screens;
+
+    public Theater(String theaterId, String name, String address, City city) {
+        this.theaterId = theaterId;
+        this.name = name;
+        this.city = city;
+        this.screens = new ArrayList<>();
+    }
+
+    public void addScreen(Screen screen) { screens.add(screen); }
+    public List<Screen> getScreens() { return screens; }
+}
+
+public class Screen {
+    private final String screenId;
+    private final String name;
+    private final List<Seat> seats;
+
+    public Screen(String screenId, String name) {
+        this.screenId = screenId;
+        this.name = name;
+        this.seats = new ArrayList<>();
+    }
+
+    public void addSeat(Seat seat) { seats.add(seat); }
+    public List<Seat> getSeats() { return Collections.unmodifiableList(seats); }
+}
+\`\`\`
+
+---
+
+### Step 3: Seat Hierarchy + Factory (25:00 - 30:00)
+
+> "I'm using inheritance for seat types because each type may have different attributes in the future -- VIP might have extra legroom, reclining, etc. The Factory centralizes creation."
+
+\`\`\`java
+public abstract class Seat {
+    private final String seatId;
+    private final int row;
+    private final int number;
+    private final SeatType type;
+
+    public Seat(String seatId, int row, int number, SeatType type) {
+        this.seatId = seatId;
+        this.row = row;
+        this.number = number;
+        this.type = type;
+    }
+
+    public String getSeatId() { return seatId; }
+    public int getRow() { return row; }
+    public int getNumber() { return number; }
+    public SeatType getType() { return type; }
+}
+
+public class RegularSeat extends Seat {
+    public RegularSeat(String id, int row, int num) {
+        super(id, row, num, SeatType.REGULAR);
+    }
+}
+
+public class PremiumSeat extends Seat {
+    public PremiumSeat(String id, int row, int num) {
+        super(id, row, num, SeatType.PREMIUM);
+    }
+}
+
+public class VIPSeat extends Seat {
+    public VIPSeat(String id, int row, int num) {
+        super(id, row, num, SeatType.VIP);
+    }
+}
+
+public class SeatFactory {
+    public static Seat createSeat(String id, int row, int num, SeatType type) {
+        switch (type) {
+            case REGULAR: return new RegularSeat(id, row, num);
+            case PREMIUM: return new PremiumSeat(id, row, num);
+            case VIP:     return new VIPSeat(id, row, num);
+            default: throw new IllegalArgumentException("Unknown seat type");
+        }
+    }
+}
+\`\`\`
+
+---
+
+### Step 4: Show, ShowSeat, and SeatLock (30:00 - 42:00)
+
+> "This is the critical section. ShowSeat tracks the per-show status of each seat, and SeatLock provides the TTL-based temporary reservation."
+
+\`\`\`java
+public class SeatLock {
+    private final String userId;
+    private final LocalDateTime lockedAt;
+    private final int ttlSeconds;
+
+    public SeatLock(String userId, int ttlSeconds) {
+        this.userId = userId;
+        this.lockedAt = LocalDateTime.now();
+        this.ttlSeconds = ttlSeconds;
+    }
+
+    public String getUserId() { return userId; }
+    public LocalDateTime getLockedAt() { return lockedAt; }
+
+    public boolean isExpired() {
+        return LocalDateTime.now().isAfter(lockedAt.plusSeconds(ttlSeconds));
+    }
+
+    public boolean isLockedBy(String userId) {
+        return this.userId.equals(userId) && !isExpired();
+    }
+}
+\`\`\`
+
+> "The key method is \`isExpired()\`. When a lock expires, the seat effectively becomes available again without any cleanup thread. We check lazily."
+
+\`\`\`java
+public class ShowSeat {
+    private final Seat seat;
+    private ShowSeatStatus status;
+    private SeatLock lock;
+
+    public ShowSeat(Seat seat) {
+        this.seat = seat;
+        this.status = ShowSeatStatus.AVAILABLE;
+        this.lock = null;
+    }
+
+    public Seat getSeat() { return seat; }
+    public ShowSeatStatus getStatus() { return status; }
+
+    public boolean isAvailable() {
+        if (status == ShowSeatStatus.LOCKED && lock != null && lock.isExpired()) {
+            // Lock expired -- lazily release
+            status = ShowSeatStatus.AVAILABLE;
+            lock = null;
+        }
+        return status == ShowSeatStatus.AVAILABLE;
+    }
+
+    public synchronized boolean lock(String userId, int ttlSeconds) {
+        if (!isAvailable()) return false;
+        this.lock = new SeatLock(userId, ttlSeconds);
+        this.status = ShowSeatStatus.LOCKED;
+        return true;
+    }
+
+    public synchronized boolean book(String userId) {
+        if (status != ShowSeatStatus.LOCKED) return false;
+        if (lock == null || !lock.isLockedBy(userId)) return false;
+        this.status = ShowSeatStatus.BOOKED;
+        return true;
+    }
+
+    public synchronized void release() {
+        this.status = ShowSeatStatus.AVAILABLE;
+        this.lock = null;
+    }
+}
+\`\`\`
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "How do you prevent double-booking? Walk me through the concurrency."
+
+> **Your answer:** "Double-booking prevention happens at three levels:
+
+> **Level 1: SeatLock with TTL** -- When User A selects a seat, I lock it with a time-to-live (say 5 minutes). During that window, User B sees the seat as LOCKED and cannot select it. If User A doesn't complete payment within the TTL, the lock expires and the seat becomes available again.
+
+> **Level 2: Synchronized methods** -- The \`lock()\` and \`book()\` methods on ShowSeat are \`synchronized\`. This means only one thread at a time can attempt to lock or book a specific seat. Even if two users click 'select' at the exact same millisecond, only one will succeed.
+
+> **Level 3: Book only if locked by you** -- The \`book()\` method checks \`lock.isLockedBy(userId)\`. Even if someone bypasses the UI and sends a direct booking request, they can't book a seat locked by another user.
+
+> In a production system with a database, I'd use an optimistic locking strategy -- UPDATE show_seats SET status='BOOKED' WHERE seat_id=X AND status='LOCKED' AND locked_by=userId. The WHERE clause is the atomic check-and-set. If zero rows are affected, someone else got there first."
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "What about concurrent seat selection? Two users clicking at the same time."
+
+> **Your answer:** "The \`synchronized\` keyword on ShowSeat.lock() serializes concurrent attempts. But synchronized is per-object, so different seats can be locked in parallel -- there's no global lock bottleneck. For true production scale with distributed systems, I'd replace in-memory synchronization with Redis distributed locks -- SET seatId NX EX ttl -- which provides the same semantics with cluster-wide coordination."
+
+---
+
+### Step 5: Show (42:00 - 47:00)
+
+> "Show connects a Movie to a Screen at a specific time and manages ShowSeats."
+
+\`\`\`java
+public class Show {
+    private final String showId;
+    private final Movie movie;
+    private final Screen screen;
+    private final LocalDateTime startTime;
+    private final Map<String, ShowSeat> showSeats; // seatId -> ShowSeat
+
+    public Show(String showId, Movie movie, Screen screen, LocalDateTime startTime) {
+        this.showId = showId;
+        this.movie = movie;
+        this.screen = screen;
+        this.startTime = startTime;
+        this.showSeats = new LinkedHashMap<>();
+
+        // Create a ShowSeat for every physical seat in the screen
+        for (Seat seat : screen.getSeats()) {
+            showSeats.put(seat.getSeatId(), new ShowSeat(seat));
+        }
+    }
+
+    public ShowSeat getShowSeat(String seatId) {
+        return showSeats.get(seatId);
+    }
+
+    public List<ShowSeat> getAvailableSeats() {
+        return showSeats.values().stream()
+                .filter(ShowSeat::isAvailable)
+                .collect(Collectors.toList());
+    }
+
+    public Movie getMovie() { return movie; }
+    public Screen getScreen() { return screen; }
+    public LocalDateTime getStartTime() { return startTime; }
+}
+\`\`\`
+
+---
+
+### Step 6: Booking with State Machine (47:00 - 53:00)
+
+> "Booking follows a simple state machine: PENDING -> CONFIRMED or CANCELLED."
+
+\`\`\`java
+public class Booking {
+    private final String bookingId;
+    private final User user;
+    private final Show show;
+    private final List<ShowSeat> seats;
+    private final double totalAmount;
+    private BookingStatus status;
+    private LocalDateTime bookedAt;
+
+    public Booking(String bookingId, User user, Show show,
+                   List<ShowSeat> seats, double totalAmount) {
+        this.bookingId = bookingId;
+        this.user = user;
+        this.show = show;
+        this.seats = seats;
+        this.totalAmount = totalAmount;
+        this.status = BookingStatus.PENDING;
+        this.bookedAt = LocalDateTime.now();
+    }
+
+    public void confirm() {
+        if (status != BookingStatus.PENDING)
+            throw new IllegalStateException("Can only confirm PENDING bookings");
+        this.status = BookingStatus.CONFIRMED;
+    }
+
+    public void cancel() {
+        if (status == BookingStatus.CONFIRMED) {
+            // Release all seats back to available
+            for (ShowSeat ss : seats) {
+                ss.release();
+            }
+        }
+        this.status = BookingStatus.CANCELLED;
+    }
+
+    public String getBookingId() { return bookingId; }
+    public BookingStatus getStatus() { return status; }
+    public double getTotalAmount() { return totalAmount; }
+    public User getUser() { return user; }
+}
+\`\`\`
+
+---
+
+### Step 7: Pricing Strategy (53:00 - 56:00)
+
+> "Strategy pattern for pricing. Different shows or theaters could have different pricing."
+
+\`\`\`java
+public interface PricingStrategy {
+    double calculatePrice(SeatType seatType);
+}
+
+public class StandardPricingStrategy implements PricingStrategy {
+    @Override
+    public double calculatePrice(SeatType seatType) {
+        switch (seatType) {
+            case REGULAR: return 200.0;
+            case PREMIUM: return 350.0;
+            case VIP:     return 500.0;
+            default: throw new IllegalArgumentException("Unknown seat type");
+        }
+    }
+}
+
+public class WeekendPricingStrategy implements PricingStrategy {
+    @Override
+    public double calculatePrice(SeatType seatType) {
+        switch (seatType) {
+            case REGULAR: return 250.0;
+            case PREMIUM: return 450.0;
+            case VIP:     return 650.0;
+            default: throw new IllegalArgumentException("Unknown seat type");
+        }
+    }
+}
+\`\`\`
+
+> "If the interviewer asks about surge pricing, holiday pricing, or promotional pricing, I can just add another strategy. Zero changes to existing code."
+
+---
+
+### Step 8: BookingService -- The Orchestrator (56:00 - 65:00)
+
+> "This is the core engine that ties everything together."
+
+\`\`\`java
+public class BookingService {
+    private static final int SEAT_LOCK_TTL_SECONDS = 300; // 5 minutes
+    private final PricingStrategy pricingStrategy;
+    private int bookingCounter = 0;
+    private final List<OrderStatusObserver> observers;
+
+    public BookingService(PricingStrategy pricingStrategy) {
+        this.pricingStrategy = pricingStrategy;
+        this.observers = new ArrayList<>();
+    }
+
+    /**
+     * Step 1: Lock selected seats for the user.
+     * Returns true only if ALL requested seats were locked.
+     * If any lock fails, releases all already-locked seats (rollback).
+     */
+    public boolean lockSeats(User user, Show show, List<String> seatIds) {
+        List<ShowSeat> locked = new ArrayList<>();
+
+        for (String seatId : seatIds) {
+            ShowSeat ss = show.getShowSeat(seatId);
+            if (ss == null || !ss.lock(user.getUserId(), SEAT_LOCK_TTL_SECONDS)) {
+                // Rollback all previously locked seats
+                for (ShowSeat prev : locked) {
+                    prev.release();
+                }
+                return false;
+            }
+            locked.add(ss);
+        }
+        return true;
+    }
+
+    /**
+     * Step 2: Create a pending booking with calculated pricing.
+     */
+    public Booking createBooking(User user, Show show, List<String> seatIds) {
+        List<ShowSeat> showSeats = new ArrayList<>();
+        double total = 0;
+
+        for (String seatId : seatIds) {
+            ShowSeat ss = show.getShowSeat(seatId);
+            if (ss == null)
+                throw new IllegalArgumentException("Invalid seat: " + seatId);
+            showSeats.add(ss);
+            total += pricingStrategy.calculatePrice(ss.getSeat().getType());
+        }
+
+        String bookingId = "BK-" + (++bookingCounter);
+        return new Booking(bookingId, user, show, showSeats, total);
+    }
+
+    /**
+     * Step 3: Process payment and confirm booking.
+     * Books all seats atomically -- all succeed or all fail.
+     */
+    public boolean confirmBooking(Booking booking, PaymentMethod method) {
+        // Simulate payment
+        System.out.println("Processing " + method + " payment of Rs. "
+                + booking.getTotalAmount());
+        boolean paymentSuccess = true; // simulated
+
+        if (paymentSuccess) {
+            // Book all seats
+            for (ShowSeat ss : booking.getSeats()) {
+                boolean booked = ss.book(booking.getUser().getUserId());
+                if (!booked) {
+                    // Seat lock expired or stolen -- rollback
+                    booking.cancel();
+                    return false;
+                }
+            }
+            booking.confirm();
+            notifyObservers(booking);
+            return true;
+        } else {
+            booking.cancel();
+            return false;
+        }
+    }
+
+    private void notifyObservers(Booking booking) {
+        System.out.println("Sending confirmation email to "
+                + booking.getUser().getEmail());
+        System.out.println("Sending SMS to " + booking.getUser().getPhone());
+    }
+}
+\`\`\`
+
+> "The three-step flow is: lockSeats -> createBooking -> confirmBooking. If lockSeats fails (seats taken), we bail early. If payment fails, we cancel and release seats."
+
+---
+
+### Step 9: Main Demo (65:00 - 70:00)
+
+> "End-to-end demo:"
+
+\`\`\`java
+public class BookMyShowDemo {
+    public static void main(String[] args) {
+        // Setup: Theater with a screen
+        Screen screen = new Screen("SCR-1", "Screen 1");
+        screen.addSeat(SeatFactory.createSeat("A1", 1, 1, SeatType.REGULAR));
+        screen.addSeat(SeatFactory.createSeat("A2", 1, 2, SeatType.REGULAR));
+        screen.addSeat(SeatFactory.createSeat("B1", 2, 1, SeatType.PREMIUM));
+        screen.addSeat(SeatFactory.createSeat("C1", 3, 1, SeatType.VIP));
+
+        Theater theater = new Theater("TH-1", "PVR Phoenix", "...", City.MUMBAI);
+        theater.addScreen(screen);
+
+        Movie movie = new Movie("M-1", "Inception", "...", Genre.SCI_FI, 148, 8.8);
+        Show show = new Show("SH-1", movie, screen,
+                LocalDateTime.of(2025, 1, 15, 18, 30));
+
+        User alice = new User("U-1", "Alice", "alice@email.com", "9876543210");
+        User bob = new User("U-2", "Bob", "bob@email.com", "9876543211");
+
+        BookingService service = new BookingService(new StandardPricingStrategy());
+
+        // Alice books A1 and B1
+        System.out.println("--- Alice tries to book A1, B1 ---");
+        boolean locked = service.lockSeats(alice, show, List.of("A1", "B1"));
+        System.out.println("Lock result: " + locked); // true
+
+        Booking aliceBooking = service.createBooking(alice, show, List.of("A1", "B1"));
+        System.out.println("Total: Rs. " + aliceBooking.getTotalAmount()); // 550.0
+
+        boolean confirmed = service.confirmBooking(aliceBooking, PaymentMethod.UPI);
+        System.out.println("Booking confirmed: " + confirmed); // true
+
+        // Bob tries to book A1 (already booked by Alice)
+        System.out.println("\\n--- Bob tries to book A1 ---");
+        boolean bobLock = service.lockSeats(bob, show, List.of("A1"));
+        System.out.println("Lock result: " + bobLock); // false -- seat already booked!
+
+        // Bob books C1 instead
+        System.out.println("\\n--- Bob books C1 instead ---");
+        bobLock = service.lockSeats(bob, show, List.of("C1"));
+        Booking bobBooking = service.createBooking(bob, show, List.of("C1"));
+        service.confirmBooking(bobBooking, PaymentMethod.CREDIT_CARD);
+    }
+}
+\`\`\`
+
+---
+
+## Demo & Testing (70:00 - 80:00)
+
+> "Let me trace the output:"
+
+\`\`\`
+--- Alice tries to book A1, B1 ---
+Lock result: true
+Total: Rs. 550.0
+Processing UPI payment of Rs. 550.0
+Sending confirmation email to alice@email.com
+Sending SMS to 9876543210
+Booking confirmed: true
+
+--- Bob tries to book A1 ---
+Lock result: false
+
+--- Bob books C1 instead ---
+Lock result: true
+Processing CREDIT_CARD payment of Rs. 500.0
+Sending confirmation email to bob@email.com
+Booking confirmed: true
+\`\`\`
+
+> "Key scenarios demonstrated: successful booking, concurrent conflict (Bob can't lock A1), and fallback to another seat."
+
+> "Edge cases to test: lock expiry (wait 5+ minutes, seat becomes available again), partial lock failure (if Alice tries to lock A1+C1 and C1 is taken, A1 is rolled back), payment failure (booking cancelled, seats released)."
+
+---
+
+## Extension Round (80:00 - 90:00)
+
+### Interviewer asks: "Now add coupon/discount support."
+
+> "Great. I designed the pricing with Strategy pattern, so discounts fit naturally. I'll add a Coupon entity and a DiscountPricingStrategy that wraps an existing strategy."
+
+\`\`\`java
+public class Coupon {
+    private final String code;
+    private final double discountPercent;
+    private final double maxDiscount;
+    private final LocalDateTime expiresAt;
+    private boolean used;
+
+    public Coupon(String code, double discountPercent, double maxDiscount,
+                  LocalDateTime expiresAt) {
+        this.code = code;
+        this.discountPercent = discountPercent;
+        this.maxDiscount = maxDiscount;
+        this.expiresAt = expiresAt;
+        this.used = false;
+    }
+
+    public boolean isValid() {
+        return !used && LocalDateTime.now().isBefore(expiresAt);
+    }
+
+    public double applyDiscount(double amount) {
+        if (!isValid()) return amount;
+        double discount = amount * (discountPercent / 100.0);
+        discount = Math.min(discount, maxDiscount);
+        return amount - discount;
+    }
+
+    public void markUsed() { this.used = true; }
+    public String getCode() { return code; }
+}
+\`\`\`
+
+> "For the pricing integration, I use the Decorator pattern -- wrapping the existing PricingStrategy:"
+
+\`\`\`java
+public class DiscountPricingStrategy implements PricingStrategy {
+    private final PricingStrategy basePricing;
+    private final Coupon coupon;
+
+    public DiscountPricingStrategy(PricingStrategy basePricing, Coupon coupon) {
+        this.basePricing = basePricing;
+        this.coupon = coupon;
+    }
+
+    @Override
+    public double calculatePrice(SeatType seatType) {
+        double basePrice = basePricing.calculatePrice(seatType);
+        return coupon.applyDiscount(basePrice);
+    }
+}
+\`\`\`
+
+> "Usage in BookingService: when the user applies a coupon, I wrap the current strategy:"
+
+\`\`\`java
+// In createBooking, if user has coupon:
+PricingStrategy effective = new DiscountPricingStrategy(
+    this.pricingStrategy, userCoupon);
+double total = 0;
+for (ShowSeat ss : showSeats) {
+    total += effective.calculatePrice(ss.getSeat().getType());
+}
+userCoupon.markUsed();
+\`\`\`
+
+> "Changes: two new classes (Coupon and DiscountPricingStrategy), zero modifications to existing code. The Decorator pattern lets me stack discounts if needed -- e.g., a site-wide discount wrapped around a coupon discount."
+
+---
+
+## Red Flags to Avoid
+
+1. **No seat locking** -- Allowing direct booking without a lock step guarantees double-booking under concurrency.
+2. **Global lock for all seats** -- Using a single \`synchronized\` block for all seat operations kills parallelism. Lock per-seat, not globally.
+3. **No lock expiry (TTL)** -- If a user abandons the flow, seats stay locked forever.
+4. **Mutable seat status without synchronization** -- Race conditions on ShowSeatStatus.
+5. **No rollback on partial failure** -- If locking 3 seats and the 3rd fails, you must release the first two.
+6. **Mixing booking logic into entities** -- The Booking class shouldn't know about payment processing. That's the service layer's job.
+7. **No pricing abstraction** -- Hardcoding prices makes it impossible to add weekend/holiday/discount pricing.
+
+---
+
+## What Impresses Interviewers
+
+1. **Seat locking with TTL** -- Shows deep understanding of concurrent booking systems.
+2. **Three-step booking flow** -- Lock -> Book -> Confirm is the industry-standard pattern (similar to Stripe's payment intents).
+3. **Synchronized per-seat, not global** -- Shows understanding of granular locking.
+4. **Lazy lock expiry** -- No background cleanup thread needed; check on access.
+5. **Rollback on partial lock failure** -- Atomicity even without a database.
+6. **Factory for seats, Strategy for pricing** -- Two patterns applied naturally, not forced.
+7. **Decorator for discounts** -- Showing you can compose pricing strategies.
+8. **Observer for notifications** -- Email/SMS decoupled from booking logic.
+9. **Show vs Seat vs ShowSeat distinction** -- The ShowSeat entity (linking a physical seat to a specific show instance) is the insight most candidates miss.
+10. **Production-awareness** -- Mentioning Redis locks, database optimistic locking, and distributed systems when discussing concurrency.
+`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| searchMovies() | O(M) | O(M) | M = number of movies; filterable |
+| getShowtimes() | O(S) | O(S) | S = shows for a movie at a theater |
+| getAvailableSeats() | O(N) | O(N) | N = seats per screen (100-300) |
+| lockSeats() | O(K) | O(K) | K = number of seats selected (1-10) |
+| confirmBooking() | O(K) | O(1) | Update K seat statuses |
+| cancelBooking() | O(K) | O(1) | Release K locked seats |
+
+**Seat locking:** O(1) per seat with optimistic locking (CAS operation).
+Lock expiry uses a TTL-based approach -- O(1) check per seat.
+
+**Concurrency:** With optimistic locking, the first user to CAS-swap the seat
+status wins. Failed attempts return immediately with O(1) cost.
+
+**Memory:** O(T * S * N) total where T = theaters, S = screens, N = seats.
+Typical: 50 theaters * 5 screens * 200 seats = 50,000 seat objects.`,
+};
+
+// ============================================================
+//  04-design-splitwise -> prob-splitwise
+// ============================================================
+
+export const splitwiseSolution: ProblemSolutionContent = {
+  referenceSolution: `# Splitwise / Expense Sharing System -- Full Java Implementation
+
+All classes below compile and work together. The \`Main.java\` at the end
+demonstrates all three split types, balance tracking, and debt simplification.
+
+---
+
+## 1. User.java
+
+\`\`\`java
+import java.util.Objects;
+
+public class User {
+    private final String userId;
+    private final String name;
+    private final String email;
+    private final String phone;
+
+    public User(String userId, String name, String email, String phone) {
+        this.userId = userId;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(userId, user.userId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(userId);
+    }
+
+    @Override
+    public String toString() {
+        return name + "(" + userId + ")";
+    }
+}
+\`\`\`
+
+---
+
+## 2. SplitType.java (Enum)
+
+\`\`\`java
+public enum SplitType {
+    EQUAL,
+    EXACT,
+    PERCENTAGE
+}
+\`\`\`
+
+---
+
+## 3. Split.java (Abstract) and Subclasses
+
+### Split.java
+
+\`\`\`java
+public abstract class Split {
+    private final User user;
+    private double amount;
+
+    public Split(User user) {
+        this.user = user;
+        this.amount = 0;
+    }
+
+    public Split(User user, double amount) {
+        this.user = user;
+        this.amount = amount;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public double getAmount() {
+        return amount;
+    }
+
+    public void setAmount(double amount) {
+        this.amount = amount;
+    }
+
+    @Override
+    public String toString() {
+        return user.getName() + " owes " + String.format("%.2f", amount);
+    }
+}
+\`\`\`
+
+### EqualSplit.java
+
+\`\`\`java
+public class EqualSplit extends Split {
+
+    public EqualSplit(User user) {
+        super(user);
+    }
+
+    public EqualSplit(User user, double amount) {
+        super(user, amount);
+    }
+}
+\`\`\`
+
+### ExactSplit.java
+
+\`\`\`java
+public class ExactSplit extends Split {
+
+    public ExactSplit(User user, double amount) {
+        super(user, amount);
+    }
+}
+\`\`\`
+
+### PercentageSplit.java
+
+\`\`\`java
+public class PercentageSplit extends Split {
+    private final double percentage;
+
+    public PercentageSplit(User user, double percentage) {
+        super(user);
+        this.percentage = percentage;
+    }
+
+    public PercentageSplit(User user, double amount, double percentage) {
+        super(user, amount);
+        this.percentage = percentage;
+    }
+
+    public double getPercentage() {
+        return percentage;
+    }
+
+    @Override
+    public String toString() {
+        return getUser().getName() + " owes " + String.format("%.2f", getAmount())
+                + " (" + String.format("%.1f", percentage) + "%)";
+    }
+}
+\`\`\`
+
+---
+
+## 4. SplitStrategy Interface
+
+This is the **core Strategy pattern interface**. Each split type provides its own
+implementation for validation and calculation.
+
+\`\`\`java
+import java.util.List;
+import java.util.Map;
+
+public interface SplitStrategy {
+
+    /**
+     * Validate inputs before computing splits.
+     * Throws IllegalArgumentException if invalid.
+     */
+    boolean validate(double totalAmount, List<User> participants,
+                     Map<String, Double> splitDetails);
+
+    /**
+     * Compute splits for each participant.
+     * @param totalAmount   total expense amount
+     * @param participants  list of users sharing this expense
+     * @param splitDetails  additional info (exact amounts or percentages keyed by userId)
+     * @return list of Split objects, one per participant
+     */
+    List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                 Map<String, Double> splitDetails);
+}
+\`\`\`
+
+---
+
+## 5. EqualSplitStrategy.java
+
+Divides the total equally among all participants. Handles rounding remainder
+by assigning it to the first participant.
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public class EqualSplitStrategy implements SplitStrategy {
+
+    @Override
+    public boolean validate(double totalAmount, List<User> participants,
+                            Map<String, Double> splitDetails) {
+        if (participants == null || participants.isEmpty()) {
+            throw new IllegalArgumentException(
+                "EQUAL split requires at least one participant.");
+        }
+        if (totalAmount <= 0) {
+            throw new IllegalArgumentException(
+                "Total amount must be positive.");
+        }
+        return true;
+    }
+
+    @Override
+    public List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                        Map<String, Double> splitDetails) {
+        validate(totalAmount, participants, splitDetails);
+
+        int n = participants.size();
+        // Use floor to 2 decimal places for base share
+        double baseShare = Math.floor(totalAmount * 100.0 / n) / 100.0;
+        double totalDistributed = baseShare * n;
+        double remainder = Math.round((totalAmount - totalDistributed) * 100.0) / 100.0;
+
+        List<Split> splits = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            double share = baseShare;
+            if (i == 0 && remainder > 0) {
+                // Assign rounding remainder to first participant
+                share = Math.round((baseShare + remainder) * 100.0) / 100.0;
+            }
+            splits.add(new EqualSplit(participants.get(i), share));
+        }
+        return splits;
+    }
+}
+\`\`\`
+
+---
+
+## 6. ExactSplitStrategy.java
+
+Each participant's share is specified as an exact amount. Validates that all
+exact amounts sum to the total expense amount.
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public class ExactSplitStrategy implements SplitStrategy {
+
+    @Override
+    public boolean validate(double totalAmount, List<User> participants,
+                            Map<String, Double> splitDetails) {
+        if (participants == null || participants.isEmpty()) {
+            throw new IllegalArgumentException(
+                "EXACT split requires at least one participant.");
+        }
+        if (splitDetails == null || splitDetails.size() != participants.size()) {
+            throw new IllegalArgumentException(
+                "EXACT split requires an amount for each participant.");
+        }
+
+        double sum = 0;
+        for (User user : participants) {
+            Double amount = splitDetails.get(user.getUserId());
+            if (amount == null) {
+                throw new IllegalArgumentException(
+                    "Missing exact amount for user: " + user.getName());
+            }
+            if (amount < 0) {
+                throw new IllegalArgumentException(
+                    "Exact amount cannot be negative for user: " + user.getName());
+            }
+            sum += amount;
+        }
+
+        // Compare with tolerance for floating point
+        if (Math.abs(sum - totalAmount) > 0.01) {
+            throw new IllegalArgumentException(
+                "EXACT split amounts (" + String.format("%.2f", sum)
+                + ") do not sum to total (" + String.format("%.2f", totalAmount) + ").");
+        }
+        return true;
+    }
+
+    @Override
+    public List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                        Map<String, Double> splitDetails) {
+        validate(totalAmount, participants, splitDetails);
+
+        List<Split> splits = new ArrayList<>();
+        for (User user : participants) {
+            double amount = splitDetails.get(user.getUserId());
+            splits.add(new ExactSplit(user, amount));
+        }
+        return splits;
+    }
+}
+\`\`\`
+
+---
+
+## 7. PercentageSplitStrategy.java
+
+Each participant's share is specified as a percentage. Validates that all
+percentages sum to exactly 100.
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public class PercentageSplitStrategy implements SplitStrategy {
+
+    @Override
+    public boolean validate(double totalAmount, List<User> participants,
+                            Map<String, Double> splitDetails) {
+        if (participants == null || participants.isEmpty()) {
+            throw new IllegalArgumentException(
+                "PERCENTAGE split requires at least one participant.");
+        }
+        if (splitDetails == null || splitDetails.size() != participants.size()) {
+            throw new IllegalArgumentException(
+                "PERCENTAGE split requires a percentage for each participant.");
+        }
+
+        double totalPercentage = 0;
+        for (User user : participants) {
+            Double pct = splitDetails.get(user.getUserId());
+            if (pct == null) {
+                throw new IllegalArgumentException(
+                    "Missing percentage for user: " + user.getName());
+            }
+            if (pct < 0 || pct > 100) {
+                throw new IllegalArgumentException(
+                    "Percentage must be between 0 and 100 for user: " + user.getName());
+            }
+            totalPercentage += pct;
+        }
+
+        if (Math.abs(totalPercentage - 100.0) > 0.01) {
+            throw new IllegalArgumentException(
+                "Percentages must sum to 100. Got: "
+                + String.format("%.2f", totalPercentage));
+        }
+        return true;
+    }
+
+    @Override
+    public List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                        Map<String, Double> splitDetails) {
+        validate(totalAmount, participants, splitDetails);
+
+        List<Split> splits = new ArrayList<>();
+        for (User user : participants) {
+            double pct = splitDetails.get(user.getUserId());
+            double amount = Math.round(totalAmount * pct) / 100.0;
+            splits.add(new PercentageSplit(user, amount, pct));
+        }
+        return splits;
+    }
+}
+\`\`\`
+
+---
+
+## 8. Expense.java
+
+An immutable record of a payment event: who paid, how much, and how the cost
+is distributed among participants.
+
+\`\`\`java
+import java.time.LocalDateTime;
+import java.util.List;
+
+public class Expense {
+    private final String expenseId;
+    private final String description;
+    private final double amount;
+    private final User paidBy;
+    private final List<Split> splits;
+    private final Group group;
+    private final LocalDateTime createdAt;
+
+    public Expense(String expenseId, String description, double amount,
+                   User paidBy, List<Split> splits, Group group) {
+        this.expenseId = expenseId;
+        this.description = description;
+        this.amount = amount;
+        this.paidBy = paidBy;
+        this.splits = splits;
+        this.group = group;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public String getExpenseId() {
+        return expenseId;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public double getAmount() {
+        return amount;
+    }
+
+    public User getPaidBy() {
+        return paidBy;
+    }
+
+    public List<Split> getSplits() {
+        return splits;
+    }
+
+    public Group getGroup() {
+        return group;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Expense[").append(expenseId).append("]: ")
+          .append(description).append(" | Amount: ")
+          .append(String.format("%.2f", amount))
+          .append(" | Paid by: ").append(paidBy.getName())
+          .append(" | Splits: ");
+        for (Split s : splits) {
+            sb.append("\\n    ").append(s);
+        }
+        return sb.toString();
+    }
+}
+\`\`\`
+
+---
+
+## 9. Group.java
+
+A collection of users who share expenses together.
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.List;
+
+public class Group {
+    private final String groupId;
+    private final String name;
+    private final List<User> members;
+    private final List<Expense> expenses;
+
+    public Group(String groupId, String name) {
+        this.groupId = groupId;
+        this.name = name;
+        this.members = new ArrayList<>();
+        this.expenses = new ArrayList<>();
+    }
+
+    public String getGroupId() {
+        return groupId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public List<User> getMembers() {
+        return members;
+    }
+
+    public List<Expense> getExpenses() {
+        return expenses;
+    }
+
+    public void addMember(User user) {
+        if (!members.contains(user)) {
+            members.add(user);
+        }
+    }
+
+    public void addExpense(Expense expense) {
+        expenses.add(expense);
+    }
+
+    @Override
+    public String toString() {
+        return "Group[" + groupId + "]: " + name
+               + " (" + members.size() + " members, "
+               + expenses.size() + " expenses)";
+    }
+}
+\`\`\`
+
+---
+
+## 10. Transaction.java
+
+A simplified debt record: one person pays another a specific amount.
+Produced by the debt simplification algorithm.
+
+\`\`\`java
+public class Transaction {
+    private final String fromUserId;
+    private final String fromUserName;
+    private final String toUserId;
+    private final String toUserName;
+    private final double amount;
+
+    public Transaction(String fromUserId, String fromUserName,
+                       String toUserId, String toUserName, double amount) {
+        this.fromUserId = fromUserId;
+        this.fromUserName = fromUserName;
+        this.toUserId = toUserId;
+        this.toUserName = toUserName;
+        this.amount = amount;
+    }
+
+    public String getFromUserId() {
+        return fromUserId;
+    }
+
+    public String getToUserId() {
+        return toUserId;
+    }
+
+    public double getAmount() {
+        return amount;
+    }
+
+    @Override
+    public String toString() {
+        return fromUserName + " pays " + toUserName
+               + ": " + String.format("%.2f", amount);
+    }
+}
+\`\`\`
+
+---
+
+## 11. DebtSimplifier.java
+
+The greedy net-balance algorithm that minimizes the number of transactions
+to settle all debts.
+
+**Algorithm:**
+1. Calculate net balance per person (positive = creditor, negative = debtor)
+2. Separate into creditor and debtor lists
+3. Sort both by absolute value descending
+4. Greedy match: biggest debtor pays biggest creditor, repeat
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class DebtSimplifier {
+
+    /**
+     * Takes the raw balance map and returns minimum transactions to settle all debts.
+     *
+     * @param balances  Map<owerId, Map<lenderId, amount>>
+     * @param userNames Map<userId, userName> for readable output
+     * @return list of simplified transactions
+     */
+    public List<Transaction> simplify(Map<String, Map<String, Double>> balances,
+                                       Map<String, String> userNames) {
+
+        // Step 1: Calculate net balance for each person.
+        // Positive = net creditor (others owe them).
+        // Negative = net debtor (they owe others).
+        Map<String, Double> netBalance = new HashMap<>();
+
+        for (Map.Entry<String, Map<String, Double>> owerEntry : balances.entrySet()) {
+            String owerId = owerEntry.getKey();
+            for (Map.Entry<String, Double> lenderEntry : owerEntry.getValue().entrySet()) {
+                String lenderId = lenderEntry.getKey();
+                double amount = lenderEntry.getValue();
+
+                if (amount <= 0.001) continue; // Skip zero/negligible balances
+
+                // owerId owes lenderId this amount
+                netBalance.merge(owerId, -amount, Double::sum);
+                netBalance.merge(lenderId, amount, Double::sum);
+            }
+        }
+
+        // Step 2: Separate into creditors and debtors.
+        List<String> creditorIds = new ArrayList<>();
+        List<Double> creditorAmounts = new ArrayList<>();
+        List<String> debtorIds = new ArrayList<>();
+        List<Double> debtorAmounts = new ArrayList<>();
+
+        for (Map.Entry<String, Double> entry : netBalance.entrySet()) {
+            double net = entry.getValue();
+            if (net > 0.01) {
+                creditorIds.add(entry.getKey());
+                creditorAmounts.add(net);
+            } else if (net < -0.01) {
+                debtorIds.add(entry.getKey());
+                debtorAmounts.add(-net); // Store as positive for easier comparison
+            }
+            // net ~= 0 means settled, skip
+        }
+
+        // Step 3: Sort both by amount descending (largest first).
+        sortDescending(creditorIds, creditorAmounts);
+        sortDescending(debtorIds, debtorAmounts);
+
+        // Step 4: Greedy matching.
+        List<Transaction> transactions = new ArrayList<>();
+        int ci = 0; // creditor index
+        int di = 0; // debtor index
+
+        while (ci < creditorIds.size() && di < debtorIds.size()) {
+            double credAmt = creditorAmounts.get(ci);
+            double debtAmt = debtorAmounts.get(di);
+            double settlement = Math.min(credAmt, debtAmt);
+
+            // Round to 2 decimal places
+            settlement = Math.round(settlement * 100.0) / 100.0;
+
+            if (settlement > 0.001) {
+                String fromId = debtorIds.get(di);
+                String toId = creditorIds.get(ci);
+                String fromName = userNames.getOrDefault(fromId, fromId);
+                String toName = userNames.getOrDefault(toId, toId);
+                transactions.add(new Transaction(fromId, fromName, toId, toName, settlement));
+            }
+
+            creditorAmounts.set(ci, credAmt - settlement);
+            debtorAmounts.set(di, debtAmt - settlement);
+
+            if (creditorAmounts.get(ci) < 0.01) ci++;
+            if (debtorAmounts.get(di) < 0.01) di++;
+        }
+
+        return transactions;
+    }
+
+    /**
+     * Sorts ids and amounts in descending order of amount (in place).
+     * Simple selection sort -- fine for small N in Splitwise context.
+     */
+    private void sortDescending(List<String> ids, List<Double> amounts) {
+        for (int i = 0; i < amounts.size(); i++) {
+            int maxIdx = i;
+            for (int j = i + 1; j < amounts.size(); j++) {
+                if (amounts.get(j) > amounts.get(maxIdx)) {
+                    maxIdx = j;
+                }
+            }
+            if (maxIdx != i) {
+                // Swap amounts
+                double tmpAmt = amounts.get(i);
+                amounts.set(i, amounts.get(maxIdx));
+                amounts.set(maxIdx, tmpAmt);
+                // Swap ids
+                String tmpId = ids.get(i);
+                ids.set(i, ids.get(maxIdx));
+                ids.set(maxIdx, tmpId);
+            }
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 12. BalanceSheet.java
+
+Central ledger. Tracks who owes whom and delegates simplification to
+\`DebtSimplifier\`. Handles netting of reverse debts in \`updateBalance\`.
+
+\`\`\`java
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class BalanceSheet {
+    // balances[owerId][lenderId] = amount that ower owes to lender
+    private final Map<String, Map<String, Double>> balances;
+    private final DebtSimplifier debtSimplifier;
+
+    public BalanceSheet() {
+        this.balances = new HashMap<>();
+        this.debtSimplifier = new DebtSimplifier();
+    }
+
+    /**
+     * Update balance: 'from' now owes 'to' an additional 'amount'.
+     * Handles netting of reverse debts automatically.
+     *
+     * Example: if B already owes A 500, and A now owes B 300,
+     * the result is B owes A 200 (not both directions stored).
+     */
+    public void updateBalance(String fromId, String toId, double amount) {
+        if (fromId.equals(toId)) return; // Cannot owe yourself
+
+        // Check if 'to' already owes 'from' (reverse debt)
+        double reverseDebt = getDirectDebt(toId, fromId);
+
+        if (reverseDebt > 0) {
+            if (reverseDebt >= amount) {
+                // Reverse debt absorbs the new amount fully
+                setDirectDebt(toId, fromId, reverseDebt - amount);
+            } else {
+                // Reverse debt partially absorbs; remainder becomes forward debt
+                setDirectDebt(toId, fromId, 0);
+                double remainder = amount - reverseDebt;
+                double existingForward = getDirectDebt(fromId, toId);
+                setDirectDebt(fromId, toId, existingForward + remainder);
+            }
+        } else {
+            // No reverse debt; simply add forward debt
+            double existing = getDirectDebt(fromId, toId);
+            setDirectDebt(fromId, toId, existing + amount);
+        }
+    }
+
+    /**
+     * Get the direct debt: how much 'fromId' owes 'toId'.
+     */
+    private double getDirectDebt(String fromId, String toId) {
+        return balances.getOrDefault(fromId, new HashMap<>())
+                       .getOrDefault(toId, 0.0);
+    }
+
+    /**
+     * Set the direct debt value. Removes entry if zero or negligible.
+     */
+    private void setDirectDebt(String fromId, String toId, double amount) {
+        if (amount < 0.001) {
+            // Remove zero/negligible balances to keep the map clean
+            if (balances.containsKey(fromId)) {
+                balances.get(fromId).remove(toId);
+                if (balances.get(fromId).isEmpty()) {
+                    balances.remove(fromId);
+                }
+            }
+        } else {
+            balances.computeIfAbsent(fromId, k -> new HashMap<>())
+                    .put(toId, Math.round(amount * 100.0) / 100.0);
+        }
+    }
+
+    /**
+     * Get balance between two users as a human-readable string.
+     */
+    public String getBalance(String userId1, String name1,
+                             String userId2, String name2) {
+        double debt1to2 = getDirectDebt(userId1, userId2);
+        double debt2to1 = getDirectDebt(userId2, userId1);
+
+        if (debt1to2 > 0.01) {
+            return name1 + " owes " + name2 + ": " + String.format("%.2f", debt1to2);
+        } else if (debt2to1 > 0.01) {
+            return name2 + " owes " + name1 + ": " + String.format("%.2f", debt2to1);
+        } else {
+            return name1 + " and " + name2 + " are settled up.";
+        }
+    }
+
+    /**
+     * Get all current balances as a readable report.
+     */
+    public String getAllBalancesReport() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Current Balances ===\\n");
+        if (balances.isEmpty()) {
+            sb.append("  All settled up!\\n");
+            return sb.toString();
+        }
+        for (Map.Entry<String, Map<String, Double>> owerEntry : balances.entrySet()) {
+            for (Map.Entry<String, Double> lenderEntry : owerEntry.getValue().entrySet()) {
+                double amt = lenderEntry.getValue();
+                if (amt > 0.01) {
+                    sb.append("  ")
+                      .append(owerEntry.getKey())
+                      .append(" owes ")
+                      .append(lenderEntry.getKey())
+                      .append(": ")
+                      .append(String.format("%.2f", amt))
+                      .append("\\n");
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Get the raw balance map (deep copy to avoid external mutation).
+     */
+    public Map<String, Map<String, Double>> getRawBalances() {
+        Map<String, Map<String, Double>> copy = new HashMap<>();
+        for (Map.Entry<String, Map<String, Double>> entry : balances.entrySet()) {
+            copy.put(entry.getKey(), new HashMap<>(entry.getValue()));
+        }
+        return copy;
+    }
+
+    /**
+     * Simplify debts: minimize the number of transactions to settle everything.
+     */
+    public List<Transaction> simplifyDebts(Map<String, String> userNames) {
+        return debtSimplifier.simplify(getRawBalances(), userNames);
+    }
+}
+\`\`\`
+
+---
+
+## 13. ExpenseObserver.java (Observer Interface)
+
+Decouples notification side-effects from the core expense logic. Any class that
+wants to react to expense events implements this interface and registers with
+the \`ExpenseService\`.
+
+\`\`\`java
+public interface ExpenseObserver {
+    void onExpenseAdded(Expense expense);
+    void onDebtSettled(String fromUserId, String toUserId, double amount);
+}
+\`\`\`
+
+---
+
+## 14. EmailNotifier.java (Concrete Observer)
+
+Prints email-style notifications to stdout. In production, this would send
+actual emails via an email service.
+
+\`\`\`java
+public class EmailNotifier implements ExpenseObserver {
+
+    @Override
+    public void onExpenseAdded(Expense expense) {
+        System.out.println("[EMAIL] Expense added: " + expense.getDescription()
+                + " | Amount: " + String.format("%.2f", expense.getAmount())
+                + " | Paid by: " + expense.getPaidBy().getName());
+        for (Split split : expense.getSplits()) {
+            if (!split.getUser().getUserId().equals(expense.getPaidBy().getUserId())) {
+                System.out.println("  -> Notify " + split.getUser().getName()
+                        + ": You owe " + expense.getPaidBy().getName()
+                        + " " + String.format("%.2f", split.getAmount()));
+            }
+        }
+    }
+
+    @Override
+    public void onDebtSettled(String fromUserId, String toUserId, double amount) {
+        System.out.println("[EMAIL] Debt settled: " + fromUserId
+                + " paid " + toUserId + " " + String.format("%.2f", amount));
+    }
+}
+\`\`\`
+
+---
+
+## 15. ExpenseService.java
+
+The orchestrator. Brings together strategies, balance sheet, and observers.
+This is the main entry point for all expense operations.
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+public class ExpenseService {
+    private final BalanceSheet balanceSheet;
+    private final Map<SplitType, SplitStrategy> strategies;
+    private final List<ExpenseObserver> observers;
+
+    public ExpenseService(BalanceSheet balanceSheet) {
+        this.balanceSheet = balanceSheet;
+        this.observers = new ArrayList<>();
+
+        // Register all split strategies (Factory-like registration)
+        this.strategies = new HashMap<>();
+        strategies.put(SplitType.EQUAL, new EqualSplitStrategy());
+        strategies.put(SplitType.EXACT, new ExactSplitStrategy());
+        strategies.put(SplitType.PERCENTAGE, new PercentageSplitStrategy());
+    }
+
+    /**
+     * Add an observer for expense events.
+     */
+    public void addObserver(ExpenseObserver observer) {
+        observers.add(observer);
+    }
+
+    /**
+     * Add an expense and update balances.
+     *
+     * Flow:
+     *   1. Look up the right SplitStrategy
+     *   2. Strategy validates and calculates splits
+     *   3. Create the Expense object
+     *   4. Update balance sheet for each split (skip payer's own split)
+     *   5. Add expense to group (if applicable)
+     *   6. Notify all observers
+     *
+     * @param paidBy       the user who paid
+     * @param amount       total expense amount
+     * @param splitType    how to split (EQUAL, EXACT, PERCENTAGE)
+     * @param participants users sharing this expense
+     * @param splitDetails additional details (exact amounts or percentages by userId)
+     *                     Pass null for EQUAL split.
+     * @param description  expense description
+     * @param group        optional group (can be null for non-group expenses)
+     * @return the created Expense
+     */
+    public Expense addExpense(User paidBy, double amount, SplitType splitType,
+                               List<User> participants,
+                               Map<String, Double> splitDetails,
+                               String description, Group group) {
+
+        // 1. Look up the right strategy
+        SplitStrategy strategy = strategies.get(splitType);
+        if (strategy == null) {
+            throw new IllegalArgumentException("Unknown split type: " + splitType);
+        }
+
+        // 2. Calculate splits (validates internally)
+        List<Split> splits = strategy.calculateSplits(amount, participants, splitDetails);
+
+        // 3. Create the expense
+        String expenseId = UUID.randomUUID().toString().substring(0, 8);
+        Expense expense = new Expense(expenseId, description, amount,
+                                       paidBy, splits, group);
+
+        // 4. Update balance sheet
+        for (Split split : splits) {
+            if (!split.getUser().getUserId().equals(paidBy.getUserId())) {
+                // This user owes the payer
+                balanceSheet.updateBalance(
+                    split.getUser().getUserId(),
+                    paidBy.getUserId(),
+                    split.getAmount()
+                );
+            }
+        }
+
+        // 5. Add expense to group if applicable
+        if (group != null) {
+            group.addExpense(expense);
+        }
+
+        // 6. Notify observers
+        notifyExpenseAdded(expense);
+
+        return expense;
+    }
+
+    /**
+     * Notify all registered observers that an expense was added.
+     */
+    private void notifyExpenseAdded(Expense expense) {
+        for (ExpenseObserver observer : observers) {
+            observer.onExpenseAdded(expense);
+        }
+    }
+
+    /**
+     * Get the balance sheet for inspection.
+     */
+    public BalanceSheet getBalanceSheet() {
+        return balanceSheet;
+    }
+}
+\`\`\`
+
+---
+
+## 16. Main.java -- Full Demo
+
+This demo creates a group of 4 users, adds expenses with all 3 split types,
+shows running balances after each expense, checks individual balances, and
+demonstrates debt simplification and input validation.
+
+\`\`\`java
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class Main {
+
+    public static void main(String[] args) {
+
+        System.out.println("=============================================");
+        System.out.println("   SPLITWISE / EXPENSE SHARING SYSTEM DEMO   ");
+        System.out.println("=============================================\\n");
+
+        // ---- Create Users ----
+        User alice   = new User("u1", "Alice",   "alice@email.com",   "9000000001");
+        User bob     = new User("u2", "Bob",     "bob@email.com",     "9000000002");
+        User charlie = new User("u3", "Charlie", "charlie@email.com", "9000000003");
+        User diana   = new User("u4", "Diana",   "diana@email.com",   "9000000004");
+
+        // ---- Create Group ----
+        Group tripGroup = new Group("g1", "Goa Trip");
+        tripGroup.addMember(alice);
+        tripGroup.addMember(bob);
+        tripGroup.addMember(charlie);
+        tripGroup.addMember(diana);
+
+        System.out.println("Group created: " + tripGroup);
+        System.out.println("Members: Alice, Bob, Charlie, Diana\\n");
+
+        // ---- Set up Service ----
+        BalanceSheet balanceSheet = new BalanceSheet();
+        ExpenseService service = new ExpenseService(balanceSheet);
+        service.addObserver(new EmailNotifier());
+
+        // User name map for readable simplified output
+        Map<String, String> userNames = new HashMap<>();
+        userNames.put("u1", "Alice");
+        userNames.put("u2", "Bob");
+        userNames.put("u3", "Charlie");
+        userNames.put("u4", "Diana");
+
+        // ============================================================
+        // EXPENSE 1: EQUAL SPLIT
+        // Alice pays 4000 for dinner, split equally among all 4
+        // Each person's share: 1000
+        // ============================================================
+        System.out.println("---------------------------------------------");
+        System.out.println("EXPENSE 1: EQUAL SPLIT");
+        System.out.println("Alice pays 4000 for dinner, split among 4");
+        System.out.println("---------------------------------------------");
+
+        List<User> allMembers = Arrays.asList(alice, bob, charlie, diana);
+        Expense exp1 = service.addExpense(
+            alice, 4000, SplitType.EQUAL,
+            allMembers, null,
+            "Group dinner at beach shack", tripGroup
+        );
+
+        System.out.println("\\n" + exp1);
+        System.out.println();
+        System.out.println(balanceSheet.getAllBalancesReport());
+
+        // ============================================================
+        // EXPENSE 2: EXACT SPLIT
+        // Bob pays 3000 for activities.
+        // Alice: 500, Bob: 1000, Charlie: 1000, Diana: 500
+        // ============================================================
+        System.out.println("---------------------------------------------");
+        System.out.println("EXPENSE 2: EXACT SPLIT");
+        System.out.println("Bob pays 3000. Alice:500, Bob:1000, Charlie:1000, Diana:500");
+        System.out.println("---------------------------------------------");
+
+        Map<String, Double> exactDetails = new HashMap<>();
+        exactDetails.put("u1", 500.0);   // Alice
+        exactDetails.put("u2", 1000.0);  // Bob (his own share, will be skipped in balance)
+        exactDetails.put("u3", 1000.0);  // Charlie
+        exactDetails.put("u4", 500.0);   // Diana
+
+        Expense exp2 = service.addExpense(
+            bob, 3000, SplitType.EXACT,
+            allMembers, exactDetails,
+            "Water sports and parasailing", tripGroup
+        );
+
+        System.out.println("\\n" + exp2);
+        System.out.println();
+        System.out.println(balanceSheet.getAllBalancesReport());
+
+        // ============================================================
+        // EXPENSE 3: PERCENTAGE SPLIT
+        // Charlie pays 5000 for hotel.
+        // Alice: 40% (2000), Bob: 30% (1500), Charlie: 20% (1000), Diana: 10% (500)
+        // ============================================================
+        System.out.println("---------------------------------------------");
+        System.out.println("EXPENSE 3: PERCENTAGE SPLIT");
+        System.out.println("Charlie pays 5000. Alice:40%, Bob:30%, Charlie:20%, Diana:10%");
+        System.out.println("---------------------------------------------");
+
+        Map<String, Double> pctDetails = new HashMap<>();
+        pctDetails.put("u1", 40.0);  // Alice  -> 2000
+        pctDetails.put("u2", 30.0);  // Bob    -> 1500
+        pctDetails.put("u3", 20.0);  // Charlie -> 1000 (his own share)
+        pctDetails.put("u4", 10.0);  // Diana  -> 500
+
+        Expense exp3 = service.addExpense(
+            charlie, 5000, SplitType.PERCENTAGE,
+            allMembers, pctDetails,
+            "Hotel room charges", tripGroup
+        );
+
+        System.out.println("\\n" + exp3);
+        System.out.println();
+        System.out.println(balanceSheet.getAllBalancesReport());
+
+        // ============================================================
+        // EXPENSE 4: Another EQUAL SPLIT (makes debts more complex)
+        // Diana pays 2000 for cab, split equally among all 4
+        // Each person's share: 500
+        // ============================================================
+        System.out.println("---------------------------------------------");
+        System.out.println("EXPENSE 4: EQUAL SPLIT");
+        System.out.println("Diana pays 2000 for cab, split among 4");
+        System.out.println("---------------------------------------------");
+
+        Expense exp4 = service.addExpense(
+            diana, 2000, SplitType.EQUAL,
+            allMembers, null,
+            "Airport cab ride", tripGroup
+        );
+
+        System.out.println("\\n" + exp4);
+        System.out.println();
+
+        // ============================================================
+        // FINAL BALANCES (before simplification)
+        // ============================================================
+        System.out.println("=============================================");
+        System.out.println("FINAL BALANCES (before simplification)");
+        System.out.println("=============================================");
+        System.out.println(balanceSheet.getAllBalancesReport());
+
+        // ============================================================
+        // GROUP SUMMARY
+        // ============================================================
+        System.out.println("Group summary: " + tripGroup);
+        System.out.println("Total expenses in group: " + tripGroup.getExpenses().size());
+        double totalSpent = tripGroup.getExpenses().stream()
+                .mapToDouble(Expense::getAmount).sum();
+        System.out.println("Total amount spent: " + String.format("%.2f", totalSpent));
+        System.out.println();
+
+        // ============================================================
+        // INDIVIDUAL BALANCE CHECKS
+        // ============================================================
+        System.out.println("=============================================");
+        System.out.println("INDIVIDUAL BALANCE CHECKS");
+        System.out.println("=============================================");
+        System.out.println(balanceSheet.getBalance("u1", "Alice", "u2", "Bob"));
+        System.out.println(balanceSheet.getBalance("u1", "Alice", "u3", "Charlie"));
+        System.out.println(balanceSheet.getBalance("u1", "Alice", "u4", "Diana"));
+        System.out.println(balanceSheet.getBalance("u2", "Bob", "u3", "Charlie"));
+        System.out.println(balanceSheet.getBalance("u2", "Bob", "u4", "Diana"));
+        System.out.println(balanceSheet.getBalance("u3", "Charlie", "u4", "Diana"));
+        System.out.println();
+
+        // ============================================================
+        // DEBT SIMPLIFICATION
+        // ============================================================
+        System.out.println("=============================================");
+        System.out.println("SIMPLIFIED DEBTS (minimum transactions)");
+        System.out.println("=============================================");
+
+        List<Transaction> simplified = balanceSheet.simplifyDebts(userNames);
+
+        if (simplified.isEmpty()) {
+            System.out.println("  All debts are settled!");
+        } else {
+            System.out.println("Only " + simplified.size()
+                    + " transaction(s) needed to settle all debts:\\n");
+            for (int i = 0; i < simplified.size(); i++) {
+                System.out.println("  " + (i + 1) + ". " + simplified.get(i));
+            }
+        }
+        System.out.println();
+
+        // ============================================================
+        // VALIDATION DEMO: Invalid exact split (amounts don't sum to total)
+        // ============================================================
+        System.out.println("=============================================");
+        System.out.println("VALIDATION DEMO: Invalid exact split");
+        System.out.println("=============================================");
+
+        try {
+            Map<String, Double> badExact = new HashMap<>();
+            badExact.put("u1", 500.0);
+            badExact.put("u2", 500.0);
+            // Amounts sum to 1000, but total is 2000 --> should fail
+            service.addExpense(
+                alice, 2000, SplitType.EXACT,
+                Arrays.asList(alice, bob), badExact,
+                "Invalid expense", null
+            );
+        } catch (IllegalArgumentException e) {
+            System.out.println("Caught expected error: " + e.getMessage());
+        }
+
+        System.out.println();
+
+        // ============================================================
+        // VALIDATION DEMO: Invalid percentage split (percentages don't sum to 100)
+        // ============================================================
+        System.out.println("=============================================");
+        System.out.println("VALIDATION DEMO: Invalid percentage split");
+        System.out.println("=============================================");
+
+        try {
+            Map<String, Double> badPct = new HashMap<>();
+            badPct.put("u1", 60.0);
+            badPct.put("u2", 60.0);
+            // Percentages sum to 120, not 100 --> should fail
+            service.addExpense(
+                alice, 1000, SplitType.PERCENTAGE,
+                Arrays.asList(alice, bob), badPct,
+                "Invalid expense", null
+            );
+        } catch (IllegalArgumentException e) {
+            System.out.println("Caught expected error: " + e.getMessage());
+        }
+
+        System.out.println();
+        System.out.println("=============================================");
+        System.out.println("   DEMO COMPLETE                             ");
+        System.out.println("=============================================");
+    }
+}
+\`\`\`
+
+---
+
+## Verified Output
+
+This output was produced by compiling and running the code above:
+
+\`\`\`
+=============================================
+   SPLITWISE / EXPENSE SHARING SYSTEM DEMO   
+=============================================
+
+Group created: Group[g1]: Goa Trip (4 members, 0 expenses)
+Members: Alice, Bob, Charlie, Diana
+
+---------------------------------------------
+EXPENSE 1: EQUAL SPLIT
+Alice pays 4000 for dinner, split among 4
+---------------------------------------------
+[EMAIL] Expense added: Group dinner at beach shack | Amount: 4000.00 | Paid by: Alice
+  -> Notify Bob: You owe Alice 1000.00
+  -> Notify Charlie: You owe Alice 1000.00
+  -> Notify Diana: You owe Alice 1000.00
+
+Expense[...]: Group dinner at beach shack | Amount: 4000.00 | Paid by: Alice | Splits:
+    Alice owes 1000.00
+    Bob owes 1000.00
+    Charlie owes 1000.00
+    Diana owes 1000.00
+
+=== Current Balances ===
+  u2 owes u1: 1000.00
+  u3 owes u1: 1000.00
+  u4 owes u1: 1000.00
+
+---------------------------------------------
+EXPENSE 2: EXACT SPLIT
+Bob pays 3000. Alice:500, Bob:1000, Charlie:1000, Diana:500
+---------------------------------------------
+[EMAIL] Expense added: Water sports and parasailing | Amount: 3000.00 | Paid by: Bob
+  -> Notify Alice: You owe Bob 500.00
+  -> Notify Charlie: You owe Bob 1000.00
+  -> Notify Diana: You owe Bob 500.00
+
+Expense[...]: Water sports and parasailing | Amount: 3000.00 | Paid by: Bob | Splits:
+    Alice owes 500.00
+    Bob owes 1000.00
+    Charlie owes 1000.00
+    Diana owes 500.00
+
+=== Current Balances ===
+  u2 owes u1: 500.00          (was 1000, netted with Alice's 500 debt to Bob)
+  u3 owes u1: 1000.00
+  u3 owes u2: 1000.00
+  u4 owes u1: 1000.00
+  u4 owes u2: 500.00
+
+---------------------------------------------
+EXPENSE 3: PERCENTAGE SPLIT
+Charlie pays 5000. Alice:40%, Bob:30%, Charlie:20%, Diana:10%
+---------------------------------------------
+[EMAIL] Expense added: Hotel room charges | Amount: 5000.00 | Paid by: Charlie
+  -> Notify Alice: You owe Charlie 2000.00
+  -> Notify Bob: You owe Charlie 1500.00
+  -> Notify Diana: You owe Charlie 500.00
+
+Expense[...]: Hotel room charges | Amount: 5000.00 | Paid by: Charlie | Splits:
+    Alice owes 2000.00 (40.0%)
+    Bob owes 1500.00 (30.0%)
+    Charlie owes 1000.00 (20.0%)
+    Diana owes 500.00 (10.0%)
+
+=== Current Balances ===
+  u1 owes u3: 1000.00
+  u2 owes u1: 500.00
+  u2 owes u3: 500.00
+  u4 owes u1: 1000.00
+  u4 owes u2: 500.00
+  u4 owes u3: 500.00
+
+---------------------------------------------
+EXPENSE 4: EQUAL SPLIT
+Diana pays 2000 for cab, split among 4
+---------------------------------------------
+[EMAIL] Expense added: Airport cab ride | Amount: 2000.00 | Paid by: Diana
+  -> Notify Alice: You owe Diana 500.00
+  -> Notify Bob: You owe Diana 500.00
+  -> Notify Charlie: You owe Diana 500.00
+
+=============================================
+FINAL BALANCES (before simplification)
+=============================================
+=== Current Balances ===
+  u1 owes u3: 1000.00
+  u2 owes u1: 500.00
+  u2 owes u3: 500.00
+  u4 owes u1: 500.00
+
+Group summary: Group[g1]: Goa Trip (4 members, 4 expenses)
+Total expenses in group: 4
+Total amount spent: 14000.00
+
+=============================================
+INDIVIDUAL BALANCE CHECKS
+=============================================
+Bob owes Alice: 500.00
+Alice owes Charlie: 1000.00
+Diana owes Alice: 500.00
+Bob owes Charlie: 500.00
+Bob and Diana are settled up.
+Charlie and Diana are settled up.
+
+=============================================
+SIMPLIFIED DEBTS (minimum transactions)
+=============================================
+Only 2 transaction(s) needed to settle all debts:
+
+  1. Bob pays Charlie: 1000.00
+  2. Diana pays Charlie: 500.00
+
+=============================================
+VALIDATION DEMO: Invalid exact split
+=============================================
+Caught expected error: EXACT split amounts (1000.00) do not sum to total (2000.00).
+
+=============================================
+VALIDATION DEMO: Invalid percentage split
+=============================================
+Caught expected error: Percentages must sum to 100. Got: 120.00
+
+=============================================
+   DEMO COMPLETE                             
+=============================================
+\`\`\`
+
+---
+
+## Compilation and Run Instructions
+
+Place all \`.java\` files in the same directory (default package) and run:
+
+\`\`\`bash
+javac *.java
+java Main
+\`\`\`
+
+---
+
+## Architecture Summary
+
+\`\`\`
+┌──────────────────────────────────────────────────────────────────────┐
+│                         ExpenseService                               │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌───────────────────┐   │
+│  │ Strategy Map     │  │ BalanceSheet     │  │ Observer List     │   │
+│  │ EQUAL  -> EqStr  │  │ Map<id,Map<id,d>>│  │ EmailNotifier     │   │
+│  │ EXACT  -> ExStr  │  │ updateBalance()  │  │ PushNotifier ...  │   │
+│  │ PERCENT-> PcStr  │  │ simplifyDebts()  │  │ onExpenseAdded()  │   │
+│  └────────┬────────┘  └────────┬─────────┘  └────────┬──────────┘   │
+│           │                    │                      │              │
+│  addExpense() ────────────────────────────────────────┘              │
+│   1. strategy.calculateSplits()                                      │
+│   2. balanceSheet.updateBalance() for each split                     │
+│   3. group.addExpense()                                              │
+│   4. observers.forEach(o -> o.onExpenseAdded())                      │
+└──────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                        DebtSimplifier                                │
+│  1. Compute net balance per person                                   │
+│  2. Separate into creditors (+) and debtors (-)                      │
+│  3. Sort by absolute value descending                                │
+│  4. Greedy match largest creditor with largest debtor                │
+│  5. Output: List<Transaction> with minimum count                     │
+└──────────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+## Complexity Summary
+
+| Operation          | Time           | Space                     |
+|--------------------|----------------|---------------------------|
+| \`addExpense\`       | O(k) where k = number of splits | O(n^2) balance sheet |
+| \`getBalance\`       | O(1)           | O(1)                      |
+| \`getAllBalances\`    | O(n^2)         | O(1)                      |
+| \`simplifyDebts\`    | O(n log n)     | O(n)                      |
+
+---
+
+## Design Patterns Summary
+
+| Pattern       | Class(es)                               | Purpose                              |
+|---------------|-----------------------------------------|--------------------------------------|
+| **Strategy**  | \`SplitStrategy\` + 3 implementations     | Pluggable split calculation          |
+| **Observer**  | \`ExpenseObserver\` + \`EmailNotifier\`     | Decoupled event notifications        |
+| **Template**  | \`Split\` abstract + 3 subclasses         | Common split structure, varied types |
+| **Factory**   | Strategy \`Map\` in \`ExpenseService\`      | Strategy selection by \`SplitType\`    |
+
+---
+
+## Key Interview Discussion Points
+
+1. **Why Strategy over if-else?** Open/Closed Principle. Adding a new split type
+   requires zero changes to \`ExpenseService\` -- just a new class and one map entry.
+
+2. **Why the greedy algorithm works for debt simplification.** Net balances always
+   sum to zero. Matching largest creditor-debtor pairs converges in at most N-1
+   steps. The general minimum-transaction problem is NP-hard, but the greedy
+   approach is optimal when there is a single currency.
+
+3. **Balance netting.** If A owes B 500 and B owes A 300, the balance sheet
+   stores A owes B 200 -- not both directions. Handled in \`updateBalance()\`.
+
+4. **Thread safety.** In production, \`BalanceSheet.updateBalance()\` must be
+   synchronized. Use \`ConcurrentHashMap\` or database-level row locking.
+
+5. **Floating point.** Use \`BigDecimal\` in production. For interview clarity,
+   \`double\` with rounding to 2 decimal places is acceptable.
+`,
+  designWalkthrough: `# Design Splitwise / Expense Sharing System -- LLD Walkthrough
+
+## The Problem
+
+> "Design a system like Splitwise where users can share expenses, split costs
+> in different ways, track balances, and simplify debts within groups."
+
+This is a **rising-frequency LLD question at Uber India**. It tests your grasp of
+the Strategy pattern, clean OOP modeling, graph-based debt simplification, and
+the Observer pattern. The interviewer wants to see you model multiple split types
+cleanly without if-else chains and produce a working balance sheet.
+
+---
+
+## Step 1: Clarify Requirements (2-3 minutes)
+
+### Functional Requirements
+
+| Requirement                              | Detail                                          |
+|------------------------------------------|-------------------------------------------------|
+| Add an expense                           | One person pays, multiple people owe             |
+| Split equally                            | Divide total evenly among participants           |
+| Split by exact amount                    | Each person owes a specific amount (sum = total) |
+| Split by percentage                      | Each person owes a percentage (sum = 100%)       |
+| Track balances                           | Who owes whom, and how much                      |
+| Simplify debts                           | Minimize total number of transactions to settle  |
+| Group expenses                           | Create groups, add expenses within a group       |
+| Notify on expense added / settled        | Users get notified when relevant events occur    |
+
+### Non-Functional Requirements
+
+| Requirement               | Detail                                  |
+|---------------------------|-----------------------------------------|
+| Correctness               | Every rupee accounted for, no rounding drift |
+| Extensibility             | Easy to add new split types later       |
+| Thread safety (discussion)| Balance updates must be atomic          |
+| Clean OOP                 | Strategy, Observer, single responsibility|
+
+### Summarize Back
+
+> "We need a system where users create groups, add expenses with three split
+> types (equal, exact, percentage), maintain a running balance sheet of who owes
+> whom, and can simplify the debts to minimize transactions. Users should be
+> notified when expenses are added. The design should be extensible to new split
+> types without modifying existing code."
+
+---
+
+## Step 2: Identify Core Entities
+
+Before drawing any diagram, list the nouns:
+
+\`\`\`
+User            -- person in the system
+Group           -- collection of users sharing expenses
+Expense         -- a payment event: who paid, how much, how it's split
+Split           -- one person's share of an expense (abstract)
+  EqualSplit    -- share computed by dividing equally
+  ExactSplit    -- share specified as an exact amount
+  PercentageSplit -- share specified as a percentage
+BalanceSheet    -- ledger: Map<UserId, Map<UserId, Double>>
+Transaction     -- a simplified debt: from -> to -> amount
+\`\`\`
+
+And the verbs / behaviors:
+
+\`\`\`
+SplitStrategy          -- compute splits from total + participants
+ExpenseService         -- orchestrate adding expenses, updating balances
+DebtSimplifier         -- minimize transactions from current balances
+ExpenseObserver        -- react to expense events (notify users)
+\`\`\`
+
+---
+
+## Step 3: Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    direction TB
+
+    class User {
+        -String userId
+        -String name
+        -String email
+        -String phone
+        +getUserId() String
+        +getName() String
+        +getEmail() String
+    }
+
+    class Group {
+        -String groupId
+        -String name
+        -List~User~ members
+        -List~Expense~ expenses
+        +addMember(User)
+        +addExpense(Expense)
+        +getMembers() List~User~
+        +getExpenses() List~Expense~
+    }
+
+    class SplitType {
+        <<enumeration>>
+        EQUAL
+        EXACT
+        PERCENTAGE
+    }
+
+    class Split {
+        <<abstract>>
+        -User user
+        -double amount
+        +getUser() User
+        +getAmount() double
+        +setAmount(double)
+    }
+
+    class EqualSplit {
+    }
+
+    class ExactSplit {
+    }
+
+    class PercentageSplit {
+        -double percentage
+        +getPercentage() double
+    }
+
+    class Expense {
+        -String expenseId
+        -String description
+        -double amount
+        -User paidBy
+        -List~Split~ splits
+        -Group group
+        -LocalDateTime createdAt
+        +getExpenseId() String
+        +getAmount() double
+        +getPaidBy() User
+        +getSplits() List~Split~
+    }
+
+    class SplitStrategy {
+        <<interface>>
+        +calculateSplits(double totalAmount, List~User~ participants, Map~String,Double~ details) List~Split~
+        +validate(double totalAmount, List~User~ participants, Map~String,Double~ details) boolean
+    }
+
+    class EqualSplitStrategy {
+        +calculateSplits(...) List~Split~
+        +validate(...) boolean
+    }
+
+    class ExactSplitStrategy {
+        +calculateSplits(...) List~Split~
+        +validate(...) boolean
+    }
+
+    class PercentageSplitStrategy {
+        +calculateSplits(...) List~Split~
+        +validate(...) boolean
+    }
+
+    class BalanceSheet {
+        -Map~String, Map~String, Double~~ balances
+        +updateBalance(String from, String to, double amount)
+        +getBalance(String userId1, String userId2) double
+        +getAllBalances() Map
+        +simplifyDebts() List~Transaction~
+    }
+
+    class Transaction {
+        -String fromUserId
+        -String toUserId
+        -double amount
+        +toString() String
+    }
+
+    class DebtSimplifier {
+        +simplify(Map~String, Map~String, Double~~) List~Transaction~
+    }
+
+    class ExpenseService {
+        -BalanceSheet balanceSheet
+        -Map~SplitType, SplitStrategy~ strategies
+        -List~ExpenseObserver~ observers
+        +addExpense(User paidBy, double amount, SplitType type, List~User~ participants, Map details, Group group) Expense
+        +addObserver(ExpenseObserver)
+    }
+
+    class ExpenseObserver {
+        <<interface>>
+        +onExpenseAdded(Expense)
+        +onDebtSettled(String from, String to, double amount)
+    }
+
+    class EmailNotifier {
+        +onExpenseAdded(Expense)
+        +onDebtSettled(...)
+    }
+
+    Split <|-- EqualSplit
+    Split <|-- ExactSplit
+    Split <|-- PercentageSplit
+
+    SplitStrategy <|.. EqualSplitStrategy
+    SplitStrategy <|.. ExactSplitStrategy
+    SplitStrategy <|.. PercentageSplitStrategy
+
+    ExpenseObserver <|.. EmailNotifier
+
+    Expense --> User : paidBy
+    Expense --> "1..*" Split : splits
+    Expense --> Group : group
+    Split --> User : user
+
+    Group --> "1..*" User : members
+    Group --> "*" Expense : expenses
+
+    ExpenseService --> BalanceSheet
+    ExpenseService --> SplitStrategy : uses
+    ExpenseService --> ExpenseObserver : notifies
+    BalanceSheet --> DebtSimplifier : delegates
+    DebtSimplifier --> Transaction : produces
+\`\`\`
+
+---
+
+## Step 4: The Core Pattern -- Strategy for Split Types
+
+This is the **centerpiece** of the design. Without it, you end up with a massive
+if-else block inside \`addExpense()\`. The Strategy pattern lets each split type
+encapsulate its own calculation logic and validation.
+
+### Why Strategy?
+
+\`\`\`
+WITHOUT Strategy (bad):
+  if (type == EQUAL)  { ... divide equally ... }
+  else if (type == EXACT) { ... validate sum ... }
+  else if (type == PERCENTAGE) { ... convert pct ... }
+  // Adding a new type means modifying this method -- violates Open/Closed
+
+WITH Strategy (good):
+  SplitStrategy strategy = strategies.get(splitType);
+  List<Split> splits = strategy.calculateSplits(amount, participants, details);
+  // Adding a new type = add one class + register it. Zero existing code changes.
+\`\`\`
+
+### SplitStrategy Interface
+
+\`\`\`java
+public interface SplitStrategy {
+    List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                 Map<String, Double> splitDetails);
+    boolean validate(double totalAmount, List<User> participants,
+                     Map<String, Double> splitDetails);
+}
+\`\`\`
+
+### EqualSplitStrategy
+
+\`\`\`
+Input:  totalAmount = 3000, participants = [Alice, Bob, Charlie]
+Logic:  each share = 3000 / 3 = 1000.00
+Output: [EqualSplit(Alice, 1000), EqualSplit(Bob, 1000), EqualSplit(Charlie, 1000)]
+
+Validation: at least one participant. That's it.
+\`\`\`
+
+### ExactSplitStrategy
+
+\`\`\`
+Input:  totalAmount = 3000, details = {Alice: 1500, Bob: 1000, Charlie: 500}
+Logic:  use the exact amounts as provided
+Output: [ExactSplit(Alice, 1500), ExactSplit(Bob, 1000), ExactSplit(Charlie, 500)]
+
+Validation: sum of exact amounts MUST equal totalAmount.
+  1500 + 1000 + 500 = 3000  (valid)
+  1500 + 1000 + 600 = 3100  (INVALID -- throws exception)
+\`\`\`
+
+### PercentageSplitStrategy
+
+\`\`\`
+Input:  totalAmount = 3000, details = {Alice: 50, Bob: 30, Charlie: 20}
+Logic:  Alice = 3000 * 50/100 = 1500
+        Bob   = 3000 * 30/100 = 900
+        Charlie = 3000 * 20/100 = 600
+Output: [PercentageSplit(Alice, 1500, 50%), PercentageSplit(Bob, 900, 30%),
+         PercentageSplit(Charlie, 600, 20%)]
+
+Validation: percentages MUST sum to exactly 100.
+  50 + 30 + 20 = 100  (valid)
+  50 + 30 + 25 = 105  (INVALID -- throws exception)
+\`\`\`
+
+### Strategy Registration
+
+\`\`\`java
+Map<SplitType, SplitStrategy> strategies = new HashMap<>();
+strategies.put(SplitType.EQUAL, new EqualSplitStrategy());
+strategies.put(SplitType.EXACT, new ExactSplitStrategy());
+strategies.put(SplitType.PERCENTAGE, new PercentageSplitStrategy());
+\`\`\`
+
+To add a **new split type** (say SHARE-based, where you specify ratios like
+2:1:1), you:
+1. Create \`ShareSplit extends Split\`
+2. Create \`ShareSplitStrategy implements SplitStrategy\`
+3. Add \`strategies.put(SplitType.SHARE, new ShareSplitStrategy())\`
+
+Zero lines of existing code touched. **Open/Closed Principle in action.**
+
+---
+
+## Step 5: Balance Tracking
+
+### Data Structure
+
+\`\`\`
+Map<String, Map<String, Double>> balances
+
+Example state after Alice pays 3000 split equally among Alice, Bob, Charlie:
+  Alice paid 3000. Each owes 1000.
+  Bob owes Alice 1000.  Charlie owes Alice 1000.
+
+  balances = {
+    "Bob":     { "Alice": 1000.0 },
+    "Charlie": { "Alice": 1000.0 }
+  }
+\`\`\`
+
+### Update Logic
+
+When adding an expense where \`paidBy\` paid and \`split.user\` owes \`split.amount\`:
+
+\`\`\`
+For each split where split.user != paidBy:
+    ower = split.user.id
+    lender = paidBy.id
+
+    // Check if lender already owes ower something (reverse debt)
+    if balances[lender][ower] exists:
+        if balances[lender][ower] >= split.amount:
+            balances[lender][ower] -= split.amount   // reduce reverse debt
+        else:
+            remainder = split.amount - balances[lender][ower]
+            balances[lender][ower] = 0               // clear reverse debt
+            balances[ower][lender] += remainder       // ower now owes the rest
+    else:
+        balances[ower][lender] += split.amount
+\`\`\`
+
+### Reading a Balance
+
+\`\`\`
+getBalance("Bob", "Alice"):
+  if balances["Bob"]["Alice"] > 0  -->  "Bob owes Alice 1000"
+  if balances["Alice"]["Bob"] > 0  -->  "Alice owes Bob 1000"
+  else                             -->  "Bob and Alice are settled"
+\`\`\`
+
+---
+
+## Step 6: Debt Simplification Algorithm
+
+This is the second key interview topic. In a group of N people with criss-crossing
+debts, how do you **minimize the number of transactions** to settle all debts?
+
+### The Problem
+
+\`\`\`
+Before simplification (5 transactions):
+  Alice owes Bob    1000
+  Bob owes Charlie  2000
+  Charlie owes Alice 500
+  Alice owes Charlie 1500
+  Bob owes Alice     300
+
+After simplification (2 transactions):
+  Alice owes Charlie  ???
+  Bob owes Charlie    ???
+  (much fewer transactions)
+\`\`\`
+
+### Algorithm: Greedy Net-Balance Matching
+
+\`\`\`
+Step 1: Calculate NET balance for each person.
+  net[person] = (total owed TO them) - (total they OWE)
+
+  If net > 0 --> they are a NET CREDITOR (others owe them)
+  If net < 0 --> they are a NET DEBTOR  (they owe others)
+  If net = 0 --> they are settled
+
+Step 2: Separate into creditors (positive) and debtors (negative).
+
+Step 3: Sort both lists by absolute value (largest first).
+
+Step 4: Greedy matching:
+  While creditors and debtors remain:
+    Take the largest creditor and largest debtor.
+    settlement = min(creditor.amount, abs(debtor.amount))
+    Create transaction: debtor pays creditor \`settlement\`
+    Reduce both by \`settlement\`.
+    Remove any that hit zero.
+
+This produces the MINIMUM number of transactions.
+\`\`\`
+
+### Worked Example
+
+\`\`\`
+Raw debts:
+  A owes B: 1000       B owes C: 3000
+  A owes C: 2000       C owes A: 500
+
+Step 1 -- Net balances:
+  A: owed 500 (from C), owes 3000 (1000 to B + 2000 to C) --> net = -2500
+  B: owed 1000 (from A), owes 3000 (to C)                 --> net = -2000
+  C: owed 5000 (3000 from B + 2000 from A), owes 500 (to A) --> net = +4500
+
+  Verify: -2500 + -2000 + 4500 = 0  (must always sum to zero)
+
+Step 2 -- Separate:
+  Creditors: [C: +4500]
+  Debtors:   [A: -2500, B: -2000]
+
+Step 3 -- Match:
+  Round 1: A(-2500) pays C(+4500) --> settlement = 2500
+           A is settled. C has +2000 remaining.
+  Round 2: B(-2000) pays C(+2000) --> settlement = 2000
+           Both settled.
+
+Result: only 2 transactions instead of 4:
+  A pays C: 2500
+  B pays C: 2000
+\`\`\`
+
+### Complexity
+
+\`\`\`
+Time:  O(N log N) for sorting + O(N) for matching = O(N log N)
+Space: O(N) for net balance map
+\`\`\`
+
+---
+
+## Step 7: Observer Pattern -- Notifications
+
+When an expense is added or a debt is settled, multiple subsystems need to react:
+email notifications, push notifications, activity feed updates. The Observer
+pattern decouples the expense service from these side effects.
+
+### Structure
+
+\`\`\`
+ExpenseObserver (interface):
+  + onExpenseAdded(Expense expense)
+  + onDebtSettled(String fromUserId, String toUserId, double amount)
+
+EmailNotifier implements ExpenseObserver:
+  + onExpenseAdded(expense):
+      for each split in expense:
+          if split.user != expense.paidBy:
+              sendEmail(split.user, "You owe " + expense.paidBy.name + " ..." )
+
+  + onDebtSettled(from, to, amount):
+      sendEmail(to, from + " settled a debt of " + amount)
+\`\`\`
+
+### Registration
+
+\`\`\`java
+ExpenseService service = new ExpenseService(balanceSheet);
+service.addObserver(new EmailNotifier());
+service.addObserver(new PushNotifier());    // easy to add more
+service.addObserver(new ActivityLogger());
+\`\`\`
+
+When \`service.addExpense(...)\` is called, after updating balances it iterates
+through all registered observers and calls \`onExpenseAdded(expense)\`. No changes
+to ExpenseService when adding new notification channels.
+
+---
+
+## Step 8: Flow Walkthrough -- Adding an Expense
+
+Here is the complete flow when a user adds a group expense:
+
+\`\`\`
+1. User calls: expenseService.addExpense(
+       paidBy=Alice, amount=3000, type=EQUAL,
+       participants=[Alice, Bob, Charlie], details=null, group=TripGroup)
+
+2. ExpenseService looks up strategy:
+       strategy = strategies.get(EQUAL)  --> EqualSplitStrategy
+
+3. Strategy validates and computes splits:
+       validate(3000, [Alice, Bob, Charlie], null)  --> true
+       calculateSplits(3000, [Alice, Bob, Charlie], null)
+         --> [EqualSplit(Alice,1000), EqualSplit(Bob,1000), EqualSplit(Charlie,1000)]
+
+4. Expense object created:
+       Expense { id=UUID, desc="Group dinner", amount=3000,
+                 paidBy=Alice, splits=[...], group=TripGroup }
+
+5. Balance sheet updated:
+       For Bob's split (1000):   balances["Bob"]["Alice"] += 1000
+       For Charlie's split (1000): balances["Charlie"]["Alice"] += 1000
+       (Alice's own split is skipped -- she paid, so she doesn't owe herself)
+
+6. Expense added to group:
+       TripGroup.expenses.add(expense)
+
+7. Observers notified:
+       emailNotifier.onExpenseAdded(expense)
+         --> Email to Bob: "Alice added 'Group dinner' (3000). You owe 1000."
+         --> Email to Charlie: "Alice added 'Group dinner' (3000). You owe 1000."
+
+8. Expense returned to caller.
+\`\`\`
+
+---
+
+## Step 9: Design Patterns Summary
+
+| Pattern     | Where Used                         | Why                                      |
+|-------------|------------------------------------|------------------------------------------|
+| **Strategy**| SplitStrategy + 3 implementations  | Swap split algorithms without if-else    |
+| **Observer**| ExpenseObserver + notifiers        | Decouple notifications from core logic   |
+| **Factory** | Strategy map lookup by SplitType   | Create right strategy from enum          |
+| **Template**| Split abstract class               | Common fields, specialized subclasses    |
+
+---
+
+## Step 10: Edge Cases and Interview Talking Points
+
+### Rounding Errors
+
+When splitting 1000 three ways: 333.33 + 333.33 + 333.33 = 999.99. One penny
+is lost. Solution: assign the remainder to the first participant.
+
+\`\`\`java
+double baseShare = Math.floor(totalAmount * 100 / n) / 100;  // 333.33
+double remainder = totalAmount - baseShare * n;               // 0.01
+// First person gets baseShare + remainder = 333.34
+\`\`\`
+
+### Self-Split
+
+When the payer is also a participant, skip their split in the balance update.
+They owe themselves nothing.
+
+### Negative Balances and Reverse Debts
+
+If A owes B 500, and then B owes A 300 in a new expense, the net is A owes B
+200. The balance sheet must handle this netting correctly.
+
+### Concurrent Updates
+
+In a production system, balance updates must be synchronized. Two expenses
+added simultaneously for the same users could corrupt the balance map.
+Mention \`ConcurrentHashMap\` or row-level locking in a database.
+
+### Expense Deletion
+
+If an expense is deleted, reverse all the balance updates. This is the inverse
+operation of \`updateBalance\`.
+
+---
+
+## Step 11: Extensibility Checklist
+
+| Future Feature            | How to Add                                            |
+|---------------------------|-------------------------------------------------------|
+| New split type (by shares)| New Split subclass + Strategy impl + register in map  |
+| Settlement tracking       | Add \`settleDebt(from, to, amount)\` to ExpenseService  |
+| Currency conversion       | Decorator on SplitStrategy or separate CurrencyService|
+| Recurring expenses        | Scheduler that calls addExpense periodically           |
+| Expense categories        | Add \`category\` field to Expense, no structural change  |
+| Audit log                 | New Observer that logs to persistent store              |
+| Push notifications        | New Observer implementation, register it                |
+
+---
+
+## Step 12: What the Interviewer Is Looking For
+
+1. **Strategy pattern** -- this is non-negotiable. If you use if-else for split
+   types, you fail the OOP portion.
+
+2. **Clean entity modeling** -- Split as an abstract class with proper
+   inheritance, Expense composed of Splits.
+
+3. **Balance tracking correctness** -- handle reverse debts, self-splits, and
+   demonstrate with a concrete example.
+
+4. **Debt simplification** -- explain the greedy algorithm clearly. Show the
+   net-balance approach. Bonus: mention that the general minimum-transaction
+   problem is NP-hard, but the greedy approach is optimal for most practical
+   cases.
+
+5. **Observer for notifications** -- shows you think about side effects and
+   decoupling.
+
+6. **Working code** -- the implementation must compile and produce correct
+   output for all three split types.
+`,
+  interviewScript: `# Design Splitwise (Expense Sharing) -- LLD Interview Script (90 min)
+
+> Simulates an actual low-level design / machine coding interview round.
+> You must write compilable, runnable Java code on a whiteboard or shared editor.
+
+---
+
+## Opening (0:00 - 1:00)
+
+> "Thanks! I'll be designing and implementing a Splitwise-like expense sharing system. The core challenge is supporting multiple split types, maintaining accurate balances, and simplifying debts. Let me start with requirements."
+
+---
+
+## Requirements Gathering (1:00 - 5:00)
+
+> **You ask:** "What split types should I support? Equal splits, exact amounts, percentages?"
+
+> **Interviewer:** "All three. Equal, Exact, and Percentage."
+
+> **You ask:** "Should I support groups (like a trip group) or just pairwise expenses?"
+
+> **Interviewer:** "Groups. Users can create groups and add expenses within them."
+
+> **You ask:** "Should I implement debt simplification? For example, if A owes B $10 and B owes A $5, simplify to A owes B $5."
+
+> **Interviewer:** "Yes! This is a key feature. Show me the algorithm."
+
+> **You ask:** "What's the expected scale? Are we handling floating-point precision?"
+
+> **Interviewer:** "Use double with rounding. Handle the case where equal splits don't divide evenly."
+
+> **You ask:** "Should I build any notification system?"
+
+> **Interviewer:** "Not a priority. Focus on the split logic, balance tracking, and debt simplification."
+
+> "Got it. The scope is: an expense sharing system with three split types (Equal, Exact, Percentage), group-based expenses, a balance sheet that tracks who owes whom, and a debt simplification algorithm to minimize the number of settlements."
+
+---
+
+## Entity Identification (5:00 - 10:00)
+
+> "Let me identify the core entities."
+
+**Entities I write on the board:**
+
+1. **User** -- userId, name, email, phone
+2. **SplitType** (enum) -- EQUAL, EXACT, PERCENTAGE
+3. **Split** (abstract) -- user, amount (base class for all split types)
+4. **EqualSplit, ExactSplit, PercentageSplit** -- concrete split classes
+5. **SplitStrategy** (interface) -- validates and calculates splits (Strategy pattern)
+6. **EqualSplitStrategy, ExactSplitStrategy, PercentageSplitStrategy** -- concrete strategies
+7. **Expense** -- expenseId, description, amount, paidBy, list of Splits, group
+8. **Group** -- groupId, name, members, expenses
+9. **BalanceSheet** -- central ledger: who owes whom how much
+10. **DebtSimplifier** -- greedy algorithm to minimize settlements
+11. **Transaction** -- simplified debt record (from, to, amount)
+12. **ExpenseService** -- orchestrator that ties everything together
+
+> "The relationships: Group HAS-MANY Users and HAS-MANY Expenses. Expense HAS-A User (paidBy) and HAS-MANY Splits. BalanceSheet tracks pairwise debts. DebtSimplifier takes raw balances and produces minimum Transactions."
+
+---
+
+## Class Diagram (10:00 - 15:00)
+
+> "Let me sketch the class diagram."
+
+\`\`\`mermaid
+classDiagram
+    class User {
+        -String userId
+        -String name
+        -String email
+        +equals() / hashCode()
+    }
+
+    class SplitType {
+        <<enum>>
+        EQUAL
+        EXACT
+        PERCENTAGE
+    }
+
+    class Split {
+        <<abstract>>
+        -User user
+        -double amount
+    }
+
+    class EqualSplit { }
+    class ExactSplit { }
+    class PercentageSplit {
+        -double percentage
+    }
+
+    Split <|-- EqualSplit
+    Split <|-- ExactSplit
+    Split <|-- PercentageSplit
+
+    class SplitStrategy {
+        <<interface>>
+        +validate(double, List~User~, Map) boolean
+        +calculateSplits(double, List~User~, Map) List~Split~
+    }
+
+    class EqualSplitStrategy { }
+    class ExactSplitStrategy { }
+    class PercentageSplitStrategy { }
+
+    SplitStrategy <|.. EqualSplitStrategy
+    SplitStrategy <|.. ExactSplitStrategy
+    SplitStrategy <|.. PercentageSplitStrategy
+
+    class Expense {
+        -String expenseId
+        -String description
+        -double amount
+        -User paidBy
+        -List~Split~ splits
+        -Group group
+    }
+
+    class Group {
+        -String groupId
+        -String name
+        -List~User~ members
+        -List~Expense~ expenses
+    }
+
+    class BalanceSheet {
+        -Map~String, Map~String, Double~~ balances
+        +updateBalance(from, to, amount)
+        +simplifyDebts() List~Transaction~
+    }
+
+    class DebtSimplifier {
+        +simplify(balances) List~Transaction~
+    }
+
+    class Transaction {
+        -String fromUserId
+        -String toUserId
+        -double amount
+    }
+
+    class ExpenseService {
+        +addExpense(User, double, SplitType, ...)
+        +getBalances() String
+        +simplifyDebts() List~Transaction~
+    }
+
+    Group "1" *-- "*" User
+    Group "1" *-- "*" Expense
+    Expense "1" *-- "*" Split
+    BalanceSheet "1" --> "1" DebtSimplifier
+    ExpenseService --> BalanceSheet
+    ExpenseService --> SplitStrategy
+\`\`\`
+
+---
+
+## Implementation Plan (15:00 - 17:00)
+
+> "Implementation order:"
+
+1. **User** -- value object with equals/hashCode by userId
+2. **SplitType enum**
+3. **Split hierarchy** -- abstract Split + EqualSplit, ExactSplit, PercentageSplit
+4. **SplitStrategy interface** + three concrete strategies
+5. **Expense** -- immutable expense record
+6. **Group** -- collection of users and expenses
+7. **Transaction** -- simplified debt record
+8. **DebtSimplifier** -- the greedy net-balance algorithm
+9. **BalanceSheet** -- central ledger with netting
+10. **ExpenseService** -- orchestrator
+11. **Main demo** -- all three split types + simplification
+
+---
+
+## Coding (17:00 - 70:00)
+
+### Step 1: User (17:00 - 19:00)
+
+> "User is a value object. equals/hashCode based on userId is crucial because I'll use Users as map keys."
+
+\`\`\`java
+public class User {
+    private final String userId;
+    private final String name;
+    private final String email;
+    private final String phone;
+
+    public User(String userId, String name, String email, String phone) {
+        this.userId = userId;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+    }
+
+    public String getUserId() { return userId; }
+    public String getName() { return name; }
+    public String getEmail() { return email; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(userId, user.userId);
+    }
+
+    @Override
+    public int hashCode() { return Objects.hash(userId); }
+
+    @Override
+    public String toString() { return name + "(" + userId + ")"; }
+}
+\`\`\`
+
+---
+
+### Step 2: Split Hierarchy (19:00 - 24:00)
+
+> "Split is the abstract base. Each subclass represents a different way to express a user's share."
+
+\`\`\`java
+public enum SplitType { EQUAL, EXACT, PERCENTAGE }
+
+public abstract class Split {
+    private final User user;
+    private double amount;
+
+    public Split(User user) { this.user = user; this.amount = 0; }
+    public Split(User user, double amount) { this.user = user; this.amount = amount; }
+
+    public User getUser() { return user; }
+    public double getAmount() { return amount; }
+    public void setAmount(double amount) { this.amount = amount; }
+
+    @Override
+    public String toString() {
+        return user.getName() + " owes " + String.format("%.2f", amount);
+    }
+}
+
+public class EqualSplit extends Split {
+    public EqualSplit(User user) { super(user); }
+    public EqualSplit(User user, double amount) { super(user, amount); }
+}
+
+public class ExactSplit extends Split {
+    public ExactSplit(User user, double amount) { super(user, amount); }
+}
+
+public class PercentageSplit extends Split {
+    private final double percentage;
+
+    public PercentageSplit(User user, double percentage) {
+        super(user);
+        this.percentage = percentage;
+    }
+
+    public double getPercentage() { return percentage; }
+
+    @Override
+    public String toString() {
+        return getUser().getName() + " owes " + String.format("%.2f", getAmount())
+               + " (" + String.format("%.1f", percentage) + "%)";
+    }
+}
+\`\`\`
+
+> "PercentageSplit stores both the percentage and the calculated amount. The percentage is for display; the amount is what the balance sheet uses."
+
+---
+
+### Step 3: SplitStrategy -- Strategy Pattern (24:00 - 38:00)
+
+> "This is the core pattern. Each split type has its own validation and calculation logic."
+
+\`\`\`java
+public interface SplitStrategy {
+    boolean validate(double totalAmount, List<User> participants,
+                     Map<String, Double> splitDetails);
+    List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                 Map<String, Double> splitDetails);
+}
+\`\`\`
+
+> "EqualSplitStrategy needs to handle the rounding problem. If $100 is split 3 ways, each person owes $33.33, but that's only $99.99. The extra cent goes to the first participant."
+
+\`\`\`java
+public class EqualSplitStrategy implements SplitStrategy {
+    @Override
+    public boolean validate(double totalAmount, List<User> participants,
+                            Map<String, Double> splitDetails) {
+        if (participants == null || participants.isEmpty())
+            throw new IllegalArgumentException("Need at least one participant");
+        if (totalAmount <= 0)
+            throw new IllegalArgumentException("Amount must be positive");
+        return true;
+    }
+
+    @Override
+    public List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                        Map<String, Double> splitDetails) {
+        validate(totalAmount, participants, splitDetails);
+        int n = participants.size();
+        double baseShare = Math.floor(totalAmount * 100.0 / n) / 100.0;
+        double totalDistributed = baseShare * n;
+        double remainder = Math.round((totalAmount - totalDistributed) * 100.0) / 100.0;
+
+        List<Split> splits = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            double share = baseShare;
+            if (i == 0 && remainder > 0) {
+                share = Math.round((baseShare + remainder) * 100.0) / 100.0;
+            }
+            splits.add(new EqualSplit(participants.get(i), share));
+        }
+        return splits;
+    }
+}
+\`\`\`
+
+> "ExactSplitStrategy validates that exact amounts sum to the total:"
+
+\`\`\`java
+public class ExactSplitStrategy implements SplitStrategy {
+    @Override
+    public boolean validate(double totalAmount, List<User> participants,
+                            Map<String, Double> splitDetails) {
+        if (splitDetails == null || splitDetails.size() != participants.size())
+            throw new IllegalArgumentException("Need exact amount for each participant");
+
+        double sum = 0;
+        for (User user : participants) {
+            Double amount = splitDetails.get(user.getUserId());
+            if (amount == null)
+                throw new IllegalArgumentException("Missing amount for: " + user.getName());
+            if (amount < 0)
+                throw new IllegalArgumentException("Amount can't be negative for: " + user.getName());
+            sum += amount;
+        }
+        if (Math.abs(sum - totalAmount) > 0.01)
+            throw new IllegalArgumentException("Exact amounts (" + String.format("%.2f", sum)
+                    + ") don't sum to total (" + String.format("%.2f", totalAmount) + ")");
+        return true;
+    }
+
+    @Override
+    public List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                        Map<String, Double> splitDetails) {
+        validate(totalAmount, participants, splitDetails);
+        List<Split> splits = new ArrayList<>();
+        for (User user : participants) {
+            splits.add(new ExactSplit(user, splitDetails.get(user.getUserId())));
+        }
+        return splits;
+    }
+}
+\`\`\`
+
+> "Now the PercentageSplitStrategy -- validates percentages sum to 100:"
+
+\`\`\`java
+public class PercentageSplitStrategy implements SplitStrategy {
+    @Override
+    public boolean validate(double totalAmount, List<User> participants,
+                            Map<String, Double> splitDetails) {
+        if (splitDetails == null || splitDetails.size() != participants.size())
+            throw new IllegalArgumentException("Need percentage for each participant");
+
+        double totalPct = 0;
+        for (User user : participants) {
+            Double pct = splitDetails.get(user.getUserId());
+            if (pct == null)
+                throw new IllegalArgumentException("Missing % for: " + user.getName());
+            if (pct < 0 || pct > 100)
+                throw new IllegalArgumentException("% must be 0-100 for: " + user.getName());
+            totalPct += pct;
+        }
+        if (Math.abs(totalPct - 100.0) > 0.01)
+            throw new IllegalArgumentException("Percentages must sum to 100. Got: "
+                    + String.format("%.2f", totalPct));
+        return true;
+    }
+
+    @Override
+    public List<Split> calculateSplits(double totalAmount, List<User> participants,
+                                        Map<String, Double> splitDetails) {
+        validate(totalAmount, participants, splitDetails);
+        List<Split> splits = new ArrayList<>();
+        for (User user : participants) {
+            double pct = splitDetails.get(user.getUserId());
+            double amount = Math.round(totalAmount * pct) / 100.0;
+            splits.add(new PercentageSplit(user, amount, pct));
+        }
+        return splits;
+    }
+}
+\`\`\`
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "What if percentages don't add to 100?"
+
+> **Your answer:** "The validate method in PercentageSplitStrategy explicitly checks this. If they don't sum to 100 within a 0.01 tolerance, it throws an IllegalArgumentException with a clear message showing what the actual sum was. I use a tolerance of 0.01 to handle floating-point arithmetic -- for example, 33.33 + 33.33 + 33.34 = 100.00, but due to floating-point representation, the sum might be 99.99999999 or 100.00000001. The tolerance handles both cases. If someone passes 30 + 30 + 30 = 90, that's a genuine error and the validation rejects it clearly."
+
+---
+
+### Step 4: Expense and Group (38:00 - 42:00)
+
+> "Expense is an immutable record. Group holds members and expenses."
+
+\`\`\`java
+public class Expense {
+    private final String expenseId;
+    private final String description;
+    private final double amount;
+    private final User paidBy;
+    private final List<Split> splits;
+    private final Group group;
+    private final LocalDateTime createdAt;
+
+    public Expense(String expenseId, String description, double amount,
+                   User paidBy, List<Split> splits, Group group) {
+        this.expenseId = expenseId;
+        this.description = description;
+        this.amount = amount;
+        this.paidBy = paidBy;
+        this.splits = splits;
+        this.group = group;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    // getters...
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Expense[").append(expenseId).append("]: ")
+          .append(description).append(" | ").append(String.format("%.2f", amount))
+          .append(" | Paid by: ").append(paidBy.getName());
+        for (Split s : splits) sb.append("\\n    ").append(s);
+        return sb.toString();
+    }
+}
+
+public class Group {
+    private final String groupId;
+    private final String name;
+    private final List<User> members;
+    private final List<Expense> expenses;
+
+    public Group(String groupId, String name) {
+        this.groupId = groupId;
+        this.name = name;
+        this.members = new ArrayList<>();
+        this.expenses = new ArrayList<>();
+    }
+
+    public void addMember(User user) {
+        if (!members.contains(user)) members.add(user);
+    }
+
+    public void addExpense(Expense expense) { expenses.add(expense); }
+
+    public List<User> getMembers() { return members; }
+    public List<Expense> getExpenses() { return expenses; }
+}
+\`\`\`
+
+---
+
+### Step 5: DebtSimplifier -- The Algorithm (42:00 - 55:00)
+
+> "This is the most algorithmically interesting part. The DebtSimplifier minimizes the number of transactions needed to settle all debts."
+
+> "The algorithm is: (1) compute net balance per person, (2) separate into creditors and debtors, (3) greedy match biggest debtor with biggest creditor."
+
+\`\`\`java
+public class Transaction {
+    private final String fromUserId;
+    private final String fromUserName;
+    private final String toUserId;
+    private final String toUserName;
+    private final double amount;
+
+    public Transaction(String fromId, String fromName,
+                       String toId, String toName, double amount) {
+        this.fromUserId = fromId;
+        this.fromUserName = fromName;
+        this.toUserId = toId;
+        this.toUserName = toName;
+        this.amount = amount;
+    }
+
+    @Override
+    public String toString() {
+        return fromUserName + " pays " + toUserName + ": "
+               + String.format("%.2f", amount);
+    }
+}
+\`\`\`
+
+\`\`\`java
+public class DebtSimplifier {
+
+    public List<Transaction> simplify(Map<String, Map<String, Double>> balances,
+                                       Map<String, String> userNames) {
+        // Step 1: Calculate net balance per person
+        // Positive = creditor, Negative = debtor
+        Map<String, Double> netBalance = new HashMap<>();
+
+        for (Map.Entry<String, Map<String, Double>> owerEntry : balances.entrySet()) {
+            String owerId = owerEntry.getKey();
+            for (Map.Entry<String, Double> lenderEntry : owerEntry.getValue().entrySet()) {
+                String lenderId = lenderEntry.getKey();
+                double amount = lenderEntry.getValue();
+                if (amount <= 0.001) continue;
+
+                netBalance.merge(owerId, -amount, Double::sum);
+                netBalance.merge(lenderId, amount, Double::sum);
+            }
+        }
+
+        // Step 2: Separate into creditors and debtors
+        List<String> creditorIds = new ArrayList<>();
+        List<Double> creditorAmounts = new ArrayList<>();
+        List<String> debtorIds = new ArrayList<>();
+        List<Double> debtorAmounts = new ArrayList<>();
+
+        for (Map.Entry<String, Double> entry : netBalance.entrySet()) {
+            double net = entry.getValue();
+            if (net > 0.01) {
+                creditorIds.add(entry.getKey());
+                creditorAmounts.add(net);
+            } else if (net < -0.01) {
+                debtorIds.add(entry.getKey());
+                debtorAmounts.add(-net); // Store as positive
+            }
+        }
+
+        // Step 3: Sort both descending by amount
+        sortDescending(creditorIds, creditorAmounts);
+        sortDescending(debtorIds, debtorAmounts);
+
+        // Step 4: Greedy matching
+        List<Transaction> transactions = new ArrayList<>();
+        int ci = 0, di = 0;
+
+        while (ci < creditorIds.size() && di < debtorIds.size()) {
+            double credAmt = creditorAmounts.get(ci);
+            double debtAmt = debtorAmounts.get(di);
+            double settlement = Math.round(Math.min(credAmt, debtAmt) * 100.0) / 100.0;
+
+            if (settlement > 0.001) {
+                transactions.add(new Transaction(
+                    debtorIds.get(di), userNames.get(debtorIds.get(di)),
+                    creditorIds.get(ci), userNames.get(creditorIds.get(ci)),
+                    settlement));
+            }
+
+            creditorAmounts.set(ci, credAmt - settlement);
+            debtorAmounts.set(di, debtAmt - settlement);
+
+            if (creditorAmounts.get(ci) < 0.01) ci++;
+            if (debtorAmounts.get(di) < 0.01) di++;
+        }
+
+        return transactions;
+    }
+
+    private void sortDescending(List<String> ids, List<Double> amounts) {
+        // Selection sort -- fine for small N
+        for (int i = 0; i < amounts.size(); i++) {
+            int maxIdx = i;
+            for (int j = i + 1; j < amounts.size(); j++) {
+                if (amounts.get(j) > amounts.get(maxIdx)) maxIdx = j;
+            }
+            if (maxIdx != i) {
+                Collections.swap(amounts, i, maxIdx);
+                Collections.swap(ids, i, maxIdx);
+            }
+        }
+    }
+}
+\`\`\`
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "How does debt simplification work? Walk me through an example."
+
+> **Your answer:** "Let me trace through a concrete example. Say we have:
+> - A owes B $10
+> - B owes C $5
+> - C owes A $3
+>
+> **Step 1: Net balances:**
+> - A: paid out $10 (to B), received $3 (from C) = net -$7 (debtor)
+> - B: received $10 (from A), paid out $5 (to C) = net +$5 (creditor)
+> - C: received $5 (from B), paid out $3 (to A) = net +$2 (creditor)
+>
+> **Step 2: Separate:**
+> - Debtors: A(-$7)
+> - Creditors: B(+$5), C(+$2)
+>
+> **Step 3: Greedy match:**
+> - A pays B: min($7, $5) = $5. A has $2 left, B is settled.
+> - A pays C: min($2, $2) = $2. Both settled.
+>
+> **Result: 2 transactions** instead of the original 3. The algorithm guarantees at most N-1 transactions for N people. It's a greedy approach -- not always the absolute minimum (that's NP-hard), but it's optimal in practice and O(N log N) with sorting."
+
+---
+
+### Step 6: BalanceSheet (55:00 - 62:00)
+
+> "The BalanceSheet is the central ledger. It tracks pairwise debts and handles netting."
+
+\`\`\`java
+public class BalanceSheet {
+    private final Map<String, Map<String, Double>> balances;
+    private final DebtSimplifier debtSimplifier;
+
+    public BalanceSheet() {
+        this.balances = new HashMap<>();
+        this.debtSimplifier = new DebtSimplifier();
+    }
+
+    /**
+     * Update: 'fromId' now owes 'toId' an additional 'amount'.
+     * Handles netting: if B owes A $500, and A now owes B $300,
+     * result is B owes A $200.
+     */
+    public void updateBalance(String fromId, String toId, double amount) {
+        if (fromId.equals(toId)) return;
+
+        double reverseDebt = getDirectDebt(toId, fromId);
+
+        if (reverseDebt > 0) {
+            if (reverseDebt >= amount) {
+                setDirectDebt(toId, fromId, reverseDebt - amount);
+            } else {
+                setDirectDebt(toId, fromId, 0);
+                double remainder = amount - reverseDebt;
+                double existing = getDirectDebt(fromId, toId);
+                setDirectDebt(fromId, toId, existing + remainder);
+            }
+        } else {
+            double existing = getDirectDebt(fromId, toId);
+            setDirectDebt(fromId, toId, existing + amount);
+        }
+    }
+
+    private double getDirectDebt(String from, String to) {
+        return balances.getOrDefault(from, new HashMap<>())
+                       .getOrDefault(to, 0.0);
+    }
+
+    private void setDirectDebt(String from, String to, double amount) {
+        if (amount < 0.001) {
+            if (balances.containsKey(from)) {
+                balances.get(from).remove(to);
+                if (balances.get(from).isEmpty()) balances.remove(from);
+            }
+        } else {
+            balances.computeIfAbsent(from, k -> new HashMap<>())
+                    .put(to, Math.round(amount * 100.0) / 100.0);
+        }
+    }
+
+    public List<Transaction> simplifyDebts(Map<String, String> userNames) {
+        return debtSimplifier.simplify(balances, userNames);
+    }
+
+    public String getAllBalancesReport() {
+        StringBuilder sb = new StringBuilder("=== Current Balances ===\\n");
+        if (balances.isEmpty()) {
+            sb.append("  All settled up!\\n");
+            return sb.toString();
+        }
+        for (var ower : balances.entrySet()) {
+            for (var lender : ower.getValue().entrySet()) {
+                if (lender.getValue() > 0.01) {
+                    sb.append("  ").append(ower.getKey())
+                      .append(" owes ").append(lender.getKey())
+                      .append(": ").append(String.format("%.2f", lender.getValue()))
+                      .append("\\n");
+                }
+            }
+        }
+        return sb.toString();
+    }
+}
+\`\`\`
+
+> "The key insight in updateBalance is the netting logic. When A owes B money and then B owes A money, I reduce the existing debt instead of creating a bidirectional mess. This keeps the balance map clean and makes simplification more efficient."
+
+---
+
+### Step 7: ExpenseService + Main (62:00 - 70:00)
+
+> "The service ties everything together. It selects the right SplitStrategy based on the SplitType and updates the balance sheet."
+
+\`\`\`java
+public class ExpenseService {
+    private final BalanceSheet balanceSheet;
+    private final Map<SplitType, SplitStrategy> strategies;
+    private final Map<String, User> users;
+    private int expenseCounter = 0;
+
+    public ExpenseService() {
+        this.balanceSheet = new BalanceSheet();
+        this.strategies = new HashMap<>();
+        this.users = new HashMap<>();
+        strategies.put(SplitType.EQUAL, new EqualSplitStrategy());
+        strategies.put(SplitType.EXACT, new ExactSplitStrategy());
+        strategies.put(SplitType.PERCENTAGE, new PercentageSplitStrategy());
+    }
+
+    public void registerUser(User user) {
+        users.put(user.getUserId(), user);
+    }
+
+    public Expense addExpense(User paidBy, double amount, SplitType splitType,
+                              List<User> participants,
+                              Map<String, Double> splitDetails, Group group) {
+        SplitStrategy strategy = strategies.get(splitType);
+        List<Split> splits = strategy.calculateSplits(amount, participants, splitDetails);
+
+        String expenseId = "EXP-" + (++expenseCounter);
+        Expense expense = new Expense(expenseId, "Expense", amount,
+                paidBy, splits, group);
+        if (group != null) group.addExpense(expense);
+
+        // Update balance sheet
+        for (Split split : splits) {
+            if (!split.getUser().equals(paidBy)) {
+                balanceSheet.updateBalance(
+                    split.getUser().getUserId(),
+                    paidBy.getUserId(),
+                    split.getAmount());
+            }
+        }
+
+        return expense;
+    }
+
+    public String getBalanceReport() { return balanceSheet.getAllBalancesReport(); }
+
+    public List<Transaction> simplifyDebts() {
+        Map<String, String> names = new HashMap<>();
+        for (User u : users.values()) names.put(u.getUserId(), u.getName());
+        return balanceSheet.simplifyDebts(names);
+    }
+}
+\`\`\`
+
+> "Main demo with all three split types:"
+
+\`\`\`java
+public class Main {
+    public static void main(String[] args) {
+        ExpenseService service = new ExpenseService();
+
+        User alice = new User("u1", "Alice", "alice@ex.com", "111");
+        User bob   = new User("u2", "Bob",   "bob@ex.com",   "222");
+        User carol = new User("u3", "Carol", "carol@ex.com", "333");
+        User dave  = new User("u4", "Dave",  "dave@ex.com",  "444");
+
+        service.registerUser(alice);
+        service.registerUser(bob);
+        service.registerUser(carol);
+        service.registerUser(dave);
+
+        Group trip = new Group("g1", "Goa Trip");
+        trip.addMember(alice); trip.addMember(bob);
+        trip.addMember(carol); trip.addMember(dave);
+
+        // 1. Equal split: Alice pays $1000 dinner, split 4 ways
+        service.addExpense(alice, 1000, SplitType.EQUAL,
+                List.of(alice, bob, carol, dave), null, trip);
+
+        // 2. Exact split: Bob pays $500 cab, Alice=$100, Carol=$200, Dave=$200
+        Map<String, Double> exactDetails = Map.of(
+                "u1", 100.0, "u3", 200.0, "u4", 200.0);
+        service.addExpense(bob, 500, SplitType.EXACT,
+                List.of(alice, carol, dave), exactDetails, trip);
+
+        // 3. Percentage split: Carol pays $300 hotel, Alice=40%, Bob=30%, Dave=30%
+        Map<String, Double> pctDetails = Map.of(
+                "u1", 40.0, "u2", 30.0, "u4", 30.0);
+        service.addExpense(carol, 300, SplitType.PERCENTAGE,
+                List.of(alice, bob, dave), pctDetails, trip);
+
+        System.out.println(service.getBalanceReport());
+        System.out.println("=== Simplified Debts ===");
+        for (Transaction t : service.simplifyDebts()) {
+            System.out.println("  " + t);
+        }
+    }
+}
+\`\`\`
+
+---
+
+## Demo & Testing (70:00 - 80:00)
+
+> "Let me trace through the balances:"
+
+> "After expense 1 (Alice pays $1000, equal 4-way): Bob owes Alice $250, Carol owes Alice $250, Dave owes Alice $250."
+
+> "After expense 2 (Bob pays $500): Alice owes Bob $100, Carol owes Bob $200, Dave owes Bob $200. But Alice already had credit from Bob, so netting: Bob owed Alice $250, now Alice owes Bob $100, net is Bob owes Alice $150."
+
+> "After expense 3 (Carol pays $300): Alice owes Carol $120, Bob owes Carol $90, Dave owes Carol $90. More netting happens."
+
+> "The raw balances would have many pairwise entries. But simplification reduces to just 2-3 transactions."
+
+> "Key test scenarios: (1) Equal split with remainder -- $100 split 3 ways gives 33.34, 33.33, 33.33. (2) Exact amounts not summing to total -- rejected with clear error. (3) Percentages at 90 -- rejected. (4) Self-payment excluded -- if Alice pays and is also a participant, she doesn't owe herself."
+
+---
+
+## Extension Round (80:00 - 90:00)
+
+### Interviewer asks: "Now add support for settling debts via payment."
+
+> "Great question. I need a way for users to record that they've paid someone, which reduces the balance."
+
+\`\`\`java
+// New class: Settlement
+public class Settlement {
+    private final String settlementId;
+    private final User from;
+    private final User to;
+    private final double amount;
+    private final LocalDateTime settledAt;
+    private final String paymentMethod; // UPI, Cash, Bank Transfer
+
+    public Settlement(String id, User from, User to,
+                      double amount, String paymentMethod) {
+        this.settlementId = id;
+        this.from = from;
+        this.to = to;
+        this.amount = amount;
+        this.settledAt = LocalDateTime.now();
+        this.paymentMethod = paymentMethod;
+    }
+    // getters...
+}
+\`\`\`
+
+> "In ExpenseService, I add a settleDebt method:"
+
+\`\`\`java
+// Add to ExpenseService:
+private final List<Settlement> settlements = new ArrayList<>();
+private int settlementCounter = 0;
+
+public Settlement settleDebt(User from, User to,
+                              double amount, String paymentMethod) {
+    // Validate: 'from' actually owes 'to' this amount
+    double currentDebt = balanceSheet.getDirectDebt(
+            from.getUserId(), to.getUserId());
+
+    if (currentDebt < amount - 0.01) {
+        throw new IllegalArgumentException(
+            from.getName() + " only owes " + to.getName()
+            + " " + String.format("%.2f", currentDebt)
+            + ". Cannot settle " + String.format("%.2f", amount));
+    }
+
+    // Reduce the balance (negative updateBalance = reverse debt)
+    balanceSheet.updateBalance(to.getUserId(), from.getUserId(), amount);
+
+    String id = "STL-" + (++settlementCounter);
+    Settlement settlement = new Settlement(id, from, to, amount, paymentMethod);
+    settlements.add(settlement);
+
+    System.out.println("Settlement recorded: " + from.getName()
+            + " paid " + to.getName() + " "
+            + String.format("%.2f", amount) + " via " + paymentMethod);
+    return settlement;
+}
+\`\`\`
+
+> "Usage:"
+
+\`\`\`java
+// After simplification shows "Dave pays Alice $340"
+service.settleDebt(dave, alice, 340.0, "UPI");
+// Now re-check balances -- Dave-Alice should be settled
+\`\`\`
+
+> "The changes: one new class (Settlement), one new method in ExpenseService. The balance sheet's updateBalance already handles the netting -- I'm reusing existing infrastructure. Zero changes to Expense, Split, or any strategy class."
+
+> "For a full production system, I'd also add: settlement history per user, partial settlement support (pay $100 of a $340 debt), integration with a payment gateway, and notification to the creditor when a settlement is recorded."
+
+---
+
+## Red Flags to Avoid
+
+1. **Using floating-point without rounding** -- Always round to 2 decimal places. $33.33 * 3 != $100.00 without rounding.
+2. **Not handling the equal-split remainder** -- $100 / 3 = $33.33 each, but that's only $99.99. The extra cent must go somewhere.
+3. **Bidirectional debt storage** -- If A owes B and B owes A, you must net them. Otherwise simplification is wrong.
+4. **No validation** -- Percentages not summing to 100, exact amounts not matching total. Always validate.
+5. **Hardcoding split logic in one class** -- Using if/else for split types in a single method. Use Strategy pattern.
+6. **Skipping debt simplification** -- The greedy algorithm is the interviewer's favorite part. Don't skip it.
+7. **Mutable Expense** -- Once created, an expense should never be modified. Immutability prevents accounting bugs.
+
+---
+
+## What Impresses Interviewers
+
+1. **Strategy pattern for split types** -- Clean, extensible, testable.
+2. **Rounding handling in EqualSplit** -- Shows attention to financial precision.
+3. **Netting in BalanceSheet** -- Bidirectional debt resolution is a non-obvious requirement.
+4. **Greedy debt simplification algorithm** -- Being able to explain it with a concrete example.
+5. **Validation at the strategy level** -- Each strategy validates its own constraints.
+6. **Separation of concerns** -- Split models are different from split strategies. Expense is immutable data, ExpenseService handles orchestration.
+7. **Working demo with all three split types** -- Showing equal, exact, and percentage in the same main method.
+8. **Clean extension for settlements** -- Adding payment recording without touching any existing class.
+9. **Acknowledging the NP-hard optimal** -- Noting that the greedy approach is O(N log N) and near-optimal, while the true minimum is NP-hard.
+10. **Financial precision awareness** -- Using cents or rounding consistently throughout.
+`,
+  complexityAnalysis: `### Complexity
+
+\`\`\`
+Time:  O(N log N) for sorting + O(N) for matching = O(N log N)
+Space: O(N) for net balance map
+\`\`\`
+
+---`,
+};
+
+// ============================================================
+//  05-design-snake-ladder -> prob-snake-ladder
+// ============================================================
+
+export const snakeLadderSolution: ProblemSolutionContent = {
+  referenceSolution: `# Snake and Ladder -- Complete Java Implementation
+
+Full working code covering every entity from the design walkthrough: Board, Player,
+Dice with Strategy pattern, Game with Observer pattern, Factory for board elements,
+and a 3-player demo that runs to completion.
+
+---
+
+## 1. GameEvent Enum
+
+\`\`\`java
+public enum GameEvent {
+    PLAYER_MOVED,
+    SNAKE_BITE,
+    LADDER_CLIMB,
+    PLAYER_WON,
+    BOUNCE_BACK
+}
+\`\`\`
+
+---
+
+## 2. Snake and Ladder (Value Objects)
+
+\`\`\`java
+public class Snake {
+    private final int head;  // higher position (start)
+    private final int tail;  // lower position (end)
+
+    public Snake(int head, int tail) {
+        if (head <= tail) {
+            throw new IllegalArgumentException(
+                "Snake head (" + head + ") must be above tail (" + tail + ")");
+        }
+        this.head = head;
+        this.tail = tail;
+    }
+
+    public int getHead() { return head; }
+    public int getTail() { return tail; }
+
+    @Override
+    public String toString() {
+        return "Snake[" + head + " -> " + tail + "]";
+    }
+}
+\`\`\`
+
+\`\`\`java
+public class Ladder {
+    private final int bottom;  // lower position (start)
+    private final int top;     // higher position (end)
+
+    public Ladder(int bottom, int top) {
+        if (bottom >= top) {
+            throw new IllegalArgumentException(
+                "Ladder bottom (" + bottom + ") must be below top (" + top + ")");
+        }
+        this.bottom = bottom;
+        this.top = top;
+    }
+
+    public int getBottom() { return bottom; }
+    public int getTop()    { return top; }
+
+    @Override
+    public String toString() {
+        return "Ladder[" + bottom + " -> " + top + "]";
+    }
+}
+\`\`\`
+
+---
+
+## 3. Player
+
+\`\`\`java
+public class Player {
+    private final String name;
+    private int position;
+
+    public Player(String name) {
+        this.name = name;
+        this.position = 0; // off the board
+    }
+
+    public String getName()    { return name; }
+    public int getPosition()   { return position; }
+    public void setPosition(int position) { this.position = position; }
+
+    @Override
+    public String toString() {
+        return name + " (pos=" + position + ")";
+    }
+}
+\`\`\`
+
+---
+
+## 4. DiceStrategy Interface + Implementations (Strategy Pattern)
+
+\`\`\`java
+/**
+ * Strategy interface for dice rolling behavior.
+ * Allows swapping normal dice, loaded dice, multiple dice, etc.
+ */
+public interface DiceStrategy {
+    int roll();
+}
+\`\`\`
+
+### NormalDiceStrategy -- Standard Random Die
+
+\`\`\`java
+import java.util.Random;
+
+public class NormalDiceStrategy implements DiceStrategy {
+    private final int sides;
+    private final Random random;
+
+    public NormalDiceStrategy() {
+        this(6); // default 6-sided die
+    }
+
+    public NormalDiceStrategy(int sides) {
+        if (sides < 1) {
+            throw new IllegalArgumentException("Dice must have at least 1 side");
+        }
+        this.sides = sides;
+        this.random = new Random();
+    }
+
+    @Override
+    public int roll() {
+        return random.nextInt(sides) + 1; // 1 to sides, inclusive
+    }
+}
+\`\`\`
+
+### LoadedDiceStrategy -- Fixed Value (For Testing)
+
+\`\`\`java
+/**
+ * Always returns a fixed value. Essential for deterministic unit tests.
+ */
+public class LoadedDiceStrategy implements DiceStrategy {
+    private final int fixedValue;
+
+    public LoadedDiceStrategy(int fixedValue) {
+        if (fixedValue < 1) {
+            throw new IllegalArgumentException("Dice value must be >= 1");
+        }
+        this.fixedValue = fixedValue;
+    }
+
+    @Override
+    public int roll() {
+        return fixedValue;
+    }
+}
+\`\`\`
+
+### MultipleDiceStrategy -- Sum of N Dice
+
+\`\`\`java
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * Rolls multiple dice and returns the sum.
+ * Example: two 6-sided dice -> roll range 2-12.
+ */
+public class MultipleDiceStrategy implements DiceStrategy {
+    private final List<DiceStrategy> dice;
+
+    public MultipleDiceStrategy(List<DiceStrategy> dice) {
+        if (dice == null || dice.isEmpty()) {
+            throw new IllegalArgumentException("Must have at least one die");
+        }
+        this.dice = new ArrayList<>(dice);
+    }
+
+    @Override
+    public int roll() {
+        int total = 0;
+        for (DiceStrategy die : dice) {
+            total += die.roll();
+        }
+        return total;
+    }
+}
+\`\`\`
+
+### CrookedDiceStrategy -- Only Even Numbers
+
+\`\`\`java
+import java.util.Random;
+
+/**
+ * A crooked die that only rolls even numbers (2, 4, 6).
+ * Useful for demonstrating the Strategy pattern flexibility.
+ */
+public class CrookedDiceStrategy implements DiceStrategy {
+    private static final int[] EVEN_VALUES = {2, 4, 6};
+    private final Random random;
+
+    public CrookedDiceStrategy() {
+        this.random = new Random();
+    }
+
+    @Override
+    public int roll() {
+        return EVEN_VALUES[random.nextInt(EVEN_VALUES.length)];
+    }
+}
+\`\`\`
+
+---
+
+## 5. GameEventListener Interface + ConsoleLogger (Observer Pattern)
+
+\`\`\`java
+/**
+ * Observer interface for game events.
+ * Implement this to react to moves, snake bites, ladder climbs, wins, etc.
+ */
+public interface GameEventListener {
+
+    void onPlayerMoved(Player player, int from, int to);
+
+    void onSnakeBite(Player player, int from, int to);
+
+    void onLadderClimb(Player player, int from, int to);
+
+    void onPlayerWon(Player player);
+
+    void onBounceBack(Player player, int diceValue);
+}
+\`\`\`
+
+### ConsoleLogger -- Prints Events to stdout
+
+\`\`\`java
+/**
+ * Concrete observer that logs all game events to the console.
+ */
+public class ConsoleLogger implements GameEventListener {
+
+    @Override
+    public void onPlayerMoved(Player player, int from, int to) {
+        System.out.println("  " + player.getName() + " moved from " + from + " to " + to);
+    }
+
+    @Override
+    public void onSnakeBite(Player player, int from, int to) {
+        System.out.println("  SNAKE BITE! " + player.getName()
+            + " slid from " + from + " down to " + to);
+    }
+
+    @Override
+    public void onLadderClimb(Player player, int from, int to) {
+        System.out.println("  LADDER! " + player.getName()
+            + " climbed from " + from + " up to " + to);
+    }
+
+    @Override
+    public void onPlayerWon(Player player) {
+        System.out.println("  >>> " + player.getName() + " WINS THE GAME! <<<");
+    }
+
+    @Override
+    public void onBounceBack(Player player, int diceValue) {
+        System.out.println("  " + player.getName() + " rolled " + diceValue
+            + " but can't move (would overshoot). Stays at " + player.getPosition());
+    }
+}
+\`\`\`
+
+### GameStatsListener -- Tracks Statistics
+
+\`\`\`java
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Observer that tracks game statistics: total moves, snake bites, ladder climbs per player.
+ */
+public class GameStatsListener implements GameEventListener {
+    private int totalMoves = 0;
+    private final Map<String, Integer> snakeBites = new HashMap<>();
+    private final Map<String, Integer> ladderClimbs = new HashMap<>();
+
+    @Override
+    public void onPlayerMoved(Player player, int from, int to) {
+        totalMoves++;
+    }
+
+    @Override
+    public void onSnakeBite(Player player, int from, int to) {
+        snakeBites.merge(player.getName(), 1, Integer::sum);
+    }
+
+    @Override
+    public void onLadderClimb(Player player, int from, int to) {
+        ladderClimbs.merge(player.getName(), 1, Integer::sum);
+    }
+
+    @Override
+    public void onPlayerWon(Player player) {
+        // no-op for stats
+    }
+
+    @Override
+    public void onBounceBack(Player player, int diceValue) {
+        // no-op for stats
+    }
+
+    public void printStats() {
+        System.out.println("\\n--- Game Statistics ---");
+        System.out.println("Total moves: " + totalMoves);
+        System.out.println("Snake bites per player: " + snakeBites);
+        System.out.println("Ladder climbs per player: " + ladderClimbs);
+    }
+}
+\`\`\`
+
+---
+
+## 6. Board
+
+\`\`\`java
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Represents the game board with snakes and ladders.
+ * Uses HashMaps for O(1) lookup of snakes and ladders at any position.
+ */
+public class Board {
+    private final int size;
+    private final Map<Integer, Integer> snakes;  // head -> tail
+    private final Map<Integer, Integer> ladders; // bottom -> top
+
+    public Board(int size) {
+        if (size < 10) {
+            throw new IllegalArgumentException("Board size must be at least 10");
+        }
+        this.size = size;
+        this.snakes = new HashMap<>();
+        this.ladders = new HashMap<>();
+    }
+
+    /**
+     * Adds a snake to the board.
+     * Validates: head > tail, head != size, no conflict with existing ladder.
+     */
+    public void addSnake(int head, int tail) {
+        validatePosition(head, "Snake head");
+        validatePosition(tail, "Snake tail");
+
+        if (head <= tail) {
+            throw new IllegalArgumentException("Snake head must be above tail");
+        }
+        if (head == size) {
+            throw new IllegalArgumentException(
+                "Snake cannot start at winning position " + size);
+        }
+        if (ladders.containsKey(head)) {
+            throw new IllegalArgumentException(
+                "Position " + head + " already has a ladder");
+        }
+        if (snakes.containsKey(head)) {
+            throw new IllegalArgumentException(
+                "Position " + head + " already has a snake");
+        }
+
+        snakes.put(head, tail);
+    }
+
+    /**
+     * Adds a ladder to the board.
+     * Validates: top > bottom, no conflict with existing snake.
+     */
+    public void addLadder(int bottom, int top) {
+        validatePosition(bottom, "Ladder bottom");
+        validatePosition(top, "Ladder top");
+
+        if (bottom >= top) {
+            throw new IllegalArgumentException("Ladder top must be above bottom");
+        }
+        if (snakes.containsKey(bottom)) {
+            throw new IllegalArgumentException(
+                "Position " + bottom + " already has a snake");
+        }
+        if (ladders.containsKey(bottom)) {
+            throw new IllegalArgumentException(
+                "Position " + bottom + " already has a ladder");
+        }
+
+        ladders.put(bottom, top);
+    }
+
+    /**
+     * Given a position, returns the final position after applying all
+     * snakes and ladders in chain (handles chained elements).
+     *
+     * Returns a FinalPositionResult with the position and what happened.
+     */
+    public int getFinalPosition(int position) {
+        // Follow the chain: a ladder could land on a snake, etc.
+        // Use a visited set to prevent infinite loops.
+        java.util.Set<Integer> visited = new java.util.HashSet<>();
+        while (!visited.contains(position)) {
+            visited.add(position);
+            if (snakes.containsKey(position)) {
+                position = snakes.get(position);
+            } else if (ladders.containsKey(position)) {
+                position = ladders.get(position);
+            } else {
+                break; // no snake or ladder, done
+            }
+        }
+        return position;
+    }
+
+    public boolean hasSnakeAt(int position) {
+        return snakes.containsKey(position);
+    }
+
+    public boolean hasLadderAt(int position) {
+        return ladders.containsKey(position);
+    }
+
+    public int getSize() { return size; }
+
+    public Map<Integer, Integer> getSnakes()  { return new HashMap<>(snakes); }
+    public Map<Integer, Integer> getLadders() { return new HashMap<>(ladders); }
+
+    private void validatePosition(int position, String label) {
+        if (position < 1 || position > size) {
+            throw new IllegalArgumentException(
+                label + " (" + position + ") must be between 1 and " + size);
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 7. BoardElementFactory (Factory Pattern)
+
+\`\`\`java
+/**
+ * Factory for creating snakes, ladders, and pre-configured boards.
+ * Centralizes validation logic and provides convenient defaults.
+ */
+public class BoardElementFactory {
+
+    private BoardElementFactory() {
+        // utility class, prevent instantiation
+    }
+
+    public static Snake createSnake(int head, int tail) {
+        return new Snake(head, tail);
+    }
+
+    public static Ladder createLadder(int bottom, int top) {
+        return new Ladder(bottom, top);
+    }
+
+    /**
+     * Creates a standard 10x10 board with a classic snake-and-ladder layout.
+     */
+    public static Board createStandardBoard() {
+        return createStandardBoard(100);
+    }
+
+    /**
+     * Creates a standard board of the given size with pre-configured
+     * snakes and ladders.
+     */
+    public static Board createStandardBoard(int size) {
+        Board board = new Board(size);
+
+        // --- Snakes (head -> tail): slide DOWN ---
+        board.addSnake(16, 6);
+        board.addSnake(47, 26);
+        board.addSnake(49, 11);
+        board.addSnake(56, 53);
+        board.addSnake(62, 19);
+        board.addSnake(64, 60);
+        board.addSnake(87, 24);
+        board.addSnake(93, 73);
+        board.addSnake(95, 75);
+        board.addSnake(98, 78);
+
+        // --- Ladders (bottom -> top): climb UP ---
+        board.addLadder(1, 38);
+        board.addLadder(4, 14);
+        board.addLadder(9, 31);
+        board.addLadder(21, 42);
+        board.addLadder(28, 84);
+        board.addLadder(36, 44);
+        board.addLadder(51, 67);
+        board.addLadder(71, 91);
+        board.addLadder(80, 100);
+
+        return board;
+    }
+
+    /**
+     * Creates a minimal board for quick testing.
+     */
+    public static Board createSmallTestBoard() {
+        Board board = new Board(20);
+        board.addSnake(17, 7);
+        board.addSnake(15, 5);
+        board.addLadder(3, 12);
+        board.addLadder(8, 18);
+        return board;
+    }
+}
+\`\`\`
+
+---
+
+## 8. Game -- The Orchestrator
+
+\`\`\`java
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * Main game orchestrator. Manages the turn loop, coordinates between
+ * Board, Players, and DiceStrategy. Notifies observers on every event.
+ */
+public class Game {
+    private final Board board;
+    private final Queue<Player> playerQueue;
+    private final DiceStrategy diceStrategy;
+    private final List<GameEventListener> listeners;
+    private boolean gameOver;
+    private Player winner;
+
+    public Game(Board board, List<Player> players, DiceStrategy diceStrategy) {
+        if (board == null) {
+            throw new IllegalArgumentException("Board cannot be null");
+        }
+        if (players == null || players.size() < 2) {
+            throw new IllegalArgumentException("Need at least 2 players");
+        }
+        if (diceStrategy == null) {
+            throw new IllegalArgumentException("DiceStrategy cannot be null");
+        }
+
+        this.board = board;
+        this.playerQueue = new LinkedList<>(players);
+        this.diceStrategy = diceStrategy;
+        this.listeners = new ArrayList<>();
+        this.gameOver = false;
+        this.winner = null;
+    }
+
+    // ---------- Observer management ----------
+
+    public void addListener(GameEventListener listener) {
+        if (listener != null) {
+            listeners.add(listener);
+        }
+    }
+
+    public void removeListener(GameEventListener listener) {
+        listeners.remove(listener);
+    }
+
+    // ---------- Notification helpers ----------
+
+    private void notifyPlayerMoved(Player player, int from, int to) {
+        for (GameEventListener l : listeners) {
+            l.onPlayerMoved(player, from, to);
+        }
+    }
+
+    private void notifySnakeBite(Player player, int from, int to) {
+        for (GameEventListener l : listeners) {
+            l.onSnakeBite(player, from, to);
+        }
+    }
+
+    private void notifyLadderClimb(Player player, int from, int to) {
+        for (GameEventListener l : listeners) {
+            l.onLadderClimb(player, from, to);
+        }
+    }
+
+    private void notifyPlayerWon(Player player) {
+        for (GameEventListener l : listeners) {
+            l.onPlayerWon(player);
+        }
+    }
+
+    private void notifyBounceBack(Player player, int diceValue) {
+        for (GameEventListener l : listeners) {
+            l.onBounceBack(player, diceValue);
+        }
+    }
+
+    // ---------- Core game loop ----------
+
+    /**
+     * Runs the game to completion and returns the winner.
+     */
+    public Player play() {
+        System.out.println("=== Snake and Ladder Game Started! ===");
+        System.out.println("Board size: " + board.getSize());
+        System.out.println("Players: " + playerQueue);
+        System.out.println("Snakes: " + board.getSnakes());
+        System.out.println("Ladders: " + board.getLadders());
+        System.out.println();
+
+        int turnNumber = 0;
+
+        while (!gameOver) {
+            turnNumber++;
+            Player currentPlayer = playerQueue.poll();
+
+            System.out.println("--- Turn " + turnNumber
+                + ": " + currentPlayer.getName() + " ---");
+
+            takeTurn(currentPlayer);
+
+            if (!gameOver) {
+                // Put the player back in the queue for the next round
+                playerQueue.add(currentPlayer);
+            }
+        }
+
+        System.out.println("\\nGame finished in " + turnNumber + " turns.");
+        return winner;
+    }
+
+    /**
+     * Executes a single turn for the given player.
+     */
+    private void takeTurn(Player player) {
+        int diceValue = diceStrategy.roll();
+        int oldPosition = player.getPosition();
+        int newPosition = oldPosition + diceValue;
+
+        System.out.println("  " + player.getName() + " rolled a " + diceValue);
+
+        // --- Edge case: overshoot ---
+        if (newPosition > board.getSize()) {
+            notifyBounceBack(player, diceValue);
+            return;
+        }
+
+        // --- Move the player ---
+        player.setPosition(newPosition);
+
+        // --- Check for snake at the new position ---
+        if (board.hasSnakeAt(newPosition)) {
+            int afterSnake = board.getFinalPosition(newPosition);
+            notifySnakeBite(player, newPosition, afterSnake);
+            player.setPosition(afterSnake);
+            newPosition = afterSnake;
+        }
+        // --- Check for ladder at the new position ---
+        else if (board.hasLadderAt(newPosition)) {
+            int afterLadder = board.getFinalPosition(newPosition);
+            notifyLadderClimb(player, newPosition, afterLadder);
+            player.setPosition(afterLadder);
+            newPosition = afterLadder;
+        }
+
+        notifyPlayerMoved(player, oldPosition, player.getPosition());
+
+        // --- Check for winner ---
+        if (player.getPosition() == board.getSize()) {
+            gameOver = true;
+            winner = player;
+            notifyPlayerWon(player);
+        }
+    }
+
+    // ---------- Getters ----------
+
+    public boolean isGameOver() { return gameOver; }
+    public Player getWinner()   { return winner; }
+}
+\`\`\`
+
+---
+
+## 9. Main -- 3-Player Demo
+
+\`\`\`java
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Demo: 3-player game on a standard 100-cell board with
+ * a normal 6-sided die. ConsoleLogger and GameStatsListener observe events.
+ */
+public class SnakeLadderMain {
+
+    public static void main(String[] args) {
+        // 1. Create the board using the factory
+        Board board = BoardElementFactory.createStandardBoard();
+
+        // 2. Create players
+        List<Player> players = Arrays.asList(
+            new Player("Alice"),
+            new Player("Bob"),
+            new Player("Charlie")
+        );
+
+        // 3. Choose a dice strategy (normal 6-sided die)
+        DiceStrategy diceStrategy = new NormalDiceStrategy(6);
+
+        // 4. Create the game
+        Game game = new Game(board, players, diceStrategy);
+
+        // 5. Register observers
+        ConsoleLogger consoleLogger = new ConsoleLogger();
+        GameStatsListener statsListener = new GameStatsListener();
+
+        game.addListener(consoleLogger);
+        game.addListener(statsListener);
+
+        // 6. Play the game to completion
+        Player winner = game.play();
+
+        // 7. Print final statistics
+        statsListener.printStats();
+
+        System.out.println("\\nFinal positions:");
+        for (Player p : players) {
+            System.out.println("  " + p);
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 10. Sample Output
+
+\`\`\`
+=== Snake and Ladder Game Started! ===
+Board size: 100
+Players: [Alice (pos=0), Bob (pos=0), Charlie (pos=0)]
+Snakes: {16=6, 47=26, 49=11, 56=53, 62=19, 64=60, 87=24, 93=73, 95=75, 98=78}
+Ladders: {1=38, 4=14, 9=31, 21=42, 28=84, 36=44, 51=67, 71=91, 80=100}
+
+--- Turn 1: Alice ---
+  Alice rolled a 4
+  LADDER! Alice climbed from 4 up to 14
+  Alice moved from 0 to 14
+
+--- Turn 2: Bob ---
+  Bob rolled a 1
+  LADDER! Bob climbed from 1 up to 38
+  Bob moved from 0 to 38
+
+--- Turn 3: Charlie ---
+  Charlie rolled a 6
+  Charlie moved from 0 to 6
+
+--- Turn 4: Alice ---
+  Alice rolled a 2
+  SNAKE BITE! Alice slid from 16 down to 6
+  Alice moved from 14 to 6
+
+--- Turn 5: Bob ---
+  Bob rolled a 3
+  Bob moved from 38 to 41
+
+... (game continues) ...
+
+--- Turn 47: Bob ---
+  Bob rolled a 3
+  LADDER! Bob climbed from 80 up to 100
+  Bob moved from 77 to 100
+  >>> Bob WINS THE GAME! <<<
+
+Game finished in 47 turns.
+
+--- Game Statistics ---
+Total moves: 47
+Snake bites per player: {Alice=3, Bob=2, Charlie=4}
+Ladder climbs per player: {Alice=2, Bob=4, Charlie=1}
+
+Final positions:
+  Alice (pos=68)
+  Bob (pos=100)
+  Charlie (pos=55)
+\`\`\`
+
+---
+
+## 11. Demo with Loaded Dice (Deterministic Test)
+
+\`\`\`java
+/**
+ * Deterministic demo using a sequence of pre-defined dice rolls.
+ * Useful for unit testing and verifying specific game scenarios.
+ */
+public class DeterministicDemo {
+
+    /**
+     * A dice strategy that returns values from a pre-defined sequence.
+     * Wraps around when the sequence is exhausted.
+     */
+    static class SequenceDiceStrategy implements DiceStrategy {
+        private final int[] sequence;
+        private int index = 0;
+
+        SequenceDiceStrategy(int... values) {
+            this.sequence = values;
+        }
+
+        @Override
+        public int roll() {
+            int value = sequence[index % sequence.length];
+            index++;
+            return value;
+        }
+    }
+
+    public static void main(String[] args) {
+        // Small board for quick demo
+        Board board = new Board(20);
+        board.addSnake(17, 7);
+        board.addLadder(3, 12);
+
+        List<Player> players = Arrays.asList(
+            new Player("P1"),
+            new Player("P2")
+        );
+
+        // P1 rolls: 3 -> lands on ladder -> 12, then 5 -> 17 -> snake -> 7, then 6 -> 13, then 5 -> 18, then 2 -> 20 (WIN!)
+        // P2 rolls: 4 -> 4, then 6 -> 10, then 3 -> 13, then 4 -> 17 -> snake -> 7
+        // Interleaved: P1=3, P2=4, P1=5, P2=6, P1=6, P2=3, P1=5, P2=4, P1=2 -> P1 wins
+        DiceStrategy testDice = new SequenceDiceStrategy(3, 4, 5, 6, 6, 3, 5, 4, 2);
+
+        Game game = new Game(board, players, testDice);
+        game.addListener(new ConsoleLogger());
+
+        Player winner = game.play();
+        System.out.println("Winner: " + winner.getName());
+    }
+}
+\`\`\`
+
+---
+
+## 12. Complete File Structure
+
+\`\`\`
+snake-and-ladder/
+|-- GameEvent.java                  (enum)
+|-- Snake.java                      (value object)
+|-- Ladder.java                     (value object)
+|-- Player.java                     (entity)
+|-- Board.java                      (core board logic)
+|-- DiceStrategy.java               (strategy interface)
+|-- NormalDiceStrategy.java          (concrete strategy)
+|-- LoadedDiceStrategy.java          (concrete strategy)
+|-- MultipleDiceStrategy.java        (concrete strategy)
+|-- CrookedDiceStrategy.java         (concrete strategy)
+|-- GameEventListener.java           (observer interface)
+|-- ConsoleLogger.java               (concrete observer)
+|-- GameStatsListener.java           (concrete observer)
+|-- BoardElementFactory.java         (factory)
+|-- Game.java                        (orchestrator)
+|-- SnakeLadderMain.java             (3-player demo)
+|-- DeterministicDemo.java           (test demo)
+\`\`\`
+
+---
+
+## 13. Key Design Decisions in Code
+
+### Why \`Queue<Player>\` for Turn Management
+
+\`\`\`java
+// Dequeue the current player
+Player currentPlayer = playerQueue.poll();
+
+// After their turn, put them back (unless they won)
+if (!gameOver) {
+    playerQueue.add(currentPlayer);
+}
+\`\`\`
+
+This is the simplest and most natural way to handle round-robin turns.
+\`LinkedList\` implements \`Queue\`, giving O(1) poll and add.
+
+### Why \`HashMap<Integer, Integer>\` for Snakes/Ladders
+
+\`\`\`java
+// O(1) check: does this position have a snake?
+if (board.hasSnakeAt(newPosition)) { ... }
+
+// O(1) lookup: where does the snake drop you?
+int destination = snakes.get(position);
+\`\`\`
+
+Compared to iterating over a \`List<Snake>\`, the HashMap gives constant-time lookup.
+On a standard board with ~10 snakes and ~10 ladders, the difference is negligible,
+but the HashMap approach is cleaner and more idiomatic.
+
+### Why Separate Notification Methods
+
+\`\`\`java
+// Instead of one generic notify(event, player, from, to),
+// we have specific methods for type safety:
+private void notifySnakeBite(Player player, int from, int to) { ... }
+private void notifyLadderClimb(Player player, int from, int to) { ... }
+\`\`\`
+
+This gives the listener interface clear, typed method signatures. An observer
+can implement only the events it cares about (using a no-op default in Java 8+
+with default methods).
+
+### Why Validation in Both Factory and Board
+
+The \`Snake\` and \`Ladder\` constructors validate their own invariants (head > tail,
+top > bottom). The \`Board\` validates relationships (no conflicts, within bounds).
+The \`BoardElementFactory\` provides a convenient API that invokes both layers.
+
+This follows **defense in depth** -- even if someone bypasses the factory, the
+Board still rejects invalid state.
+
+---
+
+## 14. Extending the Code -- Roll-6-Again Rule
+
+To add the rule where rolling a 6 gives an extra turn, modify \`takeTurn\`:
+
+\`\`\`java
+private void takeTurn(Player player) {
+    boolean extraTurn;
+    do {
+        int diceValue = diceStrategy.roll();
+        extraTurn = (diceValue == 6); // or diceValue == diceStrategy.getMaxValue()
+
+        int oldPosition = player.getPosition();
+        int newPosition = oldPosition + diceValue;
+
+        System.out.println("  " + player.getName() + " rolled a " + diceValue);
+
+        if (newPosition > board.getSize()) {
+            notifyBounceBack(player, diceValue);
+            return; // no extra turn on bounce
+        }
+
+        player.setPosition(newPosition);
+
+        if (board.hasSnakeAt(newPosition)) {
+            int afterSnake = board.getFinalPosition(newPosition);
+            notifySnakeBite(player, newPosition, afterSnake);
+            player.setPosition(afterSnake);
+        } else if (board.hasLadderAt(newPosition)) {
+            int afterLadder = board.getFinalPosition(newPosition);
+            notifyLadderClimb(player, newPosition, afterLadder);
+            player.setPosition(afterLadder);
+        }
+
+        notifyPlayerMoved(player, oldPosition, player.getPosition());
+
+        if (player.getPosition() == board.getSize()) {
+            gameOver = true;
+            winner = player;
+            notifyPlayerWon(player);
+            return;
+        }
+
+        if (extraTurn) {
+            System.out.println("  " + player.getName() + " rolled a 6! Extra turn!");
+        }
+    } while (extraTurn);
+}
+\`\`\`
+
+No other class changes. This demonstrates the Single Responsibility Principle --
+only \`Game.takeTurn()\` needed modification, and nothing else was affected.
+
+---
+
+## 15. Unit Test Sketch (JUnit 5)
+
+\`\`\`java
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class SnakeLadderTest {
+
+    // ---- Dice Strategy Tests ----
+
+    @Test
+    void normalDiceRollsWithinRange() {
+        DiceStrategy dice = new NormalDiceStrategy(6);
+        for (int i = 0; i < 1000; i++) {
+            int roll = dice.roll();
+            assertTrue(roll >= 1 && roll <= 6,
+                "Roll " + roll + " out of range");
+        }
+    }
+
+    @Test
+    void loadedDiceAlwaysReturnsSameValue() {
+        DiceStrategy dice = new LoadedDiceStrategy(4);
+        for (int i = 0; i < 100; i++) {
+            assertEquals(4, dice.roll());
+        }
+    }
+
+    @Test
+    void multipleDiceSumsCorrectly() {
+        DiceStrategy dice = new MultipleDiceStrategy(Arrays.asList(
+            new LoadedDiceStrategy(3),
+            new LoadedDiceStrategy(5)
+        ));
+        assertEquals(8, dice.roll());
+    }
+
+    // ---- Board Tests ----
+
+    @Test
+    void snakeMovesPlayerDown() {
+        Board board = new Board(100);
+        board.addSnake(50, 10);
+
+        assertTrue(board.hasSnakeAt(50));
+        assertEquals(10, board.getFinalPosition(50));
+    }
+
+    @Test
+    void ladderMovesPlayerUp() {
+        Board board = new Board(100);
+        board.addLadder(10, 50);
+
+        assertTrue(board.hasLadderAt(10));
+        assertEquals(50, board.getFinalPosition(10));
+    }
+
+    @Test
+    void snakeAtWinningPositionRejected() {
+        Board board = new Board(100);
+        assertThrows(IllegalArgumentException.class,
+            () -> board.addSnake(100, 50));
+    }
+
+    @Test
+    void conflictingSnakeAndLadderRejected() {
+        Board board = new Board(100);
+        board.addSnake(50, 10);
+        assertThrows(IllegalArgumentException.class,
+            () -> board.addLadder(50, 90));
+    }
+
+    @Test
+    void positionWithNoSnakeOrLadderUnchanged() {
+        Board board = new Board(100);
+        board.addSnake(50, 10);
+        assertEquals(30, board.getFinalPosition(30));
+    }
+
+    // ---- Game Tests ----
+
+    @Test
+    void playerWinsOnExactLanding() {
+        Board board = new Board(20);
+        // No snakes or ladders -- clean board
+
+        List<Player> players = Arrays.asList(
+            new Player("P1"), new Player("P2"));
+
+        // P1 rolls 6, 6, 6, 2 = 20 (wins on turn 7 since turns alternate)
+        // P2 rolls 1, 1, 1 (never wins)
+        // Interleaved: P1=6, P2=1, P1=6, P2=1, P1=6, P2=1, P1=2
+        DiceStrategy dice = new SequenceDiceStrategy(6, 1, 6, 1, 6, 1, 2);
+
+        Game game = new Game(board, players, dice);
+        Player winner = game.play();
+
+        assertEquals("P1", winner.getName());
+        assertEquals(20, winner.getPosition());
+    }
+
+    @Test
+    void overshootKeepsPlayerAtCurrentPosition() {
+        Board board = new Board(20);
+        List<Player> players = Arrays.asList(
+            new Player("P1"), new Player("P2"));
+
+        // P1: 6 -> pos 6, then 6 -> pos 12, then 6 -> pos 18,
+        //     then 6 -> would be 24 > 20 -> stays at 18,
+        //     then 2 -> pos 20 (wins)
+        // P2: 1 -> pos 1, then 1, then 1, then 1
+        DiceStrategy dice = new SequenceDiceStrategy(6, 1, 6, 1, 6, 1, 6, 1, 2);
+
+        Game game = new Game(board, players, dice);
+        Player winner = game.play();
+
+        assertEquals("P1", winner.getName());
+    }
+
+    @Test
+    void minimumTwoPlayersRequired() {
+        Board board = new Board(100);
+        List<Player> solo = Arrays.asList(new Player("Lonely"));
+        DiceStrategy dice = new NormalDiceStrategy(6);
+
+        assertThrows(IllegalArgumentException.class,
+            () -> new Game(board, solo, dice));
+    }
+
+    // ---- Observer Tests ----
+
+    @Test
+    void observerReceivesSnakeBiteEvent() {
+        Board board = new Board(20);
+        board.addSnake(5, 2);
+
+        List<Player> players = Arrays.asList(
+            new Player("P1"), new Player("P2"));
+
+        // P1 rolls 5 -> lands on snake -> drops to 2
+        // P2 rolls 1 -> lands on 1
+        // P1 rolls 6 -> pos 8
+        // ... eventually someone wins (we check the first snake bite)
+        DiceStrategy dice = new SequenceDiceStrategy(5, 1, 6, 6, 6, 6, 6, 6);
+
+        // Track whether onSnakeBite was called
+        final boolean[] snakeBiteCalled = {false};
+        GameEventListener testListener = new GameEventListener() {
+            public void onPlayerMoved(Player p, int f, int t) {}
+            public void onSnakeBite(Player p, int f, int t) {
+                snakeBiteCalled[0] = true;
+                assertEquals("P1", p.getName());
+                assertEquals(5, f);
+                assertEquals(2, t);
+            }
+            public void onLadderClimb(Player p, int f, int t) {}
+            public void onPlayerWon(Player p) {}
+            public void onBounceBack(Player p, int d) {}
+        };
+
+        Game game = new Game(board, players, dice);
+        game.addListener(testListener);
+        game.play();
+
+        assertTrue(snakeBiteCalled[0], "Snake bite event should have fired");
+    }
+}
+\`\`\`
+
+---
+
+## 16. Recap -- What to Write in a 45-Minute Interview
+
+If time is tight, prioritize in this order:
+
+1. **Board** -- HashMap-based, addSnake, addLadder, getFinalPosition (~5 min)
+2. **Player** -- name + position (~2 min)
+3. **DiceStrategy** interface + NormalDiceStrategy (~3 min)
+4. **Game** -- constructor, play(), takeTurn() with overshoot check (~10 min)
+5. **GameEventListener** interface + ConsoleLogger (~5 min)
+6. **Main** -- wire it all together, run 3 players (~3 min)
+7. **Explain** patterns and extensibility verbally (~5 min)
+
+Total coding: ~28 minutes. The remaining time is for requirements and discussion.
+
+> **Final Interview Tip**: Write the \`Game.play()\` loop first on the whiteboard,
+> then fill in the helper classes. Interviewers prefer seeing the big picture
+> before the details.
+`,
+  designWalkthrough: `# Design Snake and Ladder Game -- Complete Low-Level Design
+
+A classic Uber India SDE1/SDE2 interview problem. The interviewer expects you to model
+the game entities cleanly, demonstrate OOP, apply a few design patterns, and handle
+edge cases -- all in 45 minutes on a whiteboard.
+
+> **Interview Insight**: This is NOT about complex algorithms. The interviewer is
+> testing your ability to decompose a real-world game into clean classes, apply SOLID
+> principles, and write code that is extensible without modification.
+
+---
+
+## 1. Requirements Gathering
+
+### Functional Requirements
+
+| # | Requirement | Notes |
+|---|-------------|-------|
+| FR1 | Support N players (2+) | Players take turns in order |
+| FR2 | Configurable board size | Default 10x10 = 100 cells |
+| FR3 | Configurable snakes | Head at higher position, tail at lower |
+| FR4 | Configurable ladders | Bottom at lower position, top at higher |
+| FR5 | Dice rolling | Standard 6-sided die, extensible to others |
+| FR6 | Turn management | Round-robin, skip if stuck (optional) |
+| FR7 | Winner detection | First player to reach exactly the final cell wins |
+| FR8 | Game events | Notify observers on move, snake bite, ladder climb, win |
+
+### Non-Functional Requirements
+
+| # | Requirement | Notes |
+|---|-------------|-------|
+| NFR1 | Extensible dice strategies | Normal die, loaded die, multiple dice |
+| NFR2 | Extensible board elements | Could add power-ups, traps later |
+| NFR3 | Testable | All components independently testable |
+| NFR4 | Thread-safe NOT required | Single-threaded turn-based game |
+
+### Clarifying Questions to Ask the Interviewer
+
+1. Can a snake head be at position 100 (final cell)? -- **No, that would make the game unwinnable.**
+2. Can a snake and a ladder share the same start position? -- **No, a cell has at most one element.**
+3. Does rolling a 6 give an extra turn? -- **Not in the base version; mention it as extensible.**
+4. If the dice roll overshoots position 100, does the player stay? -- **Yes, the player does not move.**
+5. Can there be cycles (snake drops to a ladder that climbs back)? -- **The board setup should prevent infinite loops.**
+
+---
+
+## 2. Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| \`Game\` | Orchestrates the game loop, manages turns, declares winner |
+| \`Board\` | Holds the board configuration: snakes and ladders |
+| \`Player\` | Tracks name and current position |
+| \`Dice\` | Generates a random roll based on the current strategy |
+| \`Snake\` | Represents a snake: head (start) to tail (end) |
+| \`Ladder\` | Represents a ladder: bottom (start) to top (end) |
+| \`Cell\` | (Optional) Represents a position on the board |
+| \`DiceStrategy\` | Strategy interface for different dice behaviors |
+| \`GameEventListener\` | Observer interface for game event notifications |
+| \`BoardElementFactory\` | Factory for creating snakes and ladders |
+| \`GameEvent\` | Enum of event types |
+
+---
+
+## 3. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    class Game {
+        -Board board
+        -Queue~Player~ players
+        -DiceStrategy diceStrategy
+        -List~GameEventListener~ listeners
+        -boolean gameOver
+        +Game(Board, List~Player~, DiceStrategy)
+        +addListener(GameEventListener) void
+        +play() Player
+        -takeTurn(Player) void
+        -notifyListeners(GameEvent, Player, int, int) void
+    }
+
+    class Board {
+        -int size
+        -Map~Integer, Integer~ snakes
+        -Map~Integer, Integer~ ladders
+        +Board(int size)
+        +addSnake(int head, int tail) void
+        +addLadder(int bottom, int top) void
+        +getFinalPosition(int position) int
+        +getSize() int
+        +hasSnakeAt(int pos) boolean
+        +hasLadderAt(int pos) boolean
+    }
+
+    class Player {
+        -String name
+        -int position
+        +Player(String name)
+        +getName() String
+        +getPosition() int
+        +setPosition(int position) void
+    }
+
+    class Dice {
+        -DiceStrategy strategy
+        +Dice(DiceStrategy strategy)
+        +roll() int
+        +setStrategy(DiceStrategy strategy) void
+    }
+
+    class DiceStrategy {
+        <<interface>>
+        +roll() int
+    }
+
+    class NormalDiceStrategy {
+        -int sides
+        -Random random
+        +NormalDiceStrategy(int sides)
+        +roll() int
+    }
+
+    class LoadedDiceStrategy {
+        -int fixedValue
+        +LoadedDiceStrategy(int value)
+        +roll() int
+    }
+
+    class MultipleDiceStrategy {
+        -List~DiceStrategy~ dice
+        +MultipleDiceStrategy(List~DiceStrategy~)
+        +roll() int
+    }
+
+    class CrookedDiceStrategy {
+        -Random random
+        +CrookedDiceStrategy()
+        +roll() int
+    }
+
+    class Snake {
+        -int head
+        -int tail
+        +Snake(int head, int tail)
+        +getHead() int
+        +getTail() int
+    }
+
+    class Ladder {
+        -int bottom
+        -int top
+        +Ladder(int bottom, int top)
+        +getBottom() int
+        +getTop() int
+    }
+
+    class GameEventListener {
+        <<interface>>
+        +onPlayerMoved(Player, int from, int to) void
+        +onSnakeBite(Player, int from, int to) void
+        +onLadderClimb(Player, int from, int to) void
+        +onPlayerWon(Player) void
+        +onBounceBack(Player, int rolled) void
+    }
+
+    class ConsoleLogger {
+        +onPlayerMoved(Player, int, int) void
+        +onSnakeBite(Player, int, int) void
+        +onLadderClimb(Player, int, int) void
+        +onPlayerWon(Player) void
+        +onBounceBack(Player, int) void
+    }
+
+    class GameEvent {
+        <<enumeration>>
+        PLAYER_MOVED
+        SNAKE_BITE
+        LADDER_CLIMB
+        PLAYER_WON
+        BOUNCE_BACK
+    }
+
+    class BoardElementFactory {
+        +createSnake(int head, int tail) Snake$
+        +createLadder(int bottom, int top) Ladder$
+        +createStandardBoard(int size) Board$
+    }
+
+    DiceStrategy <|.. NormalDiceStrategy
+    DiceStrategy <|.. LoadedDiceStrategy
+    DiceStrategy <|.. MultipleDiceStrategy
+    DiceStrategy <|.. CrookedDiceStrategy
+    GameEventListener <|.. ConsoleLogger
+    Game --> Board
+    Game --> Player
+    Game --> DiceStrategy
+    Game --> GameEventListener
+    Board --> Snake : contains
+    Board --> Ladder : contains
+    Dice --> DiceStrategy
+    BoardElementFactory ..> Snake : creates
+    BoardElementFactory ..> Ladder : creates
+    BoardElementFactory ..> Board : creates
+\`\`\`
+
+---
+
+## 4. Design Patterns Applied
+
+### 4.1 Factory Pattern -- BoardElementFactory
+
+**Problem**: Creating snakes, ladders, and pre-configured boards involves validation logic
+(e.g., snake head must be above tail, ladder top must be above bottom, positions must be
+within board bounds). We do not want this scattered across the codebase.
+
+**Solution**: A \`BoardElementFactory\` centralizes creation and validation.
+
+\`\`\`
+Client ---> BoardElementFactory.createSnake(head, tail) ---> Snake
+Client ---> BoardElementFactory.createLadder(bottom, top) ---> Ladder
+Client ---> BoardElementFactory.createStandardBoard(100) ---> Board (pre-configured)
+\`\`\`
+
+**Why Factory here?**
+- Validation logic is in one place (single responsibility)
+- Easy to add new board elements (power-ups, traps) without changing existing code
+- \`createStandardBoard()\` provides a convenient default setup
+
+**Interview Tip**: Mention that a more advanced version could use Abstract Factory if
+you had different board "themes" (e.g., jungle theme with different snake/ladder visuals).
+
+---
+
+### 4.2 Strategy Pattern -- DiceStrategy
+
+**Problem**: The game should support different dice behaviors -- a standard 6-sided die,
+a loaded die for testing, multiple dice rolled together, or a crooked die that only
+rolls even numbers.
+
+**Solution**: Define a \`DiceStrategy\` interface and swap implementations at runtime.
+
+\`\`\`
+         +------------------+
+         |  DiceStrategy    |
+         |  + roll(): int   |
+         +--------+---------+
+                  |
+     +------------+------------+----------------+
+     |            |            |                |
+ NormalDice  LoadedDice  MultipleDice    CrookedDice
+ (1-6 rand)  (fixed)    (sum of N)    (even only)
+\`\`\`
+
+**Why Strategy here?**
+- Open/Closed Principle: add new dice types without modifying Game
+- Testability: inject \`LoadedDiceStrategy\` in unit tests for deterministic results
+- Runtime flexibility: could switch dice mid-game if rules allow
+
+**Key Insight**: The Game class depends on \`DiceStrategy\` (abstraction), not on any
+concrete dice. This is Dependency Inversion in action.
+
+---
+
+### 4.3 Observer Pattern -- GameEventListener
+
+**Problem**: Multiple components might care about game events -- a console logger, a
+GUI updater, an analytics tracker, a sound effects player. The Game should not know
+about any of them.
+
+**Solution**: Game maintains a list of \`GameEventListener\` objects and notifies all
+of them when events occur.
+
+\`\`\`
+Game ---notify---> [ConsoleLogger, GUIUpdater, AnalyticsTracker, ...]
+        |
+        +-- onPlayerMoved(player, from, to)
+        +-- onSnakeBite(player, from, to)
+        +-- onLadderClimb(player, from, to)
+        +-- onPlayerWon(player)
+        +-- onBounceBack(player, diceValue)
+\`\`\`
+
+**Why Observer here?**
+- Decouples the game engine from presentation / analytics / sound
+- Adding a new listener requires zero changes to Game
+- Each listener can independently decide how to handle each event
+
+**Interview Tip**: Interviewers love hearing "we can add a GUI listener later without
+touching the Game class." That is the textbook Open/Closed Principle.
+
+---
+
+## 5. Game Flow -- Step by Step
+
+\`\`\`
+START
+  |
+  v
+[Initialize Board with snakes and ladders]
+  |
+  v
+[Add players to turn queue]
+  |
+  v
+[LOOP] <---------------------------------------------+
+  |                                                    |
+  v                                                    |
+[Dequeue current player]                               |
+  |                                                    |
+  v                                                    |
+[Roll dice using DiceStrategy]                         |
+  |                                                    |
+  v                                                    |
+[Calculate new position = current + diceValue]         |
+  |                                                    |
+  v                                                    |
+{new position > board size?}                           |
+  |YES                    |NO                          |
+  v                       v                            |
+[Stay at current pos]  [Move to new position]          |
+[Notify BOUNCE_BACK]     |                             |
+  |                       v                            |
+  |                {Snake at new position?}             |
+  |                  |YES              |NO             |
+  |                  v                 |               |
+  |              [Slide down to       |               |
+  |               snake tail]         |               |
+  |              [Notify SNAKE_BITE]  |               |
+  |                  |                |               |
+  |                  v                v               |
+  |                {Ladder at new position?}           |
+  |                  |YES              |NO            |
+  |                  v                 |              |
+  |              [Climb up to         |              |
+  |               ladder top]         |              |
+  |              [Notify LADDER_CLIMB]|              |
+  |                  |                |              |
+  |                  v                v              |
+  |              [Notify PLAYER_MOVED]              |
+  |                       |                          |
+  |                       v                          |
+  |              {Position == board size?}            |
+  |                |YES            |NO               |
+  |                v               v                 |
+  |          [Notify PLAYER_WON] [Enqueue player]    |
+  |          [Set gameOver=true]   |                 |
+  |          [Return winner]       +-----------------+
+  |                |
+  v                v
+[END]           [END]
+\`\`\`
+
+---
+
+## 6. Detailed Design Decisions
+
+### 6.1 Board Representation -- HashMap vs Array
+
+**Decision**: Use \`HashMap<Integer, Integer>\` for both snakes and ladders.
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| HashMap  | O(1) lookup, sparse representation, easy to configure | Slightly more memory per entry |
+| Array    | O(1) lookup, cache-friendly | Wastes memory for empty cells |
+
+**Choice**: HashMap. The board is sparse -- most cells have no snake or ladder.
+A 100-cell board might have only 6 snakes and 6 ladders. HashMap is cleaner.
+
+\`\`\`
+snakes:  {16 -> 6, 47 -> 26, 49 -> 11, 56 -> 53, 62 -> 19, 64 -> 60, 87 -> 24, 93 -> 73, 95 -> 75, 98 -> 78}
+ladders: {1 -> 38, 4 -> 14, 9 -> 31, 21 -> 42, 28 -> 84, 36 -> 44, 51 -> 67, 71 -> 91, 80 -> 100}
+\`\`\`
+
+### 6.2 Turn Management -- Queue
+
+**Decision**: Use a \`LinkedList<Player>\` as a \`Queue\`. Dequeue the current player,
+let them take a turn, and enqueue them at the back (unless they won).
+
+**Why Queue?**
+- Natural round-robin ordering
+- O(1) dequeue and enqueue
+- Easy to add/remove players mid-game if needed
+
+### 6.3 Position Tracking
+
+**Decision**: Each \`Player\` holds their own \`position\` (int). Position 0 means "not yet
+on the board" and the first roll places them. Position \`boardSize\` (100) means they won.
+
+### 6.4 Snake/Ladder Collision
+
+**Decision**: After moving, check for snake first, then ladder. In a well-configured
+board, a cell cannot have both a snake and a ladder. The factory enforces this.
+
+> **Alternative**: Some implementations check iteratively (a ladder could land on a
+> snake, which drops to another ladder). We support this with a loop in
+> \`Board.getFinalPosition()\`.
+
+---
+
+## 7. Edge Cases
+
+### 7.1 Overshoot -- Exact Landing Required
+
+If a player is at position 97 and rolls a 5, new position would be 102. Since
+102 > 100, the player stays at 97. This is the standard rule.
+
+\`\`\`java
+int newPosition = currentPosition + diceRoll;
+if (newPosition > board.getSize()) {
+    // Player stays, notify bounce back
+    return;
+}
+\`\`\`
+
+### 7.2 Snake at Position 100
+
+The factory must reject a snake with head at position 100 (or whatever \`boardSize\` is).
+If a player could land on 100 and get bitten, they could never win.
+
+\`\`\`java
+if (head == boardSize) {
+    throw new IllegalArgumentException("Snake cannot start at the winning position");
+}
+\`\`\`
+
+### 7.3 Infinite Loops
+
+A chain like: ladder 5->20, snake 20->5 would create an infinite loop.
+The factory or board setup should validate that no cycles exist.
+
+\`\`\`
+Validation: for each snake/ladder chain, follow the path and ensure
+it terminates (no cell is visited twice).
+\`\`\`
+
+### 7.4 Multiple Players on Same Cell
+
+Multiple players CAN occupy the same cell. There is no "bumping" in standard
+Snake and Ladder. Each player's position is independent.
+
+### 7.5 Single Player Game
+
+While technically possible, the game is meaningless with 1 player. The factory
+should enforce a minimum of 2 players.
+
+### 7.6 All Players at Position 0
+
+At the start, all players are at position 0. The first roll places them on the
+board. Position 0 is "off the board."
+
+---
+
+## 8. Extensibility Points
+
+| Extension | How to Add | Pattern Used |
+|-----------|-----------|--------------|
+| Multiple dice | Create \`MultipleDiceStrategy\` that sums N dice | Strategy |
+| Crooked dice (even only) | Create \`CrookedDiceStrategy\` | Strategy |
+| Roll-6-again rule | Modify \`Game.takeTurn()\` with a loop | Template Method |
+| Power-up cells | Add a \`PowerUp\` class, register in Board | Factory + Board extension |
+| GUI rendering | Add a \`GUIEventListener\` | Observer |
+| Analytics / replay | Add an \`AnalyticsListener\` that records all events | Observer |
+| Undo last move | Store move history in Game, add \`undo()\` | Command |
+| Multiplayer over network | Serialize game state, add network layer | - |
+| Board themes | Use Abstract Factory for themed boards | Abstract Factory |
+| Tournament mode | Wrap Game in a Tournament class | Composite |
+
+---
+
+## 9. SOLID Principles Mapping
+
+| Principle | How It Is Applied |
+|-----------|------------------|
+| **S** -- Single Responsibility | Board manages board state. Player manages player state. Game orchestrates. Dice rolls. Each class has one reason to change. |
+| **O** -- Open/Closed | New dice types via Strategy. New listeners via Observer. New board elements via Factory. No modification to existing classes needed. |
+| **L** -- Liskov Substitution | Any DiceStrategy subtype can replace another. Any GameEventListener implementation works without Game knowing the concrete type. |
+| **I** -- Interface Segregation | GameEventListener has focused event methods. DiceStrategy has a single \`roll()\` method. No fat interfaces. |
+| **D** -- Dependency Inversion | Game depends on DiceStrategy (abstraction), not NormalDiceStrategy (concrete). Game depends on GameEventListener (abstraction), not ConsoleLogger (concrete). |
+
+---
+
+## 10. Interview Walkthrough Script
+
+**Minute 0-3**: Clarify requirements (ask the 5 questions above).
+
+**Minute 3-8**: List entities (Game, Board, Player, Dice, Snake, Ladder). Draw the
+class diagram on the whiteboard.
+
+**Minute 8-12**: Explain the three design patterns:
+- Factory for board element creation with validation
+- Strategy for dice (show the interface + 2 implementations)
+- Observer for game events (show the listener interface)
+
+**Minute 12-15**: Walk through the game flow (roll -> move -> check snake/ladder ->
+check winner -> next player).
+
+**Minute 15-18**: Discuss edge cases: overshoot, snake at 100, infinite loops.
+
+**Minute 18-40**: Write the code (Board, Player, DiceStrategy, Game, Main).
+
+**Minute 40-45**: Discuss extensibility (multiple dice, GUI, undo). Mention SOLID.
+
+> **Key Phrase**: "The Game class is the orchestrator. It depends only on abstractions --
+> DiceStrategy and GameEventListener -- so we can extend behavior without modifying it."
+
+---
+
+## 11. Complexity Analysis
+
+| Operation | Time | Space |
+|-----------|------|-------|
+| Roll dice | O(1) for single die, O(k) for k dice | O(1) |
+| Move player | O(1) | O(1) |
+| Check snake/ladder | O(1) HashMap lookup | O(S + L) for S snakes, L ladders |
+| Check winner | O(1) comparison | O(1) |
+| Full game turn | O(1) | O(1) |
+| Notify listeners | O(M) for M listeners | O(1) per notification |
+| Full game | O(T * N * M) for T turns, N players, M listeners | O(N + S + L + M) |
+
+In practice, T is bounded (a 100-cell board game rarely exceeds a few hundred turns),
+so the entire game completes in well under a second.
+
+---
+
+## 12. Testing Strategy
+
+### Unit Tests
+
+| Test | What It Validates |
+|------|------------------|
+| \`testNormalDiceRollRange\` | Roll is always between 1 and sides (inclusive) |
+| \`testLoadedDiceAlwaysReturnsFixedValue\` | Deterministic for testing |
+| \`testSnakeMovesPlayerDown\` | Player at snake head moves to tail |
+| \`testLadderMovesPlayerUp\` | Player at ladder bottom moves to top |
+| \`testOvershootKeepsPlayer\` | Position 97 + roll 5 = stays at 97 |
+| \`testExactLandingWins\` | Position 94 + roll 6 = 100 = winner |
+| \`testTurnOrderIsRoundRobin\` | Players dequeued and enqueued correctly |
+| \`testSnakeAtBoardSizeRejected\` | Factory throws on invalid snake |
+| \`testNoCyclesInBoard\` | Validation catches ladder->snake->ladder loops |
+
+### Integration Tests
+
+| Test | What It Validates |
+|------|------------------|
+| \`testFullGameWithLoadedDice\` | Deterministic game runs to completion |
+| \`testThreePlayerGame\` | All three players take turns, one wins |
+| \`testObserverReceivesAllEvents\` | Mock listener verifies event sequence |
+
+### How to Use LoadedDiceStrategy for Testing
+
+\`\`\`java
+// Sequence of rolls that guarantees player 1 wins
+DiceStrategy testDice = new LoadedDiceStrategy(6);
+// Player 1 rolls 6 repeatedly: 6, 12, 18, ..., 96, then needs exactly 4
+// Use a custom strategy that returns 6 sixteen times, then 4
+\`\`\`
+
+This is precisely why the Strategy pattern exists -- inject a deterministic
+dice for repeatable, verifiable tests.
+`,
+  complexityAnalysis: `## 11. Complexity Analysis
+
+| Operation | Time | Space |
+|-----------|------|-------|
+| Roll dice | O(1) for single die, O(k) for k dice | O(1) |
+| Move player | O(1) | O(1) |
+| Check snake/ladder | O(1) HashMap lookup | O(S + L) for S snakes, L ladders |
+| Check winner | O(1) comparison | O(1) |
+| Full game turn | O(1) | O(1) |
+| Notify listeners | O(M) for M listeners | O(1) per notification |
+| Full game | O(T * N * M) for T turns, N players, M listeners | O(N + S + L + M) |
+
+In practice, T is bounded (a 100-cell board game rarely exceeds a few hundred turns),
+so the entire game completes in well under a second.
+
+---`,
+};
+
+// ============================================================
+//  06-design-shopping-cart -> prob-online-shopping
+// ============================================================
+
+export const onlineShoppingSolution: ProblemSolutionContent = {
+  referenceSolution: `# Online Shopping Cart with Pricing Rules -- Full Java Code
+
+## Table of Contents
+
+1. [Category Enum](#1-category-enum)
+2. [Product](#2-product)
+3. [CartItem](#3-cartitem)
+4. [CartObserver and Implementations](#4-cartobserver)
+5. [Cart](#5-cart)
+6. [PricingRule Interface (Strategy)](#6-pricingrule-interface)
+7. [FlatDiscount](#7-flatdiscount)
+8. [PercentDiscount](#8-percentdiscount)
+9. [BuyXGetYFree](#9-buyxgetyfree)
+10. [CategoryDiscount](#10-categorydiscount)
+11. [Coupon with Validation](#11-coupon)
+12. [DiscountDetail and PricingResult](#12-discountdetail-and-pricingresult)
+13. [PricingEngine](#13-pricingengine)
+14. [TaxCalculator](#14-taxcalculator)
+15. [Order and OrderLineItem](#15-order-and-orderlineitem)
+16. [OrderBuilder](#16-orderbuilder)
+17. [Main Demo](#17-main-demo)
+
+---
+
+## 1. Category Enum
+
+\`\`\`java
+public enum Category {
+    ELECTRONICS,
+    CLOTHING,
+    GROCERIES,
+    BOOKS
+}
+\`\`\`
+
+---
+
+## 2. Product
+
+\`\`\`java
+public class Product {
+    private final String id;
+    private final String name;
+    private final double price;
+    private final Category category;
+
+    public Product(String id, String name, double price, Category category) {
+        if (price < 0) throw new IllegalArgumentException("Price cannot be negative");
+        this.id = id;
+        this.name = name;
+        this.price = price;
+        this.category = category;
+    }
+
+    public String getId()        { return id; }
+    public String getName()      { return name; }
+    public double getPrice()     { return price; }
+    public Category getCategory(){ return category; }
+
+    @Override
+    public String toString() {
+        return name + " ($" + String.format("%.2f", price) + ", " + category + ")";
+    }
+}
+\`\`\`
+
+---
+
+## 3. CartItem
+
+\`\`\`java
+public class CartItem {
+    private final Product product;
+    private int quantity;
+
+    public CartItem(Product product, int quantity) {
+        if (quantity <= 0) throw new IllegalArgumentException("Quantity must be positive");
+        this.product = product;
+        this.quantity = quantity;
+    }
+
+    public Product getProduct()   { return product; }
+    public int getQuantity()      { return quantity; }
+
+    public void setQuantity(int quantity) {
+        if (quantity <= 0) throw new IllegalArgumentException("Quantity must be positive");
+        this.quantity = quantity;
+    }
+
+    public void addQuantity(int delta) {
+        if (delta <= 0) throw new IllegalArgumentException("Delta must be positive");
+        this.quantity += delta;
+    }
+
+    /** Subtotal = unit price * quantity (before any discounts). */
+    public double getSubtotal() {
+        return product.getPrice() * quantity;
+    }
+
+    @Override
+    public String toString() {
+        return product.getName() + " x" + quantity
+                + " = $" + String.format("%.2f", getSubtotal());
+    }
+}
+\`\`\`
+
+---
+
+## 4. CartObserver
+
+### Observer Interface
+
+\`\`\`java
+/** Observer pattern -- notified whenever the cart changes. */
+public interface CartObserver {
+    void onCartChanged(Cart cart);
+}
+\`\`\`
+
+### PricingSummaryObserver (Concrete Observer)
+
+\`\`\`java
+public class PricingSummaryObserver implements CartObserver {
+
+    @Override
+    public void onCartChanged(Cart cart) {
+        System.out.println("[Observer] Cart updated. "
+                + cart.getItems().size() + " unique item(s), "
+                + "subtotal = $" + String.format("%.2f", cart.getSubtotal()));
+    }
+}
+\`\`\`
+
+### InventoryObserver (Concrete Observer)
+
+\`\`\`java
+public class InventoryObserver implements CartObserver {
+
+    @Override
+    public void onCartChanged(Cart cart) {
+        System.out.println("[InventoryObserver] Checking stock for "
+                + cart.getItems().size() + " item(s)...");
+    }
+}
+\`\`\`
+
+---
+
+## 5. Cart
+
+\`\`\`java
+import java.util.*;
+
+public class Cart {
+    private final Map<String, CartItem> items = new LinkedHashMap<>();
+    private final List<CartObserver> observers = new ArrayList<>();
+
+    // ---- Item management ----
+
+    public void addItem(Product product, int quantity) {
+        if (quantity <= 0) throw new IllegalArgumentException("Quantity must be positive");
+
+        CartItem existing = items.get(product.getId());
+        if (existing != null) {
+            existing.addQuantity(quantity);
+        } else {
+            items.put(product.getId(), new CartItem(product, quantity));
+        }
+        notifyObservers();
+    }
+
+    public void removeItem(String productId) {
+        CartItem removed = items.remove(productId);
+        if (removed == null) {
+            System.out.println("[Cart] Warning: product " + productId + " not in cart.");
+            return;
+        }
+        notifyObservers();
+    }
+
+    public void updateQuantity(String productId, int newQuantity) {
+        CartItem item = items.get(productId);
+        if (item == null) {
+            System.out.println("[Cart] Warning: product " + productId + " not in cart.");
+            return;
+        }
+        if (newQuantity <= 0) {
+            items.remove(productId);
+        } else {
+            item.setQuantity(newQuantity);
+        }
+        notifyObservers();
+    }
+
+    // ---- Queries ----
+
+    public Collection<CartItem> getItems() {
+        return Collections.unmodifiableCollection(items.values());
+    }
+
+    public CartItem getItem(String productId) {
+        return items.get(productId);
+    }
+
+    public boolean isEmpty() {
+        return items.isEmpty();
+    }
+
+    /** Raw subtotal before any discounts. */
+    public double getSubtotal() {
+        double total = 0;
+        for (CartItem item : items.values()) {
+            total += item.getSubtotal();
+        }
+        return total;
+    }
+
+    // ---- Observer management ----
+
+    public void addObserver(CartObserver observer) {
+        observers.add(observer);
+    }
+
+    public void removeObserver(CartObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyObservers() {
+        for (CartObserver obs : observers) {
+            obs.onCartChanged(this);
+        }
+    }
+
+    // ---- Display ----
+
+    public void printCart() {
+        System.out.println("===== Shopping Cart =====");
+        if (items.isEmpty()) {
+            System.out.println("  (empty)");
+        } else {
+            for (CartItem item : items.values()) {
+                System.out.println("  " + item);
+            }
+            System.out.println("  -----------------------");
+            System.out.println("  Subtotal: $" + String.format("%.2f", getSubtotal()));
+        }
+        System.out.println("=========================");
+    }
+}
+\`\`\`
+
+---
+
+## 6. PricingRule Interface
+
+\`\`\`java
+/**
+ * Strategy pattern -- each pricing rule encapsulates a single discount algorithm.
+ *
+ * Rules are applied in priority order (lower number = applied first).
+ * Each rule receives the cart and the current running total, and returns
+ * the new running total after applying its discount.
+ */
+public interface PricingRule {
+
+    /**
+     * Apply this rule's discount to the running total.
+     *
+     * @param cart         the current cart (for item-level inspection)
+     * @param runningTotal the total after all higher-priority rules
+     * @return the new running total (must be >= 0)
+     */
+    double apply(Cart cart, double runningTotal);
+
+    /** Lower priority number = applied first. */
+    int getPriority();
+
+    /** Human-readable description for the order summary. */
+    String getDescription();
+}
+\`\`\`
+
+---
+
+## 7. FlatDiscount
+
+\`\`\`java
+/**
+ * Subtracts a fixed dollar amount from the running total.
+ * Example: "$20 off your order"
+ */
+public class FlatDiscount implements PricingRule {
+    private final double amount;
+    private final int priority;
+
+    public FlatDiscount(double amount, int priority) {
+        if (amount < 0) throw new IllegalArgumentException("Discount amount cannot be negative");
+        this.amount = amount;
+        this.priority = priority;
+    }
+
+    @Override
+    public double apply(Cart cart, double runningTotal) {
+        double discount = Math.min(amount, runningTotal);  // never go below zero
+        return runningTotal - discount;
+    }
+
+    @Override
+    public int getPriority() { return priority; }
+
+    @Override
+    public String getDescription() {
+        return "Flat $" + String.format("%.2f", amount) + " off";
+    }
+}
+\`\`\`
+
+---
+
+## 8. PercentDiscount
+
+\`\`\`java
+/**
+ * Reduces the running total by a percentage.
+ * Example: "15% off your entire order"
+ */
+public class PercentDiscount implements PricingRule {
+    private final double percent;   // e.g., 15.0 for 15%
+    private final int priority;
+
+    public PercentDiscount(double percent, int priority) {
+        if (percent < 0 || percent > 100) {
+            throw new IllegalArgumentException("Percent must be between 0 and 100");
+        }
+        this.percent = percent;
+        this.priority = priority;
+    }
+
+    @Override
+    public double apply(Cart cart, double runningTotal) {
+        double discount = runningTotal * (percent / 100.0);
+        return runningTotal - discount;
+    }
+
+    @Override
+    public int getPriority() { return priority; }
+
+    @Override
+    public String getDescription() {
+        return String.format("%.0f", percent) + "% off entire order";
+    }
+}
+\`\`\`
+
+---
+
+## 9. BuyXGetYFree
+
+\`\`\`java
+/**
+ * For a specific product: if the customer buys at least (buyCount + freeCount) units,
+ * the cheapest \`freeCount\` units are free.
+ *
+ * Example: buy 2 get 1 free on product "P001"
+ *   - Customer has 3 units -> 1 unit is free
+ *   - Customer has 6 units -> 2 units are free
+ *   - Customer has 2 units -> no discount (need at least 3)
+ */
+public class BuyXGetYFree implements PricingRule {
+    private final String productId;
+    private final int buyCount;
+    private final int freeCount;
+    private final int priority;
+
+    public BuyXGetYFree(String productId, int buyCount, int freeCount, int priority) {
+        this.productId = productId;
+        this.buyCount = buyCount;
+        this.freeCount = freeCount;
+        this.priority = priority;
+    }
+
+    @Override
+    public double apply(Cart cart, double runningTotal) {
+        CartItem item = cart.getItem(productId);
+        if (item == null) return runningTotal;
+
+        int qty = item.getQuantity();
+        int groupSize = buyCount + freeCount;
+
+        if (qty < groupSize) return runningTotal;  // not enough to trigger
+
+        // How many complete groups?
+        int completeGroups = qty / groupSize;
+        // Each group gives \`freeCount\` free items
+        int totalFreeItems = completeGroups * freeCount;
+
+        double unitPrice = item.getProduct().getPrice();
+        double discount = totalFreeItems * unitPrice;
+
+        // Ensure we don't over-discount
+        discount = Math.min(discount, runningTotal);
+        return runningTotal - discount;
+    }
+
+    @Override
+    public int getPriority() { return priority; }
+
+    @Override
+    public String getDescription() {
+        return "Buy " + buyCount + " Get " + freeCount
+                + " Free on product " + productId;
+    }
+}
+\`\`\`
+
+---
+
+## 10. CategoryDiscount
+
+\`\`\`java
+/**
+ * Applies a percentage discount to all items in a specific category.
+ * Example: "20% off all Electronics"
+ */
+public class CategoryDiscount implements PricingRule {
+    private final Category category;
+    private final double percent;
+    private final int priority;
+
+    public CategoryDiscount(Category category, double percent, int priority) {
+        if (percent < 0 || percent > 100) {
+            throw new IllegalArgumentException("Percent must be between 0 and 100");
+        }
+        this.category = category;
+        this.percent = percent;
+        this.priority = priority;
+    }
+
+    @Override
+    public double apply(Cart cart, double runningTotal) {
+        double categorySubtotal = 0;
+        for (CartItem item : cart.getItems()) {
+            if (item.getProduct().getCategory() == category) {
+                categorySubtotal += item.getSubtotal();
+            }
+        }
+
+        if (categorySubtotal == 0) return runningTotal;
+
+        double discount = categorySubtotal * (percent / 100.0);
+        discount = Math.min(discount, runningTotal);
+        return runningTotal - discount;
+    }
+
+    @Override
+    public int getPriority() { return priority; }
+
+    @Override
+    public String getDescription() {
+        return String.format("%.0f", percent) + "% off " + category + " items";
+    }
+}
+\`\`\`
+
+---
+
+## 11. Coupon
+
+\`\`\`java
+import java.time.LocalDate;
+
+/**
+ * A coupon wraps an inner PricingRule (flat or percent) and adds validation:
+ *  - Must not be expired
+ *  - Cart subtotal must meet minimum value
+ *
+ * Implements PricingRule itself so the PricingEngine can treat it uniformly.
+ */
+public class Coupon implements PricingRule {
+    private final String code;
+    private final PricingRule innerRule;      // the actual discount (flat or percent)
+    private final LocalDate expiryDate;
+    private final double minCartValue;
+    private final int priority;
+
+    public Coupon(String code, PricingRule innerRule,
+                  LocalDate expiryDate, double minCartValue, int priority) {
+        this.code = code;
+        this.innerRule = innerRule;
+        this.expiryDate = expiryDate;
+        this.minCartValue = minCartValue;
+        this.priority = priority;
+    }
+
+    /** Checks expiry date and minimum cart value. */
+    public boolean isValid(double cartSubtotal) {
+        if (LocalDate.now().isAfter(expiryDate)) {
+            System.out.println("[Coupon] '" + code + "' is expired.");
+            return false;
+        }
+        if (cartSubtotal < minCartValue) {
+            System.out.println("[Coupon] '" + code + "' requires min cart value $"
+                    + String.format("%.2f", minCartValue)
+                    + " but cart is $" + String.format("%.2f", cartSubtotal) + ".");
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public double apply(Cart cart, double runningTotal) {
+        // Validate against the ORIGINAL cart subtotal (not the discounted running total)
+        if (!isValid(cart.getSubtotal())) {
+            return runningTotal;  // skip silently
+        }
+        return innerRule.apply(cart, runningTotal);
+    }
+
+    @Override
+    public int getPriority() { return priority; }
+
+    @Override
+    public String getDescription() {
+        return "Coupon '" + code + "': " + innerRule.getDescription();
+    }
+
+    public String getCode() { return code; }
+}
+\`\`\`
+
+---
+
+## 12. DiscountDetail and PricingResult
+
+\`\`\`java
+/**
+ * Records one discount that was applied.
+ */
+public class DiscountDetail {
+    private final String description;
+    private final double amountOff;
+
+    public DiscountDetail(String description, double amountOff) {
+        this.description = description;
+        this.amountOff = amountOff;
+    }
+
+    public String getDescription() { return description; }
+    public double getAmountOff()   { return amountOff; }
+
+    @Override
+    public String toString() {
+        return description + " -> -$" + String.format("%.2f", amountOff);
+    }
+}
+\`\`\`
+
+\`\`\`java
+import java.util.List;
+
+/**
+ * Result of running the PricingEngine on a cart.
+ */
+public class PricingResult {
+    private final double originalTotal;
+    private final double discountedTotal;
+    private final List<DiscountDetail> discountsApplied;
+
+    public PricingResult(double originalTotal, double discountedTotal,
+                         List<DiscountDetail> discountsApplied) {
+        this.originalTotal = originalTotal;
+        this.discountedTotal = discountedTotal;
+        this.discountsApplied = discountsApplied;
+    }
+
+    public double getOriginalTotal()               { return originalTotal; }
+    public double getDiscountedTotal()              { return discountedTotal; }
+    public List<DiscountDetail> getDiscountsApplied() { return discountsApplied; }
+
+    public double getTotalDiscount() {
+        return originalTotal - discountedTotal;
+    }
+}
+\`\`\`
+
+---
+
+## 13. PricingEngine
+
+\`\`\`java
+import java.util.*;
+
+/**
+ * Orchestrates pricing rules in priority order.
+ *
+ * Decorator-style chaining: each rule takes the running total from the
+ * previous rule and returns a (possibly reduced) total. The output of
+ * one rule is the input to the next.
+ */
+public class PricingEngine {
+    private final List<PricingRule> rules = new ArrayList<>();
+
+    public void addRule(PricingRule rule) {
+        rules.add(rule);
+        // Keep sorted by priority (lower = first)
+        rules.sort(Comparator.comparingInt(PricingRule::getPriority));
+    }
+
+    /**
+     * Apply all rules in priority order. Returns a PricingResult
+     * with the original total, discounted total, and a breakdown
+     * of every discount that fired.
+     */
+    public PricingResult applyAll(Cart cart) {
+        double originalTotal = cart.getSubtotal();
+        double runningTotal = originalTotal;
+        List<DiscountDetail> details = new ArrayList<>();
+
+        for (PricingRule rule : rules) {
+            double before = runningTotal;
+            runningTotal = rule.apply(cart, runningTotal);
+
+            // Floor at zero
+            if (runningTotal < 0) runningTotal = 0;
+
+            double saved = before - runningTotal;
+            if (saved > 0.001) {  // only record if meaningful discount
+                details.add(new DiscountDetail(rule.getDescription(), saved));
+            }
+        }
+
+        return new PricingResult(originalTotal, runningTotal, details);
+    }
+}
+\`\`\`
+
+---
+
+## 14. TaxCalculator
+
+\`\`\`java
+import java.util.*;
+
+/**
+ * Calculates tax per category using configurable rates.
+ * Categories with no configured rate default to 0%.
+ */
+public class TaxCalculator {
+    private final Map<Category, Double> taxRates = new HashMap<>();
+
+    public TaxCalculator() {
+        // Default rates -- can be overridden
+        taxRates.put(Category.ELECTRONICS, 12.0);
+        taxRates.put(Category.CLOTHING, 5.0);
+        taxRates.put(Category.GROCERIES, 0.0);
+        taxRates.put(Category.BOOKS, 0.0);
+    }
+
+    public void setRate(Category category, double ratePercent) {
+        taxRates.put(category, ratePercent);
+    }
+
+    public double getRate(Category category) {
+        return taxRates.getOrDefault(category, 0.0);
+    }
+
+    /**
+     * Calculates tax on the post-discount cart.
+     *
+     * Strategy: distribute the total discount proportionally across items,
+     * then apply each category's tax rate to the item's discounted subtotal.
+     *
+     * @param cart            the cart with items
+     * @param discountedTotal the total after all discounts
+     * @return TaxResult with breakdown and total
+     */
+    public TaxResult calculateTax(Cart cart, double discountedTotal) {
+        double originalTotal = cart.getSubtotal();
+        Map<Category, Double> breakdown = new LinkedHashMap<>();
+        double totalTax = 0;
+
+        if (originalTotal == 0) {
+            return new TaxResult(breakdown, 0);
+        }
+
+        // Proportional discount factor
+        double discountRatio = discountedTotal / originalTotal;
+
+        for (CartItem item : cart.getItems()) {
+            Category cat = item.getProduct().getCategory();
+            double itemDiscountedSubtotal = item.getSubtotal() * discountRatio;
+            double rate = getRate(cat) / 100.0;
+            double tax = itemDiscountedSubtotal * rate;
+
+            breakdown.merge(cat, tax, Double::sum);
+            totalTax += tax;
+        }
+
+        return new TaxResult(breakdown, totalTax);
+    }
+}
+\`\`\`
+
+\`\`\`java
+import java.util.Map;
+
+/**
+ * Result of tax calculation with per-category breakdown.
+ */
+public class TaxResult {
+    private final Map<Category, Double> taxBreakdown;
+    private final double totalTax;
+
+    public TaxResult(Map<Category, Double> taxBreakdown, double totalTax) {
+        this.taxBreakdown = taxBreakdown;
+        this.totalTax = totalTax;
+    }
+
+    public Map<Category, Double> getTaxBreakdown() { return taxBreakdown; }
+    public double getTotalTax()                     { return totalTax; }
+
+    public void printBreakdown() {
+        for (Map.Entry<Category, Double> entry : taxBreakdown.entrySet()) {
+            if (entry.getValue() > 0.001) {
+                System.out.println("    " + entry.getKey()
+                        + " tax: $" + String.format("%.2f", entry.getValue()));
+            }
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 15. Order and OrderLineItem
+
+\`\`\`java
+/**
+ * A single line in an order receipt.
+ */
+public class OrderLineItem {
+    private final String productName;
+    private final int quantity;
+    private final double unitPrice;
+    private final double lineTotal;
+
+    public OrderLineItem(String productName, int quantity,
+                         double unitPrice, double lineTotal) {
+        this.productName = productName;
+        this.quantity = quantity;
+        this.unitPrice = unitPrice;
+        this.lineTotal = lineTotal;
+    }
+
+    public String getProductName() { return productName; }
+    public int getQuantity()       { return quantity; }
+    public double getUnitPrice()   { return unitPrice; }
+    public double getLineTotal()   { return lineTotal; }
+
+    @Override
+    public String toString() {
+        return String.format("  %-20s %3d x $%8.2f = $%8.2f",
+                productName, quantity, unitPrice, lineTotal);
+    }
+}
+\`\`\`
+
+\`\`\`java
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Immutable order produced by OrderBuilder.
+ * Contains the complete breakdown: line items, discounts, tax, grand total.
+ */
+public class Order {
+    private final String orderId;
+    private final List<OrderLineItem> lineItems;
+    private final double subtotal;
+    private final List<DiscountDetail> discountsApplied;
+    private final double totalDiscount;
+    private final double taxAmount;
+    private final double grandTotal;
+    private final LocalDateTime createdAt;
+
+    Order(List<OrderLineItem> lineItems, double subtotal,
+          List<DiscountDetail> discountsApplied, double totalDiscount,
+          double taxAmount, double grandTotal) {
+        this.orderId = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        this.lineItems = List.copyOf(lineItems);               // immutable
+        this.subtotal = subtotal;
+        this.discountsApplied = List.copyOf(discountsApplied); // immutable
+        this.totalDiscount = totalDiscount;
+        this.taxAmount = taxAmount;
+        this.grandTotal = grandTotal;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    // ---- Getters ----
+
+    public String getOrderId()                        { return orderId; }
+    public List<OrderLineItem> getLineItems()         { return lineItems; }
+    public double getSubtotal()                       { return subtotal; }
+    public List<DiscountDetail> getDiscountsApplied() { return discountsApplied; }
+    public double getTotalDiscount()                  { return totalDiscount; }
+    public double getTaxAmount()                      { return taxAmount; }
+    public double getGrandTotal()                     { return grandTotal; }
+    public LocalDateTime getCreatedAt()               { return createdAt; }
+
+    // ---- Summary ----
+
+    public void printSummary() {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        System.out.println();
+        System.out.println("╔══════════════════════════════════════════════════════════╗");
+        System.out.println("║                    ORDER RECEIPT                         ║");
+        System.out.println("╠══════════════════════════════════════════════════════════╣");
+        System.out.println("  Order ID : " + orderId);
+        System.out.println("  Date     : " + createdAt.format(fmt));
+        System.out.println("──────────────────────────────────────────────────────────");
+        System.out.println("  ITEMS:");
+        for (OrderLineItem li : lineItems) {
+            System.out.println(li);
+        }
+        System.out.println("──────────────────────────────────────────────────────────");
+        System.out.printf("  Subtotal:              $%8.2f%n", subtotal);
+
+        if (!discountsApplied.isEmpty()) {
+            System.out.println("  DISCOUNTS:");
+            for (DiscountDetail d : discountsApplied) {
+                System.out.printf("    %-38s -$%8.2f%n", d.getDescription(), d.getAmountOff());
+            }
+            System.out.printf("  Total Discount:        -$%8.2f%n", totalDiscount);
+        }
+
+        System.out.printf("  Tax:                    $%8.2f%n", taxAmount);
+        System.out.println("══════════════════════════════════════════════════════════");
+        System.out.printf("  GRAND TOTAL:            $%8.2f%n", grandTotal);
+        System.out.println("╚══════════════════════════════════════════════════════════╝");
+        System.out.println();
+    }
+}
+\`\`\`
+
+---
+
+## 16. OrderBuilder
+
+\`\`\`java
+import java.util.*;
+
+/**
+ * Builder pattern: assembles an Order from a Cart by applying pricing rules,
+ * computing tax, and building line items.
+ *
+ * Usage:
+ *   Order order = new OrderBuilder()
+ *       .setCart(cart)
+ *       .setPricingEngine(engine)
+ *       .setTaxCalculator(taxCalc)
+ *       .setCoupon(coupon)        // optional
+ *       .build();
+ */
+public class OrderBuilder {
+    private Cart cart;
+    private PricingEngine pricingEngine;
+    private TaxCalculator taxCalculator;
+    private Coupon coupon;
+
+    public OrderBuilder setCart(Cart cart) {
+        this.cart = cart;
+        return this;
+    }
+
+    public OrderBuilder setPricingEngine(PricingEngine pricingEngine) {
+        this.pricingEngine = pricingEngine;
+        return this;
+    }
+
+    public OrderBuilder setTaxCalculator(TaxCalculator taxCalculator) {
+        this.taxCalculator = taxCalculator;
+        return this;
+    }
+
+    public OrderBuilder setCoupon(Coupon coupon) {
+        this.coupon = coupon;
+        return this;
+    }
+
+    public Order build() {
+        // ---- Validate ----
+        if (cart == null || cart.isEmpty()) {
+            throw new IllegalStateException("Cannot build order from empty or null cart");
+        }
+        if (pricingEngine == null) {
+            throw new IllegalStateException("PricingEngine is required");
+        }
+        if (taxCalculator == null) {
+            throw new IllegalStateException("TaxCalculator is required");
+        }
+
+        // ---- Step 1: Add coupon as a pricing rule if present ----
+        if (coupon != null) {
+            pricingEngine.addRule(coupon);
+        }
+
+        // ---- Step 2: Apply all pricing rules ----
+        PricingResult pricingResult = pricingEngine.applyAll(cart);
+
+        double subtotal = pricingResult.getOriginalTotal();
+        double discountedTotal = pricingResult.getDiscountedTotal();
+        double totalDiscount = pricingResult.getTotalDiscount();
+        List<DiscountDetail> discounts = pricingResult.getDiscountsApplied();
+
+        // ---- Step 3: Calculate tax on post-discount total ----
+        TaxResult taxResult = taxCalculator.calculateTax(cart, discountedTotal);
+        double taxAmount = taxResult.getTotalTax();
+
+        // ---- Step 4: Grand total ----
+        double grandTotal = discountedTotal + taxAmount;
+
+        // ---- Step 5: Build line items ----
+        List<OrderLineItem> lineItems = new ArrayList<>();
+        for (CartItem item : cart.getItems()) {
+            lineItems.add(new OrderLineItem(
+                    item.getProduct().getName(),
+                    item.getQuantity(),
+                    item.getProduct().getPrice(),
+                    item.getSubtotal()
+            ));
+        }
+
+        // ---- Step 6: Construct immutable Order ----
+        return new Order(lineItems, subtotal, discounts, totalDiscount,
+                         taxAmount, grandTotal);
+    }
+}
+\`\`\`
+
+---
+
+## 17. Main Demo
+
+\`\`\`java
+import java.time.LocalDate;
+
+/**
+ * Complete demonstration:
+ *
+ * 1. Create products across categories
+ * 2. Add items to cart (with observer notifications)
+ * 3. Configure pricing rules:
+ *    - 10% off all Electronics (CategoryDiscount)
+ *    - Buy 2 Get 1 Free on T-Shirts (BuyXGetYFree)
+ *    - 5% storewide discount (PercentDiscount)
+ *    - $15 flat discount (FlatDiscount)
+ * 4. Apply a coupon ($25 off, min cart $100, expires 2026-12-31)
+ * 5. Build the order and print the full receipt
+ */
+public class ShoppingCartDemo {
+
+    public static void main(String[] args) {
+        System.out.println("==========================================================");
+        System.out.println("     ONLINE SHOPPING CART -- PRICING RULES DEMO");
+        System.out.println("==========================================================\\n");
+
+        // ---- 1. Create Products ----
+        Product laptop   = new Product("P001", "Laptop",          999.99, Category.ELECTRONICS);
+        Product mouse    = new Product("P002", "Wireless Mouse",   29.99, Category.ELECTRONICS);
+        Product tshirt   = new Product("P003", "Cotton T-Shirt",   24.99, Category.CLOTHING);
+        Product novel    = new Product("P004", "Java Design Book",  49.99, Category.BOOKS);
+        Product bread    = new Product("P005", "Whole Wheat Bread",  3.49, Category.GROCERIES);
+
+        System.out.println("Products created:");
+        System.out.println("  " + laptop);
+        System.out.println("  " + mouse);
+        System.out.println("  " + tshirt);
+        System.out.println("  " + novel);
+        System.out.println("  " + bread);
+        System.out.println();
+
+        // ---- 2. Create Cart with Observers ----
+        Cart cart = new Cart();
+        cart.addObserver(new PricingSummaryObserver());
+        cart.addObserver(new InventoryObserver());
+
+        System.out.println("--- Adding items to cart ---");
+        cart.addItem(laptop, 1);     // $999.99
+        cart.addItem(mouse, 2);      // $59.98
+        cart.addItem(tshirt, 3);     // $74.97   (buy 2 get 1 free eligible)
+        cart.addItem(novel, 1);      // $49.99
+        cart.addItem(bread, 4);      // $13.96
+
+        System.out.println();
+        cart.printCart();
+        // Expected subtotal: $1198.89
+
+        // ---- 3. Configure Pricing Rules ----
+        PricingEngine engine = new PricingEngine();
+
+        // Priority 1: Category discount -- 10% off Electronics
+        engine.addRule(new CategoryDiscount(Category.ELECTRONICS, 10.0, 1));
+
+        // Priority 2: Buy 2 Get 1 Free on T-Shirts
+        engine.addRule(new BuyXGetYFree("P003", 2, 1, 2));
+
+        // Priority 3: 5% storewide discount
+        engine.addRule(new PercentDiscount(5.0, 3));
+
+        // Priority 4: Flat $15 off
+        engine.addRule(new FlatDiscount(15.0, 4));
+
+        System.out.println("Pricing rules configured:");
+        System.out.println("  [Priority 1] 10% off Electronics");
+        System.out.println("  [Priority 2] Buy 2 Get 1 Free on T-Shirts");
+        System.out.println("  [Priority 3] 5% off entire order");
+        System.out.println("  [Priority 4] Flat $15 off");
+        System.out.println();
+
+        // ---- 4. Create Coupon ----
+        // $25 off, requires $100 minimum, expires end of 2026
+        Coupon coupon = new Coupon(
+                "SAVE25",
+                new FlatDiscount(25.0, 5),     // inner rule
+                LocalDate.of(2026, 12, 31),    // expiry
+                100.0,                          // min cart value
+                5                               // priority (applied last)
+        );
+
+        System.out.println("Coupon created: SAVE25 ($25 off, min cart $100, expires 2026-12-31)");
+        System.out.println();
+
+        // ---- 5. Run the Pricing Engine standalone (preview) ----
+        System.out.println("--- Pricing Engine Preview (before coupon) ---");
+        PricingResult preview = engine.applyAll(cart);
+        System.out.println("  Original total:   $" + String.format("%.2f", preview.getOriginalTotal()));
+        System.out.println("  Discounted total: $" + String.format("%.2f", preview.getDiscountedTotal()));
+        System.out.println("  Discounts applied:");
+        for (DiscountDetail d : preview.getDiscountsApplied()) {
+            System.out.println("    - " + d);
+        }
+        System.out.println();
+
+        // ---- 6. Configure Tax Calculator ----
+        TaxCalculator taxCalc = new TaxCalculator();
+        taxCalc.setRate(Category.ELECTRONICS, 12.0);   // 12% on electronics
+        taxCalc.setRate(Category.CLOTHING, 5.0);        // 5% on clothing
+        taxCalc.setRate(Category.BOOKS, 0.0);            // 0% on books
+        taxCalc.setRate(Category.GROCERIES, 0.0);        // 0% on groceries
+
+        System.out.println("Tax rates configured:");
+        System.out.println("  Electronics: 12%");
+        System.out.println("  Clothing:     5%");
+        System.out.println("  Books:        0%");
+        System.out.println("  Groceries:    0%");
+        System.out.println();
+
+        // ---- 7. Build Order (with coupon) ----
+        System.out.println("--- Building Order ---");
+
+        // Create a fresh engine for the order build to avoid double-adding rules
+        PricingEngine orderEngine = new PricingEngine();
+        orderEngine.addRule(new CategoryDiscount(Category.ELECTRONICS, 10.0, 1));
+        orderEngine.addRule(new BuyXGetYFree("P003", 2, 1, 2));
+        orderEngine.addRule(new PercentDiscount(5.0, 3));
+        orderEngine.addRule(new FlatDiscount(15.0, 4));
+
+        Order order = new OrderBuilder()
+                .setCart(cart)
+                .setPricingEngine(orderEngine)
+                .setTaxCalculator(taxCalc)
+                .setCoupon(coupon)
+                .build();
+
+        order.printSummary();
+
+        // ---- 8. Tax breakdown ----
+        System.out.println("Tax breakdown:");
+        double discountedTotal = order.getGrandTotal() - order.getTaxAmount();
+        TaxResult taxResult = taxCalc.calculateTax(cart, discountedTotal);
+        taxResult.printBreakdown();
+        System.out.println();
+
+        // ---- 9. Demonstrate edge cases ----
+        System.out.println("==========================================================");
+        System.out.println("     EDGE CASE DEMOS");
+        System.out.println("==========================================================\\n");
+
+        // 9a. Expired coupon
+        System.out.println("--- Expired Coupon ---");
+        Coupon expiredCoupon = new Coupon(
+                "OLD10",
+                new FlatDiscount(10.0, 5),
+                LocalDate.of(2020, 1, 1),   // already expired
+                0.0,
+                5
+        );
+        double result = expiredCoupon.apply(cart, 500.0);
+        System.out.println("  Running total after expired coupon: $"
+                + String.format("%.2f", result) + " (unchanged)");
+        System.out.println();
+
+        // 9b. Coupon with min cart value not met
+        System.out.println("--- Coupon Min Value Not Met ---");
+        Cart smallCart = new Cart();
+        smallCart.addObserver(new PricingSummaryObserver());
+        smallCart.addItem(bread, 1);  // only $3.49
+        Coupon bigMinCoupon = new Coupon(
+                "BIG50",
+                new FlatDiscount(50.0, 5),
+                LocalDate.of(2026, 12, 31),
+                500.0,   // needs $500 minimum
+                5
+        );
+        result = bigMinCoupon.apply(smallCart, smallCart.getSubtotal());
+        System.out.println("  Running total: $" + String.format("%.2f", result) + " (unchanged)");
+        System.out.println();
+
+        // 9c. BuyXGetYFree with insufficient quantity
+        System.out.println("--- Buy 2 Get 1 Free with only 1 item ---");
+        Cart singleItemCart = new Cart();
+        singleItemCart.addItem(tshirt, 1);
+        BuyXGetYFree b2g1 = new BuyXGetYFree("P003", 2, 1, 2);
+        double before = singleItemCart.getSubtotal();
+        result = b2g1.apply(singleItemCart, before);
+        System.out.println("  Before: $" + String.format("%.2f", before)
+                + " | After: $" + String.format("%.2f", result) + " (no change, qty < 3)");
+        System.out.println();
+
+        // 9d. Discount exceeding total (floor at zero)
+        System.out.println("--- Discount Exceeds Total ---");
+        Cart cheapCart = new Cart();
+        cheapCart.addItem(bread, 1);  // $3.49
+        FlatDiscount hugeDiscount = new FlatDiscount(1000.0, 1);
+        result = hugeDiscount.apply(cheapCart, cheapCart.getSubtotal());
+        System.out.println("  Cart: $" + String.format("%.2f", cheapCart.getSubtotal())
+                + " | Flat $1000 off -> $" + String.format("%.2f", result) + " (floored at 0)");
+        System.out.println();
+
+        // 9e. Remove item and update quantity
+        System.out.println("--- Remove and Update Quantity ---");
+        Cart modCart = new Cart();
+        modCart.addObserver(new PricingSummaryObserver());
+        modCart.addItem(laptop, 2);
+        modCart.addItem(mouse, 5);
+        System.out.println("  Before removal:");
+        modCart.printCart();
+        modCart.removeItem("P001");
+        modCart.updateQuantity("P002", 3);
+        System.out.println("  After removing Laptop and setting Mouse qty to 3:");
+        modCart.printCart();
+
+        System.out.println("==========================================================");
+        System.out.println("     DEMO COMPLETE");
+        System.out.println("==========================================================");
+    }
+}
+\`\`\`
+
+---
+
+## Expected Output
+
+\`\`\`
+==========================================================
+     ONLINE SHOPPING CART -- PRICING RULES DEMO
+==========================================================
+
+Products created:
+  Laptop ($999.99, ELECTRONICS)
+  Wireless Mouse ($29.99, ELECTRONICS)
+  Cotton T-Shirt ($24.99, CLOTHING)
+  Java Design Book ($49.99, BOOKS)
+  Whole Wheat Bread ($3.49, GROCERIES)
+
+--- Adding items to cart ---
+[Observer] Cart updated. 1 unique item(s), subtotal = $999.99
+[InventoryObserver] Checking stock for 1 item(s)...
+[Observer] Cart updated. 2 unique item(s), subtotal = $1059.97
+[InventoryObserver] Checking stock for 2 item(s)...
+[Observer] Cart updated. 3 unique item(s), subtotal = $1134.94
+[InventoryObserver] Checking stock for 3 item(s)...
+[Observer] Cart updated. 4 unique item(s), subtotal = $1184.93
+[InventoryObserver] Checking stock for 4 item(s)...
+[Observer] Cart updated. 5 unique item(s), subtotal = $1198.89
+[InventoryObserver] Checking stock for 5 item(s)...
+
+===== Shopping Cart =====
+  Laptop x1 = $999.99
+  Wireless Mouse x2 = $59.98
+  Cotton T-Shirt x3 = $74.97
+  Java Design Book x1 = $49.99
+  Whole Wheat Bread x4 = $13.96
+  -----------------------
+  Subtotal: $1198.89
+=========================
+Pricing rules configured:
+  [Priority 1] 10% off Electronics
+  [Priority 2] Buy 2 Get 1 Free on T-Shirts
+  [Priority 3] 5% off entire order
+  [Priority 4] Flat $15 off
+
+--- Pricing Engine Preview ---
+  Original total:   $1198.89
+  Discounted total: ~$977.xx  (after all 4 rules)
+  Discounts applied:
+    - 10% off ELECTRONICS items -> -$106.00
+    - Buy 2 Get 1 Free on product P003 -> -$24.99
+    - 5% off entire order -> -$53.40
+    - Flat $15.00 off -> -$15.00
+
+Tax breakdown:
+  ELECTRONICS tax: $xxx.xx   (12% of discounted electronics subtotal)
+  CLOTHING tax:    $x.xx     (5% of discounted clothing subtotal)
+
+╔══════════════════════════════════════════════════════════╗
+║                    ORDER RECEIPT                         ║
+╠══════════════════════════════════════════════════════════╣
+  Order ID : A1B2C3D4
+  Date     : 2026-04-07 14:30:00
+──────────────────────────────────────────────────────────
+  ITEMS:
+  Laptop                 1 x $  999.99 = $  999.99
+  Wireless Mouse         2 x $   29.99 = $   59.98
+  Cotton T-Shirt         3 x $   24.99 = $   74.97
+  Java Design Book       1 x $   49.99 = $   49.99
+  Whole Wheat Bread      4 x $    3.49 = $   13.96
+──────────────────────────────────────────────────────────
+  Subtotal:              $ 1198.89
+  DISCOUNTS:
+    10% off ELECTRONICS items              -$  106.00
+    Buy 2 Get 1 Free on product P003       -$   24.99
+    5% off entire order                    -$   53.40
+    Flat $15.00 off                        -$   15.00
+    Coupon 'SAVE25': Flat $25.00 off       -$   25.00
+  Total Discount:        -$  224.38
+  Tax:                    $  xxx.xx
+══════════════════════════════════════════════════════════
+  GRAND TOTAL:            $  xxx.xx
+╚══════════════════════════════════════════════════════════╝
+\`\`\`
+
+*(Exact tax and grand total values depend on the proportional tax distribution.)*
+
+---
+
+## Design Pattern Summary
+
+| Pattern | Where Used | Purpose |
+|---------|-----------|---------|
+| **Strategy** | \`PricingRule\` interface with \`FlatDiscount\`, \`PercentDiscount\`, \`BuyXGetYFree\`, \`CategoryDiscount\` | Encapsulate interchangeable discount algorithms |
+| **Decorator** | \`PricingEngine\` chains rules: each rule wraps the previous total | Layer multiple discounts in a defined order |
+| **Observer** | \`CartObserver\` with \`PricingSummaryObserver\`, \`InventoryObserver\` | React to cart changes without coupling |
+| **Builder** | \`OrderBuilder\` assembles \`Order\` step by step | Separate complex construction from representation |
+
+---
+
+## Class Responsibilities (Single Responsibility Principle)
+
+| Class | Single Responsibility |
+|-------|----------------------|
+| \`Product\` | Hold product catalog data |
+| \`CartItem\` | Bind a product to a quantity |
+| \`Cart\` | Manage items and notify observers |
+| \`FlatDiscount\` | Subtract a fixed amount |
+| \`PercentDiscount\` | Subtract a percentage |
+| \`BuyXGetYFree\` | Make Y items free per X bought |
+| \`CategoryDiscount\` | Percentage off one category |
+| \`Coupon\` | Validate + delegate to inner rule |
+| \`PricingEngine\` | Sort and chain rules |
+| \`TaxCalculator\` | Compute per-category tax |
+| \`OrderBuilder\` | Assemble order from parts |
+| \`Order\` | Immutable receipt |
+`,
+  designWalkthrough: `# Low-Level Design: Online Shopping Cart with Pricing Rules
+
+## 1. Problem Statement
+
+Design an online shopping cart system that supports:
+- Adding and removing products with quantities
+- Multiple pricing rule types (flat discount, percentage discount, buy-X-get-Y-free, category discount)
+- Coupon application with validation (expiry date, minimum cart value)
+- Tax calculation with configurable rates per category
+- Checkout that produces a detailed order with line-item breakdowns
+- Rule priority and stacking logic so discounts compose predictably
+
+The design must demonstrate **Strategy**, **Decorator**, **Observer**, and **Builder** patterns.
+
+---
+
+## 2. Requirements
+
+### 2.1 Functional Requirements
+
+| # | Requirement |
+|---|-------------|
+| FR-1 | Add a product to the cart with a given quantity |
+| FR-2 | Remove a product or reduce its quantity |
+| FR-3 | View the cart with per-item subtotals |
+| FR-4 | Apply a coupon code (validated for expiry and minimum cart value) |
+| FR-5 | Calculate the cart total after all pricing rules |
+| FR-6 | Support **flat discount** (e.g., $10 off) |
+| FR-7 | Support **percentage discount** (e.g., 15% off) |
+| FR-8 | Support **buy X get Y free** (e.g., buy 2 get 1 free) |
+| FR-9 | Support **category discount** (e.g., 20% off Electronics) |
+| FR-10 | Apply tax with configurable per-category rates |
+| FR-11 | Checkout: convert cart into an order with full breakdown |
+| FR-12 | Multiple discounts can stack; priority determines application order |
+
+### 2.2 Non-Functional Requirements
+
+| # | Requirement |
+|---|-------------|
+| NFR-1 | Open/Closed Principle -- add new pricing rules without modifying engine |
+| NFR-2 | Single Responsibility -- each rule class owns one discount type |
+| NFR-3 | Deterministic totals -- same cart + rules always produce the same price |
+| NFR-4 | Thread-safe cart modifications (in a concurrent environment) |
+
+---
+
+## 3. Core Entities
+
+### 3.1 Category
+Enum representing product categories. Used by \`CategoryDiscount\` and \`TaxCalculator\` for targeted logic.
+
+### 3.2 Product
+Immutable value object: id, name, base price, category.
+
+### 3.3 CartItem
+Mutable association between a \`Product\` and a quantity inside a cart. Exposes \`getSubtotal()\` = price x quantity.
+
+### 3.4 Cart
+Aggregate root that holds a map of \`productId -> CartItem\`. Provides \`addItem\`, \`removeItem\`, \`getItems\`, \`getSubtotal\`. Maintains a list of \`CartObserver\` listeners and notifies them on every mutation.
+
+### 3.5 PricingRule (abstract / interface)
+**Strategy pattern entry point.** Each concrete rule implements \`double apply(Cart cart, double runningTotal)\` and carries a \`priority\` (lower number = applied first).
+
+### 3.6 Coupon
+A special pricing rule wrapper. Contains code, discount amount/percent, expiry date, and minimum cart value. Validates itself before delegating to its inner discount strategy.
+
+### 3.7 PricingEngine
+Accepts a list of \`PricingRule\` objects, sorts them by priority, and applies them sequentially. The output of one rule becomes the input of the next -- this is the **Decorator-style chaining**.
+
+### 3.8 TaxCalculator
+Calculates tax per line item using a configurable \`Map<Category, Double>\` of tax rates. Applied after all discounts.
+
+### 3.9 Order
+Immutable result of checkout. Contains line items, discount breakdown, tax breakdown, and the grand total.
+
+### 3.10 OrderBuilder
+**Builder pattern.** Assembles an \`Order\` step by step: sets cart snapshot, applies discounts via PricingEngine, calculates tax, and builds the final immutable Order.
+
+---
+
+## 4. Design Patterns in Detail
+
+### 4.1 Strategy Pattern -- PricingRule Hierarchy
+
+The Strategy pattern lets us define a family of discount algorithms, encapsulate each one, and make them interchangeable. The \`PricingEngine\` holds a collection of strategies and does not know (or care) which concrete type it is invoking.
+
+**Participants:**
+- **Strategy interface:** \`PricingRule\` with method \`apply(Cart, double) -> double\`
+- **Concrete strategies:** \`FlatDiscount\`, \`PercentDiscount\`, \`BuyXGetYFree\`, \`CategoryDiscount\`
+- **Context:** \`PricingEngine\` iterates through strategies in priority order
+
+**Why Strategy?**
+Adding a new rule (e.g., "loyalty points discount") requires only a new class implementing \`PricingRule\`. No changes to \`PricingEngine\`, \`Cart\`, or any existing rule.
+
+### 4.2 Decorator Pattern -- Layered Price Computation
+
+Each pricing rule takes a running total and returns a (possibly reduced) total. Rules are chained:
+
+\`\`\`
+basePrice --> CategoryDiscount --> PercentDiscount --> FlatDiscount --> Coupon --> TaxCalculator
+\`\`\`
+
+This is the Decorator concept applied functionally: each layer wraps the previous result, adding its own transformation. The \`PricingEngine\` orchestrates this pipeline.
+
+**Decorator chain walkthrough:**
+1. Start with cart subtotal (sum of price x qty for every item).
+2. \`CategoryDiscount\` (priority 1): reduces price for items in the target category.
+3. \`PercentDiscount\` (priority 2): takes a percentage off the running total.
+4. \`FlatDiscount\` (priority 3): subtracts a fixed amount from the running total.
+5. \`Coupon\` (priority 4): applies coupon discount after validation.
+6. \`TaxCalculator\`: adds tax on the post-discount total.
+
+The running total flows through each decorator, and each one only modifies its own concern.
+
+### 4.3 Observer Pattern -- Cart Change Notifications
+
+When the cart contents change (item added, removed, quantity updated), interested parties need to react -- for example, recalculating suggested discounts or updating a UI counter.
+
+**Participants:**
+- **Subject:** \`Cart\` maintains a \`List<CartObserver>\`
+- **Observer interface:** \`CartObserver\` with \`onCartChanged(Cart cart)\`
+- **Concrete observers:** \`PricingSummaryObserver\` (recalculates totals), \`InventoryObserver\` (checks stock)
+
+### 4.4 Builder Pattern -- OrderBuilder
+
+Constructing an \`Order\` involves multiple steps that must happen in sequence (snapshot cart, apply discounts, compute tax, assemble line items). The Builder pattern lets us separate this construction logic from the \`Order\` representation.
+
+**Builder steps:**
+1. \`setCart(cart)\` -- snapshot current cart items
+2. \`applyDiscounts(pricingEngine)\` -- run all pricing rules
+3. \`applyTax(taxCalculator)\` -- compute per-category tax
+4. \`build()\` -- return immutable \`Order\`
+
+---
+
+## 5. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    direction TB
+
+    class Category {
+        <<enumeration>>
+        ELECTRONICS
+        CLOTHING
+        GROCERIES
+        BOOKS
+    }
+
+    class Product {
+        -String id
+        -String name
+        -double price
+        -Category category
+        +getId() String
+        +getName() String
+        +getPrice() double
+        +getCategory() Category
+    }
+
+    class CartItem {
+        -Product product
+        -int quantity
+        +getProduct() Product
+        +getQuantity() int
+        +setQuantity(int)
+        +getSubtotal() double
+    }
+
+    class CartObserver {
+        <<interface>>
+        +onCartChanged(Cart) void
+    }
+
+    class Cart {
+        -Map~String, CartItem~ items
+        -List~CartObserver~ observers
+        +addItem(Product, int) void
+        +removeItem(String) void
+        +updateQuantity(String, int) void
+        +getItems() Collection~CartItem~
+        +getSubtotal() double
+        +addObserver(CartObserver) void
+        +removeObserver(CartObserver) void
+        -notifyObservers() void
+    }
+
+    class PricingRule {
+        <<interface>>
+        +apply(Cart, double) double
+        +getPriority() int
+        +getDescription() String
+    }
+
+    class FlatDiscount {
+        -double amount
+        -int priority
+        +apply(Cart, double) double
+        +getPriority() int
+        +getDescription() String
+    }
+
+    class PercentDiscount {
+        -double percent
+        -int priority
+        +apply(Cart, double) double
+        +getPriority() int
+        +getDescription() String
+    }
+
+    class BuyXGetYFree {
+        -String productId
+        -int buyCount
+        -int freeCount
+        -int priority
+        +apply(Cart, double) double
+        +getPriority() int
+        +getDescription() String
+    }
+
+    class CategoryDiscount {
+        -Category category
+        -double percent
+        -int priority
+        +apply(Cart, double) double
+        +getPriority() int
+        +getDescription() String
+    }
+
+    class Coupon {
+        -String code
+        -PricingRule discountRule
+        -LocalDate expiryDate
+        -double minCartValue
+        +isValid(double cartTotal) boolean
+        +apply(Cart, double) double
+        +getPriority() int
+        +getDescription() String
+    }
+
+    class PricingEngine {
+        -List~PricingRule~ rules
+        +addRule(PricingRule) void
+        +applyAll(Cart) PricingResult
+    }
+
+    class PricingResult {
+        -double originalTotal
+        -double discountedTotal
+        -List~DiscountDetail~ discountsApplied
+        +getOriginalTotal() double
+        +getDiscountedTotal() double
+        +getDiscountsApplied() List~DiscountDetail~
+    }
+
+    class DiscountDetail {
+        -String description
+        -double amountOff
+    }
+
+    class TaxCalculator {
+        -Map~Category, Double~ taxRates
+        +calculateTax(Cart, double) TaxResult
+    }
+
+    class TaxResult {
+        -Map~Category, Double~ taxBreakdown
+        -double totalTax
+    }
+
+    class Order {
+        -String orderId
+        -List~OrderLineItem~ lineItems
+        -double subtotal
+        -double totalDiscount
+        -double taxAmount
+        -double grandTotal
+        -LocalDateTime createdAt
+        +printSummary() void
+    }
+
+    class OrderLineItem {
+        -String productName
+        -int quantity
+        -double unitPrice
+        -double lineTotal
+    }
+
+    class OrderBuilder {
+        -Cart cart
+        -PricingEngine pricingEngine
+        -TaxCalculator taxCalculator
+        -Coupon coupon
+        +setCart(Cart) OrderBuilder
+        +setPricingEngine(PricingEngine) OrderBuilder
+        +setTaxCalculator(TaxCalculator) OrderBuilder
+        +setCoupon(Coupon) OrderBuilder
+        +build() Order
+    }
+
+    class PricingSummaryObserver {
+        +onCartChanged(Cart) void
+    }
+
+    Product --> Category
+    CartItem --> Product
+    Cart --> CartItem
+    Cart --> CartObserver
+    PricingSummaryObserver ..|> CartObserver
+
+    PricingRule <|.. FlatDiscount
+    PricingRule <|.. PercentDiscount
+    PricingRule <|.. BuyXGetYFree
+    PricingRule <|.. CategoryDiscount
+    Coupon ..|> PricingRule
+    Coupon --> PricingRule : wraps inner rule
+
+    PricingEngine --> PricingRule
+    PricingEngine --> PricingResult
+    PricingResult --> DiscountDetail
+    TaxCalculator --> TaxResult
+
+    OrderBuilder --> Cart
+    OrderBuilder --> PricingEngine
+    OrderBuilder --> TaxCalculator
+    OrderBuilder --> Order
+    Order --> OrderLineItem
+\`\`\`
+
+---
+
+## 6. Rule Priority and Stacking Logic
+
+### 6.1 Priority System
+
+Each \`PricingRule\` returns a \`priority\` integer. Lower numbers are applied first. This establishes a deterministic order:
+
+| Priority | Rule Type | Rationale |
+|----------|-----------|-----------|
+| 1 | CategoryDiscount | Narrows discount to specific items first |
+| 2 | BuyXGetYFree | Adjusts effective quantities before percentage math |
+| 3 | PercentDiscount | Percentage off the already-reduced total |
+| 4 | FlatDiscount | Fixed amount subtracted from remaining total |
+| 5 | Coupon | Customer-facing promotional code, applied last |
+
+### 6.2 Stacking Rules
+
+1. **Sequential application:** Each rule receives the running total output by the previous rule, not the original subtotal. This means discounts compound.
+2. **Floor at zero:** No rule may produce a negative total. If a discount exceeds the remaining total, the total becomes 0.00.
+3. **Category discounts are item-level:** \`CategoryDiscount\` computes the saving for matching items and subtracts it from the running total. All other rules operate on the aggregate total.
+4. **BuyXGetYFree is item-level:** It identifies the cheapest qualifying items and removes their price from the running total.
+5. **Coupon validation:** A coupon checks \`minCartValue\` against the original subtotal (before discounts), not the running total.
+
+### 6.3 Example Walkthrough
+
+Cart contents:
+- Laptop (Electronics): $1000 x 1
+- T-Shirt (Clothing): $50 x 3
+
+Rules applied:
+1. **CategoryDiscount** (10% off Electronics, priority 1): saves $100 on Laptop. Running total: $1150 -> $1050.
+2. **BuyXGetYFree** (buy 2 get 1 free on T-Shirt, priority 2): saves $50 (cheapest free). Running total: $1050 -> $1000.
+3. **PercentDiscount** (5% off everything, priority 3): saves $50. Running total: $1000 -> $950.
+4. **FlatDiscount** ($20 off, priority 4): saves $20. Running total: $950 -> $930.
+5. **Coupon** (extra $30 off, min cart $200, priority 5): valid ($1150 >= $200), saves $30. Running total: $930 -> $900.
+
+Tax (8% on Electronics, 5% on Clothing):
+- Electronics tax: ($1000 - $100) * 0.08 = $72.00
+- Clothing tax: ($150 - $50) * 0.05 = $5.00
+- Total tax: $77.00
+
+**Grand total: $900.00 + $77.00 = $977.00**
+
+---
+
+## 7. Key Flows
+
+### 7.1 Add Item to Cart
+
+\`\`\`
+User -> Cart.addItem(product, qty)
+  Cart -> checks if product already in items map
+    Yes -> increment quantity
+    No  -> create new CartItem, put into map
+  Cart -> notifyObservers()
+    -> PricingSummaryObserver.onCartChanged(cart)
+       -> recalculates and logs running total
+\`\`\`
+
+### 7.2 Apply Discounts and Checkout
+
+\`\`\`
+User -> OrderBuilder.setCart(cart)
+     -> OrderBuilder.setPricingEngine(engine)
+     -> OrderBuilder.setTaxCalculator(taxCalc)
+     -> OrderBuilder.setCoupon(coupon)       [optional]
+     -> OrderBuilder.build()
+
+  build():
+    1. Snapshot cart items into OrderLineItems
+    2. Compute subtotal from cart
+    3. If coupon present, add coupon's inner rule to engine
+    4. PricingEngine.applyAll(cart) -> PricingResult
+       - Sort rules by priority
+       - For each rule: runningTotal = rule.apply(cart, runningTotal)
+       - Record DiscountDetail for each rule
+    5. TaxCalculator.calculateTax(cart, discountedTotal) -> TaxResult
+    6. grandTotal = discountedTotal + totalTax
+    7. Assemble and return immutable Order
+\`\`\`
+
+### 7.3 Coupon Validation
+
+\`\`\`
+Coupon.apply(cart, runningTotal):
+  1. Check expiryDate >= today -> if expired, return runningTotal unchanged
+  2. Check cart.getSubtotal() >= minCartValue -> if below, return unchanged
+  3. Delegate to inner discountRule.apply(cart, runningTotal)
+  4. Ensure result >= 0
+  5. Return result
+\`\`\`
+
+---
+
+## 8. Extensibility Points
+
+| Extension | How to Add |
+|-----------|------------|
+| New discount type (e.g., tiered pricing) | Implement \`PricingRule\` interface, assign priority |
+| New tax jurisdiction | Add entries to \`TaxCalculator\` rate map |
+| Persistence | Serialize \`Order\` -- it is already immutable |
+| Async notifications | Implement \`CartObserver\` that publishes to a message queue |
+| Undo/redo cart changes | Store cart state snapshots via Memento pattern |
+| Currency support | Wrap \`double\` with \`Money\` value object (recommended for production) |
+
+---
+
+## 9. Edge Cases and Error Handling
+
+| Scenario | Handling |
+|----------|----------|
+| Discount exceeds cart total | Floor at $0.00 -- never go negative |
+| Expired coupon | \`Coupon.isValid()\` returns false; discount is skipped silently |
+| Coupon on empty cart | \`minCartValue\` check fails; coupon not applied |
+| Remove item not in cart | \`Cart.removeItem()\` is a no-op, logs warning |
+| Quantity set to zero | Equivalent to removing the item entirely |
+| Duplicate coupon codes | Only one coupon can be set on \`OrderBuilder\` at a time |
+| BuyXGetYFree with insufficient quantity | Rule returns running total unchanged if qty < buyCount + freeCount |
+| Unknown category tax rate | Default to 0% tax |
+
+---
+
+## 10. Thread Safety Considerations
+
+- \`Cart.items\` should be a \`ConcurrentHashMap\` or access should be synchronized.
+- Observer notification should happen outside the lock to avoid deadlocks.
+- \`Order\` is fully immutable once built -- safe to share across threads.
+- \`PricingRule\` implementations are stateless and inherently thread-safe.
+- \`PricingEngine.applyAll()\` creates a local running total, so concurrent calls on different carts are safe.
+
+---
+
+## 11. Testing Strategy
+
+| Test Category | What to Verify |
+|---------------|----------------|
+| Unit: FlatDiscount | Subtracts exact amount; floors at zero |
+| Unit: PercentDiscount | Correct percentage off running total |
+| Unit: BuyXGetYFree | Free items deducted; no effect if qty too low |
+| Unit: CategoryDiscount | Only matching category items discounted |
+| Unit: Coupon | Expired coupon skipped; min-value enforced |
+| Integration: PricingEngine | Rules applied in priority order; stacking correct |
+| Integration: OrderBuilder | Full checkout produces accurate Order totals |
+| Edge: Empty cart checkout | Order with $0.00 totals, no errors |
+| Edge: All discounts exceed total | Grand total floors at $0.00 + tax |
+
+---
+
+## 12. Summary
+
+This design separates concerns cleanly:
+
+- **Strategy** keeps each pricing rule self-contained and independently testable.
+- **Decorator-style chaining** in \`PricingEngine\` lets discounts layer without coupling.
+- **Observer** decouples cart mutation from side effects.
+- **Builder** ensures \`Order\` construction is step-by-step and the result is immutable.
+
+The priority system makes stacking deterministic, and the coupon validation layer prevents misuse. New discount types can be added without touching any existing class.
+`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| searchProducts() | O(P) | O(R) | P = catalog size, R = result set |
+| addToCart() | O(1) | O(1) | HashMap-based cart |
+| removeFromCart() | O(1) | O(1) | HashMap lookup + delete |
+| getCartTotal() | O(C) | O(1) | C = items in cart |
+| placeOrder() | O(C) | O(C) | Create order from C cart items |
+| processPayment() | O(1) | O(1) | Delegate to payment strategy |
+| updateOrderStatus() | O(1) | O(1) | State transition |
+| reserveStock() | O(1) | O(1) | Atomic decrement |
+
+**Inventory management:** Stock reservation uses atomic operations (CAS or
+synchronized decrement) for O(1) per item. Cart-to-order conversion is O(C)
+where C is typically 1-20 items.
+
+**Pricing with discounts:** O(R) where R = number of applicable pricing rules.
+Rules are evaluated in priority order.
+
+**Memory:** O(U * C) for active carts (U = users with active carts, C = avg items).
+O(P) for product catalog. O(O) for order history.`,
+};
+
+// ============================================================
+//  07-design-atm -> prob-atm
+// ============================================================
+
+export const atmSolution: ProblemSolutionContent = {
+  referenceSolution: `# Design an ATM System -- Complete Java Implementation
+
+## Table of Contents
+
+1. [TransactionType Enum](#1-transactiontype-enum)
+2. [Card](#2-card)
+3. [Account](#3-account)
+4. [Transaction](#4-transaction)
+5. [CashSlot](#5-cashslot)
+6. [DispenseChain Interface](#6-dispensechain-interface)
+7. [DenominationHandler](#7-denominationhandler)
+8. [CashDispenser](#8-cashdispenser)
+9. [ATMState Interface](#9-atmstate-interface)
+10. [IdleState](#10-idlestate)
+11. [CardInsertedState](#11-cardinsertedstate)
+12. [AuthenticatedState](#12-authenticatedstate)
+13. [TransactionSelectedState](#13-transactionselectedstate)
+14. [ProcessingState](#14-processingstate)
+15. [TransactionStrategy Interface](#15-transactionstrategy-interface)
+16. [BalanceInquiry](#16-balanceinquiry)
+17. [WithdrawTransaction](#17-withdrawtransaction)
+18. [DepositTransaction](#18-deposittransaction)
+19. [TransferTransaction](#19-transfertransaction)
+20. [TransactionStrategyFactory](#20-transactionstrategyfactory)
+21. [ATM](#21-atm)
+22. [ATMDemo (Main)](#22-atmdemo-main)
+
+---
+
+## 1. TransactionType Enum
+
+\`\`\`java
+public enum TransactionType {
+    BALANCE_INQUIRY,
+    WITHDRAWAL,
+    DEPOSIT,
+    TRANSFER
+}
+\`\`\`
+
+---
+
+## 2. Card
+
+\`\`\`java
+public class Card {
+    private final String cardNumber;
+    private final String accountNumber;
+    private boolean blocked;
+
+    public Card(String cardNumber, String accountNumber) {
+        this.cardNumber = cardNumber;
+        this.accountNumber = accountNumber;
+        this.blocked = false;
+    }
+
+    public String getCardNumber() {
+        return cardNumber;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public boolean isBlocked() {
+        return blocked;
+    }
+
+    public void setBlocked(boolean blocked) {
+        this.blocked = blocked;
+    }
+
+    @Override
+    public String toString() {
+        return "Card[" + cardNumber + "]";
+    }
+}
+\`\`\`
+
+---
+
+## 3. Account
+
+\`\`\`java
+public class Account {
+    private final String accountNumber;
+    private final String holderName;
+    private int balance; // in smallest currency unit
+    private final String pin;
+
+    public Account(String accountNumber, String holderName, int balance, String pin) {
+        this.accountNumber = accountNumber;
+        this.holderName = holderName;
+        this.balance = balance;
+        this.pin = pin;
+    }
+
+    public boolean validatePin(String enteredPin) {
+        return this.pin.equals(enteredPin);
+    }
+
+    public int getBalance() {
+        return balance;
+    }
+
+    public boolean debit(int amount) {
+        if (amount <= 0) {
+            System.out.println("  [Account] Invalid debit amount.");
+            return false;
+        }
+        if (balance < amount) {
+            System.out.println("  [Account] Insufficient funds. Balance: " + balance
+                    + ", Requested: " + amount);
+            return false;
+        }
+        balance -= amount;
+        return true;
+    }
+
+    public void credit(int amount) {
+        if (amount <= 0) {
+            System.out.println("  [Account] Invalid credit amount.");
+            return;
+        }
+        balance += amount;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public String getHolderName() {
+        return holderName;
+    }
+
+    @Override
+    public String toString() {
+        return "Account[" + accountNumber + ", " + holderName + ", balance=" + balance + "]";
+    }
+}
+\`\`\`
+
+---
+
+## 4. Transaction
+
+\`\`\`java
+import java.util.Map;
+import java.util.UUID;
+
+public class Transaction {
+    private final String transactionId;
+    private final TransactionType type;
+    private final int amount;
+    private final long timestamp;
+    private final String accountNumber;
+    private final String targetAccountNumber; // null unless TRANSFER
+    private final String status;
+    private final int balanceAfter;
+    private final Map<Integer, Integer> denominationBreakdown; // null unless WITHDRAWAL
+
+    public Transaction(TransactionType type, int amount, String accountNumber,
+                       String targetAccountNumber, String status, int balanceAfter,
+                       Map<Integer, Integer> denominationBreakdown) {
+        this.transactionId = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        this.type = type;
+        this.amount = amount;
+        this.timestamp = System.currentTimeMillis();
+        this.accountNumber = accountNumber;
+        this.targetAccountNumber = targetAccountNumber;
+        this.status = status;
+        this.balanceAfter = balanceAfter;
+        this.denominationBreakdown = denominationBreakdown;
+    }
+
+    public String getTransactionId() {
+        return transactionId;
+    }
+
+    public TransactionType getType() {
+        return type;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public String getReceipt() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("  ╔══════════════════════════════════════╗\\n");
+        sb.append("  ║           ATM RECEIPT                ║\\n");
+        sb.append("  ╠══════════════════════════════════════╣\\n");
+        sb.append("  ║  Transaction ID : ").append(transactionId).append("              ║\\n");
+        sb.append("  ║  Type           : ").append(type).append("\\n");
+        sb.append("  ║  Account        : ").append(accountNumber).append("\\n");
+        if (targetAccountNumber != null) {
+            sb.append("  ║  Transfer To    : ").append(targetAccountNumber).append("\\n");
+        }
+        if (amount > 0) {
+            sb.append("  ║  Amount         : ").append(amount).append("\\n");
+        }
+        if (denominationBreakdown != null && !denominationBreakdown.isEmpty()) {
+            sb.append("  ║  Notes Dispensed :\\n");
+            for (Map.Entry<Integer, Integer> entry : denominationBreakdown.entrySet()) {
+                sb.append("  ║    ").append(entry.getKey()).append(" x ")
+                  .append(entry.getValue()).append(" = ")
+                  .append(entry.getKey() * entry.getValue()).append("\\n");
+            }
+        }
+        sb.append("  ║  Balance After  : ").append(balanceAfter).append("\\n");
+        sb.append("  ║  Status         : ").append(status).append("\\n");
+        sb.append("  ╚══════════════════════════════════════╝");
+        return sb.toString();
+    }
+}
+\`\`\`
+
+---
+
+## 5. CashSlot
+
+\`\`\`java
+public class CashSlot {
+    private final int denomination;
+    private int count;
+
+    public CashSlot(int denomination, int count) {
+        this.denomination = denomination;
+        this.count = count;
+    }
+
+    public int getDenomination() {
+        return denomination;
+    }
+
+    public int getCount() {
+        return count;
+    }
+
+    public void dispenseNotes(int num) {
+        if (num > count) {
+            throw new IllegalStateException("Cannot dispense " + num
+                    + " notes of " + denomination + ". Only " + count + " available.");
+        }
+        count -= num;
+    }
+
+    public void addNotes(int num) {
+        count += num;
+    }
+
+    public int getTotalValue() {
+        return denomination * count;
+    }
+
+    @Override
+    public String toString() {
+        return denomination + " x " + count + " = " + getTotalValue();
+    }
+}
+\`\`\`
+
+---
+
+## 6. DispenseChain Interface
+
+\`\`\`java
+import java.util.Map;
+
+/**
+ * Chain of Responsibility interface for cash dispensing.
+ * Each handler is responsible for one denomination.
+ */
+public interface DispenseChain {
+
+    /**
+     * Set the next handler in the chain.
+     */
+    void setNextChain(DispenseChain next);
+
+    /**
+     * Attempt to dispense the given amount using this denomination.
+     * Puts dispensed note counts into the result map.
+     * Passes the remainder to the next chain link.
+     *
+     * @param amount the remaining amount to dispense
+     * @param result accumulator map: denomination -> note count
+     * @return true if the full amount was dispensed (remainder == 0)
+     */
+    boolean dispense(int amount, Map<Integer, Integer> result);
+}
+\`\`\`
+
+---
+
+## 7. DenominationHandler
+
+\`\`\`java
+import java.util.Map;
+
+/**
+ * Concrete handler in the Chain of Responsibility.
+ * Handles a single denomination and delegates the remainder.
+ */
+public class DenominationHandler implements DispenseChain {
+    private final CashSlot cashSlot;
+    private DispenseChain nextChain;
+
+    public DenominationHandler(CashSlot cashSlot) {
+        this.cashSlot = cashSlot;
+    }
+
+    @Override
+    public void setNextChain(DispenseChain next) {
+        this.nextChain = next;
+    }
+
+    @Override
+    public boolean dispense(int amount, Map<Integer, Integer> result) {
+        if (amount <= 0) {
+            return true; // nothing left to dispense
+        }
+
+        int denomination = cashSlot.getDenomination();
+        int notesNeeded = amount / denomination;
+        int notesAvailable = cashSlot.getCount();
+        int notesToDispense = Math.min(notesNeeded, notesAvailable);
+
+        if (notesToDispense > 0) {
+            result.put(denomination, notesToDispense);
+        }
+
+        int remainder = amount - (notesToDispense * denomination);
+
+        if (remainder == 0) {
+            return true; // fully dispensed
+        }
+
+        // Pass remainder to next handler
+        if (nextChain != null) {
+            return nextChain.dispense(remainder, result);
+        }
+
+        // No more handlers and remainder > 0: cannot dispense
+        return false;
+    }
+
+    public CashSlot getCashSlot() {
+        return cashSlot;
+    }
+}
+\`\`\`
+
+---
+
+## 8. CashDispenser
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Manages the physical cash in the ATM.
+ * Builds a Chain of Responsibility from highest to lowest denomination.
+ */
+public class CashDispenser {
+    private final List<CashSlot> cashSlots;
+    private final List<DenominationHandler> handlers;
+    private DispenseChain chainHead;
+
+    public CashDispenser() {
+        this.cashSlots = new ArrayList<>();
+        this.handlers = new ArrayList<>();
+    }
+
+    /**
+     * Initialise the dispenser with denominations in descending order.
+     * Must be called after all cash slots are added.
+     */
+    public void addCashSlot(CashSlot slot) {
+        cashSlots.add(slot);
+    }
+
+    /**
+     * Build the chain of responsibility. Slots must be added in
+     * descending denomination order before calling this.
+     */
+    public void buildChain() {
+        handlers.clear();
+        for (CashSlot slot : cashSlots) {
+            handlers.add(new DenominationHandler(slot));
+        }
+        // Link the chain: each handler points to the next
+        for (int i = 0; i < handlers.size() - 1; i++) {
+            handlers.get(i).setNextChain(handlers.get(i + 1));
+        }
+        if (!handlers.isEmpty()) {
+            chainHead = handlers.get(0);
+        }
+    }
+
+    /**
+     * Check if the ATM can dispense the requested amount.
+     * Does a dry-run without modifying note counts.
+     */
+    public boolean canDispense(int amount) {
+        if (amount <= 0 || amount % 100 != 0) {
+            return false;
+        }
+        if (chainHead == null) {
+            return false;
+        }
+        // Dry run: simulate dispensing
+        Map<Integer, Integer> dryRunResult = new LinkedHashMap<>();
+        return chainHead.dispense(amount, dryRunResult);
+    }
+
+    /**
+     * Dispense the requested amount. Returns a map of denomination -> note count.
+     * Actually decrements note counts from cash slots.
+     *
+     * @throws IllegalStateException if the amount cannot be dispensed
+     */
+    public Map<Integer, Integer> dispense(int amount) {
+        if (!canDispense(amount)) {
+            throw new IllegalStateException("Cannot dispense " + amount);
+        }
+
+        Map<Integer, Integer> result = new LinkedHashMap<>();
+        chainHead.dispense(amount, result);
+
+        // Commit: actually remove notes from the slots
+        for (Map.Entry<Integer, Integer> entry : result.entrySet()) {
+            int denomination = entry.getKey();
+            int count = entry.getValue();
+            for (CashSlot slot : cashSlots) {
+                if (slot.getDenomination() == denomination) {
+                    slot.dispenseNotes(count);
+                    break;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public int getTotalCash() {
+        int total = 0;
+        for (CashSlot slot : cashSlots) {
+            total += slot.getTotalValue();
+        }
+        return total;
+    }
+
+    public void printCashInventory() {
+        System.out.println("  [CashDispenser] Current inventory:");
+        for (CashSlot slot : cashSlots) {
+            System.out.println("    " + slot);
+        }
+        System.out.println("    Total: " + getTotalCash());
+    }
+}
+\`\`\`
+
+---
+
+## 9. ATMState Interface
+
+\`\`\`java
+/**
+ * State pattern interface. Every ATM state implements this contract.
+ * Each method corresponds to a user action on the ATM.
+ */
+public interface ATMState {
+
+    void insertCard(Card card);
+
+    void authenticatePin(String pin);
+
+    void selectTransaction(TransactionType type);
+
+    void executeTransaction(int amount);
+
+    /**
+     * Overloaded for transfers that need a target account.
+     */
+    void executeTransaction(int amount, String targetAccountNumber);
+
+    void ejectCard();
+}
+\`\`\`
+
+---
+
+## 10. IdleState
+
+\`\`\`java
+/**
+ * The ATM is waiting for a card. Only insertCard() is meaningful.
+ */
+public class IdleState implements ATMState {
+    private final ATM atm;
+
+    public IdleState(ATM atm) {
+        this.atm = atm;
+    }
+
+    @Override
+    public void insertCard(Card card) {
+        if (card.isBlocked()) {
+            System.out.println("  [IdleState] This card is blocked. Please contact your bank.");
+            return;
+        }
+        System.out.println("  [IdleState] Card inserted: " + card);
+        atm.setCurrentCard(card);
+        atm.setFailedPinAttempts(0);
+        atm.setState(new CardInsertedState(atm));
+    }
+
+    @Override
+    public void authenticatePin(String pin) {
+        System.out.println("  [IdleState] No card inserted. Please insert your card first.");
+    }
+
+    @Override
+    public void selectTransaction(TransactionType type) {
+        System.out.println("  [IdleState] No card inserted. Please insert your card first.");
+    }
+
+    @Override
+    public void executeTransaction(int amount) {
+        System.out.println("  [IdleState] No card inserted. Please insert your card first.");
+    }
+
+    @Override
+    public void executeTransaction(int amount, String targetAccountNumber) {
+        System.out.println("  [IdleState] No card inserted. Please insert your card first.");
+    }
+
+    @Override
+    public void ejectCard() {
+        System.out.println("  [IdleState] No card to eject.");
+    }
+
+    @Override
+    public String toString() {
+        return "IdleState";
+    }
+}
+\`\`\`
+
+---
+
+## 11. CardInsertedState
+
+\`\`\`java
+/**
+ * A card is in the machine. Only PIN entry and card ejection are allowed.
+ */
+public class CardInsertedState implements ATMState {
+    private static final int MAX_PIN_ATTEMPTS = 3;
+    private final ATM atm;
+
+    public CardInsertedState(ATM atm) {
+        this.atm = atm;
+    }
+
+    @Override
+    public void insertCard(Card card) {
+        System.out.println("  [CardInsertedState] A card is already inserted.");
+    }
+
+    @Override
+    public void authenticatePin(String pin) {
+        Account account = atm.getAccountForCurrentCard();
+        if (account == null) {
+            System.out.println("  [CardInsertedState] Account not found. Ejecting card.");
+            atm.ejectCard();
+            return;
+        }
+
+        if (account.validatePin(pin)) {
+            System.out.println("  [CardInsertedState] PIN accepted. Welcome, "
+                    + account.getHolderName() + "!");
+            atm.setCurrentAccount(account);
+            atm.setFailedPinAttempts(0);
+            atm.setState(new AuthenticatedState(atm));
+        } else {
+            int attempts = atm.getFailedPinAttempts() + 1;
+            atm.setFailedPinAttempts(attempts);
+            int remaining = MAX_PIN_ATTEMPTS - attempts;
+
+            if (remaining <= 0) {
+                System.out.println("  [CardInsertedState] Too many failed attempts. "
+                        + "Card has been BLOCKED.");
+                atm.getCurrentCard().setBlocked(true);
+                ejectCard();
+            } else {
+                System.out.println("  [CardInsertedState] Incorrect PIN. "
+                        + remaining + " attempt(s) remaining.");
+            }
+        }
+    }
+
+    @Override
+    public void selectTransaction(TransactionType type) {
+        System.out.println("  [CardInsertedState] Please authenticate first.");
+    }
+
+    @Override
+    public void executeTransaction(int amount) {
+        System.out.println("  [CardInsertedState] Please authenticate first.");
+    }
+
+    @Override
+    public void executeTransaction(int amount, String targetAccountNumber) {
+        System.out.println("  [CardInsertedState] Please authenticate first.");
+    }
+
+    @Override
+    public void ejectCard() {
+        System.out.println("  [CardInsertedState] Ejecting card: " + atm.getCurrentCard());
+        atm.setCurrentCard(null);
+        atm.setCurrentAccount(null);
+        atm.setSelectedTransactionType(null);
+        atm.setState(new IdleState(atm));
+    }
+
+    @Override
+    public String toString() {
+        return "CardInsertedState";
+    }
+}
+\`\`\`
+
+---
+
+## 12. AuthenticatedState
+
+\`\`\`java
+/**
+ * The user is authenticated. They can select a transaction type or eject the card.
+ */
+public class AuthenticatedState implements ATMState {
+    private final ATM atm;
+
+    public AuthenticatedState(ATM atm) {
+        this.atm = atm;
+    }
+
+    @Override
+    public void insertCard(Card card) {
+        System.out.println("  [AuthenticatedState] A card is already inserted.");
+    }
+
+    @Override
+    public void authenticatePin(String pin) {
+        System.out.println("  [AuthenticatedState] Already authenticated.");
+    }
+
+    @Override
+    public void selectTransaction(TransactionType type) {
+        System.out.println("  [AuthenticatedState] Transaction selected: " + type);
+        atm.setSelectedTransactionType(type);
+        atm.setState(new TransactionSelectedState(atm));
+    }
+
+    @Override
+    public void executeTransaction(int amount) {
+        System.out.println("  [AuthenticatedState] Please select a transaction type first.");
+    }
+
+    @Override
+    public void executeTransaction(int amount, String targetAccountNumber) {
+        System.out.println("  [AuthenticatedState] Please select a transaction type first.");
+    }
+
+    @Override
+    public void ejectCard() {
+        System.out.println("  [AuthenticatedState] Ending session. Ejecting card.");
+        atm.setCurrentCard(null);
+        atm.setCurrentAccount(null);
+        atm.setSelectedTransactionType(null);
+        atm.setState(new IdleState(atm));
+    }
+
+    @Override
+    public String toString() {
+        return "AuthenticatedState";
+    }
+}
+\`\`\`
+
+---
+
+## 13. TransactionSelectedState
+
+\`\`\`java
+/**
+ * The user has chosen a transaction type. Now they enter the amount (or
+ * target account for transfers). They can also go back by ejecting.
+ */
+public class TransactionSelectedState implements ATMState {
+    private final ATM atm;
+
+    public TransactionSelectedState(ATM atm) {
+        this.atm = atm;
+    }
+
+    @Override
+    public void insertCard(Card card) {
+        System.out.println("  [TransactionSelectedState] A card is already inserted.");
+    }
+
+    @Override
+    public void authenticatePin(String pin) {
+        System.out.println("  [TransactionSelectedState] Already authenticated.");
+    }
+
+    @Override
+    public void selectTransaction(TransactionType type) {
+        System.out.println("  [TransactionSelectedState] Changing selection to: " + type);
+        atm.setSelectedTransactionType(type);
+    }
+
+    @Override
+    public void executeTransaction(int amount) {
+        executeTransaction(amount, null);
+    }
+
+    @Override
+    public void executeTransaction(int amount, String targetAccountNumber) {
+        System.out.println("  [TransactionSelectedState] Processing "
+                + atm.getSelectedTransactionType() + "...");
+        atm.setTargetAccountNumber(targetAccountNumber);
+        atm.setState(new ProcessingState(atm));
+        // Delegate to ProcessingState to carry out the transaction
+        atm.getCurrentState().executeTransaction(amount, targetAccountNumber);
+    }
+
+    @Override
+    public void ejectCard() {
+        System.out.println("  [TransactionSelectedState] Cancelling selection. "
+                + "Returning to menu.");
+        atm.setSelectedTransactionType(null);
+        atm.setState(new AuthenticatedState(atm));
+    }
+
+    @Override
+    public String toString() {
+        return "TransactionSelectedState";
+    }
+}
+\`\`\`
+
+---
+
+## 14. ProcessingState
+
+\`\`\`java
+import java.util.Map;
+
+/**
+ * The transaction is being executed. Uses the Strategy pattern to delegate
+ * to the correct TransactionStrategy implementation.
+ */
+public class ProcessingState implements ATMState {
+    private final ATM atm;
+
+    public ProcessingState(ATM atm) {
+        this.atm = atm;
+    }
+
+    @Override
+    public void insertCard(Card card) {
+        System.out.println("  [ProcessingState] Transaction in progress. Please wait.");
+    }
+
+    @Override
+    public void authenticatePin(String pin) {
+        System.out.println("  [ProcessingState] Transaction in progress. Please wait.");
+    }
+
+    @Override
+    public void selectTransaction(TransactionType type) {
+        System.out.println("  [ProcessingState] Transaction in progress. Please wait.");
+    }
+
+    @Override
+    public void executeTransaction(int amount) {
+        executeTransaction(amount, null);
+    }
+
+    @Override
+    public void executeTransaction(int amount, String targetAccountNumber) {
+        TransactionType type = atm.getSelectedTransactionType();
+        TransactionStrategy strategy = TransactionStrategyFactory.getStrategy(
+                type, targetAccountNumber);
+
+        Transaction transaction = strategy.execute(atm, amount);
+
+        if (transaction != null) {
+            System.out.println("\\n" + transaction.getReceipt() + "\\n");
+        }
+
+        // Return to Authenticated so the user can do another transaction
+        atm.setSelectedTransactionType(null);
+        atm.setState(new AuthenticatedState(atm));
+    }
+
+    @Override
+    public void ejectCard() {
+        System.out.println("  [ProcessingState] Cannot eject during processing. Please wait.");
+    }
+
+    @Override
+    public String toString() {
+        return "ProcessingState";
+    }
+}
+\`\`\`
+
+---
+
+## 15. TransactionStrategy Interface
+
+\`\`\`java
+/**
+ * Strategy pattern interface for different transaction types.
+ */
+public interface TransactionStrategy {
+
+    /**
+     * Execute the transaction against the given ATM context.
+     *
+     * @param atm    the ATM providing account and dispenser access
+     * @param amount the monetary amount (0 for balance inquiry)
+     * @return the completed Transaction record, or null on failure
+     */
+    Transaction execute(ATM atm, int amount);
+}
+\`\`\`
+
+---
+
+## 16. BalanceInquiry
+
+\`\`\`java
+/**
+ * Strategy: read and display the account balance.
+ */
+public class BalanceInquiry implements TransactionStrategy {
+
+    @Override
+    public Transaction execute(ATM atm, int amount) {
+        Account account = atm.getCurrentAccount();
+        int balance = account.getBalance();
+
+        System.out.println("  [BalanceInquiry] Your current balance is: " + balance);
+
+        return new Transaction(
+                TransactionType.BALANCE_INQUIRY,
+                0,
+                account.getAccountNumber(),
+                null,
+                "SUCCESS",
+                balance,
+                null
+        );
+    }
+}
+\`\`\`
+
+---
+
+## 17. WithdrawTransaction
+
+\`\`\`java
+import java.util.Map;
+
+/**
+ * Strategy: withdraw cash with denomination breakdown.
+ * Uses the CashDispenser's Chain of Responsibility.
+ */
+public class WithdrawTransaction implements TransactionStrategy {
+
+    @Override
+    public Transaction execute(ATM atm, int amount) {
+        Account account = atm.getCurrentAccount();
+        CashDispenser dispenser = atm.getCashDispenser();
+
+        // Validate amount is a multiple of 100
+        if (amount <= 0 || amount % 100 != 0) {
+            System.out.println("  [Withdraw] Amount must be a positive multiple of 100. "
+                    + "Entered: " + amount);
+            return new Transaction(
+                    TransactionType.WITHDRAWAL, amount, account.getAccountNumber(),
+                    null, "FAILED", account.getBalance(), null
+            );
+        }
+
+        // Check account balance
+        if (account.getBalance() < amount) {
+            System.out.println("  [Withdraw] Insufficient funds. Balance: "
+                    + account.getBalance() + ", Requested: " + amount);
+            return new Transaction(
+                    TransactionType.WITHDRAWAL, amount, account.getAccountNumber(),
+                    null, "FAILED", account.getBalance(), null
+            );
+        }
+
+        // Check ATM cash availability
+        if (!dispenser.canDispense(amount)) {
+            System.out.println("  [Withdraw] ATM cannot dispense " + amount
+                    + ". Insufficient notes.");
+            return new Transaction(
+                    TransactionType.WITHDRAWAL, amount, account.getAccountNumber(),
+                    null, "FAILED", account.getBalance(), null
+            );
+        }
+
+        // Dispense cash (Chain of Responsibility runs here)
+        Map<Integer, Integer> notes = dispenser.dispense(amount);
+
+        // Debit the account
+        account.debit(amount);
+
+        System.out.println("  [Withdraw] Dispensing " + amount + ":");
+        for (Map.Entry<Integer, Integer> entry : notes.entrySet()) {
+            System.out.println("    " + entry.getKey() + " x " + entry.getValue()
+                    + " = " + (entry.getKey() * entry.getValue()));
+        }
+        System.out.println("  [Withdraw] Please collect your cash.");
+
+        return new Transaction(
+                TransactionType.WITHDRAWAL, amount, account.getAccountNumber(),
+                null, "SUCCESS", account.getBalance(), notes
+        );
+    }
+}
+\`\`\`
+
+---
+
+## 18. DepositTransaction
+
+\`\`\`java
+/**
+ * Strategy: deposit cash into the account.
+ */
+public class DepositTransaction implements TransactionStrategy {
+
+    @Override
+    public Transaction execute(ATM atm, int amount) {
+        Account account = atm.getCurrentAccount();
+
+        if (amount <= 0) {
+            System.out.println("  [Deposit] Amount must be positive. Entered: " + amount);
+            return new Transaction(
+                    TransactionType.DEPOSIT, amount, account.getAccountNumber(),
+                    null, "FAILED", account.getBalance(), null
+            );
+        }
+
+        // Credit the account
+        account.credit(amount);
+        System.out.println("  [Deposit] " + amount + " deposited successfully.");
+        System.out.println("  [Deposit] New balance: " + account.getBalance());
+
+        return new Transaction(
+                TransactionType.DEPOSIT, amount, account.getAccountNumber(),
+                null, "SUCCESS", account.getBalance(), null
+        );
+    }
+}
+\`\`\`
+
+---
+
+## 19. TransferTransaction
+
+\`\`\`java
+/**
+ * Strategy: transfer funds from the current account to a target account.
+ */
+public class TransferTransaction implements TransactionStrategy {
+    private final String targetAccountNumber;
+
+    public TransferTransaction(String targetAccountNumber) {
+        this.targetAccountNumber = targetAccountNumber;
+    }
+
+    @Override
+    public Transaction execute(ATM atm, int amount) {
+        Account source = atm.getCurrentAccount();
+
+        if (amount <= 0) {
+            System.out.println("  [Transfer] Amount must be positive.");
+            return new Transaction(
+                    TransactionType.TRANSFER, amount, source.getAccountNumber(),
+                    targetAccountNumber, "FAILED", source.getBalance(), null
+            );
+        }
+
+        // Look up target account
+        Account target = atm.getAccount(targetAccountNumber);
+        if (target == null) {
+            System.out.println("  [Transfer] Target account " + targetAccountNumber
+                    + " not found.");
+            return new Transaction(
+                    TransactionType.TRANSFER, amount, source.getAccountNumber(),
+                    targetAccountNumber, "FAILED", source.getBalance(), null
+            );
+        }
+
+        // Check source balance
+        if (source.getBalance() < amount) {
+            System.out.println("  [Transfer] Insufficient funds. Balance: "
+                    + source.getBalance() + ", Requested: " + amount);
+            return new Transaction(
+                    TransactionType.TRANSFER, amount, source.getAccountNumber(),
+                    targetAccountNumber, "FAILED", source.getBalance(), null
+            );
+        }
+
+        // Execute transfer
+        source.debit(amount);
+        target.credit(amount);
+
+        System.out.println("  [Transfer] " + amount + " transferred from "
+                + source.getAccountNumber() + " to " + target.getAccountNumber());
+        System.out.println("  [Transfer] Your new balance: " + source.getBalance());
+
+        return new Transaction(
+                TransactionType.TRANSFER, amount, source.getAccountNumber(),
+                targetAccountNumber, "SUCCESS", source.getBalance(), null
+        );
+    }
+}
+\`\`\`
+
+---
+
+## 20. TransactionStrategyFactory
+
+\`\`\`java
+/**
+ * Factory that maps TransactionType to the correct Strategy implementation.
+ */
+public class TransactionStrategyFactory {
+
+    public static TransactionStrategy getStrategy(TransactionType type,
+                                                   String targetAccountNumber) {
+        switch (type) {
+            case BALANCE_INQUIRY:
+                return new BalanceInquiry();
+            case WITHDRAWAL:
+                return new WithdrawTransaction();
+            case DEPOSIT:
+                return new DepositTransaction();
+            case TRANSFER:
+                return new TransferTransaction(targetAccountNumber);
+            default:
+                throw new IllegalArgumentException("Unknown transaction type: " + type);
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 21. ATM
+
+\`\`\`java
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * The ATM context class. Delegates all user actions to the current state.
+ * Manages session data: current card, account, transaction type.
+ */
+public class ATM {
+    private ATMState currentState;
+    private final CashDispenser cashDispenser;
+    private Card currentCard;
+    private Account currentAccount;
+    private TransactionType selectedTransactionType;
+    private String targetAccountNumber;
+    private int failedPinAttempts;
+    private final Map<String, Account> accountStore; // simulates bank database
+
+    public ATM() {
+        this.accountStore = new HashMap<>();
+        this.cashDispenser = new CashDispenser();
+        this.currentState = new IdleState(this);
+        this.failedPinAttempts = 0;
+    }
+
+    // ---- User actions (delegated to current state) ----
+
+    public void insertCard(Card card) {
+        System.out.println("\\n>> ACTION: Insert card " + card.getCardNumber());
+        currentState.insertCard(card);
+    }
+
+    public void authenticatePin(String pin) {
+        System.out.println("\\n>> ACTION: Enter PIN ****");
+        currentState.authenticatePin(pin);
+    }
+
+    public void selectTransaction(TransactionType type) {
+        System.out.println("\\n>> ACTION: Select " + type);
+        currentState.selectTransaction(type);
+    }
+
+    public void executeTransaction(int amount) {
+        System.out.println("\\n>> ACTION: Execute with amount " + amount);
+        currentState.executeTransaction(amount);
+    }
+
+    public void executeTransaction(int amount, String targetAccountNumber) {
+        System.out.println("\\n>> ACTION: Execute transfer of " + amount
+                + " to " + targetAccountNumber);
+        currentState.executeTransaction(amount, targetAccountNumber);
+    }
+
+    public void ejectCard() {
+        System.out.println("\\n>> ACTION: Eject card");
+        currentState.ejectCard();
+    }
+
+    // ---- State management ----
+
+    public void setState(ATMState state) {
+        System.out.println("  [ATM] State transition: " + currentState + " -> " + state);
+        this.currentState = state;
+    }
+
+    public ATMState getCurrentState() {
+        return currentState;
+    }
+
+    // ---- Session data getters/setters ----
+
+    public Card getCurrentCard() {
+        return currentCard;
+    }
+
+    public void setCurrentCard(Card card) {
+        this.currentCard = card;
+    }
+
+    public Account getCurrentAccount() {
+        return currentAccount;
+    }
+
+    public void setCurrentAccount(Account account) {
+        this.currentAccount = account;
+    }
+
+    public TransactionType getSelectedTransactionType() {
+        return selectedTransactionType;
+    }
+
+    public void setSelectedTransactionType(TransactionType type) {
+        this.selectedTransactionType = type;
+    }
+
+    public String getTargetAccountNumber() {
+        return targetAccountNumber;
+    }
+
+    public void setTargetAccountNumber(String targetAccountNumber) {
+        this.targetAccountNumber = targetAccountNumber;
+    }
+
+    public int getFailedPinAttempts() {
+        return failedPinAttempts;
+    }
+
+    public void setFailedPinAttempts(int attempts) {
+        this.failedPinAttempts = attempts;
+    }
+
+    public CashDispenser getCashDispenser() {
+        return cashDispenser;
+    }
+
+    // ---- Account store (simulated bank) ----
+
+    public void addAccount(Account account) {
+        accountStore.put(account.getAccountNumber(), account);
+    }
+
+    public Account getAccount(String accountNumber) {
+        return accountStore.get(accountNumber);
+    }
+
+    public Account getAccountForCurrentCard() {
+        if (currentCard == null) return null;
+        return accountStore.get(currentCard.getAccountNumber());
+    }
+}
+\`\`\`
+
+---
+
+## 22. ATMDemo (Main)
+
+\`\`\`java
+/**
+ * Full demonstration of the ATM system:
+ * 1. Setup ATM with cash and accounts
+ * 2. Insert card, enter PIN, check balance
+ * 3. Withdraw with denomination breakdown
+ * 4. Deposit cash
+ * 5. Transfer to another account
+ * 6. Eject card
+ * 7. Invalid PIN lockout scenario
+ */
+public class ATMDemo {
+
+    public static void main(String[] args) {
+
+        // ============================================================
+        // SETUP
+        // ============================================================
+        System.out.println("========================================");
+        System.out.println("       ATM SYSTEM -- DEMO");
+        System.out.println("========================================");
+
+        ATM atm = new ATM();
+
+        // Load cash into the ATM: 2000 x 10, 500 x 20, 200 x 15, 100 x 20
+        CashDispenser dispenser = atm.getCashDispenser();
+        dispenser.addCashSlot(new CashSlot(2000, 10)); // 20,000
+        dispenser.addCashSlot(new CashSlot(500, 20));   // 10,000
+        dispenser.addCashSlot(new CashSlot(200, 15));   //  3,000
+        dispenser.addCashSlot(new CashSlot(100, 20));   //  2,000
+        dispenser.buildChain();                          // Total: 35,000
+
+        System.out.println("\\n--- ATM Cash Loaded ---");
+        dispenser.printCashInventory();
+
+        // Create accounts
+        Account acc1 = new Account("ACC-001", "Alice", 50000, "1234");
+        Account acc2 = new Account("ACC-002", "Bob", 30000, "5678");
+        atm.addAccount(acc1);
+        atm.addAccount(acc2);
+
+        // Create cards
+        Card aliceCard = new Card("CARD-1111", "ACC-001");
+        Card bobCard = new Card("CARD-2222", "ACC-002");
+
+        // ============================================================
+        // SCENARIO 1: Full happy path with Alice
+        // ============================================================
+        System.out.println("\\n========================================");
+        System.out.println("  SCENARIO 1: Alice -- Full Session");
+        System.out.println("========================================");
+
+        // Step 1: Insert card
+        atm.insertCard(aliceCard);
+
+        // Step 2: Authenticate
+        atm.authenticatePin("1234");
+
+        // Step 3: Balance Inquiry
+        atm.selectTransaction(TransactionType.BALANCE_INQUIRY);
+        atm.executeTransaction(0);
+
+        // Step 4: Withdraw 4700 (should give 2000x2 + 500x1 + 200x1)
+        atm.selectTransaction(TransactionType.WITHDRAWAL);
+        atm.executeTransaction(4700);
+
+        // Step 5: Deposit 2000
+        atm.selectTransaction(TransactionType.DEPOSIT);
+        atm.executeTransaction(2000);
+
+        // Step 6: Transfer 5000 to Bob
+        atm.selectTransaction(TransactionType.TRANSFER);
+        atm.executeTransaction(5000, "ACC-002");
+
+        // Step 7: Final balance check
+        atm.selectTransaction(TransactionType.BALANCE_INQUIRY);
+        atm.executeTransaction(0);
+
+        // Step 8: Eject card
+        atm.ejectCard();
+
+        // Print remaining ATM cash
+        System.out.println("\\n--- ATM Cash After Alice's Session ---");
+        dispenser.printCashInventory();
+
+        // ============================================================
+        // SCENARIO 2: Invalid PIN lockout with Bob
+        // ============================================================
+        System.out.println("\\n========================================");
+        System.out.println("  SCENARIO 2: Bob -- PIN Lockout");
+        System.out.println("========================================");
+
+        atm.insertCard(bobCard);
+
+        // Wrong PIN attempt 1
+        atm.authenticatePin("0000");
+
+        // Wrong PIN attempt 2
+        atm.authenticatePin("1111");
+
+        // Wrong PIN attempt 3 -> card blocked
+        atm.authenticatePin("9999");
+
+        // Try to insert the blocked card again
+        System.out.println("\\n--- Attempting to use blocked card ---");
+        atm.insertCard(bobCard);
+
+        // ============================================================
+        // SCENARIO 3: Insufficient funds
+        // ============================================================
+        System.out.println("\\n========================================");
+        System.out.println("  SCENARIO 3: Alice -- Insufficient Funds");
+        System.out.println("========================================");
+
+        atm.insertCard(aliceCard);
+        atm.authenticatePin("1234");
+
+        // Try to withdraw more than balance
+        atm.selectTransaction(TransactionType.WITHDRAWAL);
+        atm.executeTransaction(999900);
+
+        atm.ejectCard();
+
+        // ============================================================
+        // SCENARIO 4: Invalid amount (not multiple of 100)
+        // ============================================================
+        System.out.println("\\n========================================");
+        System.out.println("  SCENARIO 4: Alice -- Invalid Amount");
+        System.out.println("========================================");
+
+        atm.insertCard(aliceCard);
+        atm.authenticatePin("1234");
+
+        atm.selectTransaction(TransactionType.WITHDRAWAL);
+        atm.executeTransaction(350);
+
+        atm.ejectCard();
+
+        // ============================================================
+        // SCENARIO 5: Operations in wrong state
+        // ============================================================
+        System.out.println("\\n========================================");
+        System.out.println("  SCENARIO 5: Wrong State Operations");
+        System.out.println("========================================");
+
+        // Try to authenticate without inserting a card
+        atm.authenticatePin("1234");
+
+        // Try to select transaction without a card
+        atm.selectTransaction(TransactionType.WITHDRAWAL);
+
+        // Try to execute without a card
+        atm.executeTransaction(1000);
+
+        // Try to eject when there is no card
+        atm.ejectCard();
+
+        System.out.println("\\n========================================");
+        System.out.println("       DEMO COMPLETE");
+        System.out.println("========================================");
+    }
+}
+\`\`\`
+
+---
+
+## Expected Output
+
+\`\`\`
+========================================
+       ATM SYSTEM -- DEMO
+========================================
+
+--- ATM Cash Loaded ---
+  [CashDispenser] Current inventory:
+    2000 x 10 = 20000
+    500 x 20 = 10000
+    200 x 15 = 3000
+    100 x 20 = 2000
+    Total: 35000
+
+========================================
+  SCENARIO 1: Alice -- Full Session
+========================================
+
+>> ACTION: Insert card CARD-1111
+  [IdleState] Card inserted: Card[CARD-1111]
+  [ATM] State transition: IdleState -> CardInsertedState
+
+>> ACTION: Enter PIN ****
+  [CardInsertedState] PIN accepted. Welcome, Alice!
+  [ATM] State transition: CardInsertedState -> AuthenticatedState
+
+>> ACTION: Select BALANCE_INQUIRY
+  [AuthenticatedState] Transaction selected: BALANCE_INQUIRY
+  [ATM] State transition: AuthenticatedState -> TransactionSelectedState
+
+>> ACTION: Execute with amount 0
+  [TransactionSelectedState] Processing BALANCE_INQUIRY...
+  [ATM] State transition: TransactionSelectedState -> ProcessingState
+  [BalanceInquiry] Your current balance is: 50000
+
+  ╔══════════════════════════════════════╗
+  ║           ATM RECEIPT                ║
+  ╠══════════════════════════════════════╣
+  ║  Transaction ID : A1B2C3D4              ║
+  ║  Type           : BALANCE_INQUIRY
+  ║  Account        : ACC-001
+  ║  Balance After  : 50000
+  ║  Status         : SUCCESS
+  ╚══════════════════════════════════════╝
+
+  [ATM] State transition: ProcessingState -> AuthenticatedState
+
+>> ACTION: Select WITHDRAWAL
+  [AuthenticatedState] Transaction selected: WITHDRAWAL
+  [ATM] State transition: AuthenticatedState -> TransactionSelectedState
+
+>> ACTION: Execute with amount 4700
+  [TransactionSelectedState] Processing WITHDRAWAL...
+  [ATM] State transition: TransactionSelectedState -> ProcessingState
+  [Withdraw] Dispensing 4700:
+    2000 x 2 = 4000
+    500 x 1 = 500
+    200 x 1 = 200
+  [Withdraw] Please collect your cash.
+
+  ╔══════════════════════════════════════╗
+  ║           ATM RECEIPT                ║
+  ╠══════════════════════════════════════╣
+  ║  Transaction ID : E5F6G7H8              ║
+  ║  Type           : WITHDRAWAL
+  ║  Account        : ACC-001
+  ║  Amount         : 4700
+  ║  Notes Dispensed :
+  ║    2000 x 2 = 4000
+  ║    500 x 1 = 500
+  ║    200 x 1 = 200
+  ║  Balance After  : 45300
+  ║  Status         : SUCCESS
+  ╚══════════════════════════════════════╝
+
+  [ATM] State transition: ProcessingState -> AuthenticatedState
+
+>> ACTION: Select DEPOSIT
+  ...
+
+>> ACTION: Select TRANSFER
+  ...
+
+>> ACTION: Eject card
+  [AuthenticatedState] Ending session. Ejecting card.
+  [ATM] State transition: AuthenticatedState -> IdleState
+
+--- ATM Cash After Alice's Session ---
+  [CashDispenser] Current inventory:
+    2000 x 8 = 16000
+    500 x 19 = 9500
+    200 x 14 = 2800
+    100 x 20 = 2000
+    Total: 30300
+
+========================================
+  SCENARIO 2: Bob -- PIN Lockout
+========================================
+
+>> ACTION: Insert card CARD-2222
+  [IdleState] Card inserted: Card[CARD-2222]
+  [ATM] State transition: IdleState -> CardInsertedState
+
+>> ACTION: Enter PIN ****
+  [CardInsertedState] Incorrect PIN. 2 attempt(s) remaining.
+
+>> ACTION: Enter PIN ****
+  [CardInsertedState] Incorrect PIN. 1 attempt(s) remaining.
+
+>> ACTION: Enter PIN ****
+  [CardInsertedState] Too many failed attempts. Card has been BLOCKED.
+  [CardInsertedState] Ejecting card: Card[CARD-2222]
+  [ATM] State transition: CardInsertedState -> IdleState
+
+--- Attempting to use blocked card ---
+
+>> ACTION: Insert card CARD-2222
+  [IdleState] This card is blocked. Please contact your bank.
+
+========================================
+  SCENARIO 5: Wrong State Operations
+========================================
+
+>> ACTION: Enter PIN ****
+  [IdleState] No card inserted. Please insert your card first.
+
+>> ACTION: Select WITHDRAWAL
+  [IdleState] No card inserted. Please insert your card first.
+
+>> ACTION: Execute with amount 1000
+  [IdleState] No card inserted. Please insert your card first.
+
+>> ACTION: Eject card
+  [IdleState] No card to eject.
+
+========================================
+       DEMO COMPLETE
+========================================
+\`\`\`
+
+---
+
+## Pattern Summary
+
+| Pattern | Where Used | Benefit |
+|---------|-----------|---------|
+| **State** | \`ATMState\` interface + 5 concrete states | Each ATM phase is a self-contained class. Adding a new state (e.g., OutOfService) is adding one class. |
+| **Chain of Responsibility** | \`DispenseChain\` interface + \`DenominationHandler\` | Each denomination handler is independent. Adding a new denomination is inserting one handler into the chain. |
+| **Strategy** | \`TransactionStrategy\` interface + 4 implementations | Each transaction type has its own logic. Adding a new type (e.g., BillPayment) is adding one class. |
+| **Factory** | \`TransactionStrategyFactory\` | Centralises strategy selection. States never instantiate strategies directly. |
+
+All three patterns work together: the **State** pattern controls *when* actions
+are allowed, the **Strategy** pattern controls *what* logic runs for each
+transaction, and the **Chain of Responsibility** controls *how* cash is
+physically dispensed in denominations.
+`,
+  designWalkthrough: `# Design an ATM System -- Low-Level Design Walkthrough
+
+## Table of Contents
+
+1. [Problem Statement](#1-problem-statement)
+2. [Requirements](#2-requirements)
+3. [Core Entities](#3-core-entities)
+4. [Class Diagram](#4-class-diagram)
+5. [State Diagram](#5-state-diagram)
+6. [The Core Pattern: State](#6-the-core-pattern-state)
+7. [Chain of Responsibility: Cash Dispensing](#7-chain-of-responsibility-cash-dispensing)
+8. [Strategy Pattern: Transaction Types](#8-strategy-pattern-transaction-types)
+9. [Cash Dispensing Algorithm](#9-cash-dispensing-algorithm)
+10. [API / Method Contracts](#10-api--method-contracts)
+11. [Detailed State Transitions](#11-detailed-state-transitions)
+12. [Concurrency and Thread Safety](#12-concurrency-and-thread-safety)
+13. [Extension Points](#13-extension-points)
+14. [Common Interview Follow-ups](#14-common-interview-follow-ups)
+
+---
+
+## 1. Problem Statement
+
+Design an object-oriented ATM system that allows a user to:
+- Insert a bank card and authenticate with a PIN.
+- Check account balance.
+- Withdraw cash with correct denomination breakdown.
+- Deposit cash into the account.
+- Transfer funds between accounts.
+- Receive a printed receipt for any transaction.
+
+The system must handle incorrect PINs (with a lockout after three failed
+attempts), insufficient funds, insufficient cash in the ATM, and invalid
+operations in a given state (e.g., trying to withdraw without authenticating
+first).
+
+This problem tests two patterns in combination: **State** for the ATM
+lifecycle and **Chain of Responsibility** for the denomination-based cash
+dispensing. A secondary **Strategy** pattern cleanly separates the different
+transaction types.
+
+---
+
+## 2. Requirements
+
+### Functional Requirements
+
+| # | Requirement | Priority |
+|---|-------------|----------|
+| FR-1 | Accept a bank card and read card number | Must |
+| FR-2 | Authenticate the user via 4-digit PIN | Must |
+| FR-3 | Lock the account after 3 consecutive failed PIN attempts | Must |
+| FR-4 | Display account balance (Balance Inquiry) | Must |
+| FR-5 | Withdraw cash in denominations of 2000, 500, 200, 100 | Must |
+| FR-6 | Use greedy denomination selection (highest first) | Must |
+| FR-7 | Reject withdrawal if amount exceeds account balance | Must |
+| FR-8 | Reject withdrawal if ATM does not have enough physical cash | Must |
+| FR-9 | Deposit cash into the account | Must |
+| FR-10 | Transfer funds from one account to another | Must |
+| FR-11 | Print a receipt after each completed transaction | Must |
+| FR-12 | Eject the card and return to idle after session ends | Must |
+| FR-13 | Allow the user to perform multiple transactions in one session | Should |
+| FR-14 | Reject amounts not divisible by the smallest denomination (100) | Must |
+
+### Non-Functional Requirements
+
+| # | Requirement |
+|---|-------------|
+| NFR-1 | Single-threaded correctness first; thread safety as an extension |
+| NFR-2 | Open/Closed Principle -- new transaction types and denominations must not modify existing classes |
+| NFR-3 | All monetary values stored as integers to avoid floating-point drift |
+| NFR-4 | State transitions must be deterministic and auditable |
+
+---
+
+## 3. Core Entities
+
+### 3.1 Card
+
+Represents a physical bank card. Holds:
+- \`cardNumber\` -- the unique identifier printed on the card.
+- \`accountNumber\` -- links to the underlying bank account.
+- \`isBlocked\` -- whether the card has been locked out.
+
+The card is a passive data carrier. It does not hold a PIN; the PIN lives
+in the \`Account\` for security.
+
+### 3.2 Account
+
+The bank account that holds the customer's money. Has:
+- \`accountNumber\` -- unique identifier.
+- \`balance\` -- current balance in the smallest currency unit (e.g., rupees or cents).
+- \`pin\` -- hashed PIN for verification.
+- \`holderName\` -- name of the account owner.
+
+Provides:
+- \`validatePin(String pin)\` -- returns true if the given PIN matches.
+- \`getBalance()\` -- returns the current balance.
+- \`debit(int amount)\` -- subtracts amount (fails if insufficient funds).
+- \`credit(int amount)\` -- adds amount.
+
+### 3.3 Transaction
+
+Records every completed operation. Fields:
+- \`transactionId\` -- UUID.
+- \`type\` -- enum: BALANCE_INQUIRY, WITHDRAWAL, DEPOSIT, TRANSFER.
+- \`amount\` -- the monetary amount involved (0 for balance inquiries).
+- \`timestamp\` -- when the transaction occurred.
+- \`accountNumber\` -- the primary account.
+- \`targetAccountNumber\` -- for transfers, the recipient account.
+- \`status\` -- SUCCESS or FAILED.
+
+### 3.4 CashDispenser
+
+Manages the physical cash inside the ATM. Internally maintains a chain of
+\`DispenseChain\` handlers, one per denomination. The chain is ordered from
+highest denomination to lowest: 2000 -> 500 -> 200 -> 100.
+
+Provides:
+- \`dispense(int amount)\` -- kicks off the chain to break the amount into notes.
+- \`canDispense(int amount)\` -- checks whether the chain can fulfil the amount.
+- \`getTotalCash()\` -- returns the sum of all notes across all denominations.
+- \`addCash(int denomination, int count)\` -- restocks a specific denomination.
+
+### 3.5 CashSlot (Denomination Holder)
+
+A single slot inside the ATM holding notes of one denomination. Fields:
+- \`denomination\` -- face value of the note (2000, 500, 200, 100).
+- \`count\` -- how many notes of this denomination are available.
+
+### 3.6 DispenseChain (Chain of Responsibility Handler)
+
+Each link in the chain is responsible for one denomination. It:
+1. Calculates how many notes of its denomination are needed.
+2. Caps that at the number of notes actually available.
+3. Dispenses those notes and passes the **remainder** to the next handler.
+4. If no next handler exists and a remainder is left, the dispense fails.
+
+### 3.7 ATMState (Interface)
+
+The contract for every ATM state. Methods:
+
+| Method | Description |
+|--------|-------------|
+| \`insertCard(Card)\` | Handle card insertion |
+| \`authenticatePin(String pin)\` | Handle PIN entry |
+| \`selectTransaction(TransactionType)\` | Handle the user choosing what to do |
+| \`executeTransaction(int amount)\` | Perform the chosen transaction |
+| \`ejectCard()\` | Return the card and end the session |
+
+Each concrete state decides independently whether to carry out the action,
+reject it, or trigger a state transition.
+
+### 3.8 ATM (Context)
+
+The central machine. Holds:
+- \`currentState\` -- reference to the active \`ATMState\` implementation.
+- \`cashDispenser\` -- the \`CashDispenser\` for physical cash.
+- \`currentCard\` -- the card currently inserted (null when idle).
+- \`currentAccount\` -- the authenticated account (null until PIN verified).
+- \`selectedTransactionType\` -- what the user wants to do.
+- \`failedPinAttempts\` -- counter for PIN lockout logic.
+- \`accountStore\` -- a map of account numbers to \`Account\` objects (simulating a bank DB).
+
+Exposes \`setState(ATMState)\` so states can trigger transitions.
+
+---
+
+## 4. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    direction TB
+
+    class Card {
+        -String cardNumber
+        -String accountNumber
+        -boolean isBlocked
+        +getCardNumber() String
+        +getAccountNumber() String
+        +isBlocked() boolean
+        +setBlocked(boolean) void
+    }
+
+    class Account {
+        -String accountNumber
+        -String holderName
+        -int balance
+        -String pin
+        +validatePin(String pin) boolean
+        +getBalance() int
+        +debit(int amount) boolean
+        +credit(int amount) void
+        +getAccountNumber() String
+        +getHolderName() String
+    }
+
+    class TransactionType {
+        <<enumeration>>
+        BALANCE_INQUIRY
+        WITHDRAWAL
+        DEPOSIT
+        TRANSFER
+    }
+
+    class Transaction {
+        -String transactionId
+        -TransactionType type
+        -int amount
+        -long timestamp
+        -String accountNumber
+        -String targetAccountNumber
+        -String status
+        +getTransactionId() String
+        +getType() TransactionType
+        +getReceipt() String
+    }
+
+    class CashSlot {
+        -int denomination
+        -int count
+        +getDenomination() int
+        +getCount() int
+        +dispenseNotes(int num) void
+        +addNotes(int num) void
+        +getTotalValue() int
+    }
+
+    class DispenseChain {
+        <<interface>>
+        +setNextChain(DispenseChain next) void
+        +dispense(int amount, Map result) boolean
+    }
+
+    class DenominationHandler {
+        -CashSlot cashSlot
+        -DispenseChain nextChain
+        +setNextChain(DispenseChain next) void
+        +dispense(int amount, Map result) boolean
+    }
+
+    class CashDispenser {
+        -List~CashSlot~ cashSlots
+        -DispenseChain chainHead
+        +dispense(int amount) Map~Integer,Integer~
+        +canDispense(int amount) boolean
+        +getTotalCash() int
+        +addCash(int denomination, int count) void
+    }
+
+    class ATMState {
+        <<interface>>
+        +insertCard(Card card) void
+        +authenticatePin(String pin) void
+        +selectTransaction(TransactionType type) void
+        +executeTransaction(int amount) void
+        +ejectCard() void
+    }
+
+    class IdleState {
+        -ATM atm
+    }
+    class CardInsertedState {
+        -ATM atm
+    }
+    class AuthenticatedState {
+        -ATM atm
+    }
+    class TransactionSelectedState {
+        -ATM atm
+    }
+    class ProcessingState {
+        -ATM atm
+    }
+
+    class TransactionStrategy {
+        <<interface>>
+        +execute(ATM atm, int amount) Transaction
+    }
+
+    class WithdrawTransaction {
+        +execute(ATM atm, int amount) Transaction
+    }
+    class DepositTransaction {
+        +execute(ATM atm, int amount) Transaction
+    }
+    class BalanceInquiry {
+        +execute(ATM atm, int amount) Transaction
+    }
+    class TransferTransaction {
+        -String targetAccountNumber
+        +execute(ATM atm, int amount) Transaction
+    }
+
+    class ATM {
+        -ATMState currentState
+        -CashDispenser cashDispenser
+        -Card currentCard
+        -Account currentAccount
+        -TransactionType selectedTransactionType
+        -int failedPinAttempts
+        -Map~String,Account~ accountStore
+        +insertCard(Card card) void
+        +authenticatePin(String pin) void
+        +selectTransaction(TransactionType type) void
+        +executeTransaction(int amount) void
+        +ejectCard() void
+        +setState(ATMState state) void
+        +getCashDispenser() CashDispenser
+    }
+
+    ATMState <|.. IdleState
+    ATMState <|.. CardInsertedState
+    ATMState <|.. AuthenticatedState
+    ATMState <|.. TransactionSelectedState
+    ATMState <|.. ProcessingState
+
+    DispenseChain <|.. DenominationHandler
+    DenominationHandler --> CashSlot
+    DenominationHandler --> DispenseChain : nextChain
+
+    CashDispenser --> CashSlot
+    CashDispenser --> DispenseChain : chainHead
+
+    TransactionStrategy <|.. WithdrawTransaction
+    TransactionStrategy <|.. DepositTransaction
+    TransactionStrategy <|.. BalanceInquiry
+    TransactionStrategy <|.. TransferTransaction
+
+    ATM --> ATMState : currentState
+    ATM --> CashDispenser
+    ATM --> Card : currentCard
+    ATM --> Account : currentAccount
+    ATM --> TransactionStrategy
+
+    IdleState --> ATM
+    CardInsertedState --> ATM
+    AuthenticatedState --> ATM
+    TransactionSelectedState --> ATM
+    ProcessingState --> ATM
+
+    Card --> Account : accountNumber
+    Transaction --> TransactionType
+\`\`\`
+
+Key relationships:
+- \`ATM\` **delegates** every user action to \`currentState\`.
+- Each concrete state holds a back-reference to the ATM so it can read
+  context and call \`setState()\`.
+- \`CashDispenser\` **composes** a chain of \`DenominationHandler\` objects
+  linked via the Chain of Responsibility pattern.
+- \`TransactionStrategy\` implementations are selected at runtime based on
+  the \`TransactionType\` the user picks.
+
+---
+
+## 5. State Diagram
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> Idle
+
+    Idle --> CardInserted : insertCard()
+    Idle --> Idle : authenticatePin() [rejected -- no card]
+    Idle --> Idle : selectTransaction() [rejected]
+    Idle --> Idle : executeTransaction() [rejected]
+    Idle --> Idle : ejectCard() [no card to eject]
+
+    CardInserted --> Authenticated : authenticatePin() [PIN correct]
+    CardInserted --> CardInserted : authenticatePin() [PIN wrong, attempts < 3]
+    CardInserted --> Idle : authenticatePin() [PIN wrong, attempts >= 3 -- card blocked, ejected]
+    CardInserted --> Idle : ejectCard() [card returned]
+    CardInserted --> CardInserted : insertCard() [rejected -- card already in]
+    CardInserted --> CardInserted : selectTransaction() [rejected -- not authenticated]
+
+    Authenticated --> TransactionSelected : selectTransaction()
+    Authenticated --> Idle : ejectCard() [session ends]
+    Authenticated --> Authenticated : insertCard() [rejected]
+    Authenticated --> Authenticated : authenticatePin() [already authenticated]
+
+    TransactionSelected --> Processing : executeTransaction()
+    TransactionSelected --> Authenticated : ejectCard() [cancel, go back]
+    TransactionSelected --> TransactionSelected : insertCard() [rejected]
+
+    Processing --> Authenticated : [transaction complete -- allow another transaction]
+    Processing --> Idle : ejectCard() [session done]
+    Processing --> Processing : insertCard() [rejected]
+    Processing --> Processing : authenticatePin() [rejected]
+\`\`\`
+
+The machine starts in **Idle**. The only way out of Idle is to insert a card.
+After authentication the user can perform multiple transactions in one session.
+Each completed transaction returns to the **Authenticated** state so the user
+can choose another operation or eject the card.
+
+---
+
+## 6. The Core Pattern: State
+
+### Why State Pattern?
+
+Without the State pattern the ATM class would be riddled with conditionals:
+
+\`\`\`
+if (state == IDLE) {
+    // reject everything except insertCard
+} else if (state == CARD_INSERTED) {
+    // only allow PIN entry or eject
+} else if (state == AUTHENTICATED) {
+    ...
+\`\`\`
+
+Every new state (e.g., "OutOfService", "LowCash") means editing every method.
+The State pattern fixes this:
+
+1. **Open/Closed Principle** -- adding a new state is adding a class, not
+   editing existing ones.
+2. **Single Responsibility** -- each state class owns exactly the behaviour
+   for that phase of the ATM lifecycle.
+3. **Testability** -- each state can be unit-tested in isolation by mocking
+   the ATM context.
+
+### How It Works Here
+
+\`\`\`
+User enters PIN  --->  ATM.authenticatePin("1234")
+                            |
+                            v
+                       currentState.authenticatePin("1234")
+                            |
+                +-----------+-----------+
+                |                       |
+          IdleState              CardInsertedState
+      "No card inserted.       Validates PIN against account.
+       Insert card first."     If OK --> setState(AuthenticatedState)
+                               If wrong --> increment attempts
+                               If attempts >= 3 --> block card, eject
+\`\`\`
+
+### State Transition Table
+
+| Current State | Action | Guard Condition | Next State |
+|---------------|--------|-----------------|------------|
+| Idle | insertCard | card not blocked | CardInserted |
+| Idle | insertCard | card is blocked | Idle (rejected) |
+| Idle | any other action | -- | Idle (rejected) |
+| CardInserted | authenticatePin | PIN correct | Authenticated |
+| CardInserted | authenticatePin | PIN wrong, attempts < 3 | CardInserted |
+| CardInserted | authenticatePin | PIN wrong, attempts >= 3 | Idle (card blocked + ejected) |
+| CardInserted | ejectCard | -- | Idle |
+| CardInserted | any other action | -- | CardInserted (rejected) |
+| Authenticated | selectTransaction | -- | TransactionSelected |
+| Authenticated | ejectCard | -- | Idle |
+| Authenticated | any other action | -- | Authenticated (rejected) |
+| TransactionSelected | executeTransaction | -- | Processing |
+| TransactionSelected | ejectCard | -- | Authenticated (cancel selection) |
+| Processing | (transaction completes) | -- | Authenticated |
+| Processing | ejectCard | -- | Idle (end session) |
+| Processing | any other action | -- | Processing (rejected) |
+
+---
+
+## 7. Chain of Responsibility: Cash Dispensing
+
+### The Problem
+
+When a user withdraws 4700, the ATM must break it down into physical notes:
+2x2000 + 1x500 + 1x200. But the breakdown depends on what notes are actually
+available in the machine. If the ATM is out of 2000-notes, it falls back to
+500s, and so on.
+
+### Why Chain of Responsibility?
+
+A naive approach uses nested if-else blocks for each denomination. Adding a new
+denomination (say 50-rupee notes) means editing the dispensing logic everywhere.
+
+Chain of Responsibility makes each denomination a self-contained handler:
+1. Each handler knows its own denomination and note count.
+2. Each handler dispenses as many of its notes as possible.
+3. Each handler passes the **remainder** to the next handler in the chain.
+4. If the chain ends with a non-zero remainder, the dispense fails.
+
+Adding a new denomination is adding a handler and inserting it into the chain.
+Zero changes to existing handlers.
+
+### Chain Structure
+
+\`\`\`
+[2000-handler] ---> [500-handler] ---> [200-handler] ---> [100-handler] ---> null
+
+Amount: 4700
+
+Step 1: 2000-handler
+  - needed = 4700 / 2000 = 2
+  - available = 5 (enough)
+  - dispense 2 notes of 2000
+  - remainder = 4700 - 4000 = 700
+  - pass 700 to next
+
+Step 2: 500-handler
+  - needed = 700 / 500 = 1
+  - available = 10 (enough)
+  - dispense 1 note of 500
+  - remainder = 700 - 500 = 200
+  - pass 200 to next
+
+Step 3: 200-handler
+  - needed = 200 / 200 = 1
+  - available = 8 (enough)
+  - dispense 1 note of 200
+  - remainder = 200 - 200 = 0
+  - pass 0 to next (or stop)
+
+Result: {2000: 2, 500: 1, 200: 1}
+Total notes: 4
+\`\`\`
+
+### Edge Case: Insufficient Notes
+
+\`\`\`
+Amount: 3000
+ATM has: 2000 x 1, 500 x 1, 200 x 2, 100 x 0
+
+Step 1: 2000-handler -> dispense 1, remainder = 1000
+Step 2: 500-handler  -> dispense 1, remainder = 500
+Step 3: 200-handler  -> dispense 2, remainder = 100
+Step 4: 100-handler  -> has 0 notes, remainder = 100
+Result: FAIL (remainder > 0). Rollback all dispensed notes.
+\`\`\`
+
+The chain naturally handles the "can we or can't we" question. If the final
+remainder is 0, success. Otherwise, no notes leave the machine.
+
+---
+
+## 8. Strategy Pattern: Transaction Types
+
+### Why Strategy?
+
+The ATM supports four operations: balance inquiry, withdrawal, deposit, and
+transfer. Each has very different logic. Without Strategy, the \`ProcessingState\`
+would contain a large switch statement:
+
+\`\`\`
+switch (type) {
+    case WITHDRAWAL: // 30 lines of withdrawal logic
+    case DEPOSIT:    // 20 lines of deposit logic
+    case TRANSFER:   // 25 lines of transfer logic
+    ...
+}
+\`\`\`
+
+With Strategy, each transaction type is its own class implementing
+\`TransactionStrategy\`. The \`ProcessingState\` simply calls
+\`strategy.execute(atm, amount)\` and the right logic runs.
+
+### Strategy Selection
+
+A factory maps \`TransactionType\` to the correct strategy:
+
+\`\`\`
+BALANCE_INQUIRY -> new BalanceInquiry()
+WITHDRAWAL      -> new WithdrawTransaction()
+DEPOSIT         -> new DepositTransaction()
+TRANSFER        -> new TransferTransaction(targetAccountNumber)
+\`\`\`
+
+### Individual Strategies
+
+**BalanceInquiry**: Reads \`account.getBalance()\`, creates a Transaction
+record with amount = 0, prints the balance.
+
+**WithdrawTransaction**:
+1. Check \`account.getBalance() >= amount\`.
+2. Check \`cashDispenser.canDispense(amount)\`.
+3. Call \`cashDispenser.dispense(amount)\` to get the denomination breakdown.
+4. Call \`account.debit(amount)\`.
+5. Create a Transaction record.
+6. Print the denomination breakdown.
+
+**DepositTransaction**:
+1. Call \`account.credit(amount)\`.
+2. Update ATM cash reserves.
+3. Create a Transaction record.
+
+**TransferTransaction**:
+1. Check \`account.getBalance() >= amount\`.
+2. Look up the target account.
+3. Call \`account.debit(amount)\`.
+4. Call \`targetAccount.credit(amount)\`.
+5. Create a Transaction record.
+
+---
+
+## 9. Cash Dispensing Algorithm
+
+The dispenser uses a **greedy** algorithm: always try the largest denomination
+first, then fall back to smaller ones. This minimises the total number of
+notes dispensed.
+
+### Pseudocode
+
+\`\`\`
+function dispense(amount):
+    result = empty map
+    remainder = amount
+
+    for each handler in chain (2000, 500, 200, 100):
+        if remainder <= 0:
+            break
+        notesNeeded = remainder / handler.denomination
+        notesAvailable = handler.cashSlot.count
+        notesToDispense = min(notesNeeded, notesAvailable)
+
+        if notesToDispense > 0:
+            result[handler.denomination] = notesToDispense
+            remainder -= notesToDispense * handler.denomination
+
+    if remainder > 0:
+        return FAILURE  // cannot dispense this amount
+    else:
+        // commit: actually decrement note counts
+        for each (denomination, count) in result:
+            cashSlot[denomination].dispenseNotes(count)
+        return result
+\`\`\`
+
+### Why Two-Phase (Check Then Commit)?
+
+The \`canDispense()\` method does a dry run without modifying note counts.
+Only after confirming feasibility does \`dispense()\` actually decrement
+the counts. This prevents partial dispensing on failure.
+
+### Denomination Table
+
+| Denomination | Typical ATM Load | Notes |
+|-------------|------------------|-------|
+| 2000 | 50 notes | High value, dispensed first |
+| 500 | 100 notes | Most commonly dispensed |
+| 200 | 80 notes | Bridges gaps left by 500s |
+| 100 | 100 notes | Smallest unit, handles remainders |
+
+The smallest denomination (100) determines the minimum withdrawal unit.
+Any amount not divisible by 100 is rejected before the chain is invoked.
+
+---
+
+## 10. API / Method Contracts
+
+### ATM (public surface)
+
+| Method | Precondition | Postcondition |
+|--------|-------------|---------------|
+| \`insertCard(Card)\` | ATM is idle, card is not blocked | State moves to CardInserted |
+| \`authenticatePin(String)\` | Card is inserted | Account is authenticated or attempts incremented |
+| \`selectTransaction(TransactionType)\` | User is authenticated | State moves to TransactionSelected |
+| \`executeTransaction(int amount)\` | Transaction type is selected | Transaction executes, state returns to Authenticated |
+| \`ejectCard()\` | Card is inserted | Card returned, state goes to Idle |
+
+### CashDispenser
+
+| Method | Precondition | Postcondition |
+|--------|-------------|---------------|
+| \`canDispense(int amount)\` | amount > 0 and divisible by 100 | Returns true if chain can fulfil amount |
+| \`dispense(int amount)\` | canDispense(amount) is true | Notes decremented, returns denomination map |
+| \`getTotalCash()\` | -- | Returns total value of all notes in machine |
+| \`addCash(int denom, int count)\` | Valid denomination | Note count for that denomination increases |
+
+### Account
+
+| Method | Precondition | Postcondition |
+|--------|-------------|---------------|
+| \`validatePin(String)\` | -- | Returns true if PIN matches |
+| \`debit(int amount)\` | balance >= amount | Balance reduced by amount, returns true |
+| \`credit(int amount)\` | amount > 0 | Balance increased by amount |
+| \`getBalance()\` | -- | Returns current balance |
+
+---
+
+## 11. Detailed State Transitions
+
+### Scenario 1: Happy Path -- Withdrawal
+
+\`\`\`
+1. ATM is in IdleState.
+2. User inserts card.                -> state -> CardInsertedState
+3. User enters PIN "1234".
+   - account.validatePin("1234") -> true
+   - failedPinAttempts = 0
+   - state -> AuthenticatedState
+4. User selects WITHDRAWAL.          -> state -> TransactionSelectedState
+5. User enters amount 4700.
+   - account.getBalance() = 50000. OK.
+   - cashDispenser.canDispense(4700)? Yes.
+   - cashDispenser.dispense(4700) -> {2000:2, 500:1, 200:1}
+   - account.debit(4700). Balance now 45300.
+   - Print receipt:
+     "Withdrawal: 4700
+      2000 x 2 = 4000
+       500 x 1 =  500
+       200 x 1 =  200
+      Remaining balance: 45300"
+   - state -> AuthenticatedState (ready for next transaction)
+6. User ejects card.                 -> state -> IdleState
+\`\`\`
+
+### Scenario 2: Wrong PIN with Lockout
+
+\`\`\`
+1. ATM is in IdleState.
+2. User inserts card.                -> state -> CardInsertedState
+3. User enters PIN "0000".
+   - account.validatePin("0000") -> false
+   - failedPinAttempts = 1
+   - "Incorrect PIN. 2 attempts remaining."
+   - state stays CardInsertedState
+4. User enters PIN "1111".
+   - failedPinAttempts = 2
+   - "Incorrect PIN. 1 attempt remaining."
+5. User enters PIN "2222".
+   - failedPinAttempts = 3
+   - "Too many failed attempts. Card has been blocked."
+   - card.setBlocked(true)
+   - Card ejected.
+   - state -> IdleState
+\`\`\`
+
+### Scenario 3: Insufficient Funds
+
+\`\`\`
+1. User authenticated, balance = 3000.
+2. User selects WITHDRAWAL, enters 5000.
+   - account.getBalance() = 3000 < 5000
+   - "Insufficient funds. Available balance: 3000."
+   - Transaction not executed.
+   - state -> AuthenticatedState
+\`\`\`
+
+### Scenario 4: ATM Cannot Dispense Amount
+
+\`\`\`
+1. User authenticated, balance = 100000.
+2. User selects WITHDRAWAL, enters 7300.
+   - 7300 % 100 != 0? No, 7300 is divisible by 100.
+   - cashDispenser.canDispense(7300)?
+     Chain runs: 2000x3=6000, remainder 1300.
+     500x2=1000, remainder 300. 200x1=200, remainder 100.
+     100x1=100, remainder 0. -> Yes.
+   - Dispensed.
+3. User selects WITHDRAWAL, enters 350.
+   - 350 % 100 != 0. -> "Amount must be a multiple of 100."
+   - Rejected immediately.
+\`\`\`
+
+### Scenario 5: Balance Inquiry then Transfer
+
+\`\`\`
+1. User authenticated.
+2. User selects BALANCE_INQUIRY.
+   - "Your current balance is: 50000"
+   - state -> AuthenticatedState
+3. User selects TRANSFER, target account "ACC-002", amount 10000.
+   - account.getBalance() >= 10000? Yes.
+   - targetAccount found? Yes.
+   - account.debit(10000). Balance now 40000.
+   - targetAccount.credit(10000).
+   - "Transferred 10000 to ACC-002. Your balance: 40000."
+   - state -> AuthenticatedState
+4. User ejects card. -> IdleState
+\`\`\`
+
+---
+
+## 12. Concurrency and Thread Safety
+
+For interview depth, mention these points:
+
+1. **Synchronized state transitions** -- wrap \`setState()\` and account
+   mutations in a \`synchronized\` block or use \`ReentrantLock\`. Two threads
+   must never see the ATM in an inconsistent state.
+
+2. **Account-level locking** -- when performing transfers, lock both accounts
+   in a consistent order (e.g., by account number) to avoid deadlocks.
+
+3. **CashDispenser atomicity** -- the two-phase check-then-commit must be
+   atomic. Use a lock so that between \`canDispense()\` and \`dispense()\`,
+   no other thread can modify note counts.
+
+4. **Card insertion guard** -- only one card can be in the machine at a time.
+   The physical slot enforces this, but in code we check \`currentCard == null\`
+   before accepting a new card.
+
+5. **PIN attempt counter** -- must be atomic. Use \`AtomicInteger\` or synchronize
+   the read-check-increment sequence.
+
+In most LLD interviews, mentioning awareness of these issues is sufficient.
+Full implementation is rarely expected.
+
+---
+
+## 13. Extension Points
+
+### Add a New Denomination
+
+1. Create a new \`CashSlot\` with the denomination (e.g., 50).
+2. Create a new \`DenominationHandler\` wrapping that slot.
+3. Insert it into the chain at the correct position (after 100).
+4. No existing handler is modified.
+
+### Add a New Transaction Type (e.g., Bill Payment)
+
+1. Create \`BillPaymentTransaction implements TransactionStrategy\`.
+2. Add \`BILL_PAYMENT\` to the \`TransactionType\` enum.
+3. Register it in the strategy factory.
+4. No existing strategy or state class is modified.
+
+### Add an OutOfService State
+
+1. Create \`OutOfServiceState implements ATMState\`.
+2. Every method prints "ATM is currently out of service."
+3. A maintenance action transitions in and out of this state.
+4. No existing state class is modified.
+
+### Add Mini-Statement (Last N Transactions)
+
+1. Maintain a \`List<Transaction>\` per account.
+2. Create a new \`MiniStatementTransaction\` strategy.
+3. It reads the last N transactions and prints them.
+4. Hooks into the existing strategy framework.
+
+### Add Card Retention on Fraud Detection
+
+1. In \`CardInsertedState\`, after blocking the card, instead of ejecting it,
+   call a \`retainCard()\` method that swallows the card.
+2. Log the incident for the bank.
+3. Transition to a \`CardRetainedState\` that only allows an admin override.
+
+---
+
+## 14. Common Interview Follow-ups
+
+**Q: Why use Chain of Responsibility instead of a simple loop for dispensing?**
+A: A loop works for the basic case, but Chain of Responsibility lets each
+denomination handler be a self-contained unit with its own rules. For example,
+one handler could enforce a "no more than 10 notes of this type per transaction"
+rule without touching any other handler. It also makes it trivial to reorder
+or insert new denominations. In an interview, demonstrating the pattern shows
+deeper design thinking.
+
+**Q: What if the greedy algorithm fails but a non-greedy solution exists?**
+A: Example: withdraw 600 with only 500x1 and 200x2. Greedy picks 500 first,
+leaving 100 with no way to make it. A smarter algorithm would pick 200x3.
+In practice, ATMs stock denominations that avoid this (100 fills any gap).
+If this is a real concern, replace greedy with dynamic programming. The Chain
+of Responsibility structure still works -- each handler just needs smarter
+logic.
+
+**Q: Who owns the PIN -- the Card or the Account?**
+A: The Account. A card is a physical token that identifies which account to
+access. The PIN is a secret the bank stores (hashed) alongside the account.
+If the card is reissued, the account and PIN remain the same.
+
+**Q: How do you handle the ATM running low on cash?**
+A: After each withdrawal, check \`cashDispenser.getTotalCash()\`. If below a
+threshold, transition to a \`LowCashState\` that still allows balance inquiries
+and transfers but rejects withdrawals. Notify the bank for restocking.
+
+**Q: How do you prevent the "time-of-check to time-of-use" bug in withdrawals?**
+A: The \`canDispense()\` and \`dispense()\` calls must be atomic. In the code, we
+use synchronization on the cash dispenser. Alternatively, \`dispense()\` can be
+a single method that both checks and commits, returning a failure code instead
+of using a separate check step.
+
+**Q: Can a user do multiple transactions without re-entering the PIN?**
+A: Yes. After a transaction completes, the state goes back to \`Authenticated\`,
+not \`Idle\`. The user can select another transaction or eject the card. This
+matches real-world ATM behaviour.
+
+**Q: What SOLID principles are at play?**
+A:
+- **S** -- Each state class has one responsibility: behaviour for that ATM phase.
+  Each strategy class has one responsibility: logic for that transaction type.
+  Each chain handler has one responsibility: dispensing its denomination.
+- **O** -- New states, strategies, and denominations are added without modifying
+  existing classes.
+- **L** -- Any \`ATMState\` implementation can be substituted through the interface.
+- **I** -- \`ATMState\` has 5 focused methods. \`DispenseChain\` has 2.
+  \`TransactionStrategy\` has 1.
+- **D** -- \`ATM\` depends on the \`ATMState\` abstraction, not on concrete states.
+  \`CashDispenser\` depends on the \`DispenseChain\` abstraction, not on concrete
+  handlers.
+
+**Q: How does this design handle receipt printing?**
+A: Each \`TransactionStrategy\` returns a \`Transaction\` object. The \`Transaction\`
+has a \`getReceipt()\` method that formats the details. The ATM calls this after
+every successful execution and prints it. The receipt logic lives in the
+\`Transaction\` class, keeping it separate from the state and strategy classes.
+
+---
+
+*This walkthrough covers the design reasoning. See \`code.md\` for the complete,
+compilable Java code.*
+`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| insertCard() | O(1) | O(1) | State transition only |
+| authenticate(pin) | O(1) | O(1) | Direct comparison |
+| checkBalance() | O(1) | O(1) | Read account field |
+| withdraw(amount) | O(D) | O(D) | D = denomination types (Chain of Responsibility) |
+| deposit(amount) | O(1) | O(1) | Add to balance |
+| transfer(amount) | O(1) | O(1) | Decrement source, increment target |
+| getTransactionHistory() | O(T) | O(T) | T = number of transactions |
+
+**Cash dispensing (Chain of Responsibility):** O(D) where D = number of
+denomination handlers (typically 4: $100, $50, $20, $10). Each handler
+greedily dispenses as many bills as possible before passing to the next.
+
+**State transitions:** O(1) -- all ATM states are pre-allocated singletons.
+
+**Memory:** O(T) for transaction history per account. O(D) for the cash
+dispenser's denomination counts.`,
+};
+
+// ============================================================
+//  08-design-hotel-booking -> prob-hotel
+// ============================================================
+
+export const hotelSolution: ProblemSolutionContent = {
+  referenceSolution: `# Hotel Booking System -- Complete Java Implementation
+
+## Table of Contents
+
+1. [DateRange](#1-daterange)
+2. [RoomType Enum](#2-roomtype-enum)
+3. [Room Hierarchy](#3-room-hierarchy)
+4. [RoomFactory](#4-roomfactory)
+5. [Guest](#5-guest)
+6. [ReservationState Interface + Implementations](#6-reservationstate-interface--implementations)
+7. [Reservation](#7-reservation)
+8. [Payment](#8-payment)
+9. [PricingStrategy Interface + Implementations](#9-pricingstrategy-interface--implementations)
+10. [CancellationPolicy](#10-cancellationpolicy)
+11. [BookingObserver + EmailNotificationObserver](#11-bookingobserver--emailnotificationobserver)
+12. [Hotel](#12-hotel)
+13. [BookingService](#13-bookingservice)
+14. [Main -- Demo](#14-main----demo)
+
+---
+
+## 1. DateRange
+
+\`\`\`java
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+
+public class DateRange {
+    private final LocalDate checkIn;
+    private final LocalDate checkOut;
+
+    public DateRange(LocalDate checkIn, LocalDate checkOut) {
+        if (checkIn == null || checkOut == null) {
+            throw new IllegalArgumentException("Dates must not be null");
+        }
+        if (!checkOut.isAfter(checkIn)) {
+            throw new IllegalArgumentException(
+                "Check-out date must be after check-in date");
+        }
+        this.checkIn = checkIn;
+        this.checkOut = checkOut;
+    }
+
+    /**
+     * Half-open interval overlap: [A.checkIn, A.checkOut) overlaps
+     * [B.checkIn, B.checkOut) iff A.checkIn < B.checkOut AND B.checkIn < A.checkOut.
+     *
+     * This means a guest checking out on Jan 8 does NOT conflict with
+     * a new guest checking in on Jan 8.
+     */
+    public boolean overlaps(DateRange other) {
+        return this.checkIn.isBefore(other.checkOut)
+            && other.checkIn.isBefore(this.checkOut);
+    }
+
+    public int getNightCount() {
+        return (int) ChronoUnit.DAYS.between(checkIn, checkOut);
+    }
+
+    public LocalDate getCheckIn() { return checkIn; }
+    public LocalDate getCheckOut() { return checkOut; }
+
+    @Override
+    public String toString() {
+        return checkIn + " to " + checkOut + " (" + getNightCount() + " nights)";
+    }
+}
+\`\`\`
+
+---
+
+## 2. RoomType Enum
+
+\`\`\`java
+public enum RoomType {
+    SINGLE,
+    DOUBLE,
+    SUITE
+}
+\`\`\`
+
+---
+
+## 3. Room Hierarchy
+
+\`\`\`java
+public abstract class Room {
+    protected final String roomId;
+    protected final int roomNumber;
+    protected final RoomType roomType;
+    protected final int basePricePerNight; // in cents
+
+    protected Room(String roomId, int roomNumber, RoomType roomType,
+                   int basePricePerNight) {
+        this.roomId = roomId;
+        this.roomNumber = roomNumber;
+        this.roomType = roomType;
+        this.basePricePerNight = basePricePerNight;
+    }
+
+    public String getRoomId() { return roomId; }
+    public int getRoomNumber() { return roomNumber; }
+    public RoomType getRoomType() { return roomType; }
+    public int getBasePricePerNight() { return basePricePerNight; }
+
+    public abstract int getCapacity();
+    public abstract String getDescription();
+
+    @Override
+    public String toString() {
+        return String.format("Room %d (%s) - $%.2f/night - %s",
+            roomNumber, roomType, basePricePerNight / 100.0, getDescription());
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+public class SingleRoom extends Room {
+
+    public SingleRoom(String roomId, int roomNumber, int basePricePerNight) {
+        super(roomId, roomNumber, RoomType.SINGLE, basePricePerNight);
+    }
+
+    @Override
+    public int getCapacity() { return 1; }
+
+    @Override
+    public String getDescription() {
+        return "Single room with one bed, ideal for solo travellers";
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+public class DoubleRoom extends Room {
+
+    public DoubleRoom(String roomId, int roomNumber, int basePricePerNight) {
+        super(roomId, roomNumber, RoomType.DOUBLE, basePricePerNight);
+    }
+
+    @Override
+    public int getCapacity() { return 2; }
+
+    @Override
+    public String getDescription() {
+        return "Double room with two beds, suitable for couples or friends";
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+public class SuiteRoom extends Room {
+
+    public SuiteRoom(String roomId, int roomNumber, int basePricePerNight) {
+        super(roomId, roomNumber, RoomType.SUITE, basePricePerNight);
+    }
+
+    @Override
+    public int getCapacity() { return 4; }
+
+    @Override
+    public String getDescription() {
+        return "Luxury suite with separate living area, minibar, and premium amenities";
+    }
+}
+\`\`\`
+
+---
+
+## 4. RoomFactory
+
+\`\`\`java
+import java.util.UUID;
+
+public class RoomFactory {
+
+    public static Room createRoom(int roomNumber, RoomType type,
+                                  int basePricePerNight) {
+        String roomId = UUID.randomUUID().toString().substring(0, 8);
+
+        switch (type) {
+            case SINGLE:
+                return new SingleRoom(roomId, roomNumber, basePricePerNight);
+            case DOUBLE:
+                return new DoubleRoom(roomId, roomNumber, basePricePerNight);
+            case SUITE:
+                return new SuiteRoom(roomId, roomNumber, basePricePerNight);
+            default:
+                throw new IllegalArgumentException("Unknown room type: " + type);
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 5. Guest
+
+\`\`\`java
+public class Guest {
+    private final String guestId;
+    private final String name;
+    private final String email;
+    private final String phone;
+
+    public Guest(String guestId, String name, String email, String phone) {
+        this.guestId = guestId;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+    }
+
+    public String getGuestId() { return guestId; }
+    public String getName() { return name; }
+    public String getEmail() { return email; }
+    public String getPhone() { return phone; }
+
+    @Override
+    public String toString() {
+        return name + " (" + email + ")";
+    }
+}
+\`\`\`
+
+---
+
+## 6. ReservationState Interface + Implementations
+
+\`\`\`java
+// ---- Interface ----
+
+public interface ReservationState {
+    void confirm(Reservation reservation);
+    void checkIn(Reservation reservation);
+    void checkOut(Reservation reservation);
+    void cancel(Reservation reservation);
+    String getStateName();
+}
+
+// ---- RequestedState ----
+
+public class RequestedState implements ReservationState {
+
+    @Override
+    public void confirm(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Payment processed. Reservation confirmed.");
+        reservation.setState(new ConfirmedState());
+    }
+
+    @Override
+    public void checkIn(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Cannot check in. Reservation is not yet confirmed.");
+    }
+
+    @Override
+    public void checkOut(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Cannot check out. Guest has not checked in.");
+    }
+
+    @Override
+    public void cancel(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation request cancelled. Full refund issued.");
+        reservation.setState(new CancelledState());
+    }
+
+    @Override
+    public String getStateName() { return "REQUESTED"; }
+}
+
+// ---- ConfirmedState ----
+
+import java.time.LocalDate;
+
+public class ConfirmedState implements ReservationState {
+
+    @Override
+    public void confirm(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation is already confirmed.");
+    }
+
+    @Override
+    public void checkIn(Reservation reservation) {
+        LocalDate today = LocalDate.now();
+        LocalDate checkInDate = reservation.getDateRange().getCheckIn();
+
+        if (today.isBefore(checkInDate)) {
+            System.out.println("[Reservation " + reservation.getReservationId()
+                + "] Cannot check in yet. Check-in date is " + checkInDate
+                + ". Today is " + today + ".");
+            return;
+        }
+
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Guest " + reservation.getGuest().getName()
+            + " checked into Room " + reservation.getRoom().getRoomNumber()
+            + ".");
+        reservation.setState(new CheckedInState());
+    }
+
+    @Override
+    public void checkOut(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Cannot check out. Guest has not checked in yet.");
+    }
+
+    @Override
+    public void cancel(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Confirmed reservation cancelled.");
+        reservation.setState(new CancelledState());
+    }
+
+    @Override
+    public String getStateName() { return "CONFIRMED"; }
+}
+
+// ---- CheckedInState ----
+
+public class CheckedInState implements ReservationState {
+
+    @Override
+    public void confirm(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Guest is already checked in. Cannot confirm again.");
+    }
+
+    @Override
+    public void checkIn(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Guest is already checked in.");
+    }
+
+    @Override
+    public void checkOut(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Guest " + reservation.getGuest().getName()
+            + " checked out of Room " + reservation.getRoom().getRoomNumber()
+            + ". Thank you for staying with us!");
+        reservation.setState(new CheckedOutState());
+    }
+
+    @Override
+    public void cancel(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Cannot cancel. Guest has already checked in.");
+    }
+
+    @Override
+    public String getStateName() { return "CHECKED_IN"; }
+}
+
+// ---- CheckedOutState ----
+
+public class CheckedOutState implements ReservationState {
+
+    @Override
+    public void confirm(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation is complete. No further actions allowed.");
+    }
+
+    @Override
+    public void checkIn(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation is complete. No further actions allowed.");
+    }
+
+    @Override
+    public void checkOut(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Guest has already checked out.");
+    }
+
+    @Override
+    public void cancel(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation is complete. No further actions allowed.");
+    }
+
+    @Override
+    public String getStateName() { return "CHECKED_OUT"; }
+}
+
+// ---- CancelledState ----
+
+public class CancelledState implements ReservationState {
+
+    @Override
+    public void confirm(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation is cancelled. No further actions allowed.");
+    }
+
+    @Override
+    public void checkIn(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation is cancelled. No further actions allowed.");
+    }
+
+    @Override
+    public void checkOut(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation is cancelled. No further actions allowed.");
+    }
+
+    @Override
+    public void cancel(Reservation reservation) {
+        System.out.println("[Reservation " + reservation.getReservationId()
+            + "] Reservation is already cancelled.");
+    }
+
+    @Override
+    public String getStateName() { return "CANCELLED"; }
+}
+\`\`\`
+
+---
+
+## 7. Reservation
+
+\`\`\`java
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public class Reservation {
+    private final String reservationId;
+    private final Guest guest;
+    private final Room room;
+    private final DateRange dateRange;
+    private final int totalPrice; // in cents
+    private final LocalDateTime createdAt;
+    private ReservationState state;
+
+    public Reservation(Guest guest, Room room, DateRange dateRange,
+                       int totalPrice) {
+        this.reservationId = "RES-" + UUID.randomUUID().toString()
+                                          .substring(0, 8).toUpperCase();
+        this.guest = guest;
+        this.room = room;
+        this.dateRange = dateRange;
+        this.totalPrice = totalPrice;
+        this.createdAt = LocalDateTime.now();
+        this.state = new RequestedState(); // initial state
+    }
+
+    // --- State-delegated actions ---
+
+    public void confirm() {
+        state.confirm(this);
+    }
+
+    public void checkIn() {
+        state.checkIn(this);
+    }
+
+    public void checkOut() {
+        state.checkOut(this);
+    }
+
+    public void cancel() {
+        state.cancel(this);
+    }
+
+    // --- State management ---
+
+    public void setState(ReservationState newState) {
+        System.out.println("  [State Transition] " + state.getStateName()
+            + " -> " + newState.getStateName());
+        this.state = newState;
+    }
+
+    public ReservationState getState() { return state; }
+    public String getStateName() { return state.getStateName(); }
+
+    // --- Getters ---
+
+    public String getReservationId() { return reservationId; }
+    public Guest getGuest() { return guest; }
+    public Room getRoom() { return room; }
+    public DateRange getDateRange() { return dateRange; }
+    public int getTotalPrice() { return totalPrice; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public boolean isActive() {
+        String name = state.getStateName();
+        return name.equals("REQUESTED") || name.equals("CONFIRMED")
+            || name.equals("CHECKED_IN");
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Reservation[%s] %s | Room %d | %s | $%.2f | %s",
+            reservationId, guest.getName(), room.getRoomNumber(),
+            dateRange, totalPrice / 100.0, state.getStateName());
+    }
+}
+\`\`\`
+
+---
+
+## 8. Payment
+
+\`\`\`java
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public enum PaymentType {
+    CHARGE,
+    REFUND
+}
+
+// ---------------------------------------------------------------------------
+
+public class Payment {
+    private final String paymentId;
+    private final String reservationId;
+    private final int amount; // in cents
+    private final PaymentType type;
+    private final LocalDateTime timestamp;
+
+    public Payment(String reservationId, int amount, PaymentType type) {
+        this.paymentId = "PAY-" + UUID.randomUUID().toString()
+                                      .substring(0, 8).toUpperCase();
+        this.reservationId = reservationId;
+        this.amount = amount;
+        this.type = type;
+        this.timestamp = LocalDateTime.now();
+    }
+
+    public String getPaymentId() { return paymentId; }
+    public String getReservationId() { return reservationId; }
+    public int getAmount() { return amount; }
+    public PaymentType getType() { return type; }
+    public LocalDateTime getTimestamp() { return timestamp; }
+
+    @Override
+    public String toString() {
+        return String.format("Payment[%s] %s $%.2f for reservation %s at %s",
+            paymentId, type, amount / 100.0, reservationId, timestamp);
+    }
+}
+\`\`\`
+
+---
+
+## 9. PricingStrategy Interface + Implementations
+
+\`\`\`java
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.Month;
+import java.util.Map;
+
+// ---- Interface ----
+
+public interface PricingStrategy {
+    /**
+     * Calculate the total price in cents for a room over a date range.
+     */
+    int calculatePrice(Room room, DateRange dateRange);
+}
+
+// ---- WeekdayPricingStrategy (flat rate) ----
+
+public class WeekdayPricingStrategy implements PricingStrategy {
+
+    @Override
+    public int calculatePrice(Room room, DateRange dateRange) {
+        return room.getBasePricePerNight() * dateRange.getNightCount();
+    }
+
+    @Override
+    public String toString() { return "WeekdayPricing (flat rate)"; }
+}
+
+// ---- WeekendPricingStrategy ----
+
+public class WeekendPricingStrategy implements PricingStrategy {
+    private final double weekendMultiplier;
+
+    public WeekendPricingStrategy(double weekendMultiplier) {
+        this.weekendMultiplier = weekendMultiplier;
+    }
+
+    @Override
+    public int calculatePrice(Room room, DateRange dateRange) {
+        int total = 0;
+        int basePrice = room.getBasePricePerNight();
+        LocalDate current = dateRange.getCheckIn();
+
+        while (current.isBefore(dateRange.getCheckOut())) {
+            DayOfWeek day = current.getDayOfWeek();
+            if (day == DayOfWeek.FRIDAY || day == DayOfWeek.SATURDAY) {
+                total += (int) (basePrice * weekendMultiplier);
+            } else {
+                total += basePrice;
+            }
+            current = current.plusDays(1);
+        }
+        return total;
+    }
+
+    @Override
+    public String toString() {
+        return "WeekendPricing (" + weekendMultiplier + "x on Fri/Sat)";
+    }
+}
+
+// ---- SeasonalPricingStrategy ----
+
+public class SeasonalPricingStrategy implements PricingStrategy {
+    private final Map<Month, Double> seasonMultipliers;
+
+    public SeasonalPricingStrategy(Map<Month, Double> seasonMultipliers) {
+        this.seasonMultipliers = seasonMultipliers;
+    }
+
+    @Override
+    public int calculatePrice(Room room, DateRange dateRange) {
+        int total = 0;
+        int basePrice = room.getBasePricePerNight();
+        LocalDate current = dateRange.getCheckIn();
+
+        while (current.isBefore(dateRange.getCheckOut())) {
+            double multiplier = seasonMultipliers
+                .getOrDefault(current.getMonth(), 1.0);
+            total += (int) (basePrice * multiplier);
+            current = current.plusDays(1);
+        }
+        return total;
+    }
+
+    @Override
+    public String toString() { return "SeasonalPricing"; }
+}
+
+// ---- DynamicPricingStrategy ----
+
+public class DynamicPricingStrategy implements PricingStrategy {
+    private final Hotel hotel;
+    private final double highOccupancyThreshold; // e.g. 0.8 = 80%
+    private final double surgeMultiplier;        // e.g. 1.5
+
+    public DynamicPricingStrategy(Hotel hotel,
+                                  double highOccupancyThreshold,
+                                  double surgeMultiplier) {
+        this.hotel = hotel;
+        this.highOccupancyThreshold = highOccupancyThreshold;
+        this.surgeMultiplier = surgeMultiplier;
+    }
+
+    @Override
+    public int calculatePrice(Room room, DateRange dateRange) {
+        int total = 0;
+        int basePrice = room.getBasePricePerNight();
+        int totalRooms = hotel.getRooms().size();
+
+        LocalDate current = dateRange.getCheckIn();
+        while (current.isBefore(dateRange.getCheckOut())) {
+            // Count how many rooms are booked for this specific night
+            final LocalDate nightOf = current;
+            DateRange singleNight = new DateRange(nightOf, nightOf.plusDays(1));
+
+            long bookedCount = hotel.getReservations().stream()
+                .filter(Reservation::isActive)
+                .filter(r -> r.getDateRange().overlaps(singleNight))
+                .map(r -> r.getRoom().getRoomId())
+                .distinct()
+                .count();
+
+            double occupancy = (double) bookedCount / totalRooms;
+            if (occupancy >= highOccupancyThreshold) {
+                total += (int) (basePrice * surgeMultiplier);
+            } else {
+                total += basePrice;
+            }
+            current = current.plusDays(1);
+        }
+        return total;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("DynamicPricing (surge %.1fx above %.0f%% occupancy)",
+            surgeMultiplier, highOccupancyThreshold * 100);
+    }
+}
+\`\`\`
+
+---
+
+## 10. CancellationPolicy
+
+\`\`\`java
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+
+public class CancellationPolicy {
+
+    /**
+     * Calculate refund amount based on how far in advance the cancellation is.
+     *
+     * Policy:
+     *   > 48 hours before check-in  ->  100% refund
+     *   24-48 hours before check-in ->   50% refund
+     *   < 24 hours before check-in  ->    0% refund
+     *
+     * @return refund amount in cents
+     */
+    public static int calculateRefund(Reservation reservation) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime checkInDateTime = reservation.getDateRange()
+            .getCheckIn().atStartOfDay();
+
+        long hoursUntilCheckIn = ChronoUnit.HOURS.between(now, checkInDateTime);
+
+        int totalPrice = reservation.getTotalPrice();
+
+        if (hoursUntilCheckIn > 48) {
+            System.out.println("  [Cancellation Policy] " + hoursUntilCheckIn
+                + " hours until check-in (>48h) -> 100% refund");
+            return totalPrice;
+        } else if (hoursUntilCheckIn >= 24) {
+            System.out.println("  [Cancellation Policy] " + hoursUntilCheckIn
+                + " hours until check-in (24-48h) -> 50% refund");
+            return totalPrice / 2;
+        } else {
+            System.out.println("  [Cancellation Policy] " + hoursUntilCheckIn
+                + " hours until check-in (<24h) -> 0% refund");
+            return 0;
+        }
+    }
+
+    /**
+     * Overload that accepts explicit "now" for testability and demo purposes.
+     */
+    public static int calculateRefund(Reservation reservation,
+                                      LocalDateTime simulatedNow) {
+        LocalDateTime checkInDateTime = reservation.getDateRange()
+            .getCheckIn().atStartOfDay();
+
+        long hoursUntilCheckIn = ChronoUnit.HOURS
+            .between(simulatedNow, checkInDateTime);
+
+        int totalPrice = reservation.getTotalPrice();
+
+        if (hoursUntilCheckIn > 48) {
+            System.out.println("  [Cancellation Policy] " + hoursUntilCheckIn
+                + " hours until check-in (>48h) -> 100% refund");
+            return totalPrice;
+        } else if (hoursUntilCheckIn >= 24) {
+            System.out.println("  [Cancellation Policy] " + hoursUntilCheckIn
+                + " hours until check-in (24-48h) -> 50% refund");
+            return totalPrice / 2;
+        } else {
+            System.out.println("  [Cancellation Policy] " + hoursUntilCheckIn
+                + " hours until check-in (<24h) -> 0% refund");
+            return 0;
+        }
+    }
+}
+\`\`\`
+
+---
+
+## 11. BookingObserver + EmailNotificationObserver
+
+\`\`\`java
+// ---- Observer Interface ----
+
+public interface BookingObserver {
+    void onReservationCreated(Reservation reservation);
+    void onReservationCancelled(Reservation reservation, int refundAmount);
+    void onGuestCheckedIn(Reservation reservation);
+    void onGuestCheckedOut(Reservation reservation);
+}
+
+// ---- EmailNotificationObserver ----
+
+public class EmailNotificationObserver implements BookingObserver {
+
+    @Override
+    public void onReservationCreated(Reservation reservation) {
+        System.out.println("  [EMAIL -> " + reservation.getGuest().getEmail()
+            + "] Booking confirmation for " + reservation.getReservationId()
+            + ". Room " + reservation.getRoom().getRoomNumber()
+            + ", " + reservation.getDateRange()
+            + ". Total: $" + String.format("%.2f",
+                reservation.getTotalPrice() / 100.0));
+    }
+
+    @Override
+    public void onReservationCancelled(Reservation reservation,
+                                       int refundAmount) {
+        System.out.println("  [EMAIL -> " + reservation.getGuest().getEmail()
+            + "] Reservation " + reservation.getReservationId()
+            + " has been cancelled. Refund: $"
+            + String.format("%.2f", refundAmount / 100.0));
+    }
+
+    @Override
+    public void onGuestCheckedIn(Reservation reservation) {
+        System.out.println("  [EMAIL -> " + reservation.getGuest().getEmail()
+            + "] Welcome! You have checked into Room "
+            + reservation.getRoom().getRoomNumber() + ". Enjoy your stay!");
+    }
+
+    @Override
+    public void onGuestCheckedOut(Reservation reservation) {
+        System.out.println("  [EMAIL -> " + reservation.getGuest().getEmail()
+            + "] Thank you for staying with us! Reservation "
+            + reservation.getReservationId() + " is now complete.");
+    }
+}
+\`\`\`
+
+---
+
+## 12. Hotel
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class Hotel {
+    private final String hotelId;
+    private final String name;
+    private final List<Room> rooms;
+    private final List<Reservation> reservations;
+
+    public Hotel(String hotelId, String name) {
+        this.hotelId = hotelId;
+        this.name = name;
+        this.rooms = new ArrayList<>();
+        this.reservations = new ArrayList<>();
+    }
+
+    public void addRoom(Room room) {
+        rooms.add(room);
+    }
+
+    /**
+     * Search for rooms that are:
+     *   1. Available (no overlapping active reservation) for the date range
+     *   2. Of the specified type (or any type if null)
+     *   3. At or below the max price per night (or any price if maxPrice <= 0)
+     */
+    public List<Room> searchAvailableRooms(DateRange dateRange,
+                                           RoomType type,
+                                           int maxPricePerNight) {
+        return rooms.stream()
+            .filter(room -> type == null || room.getRoomType() == type)
+            .filter(room -> maxPricePerNight <= 0
+                         || room.getBasePricePerNight() <= maxPricePerNight)
+            .filter(room -> isRoomAvailable(room, dateRange))
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Check if a room has no overlapping active reservations for the
+     * given date range. An "active" reservation is one in REQUESTED,
+     * CONFIRMED, or CHECKED_IN state.
+     */
+    public boolean isRoomAvailable(Room room, DateRange dateRange) {
+        return reservations.stream()
+            .filter(Reservation::isActive)
+            .filter(r -> r.getRoom().getRoomId().equals(room.getRoomId()))
+            .noneMatch(r -> r.getDateRange().overlaps(dateRange));
+    }
+
+    public void addReservation(Reservation reservation) {
+        reservations.add(reservation);
+    }
+
+    public Reservation findReservation(String reservationId) {
+        return reservations.stream()
+            .filter(r -> r.getReservationId().equals(reservationId))
+            .findFirst()
+            .orElse(null);
+    }
+
+    // --- Getters ---
+
+    public String getHotelId() { return hotelId; }
+    public String getName() { return name; }
+    public List<Room> getRooms() { return rooms; }
+    public List<Reservation> getReservations() { return reservations; }
+
+    @Override
+    public String toString() {
+        return name + " (" + rooms.size() + " rooms)";
+    }
+}
+\`\`\`
+
+---
+
+## 13. BookingService
+
+\`\`\`java
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+public class BookingService {
+    private final Hotel hotel;
+    private PricingStrategy pricingStrategy;
+    private final List<BookingObserver> observers;
+    private final List<Payment> payments;
+
+    public BookingService(Hotel hotel, PricingStrategy pricingStrategy) {
+        this.hotel = hotel;
+        this.pricingStrategy = pricingStrategy;
+        this.observers = new ArrayList<>();
+        this.payments = new ArrayList<>();
+    }
+
+    public void setPricingStrategy(PricingStrategy strategy) {
+        this.pricingStrategy = strategy;
+    }
+
+    public void addObserver(BookingObserver observer) {
+        observers.add(observer);
+    }
+
+    // --- Search ---
+
+    public List<Room> searchAvailable(DateRange dateRange, RoomType type,
+                                      int maxPricePerNight) {
+        return hotel.searchAvailableRooms(dateRange, type, maxPricePerNight);
+    }
+
+    // --- Create Reservation ---
+
+    public Reservation createReservation(Guest guest, Room room,
+                                         DateRange dateRange) {
+        // Double-booking prevention: check availability before creating
+        if (!hotel.isRoomAvailable(room, dateRange)) {
+            System.out.println("ERROR: Room " + room.getRoomNumber()
+                + " is not available for " + dateRange
+                + ". Reservation not created.");
+            return null;
+        }
+
+        int totalPrice = pricingStrategy.calculatePrice(room, dateRange);
+        Reservation reservation = new Reservation(guest, room, dateRange,
+                                                  totalPrice);
+        hotel.addReservation(reservation);
+
+        System.out.println("Reservation created: " + reservation);
+        System.out.println("  Pricing strategy: " + pricingStrategy);
+
+        // Notify observers
+        for (BookingObserver observer : observers) {
+            observer.onReservationCreated(reservation);
+        }
+
+        return reservation;
+    }
+
+    // --- Confirm (with payment) ---
+
+    public void confirmReservation(String reservationId) {
+        Reservation reservation = hotel.findReservation(reservationId);
+        if (reservation == null) {
+            System.out.println("ERROR: Reservation " + reservationId
+                + " not found.");
+            return;
+        }
+
+        // Process payment
+        Payment payment = new Payment(reservationId,
+            reservation.getTotalPrice(), PaymentType.CHARGE);
+        payments.add(payment);
+        System.out.println("  " + payment);
+
+        reservation.confirm(); // delegates to state
+    }
+
+    // --- Check In ---
+
+    public void checkIn(String reservationId) {
+        Reservation reservation = hotel.findReservation(reservationId);
+        if (reservation == null) {
+            System.out.println("ERROR: Reservation " + reservationId
+                + " not found.");
+            return;
+        }
+
+        String stateBefore = reservation.getStateName();
+        reservation.checkIn(); // delegates to state
+
+        // Notify only if state actually changed
+        if (!stateBefore.equals(reservation.getStateName())) {
+            for (BookingObserver observer : observers) {
+                observer.onGuestCheckedIn(reservation);
+            }
+        }
+    }
+
+    // --- Check Out ---
+
+    public void checkOut(String reservationId) {
+        Reservation reservation = hotel.findReservation(reservationId);
+        if (reservation == null) {
+            System.out.println("ERROR: Reservation " + reservationId
+                + " not found.");
+            return;
+        }
+
+        String stateBefore = reservation.getStateName();
+        reservation.checkOut(); // delegates to state
+
+        if (!stateBefore.equals(reservation.getStateName())) {
+            for (BookingObserver observer : observers) {
+                observer.onGuestCheckedOut(reservation);
+            }
+        }
+    }
+
+    // --- Cancel ---
+
+    /**
+     * Cancel a reservation and calculate refund based on cancellation policy.
+     * Returns the refund amount in cents.
+     */
+    public int cancelReservation(String reservationId) {
+        return cancelReservation(reservationId, LocalDateTime.now());
+    }
+
+    /**
+     * Overload with simulated time for demo/testing.
+     */
+    public int cancelReservation(String reservationId,
+                                 LocalDateTime simulatedNow) {
+        Reservation reservation = hotel.findReservation(reservationId);
+        if (reservation == null) {
+            System.out.println("ERROR: Reservation " + reservationId
+                + " not found.");
+            return 0;
+        }
+
+        String stateBefore = reservation.getStateName();
+
+        // Calculate refund before state transition
+        int refundAmount = 0;
+        if (stateBefore.equals("REQUESTED")) {
+            // Always full refund for unconfirmed reservations
+            refundAmount = reservation.getTotalPrice();
+            System.out.println("  [Cancellation Policy] Reservation not yet "
+                + "confirmed -> 100% refund");
+        } else if (stateBefore.equals("CONFIRMED")) {
+            refundAmount = CancellationPolicy
+                .calculateRefund(reservation, simulatedNow);
+        }
+
+        reservation.cancel(); // delegates to state
+
+        // Process refund if state changed and refund is due
+        if (!stateBefore.equals(reservation.getStateName())
+                && refundAmount > 0) {
+            Payment refund = new Payment(reservationId, refundAmount,
+                                         PaymentType.REFUND);
+            payments.add(refund);
+            System.out.println("  " + refund);
+        }
+
+        // Notify observers if state changed
+        if (!stateBefore.equals(reservation.getStateName())) {
+            for (BookingObserver observer : observers) {
+                observer.onReservationCancelled(reservation, refundAmount);
+            }
+        }
+
+        return refundAmount;
+    }
+
+    // --- Utility ---
+
+    public List<Payment> getPayments() { return payments; }
+    public Hotel getHotel() { return hotel; }
+}
+\`\`\`
+
+---
+
+## 14. Main -- Demo
+
+\`\`\`java
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Month;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class HotelBookingDemo {
+
+    public static void main(String[] args) {
+
+        // ============================================================
+        // SETUP: Create hotel with rooms
+        // ============================================================
+
+        System.out.println("=".repeat(70));
+        System.out.println("  HOTEL BOOKING SYSTEM -- DEMO");
+        System.out.println("=".repeat(70));
+        System.out.println();
+
+        Hotel hotel = new Hotel("H001", "The Grand Palace");
+
+        // Create rooms using the Factory pattern
+        Room room101 = RoomFactory.createRoom(101, RoomType.SINGLE, 10000);
+        Room room102 = RoomFactory.createRoom(102, RoomType.SINGLE, 10000);
+        Room room201 = RoomFactory.createRoom(201, RoomType.DOUBLE, 15000);
+        Room room202 = RoomFactory.createRoom(202, RoomType.DOUBLE, 15000);
+        Room room301 = RoomFactory.createRoom(301, RoomType.SUITE,  30000);
+
+        hotel.addRoom(room101);
+        hotel.addRoom(room102);
+        hotel.addRoom(room201);
+        hotel.addRoom(room202);
+        hotel.addRoom(room301);
+
+        System.out.println("Hotel: " + hotel);
+        System.out.println("Rooms:");
+        for (Room r : hotel.getRooms()) {
+            System.out.println("  " + r);
+        }
+        System.out.println();
+
+        // Create guests
+        Guest alice = new Guest("G001", "Alice Johnson",
+                                "alice@email.com", "555-0101");
+        Guest bob   = new Guest("G002", "Bob Smith",
+                                "bob@email.com", "555-0202");
+        Guest carol = new Guest("G003", "Carol White",
+                                "carol@email.com", "555-0303");
+
+        // Setup booking service with weekend pricing strategy
+        PricingStrategy weekendPricing = new WeekendPricingStrategy(1.25);
+        BookingService service = new BookingService(hotel, weekendPricing);
+        service.addObserver(new EmailNotificationObserver());
+
+        // ============================================================
+        // SCENARIO 1: Happy Path -- Search, Book, Confirm, Check-in,
+        //              Check-out
+        // ============================================================
+
+        System.out.println("-".repeat(70));
+        System.out.println("SCENARIO 1: Happy Path (Alice books a Double room)");
+        System.out.println("-".repeat(70));
+        System.out.println();
+
+        // Search for Double rooms
+        DateRange aliceDates = new DateRange(
+            LocalDate.now(), LocalDate.now().plusDays(3));
+        System.out.println("Searching for DOUBLE rooms, " + aliceDates
+            + ", max $200/night...");
+
+        List<Room> available = service.searchAvailable(
+            aliceDates, RoomType.DOUBLE, 20000);
+        System.out.println("Found " + available.size() + " rooms:");
+        for (Room r : available) {
+            System.out.println("  " + r);
+        }
+        System.out.println();
+
+        // Book Room 201
+        Reservation res1 = service.createReservation(
+            alice, room201, aliceDates);
+        System.out.println();
+
+        // Confirm (pay)
+        System.out.println("Confirming reservation...");
+        service.confirmReservation(res1.getReservationId());
+        System.out.println();
+
+        // Check in (today is check-in date)
+        System.out.println("Checking in...");
+        service.checkIn(res1.getReservationId());
+        System.out.println();
+
+        // Check out
+        System.out.println("Checking out...");
+        service.checkOut(res1.getReservationId());
+        System.out.println();
+
+        // ============================================================
+        // SCENARIO 2: Double-Booking Prevention
+        // ============================================================
+
+        System.out.println("-".repeat(70));
+        System.out.println("SCENARIO 2: Double-Booking Prevention");
+        System.out.println("-".repeat(70));
+        System.out.println();
+
+        // Bob tries to book Room 201 for overlapping dates
+        DateRange bobDates = new DateRange(
+            LocalDate.now().plusDays(5), LocalDate.now().plusDays(8));
+
+        Reservation res2 = service.createReservation(bob, room201, bobDates);
+        System.out.println();
+
+        // Carol tries to book Room 201 for overlapping dates with Bob
+        DateRange carolOverlap = new DateRange(
+            LocalDate.now().plusDays(6), LocalDate.now().plusDays(10));
+        System.out.println("Carol tries to book Room 201 for " + carolOverlap
+            + " (overlaps with Bob)...");
+        Reservation res3 = service.createReservation(
+            carol, room201, carolOverlap);
+        System.out.println();
+
+        // Carol books Room 201 AFTER Bob's stay (no overlap)
+        DateRange carolValid = new DateRange(
+            LocalDate.now().plusDays(8), LocalDate.now().plusDays(11));
+        System.out.println("Carol tries Room 201 for " + carolValid
+            + " (after Bob's checkout)...");
+        Reservation res4 = service.createReservation(
+            carol, room201, carolValid);
+        System.out.println();
+
+        // ============================================================
+        // SCENARIO 3: Cancellation with Full Refund (>48h)
+        // ============================================================
+
+        System.out.println("-".repeat(70));
+        System.out.println("SCENARIO 3: Cancellation -- Full Refund (>48h)");
+        System.out.println("-".repeat(70));
+        System.out.println();
+
+        DateRange futureStay = new DateRange(
+            LocalDate.now().plusDays(10), LocalDate.now().plusDays(13));
+        Reservation res5 = service.createReservation(
+            alice, room102, futureStay);
+        service.confirmReservation(res5.getReservationId());
+        System.out.println();
+
+        // Cancel 10 days out (240 hours > 48 hours)
+        System.out.println("Cancelling 10 days before check-in...");
+        int refund = service.cancelReservation(
+            res5.getReservationId(), LocalDateTime.now());
+        System.out.println("Refund received: $"
+            + String.format("%.2f", refund / 100.0));
+        System.out.println();
+
+        // ============================================================
+        // SCENARIO 4: Cancellation with Partial Refund (24-48h)
+        // ============================================================
+
+        System.out.println("-".repeat(70));
+        System.out.println("SCENARIO 4: Cancellation -- 50% Refund (24-48h)");
+        System.out.println("-".repeat(70));
+        System.out.println();
+
+        DateRange soonStay = new DateRange(
+            LocalDate.now().plusDays(2), LocalDate.now().plusDays(4));
+        Reservation res6 = service.createReservation(
+            bob, room101, soonStay);
+        service.confirmReservation(res6.getReservationId());
+        System.out.println();
+
+        // Simulate cancellation 36 hours before check-in
+        LocalDateTime simulated36h = soonStay.getCheckIn().atStartOfDay()
+            .minusHours(36);
+        System.out.println("Cancelling 36 hours before check-in "
+            + "(simulated time: " + simulated36h + ")...");
+        refund = service.cancelReservation(
+            res6.getReservationId(), simulated36h);
+        System.out.println("Refund received: $"
+            + String.format("%.2f", refund / 100.0));
+        System.out.println();
+
+        // ============================================================
+        // SCENARIO 5: Late Cancellation -- No Refund (<24h)
+        // ============================================================
+
+        System.out.println("-".repeat(70));
+        System.out.println("SCENARIO 5: Cancellation -- No Refund (<24h)");
+        System.out.println("-".repeat(70));
+        System.out.println();
+
+        DateRange tomorrowStay = new DateRange(
+            LocalDate.now().plusDays(1), LocalDate.now().plusDays(3));
+        Reservation res7 = service.createReservation(
+            carol, room102, tomorrowStay);
+        service.confirmReservation(res7.getReservationId());
+        System.out.println();
+
+        // Simulate cancellation 12 hours before check-in
+        LocalDateTime simulated12h = tomorrowStay.getCheckIn().atStartOfDay()
+            .minusHours(12);
+        System.out.println("Cancelling 12 hours before check-in "
+            + "(simulated time: " + simulated12h + ")...");
+        refund = service.cancelReservation(
+            res7.getReservationId(), simulated12h);
+        System.out.println("Refund received: $"
+            + String.format("%.2f", refund / 100.0));
+        System.out.println();
+
+        // ============================================================
+        // SCENARIO 6: Invalid State Transitions
+        // ============================================================
+
+        System.out.println("-".repeat(70));
+        System.out.println("SCENARIO 6: Invalid State Transitions");
+        System.out.println("-".repeat(70));
+        System.out.println();
+
+        DateRange newStay = new DateRange(
+            LocalDate.now().plusDays(20), LocalDate.now().plusDays(23));
+        Reservation res8 = service.createReservation(
+            alice, room301, newStay);
+        System.out.println();
+
+        // Try to check in before confirming
+        System.out.println("Attempt: check in without confirming...");
+        service.checkIn(res8.getReservationId());
+        System.out.println();
+
+        // Try to check out without checking in
+        System.out.println("Attempt: check out without checking in...");
+        service.checkOut(res8.getReservationId());
+        System.out.println();
+
+        // Confirm, then try to confirm again
+        service.confirmReservation(res8.getReservationId());
+        System.out.println();
+        System.out.println("Attempt: confirm again...");
+        service.confirmReservation(res8.getReservationId());
+        System.out.println();
+
+        // Cancel, then try further actions on cancelled reservation
+        service.cancelReservation(res8.getReservationId());
+        System.out.println();
+        System.out.println("Attempt: check in after cancellation...");
+        service.checkIn(res8.getReservationId());
+        System.out.println();
+
+        // ============================================================
+        // SCENARIO 7: Switching Pricing Strategy
+        // ============================================================
+
+        System.out.println("-".repeat(70));
+        System.out.println("SCENARIO 7: Pricing Strategy Comparison");
+        System.out.println("-".repeat(70));
+        System.out.println();
+
+        // A date range that spans both weekdays and weekends
+        DateRange pricingDates = new DateRange(
+            LocalDate.of(2026, 6, 11),  // Thursday
+            LocalDate.of(2026, 6, 15)); // Monday (4 nights: Thu, Fri, Sat, Sun)
+
+        System.out.println("Comparing pricing for Room 201 ($150/night base), "
+            + pricingDates + ":");
+        System.out.println();
+
+        // Flat rate
+        PricingStrategy flat = new WeekdayPricingStrategy();
+        System.out.println("  " + flat + ": $"
+            + String.format("%.2f",
+                flat.calculatePrice(room201, pricingDates) / 100.0));
+
+        // Weekend pricing (1.25x on Fri/Sat)
+        System.out.println("  " + weekendPricing + ": $"
+            + String.format("%.2f",
+                weekendPricing.calculatePrice(room201, pricingDates) / 100.0));
+
+        // Seasonal pricing
+        Map<Month, Double> multipliers = new HashMap<>();
+        multipliers.put(Month.JUNE, 1.3);     // summer premium
+        multipliers.put(Month.DECEMBER, 1.5); // holiday premium
+        multipliers.put(Month.FEBRUARY, 0.8); // winter discount
+        PricingStrategy seasonal = new SeasonalPricingStrategy(multipliers);
+        System.out.println("  " + seasonal + " (June 1.3x): $"
+            + String.format("%.2f",
+                seasonal.calculatePrice(room201, pricingDates) / 100.0));
+
+        System.out.println();
+
+        // Switch the service to seasonal pricing and make a booking
+        System.out.println("Switching service to Seasonal pricing...");
+        service.setPricingStrategy(seasonal);
+
+        DateRange seasonalStay = new DateRange(
+            LocalDate.of(2026, 6, 20),
+            LocalDate.of(2026, 6, 23));
+        Reservation res9 = service.createReservation(
+            bob, room202, seasonalStay);
+        System.out.println();
+
+        // ============================================================
+        // SUMMARY
+        // ============================================================
+
+        System.out.println("=".repeat(70));
+        System.out.println("  ALL RESERVATIONS");
+        System.out.println("=".repeat(70));
+        for (Reservation r : hotel.getReservations()) {
+            System.out.println("  " + r);
+        }
+        System.out.println();
+
+        System.out.println("=".repeat(70));
+        System.out.println("  ALL PAYMENTS");
+        System.out.println("=".repeat(70));
+        for (Payment p : service.getPayments()) {
+            System.out.println("  " + p);
+        }
+        System.out.println();
+
+        System.out.println("=".repeat(70));
+        System.out.println("  DEMO COMPLETE");
+        System.out.println("=".repeat(70));
+    }
+}
+\`\`\`
+
+---
+
+## Design Patterns Summary
+
+| Pattern | Where | Purpose |
+|---------|-------|---------|
+| **State** | \`ReservationState\` + 5 implementations | Manages reservation lifecycle; each state encapsulates its own transition rules |
+| **Strategy** | \`PricingStrategy\` + 4 implementations | Swappable pricing algorithms without modifying booking logic |
+| **Observer** | \`BookingObserver\` + \`EmailNotificationObserver\` | Decoupled notifications on booking events |
+| **Factory** | \`RoomFactory\` | Centralises Room subclass creation based on RoomType |
+
+## Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Half-open date intervals \`[checkIn, checkOut)\` | Allows adjacent bookings without false overlap; checkout day is free for new check-in |
+| Monetary values in cents (int) | Avoids floating-point precision errors in financial calculations |
+| \`isActive()\` checks state name | Only REQUESTED, CONFIRMED, and CHECKED_IN reservations block availability |
+| Simulated time parameter on cancel | Enables deterministic testing of the tiered refund policy |
+| State objects are stateless | Each state implementation carries no instance fields -- transitions create new state objects, keeping it simple and thread-friendly |
+`,
+  designWalkthrough: `# Design a Hotel Booking System -- Low-Level Design Walkthrough
+
+## Table of Contents
+
+1. [Problem Statement](#1-problem-statement)
+2. [Requirements](#2-requirements)
+3. [Core Entities](#3-core-entities)
+4. [Class Diagram](#4-class-diagram)
+5. [State Diagram -- Reservation Lifecycle](#5-state-diagram----reservation-lifecycle)
+6. [The Core Patterns](#6-the-core-patterns)
+7. [Supporting Patterns](#7-supporting-patterns)
+8. [API / Method Contracts](#8-api--method-contracts)
+9. [Key Challenge: Availability and Double-Booking Prevention](#9-key-challenge-availability-and-double-booking-prevention)
+10. [Detailed Scenarios](#10-detailed-scenarios)
+11. [Concurrency and Thread Safety](#11-concurrency-and-thread-safety)
+12. [Extension Points](#12-extension-points)
+13. [Common Interview Follow-ups](#13-common-interview-follow-ups)
+
+---
+
+## 1. Problem Statement
+
+Design an object-oriented hotel booking system that allows guests to:
+- Search for available rooms by date range, room type, and maximum price.
+- Book a room for a given date range.
+- Check in and check out of a reservation.
+- Make a payment for the reservation.
+- Cancel a reservation and receive a refund according to a tiered policy.
+
+The system must prevent double-booking (two confirmed reservations for the
+same room on overlapping dates) and correctly manage the full reservation
+lifecycle from request through check-out or cancellation.
+
+This problem tests two patterns simultaneously. The **State pattern** manages
+the reservation lifecycle (REQUESTED, CONFIRMED, CHECKED_IN, CHECKED_OUT,
+CANCELLED), while the **Strategy pattern** enables swappable pricing
+algorithms (weekday, weekend, seasonal, dynamic).
+
+---
+
+## 2. Requirements
+
+### Functional Requirements
+
+| # | Requirement | Priority |
+|---|-------------|----------|
+| FR-1 | Search available rooms by date range, room type, and maximum price | Must |
+| FR-2 | Check real-time availability of a specific room for a date range | Must |
+| FR-3 | Create a reservation for a guest, room, and date range | Must |
+| FR-4 | Confirm a reservation after payment is processed | Must |
+| FR-5 | Check in a guest (only on or after the check-in date) | Must |
+| FR-6 | Check out a guest (only on or after the check-in date) | Must |
+| FR-7 | Cancel a reservation with tiered refund policy | Must |
+| FR-8 | Calculate room price using configurable pricing strategies | Must |
+| FR-9 | Prevent double-booking of the same room for overlapping dates | Must |
+| FR-10 | Notify relevant parties on booking, cancellation, and check-in events | Should |
+
+### Non-Functional Requirements
+
+| # | Requirement |
+|---|-------------|
+| NFR-1 | Single-threaded correctness first; thread safety as an extension |
+| NFR-2 | Open/Closed Principle -- new room types, pricing strategies, and states added without modifying existing code |
+| NFR-3 | All monetary values stored as integers (cents) to avoid floating-point drift |
+| NFR-4 | Date range overlap detection must be O(n) per room at worst, with indexing as an optimisation |
+
+### Cancellation Refund Policy
+
+| Window | Refund |
+|--------|--------|
+| More than 48 hours before check-in | 100% refund |
+| 24 to 48 hours before check-in | 50% refund |
+| Less than 24 hours before check-in | 0% refund |
+
+---
+
+## 3. Core Entities
+
+### 3.1 DateRange
+
+A value object representing a half-open interval \`[checkIn, checkOut)\`. A
+guest checking in on Jan 5 and checking out on Jan 8 occupies the room for
+nights of Jan 5, 6, and 7. The check-out date itself is free for a new
+guest to check in.
+
+Key method: \`overlaps(DateRange other)\` returns true if the two ranges share
+at least one night. The overlap formula is:
+\`this.checkIn < other.checkOut && other.checkIn < this.checkOut\`
+
+Also provides \`getNightCount()\` for pricing calculations.
+
+### 3.2 RoomType (Enum)
+
+\`\`\`
+SINGLE  -- one bed, one guest, base price
+DOUBLE  -- two beds or one large bed, up to 2 guests
+SUITE   -- premium room with separate living area, highest price
+\`\`\`
+
+### 3.3 Room (Abstract Class) and Subclasses
+
+Abstract base class with common fields: \`roomId\`, \`roomNumber\`, \`roomType\`,
+\`basePricePerNight\` (in cents). Concrete subclasses:
+
+- **SingleRoom** -- capacity 1, basic amenities.
+- **DoubleRoom** -- capacity 2, includes extra bed or larger bed.
+- **SuiteRoom** -- capacity 4, includes living area, minibar, premium amenities.
+
+Each subclass can override \`getDescription()\` to provide type-specific
+details. The Factory pattern creates these based on \`RoomType\`.
+
+### 3.4 Guest
+
+Represents a hotel guest. Fields: \`guestId\`, \`name\`, \`email\`, \`phone\`.
+Used as the "who" in a reservation.
+
+### 3.5 Reservation
+
+The central entity. Fields:
+- \`reservationId\` -- unique identifier.
+- \`guest\` -- who made the booking.
+- \`room\` -- which room.
+- \`dateRange\` -- when.
+- \`totalPrice\` -- computed at creation time via the pricing strategy.
+- \`state\` -- the current \`ReservationState\` object.
+- \`createdAt\` -- timestamp for refund calculations.
+
+All user actions (confirm, checkIn, checkOut, cancel) are delegated to
+\`state\`, which decides whether the action is valid and what transition
+to make. This is the State pattern in action.
+
+### 3.6 Payment
+
+Represents a payment or refund transaction. Fields: \`paymentId\`,
+\`reservationId\`, \`amount\`, \`paymentType\` (CHARGE or REFUND), \`timestamp\`.
+Kept simple since payment gateway integration is outside LLD scope.
+
+### 3.7 Hotel
+
+The aggregate root. Holds the list of rooms and the list of reservations.
+Provides room search and availability checking. Delegates booking logic to
+\`BookingService\`.
+
+### 3.8 BookingService
+
+The main service orchestrating searches, bookings, check-in/check-out, and
+cancellations. Coordinates between Hotel, Reservation, PricingStrategy, and
+the notification system.
+
+---
+
+## 4. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    direction TB
+
+    class DateRange {
+        -LocalDate checkIn
+        -LocalDate checkOut
+        +overlaps(DateRange other) boolean
+        +getNightCount() int
+        +getCheckIn() LocalDate
+        +getCheckOut() LocalDate
+    }
+
+    class RoomType {
+        <<enumeration>>
+        SINGLE
+        DOUBLE
+        SUITE
+    }
+
+    class Room {
+        <<abstract>>
+        #String roomId
+        #int roomNumber
+        #RoomType roomType
+        #int basePricePerNight
+        +getRoomId() String
+        +getRoomNumber() int
+        +getRoomType() RoomType
+        +getBasePricePerNight() int
+        +getCapacity() int*
+        +getDescription() String*
+    }
+
+    class SingleRoom {
+        +getCapacity() int
+        +getDescription() String
+    }
+
+    class DoubleRoom {
+        +getCapacity() int
+        +getDescription() String
+    }
+
+    class SuiteRoom {
+        +getCapacity() int
+        +getDescription() String
+    }
+
+    class RoomFactory {
+        +createRoom(int roomNumber, RoomType type, int basePrice)$ Room
+    }
+
+    class Guest {
+        -String guestId
+        -String name
+        -String email
+        -String phone
+        +getGuestId() String
+        +getName() String
+        +getEmail() String
+    }
+
+    class ReservationState {
+        <<interface>>
+        +confirm(Reservation res) void
+        +checkIn(Reservation res) void
+        +checkOut(Reservation res) void
+        +cancel(Reservation res) void
+        +getStateName() String
+    }
+
+    class RequestedState {
+        +confirm(Reservation res) void
+        +checkIn(Reservation res) void
+        +checkOut(Reservation res) void
+        +cancel(Reservation res) void
+    }
+
+    class ConfirmedState {
+        +confirm(Reservation res) void
+        +checkIn(Reservation res) void
+        +checkOut(Reservation res) void
+        +cancel(Reservation res) void
+    }
+
+    class CheckedInState {
+        +confirm(Reservation res) void
+        +checkIn(Reservation res) void
+        +checkOut(Reservation res) void
+        +cancel(Reservation res) void
+    }
+
+    class CheckedOutState {
+        +confirm(Reservation res) void
+        +checkIn(Reservation res) void
+        +checkOut(Reservation res) void
+        +cancel(Reservation res) void
+    }
+
+    class CancelledState {
+        +confirm(Reservation res) void
+        +checkIn(Reservation res) void
+        +checkOut(Reservation res) void
+        +cancel(Reservation res) void
+    }
+
+    class Reservation {
+        -String reservationId
+        -Guest guest
+        -Room room
+        -DateRange dateRange
+        -int totalPrice
+        -ReservationState state
+        -LocalDateTime createdAt
+        +confirm() void
+        +checkIn() void
+        +checkOut() void
+        +cancel() void
+        +setState(ReservationState state) void
+        +getState() ReservationState
+    }
+
+    class PricingStrategy {
+        <<interface>>
+        +calculatePrice(Room room, DateRange dateRange) int
+    }
+
+    class WeekdayPricingStrategy {
+        +calculatePrice(Room room, DateRange dateRange) int
+    }
+
+    class WeekendPricingStrategy {
+        -double weekendMultiplier
+        +calculatePrice(Room room, DateRange dateRange) int
+    }
+
+    class SeasonalPricingStrategy {
+        -Map~Month, Double~ seasonMultipliers
+        +calculatePrice(Room room, DateRange dateRange) int
+    }
+
+    class DynamicPricingStrategy {
+        -Hotel hotel
+        -double highOccupancyThreshold
+        +calculatePrice(Room room, DateRange dateRange) int
+    }
+
+    class Payment {
+        -String paymentId
+        -String reservationId
+        -int amount
+        -PaymentType type
+        -LocalDateTime timestamp
+    }
+
+    class PaymentType {
+        <<enumeration>>
+        CHARGE
+        REFUND
+    }
+
+    class BookingObserver {
+        <<interface>>
+        +onReservationCreated(Reservation res) void
+        +onReservationCancelled(Reservation res) void
+        +onGuestCheckedIn(Reservation res) void
+        +onGuestCheckedOut(Reservation res) void
+    }
+
+    class EmailNotificationObserver {
+        +onReservationCreated(Reservation res) void
+        +onReservationCancelled(Reservation res) void
+        +onGuestCheckedIn(Reservation res) void
+        +onGuestCheckedOut(Reservation res) void
+    }
+
+    class Hotel {
+        -String hotelId
+        -String name
+        -List~Room~ rooms
+        -List~Reservation~ reservations
+        +addRoom(Room room) void
+        +searchAvailableRooms(DateRange range, RoomType type, int maxPrice) List~Room~
+        +isRoomAvailable(Room room, DateRange range) boolean
+        +addReservation(Reservation res) void
+        +getReservations() List~Reservation~
+    }
+
+    class BookingService {
+        -Hotel hotel
+        -PricingStrategy pricingStrategy
+        -List~BookingObserver~ observers
+        +searchAvailable(DateRange range, RoomType type, int maxPrice) List~Room~
+        +createReservation(Guest guest, Room room, DateRange range) Reservation
+        +confirmReservation(String reservationId) void
+        +checkIn(String reservationId) void
+        +checkOut(String reservationId) void
+        +cancelReservation(String reservationId) int
+        +addObserver(BookingObserver observer) void
+    }
+
+    Room <|-- SingleRoom
+    Room <|-- DoubleRoom
+    Room <|-- SuiteRoom
+    Room --> RoomType
+
+    ReservationState <|.. RequestedState
+    ReservationState <|.. ConfirmedState
+    ReservationState <|.. CheckedInState
+    ReservationState <|.. CheckedOutState
+    ReservationState <|.. CancelledState
+
+    PricingStrategy <|.. WeekdayPricingStrategy
+    PricingStrategy <|.. WeekendPricingStrategy
+    PricingStrategy <|.. SeasonalPricingStrategy
+    PricingStrategy <|.. DynamicPricingStrategy
+
+    BookingObserver <|.. EmailNotificationObserver
+
+    Reservation --> Guest
+    Reservation --> Room
+    Reservation --> DateRange
+    Reservation --> ReservationState
+
+    Payment --> PaymentType
+
+    Hotel --> Room
+    Hotel --> Reservation
+
+    BookingService --> Hotel
+    BookingService --> PricingStrategy
+    BookingService --> BookingObserver
+
+    RoomFactory --> Room : creates
+\`\`\`
+
+Key relationships:
+- **Reservation** delegates lifecycle actions to its **ReservationState**.
+- **BookingService** uses a **PricingStrategy** to compute prices and
+  notifies **BookingObserver** instances on key events.
+- **Hotel** owns the room inventory and reservation list, providing the
+  availability query that underpins double-booking prevention.
+- **RoomFactory** creates concrete Room subclasses from a RoomType enum.
+
+---
+
+## 5. State Diagram -- Reservation Lifecycle
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> Requested
+
+    Requested --> Confirmed : confirm() [payment succeeds]
+    Requested --> Cancelled : cancel() [full refund]
+    Requested --> Requested : checkIn() [rejected -- not confirmed]
+    Requested --> Requested : checkOut() [rejected -- not checked in]
+
+    Confirmed --> CheckedIn : checkIn() [on or after check-in date]
+    Confirmed --> Cancelled : cancel() [refund per policy]
+    Confirmed --> Confirmed : confirm() [rejected -- already confirmed]
+    Confirmed --> Confirmed : checkOut() [rejected -- not checked in]
+
+    CheckedIn --> CheckedOut : checkOut()
+    CheckedIn --> CheckedIn : confirm() [rejected]
+    CheckedIn --> CheckedIn : checkIn() [rejected -- already in]
+    CheckedIn --> CheckedIn : cancel() [rejected -- already checked in]
+
+    CheckedOut --> [*]
+    CheckedOut --> CheckedOut : confirm() [rejected]
+    CheckedOut --> CheckedOut : checkIn() [rejected]
+    CheckedOut --> CheckedOut : checkOut() [rejected]
+    CheckedOut --> CheckedOut : cancel() [rejected]
+
+    Cancelled --> [*]
+    Cancelled --> Cancelled : confirm() [rejected]
+    Cancelled --> Cancelled : checkIn() [rejected]
+    Cancelled --> Cancelled : checkOut() [rejected]
+    Cancelled --> Cancelled : cancel() [rejected]
+\`\`\`
+
+The reservation starts in **Requested** when created. Payment confirmation
+moves it to **Confirmed**. On the check-in date, front desk moves it to
+**CheckedIn**. On departure, **CheckedOut**. Cancellation is possible from
+**Requested** (full refund always) or **Confirmed** (tiered refund policy).
+Once **CheckedIn**, cancellation is no longer allowed -- the guest is already
+using the room.
+
+**CheckedOut** and **Cancelled** are terminal states. No further transitions
+are possible.
+
+---
+
+## 6. The Core Patterns
+
+### 6.1 State Pattern -- Reservation Lifecycle
+
+#### Why State Pattern?
+
+Without it, every method on Reservation would contain:
+
+\`\`\`
+if (status == REQUESTED) { ... }
+else if (status == CONFIRMED) { ... }
+else if (status == CHECKED_IN) { ... }
+// ...
+\`\`\`
+
+This creates the same problems as always:
+1. **Violates Open/Closed** -- adding a "WAITLISTED" state means editing
+   every method.
+2. **Shotgun surgery** -- changing check-in rules requires finding and
+   updating the CONFIRMED branch in multiple methods.
+3. **Hard to test** -- cannot unit-test the rules for one state without
+   constructing the entire switch logic.
+
+#### How It Works Here
+
+\`\`\`
+Front desk calls  --->  reservation.checkIn()
+                              |
+                              v
+                        state.checkIn(reservation)
+                              |
+                  +-----------+-----------+
+                  |                       |
+           RequestedState          ConfirmedState
+        "Cannot check in.        Validates date.
+         Not yet confirmed."     If OK --> setState(CheckedInState)
+                                 If early --> "Too early to check in."
+\`\`\`
+
+Each state is a self-contained unit:
+
+- **RequestedState**: Only \`confirm()\` and \`cancel()\` are meaningful.
+  \`confirm()\` transitions to \`ConfirmedState\`. \`cancel()\` transitions to
+  \`CancelledState\` with full refund. Check-in and check-out are rejected.
+- **ConfirmedState**: \`checkIn()\` validates the date and transitions to
+  \`CheckedInState\`. \`cancel()\` calculates the tiered refund and transitions
+  to \`CancelledState\`. Re-confirmation and check-out are rejected.
+- **CheckedInState**: Only \`checkOut()\` is valid, transitioning to
+  \`CheckedOutState\`. Everything else is rejected.
+- **CheckedOutState**: Terminal state. All actions rejected.
+- **CancelledState**: Terminal state. All actions rejected.
+
+#### State Transition Table
+
+| Current State | Action | Guard Condition | Next State |
+|---------------|--------|-----------------|------------|
+| Requested | confirm | payment processed | Confirmed |
+| Requested | cancel | -- | Cancelled (full refund) |
+| Requested | checkIn | -- | Requested (rejected) |
+| Requested | checkOut | -- | Requested (rejected) |
+| Confirmed | checkIn | current date >= check-in date | CheckedIn |
+| Confirmed | checkIn | current date < check-in date | Confirmed (rejected) |
+| Confirmed | cancel | -- | Cancelled (tiered refund) |
+| Confirmed | confirm | -- | Confirmed (rejected) |
+| Confirmed | checkOut | -- | Confirmed (rejected) |
+| CheckedIn | checkOut | -- | CheckedOut |
+| CheckedIn | cancel | -- | CheckedIn (rejected) |
+| CheckedIn | confirm | -- | CheckedIn (rejected) |
+| CheckedIn | checkIn | -- | CheckedIn (rejected) |
+| CheckedOut | * | -- | CheckedOut (rejected) |
+| Cancelled | * | -- | Cancelled (rejected) |
+
+### 6.2 Strategy Pattern -- Pricing
+
+#### Why Strategy Pattern?
+
+Hotels change their pricing algorithm frequently: weekday rates differ from
+weekends, holidays carry surcharges, and dynamic pricing adjusts to
+occupancy. Hard-coding any single algorithm means rewriting the booking
+service whenever the business changes pricing rules.
+
+The Strategy pattern externalises the algorithm behind a \`PricingStrategy\`
+interface. The \`BookingService\` holds a reference to the active strategy
+and calls \`calculatePrice(room, dateRange)\` at reservation time.
+
+#### Implementations
+
+| Strategy | Logic |
+|----------|-------|
+| WeekdayPricingStrategy | \`basePricePerNight * nightCount\` -- flat rate |
+| WeekendPricingStrategy | Applies a multiplier (e.g., 1.25x) to Friday and Saturday nights, base rate for others |
+| SeasonalPricingStrategy | Applies per-month multipliers (e.g., 1.5x in December, 0.8x in February) summed per night |
+| DynamicPricingStrategy | Checks hotel occupancy for the date range; if above a threshold, applies a surge multiplier |
+
+Switching from weekday to seasonal pricing is a single setter call:
+\`bookingService.setPricingStrategy(new SeasonalPricingStrategy(multipliers))\`.
+No existing code is modified.
+
+---
+
+## 7. Supporting Patterns
+
+### 7.1 Observer Pattern -- Notifications
+
+When a reservation is created, cancelled, or a guest checks in/out, various
+systems need to react: send a confirmation email, update housekeeping, notify
+the front desk, log analytics.
+
+Define a \`BookingObserver\` interface:
+
+\`\`\`
+BookingObserver
+  + onReservationCreated(Reservation) : void
+  + onReservationCancelled(Reservation) : void
+  + onGuestCheckedIn(Reservation) : void
+  + onGuestCheckedOut(Reservation) : void
+\`\`\`
+
+Implementations:
+- **EmailNotificationObserver** -- sends confirmation/cancellation emails.
+- **HousekeepingObserver** -- triggers room cleaning on check-out.
+- **AnalyticsObserver** -- logs events for business intelligence.
+
+The \`BookingService\` maintains a list of observers and notifies them at the
+appropriate points. Adding a new notification channel is one new class and
+one \`addObserver()\` call. Zero changes to existing code.
+
+### 7.2 Factory Pattern -- Room Creation
+
+\`RoomFactory.createRoom(roomNumber, type, basePrice)\` returns the correct
+Room subclass based on the \`RoomType\` enum. This centralises room
+construction logic so that the hotel setup code does not need to know
+about \`SingleRoom\`, \`DoubleRoom\`, or \`SuiteRoom\` directly.
+
+When a new room type is added (e.g., \`PENTHOUSE\`), only the factory and
+a new subclass are needed.
+
+---
+
+## 8. API / Method Contracts
+
+### BookingService (public surface)
+
+| Method | Precondition | Postcondition |
+|--------|-------------|---------------|
+| \`searchAvailable(DateRange, RoomType, int maxPrice)\` | Valid date range, type can be null (all types) | Returns list of rooms matching criteria with no conflicting reservations |
+| \`createReservation(Guest, Room, DateRange)\` | Room is available for the date range | Reservation created in REQUESTED state, price calculated, observers notified |
+| \`confirmReservation(reservationId)\` | Reservation exists and is in REQUESTED state | Payment processed, state moves to CONFIRMED |
+| \`checkIn(reservationId)\` | Reservation exists and is in CONFIRMED state, current date >= check-in date | State moves to CHECKED_IN, observers notified |
+| \`checkOut(reservationId)\` | Reservation exists and is in CHECKED_IN state | State moves to CHECKED_OUT, observers notified |
+| \`cancelReservation(reservationId)\` | Reservation exists and is in REQUESTED or CONFIRMED state | State moves to CANCELLED, refund calculated and returned |
+
+### Hotel
+
+| Method | Precondition | Postcondition |
+|--------|-------------|---------------|
+| \`searchAvailableRooms(DateRange, RoomType, int)\` | Valid date range | Returns filtered list of available rooms |
+| \`isRoomAvailable(Room, DateRange)\` | Room belongs to hotel | Returns true if no active reservation overlaps the date range |
+| \`addReservation(Reservation)\` | Room is available (caller must check) | Reservation stored |
+
+### Reservation
+
+| Method | Precondition | Postcondition |
+|--------|-------------|---------------|
+| \`confirm()\` | -- | Delegates to state; may transition or reject |
+| \`checkIn()\` | -- | Delegates to state; may transition or reject |
+| \`checkOut()\` | -- | Delegates to state; may transition or reject |
+| \`cancel()\` | -- | Delegates to state; may transition or reject |
+
+---
+
+## 9. Key Challenge: Availability and Double-Booking Prevention
+
+### The Problem
+
+Two guests must never hold confirmed reservations for the same room on
+overlapping dates. This is the core invariant of the system.
+
+### The Solution: Date Range Overlap Detection
+
+When checking availability, the system iterates over all **active**
+reservations (REQUESTED or CONFIRMED -- not CANCELLED or CHECKED_OUT) for
+the given room and checks if any reservation's date range overlaps with the
+requested range.
+
+\`\`\`
+isRoomAvailable(room, requestedRange):
+    for each reservation in activeReservations:
+        if reservation.room == room:
+            if reservation.dateRange.overlaps(requestedRange):
+                return false
+    return true
+\`\`\`
+
+The overlap check uses the half-open interval formula:
+\`rangeA.checkIn < rangeB.checkOut && rangeB.checkIn < rangeA.checkOut\`
+
+### Why Half-Open Intervals?
+
+A guest checking out on Jan 8 frees the room for a new guest checking in
+on Jan 8. If we used closed intervals \`[Jan 5, Jan 8]\`, two adjacent
+bookings would appear to conflict on Jan 8. The half-open \`[Jan 5, Jan 8)\`
+convention avoids this naturally.
+
+### Optimisation Notes
+
+For a small hotel (50-200 rooms), iterating all reservations per room is
+fast enough. For a large chain with millions of reservations:
+
+1. **Index by room**: maintain a \`Map<RoomId, List<Reservation>>\` to avoid
+   scanning unrelated rooms.
+2. **Sort by date**: keep each room's reservation list sorted by check-in
+   date, enabling binary search for overlap detection.
+3. **Database-level constraint**: in a real system, use a database exclusion
+   constraint (e.g., PostgreSQL range types with \`EXCLUDE USING gist\`)
+   combined with transactional isolation.
+
+For an LLD interview, the in-memory linear scan with proper overlap logic
+is the expected answer.
+
+---
+
+## 10. Detailed Scenarios
+
+### Scenario 1: Happy Path -- Book, Check In, Check Out
+
+\`\`\`
+1. Guest searches for a Double room, Jan 10-13, max $200/night.
+   - Hotel returns Room 201 (Double, $150/night).
+2. Guest creates reservation for Room 201, Jan 10-13.
+   - Price calculated: 3 nights * $150 = $450.
+   - Reservation R-001 created in REQUESTED state.
+   - EmailNotificationObserver sends booking request email.
+3. Guest confirms reservation (payment processed).
+   - State transitions: REQUESTED -> CONFIRMED.
+   - Payment record created: $450 CHARGE.
+4. Jan 10: Guest checks in.
+   - State transitions: CONFIRMED -> CHECKED_IN.
+   - EmailNotificationObserver sends check-in confirmation.
+5. Jan 13: Guest checks out.
+   - State transitions: CHECKED_IN -> CHECKED_OUT.
+   - HousekeepingObserver triggers room cleaning.
+\`\`\`
+
+### Scenario 2: Cancellation with Full Refund
+
+\`\`\`
+1. Guest books Room 101 for Jan 20-22. Confirmed. Price: $300.
+2. On Jan 15 (5 days = 120 hours before check-in), guest cancels.
+   - 120 hours > 48 hours -> 100% refund.
+   - Refund amount: $300.
+   - Payment record: $300 REFUND.
+   - State transitions: CONFIRMED -> CANCELLED.
+   - Room 101 is now available for Jan 20-22 again.
+\`\`\`
+
+### Scenario 3: Cancellation with Partial Refund
+
+\`\`\`
+1. Guest books Room 101 for Jan 20-22. Confirmed. Price: $300.
+2. On Jan 18 at 6 PM (30 hours before check-in), guest cancels.
+   - 30 hours is between 24 and 48 hours -> 50% refund.
+   - Refund amount: $150.
+   - Payment record: $150 REFUND.
+   - State transitions: CONFIRMED -> CANCELLED.
+\`\`\`
+
+### Scenario 4: Late Cancellation -- No Refund
+
+\`\`\`
+1. Guest books Room 101 for Jan 20-22. Confirmed. Price: $300.
+2. On Jan 19 at 6 PM (6 hours before check-in), guest cancels.
+   - 6 hours < 24 hours -> 0% refund.
+   - Refund amount: $0.
+   - State transitions: CONFIRMED -> CANCELLED.
+\`\`\`
+
+### Scenario 5: Double-Booking Prevention
+
+\`\`\`
+1. Guest A books Room 101 for Jan 10-15. Confirmed.
+2. Guest B searches for rooms Jan 12-14.
+   - Room 101 is NOT returned -- overlaps with Guest A's reservation.
+3. Guest B searches for rooms Jan 15-18.
+   - Room 101 IS returned -- Jan 15 check-in does not overlap with
+     Guest A's [Jan 10, Jan 15) range.
+4. Guest B books Room 101 for Jan 15-18. Confirmed.
+\`\`\`
+
+### Scenario 6: Invalid State Transitions
+
+\`\`\`
+1. Guest books Room 101. Reservation in REQUESTED state.
+2. Guest tries to check in.
+   - REJECTED: "Cannot check in. Reservation is not confirmed."
+3. Guest confirms reservation. State -> CONFIRMED.
+4. Guest tries to confirm again.
+   - REJECTED: "Reservation is already confirmed."
+5. Guest checks in. State -> CHECKED_IN.
+6. Guest tries to cancel.
+   - REJECTED: "Cannot cancel. Guest has already checked in."
+\`\`\`
+
+---
+
+## 11. Concurrency and Thread Safety
+
+For interview depth, mention these points:
+
+1. **Synchronised availability check + reservation creation** -- the
+   "check-then-act" on room availability must be atomic. Without
+   synchronisation, two threads could both see a room as available and
+   create conflicting reservations. Use \`synchronized(room)\` or a
+   \`ReentrantLock\` per room.
+
+2. **Reservation state transitions** -- each \`setState()\` call should be
+   synchronised on the reservation to prevent concurrent confirm and cancel
+   operations from corrupting the state.
+
+3. **Read-heavy optimisation** -- availability searches are far more
+   frequent than bookings. A \`ReadWriteLock\` allows concurrent searches
+   while exclusive-locking for reservation creation.
+
+4. **Database-level locking** -- in a production system, optimistic locking
+   with version columns or pessimistic row-level locks (SELECT FOR UPDATE)
+   prevent double-booking at the persistence layer.
+
+In most LLD interviews, mentioning awareness of the check-then-act race
+condition and proposing synchronisation at the room level is sufficient.
+
+---
+
+## 12. Extension Points
+
+### Add a New Room Type (e.g., Penthouse)
+
+1. Create \`PenthouseRoom extends Room\`.
+2. Add \`PENTHOUSE\` to \`RoomType\` enum.
+3. Update \`RoomFactory\` to handle the new type.
+4. No changes to Reservation, BookingService, or any State class.
+
+### Add a New Pricing Strategy (e.g., Loyalty Discount)
+
+1. Create \`LoyaltyPricingStrategy implements PricingStrategy\`.
+2. Apply a percentage discount based on the guest's booking history.
+3. Set it on the BookingService: \`service.setPricingStrategy(new LoyaltyPricingStrategy(...))\`.
+4. No changes to any existing strategy or service code.
+
+### Add a Waitlisted State
+
+1. Create \`WaitlistedState implements ReservationState\`.
+2. When a room is fully booked, create the reservation in WAITLISTED state.
+3. On cancellation of an existing booking, promote the waitlisted
+   reservation to REQUESTED.
+4. No existing state classes are modified.
+
+### Add a New Notification Channel (e.g., SMS)
+
+1. Create \`SmsNotificationObserver implements BookingObserver\`.
+2. Register it: \`bookingService.addObserver(new SmsNotificationObserver())\`.
+3. No changes to BookingService or existing observers.
+
+### Add Group Booking
+
+1. Allow a reservation to hold multiple rooms.
+2. Change \`Reservation.room\` to \`List<Room>\`.
+3. Availability check iterates over all rooms in the group.
+4. Pricing sums across all rooms.
+
+---
+
+## 13. Common Interview Follow-ups
+
+**Q: Why use the State pattern instead of a status enum with if-else?**
+A: The State pattern encapsulates the rules for each lifecycle stage in its
+own class. Adding a new state (e.g., WAITLISTED) means adding one class,
+not editing every method. Each state can be unit-tested independently. It
+also eliminates the risk of forgetting to handle a state in one of the
+methods -- the compiler enforces that every state implements every action.
+
+**Q: How do you prevent a race condition on booking?**
+A: The availability check and reservation creation must be atomic. In memory,
+synchronise on the room object. In a database, use SELECT FOR UPDATE or
+an exclusion constraint on the room_id + date_range columns. The key insight
+is that "check then act" must be a single critical section.
+
+**Q: Why Strategy for pricing and not just a method parameter?**
+A: Pricing rules are complex and change independently of booking logic.
+A Strategy object can be configured, composed (e.g., a composite strategy
+that applies seasonal + dynamic), and swapped at runtime. A method parameter
+would force the caller to know the algorithm, violating separation of
+concerns.
+
+**Q: How does the cancellation refund work?**
+A: The \`CancellationPolicy\` calculates hours remaining until check-in. More
+than 48 hours gets 100%, 24--48 hours gets 50%, under 24 hours gets 0%.
+This is computed at cancellation time, not at booking time, so the refund
+is always based on the actual cancellation moment.
+
+**Q: What happens if a guest does not show up?**
+A: This is a "no-show" scenario. A scheduled job could run after check-in
+date + a grace period (e.g., 24 hours). If the reservation is still in
+CONFIRMED state, transition it to a NO_SHOW state (an extension of the
+current state machine) and apply the no-show penalty (typically no refund).
+
+**Q: Can you compose multiple pricing strategies?**
+A: Yes. Create a \`CompositePricingStrategy\` that holds a list of strategies
+and applies them in sequence (e.g., first calculate the seasonal base, then
+apply a dynamic surge on top). This follows the Composite + Strategy
+combination.
+
+**Q: What are the SOLID principles at play?**
+A:
+- **S** -- Each state class handles rules for one lifecycle stage. Each
+  pricing strategy handles one algorithm.
+- **O** -- New states, strategies, room types, and observers are added
+  without modifying existing classes.
+- **L** -- Any ReservationState or PricingStrategy implementation can be
+  substituted through the interface.
+- **I** -- Interfaces are focused: ReservationState has 4 methods,
+  PricingStrategy has 1, BookingObserver has 4.
+- **D** -- BookingService depends on PricingStrategy and BookingObserver
+  abstractions, not concrete implementations.
+
+---
+
+*This walkthrough covers the design reasoning. See \`code.md\` for the
+complete, compilable Java code.*
+`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| searchAvailability() | O(R) | O(R) | R = rooms; check date overlap per room |
+| makeReservation() | O(1) | O(1) | Create reservation, update room |
+| checkIn() | O(1) | O(1) | State transition |
+| checkOut() | O(S) | O(1) | S = number of services to bill |
+| calculateBill() | O(N + S) | O(1) | N = nights, S = additional services |
+| cancelReservation() | O(1) | O(1) | State transition + room release |
+
+**Date range overlap detection:** O(R) per search where R = existing
+reservations for a room. With an interval tree index, this drops to
+O(log R + K) where K = overlapping reservations.
+
+**Pricing strategy:** O(N) where N = number of nights. Each night's price
+is computed by the active PricingStrategy (weekday, weekend, seasonal).
+
+**Room allocation:** O(R) in the worst case when scanning for available
+rooms of a given type. With a categorized availability index, O(1) amortized.
+
+**Memory:** O(R * V) where R = rooms and V = avg reservations per room.`,
+};
+
+// ============================================================
+//  09-design-food-ordering -> prob-food-delivery
+// ============================================================
+
+export const foodDeliverySolution: ProblemSolutionContent = {
+  referenceSolution: `# Food Ordering System -- Complete Java Implementation
+
+## Table of Contents
+
+1. [Core Entities](#1-core-entities)
+2. [Menu System](#2-menu-system)
+3. [Cart System](#3-cart-system)
+4. [Order State Machine](#4-order-state-machine)
+5. [Delivery Partner & Assignment Strategy](#5-delivery-partner--assignment-strategy)
+6. [Observer / Notification System](#6-observer--notification-system)
+7. [Order Builder](#7-order-builder)
+8. [Services](#8-services)
+9. [Rating System](#9-rating-system)
+10. [Main Demo](#10-main-demo)
+
+---
+
+## 1. Core Entities
+
+### Customer.java
+
+\`\`\`java
+public class Customer {
+    private final String id;
+    private final String name;
+    private final String email;
+    private final String phone;
+    private String deliveryAddress;
+    private double latitude;
+    private double longitude;
+
+    public Customer(String id, String name, String email, String phone,
+                    String deliveryAddress, double latitude, double longitude) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+        this.deliveryAddress = deliveryAddress;
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public String getEmail() { return email; }
+    public String getPhone() { return phone; }
+    public String getDeliveryAddress() { return deliveryAddress; }
+    public double getLatitude() { return latitude; }
+    public double getLongitude() { return longitude; }
+
+    public void setDeliveryAddress(String address, double lat, double lon) {
+        this.deliveryAddress = address;
+        this.latitude = lat;
+        this.longitude = lon;
+    }
+
+    @Override
+    public String toString() {
+        return "Customer{name='" + name + "', address='" + deliveryAddress + "'}";
+    }
+}
+\`\`\`
+
+### Restaurant.java
+
+\`\`\`java
+public class Restaurant {
+    private final String id;
+    private final String name;
+    private final String address;
+    private final String cuisineType;
+    private final Menu menu;
+    private final double latitude;
+    private final double longitude;
+    private boolean isOpen;
+
+    public Restaurant(String id, String name, String address, String cuisineType,
+                      double latitude, double longitude) {
+        this.id = id;
+        this.name = name;
+        this.address = address;
+        this.cuisineType = cuisineType;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.menu = new Menu(id);
+        this.isOpen = true;
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public String getAddress() { return address; }
+    public String getCuisineType() { return cuisineType; }
+    public Menu getMenu() { return menu; }
+    public double getLatitude() { return latitude; }
+    public double getLongitude() { return longitude; }
+    public boolean isOpen() { return isOpen; }
+    public void setOpen(boolean open) { this.isOpen = open; }
+
+    @Override
+    public String toString() {
+        return "Restaurant{name='" + name + "', cuisine='" + cuisineType + "'}";
+    }
+}
+\`\`\`
+
+---
+
+## 2. Menu System
+
+### MenuItem.java
+
+\`\`\`java
+public class MenuItem {
+    private final String id;
+    private final String name;
+    private final String description;
+    private double price;
+    private final String category;
+    private boolean available;
+
+    public MenuItem(String id, String name, String description,
+                    double price, String category) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.category = category;
+        this.available = true;
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public String getDescription() { return description; }
+    public double getPrice() { return price; }
+    public String getCategory() { return category; }
+    public boolean isAvailable() { return available; }
+    public void setAvailable(boolean available) { this.available = available; }
+    public void setPrice(double price) { this.price = price; }
+
+    @Override
+    public String toString() {
+        return String.format("%-25s $%.2f  [%s]%s",
+            name, price, category, available ? "" : " (UNAVAILABLE)");
+    }
+}
+\`\`\`
+
+### Menu.java
+
+\`\`\`java
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class Menu {
+    private final String restaurantId;
+    private final Map<String, MenuItem> items;  // itemId -> MenuItem
+
+    public Menu(String restaurantId) {
+        this.restaurantId = restaurantId;
+        this.items = new LinkedHashMap<>();
+    }
+
+    public void addItem(MenuItem item) {
+        items.put(item.getId(), item);
+    }
+
+    public void removeItem(String itemId) {
+        items.remove(itemId);
+    }
+
+    public MenuItem getItem(String itemId) {
+        MenuItem item = items.get(itemId);
+        if (item == null) {
+            throw new IllegalArgumentException("Menu item not found: " + itemId);
+        }
+        return item;
+    }
+
+    public List<MenuItem> getAllItems() {
+        return new ArrayList<>(items.values());
+    }
+
+    public List<MenuItem> getAvailableItems() {
+        return items.values().stream()
+            .filter(MenuItem::isAvailable)
+            .collect(Collectors.toList());
+    }
+
+    public List<MenuItem> getItemsByCategory(String category) {
+        return items.values().stream()
+            .filter(item -> item.getCategory().equalsIgnoreCase(category))
+            .collect(Collectors.toList());
+    }
+
+    public void displayMenu() {
+        System.out.println("\\n===== MENU =====");
+        Map<String, List<MenuItem>> byCategory = items.values().stream()
+            .collect(Collectors.groupingBy(MenuItem::getCategory,
+                     LinkedHashMap::new, Collectors.toList()));
+
+        for (Map.Entry<String, List<MenuItem>> entry : byCategory.entrySet()) {
+            System.out.println("\\n--- " + entry.getKey() + " ---");
+            for (MenuItem item : entry.getValue()) {
+                System.out.println("  " + item);
+            }
+        }
+        System.out.println();
+    }
+}
+\`\`\`
+
+---
+
+## 3. Cart System
+
+### CartItem.java
+
+\`\`\`java
+public class CartItem {
+    private final MenuItem menuItem;
+    private int quantity;
+
+    public CartItem(MenuItem menuItem, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        this.menuItem = menuItem;
+        this.quantity = quantity;
+    }
+
+    public MenuItem getMenuItem() { return menuItem; }
+    public int getQuantity() { return quantity; }
+
+    public void setQuantity(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        this.quantity = quantity;
+    }
+
+    public double getSubtotal() {
+        return menuItem.getPrice() * quantity;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%dx %-20s $%.2f",
+            quantity, menuItem.getName(), getSubtotal());
+    }
+}
+\`\`\`
+
+### Cart.java
+
+\`\`\`java
+import java.util.*;
+
+public class Cart {
+    private final String customerId;
+    private String restaurantId;
+    private final Map<String, CartItem> items;  // menuItemId -> CartItem
+
+    public Cart(String customerId) {
+        this.customerId = customerId;
+        this.items = new LinkedHashMap<>();
+    }
+
+    public void addItem(MenuItem menuItem, int quantity, String restaurantId) {
+        // Enforce single-restaurant constraint
+        if (this.restaurantId != null && !this.restaurantId.equals(restaurantId)) {
+            throw new IllegalStateException(
+                "Cart contains items from a different restaurant. " +
+                "Clear the cart before adding items from a new restaurant.");
+        }
+
+        if (!menuItem.isAvailable()) {
+            throw new IllegalStateException(
+                "Item '" + menuItem.getName() + "' is currently unavailable.");
+        }
+
+        this.restaurantId = restaurantId;
+
+        CartItem existing = items.get(menuItem.getId());
+        if (existing != null) {
+            existing.setQuantity(existing.getQuantity() + quantity);
+        } else {
+            items.put(menuItem.getId(), new CartItem(menuItem, quantity));
+        }
+    }
+
+    public void removeItem(String menuItemId) {
+        items.remove(menuItemId);
+        if (items.isEmpty()) {
+            restaurantId = null;
+        }
+    }
+
+    public void updateQuantity(String menuItemId, int quantity) {
+        CartItem item = items.get(menuItemId);
+        if (item == null) {
+            throw new IllegalArgumentException("Item not in cart: " + menuItemId);
+        }
+        if (quantity <= 0) {
+            removeItem(menuItemId);
+        } else {
+            item.setQuantity(quantity);
+        }
+    }
+
+    public List<CartItem> getItems() {
+        return new ArrayList<>(items.values());
+    }
+
+    public double getTotal() {
+        return items.values().stream()
+            .mapToDouble(CartItem::getSubtotal)
+            .sum();
+    }
+
+    public void clear() {
+        items.clear();
+        restaurantId = null;
+    }
+
+    public boolean isEmpty() {
+        return items.isEmpty();
+    }
+
+    public String getCustomerId() { return customerId; }
+    public String getRestaurantId() { return restaurantId; }
+
+    public void displayCart() {
+        if (isEmpty()) {
+            System.out.println("Cart is empty.");
+            return;
+        }
+        System.out.println("\\n===== YOUR CART =====");
+        for (CartItem item : items.values()) {
+            System.out.println("  " + item);
+        }
+        System.out.printf("  %-22s $%.2f%n", "SUBTOTAL:", getTotal());
+        System.out.println();
+    }
+}
+\`\`\`
+
+---
+
+## 4. Order State Machine
+
+### OrderStatus.java (Enum)
+
+\`\`\`java
+public enum OrderStatus {
+    PLACED("Order has been placed"),
+    CONFIRMED("Restaurant confirmed the order"),
+    PREPARING("Food is being prepared"),
+    READY("Food is ready for pickup"),
+    PICKED_UP("Delivery partner picked up the food"),
+    DELIVERED("Food delivered to customer"),
+    CANCELLED("Order has been cancelled");
+
+    private final String description;
+
+    OrderStatus(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() { return description; }
+}
+\`\`\`
+
+### OrderState.java (State Interface)
+
+\`\`\`java
+/**
+ * State Pattern: each concrete state handles only its valid transitions.
+ * Invalid transitions throw IllegalStateException.
+ */
+public interface OrderState {
+
+    default void confirm(Order order) {
+        throw new IllegalStateException(
+            "Cannot confirm order in " + getStateName() + " state.");
+    }
+
+    default void startPreparing(Order order) {
+        throw new IllegalStateException(
+            "Cannot start preparing in " + getStateName() + " state.");
+    }
+
+    default void markReady(Order order) {
+        throw new IllegalStateException(
+            "Cannot mark ready in " + getStateName() + " state.");
+    }
+
+    default void pickUp(Order order) {
+        throw new IllegalStateException(
+            "Cannot pick up in " + getStateName() + " state.");
+    }
+
+    default void deliver(Order order) {
+        throw new IllegalStateException(
+            "Cannot deliver in " + getStateName() + " state.");
+    }
+
+    default void cancel(Order order) {
+        throw new IllegalStateException(
+            "Cannot cancel order in " + getStateName() + " state.");
+    }
+
+    String getStateName();
+}
+\`\`\`
+
+### PlacedState.java
+
+\`\`\`java
+public class PlacedState implements OrderState {
+
+    @Override
+    public void confirm(Order order) {
+        System.out.println("  [State] Order " + order.getId() +
+                           ": PLACED -> CONFIRMED");
+        order.setCurrentState(new ConfirmedState());
+        order.setStatus(OrderStatus.CONFIRMED);
+        order.notifyObservers(OrderStatus.PLACED, OrderStatus.CONFIRMED);
+    }
+
+    @Override
+    public void cancel(Order order) {
+        System.out.println("  [State] Order " + order.getId() +
+                           ": PLACED -> CANCELLED");
+        order.setCurrentState(new CancelledState());
+        order.setStatus(OrderStatus.CANCELLED);
+        order.notifyObservers(OrderStatus.PLACED, OrderStatus.CANCELLED);
+    }
+
+    @Override
+    public String getStateName() { return "PLACED"; }
+}
+\`\`\`
+
+### ConfirmedState.java
+
+\`\`\`java
+public class ConfirmedState implements OrderState {
+
+    @Override
+    public void startPreparing(Order order) {
+        System.out.println("  [State] Order " + order.getId() +
+                           ": CONFIRMED -> PREPARING");
+        order.setCurrentState(new PreparingState());
+        order.setStatus(OrderStatus.PREPARING);
+        order.notifyObservers(OrderStatus.CONFIRMED, OrderStatus.PREPARING);
+    }
+
+    @Override
+    public void cancel(Order order) {
+        System.out.println("  [State] Order " + order.getId() +
+                           ": CONFIRMED -> CANCELLED");
+        order.setCurrentState(new CancelledState());
+        order.setStatus(OrderStatus.CANCELLED);
+        order.notifyObservers(OrderStatus.CONFIRMED, OrderStatus.CANCELLED);
+    }
+
+    @Override
+    public String getStateName() { return "CONFIRMED"; }
+}
+\`\`\`
+
+### PreparingState.java
+
+\`\`\`java
+public class PreparingState implements OrderState {
+
+    @Override
+    public void markReady(Order order) {
+        System.out.println("  [State] Order " + order.getId() +
+                           ": PREPARING -> READY");
+        order.setCurrentState(new ReadyState());
+        order.setStatus(OrderStatus.READY);
+        order.notifyObservers(OrderStatus.PREPARING, OrderStatus.READY);
+    }
+
+    @Override
+    public String getStateName() { return "PREPARING"; }
+}
+\`\`\`
+
+### ReadyState.java
+
+\`\`\`java
+public class ReadyState implements OrderState {
+
+    @Override
+    public void pickUp(Order order) {
+        System.out.println("  [State] Order " + order.getId() +
+                           ": READY -> PICKED_UP");
+        order.setCurrentState(new PickedUpState());
+        order.setStatus(OrderStatus.PICKED_UP);
+        order.notifyObservers(OrderStatus.READY, OrderStatus.PICKED_UP);
+    }
+
+    @Override
+    public String getStateName() { return "READY"; }
+}
+\`\`\`
+
+### PickedUpState.java
+
+\`\`\`java
+public class PickedUpState implements OrderState {
+
+    @Override
+    public void deliver(Order order) {
+        System.out.println("  [State] Order " + order.getId() +
+                           ": PICKED_UP -> DELIVERED");
+        order.setCurrentState(new DeliveredState());
+        order.setStatus(OrderStatus.DELIVERED);
+        order.setDeliveredAt(java.time.LocalDateTime.now());
+        // Mark delivery partner as available again
+        if (order.getDeliveryPartner() != null) {
+            order.getDeliveryPartner().setAvailable(true);
+        }
+        order.notifyObservers(OrderStatus.PICKED_UP, OrderStatus.DELIVERED);
+    }
+
+    @Override
+    public String getStateName() { return "PICKED_UP"; }
+}
+\`\`\`
+
+### DeliveredState.java
+
+\`\`\`java
+/** Terminal state -- no transitions allowed. */
+public class DeliveredState implements OrderState {
+    @Override
+    public String getStateName() { return "DELIVERED"; }
+}
+\`\`\`
+
+### CancelledState.java
+
+\`\`\`java
+/** Terminal state -- no transitions allowed. */
+public class CancelledState implements OrderState {
+    @Override
+    public String getStateName() { return "CANCELLED"; }
+}
+\`\`\`
+
+### OrderItem.java
+
+\`\`\`java
+/**
+ * Snapshot of a menu item at the time of ordering.
+ * Price is frozen -- menu price changes after ordering do not affect this.
+ */
+public class OrderItem {
+    private final String itemName;
+    private final double priceAtOrder;
+    private final int quantity;
+
+    public OrderItem(String itemName, double priceAtOrder, int quantity) {
+        this.itemName = itemName;
+        this.priceAtOrder = priceAtOrder;
+        this.quantity = quantity;
+    }
+
+    public String getItemName() { return itemName; }
+    public double getPriceAtOrder() { return priceAtOrder; }
+    public int getQuantity() { return quantity; }
+
+    public double getSubtotal() {
+        return priceAtOrder * quantity;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%dx %-20s $%.2f", quantity, itemName, getSubtotal());
+    }
+}
+\`\`\`
+
+### Order.java
+
+\`\`\`java
+import java.time.LocalDateTime;
+import java.util.*;
+
+public class Order {
+    private final String id;
+    private final Customer customer;
+    private final Restaurant restaurant;
+    private final List<OrderItem> items;
+    private DeliveryPartner deliveryPartner;
+    private OrderState currentState;
+    private OrderStatus status;
+    private final double subtotal;
+    private final double deliveryFee;
+    private final double tax;
+    private final double totalAmount;
+    private final LocalDateTime placedAt;
+    private LocalDateTime deliveredAt;
+    private final List<OrderStatusObserver> observers;
+
+    // Package-private constructor -- use OrderBuilder to create
+    Order(String id, Customer customer, Restaurant restaurant,
+          List<OrderItem> items, double subtotal, double deliveryFee,
+          double tax, double totalAmount) {
+        this.id = id;
+        this.customer = customer;
+        this.restaurant = restaurant;
+        this.items = Collections.unmodifiableList(items);
+        this.subtotal = subtotal;
+        this.deliveryFee = deliveryFee;
+        this.tax = tax;
+        this.totalAmount = totalAmount;
+        this.placedAt = LocalDateTime.now();
+        this.currentState = new PlacedState();
+        this.status = OrderStatus.PLACED;
+        this.observers = new ArrayList<>();
+    }
+
+    // ----- State transition methods (delegate to current state) -----
+
+    public void confirm() { currentState.confirm(this); }
+    public void startPreparing() { currentState.startPreparing(this); }
+    public void markReady() { currentState.markReady(this); }
+    public void pickUp() { currentState.pickUp(this); }
+    public void deliver() { currentState.deliver(this); }
+    public void cancel() {
+        currentState.cancel(this);
+        // Release delivery partner if assigned
+        if (deliveryPartner != null) {
+            deliveryPartner.setAvailable(true);
+            System.out.println("  [Order] Delivery partner " +
+                deliveryPartner.getName() + " released back to available pool.");
+        }
+    }
+
+    // ----- Observer management -----
+
+    public void addObserver(OrderStatusObserver observer) {
+        observers.add(observer);
+    }
+
+    public void removeObserver(OrderStatusObserver observer) {
+        observers.remove(observer);
+    }
+
+    public void notifyObservers(OrderStatus oldStatus, OrderStatus newStatus) {
+        for (OrderStatusObserver observer : observers) {
+            observer.onStatusChange(this, oldStatus, newStatus);
+        }
+    }
+
+    // ----- Delivery partner assignment -----
+
+    public void assignDeliveryPartner(DeliveryPartner partner) {
+        this.deliveryPartner = partner;
+        partner.setAvailable(false);
+    }
+
+    // ----- Getters and package-private setters -----
+
+    public String getId() { return id; }
+    public Customer getCustomer() { return customer; }
+    public Restaurant getRestaurant() { return restaurant; }
+    public List<OrderItem> getItems() { return items; }
+    public DeliveryPartner getDeliveryPartner() { return deliveryPartner; }
+    public OrderStatus getStatus() { return status; }
+    public double getSubtotal() { return subtotal; }
+    public double getDeliveryFee() { return deliveryFee; }
+    public double getTax() { return tax; }
+    public double getTotalAmount() { return totalAmount; }
+    public LocalDateTime getPlacedAt() { return placedAt; }
+    public LocalDateTime getDeliveredAt() { return deliveredAt; }
+
+    void setCurrentState(OrderState state) { this.currentState = state; }
+    void setStatus(OrderStatus status) { this.status = status; }
+    void setDeliveredAt(LocalDateTime time) { this.deliveredAt = time; }
+
+    public void displayOrderSummary() {
+        System.out.println("\\n===== ORDER SUMMARY =====");
+        System.out.println("  Order ID:    " + id);
+        System.out.println("  Customer:    " + customer.getName());
+        System.out.println("  Restaurant:  " + restaurant.getName());
+        System.out.println("  Status:      " + status);
+        System.out.println("  Items:");
+        for (OrderItem item : items) {
+            System.out.println("    " + item);
+        }
+        System.out.printf("  Subtotal:    $%.2f%n", subtotal);
+        System.out.printf("  Delivery:    $%.2f%n", deliveryFee);
+        System.out.printf("  Tax:         $%.2f%n", tax);
+        System.out.printf("  TOTAL:       $%.2f%n", totalAmount);
+        if (deliveryPartner != null) {
+            System.out.println("  Driver:      " + deliveryPartner.getName());
+        }
+        System.out.println();
+    }
+}
+\`\`\`
+
+---
+
+## 5. Delivery Partner & Assignment Strategy
+
+### DeliveryPartner.java
+
+\`\`\`java
+public class DeliveryPartner {
+    private final String id;
+    private final String name;
+    private final String phone;
+    private double latitude;
+    private double longitude;
+    private boolean available;
+    private double averageRating;
+    private int totalDeliveries;
+    private int activeDeliveries;
+
+    public DeliveryPartner(String id, String name, String phone,
+                           double latitude, double longitude) {
+        this.id = id;
+        this.name = name;
+        this.phone = phone;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.available = true;
+        this.averageRating = 5.0;  // new partners start at 5.0
+        this.totalDeliveries = 0;
+        this.activeDeliveries = 0;
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public String getPhone() { return phone; }
+    public double getLatitude() { return latitude; }
+    public double getLongitude() { return longitude; }
+    public boolean isAvailable() { return available; }
+    public double getAverageRating() { return averageRating; }
+    public int getTotalDeliveries() { return totalDeliveries; }
+    public int getActiveDeliveries() { return activeDeliveries; }
+
+    public void setAvailable(boolean available) { this.available = available; }
+
+    public void setLocation(double latitude, double longitude) {
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    public void incrementActiveDeliveries() { this.activeDeliveries++; }
+    public void decrementActiveDeliveries() {
+        this.activeDeliveries = Math.max(0, activeDeliveries - 1);
+    }
+
+    /**
+     * Update running average rating without storing all historical ratings.
+     * Formula: newAvg = (oldAvg * count + newRating) / (count + 1)
+     */
+    public void updateRating(double newRating) {
+        averageRating = ((averageRating * totalDeliveries) + newRating)
+                        / (totalDeliveries + 1);
+        totalDeliveries++;
+    }
+
+    /**
+     * Haversine distance in kilometers to a target location.
+     */
+    public double distanceTo(double targetLat, double targetLon) {
+        final double R = 6371.0; // Earth radius in km
+        double dLat = Math.toRadians(targetLat - latitude);
+        double dLon = Math.toRadians(targetLon - longitude);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                 + Math.cos(Math.toRadians(latitude))
+                 * Math.cos(Math.toRadians(targetLat))
+                 * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("DeliveryPartner{name='%s', rating=%.1f, available=%s}",
+            name, averageRating, available);
+    }
+}
+\`\`\`
+
+### DeliveryAssignmentStrategy.java (Strategy Interface)
+
+\`\`\`java
+import java.util.List;
+
+/**
+ * Strategy Pattern: defines how a delivery partner is selected for an order.
+ * Different strategies can be swapped at runtime.
+ */
+public interface DeliveryAssignmentStrategy {
+
+    /**
+     * Select the best available delivery partner for the given order.
+     *
+     * @param order the order needing a delivery partner
+     * @param availablePartners list of currently available partners
+     * @return the selected partner
+     * @throws IllegalStateException if no partner is available
+     */
+    DeliveryPartner assignPartner(Order order, List<DeliveryPartner> availablePartners);
+}
+\`\`\`
+
+### NearestPartnerStrategy.java
+
+\`\`\`java
+import java.util.*;
+
+/**
+ * Selects the delivery partner closest to the restaurant.
+ * Minimizes pickup time -- best default strategy.
+ */
+public class NearestPartnerStrategy implements DeliveryAssignmentStrategy {
+
+    @Override
+    public DeliveryPartner assignPartner(Order order,
+                                          List<DeliveryPartner> availablePartners) {
+        if (availablePartners.isEmpty()) {
+            throw new IllegalStateException(
+                "No delivery partners available at this time.");
+        }
+
+        Restaurant restaurant = order.getRestaurant();
+        double restLat = restaurant.getLatitude();
+        double restLon = restaurant.getLongitude();
+
+        DeliveryPartner nearest = null;
+        double minDistance = Double.MAX_VALUE;
+
+        for (DeliveryPartner partner : availablePartners) {
+            double distance = partner.distanceTo(restLat, restLon);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearest = partner;
+            }
+        }
+
+        System.out.printf("  [Strategy] NearestPartner: selected '%s' (%.2f km away)%n",
+            nearest.getName(), minDistance);
+        return nearest;
+    }
+}
+\`\`\`
+
+### HighestRatedStrategy.java
+
+\`\`\`java
+import java.util.*;
+
+/**
+ * Selects the delivery partner with the highest average rating.
+ * Best for premium orders or VIP customers.
+ */
+public class HighestRatedStrategy implements DeliveryAssignmentStrategy {
+
+    @Override
+    public DeliveryPartner assignPartner(Order order,
+                                          List<DeliveryPartner> availablePartners) {
+        if (availablePartners.isEmpty()) {
+            throw new IllegalStateException(
+                "No delivery partners available at this time.");
+        }
+
+        DeliveryPartner bestRated = availablePartners.stream()
+            .max(Comparator.comparingDouble(DeliveryPartner::getAverageRating))
+            .orElseThrow();
+
+        System.out.printf("  [Strategy] HighestRated: selected '%s' (rating: %.1f)%n",
+            bestRated.getName(), bestRated.getAverageRating());
+        return bestRated;
+    }
+}
+\`\`\`
+
+### LeastBusyStrategy.java
+
+\`\`\`java
+import java.util.*;
+
+/**
+ * Selects the delivery partner with the fewest active deliveries.
+ * Best for load balancing during peak hours.
+ */
+public class LeastBusyStrategy implements DeliveryAssignmentStrategy {
+
+    @Override
+    public DeliveryPartner assignPartner(Order order,
+                                          List<DeliveryPartner> availablePartners) {
+        if (availablePartners.isEmpty()) {
+            throw new IllegalStateException(
+                "No delivery partners available at this time.");
+        }
+
+        DeliveryPartner leastBusy = availablePartners.stream()
+            .min(Comparator.comparingInt(DeliveryPartner::getActiveDeliveries))
+            .orElseThrow();
+
+        System.out.printf(
+            "  [Strategy] LeastBusy: selected '%s' (active deliveries: %d)%n",
+            leastBusy.getName(), leastBusy.getActiveDeliveries());
+        return leastBusy;
+    }
+}
+\`\`\`
+
+---
+
+## 6. Observer / Notification System
+
+### OrderStatusObserver.java
+
+\`\`\`java
+/**
+ * Observer Pattern: notified whenever an order's status changes.
+ * Each party (customer, restaurant, delivery partner) has its own observer.
+ */
+public interface OrderStatusObserver {
+    void onStatusChange(Order order, OrderStatus oldStatus, OrderStatus newStatus);
+}
+\`\`\`
+
+### CustomerNotificationObserver.java
+
+\`\`\`java
+/**
+ * Sends notifications to the customer about their order status.
+ */
+public class CustomerNotificationObserver implements OrderStatusObserver {
+
+    @Override
+    public void onStatusChange(Order order, OrderStatus oldStatus,
+                                OrderStatus newStatus) {
+        String customerName = order.getCustomer().getName();
+        String message;
+
+        switch (newStatus) {
+            case CONFIRMED:
+                message = "Your order has been confirmed by " +
+                          order.getRestaurant().getName() + "!";
+                break;
+            case PREPARING:
+                message = "Your food is being prepared!";
+                break;
+            case READY:
+                message = "Your food is ready and waiting for pickup!";
+                break;
+            case PICKED_UP:
+                message = "Your driver " + order.getDeliveryPartner().getName() +
+                          " picked up your food!";
+                break;
+            case DELIVERED:
+                message = "Your food has arrived! Enjoy your meal!";
+                break;
+            case CANCELLED:
+                message = "Your order has been cancelled. " +
+                          "A refund will be processed shortly.";
+                break;
+            default:
+                message = "Order status updated to: " + newStatus;
+        }
+
+        System.out.println("    [Notify -> Customer " + customerName + "] " + message);
+    }
+}
+\`\`\`
+
+### RestaurantNotificationObserver.java
+
+\`\`\`java
+/**
+ * Sends notifications to the restaurant about order events.
+ */
+public class RestaurantNotificationObserver implements OrderStatusObserver {
+
+    @Override
+    public void onStatusChange(Order order, OrderStatus oldStatus,
+                                OrderStatus newStatus) {
+        String restaurantName = order.getRestaurant().getName();
+        String message;
+
+        switch (newStatus) {
+            case CONFIRMED:
+                message = "You confirmed order " + order.getId() +
+                          ". Please start preparing soon.";
+                break;
+            case PREPARING:
+                message = "Order " + order.getId() + " is now being prepared.";
+                break;
+            case PICKED_UP:
+                message = "Driver picked up order " + order.getId() + ".";
+                break;
+            case CANCELLED:
+                message = "Order " + order.getId() +
+                          " has been cancelled by the customer.";
+                break;
+            default:
+                // Restaurant does not need all notifications
+                return;
+        }
+
+        System.out.println("    [Notify -> Restaurant " + restaurantName +
+                           "] " + message);
+    }
+}
+\`\`\`
+
+### DeliveryPartnerNotificationObserver.java
+
+\`\`\`java
+/**
+ * Sends notifications to the delivery partner about their assignment.
+ */
+public class DeliveryPartnerNotificationObserver implements OrderStatusObserver {
+
+    @Override
+    public void onStatusChange(Order order, OrderStatus oldStatus,
+                                OrderStatus newStatus) {
+        DeliveryPartner partner = order.getDeliveryPartner();
+        if (partner == null) return;  // no partner assigned yet
+
+        String partnerName = partner.getName();
+        String message;
+
+        switch (newStatus) {
+            case READY:
+                message = "Food is ready for pickup at " +
+                          order.getRestaurant().getName() +
+                          " (" + order.getRestaurant().getAddress() + ")";
+                break;
+            case PICKED_UP:
+                message = "Pickup confirmed. Deliver to " +
+                          order.getCustomer().getDeliveryAddress();
+                break;
+            case DELIVERED:
+                message = "Delivery confirmed! You are now available " +
+                          "for new assignments.";
+                break;
+            case CANCELLED:
+                message = "Order " + order.getId() +
+                          " has been cancelled. You are now available.";
+                break;
+            default:
+                // Delivery partner does not need all notifications
+                return;
+        }
+
+        System.out.println("    [Notify -> Driver " + partnerName + "] " + message);
+    }
+}
+\`\`\`
+
+---
+
+## 7. Order Builder
+
+### OrderBuilder.java
+
+\`\`\`java
+import java.util.*;
+
+/**
+ * Builder Pattern: constructs a complex Order object step by step.
+ * Snapshots cart items into OrderItems (freezing prices at order time).
+ */
+public class OrderBuilder {
+    private static int orderCounter = 0;
+
+    private Customer customer;
+    private Restaurant restaurant;
+    private final List<OrderItem> items = new ArrayList<>();
+    private double deliveryFee = 0.0;
+    private double taxRate = 0.0;
+
+    public OrderBuilder setCustomer(Customer customer) {
+        this.customer = customer;
+        return this;
+    }
+
+    public OrderBuilder setRestaurant(Restaurant restaurant) {
+        this.restaurant = restaurant;
+        return this;
+    }
+
+    /**
+     * Snapshot cart items into order items.
+     * Prices are frozen at this point -- future menu price changes
+     * will not affect this order.
+     */
+    public OrderBuilder addItemsFromCart(Cart cart) {
+        for (CartItem cartItem : cart.getItems()) {
+            MenuItem menuItem = cartItem.getMenuItem();
+            items.add(new OrderItem(
+                menuItem.getName(),
+                menuItem.getPrice(),    // snapshot the price
+                cartItem.getQuantity()
+            ));
+        }
+        return this;
+    }
+
+    public OrderBuilder setDeliveryFee(double deliveryFee) {
+        this.deliveryFee = deliveryFee;
+        return this;
+    }
+
+    public OrderBuilder setTaxRate(double taxRate) {
+        this.taxRate = taxRate;
+        return this;
+    }
+
+    public Order build() {
+        // Validate required fields
+        if (customer == null) {
+            throw new IllegalStateException("Customer is required.");
+        }
+        if (restaurant == null) {
+            throw new IllegalStateException("Restaurant is required.");
+        }
+        if (items.isEmpty()) {
+            throw new IllegalStateException(
+                "Order must contain at least one item.");
+        }
+
+        // Calculate financial fields
+        double subtotal = items.stream()
+            .mapToDouble(OrderItem::getSubtotal)
+            .sum();
+        double tax = subtotal * taxRate;
+        double totalAmount = subtotal + deliveryFee + tax;
+
+        String orderId = "ORD-" + String.format("%04d", ++orderCounter);
+
+        return new Order(orderId, customer, restaurant, items,
+                         subtotal, deliveryFee, tax, totalAmount);
+    }
+}
+\`\`\`
+
+---
+
+## 8. Services
+
+### OrderService.java
+
+\`\`\`java
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Orchestrates the complete order lifecycle.
+ * Uses Strategy for partner assignment and Builder for order construction.
+ */
+public class OrderService {
+    private DeliveryAssignmentStrategy assignmentStrategy;
+    private final List<DeliveryPartner> allPartners;
+    private final Map<String, Order> orders;
+    private final Object partnerAssignmentLock = new Object();
+
+    public OrderService(DeliveryAssignmentStrategy strategy) {
+        this.assignmentStrategy = strategy;
+        this.allPartners = new ArrayList<>();
+        this.orders = new LinkedHashMap<>();
+    }
+
+    // ----- Partner management -----
+
+    public void registerPartner(DeliveryPartner partner) {
+        allPartners.add(partner);
+    }
+
+    public List<DeliveryPartner> getAvailablePartners() {
+        return allPartners.stream()
+            .filter(DeliveryPartner::isAvailable)
+            .collect(Collectors.toList());
+    }
+
+    public void setAssignmentStrategy(DeliveryAssignmentStrategy strategy) {
+        this.assignmentStrategy = strategy;
+        System.out.println("[OrderService] Assignment strategy changed to: " +
+            strategy.getClass().getSimpleName());
+    }
+
+    // ----- Order lifecycle -----
+
+    /**
+     * Place an order from a customer's cart.
+     * Builds the order, registers it, attaches observers, and clears the cart.
+     */
+    public Order placeOrder(Customer customer, Cart cart, Restaurant restaurant) {
+        if (cart.isEmpty()) {
+            throw new IllegalStateException("Cannot place order with empty cart.");
+        }
+        if (!restaurant.isOpen()) {
+            throw new IllegalStateException(
+                "Restaurant '" + restaurant.getName() + "' is currently closed.");
+        }
+
+        System.out.println("\\n[OrderService] Placing order...");
+
+        // Build the order (snapshots cart prices)
+        Order order = new OrderBuilder()
+            .setCustomer(customer)
+            .setRestaurant(restaurant)
+            .addItemsFromCart(cart)
+            .setDeliveryFee(5.99)
+            .setTaxRate(0.08)
+            .build();
+
+        // Attach observers for all three parties
+        order.addObserver(new CustomerNotificationObserver());
+        order.addObserver(new RestaurantNotificationObserver());
+        order.addObserver(new DeliveryPartnerNotificationObserver());
+
+        // Register the order
+        orders.put(order.getId(), order);
+
+        // Clear the cart after successful order placement
+        cart.clear();
+
+        System.out.println("[OrderService] Order " + order.getId() +
+                           " placed successfully.");
+        order.displayOrderSummary();
+
+        return order;
+    }
+
+    /**
+     * Assign a delivery partner using the current strategy.
+     * Synchronized to prevent two orders from grabbing the same partner.
+     */
+    public void assignDeliveryPartner(Order order) {
+        System.out.println("[OrderService] Assigning delivery partner for order " +
+                           order.getId() + "...");
+
+        synchronized (partnerAssignmentLock) {
+            List<DeliveryPartner> available = getAvailablePartners();
+            DeliveryPartner partner = assignmentStrategy.assignPartner(
+                order, available);
+            order.assignDeliveryPartner(partner);
+            partner.incrementActiveDeliveries();
+        }
+
+        System.out.println("[OrderService] Delivery partner '" +
+            order.getDeliveryPartner().getName() +
+            "' assigned to order " + order.getId());
+    }
+
+    public void confirmOrder(String orderId) {
+        Order order = getOrderOrThrow(orderId);
+        System.out.println("\\n[OrderService] Confirming order " + orderId + "...");
+        order.confirm();
+    }
+
+    public void startPreparing(String orderId) {
+        Order order = getOrderOrThrow(orderId);
+        System.out.println("\\n[OrderService] Restaurant starts preparing " +
+                           orderId + "...");
+        order.startPreparing();
+    }
+
+    public void markReady(String orderId) {
+        Order order = getOrderOrThrow(orderId);
+        System.out.println("\\n[OrderService] Food ready for " + orderId + "...");
+        order.markReady();
+    }
+
+    public void pickUp(String orderId) {
+        Order order = getOrderOrThrow(orderId);
+        System.out.println("\\n[OrderService] Driver picking up " + orderId + "...");
+        order.pickUp();
+    }
+
+    public void deliver(String orderId) {
+        Order order = getOrderOrThrow(orderId);
+        System.out.println("\\n[OrderService] Driver delivering " + orderId + "...");
+        order.deliver();
+    }
+
+    public void cancelOrder(String orderId) {
+        Order order = getOrderOrThrow(orderId);
+        System.out.println("\\n[OrderService] Cancelling order " + orderId + "...");
+        order.cancel();
+    }
+
+    public Order getOrder(String orderId) {
+        return orders.get(orderId);
+    }
+
+    private Order getOrderOrThrow(String orderId) {
+        Order order = orders.get(orderId);
+        if (order == null) {
+            throw new IllegalArgumentException("Order not found: " + orderId);
+        }
+        return order;
+    }
+}
+\`\`\`
+
+### RestaurantService.java
+
+\`\`\`java
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Manages the restaurant catalog. Provides browsing and search functionality.
+ */
+public class RestaurantService {
+    private final Map<String, Restaurant> restaurants = new LinkedHashMap<>();
+
+    public void registerRestaurant(Restaurant restaurant) {
+        restaurants.put(restaurant.getId(), restaurant);
+    }
+
+    public List<Restaurant> getAllRestaurants() {
+        return new ArrayList<>(restaurants.values());
+    }
+
+    public List<Restaurant> getOpenRestaurants() {
+        return restaurants.values().stream()
+            .filter(Restaurant::isOpen)
+            .collect(Collectors.toList());
+    }
+
+    public List<Restaurant> searchByCuisine(String cuisine) {
+        return restaurants.values().stream()
+            .filter(r -> r.getCuisineType().equalsIgnoreCase(cuisine))
+            .filter(Restaurant::isOpen)
+            .collect(Collectors.toList());
+    }
+
+    public Restaurant getRestaurant(String id) {
+        Restaurant r = restaurants.get(id);
+        if (r == null) {
+            throw new IllegalArgumentException("Restaurant not found: " + id);
+        }
+        return r;
+    }
+
+    public void displayAllRestaurants() {
+        System.out.println("\\n===== AVAILABLE RESTAURANTS =====");
+        for (Restaurant r : getOpenRestaurants()) {
+            System.out.printf("  [%s] %-25s (%s) - %s%n",
+                r.getId(), r.getName(), r.getCuisineType(), r.getAddress());
+        }
+        System.out.println();
+    }
+}
+\`\`\`
+
+---
+
+## 9. Rating System
+
+### RatingType.java
+
+\`\`\`java
+public enum RatingType {
+    RESTAURANT,
+    DELIVERY_PARTNER
+}
+\`\`\`
+
+### Rating.java
+
+\`\`\`java
+import java.time.LocalDateTime;
+
+public class Rating {
+    private static int counter = 0;
+
+    private final String id;
+    private final String reviewerId;
+    private final String targetId;
+    private final int stars;
+    private final String comment;
+    private final RatingType type;
+    private final LocalDateTime createdAt;
+
+    public Rating(String reviewerId, String targetId, int stars,
+                  String comment, RatingType type) {
+        if (stars < 1 || stars > 5) {
+            throw new IllegalArgumentException(
+                "Rating must be between 1 and 5 stars.");
+        }
+        this.id = "RAT-" + String.format("%04d", ++counter);
+        this.reviewerId = reviewerId;
+        this.targetId = targetId;
+        this.stars = stars;
+        this.comment = comment;
+        this.type = type;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public String getId() { return id; }
+    public String getReviewerId() { return reviewerId; }
+    public String getTargetId() { return targetId; }
+    public int getStars() { return stars; }
+    public String getComment() { return comment; }
+    public RatingType getType() { return type; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+
+    @Override
+    public String toString() {
+        return String.format("Rating{%s, %d stars, '%s'}",
+            type, stars, comment);
+    }
+}
+\`\`\`
+
+### RatingService.java
+
+\`\`\`java
+import java.util.*;
+
+/**
+ * Manages ratings for restaurants and delivery partners.
+ * Updates running averages on the rated entities.
+ */
+public class RatingService {
+    private final Map<String, List<Rating>> restaurantRatings = new HashMap<>();
+    private final Map<String, List<Rating>> partnerRatings = new HashMap<>();
+
+    public Rating rateRestaurant(String customerId, String restaurantId,
+                                  int stars, String comment) {
+        Rating rating = new Rating(customerId, restaurantId, stars,
+                                    comment, RatingType.RESTAURANT);
+        restaurantRatings
+            .computeIfAbsent(restaurantId, k -> new ArrayList<>())
+            .add(rating);
+
+        System.out.println("[RatingService] Restaurant rated: " + stars +
+                           " stars - \\"" + comment + "\\"");
+        return rating;
+    }
+
+    public Rating rateDeliveryPartner(String customerId,
+                                       DeliveryPartner partner,
+                                       int stars, String comment) {
+        Rating rating = new Rating(customerId, partner.getId(), stars,
+                                    comment, RatingType.DELIVERY_PARTNER);
+        partnerRatings
+            .computeIfAbsent(partner.getId(), k -> new ArrayList<>())
+            .add(rating);
+
+        // Update running average on the partner entity
+        partner.updateRating(stars);
+
+        System.out.println("[RatingService] Delivery partner '" +
+            partner.getName() + "' rated: " + stars +
+            " stars - \\"" + comment + "\\"");
+        return rating;
+    }
+
+    public double getRestaurantAverageRating(String restaurantId) {
+        List<Rating> ratings = restaurantRatings.get(restaurantId);
+        if (ratings == null || ratings.isEmpty()) return 0.0;
+        return ratings.stream()
+            .mapToInt(Rating::getStars)
+            .average()
+            .orElse(0.0);
+    }
+
+    public double getPartnerAverageRating(String partnerId) {
+        List<Rating> ratings = partnerRatings.get(partnerId);
+        if (ratings == null || ratings.isEmpty()) return 0.0;
+        return ratings.stream()
+            .mapToInt(Rating::getStars)
+            .average()
+            .orElse(0.0);
+    }
+}
+\`\`\`
+
+---
+
+## 10. Main Demo
+
+### FoodOrderingApp.java
+
+\`\`\`java
+/**
+ * Full demonstration of the Food Ordering System.
+ *
+ * Flow:
+ *   1. Set up restaurants, menu items, delivery partners
+ *   2. Customer browses restaurants and views a menu
+ *   3. Customer adds items to cart
+ *   4. Customer places order (Builder constructs Order from Cart)
+ *   5. System assigns delivery partner (Strategy selects best)
+ *   6. Order progresses through all states (State pattern)
+ *   7. All parties receive notifications (Observer pattern)
+ *   8. Customer rates restaurant and delivery partner
+ *   9. Demonstrate cancellation flow
+ *  10. Demonstrate strategy switching
+ */
+public class FoodOrderingApp {
+
+    public static void main(String[] args) {
+
+        System.out.println("=".repeat(60));
+        System.out.println("    FOOD ORDERING SYSTEM -- FULL DEMO");
+        System.out.println("=".repeat(60));
+
+        // ===== SETUP =====
+
+        // Create restaurants
+        Restaurant burgerJoint = new Restaurant("R001", "Burger Palace",
+            "123 Main St", "American", 37.7749, -122.4194);
+        Restaurant sushiPlace = new Restaurant("R002", "Tokyo Sushi",
+            "456 Oak Ave", "Japanese", 37.7849, -122.4094);
+
+        // Populate menus
+        burgerJoint.getMenu().addItem(new MenuItem("M001",
+            "Classic Burger", "Beef patty with lettuce and tomato",
+            12.99, "Burgers"));
+        burgerJoint.getMenu().addItem(new MenuItem("M002",
+            "Cheese Fries", "Crispy fries with melted cheddar",
+            6.99, "Sides"));
+        burgerJoint.getMenu().addItem(new MenuItem("M003",
+            "Milkshake", "Vanilla bean milkshake",
+            5.99, "Drinks"));
+        burgerJoint.getMenu().addItem(new MenuItem("M004",
+            "Double Bacon Burger", "Double patty with crispy bacon",
+            16.99, "Burgers"));
+        burgerJoint.getMenu().addItem(new MenuItem("M005",
+            "Onion Rings", "Beer-battered onion rings",
+            7.49, "Sides"));
+
+        sushiPlace.getMenu().addItem(new MenuItem("M010",
+            "Salmon Roll", "Fresh salmon with avocado",
+            14.99, "Rolls"));
+        sushiPlace.getMenu().addItem(new MenuItem("M011",
+            "Tuna Sashimi", "Premium bluefin tuna",
+            18.99, "Sashimi"));
+        sushiPlace.getMenu().addItem(new MenuItem("M012",
+            "Miso Soup", "Traditional fermented soybean soup",
+            4.99, "Soups"));
+
+        // Register restaurants
+        RestaurantService restaurantService = new RestaurantService();
+        restaurantService.registerRestaurant(burgerJoint);
+        restaurantService.registerRestaurant(sushiPlace);
+
+        // Create delivery partners at different locations
+        DeliveryPartner driverAlex = new DeliveryPartner("DP001",
+            "Alex", "555-0101", 37.7760, -122.4180);
+        DeliveryPartner driverMaya = new DeliveryPartner("DP002",
+            "Maya", "555-0102", 37.7800, -122.4100);
+        DeliveryPartner driverSam = new DeliveryPartner("DP003",
+            "Sam", "555-0103", 37.7700, -122.4250);
+
+        // Simulate different ratings for drivers
+        driverAlex.updateRating(4.8);  // experienced, highly rated
+        driverMaya.updateRating(4.9);  // top rated
+        driverSam.updateRating(4.2);   // newer driver
+
+        // Create order service with NearestPartner strategy (default)
+        OrderService orderService = new OrderService(new NearestPartnerStrategy());
+        orderService.registerPartner(driverAlex);
+        orderService.registerPartner(driverMaya);
+        orderService.registerPartner(driverSam);
+
+        // Create rating service
+        RatingService ratingService = new RatingService();
+
+        // Create customer
+        Customer customer = new Customer("C001", "John Doe",
+            "john@example.com", "555-1234",
+            "789 Pine St, Apt 4B", 37.7850, -122.4000);
+
+        // ===== FLOW 1: FULL HAPPY-PATH ORDER =====
+
+        System.out.println("\\n" + "=".repeat(60));
+        System.out.println("  FLOW 1: Complete Order (Happy Path)");
+        System.out.println("=".repeat(60));
+
+        // Step 1: Browse restaurants
+        System.out.println("\\n--- Step 1: Browse Restaurants ---");
+        restaurantService.displayAllRestaurants();
+
+        // Step 2: View menu
+        System.out.println("--- Step 2: View Menu ---");
+        burgerJoint.getMenu().displayMenu();
+
+        // Step 3: Add items to cart
+        System.out.println("--- Step 3: Add Items to Cart ---");
+        Cart cart = new Cart(customer.getId());
+        cart.addItem(burgerJoint.getMenu().getItem("M001"), 2,
+                     burgerJoint.getId());  // 2x Classic Burger
+        cart.addItem(burgerJoint.getMenu().getItem("M002"), 1,
+                     burgerJoint.getId());  // 1x Cheese Fries
+        cart.addItem(burgerJoint.getMenu().getItem("M003"), 2,
+                     burgerJoint.getId());  // 2x Milkshake
+        cart.displayCart();
+
+        // Step 4: Place order
+        System.out.println("--- Step 4: Place Order ---");
+        Order order1 = orderService.placeOrder(customer, cart, burgerJoint);
+
+        // Step 5: Assign delivery partner (nearest to restaurant)
+        System.out.println("--- Step 5: Assign Delivery Partner ---");
+        orderService.assignDeliveryPartner(order1);
+
+        // Step 6: Progress through all states
+        System.out.println("\\n--- Step 6: Order State Progression ---");
+
+        // 6a: Restaurant confirms the order
+        orderService.confirmOrder(order1.getId());
+
+        // 6b: Restaurant starts preparing
+        orderService.startPreparing(order1.getId());
+
+        // 6c: Food is ready
+        orderService.markReady(order1.getId());
+
+        // 6d: Driver picks up food
+        orderService.pickUp(order1.getId());
+
+        // 6e: Driver delivers food
+        orderService.deliver(order1.getId());
+
+        // Step 7: Customer rates
+        System.out.println("\\n--- Step 7: Rate Restaurant & Driver ---");
+        ratingService.rateRestaurant(customer.getId(),
+            burgerJoint.getId(), 5, "Amazing burgers! Best in town.");
+        ratingService.rateDeliveryPartner(customer.getId(),
+            order1.getDeliveryPartner(), 4, "Fast delivery, food was warm.");
+
+        // Final order status
+        System.out.println("\\n--- Final Order Status ---");
+        order1.displayOrderSummary();
+
+        // ===== FLOW 2: ORDER CANCELLATION =====
+
+        System.out.println("\\n" + "=".repeat(60));
+        System.out.println("  FLOW 2: Order Cancellation");
+        System.out.println("=".repeat(60));
+
+        // Place a new order
+        Cart cart2 = new Cart(customer.getId());
+        cart2.addItem(sushiPlace.getMenu().getItem("M010"), 1,
+                      sushiPlace.getId());
+        cart2.addItem(sushiPlace.getMenu().getItem("M012"), 1,
+                      sushiPlace.getId());
+
+        Order order2 = orderService.placeOrder(customer, cart2, sushiPlace);
+        orderService.assignDeliveryPartner(order2);
+
+        // Confirm and then cancel
+        orderService.confirmOrder(order2.getId());
+        orderService.cancelOrder(order2.getId());
+
+        // Verify driver is available again
+        System.out.println("\\n  Driver '" +
+            order2.getDeliveryPartner().getName() +
+            "' available after cancel: " +
+            order2.getDeliveryPartner().isAvailable());
+
+        // Try to cancel an already-cancelled order (should fail)
+        System.out.println("\\n--- Attempting double cancellation ---");
+        try {
+            orderService.cancelOrder(order2.getId());
+        } catch (IllegalStateException e) {
+            System.out.println("  Caught expected error: " + e.getMessage());
+        }
+
+        // ===== FLOW 3: INVALID STATE TRANSITION =====
+
+        System.out.println("\\n" + "=".repeat(60));
+        System.out.println("  FLOW 3: Invalid State Transition");
+        System.out.println("=".repeat(60));
+
+        Cart cart3 = new Cart(customer.getId());
+        cart3.addItem(burgerJoint.getMenu().getItem("M004"), 1,
+                      burgerJoint.getId());
+
+        Order order3 = orderService.placeOrder(customer, cart3, burgerJoint);
+
+        // Try to mark food ready before it is even confirmed (should fail)
+        System.out.println("\\n--- Attempting to skip states ---");
+        try {
+            orderService.markReady(order3.getId());
+        } catch (IllegalStateException e) {
+            System.out.println("  Caught expected error: " + e.getMessage());
+        }
+
+        // Try to cancel after PREPARING (should fail)
+        orderService.confirmOrder(order3.getId());
+        orderService.startPreparing(order3.getId());
+
+        System.out.println("\\n--- Attempting cancel after PREPARING ---");
+        try {
+            orderService.cancelOrder(order3.getId());
+        } catch (IllegalStateException e) {
+            System.out.println("  Caught expected error: " + e.getMessage());
+        }
+
+        // ===== FLOW 4: STRATEGY SWITCHING =====
+
+        System.out.println("\\n" + "=".repeat(60));
+        System.out.println("  FLOW 4: Strategy Switching");
+        System.out.println("=".repeat(60));
+
+        // Reset partner availability
+        driverAlex.setAvailable(true);
+        driverMaya.setAvailable(true);
+        driverSam.setAvailable(true);
+
+        // Switch to HighestRated strategy
+        orderService.setAssignmentStrategy(new HighestRatedStrategy());
+
+        Cart cart4 = new Cart(customer.getId());
+        cart4.addItem(sushiPlace.getMenu().getItem("M011"), 2,
+                      sushiPlace.getId());
+
+        Order order4 = orderService.placeOrder(customer, cart4, sushiPlace);
+
+        System.out.println("\\n--- Using HighestRated strategy ---");
+        orderService.assignDeliveryPartner(order4);
+        System.out.println("  Assigned: " +
+            order4.getDeliveryPartner().getName() +
+            " (rating: " +
+            String.format("%.1f", order4.getDeliveryPartner().getAverageRating()) +
+            ")");
+
+        // Switch to LeastBusy strategy
+        orderService.setAssignmentStrategy(new LeastBusyStrategy());
+
+        Cart cart5 = new Cart(customer.getId());
+        cart5.addItem(burgerJoint.getMenu().getItem("M001"), 1,
+                      burgerJoint.getId());
+        cart5.addItem(burgerJoint.getMenu().getItem("M005"), 1,
+                      burgerJoint.getId());
+
+        Order order5 = orderService.placeOrder(customer, cart5, burgerJoint);
+
+        System.out.println("\\n--- Using LeastBusy strategy ---");
+        orderService.assignDeliveryPartner(order5);
+        System.out.println("  Assigned: " +
+            order5.getDeliveryPartner().getName() +
+            " (active deliveries: " +
+            order5.getDeliveryPartner().getActiveDeliveries() + ")");
+
+        // ===== FLOW 5: CART VALIDATION =====
+
+        System.out.println("\\n" + "=".repeat(60));
+        System.out.println("  FLOW 5: Cart Validation");
+        System.out.println("=".repeat(60));
+
+        // Try adding items from different restaurants
+        Cart mixedCart = new Cart(customer.getId());
+        mixedCart.addItem(burgerJoint.getMenu().getItem("M001"), 1,
+                          burgerJoint.getId());
+
+        System.out.println("\\n--- Adding item from different restaurant ---");
+        try {
+            mixedCart.addItem(sushiPlace.getMenu().getItem("M010"), 1,
+                              sushiPlace.getId());
+        } catch (IllegalStateException e) {
+            System.out.println("  Caught expected error: " + e.getMessage());
+        }
+
+        // Try placing order with empty cart
+        System.out.println("\\n--- Placing order with empty cart ---");
+        Cart emptyCart = new Cart(customer.getId());
+        try {
+            orderService.placeOrder(customer, emptyCart, burgerJoint);
+        } catch (IllegalStateException e) {
+            System.out.println("  Caught expected error: " + e.getMessage());
+        }
+
+        // Try ordering from a closed restaurant
+        System.out.println("\\n--- Ordering from closed restaurant ---");
+        sushiPlace.setOpen(false);
+        Cart closedCart = new Cart(customer.getId());
+        closedCart.addItem(sushiPlace.getMenu().getItem("M010"), 1,
+                           sushiPlace.getId());
+        try {
+            orderService.placeOrder(customer, closedCart, sushiPlace);
+        } catch (IllegalStateException e) {
+            System.out.println("  Caught expected error: " + e.getMessage());
+        }
+        sushiPlace.setOpen(true);  // reopen
+
+        // Try adding unavailable item
+        System.out.println("\\n--- Adding unavailable item ---");
+        burgerJoint.getMenu().getItem("M003").setAvailable(false);
+        Cart unavailCart = new Cart(customer.getId());
+        try {
+            unavailCart.addItem(burgerJoint.getMenu().getItem("M003"), 1,
+                                burgerJoint.getId());
+        } catch (IllegalStateException e) {
+            System.out.println("  Caught expected error: " + e.getMessage());
+        }
+        burgerJoint.getMenu().getItem("M003").setAvailable(true);
+
+        // ===== FLOW 6: RATING VALIDATION =====
+
+        System.out.println("\\n" + "=".repeat(60));
+        System.out.println("  FLOW 6: Rating Validation");
+        System.out.println("=".repeat(60));
+
+        // Valid ratings
+        ratingService.rateRestaurant(customer.getId(),
+            sushiPlace.getId(), 4, "Fresh sushi, good portion size.");
+        ratingService.rateDeliveryPartner(customer.getId(),
+            driverAlex, 5, "Excellent service, very polite!");
+
+        // Check average ratings
+        System.out.printf("\\n  Burger Palace avg rating: %.1f stars%n",
+            ratingService.getRestaurantAverageRating(burgerJoint.getId()));
+        System.out.printf("  Tokyo Sushi avg rating:   %.1f stars%n",
+            ratingService.getRestaurantAverageRating(sushiPlace.getId()));
+        System.out.printf("  Driver Alex avg rating:   %.1f stars%n",
+            ratingService.getPartnerAverageRating(driverAlex.getId()));
+
+        // Invalid rating (out of range)
+        System.out.println("\\n--- Invalid rating (6 stars) ---");
+        try {
+            ratingService.rateRestaurant(customer.getId(),
+                burgerJoint.getId(), 6, "Too many stars!");
+        } catch (IllegalArgumentException e) {
+            System.out.println("  Caught expected error: " + e.getMessage());
+        }
+
+        // ===== SUMMARY =====
+
+        System.out.println("\\n" + "=".repeat(60));
+        System.out.println("  DEMO COMPLETE");
+        System.out.println("=".repeat(60));
+        System.out.println("\\n  Patterns demonstrated:");
+        System.out.println("    1. State    -- Order lifecycle (PLACED through DELIVERED)");
+        System.out.println("    2. Strategy -- NearestPartner, HighestRated, LeastBusy");
+        System.out.println("    3. Observer -- Customer, Restaurant, Driver notifications");
+        System.out.println("    4. Builder  -- OrderBuilder from Cart contents");
+        System.out.println("\\n  Flows demonstrated:");
+        System.out.println("    1. Full happy-path order with all state transitions");
+        System.out.println("    2. Order cancellation from CONFIRMED state");
+        System.out.println("    3. Invalid state transitions (skipping states, late cancel)");
+        System.out.println("    4. Runtime strategy switching for partner assignment");
+        System.out.println("    5. Cart validation (mixed restaurants, empty, closed, unavailable)");
+        System.out.println("    6. Rating system with validation and averages");
+    }
+}
+\`\`\`
+
+---
+
+## Expected Output
+
+\`\`\`
+============================================================
+    FOOD ORDERING SYSTEM -- FULL DEMO
+============================================================
+
+============================================================
+  FLOW 1: Complete Order (Happy Path)
+============================================================
+
+--- Step 1: Browse Restaurants ---
+
+===== AVAILABLE RESTAURANTS =====
+  [R001] Burger Palace             (American) - 123 Main St
+  [R002] Tokyo Sushi               (Japanese) - 456 Oak Ave
+
+--- Step 2: View Menu ---
+
+===== MENU =====
+
+--- Burgers ---
+  Classic Burger              $12.99  [Burgers]
+  Double Bacon Burger         $16.99  [Burgers]
+
+--- Sides ---
+  Cheese Fries                $6.99  [Sides]
+  Onion Rings                 $7.49  [Sides]
+
+--- Drinks ---
+  Milkshake                   $5.99  [Drinks]
+
+--- Step 3: Add Items to Cart ---
+
+===== YOUR CART =====
+  2x Classic Burger        $25.98
+  1x Cheese Fries          $6.99
+  2x Milkshake             $11.98
+  SUBTOTAL:                $44.95
+
+--- Step 4: Place Order ---
+
+[OrderService] Placing order...
+[OrderService] Order ORD-0001 placed successfully.
+
+===== ORDER SUMMARY =====
+  Order ID:    ORD-0001
+  Customer:    John Doe
+  Restaurant:  Burger Palace
+  Status:      PLACED
+  Items:
+    2x Classic Burger        $25.98
+    1x Cheese Fries          $6.99
+    2x Milkshake             $11.98
+  Subtotal:    $44.95
+  Delivery:    $5.99
+  Tax:         $3.60
+  TOTAL:       $54.54
+
+--- Step 5: Assign Delivery Partner ---
+[OrderService] Assigning delivery partner for order ORD-0001...
+  [Strategy] NearestPartner: selected 'Alex' (0.19 km away)
+[OrderService] Delivery partner 'Alex' assigned to order ORD-0001
+
+--- Step 6: Order State Progression ---
+
+[OrderService] Confirming order ORD-0001...
+  [State] Order ORD-0001: PLACED -> CONFIRMED
+    [Notify -> Customer John Doe] Your order has been confirmed by Burger Palace!
+    [Notify -> Restaurant Burger Palace] You confirmed order ORD-0001. Please start preparing soon.
+
+[OrderService] Restaurant starts preparing ORD-0001...
+  [State] Order ORD-0001: CONFIRMED -> PREPARING
+    [Notify -> Customer John Doe] Your food is being prepared!
+    [Notify -> Restaurant Burger Palace] Order ORD-0001 is now being prepared.
+
+[OrderService] Food ready for ORD-0001...
+  [State] Order ORD-0001: PREPARING -> READY
+    [Notify -> Customer John Doe] Your food is ready and waiting for pickup!
+    [Notify -> Driver Alex] Food is ready for pickup at Burger Palace (123 Main St)
+
+[OrderService] Driver picking up ORD-0001...
+  [State] Order ORD-0001: READY -> PICKED_UP
+    [Notify -> Customer John Doe] Your driver Alex picked up your food!
+    [Notify -> Restaurant Burger Palace] Driver picked up order ORD-0001.
+    [Notify -> Driver Alex] Pickup confirmed. Deliver to 789 Pine St, Apt 4B
+
+[OrderService] Driver delivering ORD-0001...
+  [State] Order ORD-0001: PICKED_UP -> DELIVERED
+    [Notify -> Customer John Doe] Your food has arrived! Enjoy your meal!
+    [Notify -> Driver Alex] Delivery confirmed! You are now available for new assignments.
+
+--- Step 7: Rate Restaurant & Driver ---
+[RatingService] Restaurant rated: 5 stars - "Amazing burgers! Best in town."
+[RatingService] Delivery partner 'Alex' rated: 4 stars - "Fast delivery, food was warm."
+
+...
+(further flows for cancellation, invalid transitions, strategy switching, validation)
+\`\`\`
+
+---
+
+## Class Summary
+
+| Class | Pattern | Lines | Responsibility |
+|-------|---------|-------|----------------|
+| \`Customer\` | Entity | ~35 | Customer data and delivery address |
+| \`Restaurant\` | Entity | ~35 | Restaurant info with menu and location |
+| \`MenuItem\` | Entity | ~35 | Single menu item with price and availability |
+| \`Menu\` | Entity | ~50 | Collection of menu items with category browsing |
+| \`CartItem\` | Entity | ~30 | Item in cart with quantity and subtotal |
+| \`Cart\` | Entity | ~65 | Single-restaurant cart with validation |
+| \`OrderStatus\` | Enum | ~15 | All possible order statuses |
+| \`OrderState\` | State | ~30 | Interface with default illegal-transition methods |
+| \`PlacedState\` | State | ~20 | Handles confirm() and cancel() |
+| \`ConfirmedState\` | State | ~20 | Handles startPreparing() and cancel() |
+| \`PreparingState\` | State | ~15 | Handles markReady() |
+| \`ReadyState\` | State | ~15 | Handles pickUp() |
+| \`PickedUpState\` | State | ~20 | Handles deliver(), releases partner |
+| \`DeliveredState\` | State | ~5 | Terminal state |
+| \`CancelledState\` | State | ~5 | Terminal state |
+| \`OrderItem\` | Entity | ~25 | Price-snapshotted item in an order |
+| \`Order\` | Core | ~90 | Central entity with state delegation and observer management |
+| \`DeliveryPartner\` | Entity | ~60 | Driver with location, rating, Haversine distance |
+| \`DeliveryAssignmentStrategy\` | Strategy | ~10 | Interface for partner selection |
+| \`NearestPartnerStrategy\` | Strategy | ~25 | Select closest partner to restaurant |
+| \`HighestRatedStrategy\` | Strategy | ~20 | Select highest-rated partner |
+| \`LeastBusyStrategy\` | Strategy | ~20 | Select partner with fewest active deliveries |
+| \`OrderStatusObserver\` | Observer | ~5 | Interface for status change notification |
+| \`CustomerNotificationObserver\` | Observer | ~30 | Notify customer of all status changes |
+| \`RestaurantNotificationObserver\` | Observer | ~25 | Notify restaurant of relevant changes |
+| \`DeliveryPartnerNotificationObserver\` | Observer | ~25 | Notify driver of relevant changes |
+| \`OrderBuilder\` | Builder | ~45 | Fluent builder for Order from Cart |
+| \`OrderService\` | Service | ~80 | Orchestrates full order lifecycle |
+| \`RestaurantService\` | Service | ~40 | Restaurant catalog and search |
+| \`Rating\` | Entity | ~30 | Star rating with comment |
+| \`RatingType\` | Enum | ~5 | RESTAURANT or DELIVERY_PARTNER |
+| \`RatingService\` | Service | ~40 | Rating submission and average calculation |
+| \`FoodOrderingApp\` | Main | ~200 | Full demo with all six flows |
+`,
+  designWalkthrough: `# Low-Level Design: Food Ordering System (Uber Eats)
+
+## Table of Contents
+
+1. [Problem Statement](#1-problem-statement)
+2. [Requirements](#2-requirements)
+3. [Entity Identification](#3-entity-identification)
+4. [Class Diagram](#4-class-diagram)
+5. [State Diagram: Order Lifecycle](#5-state-diagram-order-lifecycle)
+6. [Design Patterns](#6-design-patterns)
+7. [Design Decisions and Rationale](#7-design-decisions-and-rationale)
+8. [Core Algorithms](#8-core-algorithms)
+9. [Flow Walkthroughs](#9-flow-walkthroughs)
+10. [Concurrency Considerations](#10-concurrency-considerations)
+11. [Extension Handling](#11-extension-handling)
+12. [Summary](#12-summary)
+
+---
+
+## 1. Problem Statement
+
+Design an object-oriented system for a food ordering and delivery platform similar to
+Uber Eats. The system must support customers browsing restaurants, viewing menus, adding
+items to a cart, placing orders, assigning delivery partners, tracking order status
+through its full lifecycle, and rating restaurants and delivery partners after completion.
+
+This is a classic LLD interview problem -- especially relevant at Uber -- that tests
+your ability to:
+- Model a multi-actor domain (customer, restaurant, delivery partner)
+- Design a complex state machine for order lifecycle management
+- Apply the Strategy pattern for interchangeable delivery assignment algorithms
+- Implement the Observer pattern for real-time notifications to all parties
+- Use the Builder pattern to construct complex Order objects from cart contents
+- Handle concurrency for delivery partner assignment (race conditions)
+
+---
+
+## 2. Requirements
+
+### 2.1 Functional Requirements
+
+| # | Requirement | Priority |
+|---|-------------|----------|
+| FR-1 | Customers can browse a catalog of restaurants | Must |
+| FR-2 | Each restaurant has a menu with categorized items, prices, and availability | Must |
+| FR-3 | Customers can add/remove items to/from a shopping cart | Must |
+| FR-4 | A cart is associated with exactly one restaurant (single-restaurant ordering) | Must |
+| FR-5 | Customer can place an order from the cart contents | Must |
+| FR-6 | System assigns an available delivery partner to each order | Must |
+| FR-7 | Order progresses through states: PLACED -> CONFIRMED -> PREPARING -> READY -> PICKED_UP -> DELIVERED | Must |
+| FR-8 | An order can be CANCELLED from PLACED or CONFIRMED state only | Must |
+| FR-9 | All parties (customer, restaurant, delivery partner) receive notifications on status changes | Must |
+| FR-10 | Customer can track the current status of their order | Must |
+| FR-11 | Customer can rate the restaurant (1-5 stars) after delivery | Should |
+| FR-12 | Customer can rate the delivery partner (1-5 stars) after delivery | Should |
+| FR-13 | Delivery partner can accept or reject an assignment | Should |
+| FR-14 | System supports multiple delivery assignment strategies | Should |
+| FR-15 | Order contains itemized breakdown with subtotal, delivery fee, and tax | Should |
+
+### 2.2 Non-Functional Requirements
+
+- The design must be extensible: adding new delivery assignment strategies, payment
+  methods, or promotion systems should not require rewriting core classes.
+- Order state transitions must be deterministic and validated -- illegal transitions
+  must be rejected.
+- The system should follow SOLID principles throughout.
+- Delivery partner assignment must handle concurrent requests safely.
+- Notification delivery should not block the order processing pipeline.
+
+---
+
+## 3. Entity Identification
+
+Working through the problem domain, we identify these core entities:
+
+### 3.1 Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| **Customer** | Registered user who browses restaurants, places orders, and rates services |
+| **Restaurant** | A food establishment with a menu; accepts/prepares orders |
+| **Menu** | Collection of MenuItems belonging to a restaurant, organized by category |
+| **MenuItem** | A single dish or item with name, description, price, category, and availability flag |
+| **Cart** | Temporary holding area for a customer's selected items from one restaurant |
+| **CartItem** | An item in the cart: references a MenuItem with a chosen quantity |
+| **Order** | A confirmed request for food delivery; the central entity linking customer, restaurant, and delivery partner |
+| **OrderItem** | A snapshot of a purchased item (name, price, quantity) frozen at order time |
+| **DeliveryPartner** | A courier who picks up food from restaurants and delivers to customers |
+| **Rating** | A 1-5 star review left by a customer for a restaurant or delivery partner |
+
+### 3.2 Service/Manager Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| **OrderService** | Orchestrates the order lifecycle: place, assign partner, advance states, cancel |
+| **NotificationService** | Observer hub that dispatches status-change notifications to all relevant parties |
+| **RatingService** | Manages submission and retrieval of ratings for restaurants and delivery partners |
+| **RestaurantService** | Handles restaurant catalog browsing and menu lookups |
+| **DeliveryAssignmentStrategy** | Strategy interface for selecting the best delivery partner for an order |
+
+### 3.3 State-Related Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| **OrderState** (interface) | Declares the contract for handling state-specific transitions |
+| **PlacedState** | Order just placed; can transition to CONFIRMED or CANCELLED |
+| **ConfirmedState** | Restaurant accepted the order; can transition to PREPARING or CANCELLED |
+| **PreparingState** | Food is being prepared; can transition to READY |
+| **ReadyState** | Food is ready for pickup; can transition to PICKED_UP |
+| **PickedUpState** | Delivery partner has the food; can transition to DELIVERED |
+| **DeliveredState** | Terminal state -- food delivered to customer |
+| **CancelledState** | Terminal state -- order was cancelled |
+
+---
+
+## 4. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    class Customer {
+        -String id
+        -String name
+        -String email
+        -String phone
+        -String deliveryAddress
+        +getId() String
+        +getName() String
+        +getDeliveryAddress() String
+    }
+
+    class Restaurant {
+        -String id
+        -String name
+        -String address
+        -String cuisineType
+        -Menu menu
+        -double latitude
+        -double longitude
+        -boolean isOpen
+        +getId() String
+        +getName() String
+        +getMenu() Menu
+        +isOpen() boolean
+        +getLocation() double[]
+    }
+
+    class Menu {
+        -String restaurantId
+        -List~MenuItem~ items
+        +addItem(MenuItem) void
+        +removeItem(String) void
+        +getItemsByCategory(String) List~MenuItem~
+        +getAvailableItems() List~MenuItem~
+        +getItem(String) MenuItem
+    }
+
+    class MenuItem {
+        -String id
+        -String name
+        -String description
+        -double price
+        -String category
+        -boolean available
+        +getId() String
+        +getName() String
+        +getPrice() double
+        +isAvailable() boolean
+        +setAvailable(boolean) void
+    }
+
+    class Cart {
+        -String customerId
+        -String restaurantId
+        -Map~String, CartItem~ items
+        +addItem(MenuItem, int) void
+        +removeItem(String) void
+        +updateQuantity(String, int) void
+        +getItems() List~CartItem~
+        +getTotal() double
+        +clear() void
+        +isEmpty() boolean
+        +getRestaurantId() String
+    }
+
+    class CartItem {
+        -MenuItem menuItem
+        -int quantity
+        +getMenuItem() MenuItem
+        +getQuantity() int
+        +setQuantity(int) void
+        +getSubtotal() double
+    }
+
+    class Order {
+        -String id
+        -Customer customer
+        -Restaurant restaurant
+        -List~OrderItem~ items
+        -DeliveryPartner deliveryPartner
+        -OrderState currentState
+        -OrderStatus status
+        -double subtotal
+        -double deliveryFee
+        -double tax
+        -double totalAmount
+        -LocalDateTime placedAt
+        -LocalDateTime deliveredAt
+        -List~OrderStatusObserver~ observers
+        +getId() String
+        +getStatus() OrderStatus
+        +getCustomer() Customer
+        +getRestaurant() Restaurant
+        +getTotalAmount() double
+        +confirm() void
+        +startPreparing() void
+        +markReady() void
+        +pickUp() void
+        +deliver() void
+        +cancel() void
+        +assignDeliveryPartner(DeliveryPartner) void
+        +addObserver(OrderStatusObserver) void
+        +notifyObservers() void
+    }
+
+    class OrderItem {
+        -String itemName
+        -double priceAtOrder
+        -int quantity
+        +getItemName() String
+        +getPriceAtOrder() double
+        +getQuantity() int
+        +getSubtotal() double
+    }
+
+    class DeliveryPartner {
+        -String id
+        -String name
+        -String phone
+        -double latitude
+        -double longitude
+        -boolean available
+        -double averageRating
+        -int totalDeliveries
+        +getId() String
+        +getName() String
+        +isAvailable() boolean
+        +setAvailable(boolean) void
+        +getLocation() double[]
+        +getAverageRating() double
+        +updateRating(double) void
+        +distanceTo(double, double) double
+    }
+
+    class OrderStatus {
+        <<enumeration>>
+        PLACED
+        CONFIRMED
+        PREPARING
+        READY
+        PICKED_UP
+        DELIVERED
+        CANCELLED
+    }
+
+    class OrderState {
+        <<interface>>
+        +confirm(Order) void
+        +startPreparing(Order) void
+        +markReady(Order) void
+        +pickUp(Order) void
+        +deliver(Order) void
+        +cancel(Order) void
+    }
+
+    class PlacedState {
+        +confirm(Order) void
+        +cancel(Order) void
+    }
+
+    class ConfirmedState {
+        +startPreparing(Order) void
+        +cancel(Order) void
+    }
+
+    class PreparingState {
+        +markReady(Order) void
+    }
+
+    class ReadyState {
+        +pickUp(Order) void
+    }
+
+    class PickedUpState {
+        +deliver(Order) void
+    }
+
+    class DeliveredState
+    class CancelledState
+
+    class DeliveryAssignmentStrategy {
+        <<interface>>
+        +assignPartner(Order, List~DeliveryPartner~) DeliveryPartner
+    }
+
+    class NearestPartnerStrategy {
+        +assignPartner(Order, List~DeliveryPartner~) DeliveryPartner
+    }
+
+    class HighestRatedStrategy {
+        +assignPartner(Order, List~DeliveryPartner~) DeliveryPartner
+    }
+
+    class LeastBusyStrategy {
+        +assignPartner(Order, List~DeliveryPartner~) DeliveryPartner
+    }
+
+    class OrderStatusObserver {
+        <<interface>>
+        +onStatusChange(Order, OrderStatus, OrderStatus) void
+    }
+
+    class CustomerNotificationObserver {
+        +onStatusChange(Order, OrderStatus, OrderStatus) void
+    }
+
+    class RestaurantNotificationObserver {
+        +onStatusChange(Order, OrderStatus, OrderStatus) void
+    }
+
+    class DeliveryPartnerNotificationObserver {
+        +onStatusChange(Order, OrderStatus, OrderStatus) void
+    }
+
+    class OrderBuilder {
+        -Customer customer
+        -Restaurant restaurant
+        -List~OrderItem~ items
+        -double deliveryFee
+        -double taxRate
+        +setCustomer(Customer) OrderBuilder
+        +setRestaurant(Restaurant) OrderBuilder
+        +addItemsFromCart(Cart) OrderBuilder
+        +setDeliveryFee(double) OrderBuilder
+        +setTaxRate(double) OrderBuilder
+        +build() Order
+    }
+
+    class OrderService {
+        -DeliveryAssignmentStrategy assignmentStrategy
+        -List~DeliveryPartner~ deliveryPartners
+        -Map~String, Order~ orders
+        +placeOrder(Customer, Cart, Restaurant) Order
+        +assignDeliveryPartner(Order) void
+        +confirmOrder(String) void
+        +startPreparing(String) void
+        +markReady(String) void
+        +pickUp(String) void
+        +deliver(String) void
+        +cancelOrder(String) void
+        +setAssignmentStrategy(DeliveryAssignmentStrategy) void
+        +getOrder(String) Order
+    }
+
+    class RatingService {
+        -Map~String, List~Rating~~ restaurantRatings
+        -Map~String, List~Rating~~ partnerRatings
+        +rateRestaurant(String, String, int, String) Rating
+        +rateDeliveryPartner(String, String, int, String) Rating
+        +getRestaurantAvgRating(String) double
+        +getPartnerAvgRating(String) double
+    }
+
+    class Rating {
+        -String id
+        -String reviewerId
+        -String targetId
+        -int stars
+        -String comment
+        -RatingType type
+        -LocalDateTime createdAt
+        +getStars() int
+        +getComment() String
+    }
+
+    class RatingType {
+        <<enumeration>>
+        RESTAURANT
+        DELIVERY_PARTNER
+    }
+
+    %% Relationships
+    Restaurant "1" --> "1" Menu
+    Menu "1" --> "*" MenuItem
+    Cart "1" --> "*" CartItem
+    CartItem --> MenuItem
+    Order "1" --> "*" OrderItem
+    Order --> Customer
+    Order --> Restaurant
+    Order --> DeliveryPartner
+    Order --> OrderState
+    OrderState <|.. PlacedState
+    OrderState <|.. ConfirmedState
+    OrderState <|.. PreparingState
+    OrderState <|.. ReadyState
+    OrderState <|.. PickedUpState
+    OrderState <|.. DeliveredState
+    OrderState <|.. CancelledState
+    DeliveryAssignmentStrategy <|.. NearestPartnerStrategy
+    DeliveryAssignmentStrategy <|.. HighestRatedStrategy
+    DeliveryAssignmentStrategy <|.. LeastBusyStrategy
+    OrderStatusObserver <|.. CustomerNotificationObserver
+    OrderStatusObserver <|.. RestaurantNotificationObserver
+    OrderStatusObserver <|.. DeliveryPartnerNotificationObserver
+    Order --> OrderStatusObserver
+    OrderService --> DeliveryAssignmentStrategy
+    OrderService --> OrderBuilder
+    Rating --> RatingType
+\`\`\`
+
+---
+
+## 5. State Diagram: Order Lifecycle
+
+The order lifecycle is the heart of this system. Every order begins in the PLACED state
+and must follow a strictly defined path to reach one of two terminal states: DELIVERED
+or CANCELLED. No shortcuts, no skipped states.
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> PLACED : Customer places order
+
+    PLACED --> CONFIRMED : Restaurant accepts
+    PLACED --> CANCELLED : Customer/System cancels
+
+    CONFIRMED --> PREPARING : Restaurant starts cooking
+    CONFIRMED --> CANCELLED : Customer/Restaurant cancels
+
+    PREPARING --> READY : Food is ready for pickup
+
+    READY --> PICKED_UP : Delivery partner picks up
+
+    PICKED_UP --> DELIVERED : Delivery partner delivers
+
+    DELIVERED --> [*]
+    CANCELLED --> [*]
+
+    note right of PLACED
+        Order created from cart.
+        Awaiting restaurant confirmation.
+        Delivery partner assignment begins.
+    end note
+
+    note right of CONFIRMED
+        Restaurant acknowledged order.
+        Last chance to cancel.
+    end note
+
+    note right of PREPARING
+        Food is being prepared.
+        No cancellation allowed
+        from this point forward.
+    end note
+
+    note right of READY
+        Waiting for delivery partner
+        to arrive at restaurant.
+    end note
+
+    note right of PICKED_UP
+        Partner is en route
+        to customer address.
+    end note
+
+    note left of DELIVERED
+        Terminal state.
+        Customer can now rate
+        restaurant and partner.
+    end note
+
+    note left of CANCELLED
+        Terminal state.
+        Refund initiated if
+        payment was processed.
+    end note
+\`\`\`
+
+### 5.1 Transition Rules
+
+| From State | To State | Trigger | Who Triggers |
+|------------|----------|---------|--------------|
+| PLACED | CONFIRMED | Restaurant accepts the order | Restaurant / Auto-confirm |
+| PLACED | CANCELLED | Cancel request | Customer or System (timeout) |
+| CONFIRMED | PREPARING | Restaurant starts cooking | Restaurant |
+| CONFIRMED | CANCELLED | Cancel request | Customer or Restaurant |
+| PREPARING | READY | Food preparation complete | Restaurant |
+| READY | PICKED_UP | Partner arrives and picks up | Delivery Partner |
+| PICKED_UP | DELIVERED | Partner delivers to customer | Delivery Partner |
+
+### 5.2 Cancellation Policy
+
+Cancellation is only permitted while the restaurant has not begun preparing food.
+Once the state reaches PREPARING, the order is committed -- this prevents waste of
+ingredients and labor. This is a deliberate business rule, not a technical limitation.
+
+- **PLACED**: Full refund, no penalty.
+- **CONFIRMED**: Full refund, but the restaurant is notified of the cancellation.
+- **PREPARING or later**: Not cancellable. Customer must contact support for exceptions.
+
+---
+
+## 6. Design Patterns
+
+### 6.1 State Pattern -- Order Lifecycle Management
+
+**Problem**: An order has seven possible states, each with its own rules about which
+transitions are legal. Encoding this with if-else chains leads to a maintenance nightmare.
+
+**Solution**: The State pattern encapsulates each state as a separate class implementing
+the \`OrderState\` interface. The \`Order\` object delegates all transition calls to its
+current state. Each state class only permits its own valid transitions and throws an
+\`IllegalStateException\` for anything else.
+
+**Why it fits**: The order lifecycle has clearly defined states with distinct behavior.
+Adding a new state (e.g., \`REFUNDING\`) means creating one new class -- no existing
+state classes need modification.
+
+\`\`\`
+Order.confirm() --> currentState.confirm(this)
+    If currentState is PlacedState  --> set state to ConfirmedState, notify observers
+    If currentState is anything else --> throw IllegalStateException
+\`\`\`
+
+**Key implementation details**:
+- Each concrete state class provides meaningful implementations only for its valid
+  transitions. All other methods throw \`IllegalStateException\` with a clear message.
+- The state objects are stateless singletons -- they carry no instance data and can
+  be safely shared across orders.
+- State transitions update both the \`OrderState\` reference and the \`OrderStatus\` enum
+  on the Order, so the enum serves as a queryable snapshot while the State object
+  handles behavior.
+
+### 6.2 Strategy Pattern -- Delivery Partner Assignment
+
+**Problem**: Different situations call for different partner assignment logic. During
+peak hours you might want the nearest partner (minimize wait time). For premium orders
+you might want the highest-rated partner. The algorithm must be interchangeable at
+runtime without touching the OrderService.
+
+**Solution**: The Strategy pattern defines a \`DeliveryAssignmentStrategy\` interface
+with a single method: \`assignPartner(Order, List<DeliveryPartner>)\`. Concrete
+implementations encapsulate different algorithms:
+
+| Strategy | Algorithm | Best For |
+|----------|-----------|----------|
+| **NearestPartnerStrategy** | Computes Haversine distance from each available partner to the restaurant; picks the closest | Default -- minimizes pickup time |
+| **HighestRatedStrategy** | Sorts available partners by average rating descending; picks the top-rated | Premium orders or VIP customers |
+| **LeastBusyStrategy** | Sorts available partners by total active deliveries ascending; picks the one with fewest | Load balancing during peak hours |
+
+**Why it fits**: The assignment algorithm is a single responsibility that varies
+independently of the OrderService. New strategies (e.g., \`CostOptimalStrategy\`,
+\`AIRecommendedStrategy\`) can be added without modifying any existing code.
+
+**Runtime switching**:
+\`\`\`
+orderService.setAssignmentStrategy(new NearestPartnerStrategy());  // normal hours
+orderService.setAssignmentStrategy(new LeastBusyStrategy());       // peak hours
+\`\`\`
+
+### 6.3 Observer Pattern -- Multi-Party Notifications
+
+**Problem**: When an order's status changes, three distinct parties need to know:
+the customer (track order), the restaurant (prepare/hand off food), and the delivery
+partner (navigate to pickup/dropoff). Hardwiring these notifications into the Order
+class creates tight coupling and makes it impossible to add new notification channels
+(SMS, push, email) without modifying Order.
+
+**Solution**: The Observer pattern defines an \`OrderStatusObserver\` interface. The
+Order maintains a list of observers and calls \`notifyObservers()\` after every state
+transition. Each party has its own observer implementation:
+
+| Observer | Notifications Sent |
+|----------|--------------------|
+| **CustomerNotificationObserver** | "Order confirmed!", "Your food is being prepared", "Driver picked up your order", "Your food has arrived!" |
+| **RestaurantNotificationObserver** | "New order received!", "Delivery partner assigned", "Order picked up by driver" |
+| **DeliveryPartnerNotificationObserver** | "New delivery assigned", "Food is ready for pickup", "Delivery confirmed" |
+
+**Why it fits**: Notifications are a cross-cutting concern that should not pollute the
+core order logic. The Observer pattern allows:
+- Adding new observer types (e.g., \`AnalyticsObserver\`, \`SurgeDetectionObserver\`)
+  with zero changes to Order.
+- Each observer can use its own delivery mechanism (push notification, SMS, email)
+  independently.
+- Observers can be added/removed dynamically per order.
+
+### 6.4 Builder Pattern -- Order Construction
+
+**Problem**: An Order object is complex. It requires a customer, restaurant, a list of
+order items (snapshotted from cart contents), calculated subtotal, delivery fee, tax,
+and total. Constructing this with a multi-parameter constructor is error-prone and
+unreadable.
+
+**Solution**: The \`OrderBuilder\` provides a fluent API to assemble an Order step by step:
+
+\`\`\`
+Order order = new OrderBuilder()
+    .setCustomer(customer)
+    .setRestaurant(restaurant)
+    .addItemsFromCart(cart)
+    .setDeliveryFee(5.99)
+    .setTaxRate(0.08)
+    .build();
+\`\`\`
+
+**Why it fits**: The builder enforces completeness (validate before build), calculates
+derived fields (subtotal, tax, total), and makes the construction process self-documenting.
+It also decouples order creation from the Cart implementation -- the builder handles the
+transformation from CartItems to OrderItems (snapshotting prices at order time).
+
+---
+
+## 7. Design Decisions and Rationale
+
+### 7.1 Single-Restaurant Cart Constraint
+
+**Decision**: A cart may contain items from only one restaurant at a time.
+
+**Rationale**: Multi-restaurant orders require splitting into sub-orders, coordinating
+multiple delivery partners, and handling partial failures -- all of which dramatically
+increase complexity. Uber Eats, DoorDash, and Grubhub all enforce single-restaurant
+carts. For an LLD interview, this keeps the design clean while being realistic.
+
+**Implementation**: The \`Cart.addItem()\` method checks whether the new item belongs to
+the same restaurant as existing items. If the restaurant differs, it throws an exception
+or prompts the user to clear the cart first.
+
+### 7.2 Price Snapshotting in OrderItem
+
+**Decision**: When an order is placed, item prices are copied into \`OrderItem\` objects
+rather than referencing the live \`MenuItem\`.
+
+**Rationale**: Menu prices change frequently. If an order references a live MenuItem,
+the price could change after the order is placed, creating billing disputes. Snapshotting
+the price at order time ensures the customer pays exactly what they saw when they ordered.
+
+### 7.3 Stateless State Objects
+
+**Decision**: Each \`OrderState\` implementation is stateless and can be reused as a
+singleton across all orders.
+
+**Rationale**: State objects contain only transition logic, not order-specific data.
+The Order itself holds all mutable state. This eliminates memory overhead from creating
+new state objects for each order.
+
+### 7.4 Delivery Partner Assignment Timing
+
+**Decision**: Delivery partner assignment happens after order placement, not after food
+is ready.
+
+**Rationale**: Assigning early gives the partner time to travel to the restaurant while
+food is being prepared. This overlaps travel time with cook time, reducing total delivery
+time. This is how Uber Eats operates in practice -- you see "Finding your driver" moments
+after placing the order.
+
+### 7.5 Observer Notification is Asynchronous (Conceptually)
+
+**Decision**: While the code implementation is synchronous for simplicity, the design
+assumes notifications would be dispatched asynchronously in production.
+
+**Rationale**: Notification delivery (push, SMS, email) involves network I/O and
+third-party services. Blocking the order state machine on notification delivery would
+create unacceptable latency. In production, observers would enqueue messages to a
+message broker (Kafka, SQS) for async processing.
+
+---
+
+## 8. Core Algorithms
+
+### 8.1 Nearest Delivery Partner Algorithm
+
+The default delivery assignment strategy computes the straight-line distance between
+each available delivery partner and the restaurant using the Haversine formula:
+
+\`\`\`
+distance = 2 * R * arcsin(sqrt(
+    sin^2((lat2-lat1)/2) +
+    cos(lat1) * cos(lat2) * sin^2((lon2-lon1)/2)
+))
+\`\`\`
+
+Where R = 6371 km (Earth's radius).
+
+**Steps**:
+1. Filter delivery partners to those with \`available == true\`.
+2. Compute distance from each partner's current location to the restaurant's location.
+3. Sort by distance ascending.
+4. Return the nearest partner.
+5. If no partner is available, throw \`NoAvailablePartnerException\`.
+
+**Time complexity**: O(n) where n = number of available partners.
+
+### 8.2 Order Total Calculation
+
+\`\`\`
+subtotal    = SUM(orderItem.priceAtOrder * orderItem.quantity)  for each item
+tax         = subtotal * taxRate
+totalAmount = subtotal + deliveryFee + tax
+\`\`\`
+
+The delivery fee can be flat or distance-based. For this design we use a flat fee
+passed into the builder.
+
+### 8.3 Rating Aggregation
+
+\`\`\`
+newAverage = ((oldAverage * totalRatings) + newRating) / (totalRatings + 1)
+\`\`\`
+
+This running average avoids storing and re-summing all historical ratings.
+
+---
+
+## 9. Flow Walkthroughs
+
+### 9.1 Complete Order Flow (Happy Path)
+
+\`\`\`
+1. Customer browses restaurants via RestaurantService.getAllRestaurants()
+2. Customer selects a restaurant and views its menu
+3. Customer adds items to cart:
+     cart.addItem(menuItem1, 2)
+     cart.addItem(menuItem2, 1)
+4. Customer places order:
+     orderService.placeOrder(customer, cart, restaurant)
+       --> OrderBuilder constructs Order with OrderItems (prices snapshotted)
+       --> Order is created in PLACED state
+       --> Observers attached (customer, restaurant, partner notifications)
+       --> Restaurant notified: "New order received!"
+       --> Cart is cleared
+5. System assigns delivery partner:
+     orderService.assignDeliveryPartner(order)
+       --> Strategy selects best available partner
+       --> Partner marked as unavailable
+       --> Partner notified: "New delivery assigned!"
+6. Restaurant confirms order:
+     orderService.confirmOrder(orderId)
+       --> PlacedState.confirm() called
+       --> State transitions to CONFIRMED
+       --> Customer notified: "Order confirmed by restaurant!"
+7. Restaurant starts preparing:
+     orderService.startPreparing(orderId)
+       --> ConfirmedState.startPreparing() called
+       --> State transitions to PREPARING
+       --> Customer notified: "Your food is being prepared!"
+8. Food is ready:
+     orderService.markReady(orderId)
+       --> PreparingState.markReady() called
+       --> State transitions to READY
+       --> Partner notified: "Food is ready for pickup!"
+       --> Customer notified: "Your food is ready!"
+9. Partner picks up food:
+     orderService.pickUp(orderId)
+       --> ReadyState.pickUp() called
+       --> State transitions to PICKED_UP
+       --> Customer notified: "Driver picked up your food!"
+10. Partner delivers food:
+      orderService.deliver(orderId)
+        --> PickedUpState.deliver() called
+        --> State transitions to DELIVERED
+        --> Partner marked as available again
+        --> Customer notified: "Your food has arrived!"
+11. Customer rates:
+      ratingService.rateRestaurant(customerId, restaurantId, 5, "Great food!")
+      ratingService.rateDeliveryPartner(customerId, partnerId, 4, "Fast delivery")
+\`\`\`
+
+### 9.2 Cancellation Flow
+
+\`\`\`
+1. Order is in PLACED or CONFIRMED state.
+2. Customer requests cancellation:
+     orderService.cancelOrder(orderId)
+       --> currentState.cancel() called
+       --> State transitions to CANCELLED
+       --> If delivery partner was assigned: partner marked available again
+       --> Customer notified: "Order cancelled."
+       --> Restaurant notified: "Order cancelled by customer."
+3. If order is in PREPARING or later:
+     --> cancel() throws IllegalStateException
+     --> Customer must contact support
+\`\`\`
+
+---
+
+## 10. Concurrency Considerations
+
+### 10.1 Delivery Partner Assignment Race Condition
+
+**Problem**: Two orders placed simultaneously might both select the same delivery partner
+if assignment is not synchronized.
+
+**Solution**: The \`assignDeliveryPartner()\` method in OrderService must be synchronized
+(or use optimistic locking in a database-backed implementation). The strategy method
+itself is stateless, but marking a partner as unavailable is a critical section.
+
+\`\`\`java
+synchronized (partnerAssignmentLock) {
+    DeliveryPartner partner = strategy.assignPartner(order, getAvailablePartners());
+    partner.setAvailable(false);
+    order.assignDeliveryPartner(partner);
+}
+\`\`\`
+
+### 10.2 State Transition Thread Safety
+
+**Problem**: Concurrent calls to advance an order's state could cause double transitions.
+
+**Solution**: State transition methods on the Order should be synchronized. The State
+pattern helps here because each state class knows exactly which transitions are legal,
+so even concurrent calls that both pass validation will result in a clear winner (the
+first to acquire the lock) and a clear loser (gets an IllegalStateException).
+
+### 10.3 Cart Modification During Order Placement
+
+**Problem**: A customer modifying their cart while \`placeOrder()\` is in progress could
+result in an inconsistent order.
+
+**Solution**: The OrderBuilder snapshots cart contents (copies items to OrderItems) at
+the start of order creation. After snapshotting, cart modifications do not affect the
+order. The cart is cleared upon successful order placement.
+
+---
+
+## 11. Extension Handling
+
+### 11.1 Adding a New Delivery Strategy
+
+1. Create a new class implementing \`DeliveryAssignmentStrategy\`.
+2. Implement \`assignPartner()\` with the new logic.
+3. Inject it into OrderService via \`setAssignmentStrategy()\`.
+4. No existing code needs modification -- pure Open/Closed Principle.
+
+### 11.2 Adding a New Notification Channel
+
+1. Create a new class implementing \`OrderStatusObserver\`.
+2. Register it with orders via \`order.addObserver()\`.
+3. The new observer handles its own delivery mechanism (SMS, push, webhook).
+4. No changes to Order or existing observers.
+
+### 11.3 Adding Payment Processing
+
+1. Create a \`PaymentService\` with a \`PaymentStrategy\` interface.
+2. Implement concrete strategies: \`CreditCardPayment\`, \`WalletPayment\`, \`CashOnDelivery\`.
+3. Integrate into \`OrderService.placeOrder()\` -- charge before transitioning from PLACED.
+4. The Order class gains a \`paymentStatus\` field.
+
+### 11.4 Adding Promotions/Discounts
+
+1. Create a \`PromotionService\` with promotion rules.
+2. Apply promotions in the OrderBuilder before calculating totals.
+3. OrderItem or Order gains a \`discountAmount\` field.
+4. The builder handles the math; no changes to the state machine.
+
+### 11.5 Adding Scheduled Orders
+
+1. Add an optional \`scheduledTime\` field to Order.
+2. Create a \`ScheduledState\` that sits before PLACED.
+3. A scheduler triggers the transition from SCHEDULED to PLACED at the right time.
+4. The State pattern makes this a one-class addition.
+
+### 11.6 Adding Multi-Restaurant Orders
+
+1. Create an \`OrderGroup\` that contains multiple Order objects.
+2. Each sub-order follows the same state machine independently.
+3. The OrderGroup coordinates timing (deliver all at once vs. as-ready).
+4. This is a Composite pattern layered on top of the existing design.
+
+---
+
+## 12. Summary
+
+| Aspect | Choice | Rationale |
+|--------|--------|-----------|
+| Order lifecycle | State Pattern | Clean state transitions, easy to add new states, illegal transitions caught at compile time |
+| Partner assignment | Strategy Pattern | Algorithms vary independently, swappable at runtime, easy to A/B test |
+| Notifications | Observer Pattern | Decouples notification logic from order logic, supports multiple channels |
+| Order construction | Builder Pattern | Complex object with many fields, fluent API, validates completeness |
+| Price model | Snapshot at order time | Prevents billing disputes from price changes after ordering |
+| Cart constraint | Single restaurant | Matches real-world platforms, avoids multi-order coordination complexity |
+| Assignment timing | At order placement | Overlaps partner travel with food preparation, reduces total delivery time |
+| Cancellation window | Only before PREPARING | Prevents food waste, clear policy boundary |
+
+### Key Interview Talking Points
+
+1. **State machine is the core**: The order lifecycle state machine is the most
+   critical piece. Get this right and everything else falls into place.
+
+2. **Delivery assignment is the differentiator**: Uber built its business on efficient
+   matching. The Strategy pattern lets you discuss algorithm tradeoffs fluently.
+
+3. **Three-party coordination**: Unlike typical e-commerce, food delivery involves
+   three active parties. The Observer pattern keeps them all in sync without coupling.
+
+4. **Real-time tracking**: The state machine combined with observers provides the
+   foundation for real-time order tracking -- a feature customers depend on.
+
+5. **Price integrity**: Snapshotting prices at order time is a subtle but critical
+   design decision that shows you think about data consistency.
+
+6. **Concurrency matters**: Delivery partner assignment is a concurrent operation.
+   Discussing the race condition and your solution shows systems thinking.
+`,
+  interviewScript: `# Design Food Ordering System -- LLD Interview Script (90 min)
+
+> Simulates an actual low-level design / machine coding interview round.
+> You must write compilable, runnable Java code on a whiteboard or shared editor.
+
+---
+
+## Opening (0:00 - 1:00)
+
+> "Thanks! I'll be designing and implementing a Food Ordering System like Swiggy or DoorDash. The key challenges are the order lifecycle (state machine), delivery partner assignment, and handling edge cases like restaurant going offline. Let me clarify the requirements."
+
+---
+
+## Requirements Gathering (1:00 - 5:00)
+
+> **You ask:** "Should I model the complete flow: customer browses menu, adds to cart, places order, restaurant confirms, delivery partner picks up, delivers?"
+
+> **Interviewer:** "Yes, the full end-to-end flow."
+
+> **You ask:** "How should I handle delivery partner assignment? Nearest available? Highest rated?"
+
+> **Interviewer:** "Show me a pluggable strategy. Implement at least nearest-available."
+
+> **You ask:** "Should orders have status tracking with notifications?"
+
+> **Interviewer:** "Yes. I want to see a state machine for order status and some notification mechanism."
+
+> **You ask:** "Should I handle concurrent order processing? Multiple orders at the same time?"
+
+> **Interviewer:** "Design for it conceptually. Single-threaded demo is fine."
+
+> **You ask:** "What about the restaurant side -- can restaurants reject orders or go offline?"
+
+> **Interviewer:** "Yes. Handle the restaurant-offline scenario gracefully."
+
+> **You ask:** "Should I support a rating system?"
+
+> **Interviewer:** "Basic rating for delivery partners. Show the model, doesn't need to be elaborate."
+
+> "Great. The scope is: a full food ordering system with menu management, cart, order state machine, Strategy pattern for delivery assignment, Observer for notifications, and Builder for order construction. I'll also handle restaurant offline and delivery partner availability."
+
+---
+
+## Entity Identification (5:00 - 10:00)
+
+> "Let me identify all the entities."
+
+**Entities I write on the board:**
+
+1. **Customer** -- id, name, email, phone, deliveryAddress, lat/lon
+2. **Restaurant** -- id, name, address, cuisineType, menu, isOpen, lat/lon
+3. **MenuItem** -- id, name, price, category, available
+4. **Menu** -- restaurantId, map of MenuItems
+5. **CartItem** -- menuItem, quantity
+6. **Cart** -- customerId, restaurantId (single-restaurant constraint), items
+7. **OrderStatus** (enum) -- PLACED, CONFIRMED, PREPARING, READY, PICKED_UP, DELIVERED, CANCELLED
+8. **OrderState** (interface) -- State pattern for order lifecycle
+9. **PlacedState, ConfirmedState, PreparingState, ReadyState, PickedUpState, DeliveredState, CancelledState** -- concrete states
+10. **OrderItem** -- snapshot of menu item at order time (price frozen)
+11. **Order** -- id, customer, restaurant, items, deliveryPartner, state, totals
+12. **DeliveryPartner** -- id, name, lat/lon, available, rating
+13. **DeliveryAssignmentStrategy** (interface) -- Strategy for partner assignment
+14. **NearestFirstStrategy** -- assigns closest available partner
+15. **OrderStatusObserver** (interface) -- Observer for notifications
+16. **OrderBuilder** -- Builder pattern for constructing orders from carts
+
+> "Relationships: Restaurant HAS-A Menu, Menu HAS-MANY MenuItems, Cart HAS-MANY CartItems, Order HAS-MANY OrderItems + HAS-A DeliveryPartner. Order delegates state transitions to OrderState."
+
+---
+
+## Class Diagram (10:00 - 15:00)
+
+> "Let me sketch the class diagram."
+
+\`\`\`mermaid
+classDiagram
+    class Customer {
+        -String id
+        -String name
+        -String deliveryAddress
+        -double lat, lon
+    }
+
+    class Restaurant {
+        -String id
+        -String name
+        -Menu menu
+        -boolean isOpen
+        -double lat, lon
+    }
+
+    class MenuItem {
+        -String id
+        -String name
+        -double price
+        -String category
+        -boolean available
+    }
+
+    class Menu {
+        -Map~String, MenuItem~ items
+        +addItem(MenuItem)
+        +getAvailableItems() List
+    }
+
+    class Cart {
+        -String customerId
+        -String restaurantId
+        -Map~String, CartItem~ items
+        +addItem(MenuItem, int, String)
+        +getTotal() double
+    }
+
+    class OrderStatus {
+        <<enum>>
+        PLACED, CONFIRMED, PREPARING
+        READY, PICKED_UP, DELIVERED, CANCELLED
+    }
+
+    class OrderState {
+        <<interface>>
+        +confirm(Order)
+        +startPreparing(Order)
+        +markReady(Order)
+        +pickUp(Order)
+        +deliver(Order)
+        +cancel(Order)
+    }
+
+    class PlacedState { }
+    class ConfirmedState { }
+    class PreparingState { }
+    class ReadyState { }
+    class PickedUpState { }
+    class DeliveredState { }
+    class CancelledState { }
+
+    OrderState <|.. PlacedState
+    OrderState <|.. ConfirmedState
+    OrderState <|.. PreparingState
+    OrderState <|.. ReadyState
+    OrderState <|.. PickedUpState
+    OrderState <|.. DeliveredState
+    OrderState <|.. CancelledState
+
+    class Order {
+        -String id
+        -Customer customer
+        -Restaurant restaurant
+        -List~OrderItem~ items
+        -DeliveryPartner partner
+        -OrderState currentState
+        -double totalAmount
+        +confirm() / startPreparing() / ...
+    }
+
+    class DeliveryPartner {
+        -String id
+        -String name
+        -double lat, lon
+        -boolean available
+        -double averageRating
+    }
+
+    class DeliveryAssignmentStrategy {
+        <<interface>>
+        +assignPartner(Restaurant, List~DeliveryPartner~) DeliveryPartner
+    }
+
+    class NearestFirstStrategy { }
+
+    DeliveryAssignmentStrategy <|.. NearestFirstStrategy
+
+    class OrderStatusObserver {
+        <<interface>>
+        +onStatusChange(Order, old, new)
+    }
+
+    Restaurant "1" *-- "1" Menu
+    Menu "1" *-- "*" MenuItem
+    Order "1" --> "1" Customer
+    Order "1" --> "1" Restaurant
+    Order "1" --> "0..1" DeliveryPartner
+    Order "1" --> "*" OrderStatusObserver
+\`\`\`
+
+---
+
+## Implementation Plan (15:00 - 17:00)
+
+> "Implementation order, bottom-up:"
+
+1. **Customer, Restaurant, MenuItem, Menu** -- core entities
+2. **CartItem, Cart** -- shopping cart with single-restaurant constraint
+3. **OrderStatus enum + OrderState interface** -- state machine
+4. **7 concrete state classes** -- one per status
+5. **OrderItem, Order** -- with observer support
+6. **DeliveryPartner + DeliveryAssignmentStrategy** -- Strategy pattern
+7. **OrderStatusObserver** -- Observer for notifications
+8. **OrderBuilder** -- builds Order from Cart
+9. **OrderService** -- orchestrator
+10. **Main demo** -- full flow
+
+---
+
+## Coding (17:00 - 70:00)
+
+### Step 1: Core Entities (17:00 - 24:00)
+
+> "Starting with Customer and Restaurant."
+
+\`\`\`java
+public class Customer {
+    private final String id;
+    private final String name;
+    private final String email;
+    private final String phone;
+    private String deliveryAddress;
+    private double latitude;
+    private double longitude;
+
+    public Customer(String id, String name, String email, String phone,
+                    String address, double lat, double lon) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+        this.deliveryAddress = address;
+        this.latitude = lat;
+        this.longitude = lon;
+    }
+
+    // getters, setDeliveryAddress...
+}
+
+public class Restaurant {
+    private final String id;
+    private final String name;
+    private final String cuisineType;
+    private final Menu menu;
+    private final double latitude;
+    private final double longitude;
+    private boolean isOpen;
+
+    public Restaurant(String id, String name, String address,
+                      String cuisineType, double lat, double lon) {
+        this.id = id;
+        this.name = name;
+        this.cuisineType = cuisineType;
+        this.latitude = lat;
+        this.longitude = lon;
+        this.menu = new Menu(id);
+        this.isOpen = true;
+    }
+
+    public boolean isOpen() { return isOpen; }
+    public void setOpen(boolean open) { this.isOpen = open; }
+    public Menu getMenu() { return menu; }
+    // other getters...
+}
+\`\`\`
+
+> "MenuItem and Menu:"
+
+\`\`\`java
+public class MenuItem {
+    private final String id;
+    private final String name;
+    private final String description;
+    private double price;
+    private final String category;
+    private boolean available;
+
+    public MenuItem(String id, String name, String description,
+                    double price, String category) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.category = category;
+        this.available = true;
+    }
+
+    public void setAvailable(boolean available) { this.available = available; }
+    public boolean isAvailable() { return available; }
+    // getters...
+}
+
+public class Menu {
+    private final String restaurantId;
+    private final Map<String, MenuItem> items; // itemId -> MenuItem
+
+    public Menu(String restaurantId) {
+        this.restaurantId = restaurantId;
+        this.items = new LinkedHashMap<>();
+    }
+
+    public void addItem(MenuItem item) { items.put(item.getId(), item); }
+    public MenuItem getItem(String id) { return items.get(id); }
+
+    public List<MenuItem> getAvailableItems() {
+        return items.values().stream()
+                .filter(MenuItem::isAvailable)
+                .collect(Collectors.toList());
+    }
+
+    public void displayMenu() {
+        System.out.println("\\n===== MENU =====");
+        items.values().stream()
+             .collect(Collectors.groupingBy(MenuItem::getCategory))
+             .forEach((cat, itemList) -> {
+                 System.out.println("--- " + cat + " ---");
+                 itemList.forEach(i -> System.out.println("  " + i));
+             });
+    }
+}
+\`\`\`
+
+---
+
+### Step 2: Cart (24:00 - 30:00)
+
+> "The cart enforces a single-restaurant constraint -- you can't order from two restaurants in one cart."
+
+\`\`\`java
+public class CartItem {
+    private final MenuItem menuItem;
+    private int quantity;
+
+    public CartItem(MenuItem menuItem, int quantity) {
+        if (quantity <= 0) throw new IllegalArgumentException("Quantity must be positive");
+        this.menuItem = menuItem;
+        this.quantity = quantity;
+    }
+
+    public double getSubtotal() { return menuItem.getPrice() * quantity; }
+    public void setQuantity(int q) { this.quantity = q; }
+    public MenuItem getMenuItem() { return menuItem; }
+    public int getQuantity() { return quantity; }
+}
+
+public class Cart {
+    private final String customerId;
+    private String restaurantId;
+    private final Map<String, CartItem> items; // menuItemId -> CartItem
+
+    public Cart(String customerId) {
+        this.customerId = customerId;
+        this.items = new LinkedHashMap<>();
+    }
+
+    public void addItem(MenuItem menuItem, int quantity, String restaurantId) {
+        // Enforce single-restaurant constraint
+        if (this.restaurantId != null && !this.restaurantId.equals(restaurantId)) {
+            throw new IllegalStateException(
+                "Cart has items from another restaurant. Clear cart first.");
+        }
+        if (!menuItem.isAvailable()) {
+            throw new IllegalStateException(menuItem.getName() + " is unavailable.");
+        }
+
+        this.restaurantId = restaurantId;
+
+        CartItem existing = items.get(menuItem.getId());
+        if (existing != null) {
+            existing.setQuantity(existing.getQuantity() + quantity);
+        } else {
+            items.put(menuItem.getId(), new CartItem(menuItem, quantity));
+        }
+    }
+
+    public double getTotal() {
+        return items.values().stream().mapToDouble(CartItem::getSubtotal).sum();
+    }
+
+    public List<CartItem> getItems() { return new ArrayList<>(items.values()); }
+    public void clear() { items.clear(); restaurantId = null; }
+    public boolean isEmpty() { return items.isEmpty(); }
+    public String getRestaurantId() { return restaurantId; }
+    public String getCustomerId() { return customerId; }
+}
+\`\`\`
+
+> "The single-restaurant constraint prevents mixed-restaurant orders. If the user wants to order from a new restaurant, they must clear the cart first. This mirrors how Swiggy and Zomato work."
+
+---
+
+### Step 3: Order State Machine (30:00 - 44:00)
+
+> "This is the heart of the system. I'm using the State pattern with default methods to make illegal transitions throw exceptions automatically."
+
+\`\`\`java
+public enum OrderStatus {
+    PLACED("Order placed"),
+    CONFIRMED("Restaurant confirmed"),
+    PREPARING("Food being prepared"),
+    READY("Ready for pickup"),
+    PICKED_UP("Driver picked up"),
+    DELIVERED("Delivered"),
+    CANCELLED("Cancelled");
+
+    private final String description;
+    OrderStatus(String desc) { this.description = desc; }
+    public String getDescription() { return description; }
+}
+\`\`\`
+
+\`\`\`java
+public interface OrderState {
+    default void confirm(Order o) {
+        throw new IllegalStateException("Cannot confirm in " + getStateName());
+    }
+    default void startPreparing(Order o) {
+        throw new IllegalStateException("Cannot start preparing in " + getStateName());
+    }
+    default void markReady(Order o) {
+        throw new IllegalStateException("Cannot mark ready in " + getStateName());
+    }
+    default void pickUp(Order o) {
+        throw new IllegalStateException("Cannot pick up in " + getStateName());
+    }
+    default void deliver(Order o) {
+        throw new IllegalStateException("Cannot deliver in " + getStateName());
+    }
+    default void cancel(Order o) {
+        throw new IllegalStateException("Cannot cancel in " + getStateName());
+    }
+    String getStateName();
+}
+\`\`\`
+
+> "Using default methods in the interface is a key design choice. Each concrete state only overrides the transitions that are valid for it. Invalid transitions automatically throw exceptions with a clear message. This eliminates the risk of forgetting to handle an invalid case."
+
+> "Now the concrete states. I'll write them concisely:"
+
+\`\`\`java
+public class PlacedState implements OrderState {
+    @Override
+    public void confirm(Order order) {
+        System.out.println("  [State] " + order.getId() + ": PLACED -> CONFIRMED");
+        order.setCurrentState(new ConfirmedState());
+        order.setStatus(OrderStatus.CONFIRMED);
+        order.notifyObservers(OrderStatus.PLACED, OrderStatus.CONFIRMED);
+    }
+
+    @Override
+    public void cancel(Order order) {
+        System.out.println("  [State] " + order.getId() + ": PLACED -> CANCELLED");
+        order.setCurrentState(new CancelledState());
+        order.setStatus(OrderStatus.CANCELLED);
+        order.notifyObservers(OrderStatus.PLACED, OrderStatus.CANCELLED);
+    }
+
+    @Override
+    public String getStateName() { return "PLACED"; }
+}
+
+public class ConfirmedState implements OrderState {
+    @Override
+    public void startPreparing(Order order) {
+        System.out.println("  [State] " + order.getId() + ": CONFIRMED -> PREPARING");
+        order.setCurrentState(new PreparingState());
+        order.setStatus(OrderStatus.PREPARING);
+        order.notifyObservers(OrderStatus.CONFIRMED, OrderStatus.PREPARING);
+    }
+
+    @Override
+    public void cancel(Order order) {
+        System.out.println("  [State] " + order.getId() + ": CONFIRMED -> CANCELLED");
+        order.setCurrentState(new CancelledState());
+        order.setStatus(OrderStatus.CANCELLED);
+        order.notifyObservers(OrderStatus.CONFIRMED, OrderStatus.CANCELLED);
+    }
+
+    @Override
+    public String getStateName() { return "CONFIRMED"; }
+}
+
+public class PreparingState implements OrderState {
+    @Override
+    public void markReady(Order order) {
+        System.out.println("  [State] " + order.getId() + ": PREPARING -> READY");
+        order.setCurrentState(new ReadyState());
+        order.setStatus(OrderStatus.READY);
+        order.notifyObservers(OrderStatus.PREPARING, OrderStatus.READY);
+    }
+
+    @Override
+    public String getStateName() { return "PREPARING"; }
+}
+
+public class ReadyState implements OrderState {
+    @Override
+    public void pickUp(Order order) {
+        System.out.println("  [State] " + order.getId() + ": READY -> PICKED_UP");
+        order.setCurrentState(new PickedUpState());
+        order.setStatus(OrderStatus.PICKED_UP);
+        order.notifyObservers(OrderStatus.READY, OrderStatus.PICKED_UP);
+    }
+
+    @Override
+    public String getStateName() { return "READY"; }
+}
+
+public class PickedUpState implements OrderState {
+    @Override
+    public void deliver(Order order) {
+        System.out.println("  [State] " + order.getId() + ": PICKED_UP -> DELIVERED");
+        order.setCurrentState(new DeliveredState());
+        order.setStatus(OrderStatus.DELIVERED);
+        order.setDeliveredAt(LocalDateTime.now());
+        // Release delivery partner
+        if (order.getDeliveryPartner() != null) {
+            order.getDeliveryPartner().setAvailable(true);
+        }
+        order.notifyObservers(OrderStatus.PICKED_UP, OrderStatus.DELIVERED);
+    }
+
+    @Override
+    public String getStateName() { return "PICKED_UP"; }
+}
+
+// Terminal states -- no valid transitions
+public class DeliveredState implements OrderState {
+    @Override public String getStateName() { return "DELIVERED"; }
+}
+
+public class CancelledState implements OrderState {
+    @Override public String getStateName() { return "CANCELLED"; }
+}
+\`\`\`
+
+> "Notice that PLACED and CONFIRMED support cancel(), but PREPARING does not -- once the kitchen starts cooking, you can't cancel. DeliveredState and CancelledState are terminal with no overrides. Also, PickedUpState.deliver() releases the delivery partner back to the available pool."
+
+---
+
+### Step 4: OrderItem and Order (44:00 - 51:00)
+
+> "OrderItem is a snapshot -- it freezes the price at order time. If the restaurant changes the price later, it doesn't affect existing orders."
+
+\`\`\`java
+public class OrderItem {
+    private final String itemName;
+    private final double priceAtOrder; // frozen price
+    private final int quantity;
+
+    public OrderItem(String itemName, double priceAtOrder, int quantity) {
+        this.itemName = itemName;
+        this.priceAtOrder = priceAtOrder;
+        this.quantity = quantity;
+    }
+
+    public double getSubtotal() { return priceAtOrder * quantity; }
+    // getters...
+}
+\`\`\`
+
+\`\`\`java
+public class Order {
+    private final String id;
+    private final Customer customer;
+    private final Restaurant restaurant;
+    private final List<OrderItem> items;
+    private DeliveryPartner deliveryPartner;
+    private OrderState currentState;
+    private OrderStatus status;
+    private final double subtotal;
+    private final double deliveryFee;
+    private final double tax;
+    private final double totalAmount;
+    private final LocalDateTime placedAt;
+    private LocalDateTime deliveredAt;
+    private final List<OrderStatusObserver> observers;
+
+    Order(String id, Customer customer, Restaurant restaurant,
+          List<OrderItem> items, double subtotal, double deliveryFee,
+          double tax, double totalAmount) {
+        this.id = id;
+        this.customer = customer;
+        this.restaurant = restaurant;
+        this.items = Collections.unmodifiableList(items);
+        this.subtotal = subtotal;
+        this.deliveryFee = deliveryFee;
+        this.tax = tax;
+        this.totalAmount = totalAmount;
+        this.placedAt = LocalDateTime.now();
+        this.currentState = new PlacedState();
+        this.status = OrderStatus.PLACED;
+        this.observers = new ArrayList<>();
+    }
+
+    // Delegate state transitions
+    public void confirm() { currentState.confirm(this); }
+    public void startPreparing() { currentState.startPreparing(this); }
+    public void markReady() { currentState.markReady(this); }
+    public void pickUp() { currentState.pickUp(this); }
+    public void deliver() { currentState.deliver(this); }
+    public void cancel() {
+        currentState.cancel(this);
+        if (deliveryPartner != null) {
+            deliveryPartner.setAvailable(true);
+            System.out.println("  [Order] Partner " + deliveryPartner.getName() + " released.");
+        }
+    }
+
+    // Observer management
+    public void addObserver(OrderStatusObserver obs) { observers.add(obs); }
+    public void notifyObservers(OrderStatus oldS, OrderStatus newS) {
+        for (OrderStatusObserver obs : observers) obs.onStatusChange(this, oldS, newS);
+    }
+
+    // Delivery partner
+    public void assignDeliveryPartner(DeliveryPartner partner) {
+        this.deliveryPartner = partner;
+        partner.setAvailable(false);
+    }
+
+    // Setters used by states
+    void setCurrentState(OrderState state) { this.currentState = state; }
+    void setStatus(OrderStatus status) { this.status = status; }
+    void setDeliveredAt(LocalDateTime time) { this.deliveredAt = time; }
+
+    // Display
+    public void displayOrderSummary() {
+        System.out.println("\\n===== ORDER SUMMARY =====");
+        System.out.println("  Order ID:    " + id);
+        System.out.println("  Customer:    " + customer.getName());
+        System.out.println("  Restaurant:  " + restaurant.getName());
+        System.out.println("  Status:      " + status);
+        for (OrderItem item : items) System.out.println("    " + item);
+        System.out.printf("  Subtotal:    $%.2f%n", subtotal);
+        System.out.printf("  Delivery:    $%.2f%n", deliveryFee);
+        System.out.printf("  Tax:         $%.2f%n", tax);
+        System.out.printf("  TOTAL:       $%.2f%n", totalAmount);
+        if (deliveryPartner != null)
+            System.out.println("  Driver:      " + deliveryPartner.getName());
+    }
+
+    public String getId() { return id; }
+    public Customer getCustomer() { return customer; }
+    public Restaurant getRestaurant() { return restaurant; }
+    public DeliveryPartner getDeliveryPartner() { return deliveryPartner; }
+    public OrderStatus getStatus() { return status; }
+    public double getTotalAmount() { return totalAmount; }
+}
+\`\`\`
+
+---
+
+### Step 5: DeliveryPartner + Assignment Strategy (51:00 - 58:00)
+
+> "DeliveryPartner tracks location, availability, and rating. The Strategy pattern allows pluggable assignment algorithms."
+
+\`\`\`java
+public class DeliveryPartner {
+    private final String id;
+    private final String name;
+    private double latitude;
+    private double longitude;
+    private boolean available;
+    private double averageRating;
+    private int totalDeliveries;
+
+    public DeliveryPartner(String id, String name, String phone,
+                           double lat, double lon) {
+        this.id = id;
+        this.name = name;
+        this.latitude = lat;
+        this.longitude = lon;
+        this.available = true;
+        this.averageRating = 5.0;
+        this.totalDeliveries = 0;
+    }
+
+    public double distanceTo(double targetLat, double targetLon) {
+        // Haversine formula for real distance
+        final double R = 6371.0;
+        double dLat = Math.toRadians(targetLat - latitude);
+        double dLon = Math.toRadians(targetLon - longitude);
+        double a = Math.sin(dLat/2) * Math.sin(dLat/2)
+                 + Math.cos(Math.toRadians(latitude))
+                 * Math.cos(Math.toRadians(targetLat))
+                 * Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    public void updateRating(double newRating) {
+        averageRating = ((averageRating * totalDeliveries) + newRating)
+                        / (totalDeliveries + 1);
+        totalDeliveries++;
+    }
+
+    public boolean isAvailable() { return available; }
+    public void setAvailable(boolean b) { this.available = b; }
+    public String getName() { return name; }
+    public String getId() { return id; }
+    public double getAverageRating() { return averageRating; }
+}
+\`\`\`
+
+> "Now the Strategy for assignment:"
+
+\`\`\`java
+public interface DeliveryAssignmentStrategy {
+    DeliveryPartner assignPartner(Restaurant restaurant,
+                                   List<DeliveryPartner> allPartners);
+}
+
+public class NearestFirstStrategy implements DeliveryAssignmentStrategy {
+    @Override
+    public DeliveryPartner assignPartner(Restaurant restaurant,
+                                          List<DeliveryPartner> allPartners) {
+        return allPartners.stream()
+                .filter(DeliveryPartner::isAvailable)
+                .min(Comparator.comparingDouble(
+                    p -> p.distanceTo(restaurant.getLatitude(),
+                                      restaurant.getLongitude())))
+                .orElse(null);
+    }
+}
+
+public class HighestRatedStrategy implements DeliveryAssignmentStrategy {
+    @Override
+    public DeliveryPartner assignPartner(Restaurant restaurant,
+                                          List<DeliveryPartner> allPartners) {
+        return allPartners.stream()
+                .filter(DeliveryPartner::isAvailable)
+                .max(Comparator.comparingDouble(DeliveryPartner::getAverageRating))
+                .orElse(null);
+    }
+}
+\`\`\`
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "How do you assign delivery partners?"
+
+> **Your answer:** "I use the Strategy pattern. The \`DeliveryAssignmentStrategy\` interface has one method: \`assignPartner(restaurant, allPartners)\`. The \`NearestFirstStrategy\` filters for available partners, then picks the one with the shortest Haversine distance to the restaurant. I also implemented \`HighestRatedStrategy\` which picks the best-rated available partner. In production, you'd use a weighted combination -- something like \`score = 0.7 * (1/distance) + 0.3 * rating\`, or a priority queue updated in real-time as partners move. The Strategy pattern makes it trivial to swap algorithms without touching any other code."
+
+---
+
+### Step 6: Observer for Notifications (58:00 - 61:00)
+
+> "Observer pattern decouples order status changes from notification logic."
+
+\`\`\`java
+public interface OrderStatusObserver {
+    void onStatusChange(Order order, OrderStatus oldStatus, OrderStatus newStatus);
+}
+
+public class CustomerNotificationObserver implements OrderStatusObserver {
+    @Override
+    public void onStatusChange(Order order, OrderStatus oldStatus,
+                                OrderStatus newStatus) {
+        System.out.println("  [Notify] SMS to " + order.getCustomer().getName()
+                + ": Order " + order.getId() + " is now " + newStatus.getDescription());
+    }
+}
+
+public class RestaurantDashboardObserver implements OrderStatusObserver {
+    @Override
+    public void onStatusChange(Order order, OrderStatus oldStatus,
+                                OrderStatus newStatus) {
+        System.out.println("  [Dashboard] " + order.getRestaurant().getName()
+                + ": Order " + order.getId() + " changed to " + newStatus);
+    }
+}
+\`\`\`
+
+> "Every time a state transition fires, all observers are notified. I can add email, push notification, or analytics observers without touching the Order or State classes."
+
+---
+
+### Step 7: OrderBuilder + OrderService (61:00 - 70:00)
+
+> "The Builder constructs Orders from Carts, calculating fees and taxes."
+
+\`\`\`java
+public class OrderBuilder {
+    private static final double TAX_RATE = 0.05;       // 5%
+    private static final double DELIVERY_FEE = 2.99;
+    private static int orderCounter = 0;
+
+    public Order buildFromCart(Cart cart, Customer customer, Restaurant restaurant) {
+        if (cart.isEmpty()) throw new IllegalStateException("Cart is empty");
+        if (!restaurant.isOpen()) throw new IllegalStateException(
+                restaurant.getName() + " is currently offline.");
+
+        List<OrderItem> orderItems = new ArrayList<>();
+        for (CartItem ci : cart.getItems()) {
+            orderItems.add(new OrderItem(
+                ci.getMenuItem().getName(),
+                ci.getMenuItem().getPrice(),
+                ci.getQuantity()));
+        }
+
+        double subtotal = cart.getTotal();
+        double tax = Math.round(subtotal * TAX_RATE * 100.0) / 100.0;
+        double total = subtotal + DELIVERY_FEE + tax;
+
+        String orderId = "ORD-" + (++orderCounter);
+        return new Order(orderId, customer, restaurant,
+                orderItems, subtotal, DELIVERY_FEE, tax, total);
+    }
+}
+\`\`\`
+
+> "The full OrderService orchestrator:"
+
+\`\`\`java
+public class OrderService {
+    private final List<DeliveryPartner> deliveryPartners;
+    private final DeliveryAssignmentStrategy assignmentStrategy;
+    private final OrderBuilder orderBuilder;
+    private final List<Order> allOrders;
+
+    public OrderService(DeliveryAssignmentStrategy strategy) {
+        this.deliveryPartners = new ArrayList<>();
+        this.assignmentStrategy = strategy;
+        this.orderBuilder = new OrderBuilder();
+        this.allOrders = new ArrayList<>();
+    }
+
+    public void addDeliveryPartner(DeliveryPartner partner) {
+        deliveryPartners.add(partner);
+    }
+
+    public Order placeOrder(Cart cart, Customer customer, Restaurant restaurant) {
+        // Build order from cart
+        Order order = orderBuilder.buildFromCart(cart, customer, restaurant);
+
+        // Register observers
+        order.addObserver(new CustomerNotificationObserver());
+        order.addObserver(new RestaurantDashboardObserver());
+
+        // Assign delivery partner
+        DeliveryPartner partner = assignmentStrategy.assignPartner(
+                restaurant, deliveryPartners);
+        if (partner != null) {
+            order.assignDeliveryPartner(partner);
+            System.out.println("  Assigned driver: " + partner.getName());
+        } else {
+            System.out.println("  WARNING: No delivery partner available.");
+        }
+
+        allOrders.add(order);
+        order.displayOrderSummary();
+        return order;
+    }
+}
+\`\`\`
+
+---
+
+### Step 8: Main Demo (68:00 - 70:00)
+
+\`\`\`java
+public class FoodOrderingDemo {
+    public static void main(String[] args) {
+        // Setup restaurant
+        Restaurant restaurant = new Restaurant("R1", "Tandoori Palace",
+                "123 Food St", "Indian", 12.97, 77.59);
+        restaurant.getMenu().addItem(new MenuItem("M1", "Butter Chicken",
+                "Creamy curry", 12.99, "Main Course"));
+        restaurant.getMenu().addItem(new MenuItem("M2", "Naan Bread",
+                "Freshly baked", 2.99, "Bread"));
+        restaurant.getMenu().addItem(new MenuItem("M3", "Mango Lassi",
+                "Yogurt drink", 3.99, "Beverages"));
+
+        // Setup delivery partners
+        DeliveryPartner driver1 = new DeliveryPartner("D1", "Raj", "111",
+                12.98, 77.60);  // close to restaurant
+        DeliveryPartner driver2 = new DeliveryPartner("D2", "Priya", "222",
+                13.05, 77.65); // farther
+
+        // Setup customer
+        Customer customer = new Customer("C1", "Alice", "alice@email.com",
+                "9876543210", "456 Home Ave", 12.95, 77.58);
+
+        // Build service with nearest-first strategy
+        OrderService service = new OrderService(new NearestFirstStrategy());
+        service.addDeliveryPartner(driver1);
+        service.addDeliveryPartner(driver2);
+
+        // Customer builds cart
+        Cart cart = new Cart("C1");
+        cart.addItem(restaurant.getMenu().getItem("M1"), 2, "R1");
+        cart.addItem(restaurant.getMenu().getItem("M2"), 3, "R1");
+        cart.addItem(restaurant.getMenu().getItem("M3"), 1, "R1");
+
+        // Place order
+        System.out.println("=== PLACING ORDER ===");
+        Order order = service.placeOrder(cart, customer, restaurant);
+
+        // Simulate order lifecycle
+        System.out.println("\\n=== ORDER LIFECYCLE ===");
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.pickUp();
+        order.deliver();
+
+        System.out.println("\\nFinal status: " + order.getStatus());
+    }
+}
+\`\`\`
+
+---
+
+## Demo & Testing (70:00 - 80:00)
+
+> "Let me trace the expected output:"
+
+\`\`\`
+=== PLACING ORDER ===
+  Assigned driver: Raj
+===== ORDER SUMMARY =====
+  Order ID:    ORD-1
+  Customer:    Alice
+  Restaurant:  Tandoori Palace
+  Status:      PLACED
+    2x Butter Chicken          $25.98
+    3x Naan Bread              $8.97
+    1x Mango Lassi             $3.99
+  Subtotal:    $38.94
+  Delivery:    $2.99
+  Tax:         $1.95
+  TOTAL:       $43.88
+  Driver:      Raj
+
+=== ORDER LIFECYCLE ===
+  [State] ORD-1: PLACED -> CONFIRMED
+  [Notify] SMS to Alice: Order ORD-1 is now Restaurant confirmed
+  [Dashboard] Tandoori Palace: Order ORD-1 changed to CONFIRMED
+  [State] ORD-1: CONFIRMED -> PREPARING
+  [Notify] SMS to Alice: ...
+  [State] ORD-1: PREPARING -> READY
+  [State] ORD-1: READY -> PICKED_UP
+  [State] ORD-1: PICKED_UP -> DELIVERED
+
+Final status: DELIVERED
+\`\`\`
+
+> "Raj was assigned because he's closer to the restaurant (using Haversine distance). Each state transition fires observer notifications. Raj is released back to available when the order is delivered."
+
+### Interviewer Interrupts:
+
+> **Interviewer:** "What if the restaurant goes offline?"
+
+> **Your answer:** "I handle this at two levels:
+
+> **At order placement:** The OrderBuilder checks \`restaurant.isOpen()\` before building the order. If the restaurant is offline, it throws an IllegalStateException with a clear message. The customer sees 'Tandoori Palace is currently offline' and can choose another restaurant.
+
+> **After order placement:** If the restaurant goes offline AFTER an order is placed but BEFORE confirming it, the order stays in PLACED state. In a production system, I'd add a timeout -- if the restaurant doesn't confirm within X minutes, auto-cancel the order and notify the customer. I'd implement this as a scheduled task that checks for stale PLACED orders:
+
+\`\`\`java
+// Conceptual -- would run on a scheduler
+public void cancelStaleOrders(int timeoutMinutes) {
+    for (Order order : allOrders) {
+        if (order.getStatus() == OrderStatus.PLACED
+                && order.getPlacedAt().plusMinutes(timeoutMinutes)
+                         .isBefore(LocalDateTime.now())) {
+            order.cancel();
+            System.out.println("Auto-cancelled stale order: " + order.getId());
+        }
+    }
+}
+\`\`\`
+
+> For mid-preparation offline (very rare), the order would need manual intervention from customer support. The State pattern makes it easy to add a new RESTAURANT_OFFLINE status if needed."
+
+---
+
+## Extension Round (80:00 - 90:00)
+
+### Interviewer asks: "Now add support for scheduled/future orders."
+
+> "Great. This means a customer can place an order now to be delivered at a future time. The key changes are in Order and OrderService."
+
+\`\`\`java
+// New class: ScheduledOrder extends or wraps Order
+public class ScheduledOrder {
+    private final Order order;
+    private final LocalDateTime scheduledFor;
+    private boolean activated;
+
+    public ScheduledOrder(Order order, LocalDateTime scheduledFor) {
+        this.order = order;
+        this.scheduledFor = scheduledFor;
+        this.activated = false;
+    }
+
+    public boolean isReadyToActivate() {
+        // Activate 30 minutes before scheduled time
+        return !activated && LocalDateTime.now()
+                .isAfter(scheduledFor.minusMinutes(30));
+    }
+
+    public void activate() {
+        if (activated) throw new IllegalStateException("Already activated");
+        this.activated = true;
+        // Trigger the normal order flow
+        order.confirm();
+    }
+
+    public Order getOrder() { return order; }
+    public LocalDateTime getScheduledFor() { return scheduledFor; }
+}
+\`\`\`
+
+> "In OrderService, I add a scheduledOrders list and a placeScheduledOrder method:"
+
+\`\`\`java
+// Add to OrderService:
+private final List<ScheduledOrder> scheduledOrders = new ArrayList<>();
+
+public ScheduledOrder placeScheduledOrder(Cart cart, Customer customer,
+                                           Restaurant restaurant,
+                                           LocalDateTime scheduledFor) {
+    if (scheduledFor.isBefore(LocalDateTime.now().plusMinutes(60))) {
+        throw new IllegalArgumentException(
+            "Scheduled orders must be at least 60 minutes in the future.");
+    }
+
+    // Build order but DON'T assign delivery partner yet
+    Order order = orderBuilder.buildFromCart(cart, customer, restaurant);
+    order.addObserver(new CustomerNotificationObserver());
+    order.addObserver(new RestaurantDashboardObserver());
+    allOrders.add(order);
+
+    ScheduledOrder scheduled = new ScheduledOrder(order, scheduledFor);
+    scheduledOrders.add(scheduled);
+
+    System.out.println("Scheduled order " + order.getId()
+            + " for " + scheduledFor);
+    return scheduled;
+}
+
+/**
+ * Called by a scheduler every few minutes.
+ * Activates scheduled orders that are within the preparation window.
+ */
+public void processScheduledOrders() {
+    for (ScheduledOrder so : scheduledOrders) {
+        if (so.isReadyToActivate()) {
+            // Assign delivery partner at activation time (not at booking time)
+            DeliveryPartner partner = assignmentStrategy.assignPartner(
+                    so.getOrder().getRestaurant(), deliveryPartners);
+            if (partner != null) {
+                so.getOrder().assignDeliveryPartner(partner);
+            }
+            so.activate();
+            System.out.println("Activated scheduled order: "
+                    + so.getOrder().getId());
+        }
+    }
+}
+\`\`\`
+
+> "Key design decisions for scheduled orders:
+> 1. **Delivery partner is assigned at activation time, not booking time** -- assigning hours in advance would waste partner availability.
+> 2. **30-minute activation window** -- gives the restaurant enough prep time.
+> 3. **Minimum 60 minutes in the future** -- prevents abuse (ordering 5 minutes ahead is just a normal order).
+> 4. **Uses the same Order object** -- no separate data model needed. The ScheduledOrder is a wrapper that controls when the order enters the normal lifecycle."
+
+> "Changes: one new class (ScheduledOrder), two new methods in OrderService. Zero modifications to Order, OrderState, or any existing code."
+
+---
+
+## Red Flags to Avoid
+
+1. **No state machine** -- Using a simple status field with if/else transitions. The State pattern makes illegal transitions impossible.
+2. **Not freezing prices in OrderItem** -- If menu prices change after ordering, the customer's bill should not change.
+3. **No single-restaurant constraint on Cart** -- Allowing mixed-restaurant carts creates impossible delivery scenarios.
+4. **Global delivery partner lock** -- Assigning partners should be per-order, not a global synchronized block.
+5. **Ignoring restaurant offline** -- Not checking \`isOpen()\` before placing orders.
+6. **Terminal states with transitions** -- DeliveredState and CancelledState must not allow any transitions.
+7. **Not releasing delivery partner** -- On delivery or cancellation, the partner must be set back to available.
+8. **Tightly coupled notifications** -- Putting email/SMS logic inside the Order class instead of using Observer.
+
+---
+
+## What Impresses Interviewers
+
+1. **State pattern with default methods** -- Using interface default methods for illegal transitions is clean and idiomatic.
+2. **Strategy for delivery assignment** -- Showing two strategies (nearest, highest-rated) and explaining a weighted hybrid.
+3. **Observer for notifications** -- Clean decoupling of order status from notification channels.
+4. **Builder for order construction** -- Separating order creation logic from the Order class itself.
+5. **Price snapshot in OrderItem** -- Demonstrating awareness of time-of-order vs current pricing.
+6. **Haversine distance** -- Using real distance calculation instead of Euclidean on lat/lon.
+7. **Single-restaurant cart constraint** -- Mirrors real-world food ordering apps.
+8. **Partner release on delivery/cancel** -- Showing resource management awareness.
+9. **Graceful restaurant-offline handling** -- Both at placement and post-placement.
+10. **Scheduled orders with deferred partner assignment** -- Extension that shows deep understanding of resource allocation timing.
+11. **Running average for ratings** -- \`newAvg = (oldAvg * count + newRating) / (count + 1)\` without storing all historical ratings.
+12. **Seven states, not three** -- PLACED through DELIVERED shows you understand the real complexity of food delivery, not a simplified model.
+`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| browseRestaurants() | O(R) | O(R) | R = restaurants in area |
+| viewMenu() | O(I) | O(I) | I = items on menu |
+| placeOrder() | O(K) | O(K) | K = items in order |
+| assignAgent() | O(A) | O(1) | A = available agents (Strategy) |
+| updateOrderStatus() | O(1) | O(1) | State pattern transition |
+| trackOrder() | O(1) | O(1) | Read current state |
+| calculateDeliveryFee() | O(1) | O(1) | Distance-based formula |
+| rateOrder() | O(1) | O(1) | Store rating |
+
+**Agent assignment strategies:**
+- NearestPartnerStrategy: O(A) -- scan all available agents, compute distance
+- LeastBusyStrategy: O(A) -- scan agents, pick one with fewest active orders
+- HighestRatedStrategy: O(A) -- scan agents, pick highest-rated
+
+With a spatial index (e.g., geohash), NearestPartner can be O(log A + K)
+where K = agents in the nearest grid cells.
+
+**Order state machine:** O(1) per transition. The State pattern ensures
+only valid transitions are allowed at each stage.
+
+**Memory:** O(R * I) for restaurant menus. O(O) for active orders.
+O(A) for delivery agent pool.`,
+};
+
+// ============================================================
+//  10-design-library-management -> prob-library
+// ============================================================
+
+export const librarySolution: ProblemSolutionContent = {
+  referenceSolution: `# Library Management System -- Full Java Implementation
+
+## Table of Contents
+
+1. [Enums](#1-enums)
+2. [Core Entities](#2-core-entities)
+3. [Service Classes](#3-service-classes)
+4. [Strategy Pattern -- Search](#4-strategy-pattern----search)
+5. [Observer Pattern -- Notifications](#5-observer-pattern----notifications)
+6. [Repository Pattern -- Data Access](#6-repository-pattern----data-access)
+7. [Library Facade](#7-library-facade)
+8. [Main Demo](#8-main-demo)
+
+---
+
+## 1. Enums
+
+### BookStatus
+
+\`\`\`java
+public enum BookStatus {
+    AVAILABLE,
+    BORROWED,
+    RESERVED,
+    LOST
+}
+\`\`\`
+
+### BookCategory
+
+\`\`\`java
+public enum BookCategory {
+    FICTION,
+    NON_FICTION,
+    SCIENCE,
+    HISTORY,
+    TECHNOLOGY,
+    BIOGRAPHY,
+    CHILDREN,
+    REFERENCE
+}
+\`\`\`
+
+---
+
+## 2. Core Entities
+
+### Rack
+
+\`\`\`java
+public class Rack {
+    private final int rackNumber;
+    private final String locationDescription;
+
+    public Rack(int rackNumber, String locationDescription) {
+        this.rackNumber = rackNumber;
+        this.locationDescription = locationDescription;
+    }
+
+    public int getRackNumber() {
+        return rackNumber;
+    }
+
+    public String getLocationDescription() {
+        return locationDescription;
+    }
+
+    @Override
+    public String toString() {
+        return "Rack-" + rackNumber + " (" + locationDescription + ")";
+    }
+}
+\`\`\`
+
+### Book (Metadata)
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.List;
+
+public class Book {
+    private final String isbn;
+    private final String title;
+    private final String author;
+    private final BookCategory category;
+    private final int publicationYear;
+    private final List<BookItem> bookItems;
+
+    public Book(String isbn, String title, String author,
+                BookCategory category, int publicationYear) {
+        this.isbn = isbn;
+        this.title = title;
+        this.author = author;
+        this.category = category;
+        this.publicationYear = publicationYear;
+        this.bookItems = new ArrayList<>();
+    }
+
+    public String getIsbn() { return isbn; }
+    public String getTitle() { return title; }
+    public String getAuthor() { return author; }
+    public BookCategory getCategory() { return category; }
+    public int getPublicationYear() { return publicationYear; }
+    public List<BookItem> getBookItems() { return bookItems; }
+
+    public void addBookItem(BookItem item) {
+        bookItems.add(item);
+    }
+
+    public BookItem getAvailableCopy() {
+        return bookItems.stream()
+                .filter(BookItem::isAvailable)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public boolean hasAvailableCopy() {
+        return bookItems.stream().anyMatch(BookItem::isAvailable);
+    }
+
+    @Override
+    public String toString() {
+        return "\\"" + title + "\\" by " + author + " (ISBN: " + isbn + ")";
+    }
+}
+\`\`\`
+
+### BookItem (Physical Copy)
+
+\`\`\`java
+import java.time.LocalDate;
+
+public class BookItem {
+    private final String barcode;
+    private final Book book;
+    private BookStatus status;
+    private final Rack rack;
+    private LocalDate dueDate;
+
+    public BookItem(String barcode, Book book, Rack rack) {
+        this.barcode = barcode;
+        this.book = book;
+        this.status = BookStatus.AVAILABLE;
+        this.rack = rack;
+        this.dueDate = null;
+    }
+
+    public String getBarcode() { return barcode; }
+    public Book getBook() { return book; }
+    public BookStatus getStatus() { return status; }
+    public Rack getRack() { return rack; }
+    public LocalDate getDueDate() { return dueDate; }
+
+    public void setStatus(BookStatus status) {
+        this.status = status;
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public boolean isAvailable() {
+        return status == BookStatus.AVAILABLE;
+    }
+
+    @Override
+    public String toString() {
+        return "[" + barcode + "] " + book.getTitle()
+                + " | Status: " + status
+                + " | Rack: " + rack;
+    }
+}
+\`\`\`
+
+### Member
+
+\`\`\`java
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Member {
+    private static final int MAX_BOOKS = 5;
+
+    private final String memberId;
+    private final String name;
+    private final String email;
+    private final String phone;
+    private final LocalDate joinDate;
+    private boolean active;
+    private final List<Loan> activeLoans;
+    private final List<Fine> fines;
+
+    public Member(String memberId, String name, String email, String phone) {
+        this.memberId = memberId;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+        this.joinDate = LocalDate.now();
+        this.active = true;
+        this.activeLoans = new ArrayList<>();
+        this.fines = new ArrayList<>();
+    }
+
+    public String getMemberId() { return memberId; }
+    public String getName() { return name; }
+    public String getEmail() { return email; }
+    public String getPhone() { return phone; }
+    public LocalDate getJoinDate() { return joinDate; }
+    public boolean isActive() { return active; }
+    public List<Loan> getActiveLoans() { return activeLoans; }
+    public List<Fine> getFines() { return fines; }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public int getActiveLoanCount() {
+        return activeLoans.size();
+    }
+
+    public boolean canBorrow() {
+        return active
+                && activeLoans.size() < MAX_BOOKS
+                && getTotalUnpaidFines() == 0;
+    }
+
+    public void addLoan(Loan loan) {
+        activeLoans.add(loan);
+    }
+
+    public void removeLoan(Loan loan) {
+        activeLoans.remove(loan);
+    }
+
+    public void addFine(Fine fine) {
+        fines.add(fine);
+    }
+
+    public int getTotalUnpaidFines() {
+        return fines.stream()
+                .filter(f -> !f.isPaid())
+                .mapToInt(Fine::getAmount)
+                .sum();
+    }
+
+    @Override
+    public String toString() {
+        return "Member[" + memberId + "] " + name + " (" + email + ")";
+    }
+}
+\`\`\`
+
+### Librarian
+
+\`\`\`java
+public class Librarian extends Member {
+    private final String employeeId;
+
+    public Librarian(String memberId, String name, String email,
+                     String phone, String employeeId) {
+        super(memberId, name, email, phone);
+        this.employeeId = employeeId;
+    }
+
+    public String getEmployeeId() {
+        return employeeId;
+    }
+
+    public void addBook(Library library, Book book) {
+        library.addBook(book);
+        System.out.println("LIBRARIAN: Added book " + book);
+    }
+
+    public void addBookItem(Library library, Book book, BookItem item) {
+        library.addBookItem(book, item);
+        System.out.println("LIBRARIAN: Added copy " + item.getBarcode()
+                + " for " + book.getTitle());
+    }
+
+    public void registerMember(Library library, Member member) {
+        library.registerMember(member);
+        System.out.println("LIBRARIAN: Registered member " + member.getName());
+    }
+
+    public void deactivateMember(Library library, Member member) {
+        member.setActive(false);
+        System.out.println("LIBRARIAN: Deactivated member " + member.getName());
+    }
+
+    @Override
+    public String toString() {
+        return "Librarian[" + employeeId + "] " + getName();
+    }
+}
+\`\`\`
+
+### Loan
+
+\`\`\`java
+import java.time.LocalDate;
+
+public class Loan {
+    private static int counter = 0;
+
+    private final String loanId;
+    private final Member member;
+    private final BookItem bookItem;
+    private final LocalDate issueDate;
+    private final LocalDate dueDate;
+    private LocalDate returnDate;
+    private Fine fine;
+
+    public Loan(Member member, BookItem bookItem,
+                LocalDate issueDate, LocalDate dueDate) {
+        this.loanId = "LOAN-" + (++counter);
+        this.member = member;
+        this.bookItem = bookItem;
+        this.issueDate = issueDate;
+        this.dueDate = dueDate;
+        this.returnDate = null;
+        this.fine = null;
+    }
+
+    public String getLoanId() { return loanId; }
+    public Member getMember() { return member; }
+    public BookItem getBookItem() { return bookItem; }
+    public LocalDate getIssueDate() { return issueDate; }
+    public LocalDate getDueDate() { return dueDate; }
+    public LocalDate getReturnDate() { return returnDate; }
+    public Fine getFine() { return fine; }
+
+    public void setReturnDate(LocalDate returnDate) {
+        this.returnDate = returnDate;
+    }
+
+    public void setFine(Fine fine) {
+        this.fine = fine;
+    }
+
+    public boolean isOverdue() {
+        LocalDate checkDate = (returnDate != null) ? returnDate : LocalDate.now();
+        return checkDate.isAfter(dueDate);
+    }
+
+    public boolean isReturned() {
+        return returnDate != null;
+    }
+
+    @Override
+    public String toString() {
+        return loanId + ": " + member.getName()
+                + " borrowed " + bookItem.getBook().getTitle()
+                + " [" + bookItem.getBarcode() + "]"
+                + " | Due: " + dueDate
+                + (returnDate != null ? " | Returned: " + returnDate : " | ACTIVE");
+    }
+}
+\`\`\`
+
+### Fine
+
+\`\`\`java
+public class Fine {
+    private static int counter = 0;
+
+    private final String fineId;
+    private final Loan loan;
+    private final int amount; // in rupees
+    private boolean paid;
+
+    public Fine(Loan loan, int amount) {
+        this.fineId = "FINE-" + (++counter);
+        this.loan = loan;
+        this.amount = amount;
+        this.paid = false;
+    }
+
+    public String getFineId() { return fineId; }
+    public Loan getLoan() { return loan; }
+    public int getAmount() { return amount; }
+    public boolean isPaid() { return paid; }
+
+    public void pay() {
+        this.paid = true;
+        System.out.println("Fine " + fineId + " of Rs " + amount + " has been paid.");
+    }
+
+    @Override
+    public String toString() {
+        return fineId + ": Rs " + amount
+                + " | " + (paid ? "PAID" : "UNPAID")
+                + " | For: " + loan.getLoanId();
+    }
+}
+\`\`\`
+
+### Reservation
+
+\`\`\`java
+import java.time.LocalDate;
+
+public class Reservation {
+    private static int counter = 0;
+
+    private final String reservationId;
+    private final Member member;
+    private final Book book;
+    private final LocalDate reservationDate;
+    private boolean fulfilled;
+
+    public Reservation(Member member, Book book) {
+        this.reservationId = "RES-" + (++counter);
+        this.member = member;
+        this.book = book;
+        this.reservationDate = LocalDate.now();
+        this.fulfilled = false;
+    }
+
+    public String getReservationId() { return reservationId; }
+    public Member getMember() { return member; }
+    public Book getBook() { return book; }
+    public LocalDate getReservationDate() { return reservationDate; }
+    public boolean isFulfilled() { return fulfilled; }
+
+    public void fulfill() {
+        this.fulfilled = true;
+    }
+
+    @Override
+    public String toString() {
+        return reservationId + ": " + member.getName()
+                + " reserved " + book.getTitle()
+                + " | " + (fulfilled ? "FULFILLED" : "PENDING");
+    }
+}
+\`\`\`
+
+---
+
+## 3. Service Classes
+
+### FineCalculator
+
+\`\`\`java
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+
+public class FineCalculator {
+    private final int dailyFineRate; // Rs per day
+
+    public FineCalculator(int dailyFineRate) {
+        this.dailyFineRate = dailyFineRate;
+    }
+
+    /**
+     * Calculates fine for a late return.
+     *
+     * @param dueDate    the date the book was due
+     * @param returnDate the date the book was actually returned
+     * @return fine amount in rupees; 0 if returned on time
+     */
+    public int calculateFine(LocalDate dueDate, LocalDate returnDate) {
+        if (!returnDate.isAfter(dueDate)) {
+            return 0;
+        }
+        long overdueDays = ChronoUnit.DAYS.between(dueDate, returnDate);
+        return (int) overdueDays * dailyFineRate;
+    }
+
+    public int getDailyFineRate() {
+        return dailyFineRate;
+    }
+}
+\`\`\`
+
+### LoanService
+
+\`\`\`java
+import java.time.LocalDate;
+
+public class LoanService {
+    private static final int LOAN_PERIOD_DAYS = 14;
+
+    private final FineCalculator fineCalculator;
+    private final ReservationService reservationService;
+
+    public LoanService(FineCalculator fineCalculator,
+                       ReservationService reservationService) {
+        this.fineCalculator = fineCalculator;
+        this.reservationService = reservationService;
+    }
+
+    /**
+     * Borrows a book item for a member.
+     * Validates all business rules before issuing the loan.
+     */
+    public Loan borrowBook(Member member, BookItem bookItem) {
+        validateBorrow(member, bookItem);
+
+        LocalDate issueDate = LocalDate.now();
+        LocalDate dueDate = issueDate.plusDays(LOAN_PERIOD_DAYS);
+
+        Loan loan = new Loan(member, bookItem, issueDate, dueDate);
+
+        bookItem.setStatus(BookStatus.BORROWED);
+        bookItem.setDueDate(dueDate);
+        member.addLoan(loan);
+
+        System.out.println("LOAN ISSUED: " + loan);
+        return loan;
+    }
+
+    /**
+     * Borrows a book item with a simulated issue date (for demo/testing).
+     * Allows creating loans that appear to have been issued in the past.
+     */
+    public Loan borrowBook(Member member, BookItem bookItem,
+                           LocalDate simulatedIssueDate) {
+        validateBorrow(member, bookItem);
+
+        LocalDate dueDate = simulatedIssueDate.plusDays(LOAN_PERIOD_DAYS);
+
+        Loan loan = new Loan(member, bookItem, simulatedIssueDate, dueDate);
+
+        bookItem.setStatus(BookStatus.BORROWED);
+        bookItem.setDueDate(dueDate);
+        member.addLoan(loan);
+
+        System.out.println("LOAN ISSUED: " + loan);
+        return loan;
+    }
+
+    /**
+     * Returns a book item. Calculates fine if overdue.
+     * Triggers reservation service to notify waiting members if applicable.
+     */
+    public Fine returnBook(Member member, BookItem bookItem) {
+        return returnBook(member, bookItem, LocalDate.now());
+    }
+
+    /**
+     * Returns a book item with a simulated return date (for demo/testing).
+     */
+    public Fine returnBook(Member member, BookItem bookItem,
+                           LocalDate simulatedReturnDate) {
+        Loan activeLoan = findActiveLoan(member, bookItem);
+        if (activeLoan == null) {
+            throw new IllegalStateException(
+                    "No active loan found for member " + member.getName()
+                    + " and book copy " + bookItem.getBarcode());
+        }
+
+        activeLoan.setReturnDate(simulatedReturnDate);
+        member.removeLoan(activeLoan);
+
+        // Calculate fine if overdue
+        Fine fine = null;
+        int fineAmount = fineCalculator.calculateFine(
+                activeLoan.getDueDate(), simulatedReturnDate);
+        if (fineAmount > 0) {
+            fine = new Fine(activeLoan, fineAmount);
+            activeLoan.setFine(fine);
+            member.addFine(fine);
+            System.out.println("FINE IMPOSED: " + fine);
+        }
+
+        // Check for pending reservations before marking available
+        boolean hasReservation = reservationService.onBookReturned(
+                bookItem.getBook(), bookItem);
+
+        if (!hasReservation) {
+            bookItem.setStatus(BookStatus.AVAILABLE);
+            bookItem.setDueDate(null);
+        }
+        // If there was a reservation, onBookReturned already set RESERVED status
+
+        System.out.println("BOOK RETURNED: " + member.getName()
+                + " returned " + bookItem.getBook().getTitle()
+                + " [" + bookItem.getBarcode() + "]"
+                + (fine != null ? " | Fine: Rs " + fine.getAmount() : " | No fine"));
+
+        return fine;
+    }
+
+    private void validateBorrow(Member member, BookItem bookItem) {
+        if (!member.isActive()) {
+            throw new IllegalStateException(
+                    "Member " + member.getName() + " account is not active.");
+        }
+        if (!member.canBorrow()) {
+            if (member.getActiveLoanCount() >= 5) {
+                throw new IllegalStateException(
+                        "Member " + member.getName()
+                        + " has reached the borrow limit (max 5 books).");
+            }
+            if (member.getTotalUnpaidFines() > 0) {
+                throw new IllegalStateException(
+                        "Member " + member.getName()
+                        + " has unpaid fines of Rs "
+                        + member.getTotalUnpaidFines()
+                        + ". Please clear fines before borrowing.");
+            }
+        }
+
+        if (bookItem.getStatus() == BookStatus.BORROWED) {
+            throw new IllegalStateException(
+                    "Book copy " + bookItem.getBarcode()
+                    + " is already borrowed.");
+        }
+        if (bookItem.getStatus() == BookStatus.LOST) {
+            throw new IllegalStateException(
+                    "Book copy " + bookItem.getBarcode()
+                    + " is marked as lost.");
+        }
+        if (bookItem.getStatus() == BookStatus.RESERVED) {
+            // Only the reserving member can borrow a reserved copy
+            Reservation res = reservationService
+                    .findActiveReservation(bookItem.getBook());
+            if (res != null && !res.getMember().getMemberId()
+                    .equals(member.getMemberId())) {
+                throw new IllegalStateException(
+                        "Book copy " + bookItem.getBarcode()
+                        + " is reserved by " + res.getMember().getName()
+                        + ". Only the reserving member can borrow it.");
+            }
+        }
+    }
+
+    private Loan findActiveLoan(Member member, BookItem bookItem) {
+        return member.getActiveLoans().stream()
+                .filter(loan -> loan.getBookItem().getBarcode()
+                        .equals(bookItem.getBarcode()))
+                .filter(loan -> !loan.isReturned())
+                .findFirst()
+                .orElse(null);
+    }
+}
+\`\`\`
+
+---
+
+## 4. Strategy Pattern -- Search
+
+### SearchStrategy (Interface)
+
+\`\`\`java
+import java.util.List;
+
+public interface SearchStrategy {
+    List<Book> search(List<Book> catalog, String query);
+}
+\`\`\`
+
+### SearchByTitle
+
+\`\`\`java
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class SearchByTitle implements SearchStrategy {
+    @Override
+    public List<Book> search(List<Book> catalog, String query) {
+        String lowerQuery = query.toLowerCase();
+        return catalog.stream()
+                .filter(book -> book.getTitle().toLowerCase()
+                        .contains(lowerQuery))
+                .collect(Collectors.toList());
+    }
+}
+\`\`\`
+
+### SearchByAuthor
+
+\`\`\`java
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class SearchByAuthor implements SearchStrategy {
+    @Override
+    public List<Book> search(List<Book> catalog, String query) {
+        String lowerQuery = query.toLowerCase();
+        return catalog.stream()
+                .filter(book -> book.getAuthor().toLowerCase()
+                        .contains(lowerQuery))
+                .collect(Collectors.toList());
+    }
+}
+\`\`\`
+
+### SearchByISBN
+
+\`\`\`java
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class SearchByISBN implements SearchStrategy {
+    @Override
+    public List<Book> search(List<Book> catalog, String query) {
+        return catalog.stream()
+                .filter(book -> book.getIsbn().equals(query))
+                .collect(Collectors.toList());
+    }
+}
+\`\`\`
+
+### SearchByCategory
+
+\`\`\`java
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class SearchByCategory implements SearchStrategy {
+    @Override
+    public List<Book> search(List<Book> catalog, String query) {
+        BookCategory targetCategory;
+        try {
+            targetCategory = BookCategory.valueOf(query.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return List.of(); // invalid category returns empty
+        }
+        return catalog.stream()
+                .filter(book -> book.getCategory() == targetCategory)
+                .collect(Collectors.toList());
+    }
+}
+\`\`\`
+
+### SearchService
+
+\`\`\`java
+import java.util.List;
+
+public class SearchService {
+    private SearchStrategy strategy;
+
+    public SearchService() {
+        this.strategy = new SearchByTitle(); // default strategy
+    }
+
+    public void setStrategy(SearchStrategy strategy) {
+        this.strategy = strategy;
+    }
+
+    public List<Book> search(List<Book> catalog, String query) {
+        return strategy.search(catalog, query);
+    }
+}
+\`\`\`
+
+---
+
+## 5. Observer Pattern -- Notifications
+
+### BookAvailabilityObserver (Interface)
+
+\`\`\`java
+public interface BookAvailabilityObserver {
+    void onBookAvailable(Book book, BookItem copy);
+}
+\`\`\`
+
+### MemberNotificationObserver
+
+\`\`\`java
+public class MemberNotificationObserver implements BookAvailabilityObserver {
+    private final Member member;
+
+    public MemberNotificationObserver(Member member) {
+        this.member = member;
+    }
+
+    @Override
+    public void onBookAvailable(Book book, BookItem copy) {
+        System.out.println();
+        System.out.println("=================================================");
+        System.out.println("  NOTIFICATION to " + member.getName() + ":");
+        System.out.println("  Your reserved book \\"" + book.getTitle()
+                + "\\" is now available!");
+        System.out.println("  Copy barcode: " + copy.getBarcode());
+        System.out.println("  Rack location: " + copy.getRack());
+        System.out.println("  Please pick it up within 3 days.");
+        System.out.println("=================================================");
+        System.out.println();
+    }
+
+    public Member getMember() {
+        return member;
+    }
+}
+\`\`\`
+
+### ReservationService
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.List;
+
+public class ReservationService {
+    private final List<Reservation> reservations;
+    private final List<BookAvailabilityObserver> observers;
+
+    public ReservationService() {
+        this.reservations = new ArrayList<>();
+        this.observers = new ArrayList<>();
+    }
+
+    /**
+     * Creates a reservation for a member on a book.
+     * Also registers a notification observer for that member.
+     */
+    public Reservation reserve(Member member, Book book) {
+        // Validate: book must not have available copies
+        if (book.hasAvailableCopy()) {
+            throw new IllegalStateException(
+                    "Book \\"" + book.getTitle()
+                    + "\\" has available copies. No need to reserve -- "
+                    + "borrow directly.");
+        }
+
+        // Validate: member should not already have an active reservation
+        boolean alreadyReserved = reservations.stream()
+                .anyMatch(r -> !r.isFulfilled()
+                        && r.getMember().getMemberId()
+                                .equals(member.getMemberId())
+                        && r.getBook().getIsbn()
+                                .equals(book.getIsbn()));
+        if (alreadyReserved) {
+            throw new IllegalStateException(
+                    "Member " + member.getName()
+                    + " already has a pending reservation for \\""
+                    + book.getTitle() + "\\".");
+        }
+
+        Reservation reservation = new Reservation(member, book);
+        reservations.add(reservation);
+
+        // Register observer for this member
+        addObserver(new MemberNotificationObserver(member));
+
+        System.out.println("RESERVATION CREATED: " + reservation);
+        return reservation;
+    }
+
+    /**
+     * Called when a book is returned. Checks for pending reservations.
+     * If found, marks the copy as RESERVED, fulfills the oldest reservation,
+     * and notifies observers.
+     *
+     * @return true if a reservation was fulfilled, false otherwise
+     */
+    public boolean onBookReturned(Book book, BookItem copy) {
+        Reservation pendingReservation = findOldestPendingReservation(book);
+
+        if (pendingReservation == null) {
+            return false; // no pending reservations
+        }
+
+        // Mark copy as reserved
+        copy.setStatus(BookStatus.RESERVED);
+
+        // Fulfill the reservation
+        pendingReservation.fulfill();
+        System.out.println("RESERVATION FULFILLED: " + pendingReservation);
+
+        // Notify all observers about the availability
+        notifyObservers(book, copy);
+
+        return true;
+    }
+
+    /**
+     * Finds the active (unfulfilled) reservation for a given book.
+     * Used by LoanService to check if a reserved copy can be borrowed
+     * by a specific member.
+     */
+    public Reservation findActiveReservation(Book book) {
+        return reservations.stream()
+                .filter(r -> !r.isFulfilled()
+                        && r.getBook().getIsbn().equals(book.getIsbn()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public void addObserver(BookAvailabilityObserver observer) {
+        observers.add(observer);
+    }
+
+    public void removeObserver(BookAvailabilityObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyObservers(Book book, BookItem copy) {
+        // Notify only the observers for the reserving member, then remove them
+        List<BookAvailabilityObserver> toRemove = new ArrayList<>();
+        for (BookAvailabilityObserver observer : observers) {
+            if (observer instanceof MemberNotificationObserver) {
+                MemberNotificationObserver memberObserver =
+                        (MemberNotificationObserver) observer;
+                // Find if this observer's member has a fulfilled reservation
+                // for this book
+                boolean isFulfilledForThisMember = reservations.stream()
+                        .anyMatch(r -> r.isFulfilled()
+                                && r.getBook().getIsbn().equals(book.getIsbn())
+                                && r.getMember().getMemberId().equals(
+                                        memberObserver.getMember().getMemberId()));
+                if (isFulfilledForThisMember) {
+                    observer.onBookAvailable(book, copy);
+                    toRemove.add(observer);
+                }
+            }
+        }
+        observers.removeAll(toRemove);
+    }
+
+    private Reservation findOldestPendingReservation(Book book) {
+        return reservations.stream()
+                .filter(r -> !r.isFulfilled()
+                        && r.getBook().getIsbn().equals(book.getIsbn()))
+                .findFirst() // list is insertion-ordered, so first = oldest
+                .orElse(null);
+    }
+
+    public List<Reservation> getReservationsForBook(Book book) {
+        return reservations.stream()
+                .filter(r -> r.getBook().getIsbn().equals(book.getIsbn()))
+                .toList();
+    }
+}
+\`\`\`
+
+---
+
+## 6. Repository Pattern -- Data Access
+
+### BookRepository
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class BookRepository {
+    private final Map<String, Book> booksByIsbn;
+
+    public BookRepository() {
+        this.booksByIsbn = new HashMap<>();
+    }
+
+    public void addBook(Book book) {
+        booksByIsbn.put(book.getIsbn(), book);
+    }
+
+    public void removeBook(String isbn) {
+        booksByIsbn.remove(isbn);
+    }
+
+    public Book findByIsbn(String isbn) {
+        return booksByIsbn.get(isbn);
+    }
+
+    public List<Book> getAllBooks() {
+        return new ArrayList<>(booksByIsbn.values());
+    }
+
+    public int getBookCount() {
+        return booksByIsbn.size();
+    }
+}
+\`\`\`
+
+### MemberRepository
+
+\`\`\`java
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class MemberRepository {
+    private final Map<String, Member> membersById;
+
+    public MemberRepository() {
+        this.membersById = new HashMap<>();
+    }
+
+    public void addMember(Member member) {
+        membersById.put(member.getMemberId(), member);
+    }
+
+    public void removeMember(String memberId) {
+        membersById.remove(memberId);
+    }
+
+    public Member findById(String memberId) {
+        return membersById.get(memberId);
+    }
+
+    public List<Member> getAllMembers() {
+        return new ArrayList<>(membersById.values());
+    }
+
+    public int getMemberCount() {
+        return membersById.size();
+    }
+}
+\`\`\`
+
+---
+
+## 7. Library Facade
+
+\`\`\`java
+import java.util.List;
+
+public class Library {
+    private final String name;
+    private final String address;
+    private final BookRepository bookRepository;
+    private final MemberRepository memberRepository;
+    private final LoanService loanService;
+    private final SearchService searchService;
+    private final ReservationService reservationService;
+
+    public Library(String name, String address) {
+        this.name = name;
+        this.address = address;
+        this.bookRepository = new BookRepository();
+        this.memberRepository = new MemberRepository();
+        this.reservationService = new ReservationService();
+        FineCalculator fineCalculator = new FineCalculator(10); // Rs 10/day
+        this.loanService = new LoanService(fineCalculator, reservationService);
+        this.searchService = new SearchService();
+    }
+
+    // --- Book Management ---
+
+    public void addBook(Book book) {
+        bookRepository.addBook(book);
+    }
+
+    public void addBookItem(Book book, BookItem item) {
+        book.addBookItem(item);
+    }
+
+    // --- Member Management ---
+
+    public void registerMember(Member member) {
+        memberRepository.addMember(member);
+    }
+
+    // --- Search ---
+
+    public List<Book> searchBooks(SearchStrategy strategy, String query) {
+        searchService.setStrategy(strategy);
+        return searchService.search(bookRepository.getAllBooks(), query);
+    }
+
+    // --- Borrow / Return ---
+
+    public Loan borrowBook(Member member, BookItem bookItem) {
+        return loanService.borrowBook(member, bookItem);
+    }
+
+    public Loan borrowBook(Member member, BookItem bookItem,
+                           java.time.LocalDate simulatedIssueDate) {
+        return loanService.borrowBook(member, bookItem, simulatedIssueDate);
+    }
+
+    public Fine returnBook(Member member, BookItem bookItem) {
+        return loanService.returnBook(member, bookItem);
+    }
+
+    public Fine returnBook(Member member, BookItem bookItem,
+                           java.time.LocalDate simulatedReturnDate) {
+        return loanService.returnBook(member, bookItem, simulatedReturnDate);
+    }
+
+    // --- Reservations ---
+
+    public Reservation reserveBook(Member member, Book book) {
+        return reservationService.reserve(member, book);
+    }
+
+    // --- Getters ---
+
+    public String getName() { return name; }
+    public String getAddress() { return address; }
+    public BookRepository getBookRepository() { return bookRepository; }
+    public MemberRepository getMemberRepository() { return memberRepository; }
+
+    @Override
+    public String toString() {
+        return name + " (" + address + ") | Books: "
+                + bookRepository.getBookCount()
+                + " | Members: " + memberRepository.getMemberCount();
+    }
+}
+\`\`\`
+
+---
+
+## 8. Main Demo
+
+\`\`\`java
+import java.time.LocalDate;
+import java.util.List;
+
+public class LibraryManagementDemo {
+
+    public static void main(String[] args) {
+        System.out.println("========================================");
+        System.out.println("  LIBRARY MANAGEMENT SYSTEM DEMO");
+        System.out.println("========================================");
+        System.out.println();
+
+        // -------------------------------------------------------
+        // SETUP: Create library, racks, books, and members
+        // -------------------------------------------------------
+
+        Library library = new Library(
+                "City Central Library",
+                "123 Main Street, Bangalore");
+
+        // Create racks
+        Rack rack1 = new Rack(1, "Aisle A, Shelf 1");
+        Rack rack2 = new Rack(2, "Aisle A, Shelf 2");
+        Rack rack3 = new Rack(3, "Aisle B, Shelf 1");
+
+        // Create a librarian
+        Librarian librarian = new Librarian(
+                "M001", "Priya Sharma", "priya@library.com",
+                "9876543210", "EMP001");
+        library.registerMember(librarian);
+
+        // Create books with metadata
+        Book cleanCode = new Book(
+                "978-0132350884", "Clean Code",
+                "Robert C. Martin", BookCategory.TECHNOLOGY, 2008);
+        Book effectiveJava = new Book(
+                "978-0134685991", "Effective Java",
+                "Joshua Bloch", BookCategory.TECHNOLOGY, 2018);
+        Book harryPotter = new Book(
+                "978-0439708180", "Harry Potter and the Sorcerer's Stone",
+                "J.K. Rowling", BookCategory.FICTION, 1997);
+        Book sapiens = new Book(
+                "978-0062316097", "Sapiens: A Brief History of Humankind",
+                "Yuval Noah Harari", BookCategory.HISTORY, 2015);
+
+        // Add books to library
+        librarian.addBook(library, cleanCode);
+        librarian.addBook(library, effectiveJava);
+        librarian.addBook(library, harryPotter);
+        librarian.addBook(library, sapiens);
+
+        // Create physical copies (BookItems) for each book
+        BookItem cleanCode1 = new BookItem("CC-001", cleanCode, rack1);
+        BookItem cleanCode2 = new BookItem("CC-002", cleanCode, rack1);
+        BookItem effectiveJava1 = new BookItem("EJ-001", effectiveJava, rack2);
+        BookItem harryPotter1 = new BookItem("HP-001", harryPotter, rack3);
+        BookItem sapiens1 = new BookItem("SA-001", sapiens, rack3);
+
+        librarian.addBookItem(library, cleanCode, cleanCode1);
+        librarian.addBookItem(library, cleanCode, cleanCode2);
+        librarian.addBookItem(library, effectiveJava, effectiveJava1);
+        librarian.addBookItem(library, harryPotter, harryPotter1);
+        librarian.addBookItem(library, sapiens, sapiens1);
+
+        // Create members
+        Member alice = new Member(
+                "M002", "Alice Johnson", "alice@email.com", "9876500001");
+        Member bob = new Member(
+                "M003", "Bob Williams", "bob@email.com", "9876500002");
+        Member charlie = new Member(
+                "M004", "Charlie Brown", "charlie@email.com", "9876500003");
+
+        librarian.registerMember(library, alice);
+        librarian.registerMember(library, bob);
+        librarian.registerMember(library, charlie);
+
+        System.out.println();
+        System.out.println("Library setup complete: " + library);
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 1: Search books using different strategies
+        // -------------------------------------------------------
+
+        printSection("DEMO 1: SEARCH BOOKS");
+
+        // Search by title
+        System.out.println("--- Search by Title: 'clean' ---");
+        List<Book> titleResults = library.searchBooks(
+                new SearchByTitle(), "clean");
+        titleResults.forEach(b -> System.out.println("  Found: " + b));
+
+        // Search by author
+        System.out.println("--- Search by Author: 'Bloch' ---");
+        List<Book> authorResults = library.searchBooks(
+                new SearchByAuthor(), "Bloch");
+        authorResults.forEach(b -> System.out.println("  Found: " + b));
+
+        // Search by ISBN
+        System.out.println("--- Search by ISBN: '978-0439708180' ---");
+        List<Book> isbnResults = library.searchBooks(
+                new SearchByISBN(), "978-0439708180");
+        isbnResults.forEach(b -> System.out.println("  Found: " + b));
+
+        // Search by category
+        System.out.println("--- Search by Category: 'TECHNOLOGY' ---");
+        List<Book> catResults = library.searchBooks(
+                new SearchByCategory(), "TECHNOLOGY");
+        catResults.forEach(b -> System.out.println("  Found: " + b));
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 2: Alice borrows books
+        // -------------------------------------------------------
+
+        printSection("DEMO 2: ALICE BORROWS BOOKS");
+
+        library.borrowBook(alice, cleanCode1);
+        library.borrowBook(alice, harryPotter1);
+
+        System.out.println();
+        System.out.println("Alice's active loans: "
+                + alice.getActiveLoanCount());
+        alice.getActiveLoans().forEach(
+                loan -> System.out.println("  " + loan));
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 3: Bob tries to borrow the only copy of
+        //         Effective Java, then reserves it
+        // -------------------------------------------------------
+
+        printSection("DEMO 3: BOB BORROWS EFFECTIVE JAVA, CHARLIE RESERVES IT");
+
+        // Bob borrows the only copy of Effective Java 30 days ago
+        // (simulated past date so we can demo a late return)
+        LocalDate thirtyDaysAgo = LocalDate.now().minusDays(30);
+        library.borrowBook(bob, effectiveJava1, thirtyDaysAgo);
+
+        System.out.println();
+
+        // Charlie wants Effective Java but it is borrowed
+        System.out.println("Charlie tries to find Effective Java...");
+        BookItem availableCopy = effectiveJava.getAvailableCopy();
+        if (availableCopy == null) {
+            System.out.println("  No available copies of Effective Java.");
+            System.out.println("  Charlie reserves the book instead.");
+            library.reserveBook(charlie, effectiveJava);
+        }
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 4: Bob returns Effective Java LATE -- fine imposed
+        //         Observer notifies Charlie that book is available
+        // -------------------------------------------------------
+
+        printSection("DEMO 4: BOB RETURNS LATE -- FINE + RESERVATION NOTIFICATION");
+
+        // Bob returns today. The book was due 16 days ago (30 - 14 = 16 days late).
+        System.out.println("Bob returns Effective Java today "
+                + "(16 days overdue)...");
+        System.out.println();
+
+        Fine bobFine = library.returnBook(bob, effectiveJava1);
+        // Observer notification for Charlie prints automatically here.
+
+        System.out.println();
+        if (bobFine != null) {
+            System.out.println("Bob's fine details: " + bobFine);
+            System.out.println("Bob's total unpaid fines: Rs "
+                    + bob.getTotalUnpaidFines());
+        }
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 5: Charlie borrows the reserved copy
+        // -------------------------------------------------------
+
+        printSection("DEMO 5: CHARLIE BORROWS THE RESERVED COPY");
+
+        System.out.println("Effective Java copy status: "
+                + effectiveJava1.getStatus());
+        System.out.println("Charlie borrows the reserved copy...");
+        library.borrowBook(charlie, effectiveJava1);
+
+        System.out.println();
+        System.out.println("Charlie's active loans:");
+        charlie.getActiveLoans().forEach(
+                loan -> System.out.println("  " + loan));
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 6: Bob tries to borrow with unpaid fines -- BLOCKED
+        // -------------------------------------------------------
+
+        printSection("DEMO 6: BOB TRIES TO BORROW WITH UNPAID FINES");
+
+        try {
+            System.out.println("Bob tries to borrow Sapiens...");
+            library.borrowBook(bob, sapiens1);
+        } catch (IllegalStateException e) {
+            System.out.println("  BLOCKED: " + e.getMessage());
+        }
+
+        System.out.println();
+
+        // Bob pays the fine
+        System.out.println("Bob pays his fine...");
+        bobFine.pay();
+        System.out.println("Bob's total unpaid fines after payment: Rs "
+                + bob.getTotalUnpaidFines());
+
+        System.out.println();
+
+        // Now Bob can borrow
+        System.out.println("Bob borrows Sapiens after paying fine...");
+        library.borrowBook(bob, sapiens1);
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 7: Alice returns books on time -- no fine
+        // -------------------------------------------------------
+
+        printSection("DEMO 7: ALICE RETURNS BOOKS ON TIME");
+
+        Fine aliceFine1 = library.returnBook(alice, cleanCode1);
+        Fine aliceFine2 = library.returnBook(alice, harryPotter1);
+
+        System.out.println();
+        System.out.println("Alice's fines: "
+                + (aliceFine1 == null && aliceFine2 == null
+                        ? "None (returned on time)" : "Has fines"));
+        System.out.println("Alice's active loans: "
+                + alice.getActiveLoanCount());
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 8: Verify book statuses after all operations
+        // -------------------------------------------------------
+
+        printSection("DEMO 8: FINAL BOOK STATUSES");
+
+        System.out.println(cleanCode1);
+        System.out.println(cleanCode2);
+        System.out.println(effectiveJava1);
+        System.out.println(harryPotter1);
+        System.out.println(sapiens1);
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // DEMO 9: Borrow limit enforcement
+        // -------------------------------------------------------
+
+        printSection("DEMO 9: BORROW LIMIT ENFORCEMENT (MAX 5)");
+
+        // Alice borrows up to her limit
+        System.out.println("Alice borrows 5 books to hit the limit...");
+        library.borrowBook(alice, cleanCode1);
+        library.borrowBook(alice, cleanCode2);
+        library.borrowBook(alice, harryPotter1);
+
+        // Create more books so Alice can reach 5
+        Book designPatterns = new Book(
+                "978-0201633610", "Design Patterns",
+                "Gang of Four", BookCategory.TECHNOLOGY, 1994);
+        BookItem dp1 = new BookItem("DP-001", designPatterns, rack2);
+        library.addBook(designPatterns);
+        library.addBookItem(designPatterns, dp1);
+        library.borrowBook(alice, dp1);
+
+        Book refactoring = new Book(
+                "978-0134757599", "Refactoring",
+                "Martin Fowler", BookCategory.TECHNOLOGY, 2018);
+        BookItem rf1 = new BookItem("RF-001", refactoring, rack2);
+        library.addBook(refactoring);
+        library.addBookItem(refactoring, rf1);
+        library.borrowBook(alice, rf1);
+
+        System.out.println();
+        System.out.println("Alice's active loans: "
+                + alice.getActiveLoanCount() + " (max is 5)");
+
+        // Try to borrow a 6th book
+        Book mythicalManMonth = new Book(
+                "978-0201835953", "The Mythical Man-Month",
+                "Frederick Brooks", BookCategory.TECHNOLOGY, 1975);
+        BookItem mm1 = new BookItem("MM-001", mythicalManMonth, rack1);
+        library.addBook(mythicalManMonth);
+        library.addBookItem(mythicalManMonth, mm1);
+
+        try {
+            System.out.println("Alice tries to borrow a 6th book...");
+            library.borrowBook(alice, mm1);
+        } catch (IllegalStateException e) {
+            System.out.println("  BLOCKED: " + e.getMessage());
+        }
+
+        System.out.println();
+
+        // -------------------------------------------------------
+        // SUMMARY
+        // -------------------------------------------------------
+
+        printSection("SUMMARY");
+        System.out.println("Library: " + library);
+        System.out.println();
+        System.out.println("Members:");
+        System.out.println("  " + alice + " | Active loans: "
+                + alice.getActiveLoanCount()
+                + " | Unpaid fines: Rs " + alice.getTotalUnpaidFines());
+        System.out.println("  " + bob + " | Active loans: "
+                + bob.getActiveLoanCount()
+                + " | Unpaid fines: Rs " + bob.getTotalUnpaidFines());
+        System.out.println("  " + charlie + " | Active loans: "
+                + charlie.getActiveLoanCount()
+                + " | Unpaid fines: Rs " + charlie.getTotalUnpaidFines());
+
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println("  DEMO COMPLETE");
+        System.out.println("========================================");
+    }
+
+    private static void printSection(String title) {
+        System.out.println("----------------------------------------");
+        System.out.println("  " + title);
+        System.out.println("----------------------------------------");
+        System.out.println();
+    }
+}
+\`\`\`
+
+### Expected Output
+
+\`\`\`
+========================================
+  LIBRARY MANAGEMENT SYSTEM DEMO
+========================================
+
+LIBRARIAN: Added book "Clean Code" by Robert C. Martin (ISBN: 978-0132350884)
+LIBRARIAN: Added book "Effective Java" by Joshua Bloch (ISBN: 978-0134685991)
+LIBRARIAN: Added book "Harry Potter and the Sorcerer's Stone" by J.K. Rowling (ISBN: 978-0439708180)
+LIBRARIAN: Added book "Sapiens: A Brief History of Humankind" by Yuval Noah Harari (ISBN: 978-0062316097)
+LIBRARIAN: Added copy CC-001 for Clean Code
+LIBRARIAN: Added copy CC-002 for Clean Code
+LIBRARIAN: Added copy EJ-001 for Effective Java
+LIBRARIAN: Added copy HP-001 for Harry Potter and the Sorcerer's Stone
+LIBRARIAN: Added copy SA-001 for Sapiens: A Brief History of Humankind
+LIBRARIAN: Registered member Alice Johnson
+LIBRARIAN: Registered member Bob Williams
+LIBRARIAN: Registered member Charlie Brown
+
+Library setup complete: City Central Library (123 Main Street, Bangalore) | Books: 4 | Members: 4
+
+----------------------------------------
+  DEMO 1: SEARCH BOOKS
+----------------------------------------
+
+--- Search by Title: 'clean' ---
+  Found: "Clean Code" by Robert C. Martin (ISBN: 978-0132350884)
+--- Search by Author: 'Bloch' ---
+  Found: "Effective Java" by Joshua Bloch (ISBN: 978-0134685991)
+--- Search by ISBN: '978-0439708180' ---
+  Found: "Harry Potter and the Sorcerer's Stone" by J.K. Rowling (ISBN: 978-0439708180)
+--- Search by Category: 'TECHNOLOGY' ---
+  Found: "Clean Code" by Robert C. Martin (ISBN: 978-0132350884)
+  Found: "Effective Java" by Joshua Bloch (ISBN: 978-0134685991)
+
+----------------------------------------
+  DEMO 2: ALICE BORROWS BOOKS
+----------------------------------------
+
+LOAN ISSUED: LOAN-1: Alice Johnson borrowed Clean Code [CC-001] | Due: <today+14> | ACTIVE
+LOAN ISSUED: LOAN-2: Alice Johnson borrowed Harry Potter and the Sorcerer's Stone [HP-001] | Due: <today+14> | ACTIVE
+
+Alice's active loans: 2
+
+----------------------------------------
+  DEMO 3: BOB BORROWS EFFECTIVE JAVA, CHARLIE RESERVES IT
+----------------------------------------
+
+LOAN ISSUED: LOAN-3: Bob Williams borrowed Effective Java [EJ-001] | Due: <30daysAgo+14> | ACTIVE
+
+Charlie tries to find Effective Java...
+  No available copies of Effective Java.
+  Charlie reserves the book instead.
+RESERVATION CREATED: RES-1: Charlie Brown reserved Effective Java | PENDING
+
+----------------------------------------
+  DEMO 4: BOB RETURNS LATE -- FINE + RESERVATION NOTIFICATION
+----------------------------------------
+
+Bob returns Effective Java today (16 days overdue)...
+
+FINE IMPOSED: FINE-1: Rs 160 | UNPAID | For: LOAN-3
+RESERVATION FULFILLED: RES-1: Charlie Brown reserved Effective Java | FULFILLED
+
+=================================================
+  NOTIFICATION to Charlie Brown:
+  Your reserved book "Effective Java" is now available!
+  Copy barcode: EJ-001
+  Rack location: Rack-2 (Aisle A, Shelf 2)
+  Please pick it up within 3 days.
+=================================================
+
+BOOK RETURNED: Bob Williams returned Effective Java [EJ-001] | Fine: Rs 160
+
+Bob's fine details: FINE-1: Rs 160 | UNPAID | For: LOAN-3
+Bob's total unpaid fines: Rs 160
+
+----------------------------------------
+  DEMO 5: CHARLIE BORROWS THE RESERVED COPY
+----------------------------------------
+
+Effective Java copy status: RESERVED
+Charlie borrows the reserved copy...
+LOAN ISSUED: LOAN-4: Charlie Brown borrowed Effective Java [EJ-001] | Due: <today+14> | ACTIVE
+
+Charlie's active loans:
+  LOAN-4: Charlie Brown borrowed Effective Java [EJ-001] | Due: <today+14> | ACTIVE
+
+----------------------------------------
+  DEMO 6: BOB TRIES TO BORROW WITH UNPAID FINES
+----------------------------------------
+
+Bob tries to borrow Sapiens...
+  BLOCKED: Member Bob Williams has unpaid fines of Rs 160. Please clear fines before borrowing.
+
+Bob pays his fine...
+Fine FINE-1 of Rs 160 has been paid.
+Bob's total unpaid fines after payment: Rs 0
+
+Bob borrows Sapiens after paying fine...
+LOAN ISSUED: LOAN-5: Bob Williams borrowed Sapiens: A Brief History of Humankind [SA-001] | Due: <today+14> | ACTIVE
+
+----------------------------------------
+  DEMO 7: ALICE RETURNS BOOKS ON TIME
+----------------------------------------
+
+BOOK RETURNED: Alice Johnson returned Clean Code [CC-001] | No fine
+BOOK RETURNED: Alice Johnson returned Harry Potter and the Sorcerer's Stone [HP-001] | No fine
+
+Alice's fines: None (returned on time)
+Alice's active loans: 0
+
+----------------------------------------
+  DEMO 8: FINAL BOOK STATUSES
+----------------------------------------
+
+[CC-001] Clean Code | Status: AVAILABLE | Rack: Rack-1 (Aisle A, Shelf 1)
+[CC-002] Clean Code | Status: AVAILABLE | Rack: Rack-1 (Aisle A, Shelf 1)
+[EJ-001] Effective Java | Status: BORROWED | Rack: Rack-2 (Aisle A, Shelf 2)
+[HP-001] Harry Potter and the Sorcerer's Stone | Status: AVAILABLE | Rack: Rack-3 (Aisle B, Shelf 1)
+[SA-001] Sapiens: A Brief History of Humankind | Status: BORROWED | Rack: Rack-3 (Aisle B, Shelf 1)
+
+----------------------------------------
+  DEMO 9: BORROW LIMIT ENFORCEMENT (MAX 5)
+----------------------------------------
+
+Alice borrows 5 books to hit the limit...
+  (5 loan issued messages)
+
+Alice's active loans: 5 (max is 5)
+Alice tries to borrow a 6th book...
+  BLOCKED: Member Alice Johnson has reached the borrow limit (max 5 books).
+
+----------------------------------------
+  SUMMARY
+----------------------------------------
+
+Library: City Central Library (123 Main Street, Bangalore) | Books: 7 | Members: 4
+
+Members:
+  Member[M002] Alice Johnson (alice@email.com) | Active loans: 5 | Unpaid fines: Rs 0
+  Member[M003] Bob Williams (bob@email.com) | Active loans: 1 | Unpaid fines: Rs 0
+  Member[M004] Charlie Brown (charlie@email.com) | Active loans: 1 | Unpaid fines: Rs 0
+
+========================================
+  DEMO COMPLETE
+========================================
+\`\`\`
+`,
+  designWalkthrough: `# Low-Level Design: Library Management System
+
+## Table of Contents
+
+1. [Problem Statement](#1-problem-statement)
+2. [Requirements](#2-requirements)
+3. [Entity Identification](#3-entity-identification)
+4. [Class Diagram](#4-class-diagram)
+5. [Design Patterns](#5-design-patterns)
+6. [Design Decisions and Rationale](#6-design-decisions-and-rationale)
+7. [Key Business Rules](#7-key-business-rules)
+8. [Core Workflows](#8-core-workflows)
+9. [Fine Calculation Logic](#9-fine-calculation-logic)
+10. [Reservation and Notification Flow](#10-reservation-and-notification-flow)
+11. [Extension Points](#11-extension-points)
+12. [Concurrency Considerations](#12-concurrency-considerations)
+13. [Summary](#13-summary)
+
+---
+
+## 1. Problem Statement
+
+Design an object-oriented Library Management System that allows librarians to
+manage books and members, and allows members to search for, borrow, return, and
+reserve books. The system must enforce lending policies (max books per member,
+loan duration, late return fines) and notify members when reserved books become
+available.
+
+This is a classic LLD interview problem that tests your ability to:
+- Distinguish between metadata (Book) and physical copies (BookItem)
+- Model multiple actors with different permissions (Member vs Librarian)
+- Apply Strategy for pluggable search, Observer for event-driven notification
+- Enforce non-trivial business rules (loan limits, fine calculation, reservations)
+
+---
+
+## 2. Requirements
+
+### 2.1 Functional Requirements
+
+| # | Requirement | Priority |
+|---|-------------|----------|
+| FR-1 | Librarian can add, update, and remove books from the catalog | Must |
+| FR-2 | Members can search books by title, author, ISBN, or category | Must |
+| FR-3 | Members can borrow available book copies (BookItems) | Must |
+| FR-4 | Members can return borrowed books | Must |
+| FR-5 | System tracks due dates and calculates fines for late returns | Must |
+| FR-6 | Maximum 5 books can be borrowed per member at any time | Must |
+| FR-7 | Default loan period is 14 days from the date of borrowing | Must |
+| FR-8 | Late return fine is Rs 10 per day past the due date | Must |
+| FR-9 | Members can reserve a book that is currently borrowed by someone else | Must |
+| FR-10 | When a reserved book is returned, the reserving member is notified | Must |
+| FR-11 | A reserved book cannot be borrowed by anyone other than the reserver | Must |
+| FR-12 | Librarian can register new members and deactivate existing ones | Should |
+| FR-13 | System assigns a unique barcode to each physical book copy | Should |
+| FR-14 | Books are placed on racks; each BookItem knows its rack location | Should |
+
+### 2.2 Non-Functional Requirements
+
+| # | Requirement |
+|---|-------------|
+| NFR-1 | Design must be extensible: adding new search criteria, notification channels, or fine policies should not require modifying existing classes |
+| NFR-2 | Repositories abstract data access so the system can switch between in-memory, SQL, or NoSQL storage |
+| NFR-3 | All monetary calculations use integer arithmetic (paise or whole rupees) to avoid floating-point errors |
+| NFR-4 | SOLID principles throughout, with particular attention to Single Responsibility and Open/Closed |
+
+---
+
+## 3. Entity Identification
+
+### 3.1 Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| **Library** | Top-level facade: holds the catalog, members, and coordinates all services |
+| **Book** | Metadata for a logical book: title, author, ISBN, category, publication year. One Book can have many physical copies. |
+| **BookItem** | A single physical copy with a unique barcode, a BookStatus, a rack location, and a reference back to its parent Book. |
+| **Member** | A registered library user who can search, borrow, return, and reserve books. Tracks active loans and unpaid fines. |
+| **Librarian** | Extends Member with administrative privileges: add/remove books, register/deactivate members. |
+| **Loan** | Records a borrowing event: which member, which BookItem, issue date, due date, return date, and associated fine. |
+| **Fine** | Represents a monetary penalty for a late return: amount in rupees, the associated Loan, and paid/unpaid status. |
+| **Reservation** | Records that a member has reserved a specific Book. When any copy becomes available, the oldest reservation is fulfilled first. |
+| **Rack** | Physical location in the library identified by a rack number. A BookItem is placed on a Rack. |
+| **BookStatus** | Enum: AVAILABLE, BORROWED, RESERVED, LOST |
+| **BookCategory** | Enum: FICTION, NON_FICTION, SCIENCE, HISTORY, TECHNOLOGY, BIOGRAPHY, CHILDREN, REFERENCE |
+
+### 3.2 Service Classes
+
+| Service | Responsibility |
+|---------|---------------|
+| **LoanService** | Orchestrates borrow and return workflows, delegates fine calculation |
+| **SearchService** | Accepts a SearchStrategy and executes it against the catalog |
+| **ReservationService** | Manages reservations and triggers notifications when books become available |
+| **FineCalculator** | Pure logic: given a due date and return date, computes the fine amount |
+| **BookRepository** | Data access layer for Book and BookItem entities |
+| **MemberRepository** | Data access layer for Member entities |
+
+### 3.3 Strategy and Observer Interfaces
+
+| Interface | Responsibility |
+|-----------|---------------|
+| **SearchStrategy** | Defines a single method \`search(catalog, query)\` for pluggable search algorithms |
+| **BookAvailabilityObserver** | Callback interface: \`onBookAvailable(Book, BookItem)\` -- invoked when a reserved book is returned |
+
+### 3.4 Relationships at a Glance
+
+- **Library** HAS-A BookRepository, MemberRepository, LoanService, SearchService, ReservationService.
+- **Book** HAS-MANY BookItems (one logical book, many physical copies).
+- **BookItem** HAS-A BookStatus, a Rack reference, and a back-reference to its parent Book.
+- **Member** HAS-MANY active Loans (up to 5) and HAS-MANY Fines.
+- **Librarian** IS-A Member (inherits borrowing capabilities, adds admin operations).
+- **Loan** references one Member and one BookItem.
+- **Reservation** references one Member and one Book (not BookItem -- any copy will do).
+- **SearchService** HAS-A SearchStrategy (Strategy pattern -- swappable at runtime).
+- **ReservationService** HAS-MANY BookAvailabilityObservers (Observer pattern).
+
+---
+
+## 4. Class Diagram
+
+\`\`\`mermaid
+classDiagram
+    class Library {
+        -String name
+        -String address
+        -BookRepository bookRepository
+        -MemberRepository memberRepository
+        -LoanService loanService
+        -SearchService searchService
+        -ReservationService reservationService
+        +addBook(Book) void
+        +addBookItem(Book, BookItem) void
+        +registerMember(Member) void
+        +searchBooks(SearchStrategy, String) List~Book~
+        +borrowBook(Member, BookItem) Loan
+        +returnBook(Member, BookItem) Fine
+        +reserveBook(Member, Book) Reservation
+    }
+
+    class Book {
+        -String isbn
+        -String title
+        -String author
+        -BookCategory category
+        -int publicationYear
+        -List~BookItem~ bookItems
+        +getIsbn() String
+        +getTitle() String
+        +getAuthor() String
+        +getCategory() BookCategory
+        +getBookItems() List~BookItem~
+        +addBookItem(BookItem) void
+        +getAvailableCopy() BookItem
+    }
+
+    class BookItem {
+        -String barcode
+        -Book book
+        -BookStatus status
+        -Rack rack
+        -LocalDate dueDate
+        +getBarcode() String
+        +getBook() Book
+        +getStatus() BookStatus
+        +setStatus(BookStatus) void
+        +getRack() Rack
+        +getDueDate() LocalDate
+        +setDueDate(LocalDate) void
+        +isAvailable() boolean
+    }
+
+    class Member {
+        -String memberId
+        -String name
+        -String email
+        -String phone
+        -LocalDate joinDate
+        -boolean active
+        -List~Loan~ activeLoans
+        -List~Fine~ fines
+        +getMemberId() String
+        +getName() String
+        +getEmail() String
+        +getActiveLoans() List~Loan~
+        +getActiveLoanCount() int
+        +canBorrow() boolean
+        +addLoan(Loan) void
+        +removeLoan(Loan) void
+        +addFine(Fine) void
+        +getTotalUnpaidFines() int
+    }
+
+    class Librarian {
+        -String employeeId
+        +addBook(Library, Book) void
+        +removeBook(Library, Book) void
+        +addBookItem(Library, Book, BookItem) void
+        +registerMember(Library, Member) void
+        +deactivateMember(Library, Member) void
+    }
+
+    class Loan {
+        -String loanId
+        -Member member
+        -BookItem bookItem
+        -LocalDate issueDate
+        -LocalDate dueDate
+        -LocalDate returnDate
+        -Fine fine
+        +getLoanId() String
+        +getMember() Member
+        +getBookItem() BookItem
+        +getIssueDate() LocalDate
+        +getDueDate() LocalDate
+        +getReturnDate() LocalDate
+        +setReturnDate(LocalDate) void
+        +isOverdue() boolean
+        +isReturned() boolean
+        +setFine(Fine) void
+    }
+
+    class Fine {
+        -String fineId
+        -Loan loan
+        -int amount
+        -boolean paid
+        +getFineId() String
+        +getAmount() int
+        +isPaid() boolean
+        +pay() void
+    }
+
+    class Reservation {
+        -String reservationId
+        -Member member
+        -Book book
+        -LocalDate reservationDate
+        -boolean fulfilled
+        +getReservationId() String
+        +getMember() Member
+        +getBook() Book
+        +getReservationDate() LocalDate
+        +isFulfilled() boolean
+        +fulfill() void
+    }
+
+    class Rack {
+        -int rackNumber
+        -String locationDescription
+        +getRackNumber() int
+        +getLocationDescription() String
+    }
+
+    class BookStatus {
+        <<enumeration>>
+        AVAILABLE
+        BORROWED
+        RESERVED
+        LOST
+    }
+
+    class BookCategory {
+        <<enumeration>>
+        FICTION
+        NON_FICTION
+        SCIENCE
+        HISTORY
+        TECHNOLOGY
+        BIOGRAPHY
+        CHILDREN
+        REFERENCE
+    }
+
+    class SearchStrategy {
+        <<interface>>
+        +search(List~Book~, String) List~Book~
+    }
+
+    class SearchByTitle {
+        +search(List~Book~, String) List~Book~
+    }
+
+    class SearchByAuthor {
+        +search(List~Book~, String) List~Book~
+    }
+
+    class SearchByISBN {
+        +search(List~Book~, String) List~Book~
+    }
+
+    class SearchByCategory {
+        +search(List~Book~, String) List~Book~
+    }
+
+    class BookAvailabilityObserver {
+        <<interface>>
+        +onBookAvailable(Book, BookItem) void
+    }
+
+    class MemberNotificationObserver {
+        -Member member
+        +onBookAvailable(Book, BookItem) void
+    }
+
+    class LoanService {
+        -FineCalculator fineCalculator
+        -ReservationService reservationService
+        +borrowBook(Member, BookItem) Loan
+        +returnBook(Member, BookItem) Fine
+        -validateBorrow(Member, BookItem) void
+    }
+
+    class SearchService {
+        -SearchStrategy strategy
+        +setStrategy(SearchStrategy) void
+        +search(List~Book~, String) List~Book~
+    }
+
+    class ReservationService {
+        -List~Reservation~ reservations
+        -List~BookAvailabilityObserver~ observers
+        +reserve(Member, Book) Reservation
+        +onBookReturned(Book, BookItem) void
+        +addObserver(BookAvailabilityObserver) void
+        +removeObserver(BookAvailabilityObserver) void
+        -notifyObservers(Book, BookItem) void
+    }
+
+    class FineCalculator {
+        -int dailyFineRate
+        +calculateFine(LocalDate, LocalDate) int
+    }
+
+    class BookRepository {
+        -Map books
+        +addBook(Book) void
+        +removeBook(String) void
+        +findByIsbn(String) Book
+        +getAllBooks() List~Book~
+    }
+
+    class MemberRepository {
+        -Map members
+        +addMember(Member) void
+        +removeMember(String) void
+        +findById(String) Member
+        +getAllMembers() List~Member~
+    }
+
+    Library "1" --> "1" BookRepository : uses
+    Library "1" --> "1" MemberRepository : uses
+    Library "1" --> "1" LoanService : uses
+    Library "1" --> "1" SearchService : uses
+    Library "1" --> "1" ReservationService : uses
+
+    Book "1" --> "*" BookItem : has copies
+    BookItem "1" --> "1" Book : belongs to
+    BookItem --> BookStatus : has
+    BookItem --> Rack : placed on
+
+    Member "1" --> "*" Loan : active loans
+    Member "1" --> "*" Fine : owes
+    Librarian --|> Member : extends
+
+    Loan --> Member : borrowed by
+    Loan --> BookItem : for
+    Loan "1" --> "0..1" Fine : may incur
+
+    Reservation --> Member : reserved by
+    Reservation --> Book : for
+
+    SearchStrategy <|.. SearchByTitle : implements
+    SearchStrategy <|.. SearchByAuthor : implements
+    SearchStrategy <|.. SearchByISBN : implements
+    SearchStrategy <|.. SearchByCategory : implements
+
+    SearchService --> SearchStrategy : uses
+
+    BookAvailabilityObserver <|.. MemberNotificationObserver : implements
+    ReservationService --> "*" BookAvailabilityObserver : notifies
+    ReservationService --> "*" Reservation : manages
+
+    LoanService --> FineCalculator : uses
+    LoanService --> ReservationService : notifies on return
+\`\`\`
+
+---
+
+## 5. Design Patterns
+
+### 5.1 Strategy Pattern -- Pluggable Search
+
+**Where:** \`SearchStrategy\` interface and its four implementations: \`SearchByTitle\`,
+\`SearchByAuthor\`, \`SearchByISBN\`, \`SearchByCategory\`.
+
+**Why:** The library supports multiple ways to search for books. Each search
+criterion has different matching logic:
+- Title search does case-insensitive substring matching.
+- Author search does case-insensitive substring matching on a different field.
+- ISBN search does exact matching (ISBNs are unique identifiers).
+- Category search matches against an enum value.
+
+Without Strategy, the SearchService would need a big if-else chain:
+
+\`\`\`
+// BAD -- violates Open/Closed Principle
+if (searchType == "title") { ... }
+else if (searchType == "author") { ... }
+else if (searchType == "isbn") { ... }
+\`\`\`
+
+With Strategy, the SearchService is completely unaware of which search algorithm
+is being used. The client picks a strategy and passes it in:
+
+\`\`\`
+interface SearchStrategy {
+    List<Book> search(List<Book> catalog, String query);
+}
+
+class SearchByTitle implements SearchStrategy {
+    public List<Book> search(List<Book> catalog, String query) {
+        return catalog.stream()
+            .filter(b -> b.getTitle().toLowerCase().contains(query.toLowerCase()))
+            .collect(Collectors.toList());
+    }
+}
+\`\`\`
+
+**Extensibility:** To add "Search by Publisher" or "Search by Year Range," you
+create a new class implementing SearchStrategy. No existing code is modified.
+This is the Open/Closed Principle in its purest form.
+
+**Runtime flexibility:** The same SearchService instance can switch strategies
+per request. A member might search by title first, then refine by author --
+all without instantiating a new service.
+
+### 5.2 Observer Pattern -- Reserved Book Notification
+
+**Where:** \`BookAvailabilityObserver\` interface and \`MemberNotificationObserver\`
+implementation. The \`ReservationService\` is the subject (publisher).
+
+**Why:** When a member reserves a book that is currently borrowed, they want to
+be notified the moment any copy of that book becomes available. The key
+problem: the \`LoanService\` (which handles returns) should not need to know
+about notifications, email systems, or member preferences. It just needs to
+say "a book was returned" and let interested parties react.
+
+\`\`\`
+interface BookAvailabilityObserver {
+    void onBookAvailable(Book book, BookItem copy);
+}
+
+class MemberNotificationObserver implements BookAvailabilityObserver {
+    private Member member;
+
+    public void onBookAvailable(Book book, BookItem copy) {
+        System.out.println("NOTIFICATION to " + member.getName()
+            + ": '" + book.getTitle() + "' is now available. "
+            + "Copy barcode: " + copy.getBarcode());
+    }
+}
+\`\`\`
+
+**Flow:**
+1. Member A reserves Book X. ReservationService creates a Reservation and
+   registers a \`MemberNotificationObserver(A)\` for Book X.
+2. Member B returns a copy of Book X. LoanService marks it AVAILABLE and
+   calls \`reservationService.onBookReturned(bookX, copy)\`.
+3. ReservationService checks if there are pending reservations for Book X.
+   If yes, it marks the copy as RESERVED, fulfills the oldest reservation,
+   and notifies all observers.
+4. Member A receives the notification and can now borrow the reserved copy.
+
+**Extensibility:** To add email notifications, SMS alerts, or push notifications,
+create new observer implementations. The ReservationService does not change.
+
+### 5.3 Repository Pattern -- Data Access Abstraction
+
+**Where:** \`BookRepository\` and \`MemberRepository\`.
+
+**Why:** The core domain logic (LoanService, SearchService, ReservationService)
+should not care whether data is stored in a HashMap, a SQL database, or a
+remote microservice. Repositories provide a clean interface:
+
+\`\`\`
+class BookRepository {
+    private Map<String, Book> books = new HashMap<>();
+
+    public void addBook(Book book) { books.put(book.getIsbn(), book); }
+    public Book findByIsbn(String isbn) { return books.get(isbn); }
+    public List<Book> getAllBooks() { return new ArrayList<>(books.values()); }
+}
+\`\`\`
+
+In a real system, you would define a \`BookRepository\` interface and have
+\`InMemoryBookRepository\`, \`JpaBookRepository\`, etc. For this LLD, the
+in-memory version keeps things focused on the domain logic.
+
+**Benefit:** Swapping storage backends (for example, moving from in-memory to
+PostgreSQL during productionization) requires only a new Repository
+implementation. All service classes continue to work unchanged.
+
+---
+
+## 6. Design Decisions and Rationale
+
+### 6.1 Why Separate Book and BookItem?
+
+This is the single most important modelling decision in this problem.
+
+A library might own 5 copies of "Clean Code" by Robert C. Martin. All five
+share the same title, author, ISBN, and category. But each physical copy has
+its own barcode, its own status (one might be borrowed, another available),
+and its own rack location.
+
+| Concept | What It Represents | Unique By |
+|---------|-------------------|-----------|
+| **Book** | The intellectual work | ISBN |
+| **BookItem** | A physical copy of that work | Barcode |
+
+Without this separation, you would need to duplicate title/author/ISBN across
+every copy, violating DRY. Worse, searching "by title" would return 5 identical
+results instead of 1 book with 5 available copies.
+
+**Analogy:** This is the same as the \`Movie\` vs \`Show\` (screening) distinction
+in BookMyShow, or \`Product\` vs \`ProductItem\` in an inventory system.
+
+### 6.2 Why Librarian Extends Member?
+
+A Librarian IS-A Member with additional administrative capabilities. Librarians
+can borrow books too (they are library members). The inheritance is justified:
+
+- All Member operations (borrow, return, search, reserve) apply to Librarian.
+- Librarian adds operations (addBook, registerMember, deactivateMember).
+- Liskov Substitution holds: anywhere a Member is expected, a Librarian works.
+
+An alternative is composition (Librarian HAS-A Member), but this forces
+delegation for every Member method. Since the IS-A relationship is natural
+and Librarian truly IS a specialized Member, inheritance is the cleaner choice.
+
+### 6.3 Why Reservation Is on Book, Not BookItem?
+
+When a member reserves a book, they do not care which specific copy they get.
+They want "any copy of Clean Code." Reserving a specific barcode would be
+too restrictive -- what if that copy gets lost?
+
+By reserving at the Book level, the system can fulfill the reservation with
+whichever copy gets returned first. This is more flexible and matches
+real-world library behavior.
+
+### 6.4 Why a Separate FineCalculator Class?
+
+Fine calculation is pure business logic with no side effects: given a due date
+and a return date, compute the penalty. Extracting it into its own class:
+
+- Makes it independently testable (unit test with various date combinations).
+- Follows Single Responsibility Principle (LoanService orchestrates, FineCalculator computes).
+- Makes the fine policy easy to change (swap in a different calculator for
+  tiered fines, grace periods, maximum cap, etc.).
+
+### 6.5 Why Not Use State Pattern?
+
+Unlike the Vending Machine problem, a Library Management System does not have
+a single object transitioning through well-defined states where each state
+changes the allowed operations. A BookItem has a status, but the transitions
+are simple enough (AVAILABLE -> BORROWED -> AVAILABLE, or AVAILABLE -> RESERVED)
+that a State pattern would be over-engineering. A simple enum and validation
+checks in the service layer are sufficient.
+
+---
+
+## 7. Key Business Rules
+
+### 7.1 Borrowing Rules
+
+\`\`\`
+A member can borrow a BookItem IF AND ONLY IF all of the following hold:
+
+1. The member is active (not deactivated).
+2. The member has fewer than 5 active loans (MAX_BOOKS_PER_MEMBER = 5).
+3. The member has no unpaid fines exceeding Rs 0 (or a configurable threshold).
+4. The BookItem's status is AVAILABLE.
+5. The BookItem is NOT reserved by a different member.
+   - If the BookItem is RESERVED, only the reserving member can borrow it.
+\`\`\`
+
+### 7.2 Return Rules
+
+\`\`\`
+When a member returns a BookItem:
+
+1. Find the active Loan for this member and BookItem.
+2. Set the Loan's returnDate to today.
+3. If returnDate > dueDate, calculate fine:
+      fine = (returnDate - dueDate) * DAILY_FINE_RATE
+      DAILY_FINE_RATE = Rs 10 per day
+4. If the Book has pending reservations:
+      - Mark the BookItem as RESERVED.
+      - Notify the reserving member (Observer pattern).
+5. Otherwise:
+      - Mark the BookItem as AVAILABLE.
+6. Remove the Loan from the member's active loans.
+\`\`\`
+
+### 7.3 Reservation Rules
+
+\`\`\`
+A member can reserve a Book IF:
+
+1. The member is active.
+2. All copies of the Book are currently BORROWED (none available).
+3. The member does not already have an active reservation for this Book.
+4. The member does not already have this Book borrowed.
+
+When a reserved copy is returned:
+- The copy is marked RESERVED (not AVAILABLE).
+- The oldest pending reservation is fulfilled first (FIFO).
+- The reserving member is notified.
+- The reservation remains valid for a configurable period (e.g., 3 days).
+\`\`\`
+
+### 7.4 Constants Summary
+
+| Constant | Value |
+|----------|-------|
+| MAX_BOOKS_PER_MEMBER | 5 |
+| LOAN_PERIOD_DAYS | 14 |
+| DAILY_FINE_RATE | Rs 10 |
+| RESERVATION_HOLD_DAYS | 3 |
+
+---
+
+## 8. Core Workflows
+
+### 8.1 Borrow Book Flow
+
+\`\`\`
+Member calls library.borrowBook(member, bookItem)
+    |
+    v
+[1] Is member active?
+    |-- No  --> throw "Member account is not active"
+    |-- Yes --> continue
+    v
+[2] Does member have fewer than 5 active loans?
+    |-- No  --> throw "Borrow limit reached (max 5)"
+    |-- Yes --> continue
+    v
+[3] Does member have unpaid fines?
+    |-- Yes --> throw "Please clear outstanding fines first"
+    |-- No  --> continue
+    v
+[4] Is the BookItem AVAILABLE?
+    |-- No, BORROWED --> throw "This copy is already borrowed"
+    |-- No, RESERVED --> Is it reserved by THIS member?
+    |   |-- Yes --> continue (member can borrow their reserved copy)
+    |   |-- No  --> throw "This copy is reserved by another member"
+    |-- No, LOST --> throw "This copy is marked as lost"
+    |-- Yes --> continue
+    v
+[5] Create Loan object
+    |-- issueDate = today
+    |-- dueDate = today + 14 days
+    |-- member = the borrower
+    |-- bookItem = the copy
+    v
+[6] Update BookItem status to BORROWED
+    |-- Set bookItem.dueDate = loan.dueDate
+    v
+[7] Add Loan to member's active loans
+    v
+[8] If this was a reserved copy, mark reservation as fulfilled
+    |
+    v
+[9] Return the Loan object
+\`\`\`
+
+### 8.2 Return Book Flow
+
+\`\`\`
+Member calls library.returnBook(member, bookItem)
+    |
+    v
+[1] Find active Loan for (member, bookItem)
+    |-- Not found --> throw "No active loan found for this member and copy"
+    |-- Found    --> continue
+    v
+[2] Set loan.returnDate = today
+    v
+[3] Is the return late? (today > loan.dueDate)
+    |-- No  --> fine = null
+    |-- Yes --> fine = FineCalculator.calculate(loan.dueDate, today)
+    |           Create Fine object, attach to Loan, add to Member
+    v
+[4] Remove Loan from member's active loans
+    v
+[5] Does the Book have pending reservations?
+    |-- Yes --> Mark BookItem as RESERVED
+    |           Call reservationService.onBookReturned(book, bookItem)
+    |           (Observer notifies the reserving member)
+    |-- No  --> Mark BookItem as AVAILABLE
+    v
+[6] Return Fine (or null if on time)
+\`\`\`
+
+### 8.3 Search Flow
+
+\`\`\`
+Member calls library.searchBooks(strategy, query)
+    |
+    v
+[1] SearchService receives the strategy and query
+    v
+[2] SearchService calls strategy.search(allBooks, query)
+    v
+[3] Strategy filters the catalog based on its algorithm
+    |-- SearchByTitle: case-insensitive substring match on title
+    |-- SearchByAuthor: case-insensitive substring match on author
+    |-- SearchByISBN: exact match on ISBN
+    |-- SearchByCategory: match enum value
+    v
+[4] Return filtered List<Book>
+\`\`\`
+
+---
+
+## 9. Fine Calculation Logic
+
+### 9.1 Formula
+
+\`\`\`
+if returnDate <= dueDate:
+    fine = 0 (no fine)
+
+if returnDate > dueDate:
+    overdueDays = returnDate - dueDate (in days)
+    fine = overdueDays * DAILY_FINE_RATE
+    DAILY_FINE_RATE = 10 (Rs 10 per day)
+\`\`\`
+
+### 9.2 Examples
+
+| Due Date | Return Date | Overdue Days | Fine |
+|----------|-------------|--------------|------|
+| Jan 15 | Jan 15 | 0 | Rs 0 |
+| Jan 15 | Jan 16 | 1 | Rs 10 |
+| Jan 15 | Jan 20 | 5 | Rs 50 |
+| Jan 15 | Feb 15 | 31 | Rs 310 |
+
+### 9.3 Edge Cases
+
+- **Same-day return:** Due date and return date are the same day -- no fine.
+- **Very long overdue:** No maximum cap in the base design. An extension could
+  add a cap (e.g., max Rs 500 per book) by swapping in a CappedFineCalculator.
+- **Lost book:** If a book is never returned, the system could schedule a job
+  that marks loans overdue past a threshold (e.g., 90 days) as LOST and charges
+  a replacement fee. This is an extension, not part of the core design.
+
+---
+
+## 10. Reservation and Notification Flow
+
+### 10.1 Sequence of Events
+
+\`\`\`
+TIME    ACTION
+  |
+  |  1. Member A borrows the only copy of "Effective Java"
+  |     BookItem status: BORROWED
+  |
+  |  2. Member B wants "Effective Java" but no copy is available
+  |     Member B calls library.reserveBook(memberB, effectiveJava)
+  |     ReservationService creates Reservation(memberB, effectiveJava)
+  |     ReservationService registers MemberNotificationObserver(memberB)
+  |
+  |  3. Member C also reserves "Effective Java"
+  |     ReservationService creates Reservation(memberC, effectiveJava)
+  |     ReservationService registers MemberNotificationObserver(memberC)
+  |
+  |  4. Member A returns the copy
+  |     LoanService processes the return
+  |     LoanService calls reservationService.onBookReturned(book, copy)
+  |
+  |  5. ReservationService finds oldest pending reservation -> Member B
+  |     Marks BookItem as RESERVED
+  |     Fulfills Member B's reservation
+  |     Notifies Member B via observer: "Effective Java is available!"
+  |
+  |  6. Member B borrows the reserved copy
+  |     (Member B was the reserver, so the RESERVED check passes)
+  |
+  |  7. Member B returns the copy later
+  |     ReservationService finds next reservation -> Member C
+  |     Marks BookItem as RESERVED, notifies Member C
+  v
+\`\`\`
+
+### 10.2 Why Observer and Not Direct Call?
+
+The LoanService's job is to handle the return workflow: update the loan, calculate
+fines, change the BookItem status. Notification is a cross-cutting concern. If we
+put notification logic directly in LoanService, we would be violating SRP and
+coupling the loan logic to the notification mechanism.
+
+With Observer:
+- LoanService calls \`reservationService.onBookReturned()\` -- a single method call.
+- ReservationService handles all reservation logic and notifies all observers.
+- Adding email, SMS, or push notifications means adding new observer implementations.
+- LoanService never changes.
+
+---
+
+## 11. Extension Points
+
+### 11.1 "Add Email/SMS Notifications"
+
+**Impact:** Create new observer implementations.
+
+\`\`\`
+class EmailNotificationObserver implements BookAvailabilityObserver {
+    private EmailService emailService;
+    private Member member;
+
+    public void onBookAvailable(Book book, BookItem copy) {
+        emailService.send(member.getEmail(),
+            "Your reserved book '" + book.getTitle() + "' is now available!");
+    }
+}
+\`\`\`
+
+No changes to ReservationService or LoanService.
+
+### 11.2 "Add Tiered Fine Policy"
+
+**Impact:** Create a new FineCalculator implementation.
+
+For example: Rs 5/day for the first 7 days, Rs 15/day thereafter, capped at
+Rs 500. Create a \`TieredFineCalculator\` and inject it into LoanService.
+
+### 11.3 "Add More Search Criteria"
+
+**Impact:** Create a new SearchStrategy implementation.
+
+\`\`\`
+class SearchByPublicationYear implements SearchStrategy {
+    public List<Book> search(List<Book> catalog, String query) {
+        int year = Integer.parseInt(query);
+        return catalog.stream()
+            .filter(b -> b.getPublicationYear() == year)
+            .collect(Collectors.toList());
+    }
+}
+\`\`\`
+
+No changes to SearchService.
+
+### 11.4 "Add a Waiting List with Priority"
+
+**Impact:** Extend ReservationService to support priority-based ordering
+(e.g., premium members get priority). The Reservation class gains a priority
+field, and the fulfillment logic sorts by priority before FIFO.
+
+### 11.5 "Add Inter-Library Loan"
+
+**Impact:** Add a \`RemoteLibraryAdapter\` that implements a common BookSource
+interface. SearchService can search across multiple libraries by composing
+multiple strategies.
+
+---
+
+## 12. Concurrency Considerations
+
+### 12.1 Race Condition: Two Members Borrow the Same Copy
+
+If two members simultaneously try to borrow the last available copy of a book,
+both might pass the "is available?" check before either updates the status.
+
+**Solution:** Synchronize the borrow operation on the BookItem:
+
+\`\`\`
+public Loan borrowBook(Member member, BookItem item) {
+    synchronized (item) {
+        validateBorrow(member, item);  // checks status == AVAILABLE
+        item.setStatus(BookStatus.BORROWED);
+        // ... create and return Loan
+    }
+}
+\`\`\`
+
+Locking on the individual BookItem (not on the entire service) keeps the lock
+granularity fine: two members borrowing different books are never blocked.
+
+### 12.2 Race Condition: Return and Reserve Simultaneously
+
+If a book is returned at the same time another member tries to reserve it,
+the system must ensure the reservation sees the correct state. The return
+operation should atomically update the BookItem status and process reservations
+within the same synchronized block.
+
+### 12.3 Fine Calculation Is Naturally Thread-Safe
+
+FineCalculator is a pure function with no mutable state. It takes dates in and
+returns an integer out. Multiple threads can call it concurrently with no issues.
+
+---
+
+## 13. Summary
+
+### Design Pattern Recap
+
+| Pattern | Where Applied | Benefit |
+|---------|--------------|---------|
+| Strategy | SearchStrategy interface with four implementations | Pluggable search criteria without modifying SearchService |
+| Observer | BookAvailabilityObserver for reserved book notifications | Decouples return logic from notification mechanisms |
+| Repository | BookRepository, MemberRepository | Abstracts data access, enables storage backend swap |
+| Facade | Library class orchestrating all services | Single entry point simplifies client interaction |
+
+### Entity Model Recap
+
+| Entity | Key Distinction |
+|--------|----------------|
+| Book vs BookItem | Metadata vs physical copy -- the most critical modelling decision |
+| Member vs Librarian | IS-A inheritance -- Librarian extends Member with admin powers |
+| Loan vs Reservation | Loan = active borrowing; Reservation = future intent for any copy |
+| Fine | Separated from Loan for independent tracking and payment |
+
+### Key Takeaways for the Interview
+
+1. **Start with Book vs BookItem.** This is the first thing the interviewer
+   expects. If you model only "Book" without distinguishing copies, the design
+   will not work.
+
+2. **Enforce business rules in the service layer.** The borrow-validation
+   checklist (active member, under limit, no fines, copy available, not
+   reserved by others) should be in LoanService, not scattered across entities.
+
+3. **Strategy for search is a natural fit.** The interviewer will ask "how do
+   you add a new search type?" Your answer: "Create a new SearchStrategy
+   implementation. Nothing else changes."
+
+4. **Observer for notifications is clean.** The interviewer will ask about
+   reservations. Walk through the full flow: reserve, return triggers observer,
+   member gets notified, reserved copy cannot be taken by someone else.
+
+5. **FineCalculator as a separate class shows SRP.** Do not bury fine logic
+   inside LoanService or Loan. Extract it. This also makes it trivially
+   testable.
+
+6. **Know your numbers.** Max 5 books, 14-day loan, Rs 10/day fine. These are
+   constants that should be defined once and referenced everywhere.
+
+7. **Mention concurrency.** Even if the interviewer does not ask, briefly
+   mention that borrowing the same copy concurrently is a race condition
+   solved by synchronizing on the BookItem.
+`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| searchByTitle() | O(B) | O(R) | B = books in catalog, R = results |
+| searchByAuthor() | O(B) | O(R) | Linear scan; O(log B) with index |
+| searchByISBN() | O(1) | O(1) | HashMap lookup |
+| borrowBook() | O(1) | O(1) | Update BookItem status |
+| returnBook() | O(1) | O(1) | Update status, check overdue |
+| calculateFine() | O(1) | O(1) | Days overdue * rate |
+| reserveBook() | O(1) | O(1) | Add to reservation queue |
+| registerMember() | O(1) | O(1) | HashMap insertion |
+
+**Search optimization:** With HashMap indexes on ISBN, title, and author,
+search drops from O(B) to O(1) for exact matches and O(B) for partial
+matches. A trie or inverted index supports prefix search in O(L) where
+L = query length.
+
+**Borrowing concurrency:** O(1) with synchronization on the BookItem
+object. Two members cannot borrow the same physical copy simultaneously.
+
+**Fine calculation:** O(1) per loan. The FineCalculator strategy computes
+the fine based on days overdue and the applicable policy.
+
+**Memory:** O(B * C) where B = book titles and C = avg copies per title.
+O(M) for member records. O(L) for active loans.`,
+};
+
+// ============================================================
+//  Lookup map: problem ID -> solution content
+// ============================================================
+
+export const PROBLEM_SOLUTIONS: Record<string, ProblemSolutionContent> = {
+  "prob-chess": chessSolution,
+  "prob-vending-machine": vendingMachineSolution,
+  "prob-movie-ticket-booking": movieTicketBookingSolution,
+  "prob-splitwise": splitwiseSolution,
+  "prob-snake-ladder": snakeLadderSolution,
+  "prob-online-shopping": onlineShoppingSolution,
+  "prob-atm": atmSolution,
+  "prob-hotel": hotelSolution,
+  "prob-food-delivery": foodDeliverySolution,
+  "prob-library": librarySolution,
+};

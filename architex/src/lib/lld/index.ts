@@ -71,6 +71,10 @@ export {
   PATTERN_PREREQUISITES,
 } from "./patterns";
 
+// ── Pattern Enrichment (complexity, rationale, selection guide) ──
+export type { PatternEnrichment } from "./pattern-enrichment";
+export { PATTERN_SELECTION_GUIDE, PATTERN_ENRICHMENTS } from "./pattern-enrichment";
+
 // ── SOLID Principle Demos ────────────────────────────────────
 export type { SOLIDDemo, SOLIDPrinciple, CodeSample, SOLIDQuizQuestion } from "./solid-demos";
 export {

@@ -9,6 +9,7 @@
 
 import type { DesignPattern, PatternCategory } from "./types";
 import { JAVA_CODE } from "./java-code";
+import { PATTERN_ENRICHMENTS } from "./pattern-enrichment";
 
 // ── Helper: generate relationship ids ──────────────────────
 
@@ -1410,11 +1411,56 @@ const observer: DesignPattern = {
       x: 620,
       y: 280,
     },
+    {
+      id: "o-event",
+      name: "Event",
+      stereotype: "class",
+      attributes: [
+        { id: "o-event-attr-0", name: "type", type: "string", visibility: "-" },
+        { id: "o-event-attr-1", name: "data", type: "unknown", visibility: "-" },
+        { id: "o-event-attr-2", name: "timestamp", type: "Date", visibility: "-" },
+      ],
+      methods: [
+        { id: "o-event-meth-0", name: "getType", returnType: "string", params: [], visibility: "+" },
+        { id: "o-event-meth-1", name: "getData", returnType: "unknown", params: [], visibility: "+" },
+      ],
+      x: 150,
+      y: 480,
+    },
+    {
+      id: "o-eventbus",
+      name: "EventBus",
+      stereotype: "class",
+      attributes: [
+        { id: "o-eventbus-attr-0", name: "handlers", type: "Map<string, EventHandler[]>", visibility: "-" },
+      ],
+      methods: [
+        { id: "o-eventbus-meth-0", name: "subscribe", returnType: "void", params: ["eventType: string", "handler: EventHandler"], visibility: "+" },
+        { id: "o-eventbus-meth-1", name: "unsubscribe", returnType: "void", params: ["eventType: string", "handler: EventHandler"], visibility: "+" },
+        { id: "o-eventbus-meth-2", name: "publish", returnType: "void", params: ["event: Event"], visibility: "+" },
+      ],
+      x: 380,
+      y: 480,
+    },
+    {
+      id: "o-eventhandler",
+      name: "EventHandler",
+      stereotype: "interface",
+      attributes: [],
+      methods: [
+        { id: "o-eventhandler-meth-0", name: "handle", returnType: "void", params: ["event: Event"], visibility: "+" },
+      ],
+      x: 620,
+      y: 480,
+    },
   ],
   relationships: [
     { id: rid(), source: "o-subject", target: "o-observer", type: "aggregation", label: "notifies", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "o-concrete-a", target: "o-observer", type: "realization" },
     { id: rid(), source: "o-concrete-b", target: "o-observer", type: "realization" },
+    { id: rid(), source: "o-eventbus", target: "o-eventhandler", type: "aggregation", label: "routes to", targetCardinality: "*" },
+    { id: rid(), source: "o-eventbus", target: "o-event", type: "dependency", label: "publishes" },
+    { id: rid(), source: "o-eventhandler", target: "o-event", type: "dependency", label: "handles" },
   ],
   code: {
     typescript: `interface Observer {
@@ -1770,56 +1816,86 @@ const strategy: DesignPattern = {
   classes: [
     {
       id: "s-strategy",
-      name: "Strategy",
+      name: "PaymentStrategy",
       stereotype: "interface",
       attributes: [],
       methods: [
-        { id: "s-strategy-meth-0", name: "execute", returnType: "number", params: ["data: number[]"], visibility: "+" },
+        { id: "s-strategy-meth-0", name: "pay", returnType: "boolean", params: ["amount: number"], visibility: "+" },
+        { id: "s-strategy-meth-1", name: "calculateFee", returnType: "number", params: ["amount: number"], visibility: "+" },
+        { id: "s-strategy-meth-2", name: "getName", returnType: "string", params: [], visibility: "+" },
       ],
       x: 300,
       y: 50,
     },
     {
       id: "s-concrete-a",
-      name: "ConcreteStrategyA",
+      name: "CreditCardPayment",
       stereotype: "class",
-      attributes: [],
-      methods: [
-        { id: "s-concrete-a-meth-0", name: "execute", returnType: "number", params: ["data: number[]"], visibility: "+" },
+      attributes: [
+        { id: "s-concrete-a-attr-0", name: "cardNumber", type: "string", visibility: "-" },
+        { id: "s-concrete-a-attr-1", name: "feePercent", type: "number", visibility: "-" },
       ],
-      x: 120,
+      methods: [
+        { id: "s-concrete-a-meth-0", name: "pay", returnType: "boolean", params: ["amount: number"], visibility: "+" },
+        { id: "s-concrete-a-meth-1", name: "calculateFee", returnType: "number", params: ["amount: number"], visibility: "+" },
+        { id: "s-concrete-a-meth-2", name: "getName", returnType: "string", params: [], visibility: "+" },
+      ],
+      x: 50,
       y: 250,
     },
     {
       id: "s-concrete-b",
-      name: "ConcreteStrategyB",
+      name: "PayPalPayment",
       stereotype: "class",
-      attributes: [],
-      methods: [
-        { id: "s-concrete-b-meth-0", name: "execute", returnType: "number", params: ["data: number[]"], visibility: "+" },
+      attributes: [
+        { id: "s-concrete-b-attr-0", name: "email", type: "string", visibility: "-" },
+        { id: "s-concrete-b-attr-1", name: "feePercent", type: "number", visibility: "-" },
       ],
-      x: 480,
+      methods: [
+        { id: "s-concrete-b-meth-0", name: "pay", returnType: "boolean", params: ["amount: number"], visibility: "+" },
+        { id: "s-concrete-b-meth-1", name: "calculateFee", returnType: "number", params: ["amount: number"], visibility: "+" },
+        { id: "s-concrete-b-meth-2", name: "getName", returnType: "string", params: [], visibility: "+" },
+      ],
+      x: 300,
+      y: 250,
+    },
+    {
+      id: "s-concrete-c",
+      name: "CryptoPayment",
+      stereotype: "class",
+      attributes: [
+        { id: "s-concrete-c-attr-0", name: "walletAddress", type: "string", visibility: "-" },
+        { id: "s-concrete-c-attr-1", name: "networkFee", type: "number", visibility: "-" },
+      ],
+      methods: [
+        { id: "s-concrete-c-meth-0", name: "pay", returnType: "boolean", params: ["amount: number"], visibility: "+" },
+        { id: "s-concrete-c-meth-1", name: "calculateFee", returnType: "number", params: ["amount: number"], visibility: "+" },
+        { id: "s-concrete-c-meth-2", name: "getName", returnType: "string", params: [], visibility: "+" },
+      ],
+      x: 550,
       y: 250,
     },
     {
       id: "s-context",
-      name: "Context",
+      name: "PaymentProcessor",
       stereotype: "class",
       attributes: [
-        { id: "s-context-attr-0", name: "strategy", type: "Strategy", visibility: "-" },
+        { id: "s-context-attr-0", name: "strategy", type: "PaymentStrategy", visibility: "-" },
       ],
       methods: [
-        { id: "s-context-meth-0", name: "setStrategy", returnType: "void", params: ["strategy: Strategy"], visibility: "+" },
-        { id: "s-context-meth-1", name: "doWork", returnType: "number", params: ["data: number[]"], visibility: "+" },
+        { id: "s-context-meth-0", name: "setStrategy", returnType: "void", params: ["strategy: PaymentStrategy"], visibility: "+" },
+        { id: "s-context-meth-1", name: "processPayment", returnType: "boolean", params: ["amount: number"], visibility: "+" },
+        { id: "s-context-meth-2", name: "calculateFee", returnType: "number", params: ["amount: number"], visibility: "+" },
       ],
       x: 300,
-      y: 430,
+      y: 460,
     },
   ],
   relationships: [
     { id: rid(), source: "s-concrete-a", target: "s-strategy", type: "realization" },
     { id: rid(), source: "s-concrete-b", target: "s-strategy", type: "realization" },
-    { id: rid(), source: "s-context", target: "s-strategy", type: "aggregation", label: "uses" },
+    { id: rid(), source: "s-concrete-c", target: "s-strategy", type: "realization" },
+    { id: rid(), source: "s-context", target: "s-strategy", type: "aggregation", label: "delegates to" },
   ],
   code: {
     typescript: `// One interface for all algorithms — this is what makes them interchangeable.
@@ -2096,11 +2172,31 @@ const command: DesignPattern = {
       x: 560,
       y: 250,
     },
+    {
+      id: "c-history",
+      name: "CommandHistory",
+      stereotype: "class",
+      attributes: [
+        { id: "c-history-attr-0", name: "undoStack", type: "Command[]", visibility: "-" },
+        { id: "c-history-attr-1", name: "redoStack", type: "Command[]", visibility: "-" },
+      ],
+      methods: [
+        { id: "c-history-meth-0", name: "push", returnType: "void", params: ["cmd: Command"], visibility: "+" },
+        { id: "c-history-meth-1", name: "undo", returnType: "Command | null", params: [], visibility: "+" },
+        { id: "c-history-meth-2", name: "redo", returnType: "Command | null", params: [], visibility: "+" },
+        { id: "c-history-meth-3", name: "canUndo", returnType: "boolean", params: [], visibility: "+" },
+        { id: "c-history-meth-4", name: "canRedo", returnType: "boolean", params: [], visibility: "+" },
+      ],
+      x: 60,
+      y: 250,
+    },
   ],
   relationships: [
     { id: rid(), source: "c-concrete", target: "c-command", type: "realization" },
     { id: rid(), source: "c-concrete", target: "c-receiver", type: "association", label: "calls" },
     { id: rid(), source: "c-invoker", target: "c-command", type: "aggregation", label: "stores" },
+    { id: rid(), source: "c-history", target: "c-command", type: "aggregation", label: "tracks" },
+    { id: rid(), source: "c-invoker", target: "c-history", type: "association", label: "uses" },
   ],
   code: {
     typescript: `// Both execute() and undo() are required — this is what makes Command
@@ -5947,6 +6043,23 @@ const cqrs: DesignPattern = {
       x: 500,
       y: 650,
     },
+    {
+      id: "cqrs-domain-event",
+      name: "DomainEvent",
+      stereotype: "class",
+      attributes: [
+        { id: "cqrs-domain-event-attr-0", name: "eventType", type: "string", visibility: "-" },
+        { id: "cqrs-domain-event-attr-1", name: "aggregateId", type: "string", visibility: "-" },
+        { id: "cqrs-domain-event-attr-2", name: "payload", type: "object", visibility: "-" },
+        { id: "cqrs-domain-event-attr-3", name: "timestamp", type: "Date", visibility: "-" },
+      ],
+      methods: [
+        { id: "cqrs-domain-event-meth-0", name: "getEventType", returnType: "string", params: [], visibility: "+" },
+        { id: "cqrs-domain-event-meth-1", name: "getPayload", returnType: "object", params: [], visibility: "+" },
+      ],
+      x: 275,
+      y: 850,
+    },
   ],
   relationships: [
     { id: rid(), source: "cqrs-commandbus", target: "cqrs-command", type: "dependency", label: "dispatches" },
@@ -5955,6 +6068,8 @@ const cqrs: DesignPattern = {
     { id: rid(), source: "cqrs-querybus", target: "cqrs-query", type: "dependency", label: "executes" },
     { id: rid(), source: "cqrs-querybus", target: "cqrs-queryhandler", type: "association", label: "routes to" },
     { id: rid(), source: "cqrs-queryhandler", target: "cqrs-readmodel", type: "dependency", label: "reads from" },
+    { id: rid(), source: "cqrs-writemodel", target: "cqrs-domain-event", type: "dependency", label: "emits" },
+    { id: rid(), source: "cqrs-domain-event", target: "cqrs-readmodel", type: "dependency", label: "syncs to" },
   ],
   code: {
     typescript: `// ── Commands (Write Side) ────────────────────────
@@ -6580,11 +6695,30 @@ const saga: DesignPattern = {
       x: 600,
       y: 280,
     },
+    {
+      id: "saga-log",
+      name: "SagaLog",
+      stereotype: "class",
+      attributes: [
+        { id: "saga-log-attr-0", name: "entries", type: "SagaLogEntry[]", visibility: "-" },
+        { id: "saga-log-attr-1", name: "sagaId", type: "string", visibility: "-" },
+      ],
+      methods: [
+        { id: "saga-log-meth-0", name: "recordStepStarted", returnType: "void", params: ["stepName: string"], visibility: "+" },
+        { id: "saga-log-meth-1", name: "recordStepCompleted", returnType: "void", params: ["stepName: string"], visibility: "+" },
+        { id: "saga-log-meth-2", name: "recordStepFailed", returnType: "void", params: ["stepName: string", "error: string"], visibility: "+" },
+        { id: "saga-log-meth-3", name: "recordCompensation", returnType: "void", params: ["stepName: string"], visibility: "+" },
+        { id: "saga-log-meth-4", name: "getEntries", returnType: "SagaLogEntry[]", params: [], visibility: "+" },
+      ],
+      x: 300,
+      y: 480,
+    },
   ],
   relationships: [
     { id: rid(), source: "saga-orchestrator", target: "saga-step", type: "aggregation", label: "manages", targetCardinality: "*" },
     { id: rid(), source: "saga-orchestrator", target: "saga-state", type: "dependency", label: "tracks" },
     { id: rid(), source: "saga-step", target: "saga-compensate", type: "association", label: "has rollback" },
+    { id: rid(), source: "saga-orchestrator", target: "saga-log", type: "composition", label: "audit trail" },
   ],
   code: {
     typescript: `// ── Saga Infrastructure ──────────────────────────
@@ -10064,6 +10198,18 @@ export const DESIGN_PATTERNS: DesignPattern[] = [
 for (const p of DESIGN_PATTERNS) {
   const java = JAVA_CODE[p.id];
   if (java) p.code.java = java;
+}
+
+// Inject enrichment data (complexity, rationale, variations, anti-patterns, interview depth)
+for (const p of DESIGN_PATTERNS) {
+  const enrichment = PATTERN_ENRICHMENTS[p.id];
+  if (enrichment) {
+    p.complexityAnalysis = enrichment.complexityAnalysis;
+    p.designRationale = enrichment.designRationale;
+    p.commonVariations = enrichment.commonVariations;
+    p.antiPatterns = enrichment.antiPatterns;
+    p.interviewDepth = enrichment.interviewDepth;
+  }
 }
 
 export function getPatternById(id: string): DesignPattern | undefined {

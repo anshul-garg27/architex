@@ -132,4 +132,13 @@ export interface DesignPattern {
   commonMistakes?: string[];
   confusedWith?: { patternId: string; difference: string }[];
   relatedPatterns?: { patternId: string; relationship: string }[];
+  complexityAnalysis?: string;
+  designRationale?: string;
+  commonVariations?: string[];
+  antiPatterns?: string[];
+  interviewDepth?: {
+    question: string;
+    expectedAnswer: string;
+    followUp?: string;
+  }[];
 }

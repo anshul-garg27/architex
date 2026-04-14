@@ -8,6 +8,7 @@
 // -----------------------------------------------------------------
 
 import type { UMLClass, UMLRelationship } from "./types";
+import { PROBLEM_SOLUTIONS } from "./problem-solutions";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -40,6 +41,11 @@ export interface LLDProblem {
   interviewFrequency: InterviewFrequency;
   classCount: number;
   relatedProblems: string[];
+  // ── Reference content (markdown) ──
+  referenceSolution?: string;   // full working code solution
+  designWalkthrough?: string;   // step-by-step design reasoning
+  interviewScript?: string;     // simulated interview Q&A dialogue
+  complexityAnalysis?: string;  // time/space complexity breakdown
 }
 
 // ── Helper ───────────────────────────────────────────────────
@@ -319,10 +325,58 @@ const chess: LLDProblem = {
       x: 350,
       y: 300,
     },
+    {
+      id: "ch-player",
+      name: "Player",
+      stereotype: "class",
+      attributes: [
+        { id: "ch-player-attr-0", name: "name", type: "string", visibility: "-" },
+        { id: "ch-player-attr-1", name: "color", type: "Color", visibility: "-" },
+      ],
+      methods: [
+        { id: "ch-player-meth-0", name: "getColor", returnType: "Color", params: [], visibility: "+" },
+      ],
+      x: 50,
+      y: 300,
+    },
+    {
+      id: "ch-move",
+      name: "Move",
+      stereotype: "class",
+      attributes: [
+        { id: "ch-move-attr-0", name: "from", type: "Position", visibility: "-" },
+        { id: "ch-move-attr-1", name: "to", type: "Position", visibility: "-" },
+        { id: "ch-move-attr-2", name: "movedPiece", type: "Piece", visibility: "-" },
+        { id: "ch-move-attr-3", name: "capturedPiece", type: "Piece", visibility: "-" },
+      ],
+      methods: [
+        { id: "ch-move-meth-0", name: "execute", returnType: "void", params: ["board: Board"], visibility: "+" },
+        { id: "ch-move-meth-1", name: "undo", returnType: "void", params: ["board: Board"], visibility: "+" },
+      ],
+      x: 650,
+      y: 50,
+    },
+    {
+      id: "ch-cell",
+      name: "Cell",
+      stereotype: "class",
+      attributes: [
+        { id: "ch-cell-attr-0", name: "position", type: "Position", visibility: "-" },
+        { id: "ch-cell-attr-1", name: "piece", type: "Piece", visibility: "-" },
+      ],
+      methods: [
+        { id: "ch-cell-meth-0", name: "isEmpty", returnType: "boolean", params: [], visibility: "+" },
+      ],
+      x: 650,
+      y: 300,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "ch-game", target: "ch-board", type: "composition" },
-    { id: rid(), source: "ch-board", target: "ch-piece", type: "aggregation", sourceCardinality: "1", targetCardinality: "0..32" },
+    { id: rid(), source: "ch-game", target: "ch-player", type: "composition", sourceCardinality: "1", targetCardinality: "2" },
+    { id: rid(), source: "ch-game", target: "ch-move", type: "aggregation", sourceCardinality: "1", targetCardinality: "*" },
+    { id: rid(), source: "ch-board", target: "ch-cell", type: "composition", sourceCardinality: "1", targetCardinality: "64" },
+    { id: rid(), source: "ch-cell", target: "ch-piece", type: "aggregation", sourceCardinality: "1", targetCardinality: "0..1" },
   ],
   hints: [
     "Create concrete piece classes (King, Queen, Rook, Bishop, Knight, Pawn) each overriding getValidMoves().",
@@ -406,10 +460,25 @@ const vendingMachine: LLDProblem = {
       x: 400,
       y: 280,
     },
+    {
+      id: "vm-state",
+      name: "VendingState",
+      stereotype: "interface",
+      attributes: [],
+      methods: [
+        { id: "vm-state-meth-0", name: "insertMoney", returnType: "void", params: ["machine: VendingMachine", "amount: number"], visibility: "+" },
+        { id: "vm-state-meth-1", name: "selectProduct", returnType: "void", params: ["machine: VendingMachine", "code: string"], visibility: "+" },
+        { id: "vm-state-meth-2", name: "dispense", returnType: "void", params: ["machine: VendingMachine"], visibility: "+" },
+        { id: "vm-state-meth-3", name: "returnChange", returnType: "number", params: ["machine: VendingMachine"], visibility: "+" },
+      ],
+      x: 50,
+      y: 280,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "vm-machine", target: "vm-inventory", type: "composition" },
     { id: rid(), source: "vm-inventory", target: "vm-product", type: "aggregation", sourceCardinality: "1", targetCardinality: "*" },
+    { id: rid(), source: "vm-machine", target: "vm-state", type: "dependency", label: "delegates to" },
   ],
   hints: [
     "Use the State pattern for machine states: Idle, HasMoney, Dispensing, SoldOut.",
@@ -511,12 +580,41 @@ const library: LLDProblem = {
       x: 350,
       y: 300,
     },
+    {
+      id: "lib-bookitem",
+      name: "BookItem",
+      stereotype: "class",
+      attributes: [
+        { id: "lib-bookitem-attr-0", name: "barcode", type: "string", visibility: "-" },
+        { id: "lib-bookitem-attr-1", name: "status", type: "BookStatus", visibility: "-" },
+        { id: "lib-bookitem-attr-2", name: "rack", type: "Rack", visibility: "-" },
+      ],
+      methods: [
+        { id: "lib-bookitem-meth-0", name: "checkout", returnType: "void", params: [], visibility: "+" },
+        { id: "lib-bookitem-meth-1", name: "checkin", returnType: "void", params: [], visibility: "+" },
+      ],
+      x: 650,
+      y: 50,
+    },
+    {
+      id: "lib-fine",
+      name: "FineCalculator",
+      stereotype: "interface",
+      attributes: [],
+      methods: [
+        { id: "lib-fine-meth-0", name: "calculate", returnType: "number", params: ["daysOverdue: number"], visibility: "+" },
+      ],
+      x: 650,
+      y: 300,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "lib-library", target: "lib-book", type: "aggregation", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "lib-library", target: "lib-member", type: "aggregation", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "lib-member", target: "lib-loan", type: "association", sourceCardinality: "1", targetCardinality: "*" },
-    { id: rid(), source: "lib-loan", target: "lib-book", type: "association" },
+    { id: rid(), source: "lib-loan", target: "lib-bookitem", type: "association" },
+    { id: rid(), source: "lib-book", target: "lib-bookitem", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
+    { id: rid(), source: "lib-loan", target: "lib-fine", type: "dependency", label: "uses" },
   ],
   hints: [
     "Separate Book (the title/ISBN) from BookCopy (individual physical copy with a barcode) for better modeling.",
@@ -603,11 +701,42 @@ const atm: LLDProblem = {
       x: 200,
       y: 300,
     },
+    {
+      id: "atm-card",
+      name: "Card",
+      stereotype: "class",
+      attributes: [
+        { id: "atm-card-attr-0", name: "cardNumber", type: "string", visibility: "-" },
+        { id: "atm-card-attr-1", name: "pin", type: "string", visibility: "-" },
+        { id: "atm-card-attr-2", name: "account", type: "Account", visibility: "-" },
+      ],
+      methods: [
+        { id: "atm-card-meth-0", name: "validatePin", returnType: "boolean", params: ["pin: string"], visibility: "+" },
+      ],
+      x: 400,
+      y: 300,
+    },
+    {
+      id: "atm-dispenser",
+      name: "CashDispenser",
+      stereotype: "class",
+      attributes: [
+        { id: "atm-dispenser-attr-0", name: "denominations", type: "Map<number, number>", visibility: "-" },
+      ],
+      methods: [
+        { id: "atm-dispenser-meth-0", name: "dispense", returnType: "boolean", params: ["amount: number"], visibility: "+" },
+        { id: "atm-dispenser-meth-1", name: "canDispense", returnType: "boolean", params: ["amount: number"], visibility: "+" },
+      ],
+      x: 600,
+      y: 50,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "atm-machine", target: "atm-account", type: "dependency", label: "accesses" },
     { id: rid(), source: "atm-machine", target: "atm-transaction", type: "dependency", label: "creates" },
     { id: rid(), source: "atm-transaction", target: "atm-account", type: "association" },
+    { id: rid(), source: "atm-card", target: "atm-account", type: "association" },
+    { id: rid(), source: "atm-machine", target: "atm-dispenser", type: "composition" },
   ],
   hints: [
     "Use the State pattern for ATM states: Idle, CardInserted, Authenticated, TransactionSelected.",
@@ -695,10 +824,43 @@ const hotel: LLDProblem = {
       x: 200,
       y: 300,
     },
+    {
+      id: "ht-guest",
+      name: "Guest",
+      stereotype: "class",
+      attributes: [
+        { id: "ht-guest-attr-0", name: "id", type: "string", visibility: "-" },
+        { id: "ht-guest-attr-1", name: "name", type: "string", visibility: "-" },
+        { id: "ht-guest-attr-2", name: "email", type: "string", visibility: "-" },
+        { id: "ht-guest-attr-3", name: "phone", type: "string", visibility: "-" },
+      ],
+      methods: [
+        { id: "ht-guest-meth-0", name: "getReservations", returnType: "Reservation[]", params: [], visibility: "+" },
+      ],
+      x: 50,
+      y: 300,
+    },
+    {
+      id: "ht-payment",
+      name: "Payment",
+      stereotype: "class",
+      attributes: [
+        { id: "ht-payment-attr-0", name: "id", type: "string", visibility: "-" },
+        { id: "ht-payment-attr-1", name: "amount", type: "number", visibility: "-" },
+        { id: "ht-payment-attr-2", name: "type", type: "PaymentType", visibility: "-" },
+      ],
+      methods: [
+        { id: "ht-payment-meth-0", name: "process", returnType: "boolean", params: [], visibility: "+" },
+      ],
+      x: 500,
+      y: 300,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "ht-hotel", target: "ht-room", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "ht-reservation", target: "ht-room", type: "association" },
+    { id: rid(), source: "ht-reservation", target: "ht-guest", type: "association" },
+    { id: rid(), source: "ht-reservation", target: "ht-payment", type: "association" },
   ],
   hints: [
     "Add a Guest class and a Bill class that aggregates line items (room charges, minibar, room service).",
@@ -794,11 +956,41 @@ const snakeLadder: LLDProblem = {
       x: 350,
       y: 280,
     },
+    {
+      id: "sl-snake",
+      name: "Snake",
+      stereotype: "class",
+      attributes: [
+        { id: "sl-snake-attr-0", name: "head", type: "number", visibility: "-" },
+        { id: "sl-snake-attr-1", name: "tail", type: "number", visibility: "-" },
+      ],
+      methods: [
+        { id: "sl-snake-meth-0", name: "getEnd", returnType: "number", params: [], visibility: "+" },
+      ],
+      x: 600,
+      y: 50,
+    },
+    {
+      id: "sl-ladder",
+      name: "Ladder",
+      stereotype: "class",
+      attributes: [
+        { id: "sl-ladder-attr-0", name: "bottom", type: "number", visibility: "-" },
+        { id: "sl-ladder-attr-1", name: "top", type: "number", visibility: "-" },
+      ],
+      methods: [
+        { id: "sl-ladder-meth-0", name: "getEnd", returnType: "number", params: [], visibility: "+" },
+      ],
+      x: 600,
+      y: 280,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "sl-game", target: "sl-board", type: "composition" },
     { id: rid(), source: "sl-game", target: "sl-player", type: "aggregation", sourceCardinality: "1", targetCardinality: "2..4" },
     { id: rid(), source: "sl-game", target: "sl-dice", type: "composition" },
+    { id: rid(), source: "sl-board", target: "sl-snake", type: "aggregation", sourceCardinality: "1", targetCardinality: "*" },
+    { id: rid(), source: "sl-board", target: "sl-ladder", type: "aggregation", sourceCardinality: "1", targetCardinality: "*" },
   ],
   hints: [
     "Model Snake and Ladder as a common BoardEntity with a start and end position; the Board resolves movement.",
@@ -1096,12 +1288,45 @@ const movieTicketBooking: LLDProblem = {
       x: 200,
       y: 480,
     },
+    {
+      id: "mtb-screen",
+      name: "Screen",
+      stereotype: "class",
+      attributes: [
+        { id: "mtb-screen-attr-0", name: "id", type: "string", visibility: "-" },
+        { id: "mtb-screen-attr-1", name: "name", type: "string", visibility: "-" },
+        { id: "mtb-screen-attr-2", name: "totalSeats", type: "number", visibility: "-" },
+      ],
+      methods: [
+        { id: "mtb-screen-meth-0", name: "getShows", returnType: "ShowTime[]", params: ["date: Date"], visibility: "+" },
+      ],
+      x: 600,
+      y: 50,
+    },
+    {
+      id: "mtb-payment",
+      name: "Payment",
+      stereotype: "class",
+      attributes: [
+        { id: "mtb-payment-attr-0", name: "id", type: "string", visibility: "-" },
+        { id: "mtb-payment-attr-1", name: "amount", type: "number", visibility: "-" },
+        { id: "mtb-payment-attr-2", name: "status", type: "PaymentStatus", visibility: "-" },
+      ],
+      methods: [
+        { id: "mtb-payment-meth-0", name: "process", returnType: "boolean", params: [], visibility: "+" },
+        { id: "mtb-payment-meth-1", name: "refund", returnType: "boolean", params: [], visibility: "+" },
+      ],
+      x: 600,
+      y: 280,
+    },
   ],
   starterRelationships: [
-    { id: rid(), source: "mtb-theater", target: "mtb-showtime", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
+    { id: rid(), source: "mtb-theater", target: "mtb-screen", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
+    { id: rid(), source: "mtb-screen", target: "mtb-showtime", type: "aggregation", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "mtb-showtime", target: "mtb-seat", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "mtb-showtime", target: "mtb-movie", type: "association" },
     { id: rid(), source: "mtb-booking", target: "mtb-seat", type: "association", sourceCardinality: "1", targetCardinality: "1..*" },
+    { id: rid(), source: "mtb-booking", target: "mtb-payment", type: "association" },
   ],
   hints: [
     "Use the Strategy pattern for pricing: standard pricing, weekend pricing, and premium screening pricing.",
@@ -2698,12 +2923,28 @@ const splitwise: LLDProblem = {
       x: 550,
       y: 50,
     },
+    {
+      id: "sw-balancesheet",
+      name: "BalanceSheet",
+      stereotype: "class",
+      attributes: [
+        { id: "sw-bs-attr-0", name: "netBalances", type: "Map<string, number>", visibility: "-" },
+      ],
+      methods: [
+        { id: "sw-bs-meth-0", name: "addExpense", returnType: "void", params: ["expense: Expense"], visibility: "+" },
+        { id: "sw-bs-meth-1", name: "getNetBalance", returnType: "number", params: ["userId: string"], visibility: "+" },
+        { id: "sw-bs-meth-2", name: "simplify", returnType: "Balance[]", params: [], visibility: "+" },
+      ],
+      x: 550,
+      y: 280,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "sw-group", target: "sw-user", type: "aggregation", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "sw-group", target: "sw-expense", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "sw-expense", target: "sw-split", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "sw-group", target: "sw-balance", type: "association", label: "computes" },
+    { id: rid(), source: "sw-group", target: "sw-balancesheet", type: "composition" },
   ],
   hints: [
     "Use the Strategy pattern for split types: EqualSplit, ExactSplit, and PercentageSplit each implement the Split interface differently but are interchangeable at runtime.",
@@ -2945,10 +3186,26 @@ const onlineShopping: LLDProblem = {
       x: 550,
       y: 280,
     },
+    {
+      id: "os-cartitem",
+      name: "CartItem",
+      stereotype: "class",
+      attributes: [
+        { id: "os-cartitem-attr-0", name: "product", type: "Product", visibility: "-" },
+        { id: "os-cartitem-attr-1", name: "quantity", type: "number", visibility: "-" },
+      ],
+      methods: [
+        { id: "os-cartitem-meth-0", name: "getSubtotal", returnType: "number", params: [], visibility: "+" },
+        { id: "os-cartitem-meth-1", name: "updateQuantity", returnType: "void", params: ["qty: number"], visibility: "+" },
+      ],
+      x: 300,
+      y: 280,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "os-user", target: "os-cart", type: "composition" },
-    { id: rid(), source: "os-cart", target: "os-product", type: "association", label: "contains" },
+    { id: rid(), source: "os-cart", target: "os-cartitem", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
+    { id: rid(), source: "os-cartitem", target: "os-product", type: "association" },
     { id: rid(), source: "os-user", target: "os-order", type: "association", label: "places" },
     { id: rid(), source: "os-order", target: "os-payment", type: "dependency", label: "paid via" },
   ],
@@ -3319,12 +3576,41 @@ const foodDelivery: LLDProblem = {
       x: 550,
       y: 280,
     },
+    {
+      id: "fd-menuitem",
+      name: "MenuItem",
+      stereotype: "class",
+      attributes: [
+        { id: "fd-menuitem-attr-0", name: "id", type: "string", visibility: "-" },
+        { id: "fd-menuitem-attr-1", name: "name", type: "string", visibility: "-" },
+        { id: "fd-menuitem-attr-2", name: "price", type: "number", visibility: "-" },
+        { id: "fd-menuitem-attr-3", name: "available", type: "boolean", visibility: "-" },
+      ],
+      methods: [
+        { id: "fd-menuitem-meth-0", name: "isAvailable", returnType: "boolean", params: [], visibility: "+" },
+      ],
+      x: 50,
+      y: 280,
+    },
+    {
+      id: "fd-assignment",
+      name: "DeliveryAssignmentStrategy",
+      stereotype: "interface",
+      attributes: [],
+      methods: [
+        { id: "fd-assignment-meth-0", name: "assign", returnType: "DeliveryAgent", params: ["agents: DeliveryAgent[]", "restaurant: Restaurant"], visibility: "+" },
+      ],
+      x: 800,
+      y: 280,
+    },
   ],
   starterRelationships: [
     { id: rid(), source: "fd-customer", target: "fd-order", type: "association", label: "places" },
     { id: rid(), source: "fd-restaurant", target: "fd-menu", type: "composition" },
+    { id: rid(), source: "fd-menu", target: "fd-menuitem", type: "composition", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "fd-order", target: "fd-restaurant", type: "association", label: "from" },
     { id: rid(), source: "fd-order", target: "fd-agent", type: "association", label: "delivered by" },
+    { id: rid(), source: "fd-order", target: "fd-assignment", type: "dependency", label: "uses" },
   ],
   hints: [
     "Use the State pattern for order lifecycle: PlacedState, ConfirmedState, PreparingState, PickedUpState, and DeliveredState define valid transitions and actions at each stage.",
@@ -3562,9 +3848,20 @@ const coffeeVendingMachine: LLDProblem = {
   ],
 };
 
+// ── Merge reference solutions into problems ─────────────────
+
+/** Apply reference content from problem-solutions.ts to matching problems. */
+function withSolutions(problems: LLDProblem[]): LLDProblem[] {
+  return problems.map((p) => {
+    const sol = PROBLEM_SOLUTIONS[p.id];
+    if (!sol) return p;
+    return { ...p, ...sol };
+  });
+}
+
 // ── Exports ──────────────────────────────────────────────────
 
-export const LLD_PROBLEMS: LLDProblem[] = [
+export const LLD_PROBLEMS: LLDProblem[] = withSolutions([
   parkingLot,
   elevator,
   chess,
@@ -3598,7 +3895,7 @@ export const LLD_PROBLEMS: LLDProblem[] = [
   foodDelivery,
   courseRegistration,
   coffeeVendingMachine,
-];
+]);
 
 export function getProblemById(id: string): LLDProblem | undefined {
   return LLD_PROBLEMS.find((p) => p.id === id);
