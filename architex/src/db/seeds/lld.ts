@@ -160,33 +160,18 @@ export async function seed(db: Database) {
     });
   }
 
-  // ── Upsert all rows ──────────────────────────────────────
-  console.log(`    Upserting ${rows.length} LLD content rows...`);
+  // ── Delete existing LLD rows and re-insert fresh ──────────
+  // Using delete+insert instead of upsert to guarantee content updates
+  console.log(`    Deleting existing LLD rows...`);
+  await db.delete(moduleContent).where(
+    sql`${moduleContent.moduleId} = ${MODULE_ID}`,
+  );
 
-  // Batch in chunks of 50 to avoid hitting query size limits
+  console.log(`    Inserting ${rows.length} fresh LLD content rows...`);
   const BATCH_SIZE = 50;
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
-    await db
-      .insert(moduleContent)
-      .values(batch)
-      .onConflictDoUpdate({
-        target: [
-          moduleContent.moduleId,
-          moduleContent.contentType,
-          moduleContent.slug,
-        ],
-        set: {
-          name: sql`excluded.name`,
-          category: sql`excluded.category`,
-          difficulty: sql`excluded.difficulty`,
-          sortOrder: sql`excluded.sort_order`,
-          content: sql`excluded.content`,
-          summary: sql`excluded.summary`,
-          tags: sql`excluded.tags`,
-          updatedAt: new Date(),
-        },
-      });
+    await db.insert(moduleContent).values(batch);
   }
 
   console.log(`    ✓ ${rows.length} rows upserted`);
