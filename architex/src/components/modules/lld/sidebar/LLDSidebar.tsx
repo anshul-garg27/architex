@@ -261,24 +261,23 @@ const ProblemsBrowser = memo(function ProblemsBrowser({
               <button
                 onClick={() => onSelect(prob)}
                 className={cn(
-                  "flex flex-1 items-center gap-2 rounded-xl border px-2 py-2 text-left text-xs transition-all",
+                  "flex flex-1 min-w-0 items-center gap-2 rounded-xl border px-2 py-2 text-left text-xs transition-all",
                   isActive
                     ? "border-primary/30 bg-primary/10 text-primary shadow-[0_0_15px_rgba(110,86,207,0.15)]"
                     : "border-border/30 bg-elevated/50 text-foreground-muted hover:bg-elevated hover:text-foreground",
                 )}
               >
                 <span
-                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium backdrop-blur-sm"
+                  className="inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[9px] font-bold backdrop-blur-sm"
                   style={{
                     color: DIFFICULTY_COLORS[prob.difficulty],
                     backgroundColor: `${DIFFICULTY_COLORS[prob.difficulty]}18`,
                     borderColor: `${DIFFICULTY_COLORS[prob.difficulty]}30`,
-                    boxShadow: `0 0 8px ${DIFFICULTY_COLORS[prob.difficulty]}1a`,
                   }}
                 >
-                  L{prob.difficulty}
+                  {prob.difficulty}
                 </span>
-                <span className="truncate">{prob.name}</span>
+                <span className="truncate min-w-0">{prob.name}</span>
               </button>
               <button
                 onClick={() => setSetupProblemId(showSetup ? null : prob.id)}
