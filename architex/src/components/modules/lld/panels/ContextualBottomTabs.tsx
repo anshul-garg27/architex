@@ -358,16 +358,26 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
                 />
               )}
               {resolvedTabId === "solution" && (
-                <div className="flex flex-1 items-center justify-center py-8">
-                  <p className="text-xs text-foreground-subtle">Reference solution will be available after you submit your attempt.</p>
+                <div className="flex-1 overflow-auto px-4 py-3">
+                  {activeProblem?.referenceSolution ? (
+                    <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground-muted font-mono">{activeProblem.referenceSolution}</pre>
+                  ) : (
+                    <p className="text-xs text-foreground-subtle">Reference solution will be available after you submit your attempt.</p>
+                  )}
                 </div>
               )}
               {resolvedTabId === "related" && (
                 <RelatedProblemsPanel problem={activeProblem} onSelectProblem={onSelectProblem} />
               )}
               {resolvedTabId === "interview" && (
-                <div className="flex flex-1 items-center justify-center py-8">
-                  <p className="text-xs text-foreground-subtle">Interview mode coming soon.</p>
+                <div className="flex-1 overflow-auto px-4 py-3">
+                  {activeProblem?.interviewScript ? (
+                    <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground-muted">{activeProblem.interviewScript}</pre>
+                  ) : activeProblem?.designWalkthrough ? (
+                    <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground-muted">{activeProblem.designWalkthrough}</pre>
+                  ) : (
+                    <p className="text-xs text-foreground-subtle">Interview mode coming soon.</p>
+                  )}
                 </div>
               )}
             </>

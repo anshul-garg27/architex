@@ -92,20 +92,37 @@ export const InterviewPrepTab = memo(function InterviewPrepTab({
 }: InterviewPrepTabProps) {
   const tips = pattern.interviewTips ?? [];
   const mistakes = pattern.commonMistakes ?? [];
+  const deepQA = pattern.interviewDepth ?? [];
+  const complexity = pattern.complexityAnalysis;
+  const rationale = pattern.designRationale;
+  const variations = pattern.commonVariations ?? [];
+  const antiPatterns = pattern.antiPatterns ?? [];
 
   // Fetch interview Q&A from content API
   const { data: qaData, isLoading: qaLoading } = useCatalog("lld", "interview-qa", { full: true });
 
   const questions: InterviewQuestion[] = useMemo(() => {
-    if (!qaData?.items) return [];
-    const item = qaData.items.find(
-      (i) => (i as unknown as ContentDetailItem).slug === pattern.id,
-    ) as unknown as ContentDetailItem | undefined;
-    if (!item?.content) return [];
-    return (item.content.questions ?? []) as InterviewQuestion[];
-  }, [qaData, pattern.id]);
+    // Merge DB-fetched Q&A with enriched interviewDepth
+    const dbQuestions: InterviewQuestion[] = [];
+    if (qaData?.items) {
+      const item = qaData.items.find(
+        (i) => (i as unknown as ContentDetailItem).slug === pattern.id,
+      ) as unknown as ContentDetailItem | undefined;
+      if (item?.content) {
+        dbQuestions.push(...((item.content.questions ?? []) as InterviewQuestion[]));
+      }
+    }
+    // Add deep Q&A from pattern enrichment
+    const enrichedQuestions: InterviewQuestion[] = deepQA.map((q) => ({
+      question: q.question,
+      answer: q.expectedAnswer,
+      difficulty: "deep-dive" as const,
+      followUps: q.followUp ? [q.followUp] : undefined,
+    }));
+    return [...dbQuestions, ...enrichedQuestions];
+  }, [qaData, pattern.id, deepQA]);
 
-  const hasStaticContent = tips.length > 0 || mistakes.length > 0;
+  const hasStaticContent = tips.length > 0 || mistakes.length > 0 || complexity || rationale || variations.length > 0;
   const hasQA = questions.length > 0;
 
   if (!hasStaticContent && !hasQA && !qaLoading) {
@@ -175,6 +192,57 @@ export const InterviewPrepTab = memo(function InterviewPrepTab({
             <span className="text-[10px] text-foreground-subtle">Loading Q&amp;A...</span>
           </div>
         )}
+        {/* Design Rationale */}
+        {rationale && (
+          <div className="space-y-1.5">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              Design Rationale
+            </h3>
+            <pre className="whitespace-pre-wrap rounded-xl border border-border/30 bg-elevated/30 px-3 py-2 text-[11px] leading-relaxed text-foreground-muted">{rationale}</pre>
+          </div>
+        )}
+        {/* Complexity Analysis */}
+        {complexity && (
+          <div className="space-y-1.5">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              Complexity Analysis
+            </h3>
+            <pre className="whitespace-pre-wrap rounded-xl border border-border/30 bg-elevated/30 px-3 py-2 text-[11px] leading-relaxed text-foreground-muted font-mono">{complexity}</pre>
+          </div>
+        )}
+        {/* Common Variations */}
+        {variations.length > 0 && (
+          <div className="space-y-1.5">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
+              Common Variations
+            </h3>
+            <ul className="space-y-1 text-[11px] text-foreground-muted">
+              {variations.map((v, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="mt-1.5 h-1 w-1 rounded-full bg-primary/60 shrink-0" />
+                  {v}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {/* Anti-Patterns */}
+        {antiPatterns.length > 0 && (
+          <div className="space-y-1.5">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-red-700 dark:text-red-300">
+              Anti-Patterns to Avoid
+            </h3>
+            <ul className="space-y-1 text-[11px] text-foreground-muted">
+              {antiPatterns.map((a, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-red-700 dark:text-red-400" />
+                  {a}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {/* Interview Q&A */}
         {hasQA && (
           <div className="space-y-2">
             <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
