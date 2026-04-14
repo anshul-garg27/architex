@@ -270,9 +270,9 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
               <circle
                 cx={gridSize / 2}
                 cy={gridSize / 2}
-                r="0.8"
-                fill="var(--lld-canvas-border)"
-                opacity="0.3"
+                r="1"
+                fill="var(--lld-canvas-text-subtle)"
+                opacity="0.18"
               />
             </pattern>
             {/* (#4) Radial vignette — lighter center, darker edges for depth */}
