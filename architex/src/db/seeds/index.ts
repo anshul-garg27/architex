@@ -23,6 +23,7 @@ const SEED_MODULES: Record<string, () => Promise<{ seed: (db: ReturnType<typeof 
   "pattern-walkthroughs": () => import("./pattern-walkthroughs"),
   "pattern-walkthroughs-remaining": () => import("./pattern-walkthroughs-remaining"),
   "interview-qa": () => import("./interview-qa"),
+  quizzes: () => import("./quizzes"),
 };
 
 async function main() {
