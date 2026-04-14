@@ -67,8 +67,26 @@ const singleton: DesignPattern = {
       x: 200,
       y: 100,
     },
+    {
+      id: "singleton-connection",
+      name: "Connection",
+      stereotype: "class",
+      attributes: [
+        { id: "singleton-connection-attr-0", name: "id", type: "string", visibility: "-" },
+        { id: "singleton-connection-attr-1", name: "url", type: "string", visibility: "-" },
+        { id: "singleton-connection-attr-2", name: "active", type: "boolean", visibility: "-" },
+      ],
+      methods: [
+        { id: "singleton-connection-meth-0", name: "execute", returnType: "Result", params: ["query: string"], visibility: "+" },
+        { id: "singleton-connection-meth-1", name: "close", returnType: "void", params: [], visibility: "+" },
+      ],
+      x: 200,
+      y: 350,
+    },
   ],
-  relationships: [],
+  relationships: [
+    { id: rid(), source: "singleton-class", target: "singleton-connection", type: "composition", label: "manages", targetCardinality: "*" },
+  ],
   code: {
     typescript: `class Singleton {
   // Static field ensures the instance lives on the class, not on any particular object.
@@ -1435,7 +1453,7 @@ const observer: DesignPattern = {
     },
     {
       id: "o-concrete-a",
-      name: "ConcreteObserverA",
+      name: "LoggingObserver",
       stereotype: "class",
       attributes: [
         { id: "o-concrete-a-attr-0", name: "observerState", type: "number", visibility: "-" },
@@ -1448,7 +1466,7 @@ const observer: DesignPattern = {
     },
     {
       id: "o-concrete-b",
-      name: "ConcreteObserverB",
+      name: "AlertObserver",
       stereotype: "class",
       attributes: [
         { id: "o-concrete-b-attr-0", name: "observerState", type: "number", visibility: "-" },
@@ -1548,22 +1566,24 @@ class Subject {
   }
 }
 
-class ConcreteObserverA implements Observer {
+class LoggingObserver implements Observer {
   update(subject: Subject): void {
-    console.log(\`ObserverA reacted to \${subject.getState()}\`);
+    console.log(\`[LOG] State changed to \${subject.getState()}\`);
   }
 }
 
-class ConcreteObserverB implements Observer {
+class AlertObserver implements Observer {
   update(subject: Subject): void {
-    console.log(\`ObserverB reacted to \${subject.getState()}\`);
+    if (subject.getState() > 100) {
+      console.log(\`[ALERT] Threshold exceeded: \${subject.getState()}\`);
+    }
   }
 }
 
 // Usage
 const subject = new Subject();
-subject.attach(new ConcreteObserverA());
-subject.attach(new ConcreteObserverB());
+subject.attach(new LoggingObserver());
+subject.attach(new AlertObserver());
 subject.setState(42); // Both observers notified
 
 // --- Variant: Pull Model ---
@@ -1694,18 +1714,19 @@ class Subject:
         self._state = value
         self.notify()
 
-class ConcreteObserverA(Observer):
+class LoggingObserver(Observer):
     def update(self, subject: Subject) -> None:
-        print(f"ObserverA reacted to {subject.state}")
+        print(f"[LOG] State changed to {subject.state}")
 
-class ConcreteObserverB(Observer):
+class AlertObserver(Observer):
     def update(self, subject: Subject) -> None:
-        print(f"ObserverB reacted to {subject.state}")
+        if subject.state > 100:
+            print(f"[ALERT] Threshold exceeded: {subject.state}")
 
 # Usage
 subject = Subject()
-subject.attach(ConcreteObserverA())
-subject.attach(ConcreteObserverB())
+subject.attach(LoggingObserver())
+subject.attach(AlertObserver())
 subject.state = 42  # Both observers notified
 
 # --- Variant: Pull Model ---
@@ -2179,7 +2200,7 @@ const command: DesignPattern = {
     },
     {
       id: "c-concrete",
-      name: "ConcreteCommand",
+      name: "SaveDocumentCommand",
       stereotype: "class",
       attributes: [
         { id: "c-concrete-attr-0", name: "receiver", type: "Receiver", visibility: "-" },
@@ -2238,10 +2259,27 @@ const command: DesignPattern = {
       x: 60,
       y: 250,
     },
+    {
+      id: "c-delete",
+      name: "DeleteCommand",
+      stereotype: "class",
+      attributes: [
+        { id: "c-delete-attr-0", name: "receiver", type: "Receiver", visibility: "-" },
+        { id: "c-delete-attr-1", name: "deletedData", type: "string", visibility: "-" },
+      ],
+      methods: [
+        { id: "c-delete-meth-0", name: "execute", returnType: "void", params: [], visibility: "+" },
+        { id: "c-delete-meth-1", name: "undo", returnType: "void", params: [], visibility: "+" },
+      ],
+      x: 480,
+      y: 450,
+    },
   ],
   relationships: [
     { id: rid(), source: "c-concrete", target: "c-command", type: "realization" },
     { id: rid(), source: "c-concrete", target: "c-receiver", type: "association", label: "calls" },
+    { id: rid(), source: "c-delete", target: "c-command", type: "realization" },
+    { id: rid(), source: "c-delete", target: "c-receiver", type: "association", label: "calls" },
     { id: rid(), source: "c-invoker", target: "c-command", type: "aggregation", label: "stores" },
     { id: rid(), source: "c-history", target: "c-command", type: "aggregation", label: "tracks" },
     { id: rid(), source: "c-invoker", target: "c-history", type: "association", label: "uses" },

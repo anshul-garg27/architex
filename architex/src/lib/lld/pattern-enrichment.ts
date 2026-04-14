@@ -254,26 +254,38 @@ export const PATTERN_ENRICHMENTS: Record<string, PatternEnrichment> = {
   // ════════════════════════════════════════════════════════════
 
   adapter: {
-    complexityAnalysis: `**Time Complexity:** O(1) overhead per call -- adapter translates and delegates, no significant computation.
-**Space Complexity:** O(1) -- adapter holds a reference to the adaptee, no data duplication.
-**Integration cost:** One adapter class per incompatible interface. For N legacy systems, you need N adapters.`,
-    designRationale: `Adapter exists because real systems evolve independently. Legacy code, third-party libraries, and new APIs often have incompatible interfaces even when they provide similar functionality. Rather than modifying existing code (which may be impossible for third-party code or risky for legacy code), Adapter creates a translation layer. The key design decision is composition: the adapter holds a reference to the adaptee and translates method calls. This is the Interface Segregation Principle in action -- clients work with their expected interface, adapters handle the translation. Tradeoff: one extra layer of indirection, but it isolates the system from external interface changes.`,
+    complexityAnalysis: `**Time Complexity:** O(1) overhead per call -- adapter translates method signatures and delegates to the adaptee. The adapter itself does no significant computation; total time equals adaptee execution time + constant translation overhead.
+**Space Complexity:** O(1) -- adapter holds a single reference to the adaptee, no data duplication. If data format translation is required (e.g., XML to JSON), temporary conversion adds O(d) where d = data size.
+**Integration cost:** One adapter class per incompatible interface. For N legacy systems with different interfaces, you need N adapters. This scales linearly and each adapter is independently testable.
+**Real-world note:** Java's Arrays.asList() is an adapter (adapts array to List interface). InputStreamReader adapts byte stream to character stream. In TypeScript/JS, wrapper libraries around fetch (like axios adapters) are adapters for different HTTP environments (browser XMLHttpRequest, Node http module).`,
+    designRationale: `Adapter exists because real systems evolve independently. Legacy code, third-party libraries, and new APIs often have incompatible interfaces even when they provide similar functionality. Rather than modifying existing code (which may be impossible for third-party code or risky for legacy code), Adapter creates a translation layer. The key design decision is composition over inheritance: the Object Adapter holds a reference to the adaptee and translates method calls (preferred because it works with any adaptee subclass). The Class Adapter uses multiple inheritance to combine target and adaptee interfaces (possible in C++, simulated in Java via class + interface). Tradeoff: one extra layer of indirection per call, but it isolates the system from external interface changes and makes third-party dependencies swappable.`,
     commonVariations: [
-      "Object Adapter (composition -- adapter holds adaptee reference, most common)",
-      "Class Adapter (inheritance -- adapter extends adaptee, limited by single inheritance)",
-      "Two-way Adapter (adapts in both directions)",
-      "Default Adapter (provides no-op implementations of interface methods, concrete adapters override what they need)",
+      "Object Adapter (composition -- adapter holds adaptee reference, works with any adaptee subclass, most common)",
+      "Class Adapter (inheritance -- adapter extends adaptee and implements target interface, limited by single inheritance in Java)",
+      "Two-way Adapter (adapts in both directions -- useful when two subsystems need to communicate through each other's interfaces)",
+      "Default Adapter / Stub Adapter (provides no-op implementations of all interface methods; concrete adapters override only what they need)",
+      "Pluggable Adapter (uses interfaces or callbacks to adapt dynamically at runtime -- common in event-driven systems)",
     ],
     antiPatterns: [
-      "Adapter chain -- adapting an adapter of an adapter signals a deeper architecture problem",
-      "Business logic in adapter -- adapter should only translate, not add behavior (use Decorator for that)",
-      "Adapting when refactoring is possible -- if you own both interfaces, just change one",
+      "Adapter chain -- adapting an adapter of an adapter signals a deeper architecture problem; refactor the interfaces instead",
+      "Business logic in adapter -- adapter should only translate method signatures and data formats, not add behavior (use Decorator for added behavior)",
+      "Adapting identical interfaces -- if the target and adaptee interfaces are already the same, you do not need an adapter",
+      "Performance-critical path adapter -- in tight loops or hot paths, the indirection overhead (virtual dispatch + delegation) may be measurable; consider direct integration for such cases",
     ],
     interviewDepth: [
       {
-        question: "How does Adapter differ from Facade?",
-        expectedAnswer: "Adapter converts one interface to another expected interface -- the client knows what interface it wants, the adapter provides compatibility. Facade provides a new simplified interface to a complex subsystem -- the client gets something easier to use. Adapter is about compatibility, Facade is about simplification.",
+        question: "How does Adapter differ from Facade and from Bridge?",
+        expectedAnswer: "Adapter converts one existing interface to another expected interface -- it is applied after-the-fact to achieve compatibility. Facade creates a NEW simplified interface over a complex subsystem -- it is about simplification, not compatibility. Bridge is designed up-front to separate abstraction from implementation so they can vary independently. Adapter wraps one object; Facade orchestrates multiple objects; Bridge splits one hierarchy into two.",
         followUp: "When would you use Adapter vs Proxy?",
+      },
+      {
+        question: "What are the trade-offs between Class Adapter and Object Adapter?",
+        expectedAnswer: "Class Adapter uses multiple inheritance (or class + interface in Java): it IS-A both target and adaptee. Advantage: can override adaptee behavior, no delegation overhead. Disadvantage: limited by single inheritance, cannot adapt subclasses of the adaptee. Object Adapter uses composition (HAS-A adaptee reference). Advantage: works with any adaptee subclass, more flexible. Disadvantage: cannot override adaptee methods. In practice, Object Adapter wins in most languages because Java/TypeScript do not support multiple class inheritance.",
+        followUp: "How does TypeScript's structural typing affect the need for explicit adapters?",
+      },
+      {
+        question: "Design an adapter that integrates a legacy XML-based payment gateway into a system expecting JSON.",
+        expectedAnswer: "Define a PaymentGateway interface with processPayment(order: Order): PaymentResult (JSON-based). Create XMLPaymentAdapter implementing PaymentGateway, holding a reference to LegacyXMLGateway. In processPayment(): convert Order to XML format, call legacyGateway.submitXML(xml), parse the XML response, and return a PaymentResult object. The rest of the system depends only on PaymentGateway -- swapping to a new JSON-native gateway requires only a new implementation, zero adapter needed.",
       },
     ],
   },
@@ -319,31 +331,45 @@ export const PATTERN_ENRICHMENTS: Record<string, PatternEnrichment> = {
   },
 
   facade: {
-    complexityAnalysis: `**Time Complexity:** O(s) where s = number of subsystem calls orchestrated by the facade method. The facade itself adds zero computational overhead.
-**Space Complexity:** O(1) -- facade holds references to subsystem objects, no data duplication.
-**Coupling:** Facade reduces coupling from O(c * s) (every client talks to every subsystem) to O(c + s) (clients talk to facade, facade talks to subsystems).`,
-    designRationale: `Facade exists because complex subsystems are hard to use correctly. Without it, every client must understand the initialization order, method call sequences, and interdependencies of multiple subsystem classes. Facade provides a "happy path" API for common use cases while still allowing direct subsystem access for power users. The key design decision is that Facade does NOT add new functionality -- it simply orchestrates existing subsystem methods. This distinguishes it from Adapter (which converts interfaces) and Mediator (which manages inter-object communication). Tradeoff: the facade can become a God Object if too many operations are added.`,
+    complexityAnalysis: `**Time Complexity:** O(s) where s = number of subsystem calls orchestrated by the facade method. The facade itself adds zero computational overhead -- it is pure delegation.
+**Space Complexity:** O(1) -- facade holds references to subsystem objects, no data duplication. Subsystem objects are typically injected or lazily created.
+**Coupling reduction:** Without Facade, coupling is O(c * s) (every client talks to every subsystem). With Facade, coupling drops to O(c + s) (clients talk to facade, facade talks to subsystems). This is a dramatic improvement for testability -- mock the facade to test clients in isolation.
+**Real-world scale:** AWS SDK is a massive example -- each service client (S3Client, DynamoDBClient) is a facade over complex HTTP signing, serialization, retry, and error-handling subsystems. Developers call s3.putObject() without knowing about SigV4 signing or chunked transfer encoding.`,
+    designRationale: `Facade exists because complex subsystems are hard to use correctly. Without it, every client must understand the initialization order, method call sequences, and interdependencies of multiple subsystem classes. Facade provides a "happy path" API for common use cases while still allowing direct subsystem access for power users. The key design decision is that Facade does NOT add new functionality -- it simply orchestrates existing subsystem methods in the correct order. This distinguishes it from Adapter (which converts interfaces), Mediator (which manages bidirectional inter-object communication), and Decorator (which adds behavior). In layered architectures, facades often define layer boundaries -- a service layer facade hides the complexity of repositories, validators, and domain logic from controllers. Tradeoff: the facade can become a God Object if too many unrelated operations are added, and over-reliance on facades can hide necessary complexity that developers need to understand.`,
     commonVariations: [
-      "Simple Facade (single method orchestrating multiple subsystem calls)",
-      "Layered Facade (facade of facades -- each layer simplifies a different subsystem level)",
-      "Session Facade (enterprise pattern -- one facade per use case / transaction boundary)",
-      "API Gateway (microservices facade -- one entry point routing to many backend services)",
+      "Simple Facade (single class with a few methods orchestrating multiple subsystem calls -- e.g., OrderFacade.checkout() calls inventory, payment, shipping)",
+      "Layered Facade / Facade of Facades (each layer simplifies a different subsystem level -- common in enterprise architectures with service, DAO, and integration layers)",
+      "Session Facade (enterprise Java pattern -- one facade per use case or transaction boundary, wrapping EJBs or services)",
+      "API Gateway as Facade (microservices pattern -- single entry point routing, aggregating, and transforming requests to many backend services)",
+      "SDK Client Facade (AWS SDK, Stripe SDK -- hides authentication, serialization, retry, and error mapping behind simple method calls)",
     ],
     antiPatterns: [
-      "God Facade -- stuffing unrelated functionality into one facade class (split into focused facades)",
-      "Mandatory Facade -- preventing direct subsystem access when power users need it",
-      "Logic in Facade -- adding business logic instead of pure orchestration",
+      "God Facade -- stuffing dozens of unrelated operations into one facade class until it becomes a 2000-line dumping ground (split into focused, domain-specific facades)",
+      "Mandatory Facade -- preventing direct subsystem access entirely, which blocks power users who need fine-grained control (facade should simplify, not restrict)",
+      "Business logic in Facade -- adding validation, computation, or domain rules instead of pure orchestration (keep logic in the subsystem services, facade only coordinates)",
+      "Tight coupling to subsystem internals -- facade depending on private methods or internal data structures of subsystems instead of their public interfaces",
     ],
     interviewDepth: [
       {
         question: "How does Facade differ from Mediator?",
-        expectedAnswer: "Facade provides a simplified interface TO a subsystem -- it is unidirectional (client -> facade -> subsystems). Mediator manages communication BETWEEN objects in a subsystem -- it is bidirectional (colleagues <-> mediator). Facade simplifies; Mediator coordinates.",
+        expectedAnswer: "Facade provides a simplified interface TO a subsystem -- it is unidirectional (client -> facade -> subsystems). Subsystem classes do not know about the facade. Mediator manages communication BETWEEN objects in a subsystem -- it is bidirectional (colleagues <-> mediator). Colleagues know about the mediator and route messages through it. Facade simplifies external access; Mediator coordinates internal interactions. A checkout flow uses a Facade (OrderFacade.checkout() calls inventory + payment + shipping). A chat room uses a Mediator (users send messages through the ChatRoom mediator, not directly to each other).",
+        followUp: "Can a Facade also act as a Mediator internally?",
+      },
+      {
+        question: "Is an API Gateway a Facade pattern?",
+        expectedAnswer: "Yes, an API Gateway is a distributed Facade. It provides a single entry point to a complex microservices ecosystem, handling routing, authentication, rate limiting, and response aggregation. The key difference from a classic Facade: an API Gateway operates at the network boundary (HTTP/gRPC), while a GoF Facade is an in-process object. API Gateway also adds cross-cutting concerns (auth, rate limiting) which a pure Facade would not -- it is a Facade + Decorator hybrid in practice. Examples: AWS API Gateway, Kong, Netflix Zuul.",
+        followUp: "When would you choose a BFF (Backend-for-Frontend) over a general API Gateway?",
+      },
+      {
+        question: "Design an e-commerce checkout facade that coordinates inventory, payment, and shipping services.",
+        expectedAnswer: "CheckoutFacade holds references to InventoryService, PaymentService, ShippingService. checkout(order) calls: (1) inventoryService.reserve(order.items) -- if fails, throw OutOfStockException. (2) paymentService.charge(order.total) -- if fails, inventoryService.release(order.items), throw PaymentException. (3) shippingService.schedule(order) -- if fails, paymentService.refund(order.total), inventoryService.release(order.items), throw ShippingException. The facade handles the compensation logic so the controller has a single checkout() call.",
+        followUp: "How would you handle partial failures in step 3 without blocking the user?",
       },
     ],
   },
 
   proxy: {
-    complexityAnalysis: `**Time Complexity:** Varies by type. Virtual Proxy: O(1) for lazy check + O(creation) on first access. Caching Proxy: O(1) cache hit, O(real) cache miss. Protection Proxy: O(1) permission check.
+    complexityAnalysis: `**Time Complexity:** Varies by type. Virtual Proxy: O(1) for lazy check + O(creation) on first access, O(1) thereafter. Caching Proxy: O(1) cache hit, O(real) cache miss. Protection Proxy: O(1) permission check per call. Logging Proxy: O(1) overhead per call.
 **Space Complexity:** Virtual Proxy: O(0) until real object is created. Caching Proxy: O(n) for cached entries. Protection Proxy: O(1).
 **Transparency:** Proxy implements the same interface as the real object -- clients cannot distinguish them without checking the type.`,
     designRationale: `Proxy provides a surrogate that controls access to another object. The key insight is the Proxy Principle: "do not pay for what you do not use." Virtual Proxy delays expensive creation (lazy loading), Caching Proxy avoids redundant computation, Protection Proxy enforces access control. The design decision to use the same interface as the real object means the proxy is transparent -- it can be inserted anywhere the real object is expected. Tradeoff: adds one level of indirection, and the proxy may introduce stale data (caching) or unexpected access denial (protection).`,
@@ -612,22 +638,37 @@ export const PATTERN_ENRICHMENTS: Record<string, PatternEnrichment> = {
   "template-method": {
     complexityAnalysis: `**Time Complexity:** O(sum of steps) -- the template method calls each step sequentially. Individual step complexity depends on the subclass implementation.
 **Space Complexity:** O(1) beyond what each step requires -- the template method itself is stateless.
-**Extension points:** Template methods have two types of steps: abstract (MUST override) and hooks (CAN override). This gives subclass authors clear guidance on what to customize.`,
-    designRationale: `Template Method defines the "what" (algorithm structure) and lets subclasses define the "how" (individual steps). The key insight is the Hollywood Principle: "Don't call us, we'll call you" -- the base class calls the subclass's methods, not the other way around. This is inheritance-based reuse at its best: the invariant parts of the algorithm live in one place (DRY), the variable parts are deferred to subclasses. Tradeoff: rigid structure (subclasses cannot change the step order), and deep inheritance hierarchies can become hard to maintain. For more flexibility, consider Strategy (composition-based).`,
+**Extension points:** Template methods have two types of steps: abstract (MUST override) and hooks (CAN override with default no-op). A well-designed template has 3-5 steps; more than 7 indicates the algorithm should be decomposed.`,
+    designRationale: `Template Method defines the "what" (algorithm structure) and lets subclasses define the "how" (individual steps). The key insight is the Hollywood Principle: "Don't call us, we'll call you" -- the base class calls the subclass's methods, not the other way around. This is inheritance-based reuse at its best: the invariant parts of the algorithm live in one place (DRY), the variable parts are deferred to subclasses. Real-world examples: React class components (componentDidMount, render, componentWillUnmount), JUnit test lifecycle (setUp, testMethod, tearDown), and Java's AbstractList where subclasses only implement get() and size(). Tradeoff: rigid structure (subclasses cannot change the step order), and deep inheritance hierarchies become hard to maintain. Template Method is compile-time fixed; you cannot swap algorithms at runtime. For more flexibility, consider Strategy (composition-based).`,
     commonVariations: [
-      "Data Processing Pipeline (extract -> transform -> validate -> load, with variable implementations)",
-      "Framework Lifecycle Hooks (JUnit setUp/tearDown, Spring lifecycle methods)",
-      "Game Loop (init -> processInput -> update -> render, with game-specific implementations)",
-      "Template Method + Strategy (template defines structure, strategies provide individual step implementations)",
+      "Hook Methods (optional override points with default no-op implementations -- React shouldComponentUpdate, JUnit setUp/tearDown)",
+      "Template with Strategy Delegation (template defines the skeleton but delegates individual steps to injected strategy objects -- combines inheritance and composition)",
+      "Abstract Class vs Interface Default Methods (Java 8+ default methods enable template methods in interfaces, avoiding single-inheritance limitation)",
+      "NullObject Hooks (hook methods return safe defaults so subclasses only override what they need -- reduces boilerplate)",
+      "Data Processing Pipeline (extract -> transform -> validate -> load, with variable implementations per data source)",
+      "Framework Lifecycle Hooks (JUnit setUp/tearDown, Spring @PostConstruct/@PreDestroy, Android Activity lifecycle)",
     ],
     antiPatterns: [
-      "Too many abstract steps -- forces subclasses to implement methods they do not need (use hooks with default no-ops instead)",
-      "Template Method when Strategy would suffice -- if steps vary independently, composition (Strategy) is more flexible",
+      "Too many abstract steps -- forces subclasses to implement 10+ methods they do not need. Use hooks with default no-ops so subclasses only override what matters (Interface Segregation Principle).",
+      "Calling overridable methods in constructor -- in Java/C++, if the base class constructor calls a virtual method, the subclass's fields are not yet initialized, leading to subtle NullPointerExceptions. The template method should only be called after construction is complete.",
+      "Deep template hierarchy -- AbstractProcessor -> DatabaseProcessor -> SQLProcessor -> PostgreSQLProcessor becomes unmaintainable. Flatten to two levels (base + concrete) and use composition for additional variation.",
+      "Template Method when Strategy would suffice -- if steps vary independently and you need runtime algorithm swapping, composition (Strategy) is more flexible than inheritance",
     ],
     interviewDepth: [
       {
         question: "How does Template Method differ from Strategy?",
-        expectedAnswer: "Template Method uses inheritance: the algorithm skeleton is in a base class, subclasses override specific steps. Strategy uses composition: the algorithm is encapsulated in a separate object that can be swapped at runtime. Template Method is fixed at compile time; Strategy can change at runtime. Template Method controls the overall flow; Strategy encapsulates one interchangeable algorithm.",
+        expectedAnswer: "Template Method uses inheritance: the algorithm skeleton is in a base class, subclasses override specific steps. The base class controls the flow (Hollywood Principle). Strategy uses composition: the entire algorithm is encapsulated in a separate object swappable at runtime. Template Method is fixed at compile time; Strategy can change at runtime. Template Method controls the overall flow with variable steps; Strategy encapsulates one complete interchangeable algorithm. Use Template Method when the algorithm structure is fixed but steps vary; use Strategy when the entire algorithm varies.",
+        followUp: "Can you combine Template Method and Strategy? When would that make sense?",
+      },
+      {
+        question: "How does the Hollywood Principle apply to Template Method, and where do you see it in real frameworks?",
+        expectedAnswer: "The Hollywood Principle ('Don't call us, we'll call you') means the framework (base class) calls YOUR code, not the other way around. In Template Method, the base class's templateMethod() calls the subclass's abstract/hook methods at the right time. Examples: JUnit calls setUp() before each test and tearDown() after. Spring calls @PostConstruct after dependency injection. React calls componentDidMount after first render. The subclass never calls these lifecycle methods directly -- the framework invokes them at the correct point in the algorithm.",
+        followUp: "What are the downsides of inversion of control through Template Method vs dependency injection?",
+      },
+      {
+        question: "Design a data export system using Template Method where CSV, PDF, and Excel share the same export flow.",
+        expectedAnswer: "AbstractDataExporter defines exportData() as the template method: openConnection() -> fetchData() -> transformData() (abstract) -> formatOutput() (abstract) -> writeToFile() (abstract) -> closeConnection(). Hook: addHeader() with default no-op. CSVExporter overrides transformData() to flatten nested objects, formatOutput() to write comma-separated rows, writeToFile() to stream to a .csv file. PDFExporter overrides addHeader() to add a company logo. The invariant flow (open, fetch, transform, format, write, close) lives in one place.",
+        followUp: "What if a new requirement says the Excel exporter needs to fetch data differently (paginated vs bulk)?",
       },
     ],
   },
