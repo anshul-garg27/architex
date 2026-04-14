@@ -160,23 +160,14 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
       return;
     }
 
-    // Use the actual visible area — walk up to find the nearest parent
-    // with a constrained height (the main element clips at the real viewport)
-    let visibleRect = svg.getBoundingClientRect();
-    let parent = svg.parentElement;
-    while (parent) {
-      const pr = parent.getBoundingClientRect();
-      if (pr.height < visibleRect.height) {
-        visibleRect = { ...visibleRect, height: pr.height, y: pr.y } as DOMRect;
-      }
-      if (parent.tagName === "MAIN") break;
-      parent = parent.parentElement;
-    }
-    const rect = { width: visibleRect.width, height: visibleRect.height };
-
-    // Fixed viewBox "0 0 2000 2000" with preserveAspectRatio="xMinYMin meet"
-    const svgToScreen = Math.min(rect.width, rect.height) / 2000;
-    if (svgToScreen <= 0) return;
+    // With preserveAspectRatio="none", the viewBox (0 0 2000 2000) stretches
+    // to fill the container exactly. So:
+    //   1 SVG-X unit = rect.width / 2000 screen pixels
+    //   1 SVG-Y unit = rect.height / 2000 screen pixels
+    const rect = svg.getBoundingClientRect();
+    const sxRatio = rect.width / 2000;   // SVG X unit → screen px
+    const syRatio = rect.height / 2000;  // SVG Y unit → screen px
+    if (sxRatio <= 0 || syRatio <= 0) return;
 
     const PAD = 40;
     const availW = rect.width - PAD * 2;
@@ -184,18 +175,18 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
     if (availW <= 0 || availH <= 0) return;
 
     // Content size in screen pixels at transform scale=1
-    const contentScreenW = bounds.w * svgToScreen;
-    const contentScreenH = bounds.h * svgToScreen;
+    const contentScreenW = bounds.w * sxRatio;
+    const contentScreenH = bounds.h * syRatio;
     if (contentScreenW <= 0 || contentScreenH <= 0) return;
 
-    // Scale to fit content within available space
+    // Uniform scale to fit within available space (preserve aspect ratio)
     const scaleX = availW / contentScreenW;
     const scaleY = availH / contentScreenH;
     const fitScale = Math.max(ZOOM_MIN, Math.min(Math.min(scaleX, scaleY), 2.5));
 
-    // Center the content in the container
-    const contentCenterX = (bounds.x + bounds.w / 2) * svgToScreen;
-    const contentCenterY = (bounds.y + bounds.h / 2) * svgToScreen;
+    // Center the content in the visible container
+    const contentCenterX = (bounds.x + bounds.w / 2) * sxRatio;
+    const contentCenterY = (bounds.y + bounds.h / 2) * syRatio;
 
     setZoom({
       scale: fitScale,
@@ -1587,7 +1578,7 @@ export const LLDCanvas = memo(function LLDCanvas({
           ref={svgRef}
           data-lld-canvas-svg
           viewBox="0 0 2000 2000"
-          preserveAspectRatio="xMinYMin meet"
+          preserveAspectRatio="none"
           className="h-full w-full"
           style={{ minHeight: 400 }}
           onClick={handleBgClick}
