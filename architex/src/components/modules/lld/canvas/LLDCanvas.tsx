@@ -1654,14 +1654,6 @@ export const LLDCanvas = memo(function LLDCanvas({
           </g>
         </svg>
 
-        <ZoomToolbar
-          zoomPercent={zoomPercent}
-          onZoomIn={zoomIn}
-          onZoomOut={zoomOut}
-          onZoomFit={zoomFit}
-          onZoomReset={zoomReset}
-        />
-
         {classes.length > 0 && (
           <Minimap
             classes={classes}
@@ -1717,6 +1709,20 @@ export const LLDCanvas = memo(function LLDCanvas({
           />
         )}
       </div>
+      {/* ZoomToolbar positioned relative to the outer flex container, not inside overflow-hidden */}
+      {classes.length > 0 && (
+        <div className="relative">
+          <div className="absolute bottom-2 right-3 z-30">
+            <ZoomToolbar
+              zoomPercent={zoomPercent}
+              onZoomIn={zoomIn}
+              onZoomOut={zoomOut}
+              onZoomFit={zoomFit}
+              onZoomReset={zoomReset}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 });
