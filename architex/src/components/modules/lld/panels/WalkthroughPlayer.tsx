@@ -166,7 +166,7 @@ function ClickClassCheckpoint({
         </span>
       </div>
       {state.status === "incorrect" && (
-        <p className="text-[10px] text-amber-400">
+        <p className="text-[10px] text-amber-600 dark:text-amber-400">
           That is not the right class. Try again! ({2 - state.attempts} {2 - state.attempts === 1 ? "retry" : "retries"} left)
         </p>
       )}
@@ -245,7 +245,7 @@ function FillBlankCheckpoint({
         </button>
       )}
       {state.status === "incorrect" && (
-        <p className="text-[10px] text-amber-400">
+        <p className="text-[10px] text-amber-600 dark:text-amber-400">
           Not quite right. Try again! ({2 - state.attempts} {2 - state.attempts === 1 ? "retry" : "retries"} left)
         </p>
       )}
@@ -381,7 +381,7 @@ function OrderStepsCheckpoint({
         </button>
       )}
       {state.status === "incorrect" && (
-        <p className="text-[10px] text-amber-400">
+        <p className="text-[10px] text-amber-600 dark:text-amber-400">
           Not in the right order. Try again! ({2 - state.attempts} {2 - state.attempts === 1 ? "retry" : "retries"} left)
         </p>
       )}
@@ -653,8 +653,8 @@ export const WalkthroughPlayer = memo(function WalkthroughPlayer({
           {/* Score tracker */}
           {scoreInfo.total > 0 && (
             <div className="flex items-center gap-1">
-              <Trophy className="h-3 w-3 text-amber-400" />
-              <span className="text-[10px] font-semibold text-amber-400">
+              <Trophy className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
                 {scoreInfo.passed}/{scoreInfo.total}
               </span>
             </div>
@@ -672,9 +672,9 @@ export const WalkthroughPlayer = memo(function WalkthroughPlayer({
           {step.description}
         </p>
         {step.keyInsight && (
-          <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm px-3 py-2">
-            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-            <p className="text-[11px] font-medium leading-relaxed text-amber-300">
+          <div className="flex items-start gap-2 rounded-xl border border-amber-600/20 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/5 backdrop-blur-sm px-3 py-2">
+            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-600 dark:text-amber-400" />
+            <p className="text-[11px] font-medium leading-relaxed text-amber-800 dark:text-amber-800 dark:text-amber-300">
               {step.keyInsight}
             </p>
           </div>
@@ -734,7 +734,7 @@ export const WalkthroughPlayer = memo(function WalkthroughPlayer({
                   "text-[10px] leading-relaxed",
                   currentCheckpointState.status === "correct"
                     ? "text-emerald-300"
-                    : "text-amber-300",
+                    : "text-amber-800 dark:text-amber-300",
                 )}
               >
                 {currentCheckpointState.status === "correct" && (
