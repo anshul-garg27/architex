@@ -173,52 +173,78 @@ export const PATTERN_ENRICHMENTS: Record<string, PatternEnrichment> = {
   },
 
   "abstract-factory": {
-    complexityAnalysis: `**Time Complexity:** O(1) per product creation -- each factory method is a direct constructor call.
-**Space Complexity:** O(f * p) where f = number of families and p = products per family. Each family needs a concrete factory class and concrete product classes.
-**Scalability:** Adding a new family (e.g., Linux) requires one new factory + one class per product. Adding a new product type (e.g., TextInput) requires modifying every factory -- this is the key cost.`,
-    designRationale: `Abstract Factory exists to enforce compatibility between related objects. Without it, a developer could accidentally create a WindowsButton + MacCheckbox combination that looks broken. The factory interface guarantees that all products returned from a single factory instance belong to the same family. The key design decision is composition over inheritance: the client holds a factory reference (injected), not a factory subclass. This enables runtime family switching (e.g., theme changes). Tradeoff: the interface grows with each new product type, requiring changes to ALL factories -- this is why Abstract Factory works best when the product set is stable and the family set varies.`,
+    complexityAnalysis: `**Time Complexity:** O(1) per product creation -- each factory method is a direct constructor call. No conditional dispatch needed since each concrete factory knows exactly which concrete product to create.
+**Space Complexity:** O(f * p) class count where f = number of families and p = products per family. Each family needs one concrete factory class + one concrete product class per product type. For 3 families x 4 products = 12 product classes + 3 factory classes = 15 classes total.
+**Scalability tradeoff:** Adding a new family (e.g., Linux) is O(p) -- one new factory + p new product classes, zero changes to existing code (OCP-compliant). Adding a new product type (e.g., TextInput) is O(f) -- modify every factory, violating OCP. This asymmetry determines when Abstract Factory fits.
+**Real-world note:** Java's AWT/Swing toolkit uses Abstract Factory for platform-specific widget creation. JDBC's DriverManager is an Abstract Factory for database-specific Connection, Statement, ResultSet families.`,
+    designRationale: `Abstract Factory exists to enforce compatibility between related objects. Without it, a developer could accidentally create a WindowsButton + MacCheckbox combination that looks broken. The factory interface guarantees that all products returned from a single factory instance belong to the same family. The key design decision is composition over inheritance: the client holds a factory reference (injected), not a factory subclass. This enables runtime family switching (e.g., switching themes at runtime). In modern practice, DI containers (Spring, Angular) often serve as Abstract Factories: the container configuration determines which family of services is injected. Tradeoff: the interface grows with each new product type, requiring changes to ALL factories -- this is why Abstract Factory works best when the product set is stable and the family set varies.`,
     commonVariations: [
-      "Platform-specific UI factories (Windows, macOS, Linux -- each producing compatible widgets)",
-      "Database driver families (each driver provides compatible Connection, Statement, ResultSet)",
-      "Theme factories (Light/Dark/HighContrast -- each producing themed components)",
-      "Abstract Factory + Singleton (one factory instance per family, globally accessible)",
+      "Platform-specific UI factories (Windows, macOS, Linux -- each producing compatible Button, Checkbox, TextInput)",
+      "Database driver families (each driver provides compatible Connection, Statement, ResultSet -- JDBC pattern)",
+      "Theme factories (Light/Dark/HighContrast -- each producing consistently themed components)",
+      "DI Container as Abstract Factory (Spring profiles, Angular providers -- framework selects the family based on configuration)",
+      "Config-driven factory selection (read environment/config to choose concrete factory at startup)",
     ],
     antiPatterns: [
-      "Product explosion -- adding too many product types makes every factory grow, consider splitting into smaller factories",
-      "Unnecessary abstraction -- if you only have one family, Factory Method is simpler",
-      "Mixing families -- breaking the guarantee by returning products from different families",
+      "Product explosion -- adding too many product types makes every factory grow; consider splitting into smaller, focused factories",
+      "Single-product Abstract Factory -- if you only create one product type, Factory Method is simpler and less boilerplate",
+      "Mixing families -- breaking the compatibility guarantee by returning products from different families within one factory",
+      "Leaking family knowledge to clients -- if clients check which factory they received, they are coupled to families and the abstraction is broken",
     ],
     interviewDepth: [
       {
+        question: "What is the structural difference between Abstract Factory and Factory Method?",
+        expectedAnswer: "Factory Method is a single method (often in a base class) that subclasses override to create ONE product type. Abstract Factory is an interface/class with MULTIPLE factory methods, each creating a different product in a family. Factory Method uses inheritance (subclass overrides creation); Abstract Factory uses composition (client holds a factory object). Abstract Factory often contains multiple factory methods internally.",
+        followUp: "Can you implement Abstract Factory using Factory Methods internally?",
+      },
+      {
+        question: "How does Dependency Injection relate to Abstract Factory?",
+        expectedAnswer: "DI containers (Spring, Guice, Angular) are essentially runtime Abstract Factories. The container configuration (profile, module) determines which family of concrete implementations is injected. Instead of manually creating a WindowsFactory and passing it around, you configure a 'windows' profile and the DI container injects Windows-family implementations everywhere. The benefit: zero factory boilerplate code, and switching families is a configuration change.",
+        followUp: "When would you still use an explicit Abstract Factory instead of relying on DI?",
+      },
+      {
         question: "How do you add a new product type (e.g., TextInput) to an existing Abstract Factory?",
-        expectedAnswer: "You must add createTextInput() to the AbstractFactory interface, then implement it in every concrete factory (WindowsFactory, MacFactory, etc.). This is the main weakness -- it violates OCP for factories. Mitigation: keep the product set small and stable.",
-        followUp: "How would you handle this problem if product types change frequently?",
+        expectedAnswer: "You must add createTextInput() to the AbstractFactory interface, then implement it in every concrete factory (WindowsFactory, MacFactory, etc.). This is the main weakness -- it violates OCP for factories. Mitigation: keep the product set small and stable. If product types change frequently, consider a registry-based approach or breaking the factory into smaller focused interfaces (ISP).",
+        followUp: "How would you handle this if you have 10 families and product types change quarterly?",
       },
     ],
   },
 
   prototype: {
-    complexityAnalysis: `**Time Complexity:** O(n) for deep clone where n = total number of fields/nested objects to copy. Shallow clone is O(1) (just pointer copies).
-**Space Complexity:** O(n) for the cloned object -- a complete independent copy of all nested state.
-**Critical distinction:** Shallow copy shares mutable references (dangerous), deep copy creates fully independent objects (safe but slower).`,
-    designRationale: `Prototype solves the "expensive construction" problem: when creating an object requires costly operations (DB lookups, network calls, complex computation), cloning an existing instance is faster. The key design decision is defining clone() on the object itself (not on a factory), which means each class controls its own copying semantics. This is essential because only the class knows which fields need deep copies (mutable references) vs shallow copies (immutable values). Tradeoff: implementing correct deep clone is error-prone -- missing a mutable field leads to shared-state bugs that are extremely hard to diagnose.`,
+    complexityAnalysis: `**Time Complexity:** O(n) for deep clone where n = total number of fields/nested objects to copy. Shallow clone is O(1) (just pointer copies of reference fields, value copies of primitives).
+**Space Complexity:** O(n) for the cloned object -- a complete independent copy of all nested state. For shallow clone, O(1) extra space (original and clone share nested objects).
+**Critical distinction:** Shallow copy shares mutable references (dangerous for mutation), deep copy creates fully independent objects (safe but slower). In Java, Object.clone() produces a shallow copy by default. In JavaScript, the spread operator \`{...obj}\` and Object.assign() are shallow; structuredClone() is deep.
+**Circular references:** Deep clone of object graphs with cycles requires a visited-map to avoid infinite recursion. Java serialization handles this automatically; manual implementations must track visited objects explicitly.`,
+    designRationale: `Prototype solves the "expensive construction" problem: when creating an object requires costly operations (DB lookups, network calls, complex computation), cloning an existing instance is faster. It also reduces subclass proliferation -- instead of creating subclasses for every configuration, you create prototypical instances and clone them. The key design decision is defining clone() on the object itself (not on a factory), which means each class controls its own copying semantics. This is essential because only the class knows which fields need deep copies (mutable references) vs shallow copies (immutable values). In JavaScript, the language itself is prototype-based (Object.create() creates an object with a given prototype). Tradeoff: implementing correct deep clone is error-prone -- missing a mutable field leads to shared-state bugs that are extremely hard to diagnose.`,
     commonVariations: [
-      "Shallow clone (Object.clone() in Java -- fast but shares mutable references)",
-      "Deep clone (recursive copy of all nested objects -- safe but slower)",
-      "Prototype Registry (a map of named prototypes that can be cloned on demand)",
-      "Copy constructor (a constructor that takes another instance as parameter)",
-      "Serialization-based clone (serialize then deserialize -- simple but slow)",
+      "Shallow clone (Object.clone() in Java, spread operator in JS -- fast but shares mutable references)",
+      "Deep clone (recursive copy of all nested objects -- safe but slower; structuredClone() in JS, serialization in Java)",
+      "Prototype Registry (a map of named prototypes that can be cloned on demand -- avoids subclass proliferation)",
+      "Copy constructor (C++/Java idiom: a constructor that takes another instance as parameter, giving explicit control over copying)",
+      "Serialization-based clone (serialize to bytes/JSON then deserialize -- handles circular refs but slower and requires serialization support)",
+      "Immutable Prototype (clone returns a new instance with modifications applied via a with() or toBuilder() method)",
     ],
     antiPatterns: [
-      "Shallow clone of mutable state -- modifying the clone accidentally modifies the original",
-      "Clone without override -- forgetting to override clone() in subclasses leads to incomplete copies",
-      "Using Prototype when construction is cheap -- cloning adds complexity without benefit",
+      "Shallow clone of mutable state -- modifying the clone accidentally modifies the original (e.g., shared List, Map, or nested object references)",
+      "Clone bypassing constructor validation -- clone() creates objects without calling the constructor, so invariants enforced by the constructor are skipped",
+      "Circular reference clone without visited-map -- deep clone enters infinite recursion on cyclic object graphs",
+      "Using Prototype when construction is cheap -- cloning adds complexity without benefit if the constructor is trivial",
     ],
     interviewDepth: [
       {
-        question: "What is the difference between shallow copy and deep copy?",
-        expectedAnswer: "Shallow copy duplicates field values directly -- primitives are copied, but object references are shared. Deep copy recursively creates new instances of all referenced objects. Example: cloning an Army with a List<Soldier> -- shallow copy shares the same list (adding a soldier to clone affects original), deep copy creates a new list with new Soldier instances.",
+        question: "What is the difference between shallow copy and deep copy, and when does it matter?",
+        expectedAnswer: "Shallow copy duplicates field values directly -- primitives are copied, but object references are shared. Deep copy recursively creates new instances of all referenced objects. It matters when cloned objects are mutated independently. Example: cloning an Army with a List<Soldier> -- shallow copy shares the same list (adding a soldier to clone affects original), deep copy creates a new list with new Soldier instances. Immutable fields (String, Integer) do not need deep copy.",
         followUp: "How would you implement deep clone for a complex object graph with circular references?",
+      },
+      {
+        question: "How does JavaScript's prototype chain relate to the Prototype design pattern?",
+        expectedAnswer: "JavaScript's prototype chain is a language-level implementation of the Prototype concept. Object.create(proto) creates a new object whose [[Prototype]] is proto -- property lookups delegate to the prototype chain. The GoF Prototype pattern is about cloning objects to avoid expensive construction. They share the idea of creating objects from existing objects rather than from classes, but JS prototypes use delegation (shared behavior via the chain) while GoF Prototype uses copying (independent clone with its own state).",
+        followUp: "How does structuredClone() differ from JSON.parse(JSON.stringify()) for deep cloning?",
+      },
+      {
+        question: "Design a document template system using the Prototype pattern.",
+        expectedAnswer: "A PrototypeRegistry holds named document templates: 'invoice', 'report', 'contract'. Each template is a fully configured Document object (with headers, styles, sections, footer). When a user creates a new document, the system clones the template and lets the user customize the copy. The clone is a deep copy so modifications do not affect the template. This avoids re-reading template configuration from the database for every new document.",
+        followUp: "How would you handle templates that share common sub-components (e.g., a standard header used across multiple templates)?",
       },
     ],
   },
@@ -253,26 +279,41 @@ export const PATTERN_ENRICHMENTS: Record<string, PatternEnrichment> = {
   },
 
   decorator: {
-    complexityAnalysis: `**Time Complexity:** O(d) per call where d = number of decorators in the chain. Each decorator adds O(1) overhead.
-**Space Complexity:** O(d) -- each decorator is a wrapper object holding a reference to the next.
-**Stacking behavior:** Decorators can be composed in any order: Milk(Sugar(Coffee)) vs Sugar(Milk(Coffee)). Order may matter for some operations.`,
-    designRationale: `Decorator solves the "combinatorial subclass explosion" problem: if you have 4 optional features, inheritance requires 2^4 = 16 subclasses. Decorator uses composition to wrap objects dynamically. The key design decision is that decorators implement the same interface as the component they wrap -- this makes them transparent to the client and allows arbitrary stacking. Java I/O streams are the canonical example: BufferedInputStream(GZIPInputStream(FileInputStream)) stacks buffering and decompression. Tradeoff: many small wrapper objects can be confusing to debug, and the decoration order can create subtle behavioral differences.`,
+    complexityAnalysis: `**Time Complexity:** O(d) per call where d = number of decorators in the chain. Each decorator adds O(1) overhead (method delegation + its own logic).
+**Space Complexity:** O(d) -- each decorator is a separate wrapper object holding a reference to the next component.
+**Stacking behavior:** Decorators compose in any order: Encrypt(Compress(FileStream)) vs Compress(Encrypt(FileStream)). Order matters when operations are not commutative -- compressing then encrypting yields different (and typically smaller) output than encrypting then compressing.
+**Thread safety:** Each decorator is a separate object; concurrent reads through the same decorator chain require the underlying component to be thread-safe. In Java I/O, wrapping a shared InputStream with BufferedInputStream is not thread-safe unless externally synchronized.
+**Comparison with inheritance:** Inheritance is O(1) dispatch (vtable lookup) but requires compile-time decisions. Decorator is O(d) but allows runtime composition.`,
+    designRationale: `Decorator solves the "combinatorial subclass explosion" problem: if you have 4 optional features, inheritance requires 2^4 = 16 subclasses to cover every combination. Decorator uses composition to wrap objects dynamically, yielding only 4 + 1 classes. The key design decision is that decorators implement the same interface as the component they wrap -- this makes them transparent to the client and allows arbitrary stacking. Java I/O streams are the canonical real-world example: BufferedInputStream(GZIPInputStream(FileInputStream)) stacks buffering and decompression without either decorator knowing about the other. The Single Responsibility Principle is enforced naturally -- each decorator handles exactly one concern. Tradeoff: many small wrapper objects can be confusing to debug (the stack trace shows every decorator layer), the decoration order can create subtle behavioral differences, and identity checks (instanceof) fail because the outermost type is the decorator, not the original component.`,
     commonVariations: [
-      "Concrete Decorator (wraps and extends a specific interface method)",
-      "Abstract Decorator (base class that delegates all methods to the wrapped component)",
-      "Functional Decorator (higher-order function wrapping in JS/Python)",
-      "Java I/O style (InputStream -> BufferedInputStream -> GZIPInputStream)",
+      "Transparent Decorator (preserves the full interface, delegates all methods -- client cannot distinguish decorated from undecorated)",
+      "Conditional Decorator (applies behavior only when a predicate is true, e.g., CompressionDecorator only compresses if payload > 1KB)",
+      "Java I/O Streams (BufferedInputStream, GZIPInputStream, DataInputStream -- the textbook real-world example)",
+      "Python @decorator syntax (syntactic sugar for higher-order function wrapping -- not identical to GoF but same intent)",
+      "Spring AOP / Middleware Decorators (cross-cutting concerns like logging, transactions, security applied as decorator layers around service beans)",
+      "Functional Decorator / Higher-Order Function (TypeScript: const withLogging = <T>(fn: T) => (...args) => { log(args); return fn(...args); })",
     ],
     antiPatterns: [
-      "Decorating everything -- adding decorators where a simple method override would suffice",
-      "Order-dependent decorators without documentation -- when stacking order matters but is not obvious",
-      "Type checking through decorators -- instanceof checks break because the decorator wraps the real type",
+      "Order-dependent decorators without documentation -- when Encrypt(Compress(stream)) vs Compress(Encrypt(stream)) produces different results but the order constraint is not enforced or documented",
+      "Decorator explosion / over-stacking -- wrapping 10+ decorators makes debugging and performance profiling extremely difficult (consider Facade to hide the chain)",
+      "Type checking through decorated objects -- instanceof checks break because the outermost type is the decorator; use interface-based checks or provide an unwrap() method",
+      "Stateful decorators with shared state -- if a decorator holds mutable state and the chain is shared across threads, race conditions emerge silently",
     ],
     interviewDepth: [
       {
         question: "How does Decorator differ from Proxy?",
-        expectedAnswer: "Decorator adds NEW behavior dynamically -- the client explicitly creates the decorator chain. Proxy controls ACCESS to existing behavior -- the client usually does not know it is using a proxy. Decorator stacks multiple wrappers; Proxy is typically one layer. Intent is the differentiator: enhance vs control.",
-        followUp: "Show how you would use Decorator to add logging and caching to a data service.",
+        expectedAnswer: "Decorator adds NEW behavior dynamically -- the client explicitly creates and stacks the decorator chain (e.g., new Encrypt(new Compress(stream))). Proxy controls ACCESS to existing behavior -- the client usually does not know it is using a proxy (the proxy is injected transparently). Decorator typically involves multiple stacked wrappers; Proxy is typically a single layer. The core distinction is intent: Decorator enhances, Proxy controls. In Spring, @Transactional creates a proxy (access control for transaction management), while servlet filters are decorators (adding behavior to the request pipeline).",
+        followUp: "Show how you would use Decorator to add logging and caching to a data service without modifying the service class.",
+      },
+      {
+        question: "How does Python's @decorator syntax relate to the GoF Decorator pattern?",
+        expectedAnswer: "Python's @decorator is syntactic sugar for higher-order functions: @log_calls def foo() is equivalent to foo = log_calls(foo). It wraps functions, not objects. GoF Decorator wraps objects that share an interface, enabling runtime composition and multiple stacked decorators. Python @decorator achieves the same goal (adding behavior transparently) but operates at the function level. For object-level decoration in Python, you still use the GoF approach with composition and shared abstract base classes.",
+        followUp: "In Java I/O, why is BufferedInputStream a Decorator and not a Proxy?",
+      },
+      {
+        question: "Design a notification system where messages can be decorated with encryption, compression, and logging.",
+        expectedAnswer: "NotificationSender interface with send(message). BaseNotificationSender sends the raw message. NotificationDecorator implements NotificationSender and holds a wrapped NotificationSender. EncryptionDecorator encrypts the message then delegates to wrapped.send(). CompressionDecorator compresses then delegates. LoggingDecorator logs then delegates. Client composes: new Logging(new Encrypt(new Compress(new BaseSender()))). Adding a new concern (e.g., rate-limiting) requires one new decorator class and zero changes to existing code.",
+        followUp: "What happens if the encryption decorator throws an exception -- how does error handling propagate through the chain?",
       },
     ],
   },
