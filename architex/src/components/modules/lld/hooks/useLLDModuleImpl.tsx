@@ -223,7 +223,11 @@ export function useLLDModule() {
   }, []);
 
   // URL state
-  const restoringFromUrl = useRef(false);
+  // Initialize to true if there's a ?lld param — prevents the URL-writing effect
+  // from deleting the param before the URL-reading effect has a chance to restore.
+  const restoringFromUrl = useRef(
+    typeof window !== "undefined" && new URL(window.location.href).searchParams.has("lld"),
+  );
 
   const computeLLDParam = useCallback((): string | null => {
     if (activeStateMachine) return `state-machine:${activeStateMachine.id}`;
@@ -247,8 +251,12 @@ export function useLLDModule() {
     window.history.replaceState({}, "", url.toString());
   }, [computeLLDParam]);
 
+  // Track whether we've already restored from URL to avoid re-running
+  const urlRestoredRef = useRef(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (urlRestoredRef.current) return;
     const url = new URL(window.location.href);
     const lldParam = url.searchParams.get("lld");
     if (!lldParam) return;
@@ -259,16 +267,30 @@ export function useLLDModule() {
     const id = lldParam.slice(colonIdx + 1);
     if (!mode || !id) return;
 
+    // Wait until data is loaded (API mode returns empty arrays initially)
+    if (mode === "pattern" && DESIGN_PATTERNS.length === 0) return;
+    if (mode === "solid" && SOLID_DEMOS.length === 0) return;
+    if (mode === "problem" && LLD_PROBLEMS.length === 0) return;
+
     restoringFromUrl.current = true;
+    urlRestoredRef.current = true;
 
     try {
       switch (mode) {
         case "pattern": {
           const pattern = DESIGN_PATTERNS.find((p) => p.id === id);
           if (pattern) {
-            setActivePattern(pattern);
-            setClasses(pattern.classes.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] })));
-            setRelationships([...pattern.relationships]);
+            if (pattern.classes && pattern.code) {
+              setActivePattern(pattern);
+              const cls = pattern.classes.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] }));
+              const rels = [...pattern.relationships];
+              const result = layoutDagre(cls, rels);
+              setClasses(result.classes);
+              setRelationships(rels);
+              setEdgePoints(result.edgePoints);
+            } else {
+              setSelectedPatternSlug(id);
+            }
             setSidebarMode("patterns");
           }
           break;
@@ -278,8 +300,12 @@ export function useLLDModule() {
           if (demo) {
             setActiveDemo(demo);
             setSolidView("before");
-            setClasses(demo.beforeClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] })));
-            setRelationships([...demo.beforeRelationships]);
+            const cls = demo.beforeClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] }));
+            const rels = [...demo.beforeRelationships];
+            const result = layoutDagre(cls, rels);
+            setClasses(result.classes);
+            setRelationships(rels);
+            setEdgePoints(result.edgePoints);
             setSidebarMode("solid");
           }
           break;
@@ -288,8 +314,12 @@ export function useLLDModule() {
           const problem = LLD_PROBLEMS.find((p) => p.id === id);
           if (problem) {
             setActiveProblem(problem);
-            setClasses(problem.starterClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] })));
-            setRelationships([...problem.starterRelationships]);
+            const cls = problem.starterClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] }));
+            const rels = [...problem.starterRelationships];
+            const result = layoutDagre(cls, rels);
+            setClasses(result.classes);
+            setRelationships(rels);
+            setEdgePoints(result.edgePoints);
             setSidebarMode("problems");
           }
           break;
@@ -316,8 +346,9 @@ export function useLLDModule() {
     } finally {
       restoringFromUrl.current = false;
     }
+    // Re-run when data arrays arrive (API mode loads asynchronously)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [DESIGN_PATTERNS, SOLID_DEMOS, LLD_PROBLEMS, SEQUENCE_EXAMPLES, STATE_MACHINE_EXAMPLES]);
 
   const handleShare = useCallback(async () => {
     const param = computeLLDParam();
