@@ -241,14 +241,18 @@ function astarSearch(
 
     // Goal reached
     if (current.xi === tgtXi && current.yi === tgtYi) {
-      // Reconstruct path
+      // Reconstruct path with cycle detection
       const path: Pt[] = [];
+      const visited = new Set<string>();
       let ck: string | null = bestKey;
-      while (ck !== null) {
+      while (ck !== null && !visited.has(ck) && path.length < 200) {
+        visited.add(ck);
         const parts = ck.split(",");
         const xi = parseInt(parts[0], 10);
         const yi = parseInt(parts[1], 10);
-        path.push({ x: xs[xi], y: ys[yi] });
+        if (xi >= 0 && xi < xs.length && yi >= 0 && yi < ys.length) {
+          path.push({ x: xs[xi], y: ys[yi] });
+        }
         const p = parentMap.get(ck);
         ck = p ? nodeKey(p.xi, p.yi) : null;
       }
