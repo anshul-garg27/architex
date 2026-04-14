@@ -387,8 +387,12 @@ export function useLLDModule() {
       clearAllModes();
       setActiveDemo(demo);
       setSolidView("before");
-      setClasses(demo.beforeClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] })));
-      setRelationships([...demo.beforeRelationships]);
+      const cls = demo.beforeClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] }));
+      const rels = [...demo.beforeRelationships];
+      const result = layoutDagre(cls, rels);
+      setClasses(result.classes);
+      setRelationships(rels);
+      setEdgePoints(result.edgePoints);
       dismissMobileSheet();
     };
     confirmOrRun(run);
@@ -400,8 +404,12 @@ export function useLLDModule() {
       const next = prev === "before" ? "after" : "before";
       const src = next === "before" ? activeDemo.beforeClasses : activeDemo.afterClasses;
       const rels = next === "before" ? activeDemo.beforeRelationships : activeDemo.afterRelationships;
-      setClasses(src.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] })));
-      setRelationships([...rels]);
+      const cls = src.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] }));
+      const relsArr = [...rels];
+      const result = layoutDagre(cls, relsArr);
+      setClasses(result.classes);
+      setRelationships(relsArr);
+      setEdgePoints(result.edgePoints);
       setSelectedClassId(null);
       return next;
     });
@@ -411,8 +419,12 @@ export function useLLDModule() {
     const run = () => {
       clearAllModes();
       setActiveProblem(problem);
-      setClasses(problem.starterClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] })));
-      setRelationships([...problem.starterRelationships]);
+      const cls = problem.starterClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] }));
+      const rels = [...problem.starterRelationships];
+      const result = layoutDagre(cls, rels);
+      setClasses(result.classes);
+      setRelationships(rels);
+      setEdgePoints(result.edgePoints);
       dismissMobileSheet();
     };
     confirmOrRun(run);

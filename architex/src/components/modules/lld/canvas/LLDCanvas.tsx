@@ -649,72 +649,137 @@ const UMLClassBox = memo(function UMLClassBox({
 
 // ── SVG: UML Relationship Edge ─────────────────────────────
 
-/** Length of the straight "approach" segment at each endpoint.
- *  Ensures SVG markers orient correctly with the approach direction. */
-const MARKER_APPROACH = 16;
+/** Minimum gap between a box edge and the routing channel. */
+const ROUTE_GAP = 20;
+/** Radius for rounded corners on orthogonal bends. */
+const BEND_R = 6;
 
-/** Lerp between two points at ratio t. */
-function lerp(a: { x: number; y: number }, b: { x: number; y: number }, t: number) {
-  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-}
+type Pt = { x: number; y: number };
 
-/** Point `dist` px away from `end`, along the line from `end` toward `from`. */
-function approachPoint(end: { x: number; y: number }, from: { x: number; y: number }, dist: number) {
-  const dx = from.x - end.x;
-  const dy = from.y - end.y;
-  const len = Math.sqrt(dx * dx + dy * dy);
-  if (len < 1) return end;
-  const t = Math.min(dist / len, 0.4); // cap at 40% of the segment
-  return { x: end.x + dx * t, y: end.y + dy * t };
+/**
+ * Determine which side of a box a point exits/enters from.
+ * Returns "top" | "bottom" | "left" | "right".
+ */
+function exitSide(cls: UMLClass, pt: Pt): "top" | "bottom" | "left" | "right" {
+  const w = classBoxWidth(cls);
+  const h = classBoxHeight(cls);
+  const cx = cls.x + w / 2;
+  const cy = cls.y + h / 2;
+  const dx = pt.x - cx;
+  const dy = pt.y - cy;
+  // Which edge is closest to the border point?
+  const distTop = Math.abs(pt.y - cls.y);
+  const distBot = Math.abs(pt.y - (cls.y + h));
+  const distLeft = Math.abs(pt.x - cls.x);
+  const distRight = Math.abs(pt.x - (cls.x + w));
+  const min = Math.min(distTop, distBot, distLeft, distRight);
+  if (min === distTop) return "top";
+  if (min === distBot) return "bottom";
+  if (min === distLeft) return "left";
+  return "right";
 }
 
 /**
- * Build an SVG path `d` attribute through a sequence of waypoints.
- * The first and last MARKER_APPROACH px are straight lines so that
- * SVG markers (arrows, diamonds) orient along the approach direction
- * rather than the bezier tangent.
+ * Compute the orthogonal anchor point: the center of the given side of the box.
  */
-function buildEdgePath(points: Array<{ x: number; y: number }>): string {
-  if (points.length < 2) return "";
-  if (points.length === 2) {
-    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+function sideAnchor(cls: UMLClass, side: "top" | "bottom" | "left" | "right"): Pt {
+  const w = classBoxWidth(cls);
+  const h = classBoxHeight(cls);
+  const cx = cls.x + w / 2;
+  switch (side) {
+    case "top":    return { x: cx, y: cls.y };
+    case "bottom": return { x: cx, y: cls.y + h };
+    case "left":   return { x: cls.x, y: cls.y + h / 2 };
+    case "right":  return { x: cls.x + w, y: cls.y + h / 2 };
   }
+}
 
-  // Inject approach points near the start and end for marker alignment
-  const first = points[0];
-  const second = points[1];
-  const secondLast = points[points.length - 2];
-  const last = points[points.length - 1];
+/**
+ * Build an orthogonal (Manhattan-routed) SVG path between two box-side anchors.
+ * Exits perpendicular to the source side, routes with right-angle bends,
+ * and enters perpendicular to the target side.
+ */
+function orthoPath(src: Pt, srcSide: string, tgt: Pt, tgtSide: string): Pt[] {
+  const pts: Pt[] = [src];
 
-  const startApproach = approachPoint(first, second, MARKER_APPROACH);
-  const endApproach = approachPoint(last, secondLast, MARKER_APPROACH);
+  const isVertSrc = srcSide === "top" || srcSide === "bottom";
+  const isVertTgt = tgtSide === "top" || tgtSide === "bottom";
+  const srcSign = (srcSide === "bottom" || srcSide === "right") ? 1 : -1;
+  const tgtSign = (tgtSide === "bottom" || tgtSide === "right") ? 1 : -1;
 
-  // Build: straight start → curve through middle → straight end
-  const middle = points.slice(1, -1);
-  const curvePoints = [startApproach, ...middle, endApproach];
-
-  let d = `M ${first.x} ${first.y} L ${startApproach.x} ${startApproach.y}`;
-
-  if (curvePoints.length === 2) {
-    d += ` L ${endApproach.x} ${endApproach.y}`;
+  if (isVertSrc && isVertTgt) {
+    // Both exit vertically — route: vert → horiz → vert
+    const midY = (src.y + tgt.y) / 2;
+    // If target is on the right side, route through midpoint
+    const exitY = src.y + srcSign * ROUTE_GAP;
+    const enterY = tgt.y + tgtSign * ROUTE_GAP;
+    // Use midY if both going same direction, else average of exits
+    const jogY = (srcSign === tgtSign) ? (src.y + tgt.y) / 2 : (exitY + enterY) / 2;
+    pts.push({ x: src.x, y: jogY });
+    pts.push({ x: tgt.x, y: jogY });
+  } else if (!isVertSrc && !isVertTgt) {
+    // Both exit horizontally — route: horiz → vert → horiz
+    const jogX = (src.x + tgt.x) / 2;
+    pts.push({ x: jogX, y: src.y });
+    pts.push({ x: jogX, y: tgt.y });
+  } else if (isVertSrc && !isVertTgt) {
+    // src exits vertically, tgt exits horizontally
+    pts.push({ x: src.x, y: tgt.y });
   } else {
-    // Catmull-Rom through the middle points
-    for (let i = 0; i < curvePoints.length - 1; i++) {
-      const p0 = curvePoints[Math.max(0, i - 1)];
-      const p1 = curvePoints[i];
-      const p2 = curvePoints[i + 1];
-      const p3 = curvePoints[Math.min(curvePoints.length - 1, i + 2)];
-
-      const tension = 0.3;
-      const cp1x = p1.x + (p2.x - p0.x) * tension;
-      const cp1y = p1.y + (p2.y - p0.y) * tension;
-      const cp2x = p2.x - (p3.x - p1.x) * tension;
-      const cp2y = p2.y - (p3.y - p1.y) * tension;
-
-      d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
-    }
+    // src exits horizontally, tgt exits vertically
+    pts.push({ x: tgt.x, y: src.y });
   }
 
+  pts.push(tgt);
+  return pts;
+}
+
+/**
+ * Build an SVG path `d` from orthogonal waypoints with rounded corners.
+ */
+function buildOrthoPathD(pts: Pt[]): string {
+  if (pts.length < 2) return "";
+  if (pts.length === 2) {
+    return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+  }
+
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+
+  for (let i = 1; i < pts.length - 1; i++) {
+    const prev = pts[i - 1];
+    const curr = pts[i];
+    const next = pts[i + 1];
+
+    // Distance to previous and next points
+    const dPrev = Math.abs(curr.x - prev.x) + Math.abs(curr.y - prev.y);
+    const dNext = Math.abs(next.x - curr.x) + Math.abs(next.y - curr.y);
+    const r = Math.min(BEND_R, dPrev / 2, dNext / 2);
+
+    if (r < 1) {
+      // Too tight for a curve — just go straight
+      d += ` L ${curr.x} ${curr.y}`;
+      continue;
+    }
+
+    // Point on the incoming segment, `r` before the corner
+    const dx1 = curr.x - prev.x;
+    const dy1 = curr.y - prev.y;
+    const len1 = Math.abs(dx1) + Math.abs(dy1);
+    const ax = curr.x - (dx1 / len1) * r;
+    const ay = curr.y - (dy1 / len1) * r;
+
+    // Point on the outgoing segment, `r` after the corner
+    const dx2 = next.x - curr.x;
+    const dy2 = next.y - curr.y;
+    const len2 = Math.abs(dx2) + Math.abs(dy2);
+    const bx = curr.x + (dx2 / len2) * r;
+    const by = curr.y + (dy2 / len2) * r;
+
+    // Line to the arc start, then quadratic bezier through the corner
+    d += ` L ${ax} ${ay} Q ${curr.x} ${curr.y} ${bx} ${by}`;
+  }
+
+  const last = pts[pts.length - 1];
   d += ` L ${last.x} ${last.y}`;
   return d;
 }
@@ -736,8 +801,15 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
   const srcCenter = classCenter(srcCls);
   const tgtCenter = classCenter(tgtCls);
 
-  const src = borderPoint(srcCls, tgtCenter.cx, tgtCenter.cy);
-  const tgt = borderPoint(tgtCls, srcCenter.cx, srcCenter.cy);
+  // Compute the best exit/enter sides for orthogonal routing
+  const rawSrc = borderPoint(srcCls, tgtCenter.cx, tgtCenter.cy);
+  const rawTgt = borderPoint(tgtCls, srcCenter.cx, srcCenter.cy);
+  const srcSide = exitSide(srcCls, rawSrc);
+  const tgtSide = exitSide(tgtCls, rawTgt);
+
+  // Use side-center anchors for clean orthogonal exits
+  const src = sideAnchor(srcCls, srcSide);
+  const tgt = sideAnchor(tgtCls, tgtSide);
 
   const isDashed =
     rel.type === "dependency" || rel.type === "realization";
@@ -754,29 +826,15 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
   const hasDiamond =
     rel.type === "composition" || rel.type === "aggregation";
 
-  // Build the path
-  let pathD: string;
-  let labelPos: { x: number; y: number };
+  // Build orthogonal (Manhattan) path with rounded corners
+  const waypoints = orthoPath(src, srcSide, tgt, tgtSide);
+  const pathD = buildOrthoPathD(waypoints);
 
-  if (routePoints && routePoints.length >= 2) {
-    // Use dagre's computed waypoints with border-clamped endpoints
-    const allPoints = [src, ...routePoints.slice(1, -1), tgt];
-    pathD = buildEdgePath(allPoints);
-    // Label at the middle waypoint
-    const mid = routePoints[Math.floor(routePoints.length / 2)];
-    labelPos = { x: mid.x, y: mid.y - 10 };
-  } else {
-    // No dagre points: compute a gentle bezier with straight approach segments
-    const dx = tgt.x - src.x;
-    const dy = tgt.y - src.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const offset = Math.min(30, dist * 0.1);
-    const nx = dist > 0 ? -dy / dist : 0;
-    const ny = dist > 0 ? dx / dist : 0;
-    const midPt = { x: (src.x + tgt.x) / 2 + nx * offset, y: (src.y + tgt.y) / 2 + ny * offset };
-    pathD = buildEdgePath([src, midPt, tgt]);
-    labelPos = { x: midPt.x, y: midPt.y - 10 };
-  }
+  // Label at the midpoint of the middle segment
+  const midIdx = Math.floor(waypoints.length / 2);
+  const midA = waypoints[Math.max(0, midIdx - 1)];
+  const midB = waypoints[midIdx];
+  const labelPos = { x: (midA.x + midB.x) / 2, y: (midA.y + midB.y) / 2 - 10 };
 
   // Cardinality label offsets — push outward from the border point along the
   // perpendicular of the approach direction so they don't overlap the line.
