@@ -156,6 +156,7 @@
   --lld-canvas-border: #6b7280;
   --lld-canvas-edge: #9ca3af;
   --lld-rel-stroke: #94a3b8;         /* monochrome stroke for all relationship types */
+  --lld-rel-highlight: #60a5fa;     /* highlighted edge color on hover */
   --lld-canvas-selected: #60a5fa;
   --lld-canvas-abstract: #c4b5fd;
   --lld-canvas-lifeline: #4b5563;
@@ -807,6 +808,26 @@ body {
 
 @keyframes architex-dash-flow {
   to { stroke-dashoffset: -20; }
+}
+
+/* ── UML Edge draw animation ── */
+@keyframes lld-edge-draw {
+  from { stroke-dashoffset: var(--edge-length, 1000); }
+  to   { stroke-dashoffset: 0; }
+}
+.lld-edge-draw {
+  animation: lld-edge-draw 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: var(--edge-delay, 0s);
+}
+/* Highlighted edge when hovering a connected class */
+.lld-edge-highlight {
+  stroke: var(--lld-rel-highlight) !important;
+  stroke-width: 2.2 !important;
+  filter: drop-shadow(0 0 4px var(--lld-rel-highlight));
+}
+/* Class box lift effect on hover */
+.lld-class-hover {
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.4));
 }
 
 .react-flow__edge-path-animated {

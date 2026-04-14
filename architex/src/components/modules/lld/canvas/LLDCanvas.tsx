@@ -425,8 +425,8 @@ const UMLClassBox = memo(function UMLClassBox({
           onSelect(cls.id);
         }
       }}
-      style={{ cursor: "grab", outline: "none" }}
-      filter={isSelected ? "url(#glow)" : undefined}
+      style={{ cursor: "grab", outline: "none", transition: "filter 0.2s ease" }}
+      filter={isSelected ? "url(#glow)" : isHovered ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))" : undefined}
       {...(reducedMotion
         ? {}
         : {
@@ -460,7 +460,7 @@ const UMLClassBox = memo(function UMLClassBox({
         stroke={isSelected ? "var(--lld-canvas-selected)" : borderColor}
         strokeWidth={isSelected ? 2.5 : 1.5}
       />
-      {/* Header background */}
+      {/* Header background — subtle gradient tint matching stereotype */}
       <rect
         x={cls.x}
         y={cls.y}
@@ -468,7 +468,8 @@ const UMLClassBox = memo(function UMLClassBox({
         height={CLASS_HEADER_HEIGHT + (hasStereo ? STEREOTYPE_LABEL_HEIGHT : 0)}
         rx={4}
         fill={borderColor}
-        opacity={0.094}
+        opacity={isHovered ? 0.18 : 0.1}
+        style={{ transition: "opacity 0.2s ease" }}
       />
       {/* Bottom corners overlap fix */}
       <rect
@@ -736,9 +737,11 @@ interface UMLEdgeProps {
   srcPortOffset?: number;
   /** Pixel offset to spread this edge's enter port from center (tgt side). */
   tgtPortOffset?: number;
+  /** Whether this edge's source or target class is being hovered. */
+  highlighted?: boolean;
 }
 
-const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0 }: UMLEdgeProps) {
+const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0, highlighted = false }: UMLEdgeProps) {
   const srcCls = classById.get(rel.source);
   const tgtCls = classById.get(rel.target);
   if (!srcCls || !tgtCls) return null;
@@ -835,8 +838,8 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
       <path
         d={pathD}
         fill="none"
-        stroke={REL_STROKE}
-        strokeWidth="1.2"
+        stroke={highlighted ? "var(--lld-rel-highlight)" : REL_STROKE}
+        strokeWidth={highlighted ? 2 : 1.2}
         strokeDasharray={isDashed ? "10 6" : undefined}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -846,7 +849,11 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
             ? `url(#arrow-${rel.type})`
             : undefined
         }
-        className="transition-all duration-200 hover:stroke-[var(--lld-canvas-selected)] hover:[stroke-width:2]"
+        className={cn(
+          "transition-all duration-300",
+          highlighted && "lld-edge-highlight",
+        )}
+        style={highlighted ? { filter: "drop-shadow(0 0 6px var(--lld-rel-highlight))" } : undefined}
       />
       {/* Label — opaque pill with subtle border + shadow */}
       {rel.label && (
@@ -1499,7 +1506,8 @@ export const LLDCanvas = memo(function LLDCanvas({
               const tSide = exitSide(tgtCls, rt);
               const sOff = portOffsets.get(`${rel.source}:${sSide}:src:${rel.id}`) ?? 0;
               const tOff = portOffsets.get(`${rel.target}:${tSide}:tgt:${rel.id}`) ?? 0;
-              return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} />;
+              const isHighlighted = hoveredClassId != null && (rel.source === hoveredClassId || rel.target === hoveredClassId);
+              return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} highlighted={isHighlighted} />;
             })}
 
             {connectionDrag && previewLineStart && (
