@@ -68,24 +68,23 @@ const singleton: DesignPattern = {
       y: 100,
     },
     {
-      id: "singleton-connection",
+      id: "s-connection",
       name: "Connection",
       stereotype: "class",
       attributes: [
-        { id: "singleton-connection-attr-0", name: "id", type: "string", visibility: "-" },
-        { id: "singleton-connection-attr-1", name: "url", type: "string", visibility: "-" },
-        { id: "singleton-connection-attr-2", name: "active", type: "boolean", visibility: "-" },
+        { id: "s-conn-attr-0", name: "url", type: "string", visibility: "-" as const },
+        { id: "s-conn-attr-1", name: "isActive", type: "boolean", visibility: "-" as const },
       ],
       methods: [
-        { id: "singleton-connection-meth-0", name: "execute", returnType: "Result", params: ["query: string"], visibility: "+" },
-        { id: "singleton-connection-meth-1", name: "close", returnType: "void", params: [], visibility: "+" },
+        { id: "s-conn-meth-0", name: "execute", returnType: "ResultSet", params: ["query: string"], visibility: "+" as const },
+        { id: "s-conn-meth-1", name: "close", returnType: "void", params: [], visibility: "+" as const },
       ],
-      x: 200,
-      y: 350,
+      x: 400,
+      y: 200,
     },
   ],
   relationships: [
-    { id: rid(), source: "singleton-class", target: "singleton-connection", type: "composition", label: "manages", targetCardinality: "*" },
+    { id: rid(), source: "singleton-class", target: "s-connection", type: "composition", sourceCardinality: "1", targetCardinality: "0..*" },
   ],
   code: {
     typescript: `class Singleton {
@@ -288,7 +287,10 @@ const factoryMethod: DesignPattern = {
       id: "fm-factory",
       name: "NotificationFactory",
       stereotype: "abstract",
-      attributes: [],
+      attributes: [
+        { id: "fm-factory-attr-0", name: "defaultPriority", type: "string", visibility: "#" },
+        { id: "fm-factory-attr-1", name: "retryCount", type: "number", visibility: "#" },
+      ],
       methods: [
         { id: "fm-factory-meth-0", name: "createNotification", returnType: "Notification", params: [], visibility: "+", isAbstract: true },
         { id: "fm-factory-meth-1", name: "sendNotification", returnType: "void", params: ["recipient: string"], visibility: "+" },
@@ -300,9 +302,13 @@ const factoryMethod: DesignPattern = {
       id: "fm-email-factory",
       name: "EmailNotificationFactory",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "fm-email-factory-attr-0", name: "smtpHost", type: "string", visibility: "-" },
+        { id: "fm-email-factory-attr-1", name: "maxRetries", type: "number", visibility: "-" },
+      ],
       methods: [
         { id: "fm-email-factory-meth-0", name: "createNotification", returnType: "Notification", params: [], visibility: "+" },
+        { id: "fm-email-factory-meth-1", name: "sendNotification", returnType: "void", params: ["recipient: string"], visibility: "+" },
       ],
       x: 250,
       y: 550,
@@ -311,9 +317,13 @@ const factoryMethod: DesignPattern = {
       id: "fm-sms-factory",
       name: "SMSNotificationFactory",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "fm-sms-factory-attr-0", name: "apiKey", type: "string", visibility: "-" },
+        { id: "fm-sms-factory-attr-1", name: "maxRetries", type: "number", visibility: "-" },
+      ],
       methods: [
         { id: "fm-sms-factory-meth-0", name: "createNotification", returnType: "Notification", params: [], visibility: "+" },
+        { id: "fm-sms-factory-meth-1", name: "sendNotification", returnType: "void", params: ["recipient: string"], visibility: "+" },
       ],
       x: 550,
       y: 550,
@@ -518,6 +528,7 @@ const builder: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "b-director-attr-0", name: "builder", type: "QueryBuilder", visibility: "-" },
+        { id: "b-director-attr-1", name: "defaultTable", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "b-director-meth-0", name: "setBuilder", returnType: "void", params: ["builder: QueryBuilder"], visibility: "+" },
@@ -833,6 +844,7 @@ const adapter: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "a-xml-to-json-adapter-attr-0", name: "xmlParser", type: "XMLDataParser", visibility: "-" },
+        { id: "a-xml-to-json-adapter-attr-1", name: "encoding", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "a-xml-to-json-adapter-meth-0", name: "parseJSON", returnType: "Record<string, unknown>", params: ["data: string"], visibility: "+" },
@@ -848,6 +860,7 @@ const adapter: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "a-xml-parser-attr-0", name: "encoding", type: "string", visibility: "-" },
+        { id: "a-xml-parser-attr-1", name: "schemaVersion", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "a-xml-parser-meth-0", name: "parseXML", returnType: "XMLDocument", params: ["data: string"], visibility: "+" },
@@ -860,9 +873,13 @@ const adapter: DesignPattern = {
       id: "a-client",
       name: "DataProcessor",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "a-client-attr-0", name: "parser", type: "JSONDataParser", visibility: "-" },
+        { id: "a-client-attr-1", name: "outputFormat", type: "string", visibility: "-" },
+      ],
       methods: [
         { id: "a-client-meth-0", name: "processData", returnType: "void", params: ["parser: JSONDataParser"], visibility: "+" },
+        { id: "a-client-meth-1", name: "getResults", returnType: "Record<string, unknown>[]", params: [], visibility: "+" },
       ],
       x: 100,
       y: 300,
@@ -870,7 +887,7 @@ const adapter: DesignPattern = {
   ],
   relationships: [
     { id: rid(), source: "a-xml-to-json-adapter", target: "a-json-parser", type: "realization" },
-    { id: rid(), source: "a-xml-to-json-adapter", target: "a-xml-parser", type: "composition", label: "wraps" },
+    { id: rid(), source: "a-xml-to-json-adapter", target: "a-xml-parser", type: "association", label: "wraps" },
     { id: rid(), source: "a-client", target: "a-json-parser", type: "dependency", label: "uses" },
   ],
   code: {
@@ -1026,6 +1043,7 @@ const decorator: DesignPattern = {
       stereotype: "abstract",
       attributes: [
         { id: "d-stream-decorator-attr-0", name: "wrappee", type: "DataStream", visibility: "#" },
+        { id: "d-stream-decorator-attr-1", name: "enabled", type: "boolean", visibility: "#" },
       ],
       methods: [
         { id: "d-stream-decorator-meth-0", name: "read", returnType: "Buffer", params: [], visibility: "+" },
@@ -1041,6 +1059,7 @@ const decorator: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "d-encryption-attr-0", name: "encryptionKey", type: "string", visibility: "-" },
+        { id: "d-encryption-attr-1", name: "algorithm", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "d-encryption-meth-0", name: "read", returnType: "Buffer", params: [], visibility: "+" },
@@ -1056,6 +1075,7 @@ const decorator: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "d-compression-attr-0", name: "algorithm", type: "string", visibility: "-" },
+        { id: "d-compression-attr-1", name: "level", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "d-compression-meth-0", name: "read", returnType: "Buffer", params: [], visibility: "+" },
@@ -1231,6 +1251,7 @@ const facade: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "f-inventory-attr-0", name: "stock", type: "Map<string, number>", visibility: "-" },
+        { id: "f-inventory-attr-1", name: "warehouseId", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "f-inventory-meth-0", name: "checkAvailability", returnType: "boolean", params: ["itemId: string", "qty: number"], visibility: "+" },
@@ -1246,6 +1267,7 @@ const facade: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "f-payment-attr-0", name: "gateway", type: "PaymentGateway", visibility: "-" },
+        { id: "f-payment-attr-1", name: "currency", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "f-payment-meth-0", name: "charge", returnType: "PaymentResult", params: ["amount: number", "info: PaymentInfo"], visibility: "+" },
@@ -1260,6 +1282,7 @@ const facade: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "f-shipping-attr-0", name: "carrier", type: "ShippingCarrier", visibility: "-" },
+        { id: "f-shipping-attr-1", name: "defaultWarehouse", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "f-shipping-meth-0", name: "createShipment", returnType: "string", params: ["orderId: string", "address: Address"], visibility: "+" },
@@ -1273,9 +1296,13 @@ const facade: DesignPattern = {
       id: "f-client",
       name: "CheckoutController",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "f-client-attr-0", name: "facade", type: "OrderFacade", visibility: "-" },
+        { id: "f-client-attr-1", name: "sessionManager", type: "SessionManager", visibility: "-" },
+      ],
       methods: [
         { id: "f-client-meth-0", name: "handleCheckout", returnType: "void", params: ["request: Request"], visibility: "+" },
+        { id: "f-client-meth-1", name: "handleCancellation", returnType: "void", params: ["orderId: string"], visibility: "+" },
       ],
       x: 300,
       y: -120,
@@ -1456,10 +1483,12 @@ const observer: DesignPattern = {
       name: "LoggingObserver",
       stereotype: "class",
       attributes: [
-        { id: "o-concrete-a-attr-0", name: "observerState", type: "number", visibility: "-" },
+        { id: "o-concrete-a-attr-0", name: "logFile", type: "string", visibility: "-" },
+        { id: "o-concrete-a-attr-1", name: "logLevel", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "o-concrete-a-meth-0", name: "update", returnType: "void", params: ["subject: Subject"], visibility: "+" },
+        { id: "o-concrete-a-meth-1", name: "writeLog", returnType: "void", params: ["message: string"], visibility: "-" },
       ],
       x: 380,
       y: 280,
@@ -1469,10 +1498,12 @@ const observer: DesignPattern = {
       name: "AlertObserver",
       stereotype: "class",
       attributes: [
-        { id: "o-concrete-b-attr-0", name: "observerState", type: "number", visibility: "-" },
+        { id: "o-concrete-b-attr-0", name: "alertChannel", type: "string", visibility: "-" },
+        { id: "o-concrete-b-attr-1", name: "threshold", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "o-concrete-b-meth-0", name: "update", returnType: "void", params: ["subject: Subject"], visibility: "+" },
+        { id: "o-concrete-b-meth-1", name: "sendAlert", returnType: "void", params: ["message: string"], visibility: "-" },
       ],
       x: 620,
       y: 280,
@@ -1499,6 +1530,7 @@ const observer: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "o-eventbus-attr-0", name: "handlers", type: "Map<string, EventHandler[]>", visibility: "-" },
+        { id: "o-eventbus-attr-1", name: "eventLog", type: "Event[]", visibility: "-" },
       ],
       methods: [
         { id: "o-eventbus-meth-0", name: "subscribe", returnType: "void", params: ["eventType: string", "handler: EventHandler"], visibility: "+" },
@@ -1950,6 +1982,7 @@ const strategy: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "s-context-attr-0", name: "strategy", type: "PaymentStrategy", visibility: "-" },
+        { id: "s-context-attr-1", name: "currency", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "s-context-meth-0", name: "setStrategy", returnType: "void", params: ["strategy: PaymentStrategy"], visibility: "+" },
@@ -2203,22 +2236,38 @@ const command: DesignPattern = {
       name: "SaveDocumentCommand",
       stereotype: "class",
       attributes: [
-        { id: "c-concrete-attr-0", name: "receiver", type: "Receiver", visibility: "-" },
-        { id: "c-concrete-attr-1", name: "params", type: "string", visibility: "-" },
+        { id: "c-concrete-attr-0", name: "document", type: "Document", visibility: "-" },
+        { id: "c-concrete-attr-1", name: "previousContent", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "c-concrete-meth-0", name: "execute", returnType: "void", params: [], visibility: "+" },
         { id: "c-concrete-meth-1", name: "undo", returnType: "void", params: [], visibility: "+" },
       ],
-      x: 300,
+      x: 200,
+      y: 250,
+    },
+    {
+      id: "c-open-file",
+      name: "OpenFileCommand",
+      stereotype: "class",
+      attributes: [
+        { id: "c-open-file-attr-0", name: "filePath", type: "string", visibility: "-" },
+        { id: "c-open-file-attr-1", name: "receiver", type: "Receiver", visibility: "-" },
+      ],
+      methods: [
+        { id: "c-open-file-meth-0", name: "execute", returnType: "void", params: [], visibility: "+" },
+        { id: "c-open-file-meth-1", name: "undo", returnType: "void", params: [], visibility: "+" },
+      ],
+      x: 400,
       y: 250,
     },
     {
       id: "c-invoker",
-      name: "Invoker",
+      name: "EditorInvoker",
       stereotype: "class",
       attributes: [
         { id: "c-invoker-attr-0", name: "history", type: "Command[]", visibility: "-" },
+        { id: "c-invoker-attr-1", name: "maxHistory", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "c-invoker-meth-0", name: "executeCommand", returnType: "void", params: ["cmd: Command"], visibility: "+" },
@@ -2229,14 +2278,16 @@ const command: DesignPattern = {
     },
     {
       id: "c-receiver",
-      name: "Receiver",
+      name: "DocumentEditor",
       stereotype: "class",
       attributes: [
-        { id: "c-receiver-attr-0", name: "data", type: "string", visibility: "-" },
+        { id: "c-receiver-attr-0", name: "content", type: "string", visibility: "-" },
+        { id: "c-receiver-attr-1", name: "filePath", type: "string", visibility: "-" },
       ],
       methods: [
-        { id: "c-receiver-meth-0", name: "action", returnType: "void", params: ["params: string"], visibility: "+" },
-        { id: "c-receiver-meth-1", name: "reverseAction", returnType: "void", params: ["params: string"], visibility: "+" },
+        { id: "c-receiver-meth-0", name: "save", returnType: "void", params: [], visibility: "+" },
+        { id: "c-receiver-meth-1", name: "open", returnType: "void", params: ["path: string"], visibility: "+" },
+        { id: "c-receiver-meth-2", name: "revert", returnType: "void", params: ["content: string"], visibility: "+" },
       ],
       x: 560,
       y: 250,
@@ -2278,10 +2329,12 @@ const command: DesignPattern = {
   relationships: [
     { id: rid(), source: "c-concrete", target: "c-command", type: "realization" },
     { id: rid(), source: "c-concrete", target: "c-receiver", type: "association", label: "calls" },
+    { id: rid(), source: "c-open-file", target: "c-command", type: "realization" },
+    { id: rid(), source: "c-open-file", target: "c-receiver", type: "association", label: "calls" },
     { id: rid(), source: "c-delete", target: "c-command", type: "realization" },
     { id: rid(), source: "c-delete", target: "c-receiver", type: "association", label: "calls" },
     { id: rid(), source: "c-invoker", target: "c-command", type: "aggregation", label: "stores" },
-    { id: rid(), source: "c-history", target: "c-command", type: "aggregation", label: "tracks" },
+    { id: rid(), source: "c-history", target: "c-command", type: "composition", label: "tracks" },
     { id: rid(), source: "c-invoker", target: "c-history", type: "association", label: "uses" },
   ],
   code: {
@@ -2656,7 +2709,10 @@ const state: DesignPattern = {
       id: "st-draft",
       name: "DraftState",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "st-draft-attr-0", name: "lastEditedBy", type: "string", visibility: "-" },
+        { id: "st-draft-attr-1", name: "editCount", type: "number", visibility: "-" },
+      ],
       methods: [
         { id: "st-draft-meth-0", name: "edit", returnType: "void", params: ["doc: Document"], visibility: "+" },
         { id: "st-draft-meth-1", name: "review", returnType: "void", params: ["doc: Document"], visibility: "+" },
@@ -2670,7 +2726,10 @@ const state: DesignPattern = {
       id: "st-review",
       name: "ReviewState",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "st-review-attr-0", name: "reviewer", type: "string", visibility: "-" },
+        { id: "st-review-attr-1", name: "comments", type: "string[]", visibility: "-" },
+      ],
       methods: [
         { id: "st-review-meth-0", name: "edit", returnType: "void", params: ["doc: Document"], visibility: "+" },
         { id: "st-review-meth-1", name: "review", returnType: "void", params: ["doc: Document"], visibility: "+" },
@@ -2684,7 +2743,10 @@ const state: DesignPattern = {
       id: "st-published",
       name: "PublishedState",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "st-published-attr-0", name: "publishedAt", type: "Date", visibility: "-" },
+        { id: "st-published-attr-1", name: "version", type: "number", visibility: "-" },
+      ],
       methods: [
         { id: "st-published-meth-0", name: "edit", returnType: "void", params: ["doc: Document"], visibility: "+" },
         { id: "st-published-meth-1", name: "review", returnType: "void", params: ["doc: Document"], visibility: "+" },
@@ -2920,9 +2982,13 @@ const proxy: DesignPattern = {
       id: "px-client",
       name: "ImageGallery",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "px-client-attr-0", name: "service", type: "ImageService", visibility: "-" },
+        { id: "px-client-attr-1", name: "thumbnailSize", type: "number", visibility: "-" },
+      ],
       methods: [
         { id: "px-client-meth-0", name: "displayImages", returnType: "void", params: ["service: ImageService"], visibility: "+" },
+        { id: "px-client-meth-1", name: "refresh", returnType: "void", params: [], visibility: "+" },
       ],
       x: 300,
       y: -120,
@@ -3598,7 +3664,10 @@ const mediator: DesignPattern = {
       id: "med-admin-user",
       name: "AdminUser",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "med-admin-user-attr-0", name: "role", type: "string", visibility: "-" },
+        { id: "med-admin-user-attr-1", name: "permissions", type: "string[]", visibility: "-" },
+      ],
       methods: [
         { id: "med-admin-user-meth-0", name: "sendMessage", returnType: "void", params: ["message: string"], visibility: "+" },
         { id: "med-admin-user-meth-1", name: "receiveMessage", returnType: "void", params: ["from: string", "message: string"], visibility: "+" },
@@ -3611,7 +3680,10 @@ const mediator: DesignPattern = {
       id: "med-regular-user",
       name: "RegularUser",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "med-regular-user-attr-0", name: "status", type: "string", visibility: "-" },
+        { id: "med-regular-user-attr-1", name: "joinedAt", type: "Date", visibility: "-" },
+      ],
       methods: [
         { id: "med-regular-user-meth-0", name: "sendMessage", returnType: "void", params: ["message: string"], visibility: "+" },
         { id: "med-regular-user-meth-1", name: "receiveMessage", returnType: "void", params: ["from: string", "message: string"], visibility: "+" },
@@ -3798,6 +3870,7 @@ const templateMethod: DesignPattern = {
       stereotype: "abstract",
       attributes: [
         { id: "tm-data-exporter-attr-0", name: "data", type: "Record[]", visibility: "#" },
+        { id: "tm-data-exporter-attr-1", name: "encoding", type: "string", visibility: "#" },
       ],
       methods: [
         { id: "tm-data-exporter-meth-0", name: "export", returnType: "Buffer", params: ["records: Record[]"], visibility: "+" },
@@ -3815,6 +3888,7 @@ const templateMethod: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "tm-csv-exporter-attr-0", name: "delimiter", type: "string", visibility: "-" },
+        { id: "tm-csv-exporter-attr-1", name: "includeHeader", type: "boolean", visibility: "-" },
       ],
       methods: [
         { id: "tm-csv-exporter-meth-0", name: "formatHeader", returnType: "string", params: ["columns: string[]"], visibility: "#" },
@@ -4045,7 +4119,10 @@ const repository: DesignPattern = {
         { id: "rp-entity-attr-1", name: "name", type: "string", visibility: "+" },
         { id: "rp-entity-attr-2", name: "createdAt", type: "Date", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "rp-entity-meth-0", name: "equals", returnType: "boolean", params: ["other: Entity"], visibility: "+" },
+        { id: "rp-entity-meth-1", name: "toString", returnType: "string", params: [], visibility: "+" },
+      ],
       x: 600,
       y: 50,
     },
@@ -4055,6 +4132,7 @@ const repository: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "rp-sql-attr-0", name: "connection", type: "DBConnection", visibility: "-" },
+        { id: "rp-sql-attr-1", name: "tableName", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "rp-sql-meth-0", name: "findById", returnType: "T | null", params: ["id: string"], visibility: "+" },
@@ -4071,6 +4149,7 @@ const repository: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "rp-mongo-attr-0", name: "collection", type: "Collection", visibility: "-" },
+        { id: "rp-mongo-attr-1", name: "databaseName", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "rp-mongo-meth-0", name: "findById", returnType: "T | null", params: ["id: string"], visibility: "+" },
@@ -4309,7 +4388,10 @@ const abstractFactory: DesignPattern = {
       id: "af-win-factory",
       name: "WindowsFactory",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "af-win-factory-attr-0", name: "theme", type: "string", visibility: "-" },
+        { id: "af-win-factory-attr-1", name: "version", type: "string", visibility: "-" },
+      ],
       methods: [
         { id: "af-win-factory-meth-0", name: "createButton", returnType: "Button", params: [], visibility: "+" },
         { id: "af-win-factory-meth-1", name: "createCheckbox", returnType: "Checkbox", params: [], visibility: "+" },
@@ -4321,7 +4403,10 @@ const abstractFactory: DesignPattern = {
       id: "af-mac-factory",
       name: "MacFactory",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "af-mac-factory-attr-0", name: "theme", type: "string", visibility: "-" },
+        { id: "af-mac-factory-attr-1", name: "version", type: "string", visibility: "-" },
+      ],
       methods: [
         { id: "af-mac-factory-meth-0", name: "createButton", returnType: "Button", params: [], visibility: "+" },
         { id: "af-mac-factory-meth-1", name: "createCheckbox", returnType: "Checkbox", params: [], visibility: "+" },
@@ -4357,7 +4442,10 @@ const abstractFactory: DesignPattern = {
       id: "af-win-button",
       name: "WindowsButton",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "af-win-button-attr-0", name: "label", type: "string", visibility: "-" },
+        { id: "af-win-button-attr-1", name: "enabled", type: "boolean", visibility: "-" },
+      ],
       methods: [
         { id: "af-win-button-meth-0", name: "render", returnType: "string", params: [], visibility: "+" },
         { id: "af-win-button-meth-1", name: "onClick", returnType: "void", params: ["handler: Function"], visibility: "+" },
@@ -4369,7 +4457,10 @@ const abstractFactory: DesignPattern = {
       id: "af-mac-button",
       name: "MacButton",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "af-mac-button-attr-0", name: "label", type: "string", visibility: "-" },
+        { id: "af-mac-button-attr-1", name: "enabled", type: "boolean", visibility: "-" },
+      ],
       methods: [
         { id: "af-mac-button-meth-0", name: "render", returnType: "string", params: [], visibility: "+" },
         { id: "af-mac-button-meth-1", name: "onClick", returnType: "void", params: ["handler: Function"], visibility: "+" },
@@ -4381,7 +4472,10 @@ const abstractFactory: DesignPattern = {
       id: "af-win-checkbox",
       name: "WindowsCheckbox",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "af-win-checkbox-attr-0", name: "checked", type: "boolean", visibility: "-" },
+        { id: "af-win-checkbox-attr-1", name: "label", type: "string", visibility: "-" },
+      ],
       methods: [
         { id: "af-win-checkbox-meth-0", name: "render", returnType: "string", params: [], visibility: "+" },
         { id: "af-win-checkbox-meth-1", name: "toggle", returnType: "void", params: [], visibility: "+" },
@@ -4393,7 +4487,10 @@ const abstractFactory: DesignPattern = {
       id: "af-mac-checkbox",
       name: "MacCheckbox",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "af-mac-checkbox-attr-0", name: "checked", type: "boolean", visibility: "-" },
+        { id: "af-mac-checkbox-attr-1", name: "label", type: "string", visibility: "-" },
+      ],
       methods: [
         { id: "af-mac-checkbox-meth-0", name: "render", returnType: "string", params: [], visibility: "+" },
         { id: "af-mac-checkbox-meth-1", name: "toggle", returnType: "void", params: [], visibility: "+" },
@@ -4411,6 +4508,10 @@ const abstractFactory: DesignPattern = {
     { id: rid(), source: "af-mac-checkbox", target: "af-checkbox", type: "realization" },
     { id: rid(), source: "af-factory", target: "af-button", type: "dependency", label: "creates" },
     { id: rid(), source: "af-factory", target: "af-checkbox", type: "dependency", label: "creates" },
+    { id: rid(), source: "af-win-factory", target: "af-win-button", type: "dependency", label: "creates" },
+    { id: rid(), source: "af-win-factory", target: "af-win-checkbox", type: "dependency", label: "creates" },
+    { id: rid(), source: "af-mac-factory", target: "af-mac-button", type: "dependency", label: "creates" },
+    { id: rid(), source: "af-mac-factory", target: "af-mac-checkbox", type: "dependency", label: "creates" },
   ],
   code: {
     typescript: `interface Button {
@@ -4680,7 +4781,7 @@ const composite: DesignPattern = {
   relationships: [
     { id: rid(), source: "cp-file", target: "cp-fs-node", type: "realization" },
     { id: rid(), source: "cp-directory", target: "cp-fs-node", type: "realization" },
-    { id: rid(), source: "cp-directory", target: "cp-fs-node", type: "aggregation", label: "children *" },
+    { id: rid(), source: "cp-directory", target: "cp-fs-node", type: "composition", label: "children *" },
   ],
   code: {
     typescript: `// The shared interface is the heart of Composite: both File (leaf) and
@@ -4890,6 +4991,7 @@ const chainOfResponsibility: DesignPattern = {
       stereotype: "abstract",
       attributes: [
         { id: "cor-support-handler-attr-0", name: "next", type: "SupportHandler | null", visibility: "#" },
+        { id: "cor-support-handler-attr-1", name: "handlerName", type: "string", visibility: "#" },
       ],
       methods: [
         { id: "cor-support-handler-meth-0", name: "setNext", returnType: "SupportHandler", params: ["handler: SupportHandler"], visibility: "+" },
@@ -4905,6 +5007,7 @@ const chainOfResponsibility: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "cor-technical-attr-0", name: "specialties", type: "string[]", visibility: "-" },
+        { id: "cor-technical-attr-1", name: "maxTickets", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "cor-technical-meth-0", name: "handle", returnType: "string | null", params: ["ticket: SupportTicket"], visibility: "+" },
@@ -4919,6 +5022,7 @@ const chainOfResponsibility: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "cor-billing-attr-0", name: "refundLimit", type: "number", visibility: "-" },
+        { id: "cor-billing-attr-1", name: "department", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "cor-billing-meth-0", name: "handle", returnType: "string | null", params: ["ticket: SupportTicket"], visibility: "+" },
@@ -4933,6 +5037,7 @@ const chainOfResponsibility: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "cor-manager-attr-0", name: "managerName", type: "string", visibility: "-" },
+        { id: "cor-manager-attr-1", name: "escalationLevel", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "cor-manager-meth-0", name: "handle", returnType: "string | null", params: ["ticket: SupportTicket"], visibility: "+" },
@@ -5424,6 +5529,7 @@ const visitor: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "vis-type-checker-attr-0", name: "errors", type: "string[]", visibility: "-" },
+        { id: "vis-type-checker-attr-1", name: "currentScope", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "vis-type-checker-meth-0", name: "visitNumber", returnType: "string", params: ["node: NumberLiteral"], visibility: "+" },
@@ -5439,6 +5545,7 @@ const visitor: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "vis-code-generator-attr-0", name: "output", type: "string[]", visibility: "-" },
+        { id: "vis-code-generator-attr-1", name: "indentLevel", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "vis-code-generator-meth-0", name: "visitNumber", returnType: "string", params: ["node: NumberLiteral"], visibility: "+" },
@@ -5921,6 +6028,7 @@ const bridge: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "br-urgent-attr-0", name: "escalationLevel", type: "number", visibility: "-" },
+        { id: "br-urgent-attr-1", name: "retryCount", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "br-urgent-meth-0", name: "send", returnType: "void", params: ["message: string"], visibility: "+" },
@@ -5973,7 +6081,7 @@ const bridge: DesignPattern = {
     },
   ],
   relationships: [
-    { id: rid(), source: "br-notification", target: "br-message-sender", type: "aggregation", label: "delegates to" },
+    { id: rid(), source: "br-notification", target: "br-message-sender", type: "association", label: "delegates to" },
     { id: rid(), source: "br-urgent", target: "br-notification", type: "inheritance" },
     { id: rid(), source: "br-email-sender", target: "br-message-sender", type: "realization" },
     { id: rid(), source: "br-slack-sender", target: "br-message-sender", type: "realization" },
@@ -6172,6 +6280,7 @@ const cqrs: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "cqrs-commandbus-attr-0", name: "handlers", type: "Map<string, CommandHandler>", visibility: "-" },
+        { id: "cqrs-commandbus-attr-1", name: "middleware", type: "Function[]", visibility: "-" },
       ],
       methods: [
         { id: "cqrs-commandbus-meth-0", name: "register", returnType: "void", params: ["type: string", "handler: CommandHandler"], visibility: "+" },
@@ -6187,6 +6296,7 @@ const cqrs: DesignPattern = {
       attributes: [],
       methods: [
         { id: "cqrs-commandhandler-meth-0", name: "handle", returnType: "void", params: ["command: Command"], visibility: "+" },
+        { id: "cqrs-commandhandler-meth-1", name: "canHandle", returnType: "boolean", params: ["command: Command"], visibility: "+" },
       ],
       x: 50,
       y: 460,
@@ -6209,6 +6319,7 @@ const cqrs: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "cqrs-querybus-attr-0", name: "handlers", type: "Map<string, QueryHandler>", visibility: "-" },
+        { id: "cqrs-querybus-attr-1", name: "middleware", type: "Function[]", visibility: "-" },
       ],
       methods: [
         { id: "cqrs-querybus-meth-0", name: "register", returnType: "void", params: ["type: string", "handler: QueryHandler"], visibility: "+" },
@@ -6224,6 +6335,7 @@ const cqrs: DesignPattern = {
       attributes: [],
       methods: [
         { id: "cqrs-queryhandler-meth-0", name: "handle", returnType: "T", params: ["query: Query"], visibility: "+" },
+        { id: "cqrs-queryhandler-meth-1", name: "canHandle", returnType: "boolean", params: ["query: Query"], visibility: "+" },
       ],
       x: 500,
       y: 460,
@@ -6234,6 +6346,7 @@ const cqrs: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "cqrs-writemodel-attr-0", name: "store", type: "Database", visibility: "-" },
+        { id: "cqrs-writemodel-attr-1", name: "validators", type: "Validator[]", visibility: "-" },
       ],
       methods: [
         { id: "cqrs-writemodel-meth-0", name: "save", returnType: "void", params: ["entity: T"], visibility: "+" },
@@ -6248,6 +6361,7 @@ const cqrs: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "cqrs-readmodel-attr-0", name: "cache", type: "ReadStore", visibility: "-" },
+        { id: "cqrs-readmodel-attr-1", name: "projections", type: "Map<string, Function>", visibility: "-" },
       ],
       methods: [
         { id: "cqrs-readmodel-meth-0", name: "query", returnType: "T[]", params: ["filters: object"], visibility: "+" },
@@ -6555,7 +6669,10 @@ const eventSourcing: DesignPattern = {
         { id: "es-event-attr-2", name: "timestamp", type: "Date", visibility: "+" },
         { id: "es-event-attr-3", name: "type", type: "string", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "es-event-meth-0", name: "getType", returnType: "string", params: [], visibility: "+" },
+        { id: "es-event-meth-1", name: "getPayload", returnType: "object", params: [], visibility: "+" },
+      ],
       x: 300,
       y: 50,
     },
@@ -6565,6 +6682,7 @@ const eventSourcing: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "es-eventstore-attr-0", name: "events", type: "Event[]", visibility: "-" },
+        { id: "es-eventstore-attr-1", name: "snapshotInterval", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "es-eventstore-meth-0", name: "append", returnType: "void", params: ["event: Event"], visibility: "+" },
@@ -6597,6 +6715,7 @@ const eventSourcing: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "es-eventbus-attr-0", name: "handlers", type: "Map<string, Function[]>", visibility: "-" },
+        { id: "es-eventbus-attr-1", name: "deadLetterQueue", type: "Event[]", visibility: "-" },
       ],
       methods: [
         { id: "es-eventbus-meth-0", name: "subscribe", returnType: "void", params: ["eventType: string", "handler: Function"], visibility: "+" },
@@ -6611,8 +6730,12 @@ const eventSourcing: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "es-deposited-attr-0", name: "amount", type: "number", visibility: "+" },
+        { id: "es-deposited-attr-1", name: "currency", type: "string", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "es-deposited-meth-0", name: "getType", returnType: "string", params: [], visibility: "+" },
+        { id: "es-deposited-meth-1", name: "getPayload", returnType: "object", params: [], visibility: "+" },
+      ],
       x: 200,
       y: 200,
     },
@@ -6622,14 +6745,18 @@ const eventSourcing: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "es-withdrawn-attr-0", name: "amount", type: "number", visibility: "+" },
+        { id: "es-withdrawn-attr-1", name: "currency", type: "string", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "es-withdrawn-meth-0", name: "getType", returnType: "string", params: [], visibility: "+" },
+        { id: "es-withdrawn-meth-1", name: "getPayload", returnType: "object", params: [], visibility: "+" },
+      ],
       x: 420,
       y: 200,
     },
   ],
   relationships: [
-    { id: rid(), source: "es-eventstore", target: "es-event", type: "aggregation", label: "stores", targetCardinality: "*" },
+    { id: rid(), source: "es-eventstore", target: "es-event", type: "composition", label: "stores", targetCardinality: "*" },
     { id: rid(), source: "es-deposited", target: "es-event", type: "inheritance" },
     { id: rid(), source: "es-withdrawn", target: "es-event", type: "inheritance" },
     { id: rid(), source: "es-aggregate", target: "es-event", type: "dependency", label: "applies" },
@@ -6904,6 +7031,7 @@ const saga: DesignPattern = {
       attributes: [],
       methods: [
         { id: "saga-compensate-meth-0", name: "undo", returnType: "Promise<void>", params: ["context: SagaContext"], visibility: "+" },
+        { id: "saga-compensate-meth-1", name: "canCompensate", returnType: "boolean", params: ["context: SagaContext"], visibility: "+" },
       ],
       x: 600,
       y: 280,
@@ -6928,7 +7056,7 @@ const saga: DesignPattern = {
     },
   ],
   relationships: [
-    { id: rid(), source: "saga-orchestrator", target: "saga-step", type: "aggregation", label: "manages", targetCardinality: "*" },
+    { id: rid(), source: "saga-orchestrator", target: "saga-step", type: "composition", label: "manages", targetCardinality: "*" },
     { id: rid(), source: "saga-orchestrator", target: "saga-state", type: "dependency", label: "tracks" },
     { id: rid(), source: "saga-step", target: "saga-compensate", type: "association", label: "has rollback" },
     { id: rid(), source: "saga-orchestrator", target: "saga-log", type: "composition", label: "audit trail" },
@@ -7224,6 +7352,7 @@ const circuitBreaker: DesignPattern = {
       ],
       methods: [
         { id: "cb-config-meth-0", name: "validate", returnType: "boolean", params: [], visibility: "+" },
+        { id: "cb-config-meth-1", name: "withDefaults", returnType: "CircuitBreakerConfig", params: [], visibility: "+" },
       ],
       x: 400,
       y: 50,
@@ -7253,7 +7382,7 @@ const circuitBreaker: DesignPattern = {
     },
   ],
   relationships: [
-    { id: rid(), source: "cb-class", target: "cb-state-enum", type: "dependency", label: "uses" },
+    { id: rid(), source: "cb-class", target: "cb-state-enum", type: "association", label: "tracks" },
     { id: rid(), source: "cb-class", target: "cb-config", type: "aggregation", label: "configured by" },
   ],
   code: {
@@ -7468,7 +7597,10 @@ const bulkhead: DesignPattern = {
         { id: "bh-config-attr-1", name: "maxConcurrent", type: "number", visibility: "+" },
         { id: "bh-config-attr-2", name: "maxWaitMs", type: "number", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "bh-config-meth-0", name: "validate", returnType: "boolean", params: [], visibility: "+" },
+        { id: "bh-config-meth-1", name: "withDefaults", returnType: "BulkheadConfig", params: [], visibility: "+" },
+      ],
       x: 400,
       y: 50,
     },
@@ -7494,6 +7626,7 @@ const bulkhead: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "bh-class-attr-0", name: "partitions", type: "Map<string, Partition>", visibility: "-" },
+        { id: "bh-class-attr-1", name: "defaultConfig", type: "BulkheadConfig", visibility: "-" },
       ],
       methods: [
         { id: "bh-class-meth-0", name: "createPartition", returnType: "Partition", params: ["config: BulkheadConfig"], visibility: "+" },
@@ -7696,6 +7829,7 @@ const retry: DesignPattern = {
       attributes: [],
       methods: [
         { id: "retry-backoff-meth-0", name: "nextDelay", returnType: "number", params: ["attempt: number"], visibility: "+" },
+        { id: "retry-backoff-meth-1", name: "reset", returnType: "void", params: [], visibility: "+" },
       ],
       x: 200,
       y: 50,
@@ -7711,6 +7845,7 @@ const retry: DesignPattern = {
       ],
       methods: [
         { id: "retry-exponential-meth-0", name: "nextDelay", returnType: "number", params: ["attempt: number"], visibility: "+" },
+        { id: "retry-exponential-meth-1", name: "reset", returnType: "void", params: [], visibility: "+" },
       ],
       x: 50,
       y: 220,
@@ -7721,9 +7856,11 @@ const retry: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "retry-linear-attr-0", name: "delayMs", type: "number", visibility: "-" },
+        { id: "retry-linear-attr-1", name: "maxDelay", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "retry-linear-meth-0", name: "nextDelay", returnType: "number", params: ["attempt: number"], visibility: "+" },
+        { id: "retry-linear-meth-1", name: "reset", returnType: "void", params: [], visibility: "+" },
       ],
       x: 350,
       y: 220,
@@ -7940,7 +8077,10 @@ const rateLimiter: DesignPattern = {
         { id: "rl-config-attr-1", name: "windowMs", type: "number", visibility: "+" },
         { id: "rl-config-attr-2", name: "burstCapacity", type: "number", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "rl-config-meth-0", name: "validate", returnType: "boolean", params: [], visibility: "+" },
+        { id: "rl-config-meth-1", name: "getEffectiveRate", returnType: "number", params: [], visibility: "+" },
+      ],
       x: 450,
       y: 50,
     },
@@ -8494,6 +8634,7 @@ const producerConsumer: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "pc-lock-attr-0", name: "locked", type: "boolean", visibility: "-" },
+        { id: "pc-lock-attr-1", name: "waitQueue", type: "Function[]", visibility: "-" },
       ],
       methods: [
         { id: "pc-lock-meth-0", name: "acquire", returnType: "Promise<void>", params: [], visibility: "+" },
@@ -8552,8 +8693,8 @@ const producerConsumer: DesignPattern = {
     },
   ],
   relationships: [
-    { id: rid(), source: "pc-producer", target: "pc-buffer", type: "association", label: "writes to" },
-    { id: rid(), source: "pc-consumer", target: "pc-buffer", type: "association", label: "reads from" },
+    { id: rid(), source: "pc-producer", target: "pc-buffer", type: "dependency", label: "writes to" },
+    { id: rid(), source: "pc-consumer", target: "pc-buffer", type: "dependency", label: "reads from" },
     { id: rid(), source: "pc-buffer", target: "pc-lock", type: "composition", label: "synchronized by" },
   ],
   code: {
@@ -8775,7 +8916,10 @@ const react: DesignPattern = {
         { id: "react-thought-attr-1", name: "nextAction", type: "Action | null", visibility: "+" },
         { id: "react-thought-attr-2", name: "isFinal", type: "boolean", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "react-thought-meth-0", name: "hasAction", returnType: "boolean", params: [], visibility: "+" },
+        { id: "react-thought-meth-1", name: "toPrompt", returnType: "string", params: [], visibility: "+" },
+      ],
       x: 50,
       y: 280,
     },
@@ -8787,7 +8931,10 @@ const react: DesignPattern = {
         { id: "react-action-attr-0", name: "toolName", type: "string", visibility: "+" },
         { id: "react-action-attr-1", name: "input", type: "Record<string, unknown>", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "react-action-meth-0", name: "validate", returnType: "boolean", params: [], visibility: "+" },
+        { id: "react-action-meth-1", name: "toJSON", returnType: "object", params: [], visibility: "+" },
+      ],
       x: 250,
       y: 280,
     },
@@ -8799,7 +8946,10 @@ const react: DesignPattern = {
         { id: "react-observation-attr-0", name: "result", type: "string", visibility: "+" },
         { id: "react-observation-attr-1", name: "success", type: "boolean", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "react-observation-meth-0", name: "toPrompt", returnType: "string", params: [], visibility: "+" },
+        { id: "react-observation-meth-1", name: "isError", returnType: "boolean", params: [], visibility: "+" },
+      ],
       x: 450,
       y: 280,
     },
@@ -8809,6 +8959,7 @@ const react: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "react-environment-attr-0", name: "state", type: "Map<string, unknown>", visibility: "-" },
+        { id: "react-environment-attr-1", name: "tools", type: "Map<string, Tool>", visibility: "-" },
       ],
       methods: [
         { id: "react-environment-meth-0", name: "execute", returnType: "Observation", params: ["action: Action"], visibility: "+" },
@@ -8823,6 +8974,7 @@ const react: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "react-toolregistry-attr-0", name: "tools", type: "Map<string, Tool>", visibility: "-" },
+        { id: "react-toolregistry-attr-1", name: "descriptions", type: "Map<string, string>", visibility: "-" },
       ],
       methods: [
         { id: "react-toolregistry-meth-0", name: "register", returnType: "void", params: ["tool: Tool"], visibility: "+" },
@@ -9055,6 +9207,7 @@ const multiAgentOrchestration: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "mao-research-attr-0", name: "searchTool", type: "Tool", visibility: "-" },
+        { id: "mao-research-attr-1", name: "maxResults", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "mao-research-meth-0", name: "execute", returnType: "Result", params: ["task: Task", "memory: SharedMemory"], visibility: "+" },
@@ -9069,6 +9222,7 @@ const multiAgentOrchestration: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "mao-coder-attr-0", name: "language", type: "string", visibility: "-" },
+        { id: "mao-coder-attr-1", name: "model", type: "LLM", visibility: "-" },
       ],
       methods: [
         { id: "mao-coder-meth-0", name: "execute", returnType: "Result", params: ["task: Task", "memory: SharedMemory"], visibility: "+" },
@@ -9083,6 +9237,7 @@ const multiAgentOrchestration: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "mao-reviewer-attr-0", name: "criteria", type: "string[]", visibility: "-" },
+        { id: "mao-reviewer-attr-1", name: "strictness", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "mao-reviewer-meth-0", name: "execute", returnType: "Result", params: ["task: Task", "memory: SharedMemory"], visibility: "+" },
@@ -9374,6 +9529,7 @@ const toolUse: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "tu-registry-attr-0", name: "tools", type: "Map<string, Tool>", visibility: "-" },
+        { id: "tu-registry-attr-1", name: "schemas", type: "ToolSchema[]", visibility: "-" },
       ],
       methods: [
         { id: "tu-registry-meth-0", name: "register", returnType: "void", params: ["tool: Tool"], visibility: "+" },
@@ -9403,9 +9559,11 @@ const toolUse: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "tu-websearch-attr-0", name: "apiKey", type: "string", visibility: "-" },
+        { id: "tu-websearch-attr-1", name: "baseUrl", type: "string", visibility: "-" },
       ],
       methods: [
         { id: "tu-websearch-meth-0", name: "execute", returnType: "ToolResult", params: ["input: { query: string }"], visibility: "+" },
+        { id: "tu-websearch-meth-1", name: "schema", returnType: "ToolSchema", params: [], visibility: "+" },
       ],
       x: 50,
       y: 470,
@@ -9414,9 +9572,13 @@ const toolUse: DesignPattern = {
       id: "tu-calculator",
       name: "CalculatorTool",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "tu-calculator-attr-0", name: "precision", type: "number", visibility: "-" },
+        { id: "tu-calculator-attr-1", name: "allowedOperators", type: "string[]", visibility: "-" },
+      ],
       methods: [
         { id: "tu-calculator-meth-0", name: "execute", returnType: "ToolResult", params: ["input: { expression: string }"], visibility: "+" },
+        { id: "tu-calculator-meth-1", name: "schema", returnType: "ToolSchema", params: [], visibility: "+" },
       ],
       x: 250,
       y: 470,
@@ -9427,9 +9589,11 @@ const toolUse: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "tu-database-attr-0", name: "connectionString", type: "string", visibility: "-" },
+        { id: "tu-database-attr-1", name: "readOnly", type: "boolean", visibility: "-" },
       ],
       methods: [
         { id: "tu-database-meth-0", name: "execute", returnType: "ToolResult", params: ["input: { sql: string }"], visibility: "+" },
+        { id: "tu-database-meth-1", name: "schema", returnType: "ToolSchema", params: [], visibility: "+" },
       ],
       x: 450,
       y: 470,
@@ -9443,7 +9607,10 @@ const toolUse: DesignPattern = {
         { id: "tu-toolresult-attr-1", name: "success", type: "boolean", visibility: "+" },
         { id: "tu-toolresult-attr-2", name: "metadata", type: "Record<string, unknown>", visibility: "+" },
       ],
-      methods: [],
+      methods: [
+        { id: "tu-toolresult-meth-0", name: "toPrompt", returnType: "string", params: [], visibility: "+" },
+        { id: "tu-toolresult-meth-1", name: "isError", returnType: "boolean", params: [], visibility: "+" },
+      ],
       x: 450,
       y: 50,
     },
@@ -9715,6 +9882,7 @@ const flyweight: DesignPattern = {
       attributes: [],
       methods: [
         { id: "fw-char-glyph-meth-0", name: "render", returnType: "void", params: ["position: Point", "fontSize: number"], visibility: "+" },
+        { id: "fw-char-glyph-meth-1", name: "getKey", returnType: "string", params: [], visibility: "+" },
       ],
       x: 300,
       y: 50,
@@ -9746,6 +9914,7 @@ const flyweight: DesignPattern = {
       ],
       methods: [
         { id: "fw-formatted-char-meth-0", name: "render", returnType: "void", params: ["position: Point", "fontSize: number"], visibility: "+" },
+        { id: "fw-formatted-char-meth-1", name: "getKey", returnType: "string", params: [], visibility: "+" },
       ],
       x: 450,
       y: 250,
@@ -9756,6 +9925,7 @@ const flyweight: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "fw-glyph-factory-attr-0", name: "glyphs", type: "Map<string, CharacterGlyph>", visibility: "-" },
+        { id: "fw-glyph-factory-attr-1", name: "maxCacheSize", type: "number", visibility: "-" },
       ],
       methods: [
         { id: "fw-glyph-factory-meth-0", name: "getGlyph", returnType: "CharacterGlyph", params: ["font: string", "weight: number", "color: string"], visibility: "+" },
@@ -9768,9 +9938,13 @@ const flyweight: DesignPattern = {
       id: "fw-text-renderer",
       name: "TextRenderer",
       stereotype: "class",
-      attributes: [],
+      attributes: [
+        { id: "fw-text-renderer-attr-0", name: "factory", type: "GlyphFactory", visibility: "-" },
+        { id: "fw-text-renderer-attr-1", name: "canvas", type: "RenderContext", visibility: "-" },
+      ],
       methods: [
         { id: "fw-text-renderer-meth-0", name: "renderDocument", returnType: "void", params: ["chars: CharData[]", "factory: GlyphFactory"], visibility: "+" },
+        { id: "fw-text-renderer-meth-1", name: "clear", returnType: "void", params: [], visibility: "+" },
       ],
       x: 300,
       y: -100,
@@ -9779,7 +9953,7 @@ const flyweight: DesignPattern = {
   relationships: [
     { id: rid(), source: "fw-font-glyph", target: "fw-char-glyph", type: "realization" },
     { id: rid(), source: "fw-formatted-char", target: "fw-char-glyph", type: "realization" },
-    { id: rid(), source: "fw-glyph-factory", target: "fw-char-glyph", type: "aggregation", label: "manages" },
+    { id: rid(), source: "fw-glyph-factory", target: "fw-char-glyph", type: "composition", label: "manages" },
     { id: rid(), source: "fw-text-renderer", target: "fw-glyph-factory", type: "dependency", label: "uses" },
   ],
   code: {
@@ -10058,9 +10232,11 @@ const interpreter: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "ip-terminal-attr-0", name: "variable", type: "string", visibility: "-" },
+        { id: "ip-terminal-attr-1", name: "negated", type: "boolean", visibility: "-" },
       ],
       methods: [
         { id: "ip-terminal-meth-0", name: "interpret", returnType: "boolean", params: ["context: Context"], visibility: "+" },
+        { id: "ip-terminal-meth-1", name: "toString", returnType: "string", params: [], visibility: "+" },
       ],
       x: 100,
       y: 250,
@@ -10075,6 +10251,7 @@ const interpreter: DesignPattern = {
       ],
       methods: [
         { id: "ip-or-meth-0", name: "interpret", returnType: "boolean", params: ["context: Context"], visibility: "+" },
+        { id: "ip-or-meth-1", name: "toString", returnType: "string", params: [], visibility: "+" },
       ],
       x: 300,
       y: 250,
@@ -10089,6 +10266,7 @@ const interpreter: DesignPattern = {
       ],
       methods: [
         { id: "ip-and-meth-0", name: "interpret", returnType: "boolean", params: ["context: Context"], visibility: "+" },
+        { id: "ip-and-meth-1", name: "toString", returnType: "string", params: [], visibility: "+" },
       ],
       x: 500,
       y: 250,
@@ -10099,6 +10277,7 @@ const interpreter: DesignPattern = {
       stereotype: "class",
       attributes: [
         { id: "ip-context-attr-0", name: "variables", type: "Map<string, boolean>", visibility: "-" },
+        { id: "ip-context-attr-1", name: "parentContext", type: "Context | null", visibility: "-" },
       ],
       methods: [
         { id: "ip-context-meth-0", name: "get", returnType: "boolean", params: ["name: string"], visibility: "+" },

@@ -898,26 +898,28 @@ export function useLLDModule() {
 
   const canvas = (
     <ErrorBoundary label="LLDCanvas" fallback={canvasErrorFallback}>
-      <div className="relative flex h-full w-full flex-col">
+      <div className="relative flex h-full w-full flex-col min-h-0">
         {practiceState && !practiceState.submitted && (
           <PracticeTimerBar startTime={practiceState.startTime} timerMinutes={practiceState.timerMinutes} onSubmit={handlePracticeSubmit} onCancel={handlePracticeCancel} />
         )}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-h-0">
         {isStateMachineMode ? (
           <div className="flex h-full flex-col">
-            <div className="flex-1">
+            <div className="relative flex-1 min-h-0">
               <StateMachineCanvas data={activeStateMachine.data} title={canvasTitle} selectedStateId={selectedStateId} onSelectState={setSelectedStateId} simState={smSim} />
+              {smSim?.toastMessage && <SimToast message={smSim.toastMessage} />}
             </div>
             {!smSim ? (
-              <div className="flex items-center justify-center border-t border-border/30 bg-elevated/50 px-4 py-2 backdrop-blur-sm">
+              <div className="flex shrink-0 items-center justify-center border-t border-border/30 bg-elevated px-4 py-2">
                 <button onClick={smSimStart} className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[11px] font-semibold text-primary-foreground shadow-[0_0_12px_rgba(var(--primary-rgb),0.4)] transition-all hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.55)]">
                   <Play className="h-3.5 w-3.5" /> Simulate
                 </button>
               </div>
             ) : (
-              <SimTransitionPanel transitions={smSimAvailableTransitions} states={activeStateMachine.data.states} onFireTransition={smSimFireTransition} onReset={smSimReset} onExit={smSimExit} history={smSim.history} />
+              <div className="shrink-0">
+                <SimTransitionPanel transitions={smSimAvailableTransitions} states={activeStateMachine.data.states} onFireTransition={smSimFireTransition} onReset={smSimReset} onExit={smSimExit} history={smSim.history} />
+              </div>
             )}
-            {smSim?.toastMessage && <SimToast message={smSim.toastMessage} />}
           </div>
         ) : isSequenceMode ? (
           <div className="relative h-full">

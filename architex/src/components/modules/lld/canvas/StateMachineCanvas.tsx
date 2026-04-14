@@ -794,7 +794,7 @@ export const SimTransitionPanel = memo(function SimTransitionPanel({
               <button
                 key={t.id}
                 onClick={() => onFireTransition(t)}
-                className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-elevated px-3 py-2 text-[11px] font-medium text-foreground shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)] transition-colors hover:bg-primary/15"
+                className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-[11px] font-medium text-foreground shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)] transition-colors hover:bg-primary/20"
               >
                 <Play className="h-3 w-3 text-primary" />
                 <span className="font-mono">{t.trigger}</span>
