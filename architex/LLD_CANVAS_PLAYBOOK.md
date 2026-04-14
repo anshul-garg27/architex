@@ -372,10 +372,115 @@ When upgrading another module to this quality bar:
 
 ---
 
+## 16. ViewBox & Zoom — Final Architecture (Session 2)
+
+After 10+ iterations, the correct zoom architecture:
+
+### Dynamic ViewBox with Minimum Dimensions
+```tsx
+const MIN_W = 900, MIN_H = 700;
+const w = Math.max(rawW, MIN_W);
+const h = Math.max(rawH, MIN_H);
+// Center content within (possibly larger) viewBox
+const cx = contentBounds.x + contentBounds.w / 2;
+const cy = contentBounds.y + contentBounds.h / 2;
+viewBox = { x: cx - w/2, y: cy - h/2, w, h };
+```
+
+**Why min dimensions:** Without them, `xMidYMid meet` blows up small patterns (3 classes) to fill the canvas. MIN_W=900 ensures comfortable whitespace.
+
+**preserveAspectRatio="xMidYMid meet":** Centers content both axes, scales uniformly.
+
+**zoomFit = identity reset:** `setZoom({ scale: 1, translateX: 0, translateY: 0 })`. The viewBox handles all fitting. No complex scale math needed.
+
+**Auto-fit on resize:** `useEffect` depends on `classIdsKey` AND `containerSize` so diagram re-fits when bottom panel opens/closes.
+
+### What NOT to Do (Lessons Learned)
+- Don't use fixed viewBox (0 0 2000 2000) — requires complex scale math that never works for all sizes
+- Don't use `preserveAspectRatio="none"` — distorts content and breaks coordinate systems
+- Don't compute scale from DOM rects — the SVG/container may overflow and report wrong sizes
+- Don't cap scale at fixed values (1.0 or 2.5) — different content needs different zoom
+- Don't use `rect.width/2000` for svgToScreen ratio — wrong with `meet` scaling
+
+---
+
+## 17. Content Enrichment Pipeline
+
+### Pattern Enrichment (pattern-enrichment.ts, 1020 lines)
+- `PATTERN_ENRICHMENTS`: Record mapping 36 pattern IDs to enrichment data
+- Fields: `complexityAnalysis`, `designRationale`, `commonVariations`, `antiPatterns`, `interviewDepth`
+- `PATTERN_SELECTION_GUIDE`: 35-entry "When you see X, use Y" matrix
+- Applied via for-loop at bottom of `patterns.ts` that mutates `DESIGN_PATTERNS` in-place
+
+### Problem Solutions (problem-solutions.ts, 27,357 lines)
+- `PROBLEM_SOLUTIONS`: Map of 10 problem IDs to solution content
+- Fields: `referenceSolution` (Java code), `designWalkthrough`, `interviewScript`, `complexityAnalysis`
+- Merged into `LLD_PROBLEMS` via `withSolutions()` wrapper at export
+- Content sourced from `06-lld-problems/` reference material
+
+### DB Seeding
+```bash
+cd architex && export $(cat .env.local | grep -v '^#' | grep -v '^$' | xargs) && pnpm db:seed -- --module=lld
+```
+- Seed uses DELETE + INSERT (not upsert) to guarantee content updates
+- `staleTime: 5 minutes` in TanStack Query — users see fresh data after 5min
+- After seeding, clear browser site data OR wait 5 min for cache expiry
+
+### Realistic Class Names (18 patterns enriched)
+Generic names like "ConcreteClassA/B" replaced with domain-specific:
+- Singleton → `DatabaseConnectionPool`
+- Factory Method → `NotificationFactory`, `EmailNotificationFactory`
+- Builder → `QueryBuilder`, `SQLQueryBuilder`
+- Decorator → `DataStream`, `EncryptionDecorator`, `CompressionDecorator`
+- Facade → `OrderFacade`, `InventoryService`, `PaymentService`
+- State → `Document`, `DraftState`, `ReviewState`, `PublishedState`
+- (and 12 more)
+
+---
+
+## 18. Sequence & State Machine Canvases — Gap Analysis
+
+Both canvases are significantly behind the Class Diagram canvas:
+
+| Feature | Class Diagram | Sequence | State Machine |
+|---------|--------------|----------|---------------|
+| Dot grid | Figma dots | Old line grid (hardcoded white) | None |
+| Vignette | Yes | No | No |
+| Hover effects | Glow + lift + focus mode | None | None |
+| Edge animation | stroke-dashoffset 0.4s | Broken (dead code) | None |
+| Focus mode | Dim unrelated 35% | No | Partial (sim only) |
+| Particles | 12 floating dots | No | No |
+| Edge highlighting | Blue glow on hover | No | No |
+| Auto-fit on load | Yes (ResizeObserver) | No | No |
+| Light mode | Full CSS variables | Hardcoded #ffffff grid | Hardcoded legend colors |
+| Content | 36+33 enriched | 10 examples (good) | 6 examples (gaps) |
+
+**Key files:** `SequenceDiagramCanvas.tsx` (620 lines), `StateMachineCanvas.tsx` (525 lines)
+
+**Critical bugs:**
+1. No auto-fit on load — content may be clipped
+2. Pan broken on `<path>/<line>` elements (only works on `<rect>`)
+3. Sequence edge animation broken (strokeDashoffset always undefined)
+4. Light mode: white grid on white background
+
+---
+
+## 19. Task Board
+
+79 tasks created in `docs/tasks/`:
+- `batch-lld-content-enrichment.json` — 36 tasks (LLD-200 to LLD-235)
+- `batch-lld-problem-enrichment.json` — 33 tasks (LLD-300 to LLD-332)
+- `batch-lld-canvas-polish.json` — 10 tasks (LLD-400 to LLD-409)
+
+Status values must be: `backlog`, `ready`, `in-progress`, `done`, `blocked` (NOT `todo` or `in_progress`).
+
+---
+
 ## Session Stats
 
-- **32 commits** in one session
-- **Files created:** `dagre-layout.ts`, `astar-router.ts`
-- **Files modified:** `LLDCanvas.tsx`, `useLLDModuleImpl.tsx`, `LLDProperties.tsx`, `globals.css`, `constants.ts`, `Minimap.tsx`, `AlignmentToolbar.tsx`, `PatternQuiz.tsx`, `MermaidEditor.tsx`, `WalkthroughPlayer.tsx`, `AutoGrader.tsx`, `DailyChallenge.tsx`, `SOLIDViolationSpotter.tsx`, `package.json`
+- **55+ commits** across two sessions
+- **Files created:** `dagre-layout.ts`, `astar-router.ts`, `pattern-enrichment.ts`, `problem-solutions.ts`, 3 task JSON files, `LLD_CANVAS_PLAYBOOK.md`
+- **Files modified:** `LLDCanvas.tsx`, `useLLDModuleImpl.tsx`, `LLDProperties.tsx`, `globals.css`, `constants.ts`, `Minimap.tsx`, `AlignmentToolbar.tsx`, `PatternQuiz.tsx`, `MermaidEditor.tsx`, `WalkthroughPlayer.tsx`, `AutoGrader.tsx`, `DailyChallenge.tsx`, `SOLIDViolationSpotter.tsx`, `InterviewPrepTab.tsx`, `ContextualBottomTabs.tsx`, `use-content.ts`, `seeds/lld.ts`, `patterns.ts`, `problems.ts`, `types.ts`, `index.ts`, `package.json`
 - **Libraries added:** `@dagrejs/dagre`, `prism-react-renderer` (Java grammar)
+- **Content added:** 28,377 lines of reference solutions + enrichment data
 - **Diagrams upgraded:** 79 (36 patterns + 33 problems + 10 SOLID demos)
