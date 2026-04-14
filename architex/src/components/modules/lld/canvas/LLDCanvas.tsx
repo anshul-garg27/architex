@@ -8,9 +8,11 @@
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Layers, Sparkles, Loader2 } from "lucide-react";
 import { AIReviewPanel } from "./AIReviewPanel";
+import { Minimap } from "./Minimap";
 import { CanvasEmptyState } from "@/components/shared/lld-empty-states";
 import { cn } from "@/lib/utils";
-import type { UMLClass, UMLRelationship, UMLRelationshipType } from "@/lib/lld";
+import type { UMLClass, UMLRelationship, UMLRelationshipType, UMLMethodParam } from "@/lib/lld";
+import { formatMethodParams } from "@/lib/lld";
 import { motion } from "motion/react";
 import {
   CLASS_BOX_WIDTH,
@@ -136,6 +138,20 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
     setZoom({ scale: 1, translateX: 0, translateY: 0 });
   }, []);
 
+  const setViewportPosition = useCallback(
+    (svgX: number, svgY: number) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      setZoom((prev) => ({
+        ...prev,
+        translateX: rect.width / 2 - svgX * prev.scale,
+        translateY: rect.height / 2 - svgY * prev.scale,
+      }));
+    },
+    [svgRef],
+  );
+
   const svgTransform = `translate(${zoom.translateX},${zoom.translateY}) scale(${zoom.scale})`;
   const zoomPercent = Math.round(zoom.scale * 100);
 
@@ -150,6 +166,7 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
     zoomOut,
     zoomReset,
     zoomFit,
+    setViewportPosition,
   };
 }
 
@@ -601,7 +618,7 @@ const UMLClassBox = memo(function UMLClassBox({
             <title>{VISIBILITY_TOOLTIP[meth.visibility] ?? meth.visibility}</title>
             {VISIBILITY_ICON[meth.visibility]}{" "}
           </tspan>
-          {meth.name}({meth.params.length > 0 ? "..." : ""})
+          {meth.name}({formatMethodParams(meth.params)})
           <tspan fill="var(--lld-canvas-text-subtle)">: {meth.returnType}</tspan>
         </text>
       ))}
@@ -922,7 +939,23 @@ export const LLDCanvas = memo(function LLDCanvas({
     zoomOut,
     zoomReset,
     zoomFit,
+    setViewportPosition,
   } = useSVGZoomPan(svgRef);
+
+  // Track container pixel dimensions for Minimap viewport scaling
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      }
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   const [connectionDrag, setConnectionDrag] = useState<ConnectionDragState | null>(null);
   const [pickerState, setPickerState] = useState<{
     sourceId: string;
@@ -1241,11 +1274,24 @@ export const LLDCanvas = memo(function LLDCanvas({
           onZoomReset={zoomReset}
         />
 
+        {classes.length > 0 && (
+          <Minimap
+            classes={classes}
+            relationships={relationships}
+            viewportX={zoomState.translateX}
+            viewportY={zoomState.translateY}
+            viewportScale={zoomState.scale}
+            canvasWidth={containerSize.width}
+            canvasHeight={containerSize.height}
+            onViewportChange={setViewportPosition}
+          />
+        )}
+
         {/* AI Review button — bottom-right of canvas */}
         {classes.length > 0 && (
           <button
             onClick={() => setAiReviewOpen((o) => !o)}
-            className="absolute top-2 right-2 z-20 flex items-center gap-1.5 rounded-xl border border-primary/30 backdrop-blur-md bg-primary/10 px-3 py-2 text-xs font-semibold text-primary shadow-lg transition-all hover:bg-primary/20 hover:shadow-[0_0_20px_rgba(110,86,207,0.25)]"
+            className="absolute top-2 left-2 z-20 flex items-center gap-1.5 rounded-xl border border-primary/30 backdrop-blur-md bg-primary/10 px-3 py-2 text-xs font-semibold text-primary shadow-lg transition-all hover:bg-primary/20 hover:shadow-[0_0_20px_rgba(110,86,207,0.25)]"
             title="AI Review"
             aria-label="Run AI review on diagram"
           >

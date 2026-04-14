@@ -13,7 +13,7 @@
 import React, { memo, useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Copy, RotateCcw, Check, AlertCircle } from "lucide-react";
-import type { UMLClass, UMLRelationship } from "@/lib/lld";
+import type { UMLClass, UMLRelationship, UMLMethodParam } from "@/lib/lld";
 import { generateMermaid } from "@/lib/lld/codegen/diagram-to-mermaid";
 import { parseMermaidClassDiagram } from "@/lib/lld/codegen/mermaid-to-diagram";
 import {
@@ -250,18 +250,25 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
         strokeOpacity={0.3}
       />
       {/* Methods */}
-      {cls.methods.map((meth, idx) => (
-        <text
-          key={meth.id}
-          x={cls.x + 10}
-          y={methStartY + idx * ROW_HEIGHT + 12}
-          fill="var(--foreground-muted)"
-          fontSize={9}
-          fontFamily="var(--font-mono, monospace)"
-        >
-          {`${meth.visibility}${meth.name}(${meth.params.join(", ")})`}
-        </text>
-      ))}
+      {cls.methods.map((meth, idx) => {
+        const paramStr = meth.params.length > 0
+          ? (typeof meth.params[0] === "object" && meth.params[0] !== null && "name" in (meth.params[0] as UMLMethodParam)
+            ? (meth.params as UMLMethodParam[]).map((p) => p.type ? `${p.name}: ${p.type}` : p.name).join(", ")
+            : (meth.params as string[]).join(", "))
+          : "";
+        return (
+          <text
+            key={meth.id}
+            x={cls.x + 10}
+            y={methStartY + idx * ROW_HEIGHT + 12}
+            fill="var(--foreground-muted)"
+            fontSize={9}
+            fontFamily="var(--font-mono, monospace)"
+          >
+            {`${meth.visibility}${meth.name}(${paramStr})`}
+          </text>
+        );
+      })}
     </g>
   );
 });

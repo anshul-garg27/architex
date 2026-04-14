@@ -13,7 +13,7 @@ import type { CodeSample } from "./solid-demos";
 
 // ── Types ────────────────────────────────────────────────────
 
-export type OOPPrinciple = "composition-vs-inheritance" | "polymorphism";
+export type OOPPrinciple = "composition-vs-inheritance" | "polymorphism" | "encapsulation" | "abstraction";
 
 export interface OOPDemo {
   id: string;
@@ -657,9 +657,529 @@ for s in shapes:
     "its own way. That's polymorphism: same interface, different behavior based on the receiver.",
 };
 
+// ═════════════════════════════════════════════════════════════
+//  3. Encapsulation
+// ═════════════════════════════════════════════════════════════
+
+const encapsulation: OOPDemo = {
+  id: "oop-encapsulation",
+  principle: "encapsulation",
+  name: "Encapsulation",
+  description:
+    "A vending machine doesn't let you reach in and grab items or change the price — " +
+    "you insert money, press a button, and it handles the rest internally. " +
+    "That's encapsulation: hiding internal data behind controlled access points so " +
+    "outsiders can't put the object into an invalid state.",
+  summary: [
+    "Encapsulation = hide internal data, expose controlled operations",
+    "Key insight: public fields let callers bypass validation and break invariants",
+    "Use when: data has rules (balance >= 0, email must be valid, state transitions must be legal)",
+  ],
+
+  // -- BEFORE: public fields, no validation ----------------------
+  beforeClasses: [
+    {
+      id: "enc-b-account",
+      name: "BankAccount",
+      stereotype: "class",
+      attributes: [
+        { id: "enc-b-account-attr-0", name: "owner", type: "string", visibility: "+" },
+        { id: "enc-b-account-attr-1", name: "balance", type: "number", visibility: "+" },
+        { id: "enc-b-account-attr-2", name: "isLocked", type: "boolean", visibility: "+" },
+      ],
+      methods: [],
+      x: 250,
+      y: 80,
+    },
+    {
+      id: "enc-b-client",
+      name: "Client",
+      stereotype: "class",
+      attributes: [],
+      methods: [
+        { id: "enc-b-client-meth-0", name: "doSomething", returnType: "void", params: ["account: BankAccount"], visibility: "+" },
+      ],
+      x: 250,
+      y: 280,
+    },
+  ],
+  beforeRelationships: [
+    { id: rid(), source: "enc-b-client", target: "enc-b-account", type: "dependency", label: "directly mutates" },
+  ],
+
+  beforeCode: {
+    typescript: `class BankAccount {
+  owner: string;
+  balance: number;
+  isLocked: boolean;
+
+  constructor(owner: string, balance: number) {
+    this.owner = owner;
+    this.balance = balance;
+    this.isLocked = false;
+  }
+}
+
+const account = new BankAccount("Alice", 1000);
+
+// Anyone can directly mutate — no validation!
+account.balance = -500;          // Negative balance? Sure!
+account.isLocked = false;        // Unlock it yourself? No problem!
+account.owner = "";              // Empty owner? Why not!
+
+// The object is in a completely invalid state
+// and nobody can prevent it.`,
+    python: `class BankAccount:
+    def __init__(self, owner: str, balance: float):
+        self.owner = owner
+        self.balance = balance
+        self.is_locked = False
+
+account = BankAccount("Alice", 1000)
+
+# Anyone can directly mutate — no validation!
+account.balance = -500          # Negative balance? Sure!
+account.is_locked = False       # Unlock it yourself? No problem!
+account.owner = ""              # Empty owner? Why not!
+
+# The object is in a completely invalid state
+# and nobody can prevent it.`,
+  },
+
+  // -- AFTER: private fields with getters/setters, validation ----
+  afterClasses: [
+    {
+      id: "enc-a-account",
+      name: "BankAccount",
+      stereotype: "class",
+      attributes: [
+        { id: "enc-a-account-attr-0", name: "owner", type: "string", visibility: "-" },
+        { id: "enc-a-account-attr-1", name: "balance", type: "number", visibility: "-" },
+        { id: "enc-a-account-attr-2", name: "isLocked", type: "boolean", visibility: "-" },
+      ],
+      methods: [
+        { id: "enc-a-account-meth-0", name: "getBalance", returnType: "number", params: [], visibility: "+" },
+        { id: "enc-a-account-meth-1", name: "getOwner", returnType: "string", params: [], visibility: "+" },
+        { id: "enc-a-account-meth-2", name: "deposit", returnType: "void", params: ["amount: number"], visibility: "+" },
+        { id: "enc-a-account-meth-3", name: "withdraw", returnType: "void", params: ["amount: number"], visibility: "+" },
+        { id: "enc-a-account-meth-4", name: "lock", returnType: "void", params: [], visibility: "+" },
+      ],
+      x: 250,
+      y: 80,
+    },
+    {
+      id: "enc-a-client",
+      name: "Client",
+      stereotype: "class",
+      attributes: [],
+      methods: [
+        { id: "enc-a-client-meth-0", name: "doSomething", returnType: "void", params: ["account: BankAccount"], visibility: "+" },
+      ],
+      x: 250,
+      y: 350,
+    },
+  ],
+  afterRelationships: [
+    { id: rid(), source: "enc-a-client", target: "enc-a-account", type: "dependency", label: "uses public API" },
+  ],
+
+  afterCode: {
+    typescript: `class BankAccount {
+  private owner: string;
+  private balance: number;
+  private isLocked: boolean;
+
+  constructor(owner: string, initialBalance: number) {
+    if (!owner.trim()) throw new Error("Owner name required");
+    if (initialBalance < 0) throw new Error("Initial balance cannot be negative");
+    this.owner = owner;
+    this.balance = initialBalance;
+    this.isLocked = false;
+  }
+
+  getBalance(): number { return this.balance; }
+  getOwner(): string { return this.owner; }
+
+  deposit(amount: number): void {
+    if (amount <= 0) throw new Error("Deposit must be positive");
+    if (this.isLocked) throw new Error("Account is locked");
+    this.balance += amount;
+  }
+
+  withdraw(amount: number): void {
+    if (amount <= 0) throw new Error("Withdrawal must be positive");
+    if (this.isLocked) throw new Error("Account is locked");
+    if (amount > this.balance) throw new Error("Insufficient funds");
+    this.balance -= amount;
+  }
+
+  lock(): void { this.isLocked = true; }
+}
+
+const account = new BankAccount("Alice", 1000);
+account.deposit(500);      // OK: balance is now 1500
+account.withdraw(200);     // OK: balance is now 1300
+// account.balance = -500; // Compile error: 'balance' is private
+// account.withdraw(9999); // Runtime error: Insufficient funds`,
+    python: `class BankAccount:
+    def __init__(self, owner: str, initial_balance: float):
+        if not owner.strip():
+            raise ValueError("Owner name required")
+        if initial_balance < 0:
+            raise ValueError("Initial balance cannot be negative")
+        self._owner = owner
+        self._balance = initial_balance
+        self._is_locked = False
+
+    @property
+    def balance(self) -> float:
+        return self._balance
+
+    @property
+    def owner(self) -> str:
+        return self._owner
+
+    def deposit(self, amount: float) -> None:
+        if amount <= 0:
+            raise ValueError("Deposit must be positive")
+        if self._is_locked:
+            raise RuntimeError("Account is locked")
+        self._balance += amount
+
+    def withdraw(self, amount: float) -> None:
+        if amount <= 0:
+            raise ValueError("Withdrawal must be positive")
+        if self._is_locked:
+            raise RuntimeError("Account is locked")
+        if amount > self._balance:
+            raise ValueError("Insufficient funds")
+        self._balance -= amount
+
+    def lock(self) -> None:
+        self._is_locked = True
+
+account = BankAccount("Alice", 1000)
+account.deposit(500)      # OK: balance is now 1500
+account.withdraw(200)     # OK: balance is now 1300
+# account._balance = -500 # Convention violation: underscore = private
+# account.withdraw(9999)  # Runtime error: Insufficient funds`,
+  },
+
+  explanation:
+    "The original BankAccount exposes all fields as public, so any code can set balance to " +
+    "-500 or clear the owner name. The invariant 'balance must never be negative' is impossible " +
+    "to enforce. The encapsulated version makes fields private and exposes controlled methods — " +
+    "deposit() validates amounts are positive, withdraw() checks for sufficient funds and locked " +
+    "state. The object itself guarantees its own consistency. No external code can put it into an " +
+    "invalid state because the only way to change state is through the validated public API.",
+  realWorldExample:
+    "A vending machine doesn't let you reach in and grab items or change the price display. " +
+    "You interact through a controlled interface: insert coins, press a button, receive your item. " +
+    "The machine internally validates that you've paid enough, tracks inventory, and makes change. " +
+    "That's encapsulation: the internal state (inventory, cash register) is hidden, and all " +
+    "interactions go through validated operations that maintain the machine's invariants.",
+};
+
+// ═════════════════════════════════════════════════════════════
+//  4. Abstraction
+// ═════════════════════════════════════════════════════════════
+
+const abstraction: OOPDemo = {
+  id: "oop-abstraction",
+  principle: "abstraction",
+  name: "Abstraction",
+  description:
+    "You don't need to understand how an engine works to drive a car — you just use " +
+    "the steering wheel, pedals, and gear shift. That's abstraction: hiding complex " +
+    "implementation details behind a simple interface so callers don't need to know " +
+    "how things work internally, only what they can do.",
+  summary: [
+    "Abstraction = hide complexity behind a simple interface",
+    "Key insight: callers should depend on WHAT something does, not HOW it does it",
+    "Use when: implementation details are complex, likely to change, or irrelevant to callers",
+  ],
+
+  // -- BEFORE: low-level details exposed to callers ---------------
+  beforeClasses: [
+    {
+      id: "abs-b-caller",
+      name: "NotificationSender",
+      stereotype: "class",
+      attributes: [],
+      methods: [
+        { id: "abs-b-caller-meth-0", name: "sendEmail", returnType: "void", params: ["to: string", "subject: string", "body: string"], visibility: "+" },
+      ],
+      x: 250,
+      y: 30,
+    },
+    {
+      id: "abs-b-smtp",
+      name: "SMTPConnection",
+      stereotype: "class",
+      attributes: [
+        { id: "abs-b-smtp-attr-0", name: "host", type: "string", visibility: "+" },
+        { id: "abs-b-smtp-attr-1", name: "port", type: "number", visibility: "+" },
+        { id: "abs-b-smtp-attr-2", name: "socket", type: "Socket", visibility: "+" },
+      ],
+      methods: [
+        { id: "abs-b-smtp-meth-0", name: "connect", returnType: "void", params: [], visibility: "+" },
+        { id: "abs-b-smtp-meth-1", name: "authenticate", returnType: "void", params: ["user: string", "pass: string"], visibility: "+" },
+        { id: "abs-b-smtp-meth-2", name: "sendRaw", returnType: "void", params: ["data: Buffer"], visibility: "+" },
+        { id: "abs-b-smtp-meth-3", name: "disconnect", returnType: "void", params: [], visibility: "+" },
+      ],
+      x: 50,
+      y: 250,
+    },
+    {
+      id: "abs-b-mime",
+      name: "MIMEEncoder",
+      stereotype: "class",
+      attributes: [],
+      methods: [
+        { id: "abs-b-mime-meth-0", name: "setHeaders", returnType: "void", params: ["headers: Map"], visibility: "+" },
+        { id: "abs-b-mime-meth-1", name: "encodeBody", returnType: "Buffer", params: ["text: string", "charset: string"], visibility: "+" },
+        { id: "abs-b-mime-meth-2", name: "attachFile", returnType: "void", params: ["path: string"], visibility: "+" },
+      ],
+      x: 450,
+      y: 250,
+    },
+  ],
+  beforeRelationships: [
+    { id: rid(), source: "abs-b-caller", target: "abs-b-smtp", type: "dependency", label: "manages directly" },
+    { id: rid(), source: "abs-b-caller", target: "abs-b-mime", type: "dependency", label: "encodes manually" },
+  ],
+
+  beforeCode: {
+    typescript: `class NotificationSender {
+  sendEmail(to: string, subject: string, body: string): void {
+    // Caller must manage EVERY low-level detail:
+    const smtp = new SMTPConnection("smtp.gmail.com", 587);
+    smtp.connect();
+    smtp.authenticate(process.env.SMTP_USER!, process.env.SMTP_PASS!);
+
+    const encoder = new MIMEEncoder();
+    encoder.setHeaders(new Map([
+      ["From", "noreply@app.com"],
+      ["To", to],
+      ["Subject", subject],
+      ["Content-Type", "text/html; charset=utf-8"],
+      ["MIME-Version", "1.0"],
+    ]));
+
+    const encoded = encoder.encodeBody(body, "utf-8");
+    smtp.sendRaw(encoded);
+    smtp.disconnect();
+
+    // Problems:
+    // - Every caller must know SMTP, MIME, encoding details
+    // - Switching to SendGrid requires rewriting every caller
+    // - Error handling (retry, connection pooling) duplicated everywhere
+  }
+}`,
+    python: `class NotificationSender:
+    def send_email(self, to: str, subject: str, body: str) -> None:
+        # Caller must manage EVERY low-level detail:
+        smtp = SMTPConnection("smtp.gmail.com", 587)
+        smtp.connect()
+        smtp.authenticate(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
+
+        encoder = MIMEEncoder()
+        encoder.set_headers({
+            "From": "noreply@app.com",
+            "To": to,
+            "Subject": subject,
+            "Content-Type": "text/html; charset=utf-8",
+            "MIME-Version": "1.0",
+        })
+
+        encoded = encoder.encode_body(body, "utf-8")
+        smtp.send_raw(encoded)
+        smtp.disconnect()
+
+        # Problems:
+        # - Every caller must know SMTP, MIME, encoding details
+        # - Switching to SendGrid requires rewriting every caller
+        # - Error handling (retry, connection pooling) duplicated everywhere`,
+  },
+
+  // -- AFTER: clean interface hiding complexity -------------------
+  afterClasses: [
+    {
+      id: "abs-a-service",
+      name: "EmailService",
+      stereotype: "interface",
+      attributes: [],
+      methods: [
+        { id: "abs-a-service-meth-0", name: "send", returnType: "void", params: ["to: string", "subject: string", "body: string"], visibility: "+" },
+      ],
+      x: 300,
+      y: 30,
+    },
+    {
+      id: "abs-a-smtp-impl",
+      name: "SMTPEmailService",
+      stereotype: "class",
+      attributes: [
+        { id: "abs-a-smtp-impl-attr-0", name: "connection", type: "SMTPConnection", visibility: "-" },
+        { id: "abs-a-smtp-impl-attr-1", name: "encoder", type: "MIMEEncoder", visibility: "-" },
+      ],
+      methods: [
+        { id: "abs-a-smtp-impl-meth-0", name: "send", returnType: "void", params: ["to: string", "subject: string", "body: string"], visibility: "+" },
+      ],
+      x: 100,
+      y: 250,
+    },
+    {
+      id: "abs-a-sendgrid-impl",
+      name: "SendGridEmailService",
+      stereotype: "class",
+      attributes: [
+        { id: "abs-a-sendgrid-impl-attr-0", name: "apiKey", type: "string", visibility: "-" },
+      ],
+      methods: [
+        { id: "abs-a-sendgrid-impl-meth-0", name: "send", returnType: "void", params: ["to: string", "subject: string", "body: string"], visibility: "+" },
+      ],
+      x: 500,
+      y: 250,
+    },
+    {
+      id: "abs-a-caller",
+      name: "NotificationSender",
+      stereotype: "class",
+      attributes: [
+        { id: "abs-a-caller-attr-0", name: "emailService", type: "EmailService", visibility: "-" },
+      ],
+      methods: [
+        { id: "abs-a-caller-meth-0", name: "notify", returnType: "void", params: ["to: string", "subject: string", "body: string"], visibility: "+" },
+      ],
+      x: 300,
+      y: 450,
+    },
+  ],
+  afterRelationships: [
+    { id: rid(), source: "abs-a-smtp-impl", target: "abs-a-service", type: "realization" },
+    { id: rid(), source: "abs-a-sendgrid-impl", target: "abs-a-service", type: "realization" },
+    { id: rid(), source: "abs-a-caller", target: "abs-a-service", type: "association", label: "uses" },
+  ],
+
+  afterCode: {
+    typescript: `interface EmailService {
+  send(to: string, subject: string, body: string): void;
+}
+
+class SMTPEmailService implements EmailService {
+  private connection: SMTPConnection;
+  private encoder: MIMEEncoder;
+
+  constructor(host: string, port: number, user: string, pass: string) {
+    this.connection = new SMTPConnection(host, port);
+    this.encoder = new MIMEEncoder();
+    this.connection.connect();
+    this.connection.authenticate(user, pass);
+  }
+
+  send(to: string, subject: string, body: string): void {
+    this.encoder.setHeaders(new Map([
+      ["From", "noreply@app.com"], ["To", to],
+      ["Subject", subject], ["Content-Type", "text/html; charset=utf-8"],
+    ]));
+    const encoded = this.encoder.encodeBody(body, "utf-8");
+    this.connection.sendRaw(encoded);
+  }
+}
+
+class SendGridEmailService implements EmailService {
+  constructor(private apiKey: string) {}
+
+  send(to: string, subject: string, body: string): void {
+    // All SendGrid API details hidden inside this class
+    fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: { Authorization: \`Bearer \${this.apiKey}\` },
+      body: JSON.stringify({ to, subject, content: body }),
+    });
+  }
+}
+
+// Caller knows NOTHING about SMTP, MIME, or SendGrid
+class NotificationSender {
+  constructor(private emailService: EmailService) {}
+
+  notify(to: string, subject: string, body: string): void {
+    this.emailService.send(to, subject, body);
+    // That's it. No SMTP, no encoding, no connection management.
+  }
+}
+
+// Swap implementations without changing NotificationSender:
+const sender = new NotificationSender(new SendGridEmailService("sk-..."));
+sender.notify("user@example.com", "Welcome!", "<h1>Hello</h1>");`,
+    python: `from abc import ABC, abstractmethod
+
+class EmailService(ABC):
+    @abstractmethod
+    def send(self, to: str, subject: str, body: str) -> None: ...
+
+class SMTPEmailService(EmailService):
+    def __init__(self, host: str, port: int, user: str, password: str):
+        self._conn = SMTPConnection(host, port)
+        self._encoder = MIMEEncoder()
+        self._conn.connect()
+        self._conn.authenticate(user, password)
+
+    def send(self, to: str, subject: str, body: str) -> None:
+        self._encoder.set_headers({
+            "From": "noreply@app.com", "To": to,
+            "Subject": subject, "Content-Type": "text/html; charset=utf-8",
+        })
+        encoded = self._encoder.encode_body(body, "utf-8")
+        self._conn.send_raw(encoded)
+
+class SendGridEmailService(EmailService):
+    def __init__(self, api_key: str):
+        self._api_key = api_key
+
+    def send(self, to: str, subject: str, body: str) -> None:
+        # All SendGrid API details hidden inside this class
+        requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            json={"to": to, "subject": subject, "content": body},
+        )
+
+# Caller knows NOTHING about SMTP, MIME, or SendGrid
+class NotificationSender:
+    def __init__(self, email_service: EmailService):
+        self._email_service = email_service
+
+    def notify(self, to: str, subject: str, body: str) -> None:
+        self._email_service.send(to, subject, body)
+        # That's it. No SMTP, no encoding, no connection management.
+
+# Swap implementations without changing NotificationSender:
+sender = NotificationSender(SendGridEmailService("sk-..."))
+sender.notify("user@example.com", "Welcome!", "<h1>Hello</h1>")`,
+  },
+
+  explanation:
+    "The original NotificationSender forces every caller to manage SMTP connections, MIME " +
+    "encoding, headers, and authentication — implementation details that are complex, error-prone, " +
+    "and likely to change. The abstracted version defines a simple EmailService interface with a " +
+    "single send() method. All the SMTP and encoding complexity is hidden inside SMTPEmailService. " +
+    "Callers just call send(to, subject, body) and the implementation handles the rest. Need to " +
+    "switch from SMTP to SendGrid? Create a new SendGridEmailService — zero changes to callers. " +
+    "That's the power of abstraction: reduce coupling by depending on what, not how.",
+  realWorldExample:
+    "You don't need to understand how a car engine works to drive — you use the steering " +
+    "wheel, gas pedal, and brake. These are abstractions over thousands of mechanical parts. " +
+    "When the manufacturer switches from a gasoline engine to electric, the pedals and steering " +
+    "wheel stay the same. The driver's 'interface' is preserved while the implementation changes " +
+    "completely underneath. That's abstraction: a simplified interface hiding internal complexity.",
+};
+
 // ── Exports ──────────────────────────────────────────────────
 
-export const OOP_DEMOS: OOPDemo[] = [compositionVsInheritance, polymorphism];
+export const OOP_DEMOS: OOPDemo[] = [compositionVsInheritance, polymorphism, encapsulation, abstraction];
 
 export function getOOPDemoById(id: string): OOPDemo | undefined {
   return OOP_DEMOS.find((d) => d.id === id);

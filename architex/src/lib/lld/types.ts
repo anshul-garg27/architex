@@ -11,13 +11,33 @@ export interface UMLAttribute {
   visibility: UMLVisibility;
 }
 
+export interface UMLMethodParam {
+  name: string;
+  type: string;
+}
+
 export interface UMLMethod {
   id: string;
   name: string;
   returnType: string;
-  params: string[];
+  /** Backward-compatible: string[] (name only) or UMLMethodParam[] (name + type). */
+  params: UMLMethodParam[] | string[];
   visibility: UMLVisibility;
   isAbstract?: boolean;
+}
+
+/**
+ * Format method params for display. Handles both old format (string[])
+ * and new format (UMLMethodParam[] with name + type).
+ */
+export function formatMethodParams(params: UMLMethodParam[] | string[]): string {
+  if (params.length === 0) return "";
+  if (typeof params[0] === "object" && params[0] !== null && "name" in params[0]) {
+    return (params as UMLMethodParam[])
+      .map((p) => (p.type ? `${p.name}: ${p.type}` : p.name))
+      .join(", ");
+  }
+  return (params as string[]).join(", ");
 }
 
 /** Container for a full class diagram (classes + relationships). */
@@ -103,6 +123,7 @@ export interface DesignPattern {
   code: {
     typescript: string;
     python: string;
+    java?: string;
   };
   realWorldExamples: string[];
   whenToUse: string[];

@@ -420,7 +420,11 @@ export async function POST(request: Request) {
       for (const m of c.methods) {
         m.name = sanitizeUserInput(m.name);
         m.returnType = sanitizeUserInput(m.returnType);
-        m.params = m.params.map((p) => sanitizeUserInput(p));
+        if (m.params.length > 0 && typeof m.params[0] === "string") {
+          m.params = (m.params as string[]).map((p) => sanitizeUserInput(p));
+        } else {
+          m.params = (m.params as Array<{ name: string; type: string }>).map((p) => ({ ...p, name: sanitizeUserInput(p.name), type: sanitizeUserInput(p.type) }));
+        }
       }
     }
     for (const r of relationships) {

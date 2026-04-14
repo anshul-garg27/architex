@@ -27,6 +27,7 @@ import {
   Search,
   Loader2,
   BarChart3,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
@@ -61,6 +62,7 @@ import { StreakCounter } from "../panels/StreakCounter";
 import { useDueReviews } from "@/hooks/use-due-reviews";
 import { useSearch, type SearchResult } from "@/hooks/use-search";
 import { LearningPathMap } from "./LearningPathMap";
+import { PatternGraph } from "./PatternGraph";
 
 // ── Pattern Browser ──────────────────────────────────────
 
@@ -809,8 +811,20 @@ export const LLDSidebar = memo(function LLDSidebar({
 }: LLDSidebarProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [isNarrow, setIsNarrow] = useState(false);
+  const [showGraph, setShowGraph] = useState(false);
   const { data: dueData } = useDueReviews("lld");
   const dueCount = dueData?.count ?? 0;
+
+  const handleGraphSelectPattern = useCallback(
+    (slug: string) => {
+      const pattern = patterns.find((p) => p.id === slug);
+      if (pattern) {
+        onSelectPattern(pattern);
+        setShowGraph(false);
+      }
+    },
+    [patterns, onSelectPattern],
+  );
 
   useEffect(() => {
     const el = tabBarRef.current?.parentElement;
@@ -884,11 +898,37 @@ export const LLDSidebar = memo(function LLDSidebar({
       <SidebarSearch />
       <div className="flex-1 overflow-y-auto px-2 py-3">
         {mode === "patterns" && (
-          <PatternBrowser
-            activePatternId={activePatternId}
-            onSelect={onSelectPattern}
-            patterns={patterns}
-          />
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowGraph((p) => !p)}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-xl border px-2 py-2 text-left text-xs transition-all",
+                showGraph
+                  ? "border-primary/30 bg-primary/10 text-primary shadow-[0_0_15px_rgba(110,86,207,0.15)]"
+                  : "border-border/30 bg-elevated/50 text-foreground-muted hover:bg-elevated hover:text-foreground",
+              )}
+            >
+              <Network className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-[11px] font-medium">Pattern Graph</span>
+              {showGraph ? (
+                <ChevronDown className="ml-auto h-3 w-3" />
+              ) : (
+                <ChevronRight className="ml-auto h-3 w-3" />
+              )}
+            </button>
+            {showGraph && (
+              <PatternGraph
+                patterns={patterns}
+                onSelectPattern={handleGraphSelectPattern}
+                onClose={() => setShowGraph(false)}
+              />
+            )}
+            <PatternBrowser
+              activePatternId={activePatternId}
+              onSelect={onSelectPattern}
+              patterns={patterns}
+            />
+          </div>
         )}
         {mode === "progress" && (
           <LearningPathMap

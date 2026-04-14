@@ -35,8 +35,18 @@ function toPythonDefault(tsType: string): string {
   return "None";
 }
 
-function formatParams(params: string[]): string {
-  return params
+function formatParams(
+  params: Array<{ name: string; type: string }> | string[],
+): string {
+  if (params.length === 0) return "";
+  // New format: UMLMethodParam[]
+  if (typeof params[0] === "object" && params[0] !== null && "name" in params[0]) {
+    return (params as Array<{ name: string; type: string }>)
+      .map((p) => (p.type ? `${p.name}: ${toPythonType(p.type)}` : p.name))
+      .join(", ");
+  }
+  // Old format: string[]
+  return (params as string[])
     .map((p) => {
       if (p.includes(":")) {
         const [name, type] = p.split(":").map((s) => s.trim());

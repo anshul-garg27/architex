@@ -7,9 +7,10 @@
  * Replaces the static LLDBottomPanelTabs which showed all 7 tabs regardless of context.
  */
 
-import React, { memo, useState, useMemo, lazy, Suspense } from "react";
+import React, { memo, useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import type { DesignPattern, SOLIDDemo, LLDProblem, UMLClass, UMLRelationship } from "@/lib/lld";
+import { useLLDDataContext } from "../LLDDataContext";
 
 // Reuse existing panels
 import {
@@ -32,7 +33,9 @@ const ConfusedWithTab = lazy(() => import("./ConfusedWithTab").then(m => ({ defa
 const InterviewPrepTab = lazy(() => import("./InterviewPrepTab").then(m => ({ default: m.InterviewPrepTab })));
 const PatternQuizFiltered = lazy(() => import("./PatternQuizFiltered").then(m => ({ default: m.PatternQuizFiltered })));
 const WalkthroughPlayer = lazy(() => import("./WalkthroughPlayer").then(m => ({ default: m.WalkthroughPlayer })));
+const AutoGrader = lazy(() => import("./AutoGrader").then(m => ({ default: m.AutoGrader })));
 const MermaidEditor = lazy(() => import("./MermaidEditor"));
+const SOLIDViolationSpotter = lazy(() => import("./SOLIDViolationSpotter"));
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -78,7 +81,9 @@ function getProblemTabs(_problem: LLDProblem): TabDef[] {
   return [
     { id: "requirements", label: "Requirements" },
     { id: "patterns", label: "Patterns Used" },
+    { id: "grade", label: "Grade" },
     { id: "solution", label: "Reference Solution" },
+    { id: "related", label: "Related Problems" },
     { id: "interview", label: "Interview Mode" },
   ];
 }
@@ -111,7 +116,49 @@ interface ContextualBottomTabsProps {
   isPracticeSubmitted: boolean;
   practiceAssessment: React.ReactNode | null;
   onLoadPattern: (pattern: DesignPattern) => void;
+  onSelectProblem?: (problem: LLDProblem) => void;
   onDiagramUpdate?: (classes: UMLClass[], relationships: UMLRelationship[]) => void;
+}
+
+// ── Visited-patterns localStorage helper ───────────────────
+
+const VISITED_KEY = "lld-visited-patterns";
+
+function getVisitedPatterns(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(VISITED_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markPatternVisited(slug: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const visited = getVisitedPatterns();
+    visited.add(slug);
+    localStorage.setItem(VISITED_KEY, JSON.stringify([...visited]));
+  } catch {
+    // Silently ignore storage errors
+  }
+}
+
+// ── Difficulty badge helpers ───────────────────────────────
+
+const DIFFICULTY_BADGE: Record<string, { label: string; className: string }> = {
+  easy: { label: "Easy", className: "bg-green-500/10 text-green-400 border-green-500/30" },
+  medium: { label: "Medium", className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" },
+  hard: { label: "Hard", className: "bg-red-500/10 text-red-400 border-red-500/30" },
+};
+
+function getDifficultyBadge(difficulty: number): { label: string; className: string } {
+  if (difficulty <= 2) return DIFFICULTY_BADGE.easy;
+  if (difficulty <= 3) return DIFFICULTY_BADGE.medium;
+  return DIFFICULTY_BADGE.hard;
 }
 
 // ── Component ───────────────────────────────────────────────
@@ -128,6 +175,7 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
   isPracticeSubmitted,
   practiceAssessment,
   onLoadPattern,
+  onSelectProblem,
   onDiagramUpdate,
 }: ContextualBottomTabsProps) {
   const [activeTabId, setActiveTabId] = useState<string>("explain");
@@ -164,9 +212,25 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
     return "none";
   }, [activePattern, activeDemo, activeProblem, activeSequence, activeStateMachine]);
 
-  // Reset active tab when selection changes
-  React.useEffect(() => {
-    setActiveTabId(tabs[0]?.id ?? "explain");
+  // Smart tab defaulting: first visit = Explain, return visit = Quiz
+  useEffect(() => {
+    // Determine slug for visit tracking (patterns and problems have slugs)
+    const slug = activePattern?.id ?? activeProblem?.slug ?? null;
+
+    if (slug && (mode === "pattern" || mode === "problem")) {
+      const visited = getVisitedPatterns();
+      if (visited.has(slug)) {
+        // Return visit: default to Quiz tab (index 1)
+        setActiveTabId(tabs[1]?.id ?? tabs[0]?.id ?? "explain");
+      } else {
+        // First visit: default to first tab, mark as visited
+        markPatternVisited(slug);
+        setActiveTabId(tabs[0]?.id ?? "explain");
+      }
+    } else {
+      // Non-pattern/problem modes: always default to first tab
+      setActiveTabId(tabs[0]?.id ?? "explain");
+    }
   }, [modeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ensure activeTabId is valid for current tabs
@@ -247,9 +311,7 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
               )}
               {resolvedTabId === "quiz" && <SOLIDQuiz />}
               {resolvedTabId === "violation" && (
-                <div className="flex flex-1 items-center justify-center py-8">
-                  <p className="text-xs text-foreground-subtle">Spot Violation exercises coming soon.</p>
-                </div>
+                <SOLIDViolationSpotter principle={activeDemo.principle} />
               )}
               {resolvedTabId === "patterns" && (
                 <div className="flex flex-1 items-center justify-center py-8">
@@ -286,10 +348,22 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
                   </div>
                 </div>
               )}
+              {resolvedTabId === "grade" && activeProblem && (
+                <AutoGrader
+                  problem={activeProblem}
+                  userClasses={classes}
+                  userRelationships={relationships}
+                  referenceClasses={activeProblem.starterClasses}
+                  referenceRelationships={activeProblem.starterRelationships}
+                />
+              )}
               {resolvedTabId === "solution" && (
                 <div className="flex flex-1 items-center justify-center py-8">
                   <p className="text-xs text-foreground-subtle">Reference solution will be available after you submit your attempt.</p>
                 </div>
+              )}
+              {resolvedTabId === "related" && (
+                <RelatedProblemsPanel problem={activeProblem} onSelectProblem={onSelectProblem} />
               )}
               {resolvedTabId === "interview" && (
                 <div className="flex flex-1 items-center justify-center py-8">
@@ -328,3 +402,81 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
     </div>
   );
 });
+
+// ── Related Problems Sub-Panel ─────────────────────────────
+
+function RelatedProblemsPanel({
+  problem,
+  onSelectProblem,
+}: {
+  problem: LLDProblem;
+  onSelectProblem?: (problem: LLDProblem) => void;
+}) {
+  const { problems: allProblems } = useLLDDataContext();
+
+  const relatedItems = useMemo(() => {
+    if (!problem.relatedProblems?.length || !allProblems.length) return [];
+    return problem.relatedProblems
+      .map((slug) => allProblems.find((p) => p.slug === slug))
+      .filter((p): p is LLDProblem => p != null);
+  }, [problem.relatedProblems, allProblems]);
+
+  if (relatedItems.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center py-8">
+        <p className="text-xs text-foreground-subtle">No related problems found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col px-4 py-3 space-y-3 overflow-auto">
+      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
+        Related Problems
+      </h3>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {relatedItems.map((rp) => {
+          const badge = getDifficultyBadge(rp.difficulty);
+          return (
+            <button
+              key={rp.id}
+              onClick={() => onSelectProblem?.(rp)}
+              className="flex flex-col gap-2 rounded-xl border border-border/30 bg-elevated/50 px-3.5 py-3 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-[0_0_12px_rgba(var(--primary-rgb),0.08)]"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-foreground truncate">
+                  {rp.name}
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold",
+                    badge.className,
+                  )}
+                >
+                  {badge.label}
+                </span>
+              </div>
+              {rp.keyPatterns.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {rp.keyPatterns.slice(0, 4).map((pat) => (
+                    <span
+                      key={pat}
+                      className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary"
+                    >
+                      {pat}
+                    </span>
+                  ))}
+                  {rp.keyPatterns.length > 4 && (
+                    <span className="text-[9px] text-foreground-subtle">
+                      +{rp.keyPatterns.length - 4} more
+                    </span>
+                  )}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -27,6 +27,9 @@ const SEED_MODULES: Record<string, () => Promise<{ seed: (db: ReturnType<typeof 
   "fix-confused-with": () => import("./fix-confused-with"),
   "fix-prediction-prompts": () => import("./fix-prediction-prompts"),
   quizzes: () => import("./quizzes"),
+  "walkthrough-checkpoints": () => import("./walkthrough-checkpoints"),
+  "content-quality-fixes": () => import("./content-quality-fixes"),
+  "java-code-gen": () => import("./java-code-gen"),
 };
 
 async function main() {

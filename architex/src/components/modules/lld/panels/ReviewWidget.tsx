@@ -32,6 +32,32 @@ export const ReviewWidget = memo(function ReviewWidget() {
     setShowAnswer(false);
   }, [currentConceptId]);
 
+  // Keyboard shortcuts: 1=Again, 2=Hard, 3=Good, 4=Easy
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (!currentConceptId || isSubmitting) return;
+
+      const keyToRating: Record<string, (typeof RATING_BUTTONS)[number]["rating"]> = {
+        "1": Rating.Again,
+        "2": Rating.Hard,
+        "3": Rating.Good,
+        "4": Rating.Easy,
+      };
+
+      const rating = keyToRating[e.key];
+      if (rating !== undefined) {
+        e.preventDefault();
+        submitReview(currentConceptId, rating);
+        setShowAnswer(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [currentConceptId, isSubmitting, submitReview]);
+
   // Look up pattern info for the current review item
   const pattern = currentConceptId
     ? DESIGN_PATTERNS.find((p) => p.id === currentConceptId)
@@ -151,6 +177,7 @@ export const ReviewWidget = memo(function ReviewWidget() {
           </button>
         ))}
       </div>
+      <p className="text-center text-[9px] text-foreground-subtle">Press 1-4 to rate</p>
     </div>
   );
 });

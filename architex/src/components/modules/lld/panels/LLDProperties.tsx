@@ -36,6 +36,7 @@ import type {
   SequenceMessage,
   StateNode,
 } from "@/lib/lld";
+import { formatMethodParams } from "@/lib/lld";
 import { useLLDDataContext } from "../LLDDataContext";
 import {
   STEREOTYPE_BORDER_COLOR,
@@ -91,7 +92,7 @@ export const LLDProperties = memo(function LLDProperties({
   onRemoveMethod,
   onUpdateMethodVisibility,
 }: LLDPropertiesProps) {
-  const [codeTab, setCodeTab] = useState<"typescript" | "python">("typescript");
+  const [codeTab, setCodeTab] = useState<"typescript" | "python" | "java">("typescript");
   const [editName, setEditName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
 
@@ -272,7 +273,7 @@ export const LLDProperties = memo(function LLDProperties({
                       m.isAbstract && "italic",
                     )}
                   >
-                    {m.name}({m.params.join(", ")}): <span className="text-primary/70">{m.returnType}</span>
+                    {m.name}({formatMethodParams(m.params)}): <span className="text-primary/70">{m.returnType}</span>
                   </span>
                   <button
                     onClick={() => onRemoveMethod?.(selectedClass.id, m.id)}
@@ -371,9 +372,22 @@ export const LLDProperties = memo(function LLDProperties({
             >
               Python
             </button>
+            {pattern!.code.java && (
+              <button
+                onClick={() => setCodeTab("java")}
+                className={cn(
+                  "rounded-md px-2 py-1 text-[10px] font-medium transition-colors",
+                  codeTab === "java"
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground-subtle hover:text-foreground",
+                )}
+              >
+                Java
+              </button>
+            )}
           </div>
           <pre className="overflow-auto rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm p-3 text-[10px] leading-relaxed text-foreground-muted">
-            <code>{pattern!.code[codeTab]}</code>
+            <code>{pattern!.code[codeTab] ?? ""}</code>
           </pre>
         </div>
 

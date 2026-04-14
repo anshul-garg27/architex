@@ -33,6 +33,7 @@ import {
   type SyncResult,
 } from "@/lib/lld/bidirectional-sync";
 import type { UMLClass, UMLRelationship } from "@/lib/lld/types";
+import { formatMethodParams } from "@/lib/lld/types";
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ const ClassCard = memo(function ClassCard({
         <div className="mt-1 border-t border-zinc-700/50 pt-1">
           {cls.methods.map((m) => (
             <div key={m.id} className="text-xs text-zinc-400">
-              {m.visibility} {m.name}({m.params.join(", ")}): {m.returnType}
+              {m.visibility} {m.name}({formatMethodParams(m.params)}): {m.returnType}
             </div>
           ))}
         </div>

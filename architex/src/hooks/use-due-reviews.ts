@@ -47,6 +47,10 @@ export const reviewKeys = {
 async function fetchDueReviews(moduleId: string): Promise<DueReviewsResponse> {
   const params = new URLSearchParams({ moduleId });
   const res = await fetch(`/api/review?${params}`);
+  if (res.status === 401) {
+    // Not authenticated — return empty instead of throwing
+    return { items: [], count: 0 };
+  }
   if (!res.ok) {
     throw new Error(`Failed to fetch due reviews: ${res.status} ${res.statusText}`);
   }
@@ -84,6 +88,7 @@ export function useDueReviews(moduleId: string) {
     queryFn: () => fetchDueReviews(moduleId),
     staleTime: 60_000, // 1 minute — due items change after each review
     enabled: !!moduleId,
+    retry: false, // Don't retry on 401 — user is simply not authenticated
   });
 }
 

@@ -29,6 +29,7 @@ export type {
   UMLClass,
   UMLAttribute,
   UMLMethod,
+  UMLMethodParam,
   UMLRelationship,
   UMLRelationshipType,
   ClassDiagram,
@@ -39,6 +40,8 @@ export type {
   LatencyMessage,
   SequenceParticipant,
 } from "./types";
+
+export { formatMethodParams } from "./types";
 
 // ── Class Diagram CRUD Model ────────────────────────────────
 export {
@@ -144,3 +147,12 @@ export {
 // ── Search (LLD-066) ───────────────────────────────────────
 export type { SearchResult, SearchResultType } from "./search";
 export { searchLLDContent } from "./search";
+
+// ── Grading Engine ─────────────────────────────────────────
+export type {
+  GradingResult,
+  GradingCategory,
+  GradingItem,
+  GradingInput,
+} from "./grading-engine";
+export { gradeDiagram } from "./grading-engine";

@@ -10,6 +10,7 @@
 
 import React, { memo, useMemo } from "react";
 import type { UMLClass, UMLRelationship } from "@/lib/lld";
+import { formatMethodParams } from "@/lib/lld";
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -45,9 +46,9 @@ function formatAttribute(attr: { name: string; type: string; visibility: string 
   return `${vis} ${attr.name}${typePart}`;
 }
 
-function formatMethod(method: { name: string; returnType: string; params: string[]; visibility: string }): string {
+function formatMethod(method: { name: string; returnType: string; params: Array<{ name: string; type: string }> | string[]; visibility: string }): string {
   const vis = formatVisibility(method.visibility);
-  const params = method.params.length > 0 ? method.params.join(", ") : "";
+  const params = method.params.length > 0 ? formatMethodParams(method.params) : "";
   const returnPart = method.returnType ? `: ${method.returnType}` : "";
   return `${vis} ${method.name}(${params})${returnPart}`;
 }

@@ -12,6 +12,7 @@ import type {
   UMLClass,
   UMLAttribute,
   UMLMethod,
+  UMLMethodParam,
   UMLRelationship,
   UMLRelationshipType,
   UMLVisibility,
@@ -59,6 +60,39 @@ function parseVisibility(ch: string): UMLVisibility {
     case "~": return "~";
     default: return "+";
   }
+}
+
+// -- Method param parsing -----------------------------------------
+
+/**
+ * Parse raw param strings into typed params when possible.
+ *
+ * Mermaid classDiagram uses `paramName Type` format (space-separated),
+ * e.g. `+getName(id String, name String) ReturnType`.
+ *
+ * If ALL params match "name Type" pattern, returns UMLMethodParam[].
+ * Otherwise returns string[] (backward compatible, names only).
+ */
+function parseMethodParams(rawParams: string[]): UMLMethodParam[] | string[] {
+  if (rawParams.length === 0) return [];
+
+  // Check if any param has a space => "name Type" pattern
+  const hasTypedParams = rawParams.some((p) => /^\w+\s+\w+/.test(p));
+
+  if (hasTypedParams) {
+    return rawParams.map((p) => {
+      const parts = p.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        // Mermaid format: "name Type" (name first, type second)
+        return { name: parts[0], type: parts.slice(1).join(" ") };
+      }
+      // Single token -- treat as name with empty type
+      return { name: parts[0], type: "" };
+    });
+  }
+
+  // Plain names only
+  return rawParams;
 }
 
 // -- Relationship arrow mapping -----------------------------------
@@ -141,16 +175,22 @@ export function parseMermaidClassDiagram(mermaid: string): MermaidParseResult {
         }
 
         // Try to parse as method: `+methodName(params) ReturnType` or `+methodName(params)* ReturnType`
+        // Params can be: `name Type, name2 Type2` (Mermaid style) or `name, name2` (plain)
         const methodMatch = memberLine.match(
           /^([+\-#~]?)(\w+)\(([^)]*)\)(\*)?\s*(.*)?$/,
         );
         if (methodMatch) {
+          const rawParams = methodMatch[3]
+            ? methodMatch[3].split(",").map((p) => p.trim()).filter(Boolean)
+            : [];
+
+          // Detect if params have types: "name Type" pattern
+          const parsedParams: UMLMethodParam[] | string[] = parseMethodParams(rawParams);
+
           methods.push({
             id: nextId("meth"),
             name: methodMatch[2],
-            params: methodMatch[3]
-              ? methodMatch[3].split(",").map((p) => p.trim()).filter(Boolean)
-              : [],
+            params: parsedParams,
             isAbstract: methodMatch[4] === "*",
             returnType: (methodMatch[5] || "void").trim(),
             visibility: parseVisibility(methodMatch[1]),

@@ -29,6 +29,27 @@ const RELATIONSHIP_MERMAID: Record<string, string> = {
   dependency: "..>",
 };
 
+// -- Param formatting ---------------------------------------------
+
+/**
+ * Format method params for Mermaid output. Handles both UMLMethodParam[]
+ * (with name + type) and plain string[] (backward compatible).
+ *
+ * UMLMethodParam[] serializes as `name Type` (Mermaid convention).
+ * string[] serializes as comma-separated names.
+ */
+function formatMermaidParams(
+  params: Array<{ name: string; type: string }> | string[],
+): string {
+  if (params.length === 0) return "";
+  if (typeof params[0] === "string") {
+    return (params as string[]).join(", ");
+  }
+  return (params as Array<{ name: string; type: string }>)
+    .map((p) => (p.type ? `${p.name} ${p.type}` : p.name))
+    .join(", ");
+}
+
 // -- Main export --------------------------------------------------
 
 /**
@@ -100,7 +121,7 @@ export function generateMermaid(
     for (const method of cls.methods) {
       const vis = VISIBILITY_MERMAID[method.visibility] ?? "+";
       const ret = method.returnType || "void";
-      const params = method.params.join(", ");
+      const params = formatMermaidParams(method.params);
       const abstractSuffix = method.isAbstract ? "*" : "";
       lines.push(`        ${vis}${method.name}(${params})${abstractSuffix} ${ret}`);
     }

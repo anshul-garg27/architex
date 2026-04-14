@@ -58,6 +58,7 @@ import { LLDProperties, LLDSOLIDProperties, LLDProblemProperties, SequenceProper
 import { ContextualBottomTabs } from "../panels/ContextualBottomTabs";
 import { PracticeTimerBar, PracticeAssessment } from "../panels/InterviewPractice";
 import { ScreenReaderView } from "../panels/ScreenReaderView";
+import { useExportDiagram } from "./useExportDiagram";
 import {
   CATEGORY_LABELS,
   type SidebarMode,
@@ -691,56 +692,22 @@ export function useLLDModule() {
     return null;
   }, [activePattern, activeDemo, activeProblem, activeSequence, activeStateMachine, solidView, practiceState]);
 
-  // Export handlers
+  // Export handlers — delegated to useExportDiagram hook
+  const { exportAsSVG, exportAsPNG } = useExportDiagram();
+
   const handleExportSVG = useCallback(() => {
     const svgEl = document.querySelector<SVGSVGElement>("[data-lld-canvas-svg]");
     if (!svgEl) return;
-    const clone = svgEl.cloneNode(true) as SVGSVGElement;
-    const titleEl = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    titleEl.textContent = canvasTitle ?? "Class Diagram";
-    clone.prepend(titleEl);
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    const svgData = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${(canvasTitle ?? "diagram").replace(/[^a-zA-Z0-9-_ ]/g, "").replace(/\s+/g, "-")}.svg`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportAsSVG(svgEl, canvasTitle ?? "diagram");
     setExportDropdownOpen(false);
-  }, [canvasTitle]);
+  }, [canvasTitle, exportAsSVG]);
 
   const handleExportPNG = useCallback(() => {
     const svgEl = document.querySelector<SVGSVGElement>("[data-lld-canvas-svg]");
     if (!svgEl) return;
-    const clone = svgEl.cloneNode(true) as SVGSVGElement;
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    const svgData = new XMLSerializer().serializeToString(clone);
-    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(svgBlob);
-    const img = new Image();
-    img.onload = () => {
-      const scale = 2;
-      const cvs = document.createElement("canvas");
-      cvs.width = img.naturalWidth * scale; cvs.height = img.naturalHeight * scale;
-      const ctx = cvs.getContext("2d");
-      if (!ctx) { URL.revokeObjectURL(url); return; }
-      ctx.scale(scale, scale); ctx.drawImage(img, 0, 0);
-      cvs.toBlob((pngBlob) => {
-        if (!pngBlob) return;
-        const pngUrl = URL.createObjectURL(pngBlob);
-        const a = document.createElement("a");
-        a.href = pngUrl;
-        a.download = `${(canvasTitle ?? "diagram").replace(/[^a-zA-Z0-9-_ ]/g, "").replace(/\s+/g, "-")}.png`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(pngUrl);
-      }, "image/png");
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
+    exportAsPNG(svgEl, canvasTitle ?? "diagram");
     setExportDropdownOpen(false);
-  }, [canvasTitle]);
+  }, [canvasTitle, exportAsPNG]);
 
   // Presentation mode
   const presentationCategoryPatterns = useMemo(() => { if (!activePattern) return []; return getPatternsByCategory(activePattern.category); }, [activePattern]);
@@ -906,7 +873,7 @@ export function useLLDModule() {
           <LLDCanvas classes={classes} relationships={relationships} selectedClassId={selectedClassId} onSelectClass={setSelectedClassId} onDragClass={handleDragClass} patternName={canvasTitle} editingNameId={editingNameId} editingNameValue={editingNameValue} onStartEditName={handleStartEditName} onChangeEditName={handleChangeEditName} onCommitEditName={handleCommitEditName} hoveredClassId={hoveredClassId} onHoverClass={setHoveredClassId} onCreateRelationship={handleCreateRelationship} onLoadObserver={handleLoadObserver} />
         )}
         {!isSequenceMode && !isStateMachineMode && (
-          <div className="absolute right-3 top-12 z-10 flex items-center gap-1 rounded-xl border border-border/30 bg-background/60 px-1.5 py-1 shadow-[0_0_15px_rgba(var(--primary-rgb),0.06)] backdrop-blur-md">
+          <div className="absolute right-3 top-[5.5rem] z-10 flex items-center gap-1 rounded-xl border border-border/30 bg-background/60 px-1.5 py-1 shadow-[0_0_15px_rgba(var(--primary-rgb),0.06)] backdrop-blur-md">
             <button onClick={handleUndo} disabled={undoCount === 0} className="flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground-muted transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed" title="Undo (Ctrl+Z)" aria-label="Undo"><Undo2 className="h-3.5 w-3.5" /></button>
             <button onClick={handleRedo} disabled={redoCount === 0} className="flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground-muted transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><Redo2 className="h-3.5 w-3.5" /></button>
             <div className="mx-0.5 h-4 w-px bg-border/30" />
@@ -914,7 +881,7 @@ export function useLLDModule() {
           </div>
         )}
         {canvasTitle && (
-          <div className="absolute right-3 top-1.5 z-10 flex items-center gap-1.5">
+          <div className="absolute right-3 top-[3.25rem] z-10 flex items-center gap-1.5">
             {activePattern && !isSequenceMode && !isStateMachineMode && (
               <button onClick={handleEnterPresentation} className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-[0_0_12px_rgba(var(--primary-rgb),0.4)] transition-all hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.55)]" title="Presentation mode (F)">
                 <Maximize2 className="h-3.5 w-3.5" /><span>Present</span>
