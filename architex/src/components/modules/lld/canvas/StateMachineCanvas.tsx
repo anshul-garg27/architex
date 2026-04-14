@@ -5,7 +5,7 @@
  * Split from LLDModule.tsx (LLD-037).
  */
 
-import React, { memo, useMemo, useRef, useState, useEffect, useCallback } from "react";
+import React, { memo, useMemo, useRef, useState, useEffect } from "react";
 import {
   Circle,
   Play,
@@ -15,7 +15,6 @@ import {
   History,
   CheckCircle2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { StateNode, StateTransition, StateMachineData } from "@/lib/lld";
 import { motion } from "motion/react";
 import { useSVGZoomPan, ZoomToolbar } from "./LLDCanvas";
@@ -208,16 +207,6 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
       if (t.to === hoveredStateId) ids.add(t.from);
     }
     return ids;
-  }, [hoveredStateId, data]);
-
-  // ── Glow color by state type ──────────────────────────
-  const hoveredGlowColor = useMemo(() => {
-    if (!hoveredStateId || !data) return "var(--lld-canvas-border)";
-    const s = data.states.find((st) => st.id === hoveredStateId);
-    if (!s) return "var(--lld-canvas-border)";
-    if (s.isInitial) return "var(--lld-stereo-interface)";
-    if (s.isFinal) return "var(--lld-stereo-enum)";
-    return "var(--lld-canvas-border)";
   }, [hoveredStateId, data]);
 
   if (!data || data.states.length === 0) {
