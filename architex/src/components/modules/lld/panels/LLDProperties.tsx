@@ -38,6 +38,7 @@ import type {
 } from "@/lib/lld";
 import { formatMethodParams } from "@/lib/lld";
 import { Highlight, Prism, themes } from "prism-react-renderer";
+import { useTheme } from "next-themes";
 import { useLLDDataContext } from "../LLDDataContext";
 import {
   STEREOTYPE_BORDER_COLOR,
@@ -134,6 +135,9 @@ export const LLDProperties = memo(function LLDProperties({
   const [codeTab, setCodeTab] = useState<"typescript" | "python" | "java">("typescript");
   const [editName, setEditName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== "light";
+  const codeTheme = isDark ? themes.nightOwl : themes.github;
 
   useEffect(() => {
     if (selectedClass) {
@@ -426,14 +430,14 @@ export const LLDProperties = memo(function LLDProperties({
             )}
           </div>
           <Highlight
-            theme={themes.nightOwl}
+            theme={codeTheme}
             code={(pattern!.code[codeTab] ?? "").trim()}
             language={PRISM_LANG[codeTab] ?? "typescript"}
           >
             {({ style, tokens, getLineProps, getTokenProps }) => (
               <pre
                 className="overflow-auto rounded-xl border border-border/30 p-3 text-[10px] leading-relaxed"
-                style={{ ...style, background: "rgba(var(--elevated-rgb, 30,30,40), 0.5)", backdropFilter: "blur(8px)" }}
+                style={{ ...style, background: isDark ? "rgba(var(--elevated-rgb, 30,30,40), 0.5)" : "var(--surface-elevated, #f8fafc)", backdropFilter: "blur(8px)" }}
               >
                 {tokens.map((line, i) => (
                   <div key={i} {...getLineProps({ line })}>
