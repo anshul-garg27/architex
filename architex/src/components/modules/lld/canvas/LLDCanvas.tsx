@@ -754,9 +754,13 @@ interface UMLEdgeProps {
   reducedMotion: boolean;
   /** Dagre-computed route points for this edge (if available). */
   routePoints?: Array<{ x: number; y: number }>;
+  /** Pixel offset to spread this edge's exit port from center (src side). */
+  srcPortOffset?: number;
+  /** Pixel offset to spread this edge's enter port from center (tgt side). */
+  tgtPortOffset?: number;
 }
 
-const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion, routePoints }: UMLEdgeProps) {
+const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0 }: UMLEdgeProps) {
   const srcCls = classById.get(rel.source);
   const tgtCls = classById.get(rel.target);
   if (!srcCls || !tgtCls) return null;
@@ -770,9 +774,18 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
   const srcSide = exitSide(srcCls, rawSrc);
   const tgtSide = exitSide(tgtCls, rawTgt);
 
-  // Use side-center anchors for clean orthogonal exits
-  const src = sideAnchor(srcCls, srcSide);
-  const tgt = sideAnchor(tgtCls, tgtSide);
+  // Use side-center anchors + port offset for spread
+  const srcBase = sideAnchor(srcCls, srcSide);
+  const tgtBase = sideAnchor(tgtCls, tgtSide);
+  // Apply offset along the side (perpendicular to the exit direction)
+  const isVertSrc = srcSide === "top" || srcSide === "bottom";
+  const isVertTgt = tgtSide === "top" || tgtSide === "bottom";
+  const src = isVertSrc
+    ? { x: srcBase.x + srcPortOffset, y: srcBase.y }
+    : { x: srcBase.x, y: srcBase.y + srcPortOffset };
+  const tgt = isVertTgt
+    ? { x: tgtBase.x + tgtPortOffset, y: tgtBase.y }
+    : { x: tgtBase.x, y: tgtBase.y + tgtPortOffset };
 
   const isDashed =
     rel.type === "dependency" || rel.type === "realization";
@@ -835,22 +848,25 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
             : undefined
         }
       />
-      {/* Label — centered on a semi-transparent pill for readability */}
+      {/* Label — centered on an opaque pill with border for readability */}
       {rel.label && (
         <g>
           <rect
-            x={labelPos.x - (rel.label.length * 3.5 + 6)}
-            y={labelPos.y - 9}
-            width={rel.label.length * 7 + 12}
-            height={14}
-            rx={4}
-            fill="var(--lld-canvas-bg, rgba(20,20,30,0.85))"
+            x={labelPos.x - (rel.label.length * 3.5 + 8)}
+            y={labelPos.y - 10}
+            width={rel.label.length * 7 + 16}
+            height={17}
+            rx={5}
+            fill="var(--lld-canvas-bg-deep, #0f0f1a)"
+            stroke="var(--lld-canvas-border)"
+            strokeWidth="0.5"
+            opacity="0.95"
           />
           <text
             x={labelPos.x}
-            y={labelPos.y + 2}
+            y={labelPos.y + 3}
             textAnchor="middle"
-            fill="var(--lld-canvas-edge)"
+            fill="var(--lld-canvas-text-muted, #94a3b8)"
             fontSize="11"
             fontStyle="italic"
           >
@@ -1139,6 +1155,48 @@ export const LLDCanvas = memo(function LLDCanvas({
     return map;
   }, [classes]);
 
+  // Pre-compute port offsets so edges sharing the same box-side are spread apart.
+  // Key = "classId:side:src|tgt", value = Map<relId, offsetPx>
+  const portOffsets = useMemo(() => {
+    const offsets = new Map<string, number>();
+    // Group edges by (classId + side + role)
+    const groups = new Map<string, string[]>();
+
+    for (const rel of relationships) {
+      const srcCls = classById.get(rel.source);
+      const tgtCls = classById.get(rel.target);
+      if (!srcCls || !tgtCls) continue;
+      const srcC = classCenter(srcCls);
+      const tgtC = classCenter(tgtCls);
+      const rawSrc = borderPoint(srcCls, tgtC.cx, tgtC.cy);
+      const rawTgt = borderPoint(tgtCls, srcC.cx, srcC.cy);
+      const sSide = exitSide(srcCls, rawSrc);
+      const tSide = exitSide(tgtCls, rawTgt);
+
+      const sKey = `${rel.source}:${sSide}:src`;
+      const tKey = `${rel.target}:${tSide}:tgt`;
+      if (!groups.has(sKey)) groups.set(sKey, []);
+      groups.get(sKey)!.push(rel.id);
+      if (!groups.has(tKey)) groups.set(tKey, []);
+      groups.get(tKey)!.push(rel.id);
+    }
+
+    // For groups with >1 edge, spread them with PORT_SPREAD gap
+    const PORT_SPREAD = 18;
+    for (const [key, relIds] of groups) {
+      if (relIds.length <= 1) {
+        offsets.set(`${key}:${relIds[0]}`, 0);
+        continue;
+      }
+      const total = relIds.length;
+      for (let i = 0; i < total; i++) {
+        const off = (i - (total - 1) / 2) * PORT_SPREAD;
+        offsets.set(`${key}:${relIds[i]}`, off);
+      }
+    }
+    return offsets;
+  }, [relationships, classById]);
+
   const viewBox = useMemo(() => {
     if (classes.length === 0)
       return { x: -50, y: -50, w: 800, h: 600 };
@@ -1393,9 +1451,20 @@ export const LLDCanvas = memo(function LLDCanvas({
           />
 
           <g transform={zoomTransform} style={{ transformOrigin: "0 0" }}>
-            {relationships.map((rel) => (
-              <UMLEdge key={rel.id} rel={rel} classById={classById} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} />
-            ))}
+            {relationships.map((rel) => {
+              const srcCls = classById.get(rel.source);
+              const tgtCls = classById.get(rel.target);
+              if (!srcCls || !tgtCls) return null;
+              const sc = classCenter(srcCls);
+              const tc = classCenter(tgtCls);
+              const rs = borderPoint(srcCls, tc.cx, tc.cy);
+              const rt = borderPoint(tgtCls, sc.cx, sc.cy);
+              const sSide = exitSide(srcCls, rs);
+              const tSide = exitSide(tgtCls, rt);
+              const sOff = portOffsets.get(`${rel.source}:${sSide}:src:${rel.id}`) ?? 0;
+              const tOff = portOffsets.get(`${rel.target}:${tSide}:tgt:${rel.id}`) ?? 0;
+              return <UMLEdge key={rel.id} rel={rel} classById={classById} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} />;
+            })}
 
             {connectionDrag && previewLineStart && (
               <line
