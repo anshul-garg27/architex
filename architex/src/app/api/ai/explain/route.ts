@@ -355,12 +355,15 @@ async function logUsage(
 
 export async function POST(request: Request) {
   try {
-    const clerkId = await requireAuth();
+    // Auth: required when Clerk is configured, optional in dev without Clerk
+    let userId: string | null = null;
     const db = getDb();
-    void db; // used by helpers
-    const userId = await resolveUserId(clerkId);
-    if (!userId) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+      const clerkId = await requireAuth();
+      userId = await resolveUserId(clerkId);
+      if (!userId) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
     }
 
     // Parse body
@@ -440,7 +443,7 @@ export async function POST(request: Request) {
     }
 
     // ── Rate limit ────────────────────────────────────────────
-    const withinLimit = await checkRateLimit(userId);
+    const withinLimit = userId ? await checkRateLimit(userId) : true;
     if (!withinLimit) {
       return NextResponse.json(
         {
