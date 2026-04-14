@@ -106,26 +106,38 @@ export const PATTERN_ENRICHMENTS: Record<string, PatternEnrichment> = {
   },
 
   "factory-method": {
-    complexityAnalysis: `**Time Complexity:** O(1) for object creation -- constant-time dispatch to the correct constructor.
-**Space Complexity:** O(1) per creation -- one new object. The factory itself is stateless.
-**Scalability:** Adding new product types is O(1) code change -- one new subclass, no existing code modified. The factory dispatch (switch/map) grows linearly with product count.`,
-    designRationale: `Factory Method solves the "construction coupling" problem: when client code uses \`new ConcreteClass()\`, it creates a compile-time dependency on that concrete class. This violates the Dependency Inversion Principle and makes swapping implementations impossible without code changes. By delegating creation to a factory method, the client depends only on the product interface. The key design decision is using method-level polymorphism (subclasses override the factory method) rather than parameterized creation. This keeps each creator focused on one product family (SRP) and makes the system open for extension (OCP).`,
+    complexityAnalysis: `**Time Complexity:** O(1) for object creation -- constant-time dispatch to the correct constructor via polymorphism or registry lookup.
+**Space Complexity:** O(1) per creation -- one new object allocated. The factory itself is stateless (or holds only a registry map of O(t) for t registered types).
+**Scalability:** Adding new product types is O(1) code change -- one new subclass + one registry entry, no existing code modified (OCP). Registry-based dispatch avoids the switch statement entirely, keeping dispatch at O(1) hash lookup regardless of type count.
+**Real-world note:** In Java, \`java.util.Calendar.getInstance()\` and \`java.text.NumberFormat.getInstance()\` are factory methods. In TypeScript, Angular's \`useFactory\` provider is a factory method integrated into the DI system.`,
+    designRationale: `Factory Method solves the "construction coupling" problem: when client code uses \`new ConcreteClass()\`, it creates a compile-time dependency on that concrete class. This violates the Dependency Inversion Principle and makes swapping implementations impossible without code changes. By delegating creation to a factory method, the client depends only on the product interface. The key design decision is using method-level polymorphism (subclasses override the factory method) rather than parameterized creation. This keeps each creator focused on one product family (SRP) and makes the system open for extension (OCP). In practice, Factory Method is the backbone of plugin architectures, format parsers, and notification dispatchers. The tradeoff: for trivially simple cases with one type that will never change, the factory indirection is overhead without benefit.`,
     commonVariations: [
       "Simple Factory (static method with switch -- not a true GoF pattern but most common in practice)",
-      "Parameterized Factory (pass enum/string to select product type)",
-      "Abstract Creator (base class defines factory method, subclasses implement)",
-      "Registry-based Factory (Map<Type, Supplier> -- avoids switch statements entirely)",
+      "Parameterized Factory (pass enum/string to select product type -- e.g., NotificationFactory.create('sms'))",
+      "Abstract Creator (base class defines factory method, subclasses implement -- GoF canonical form)",
+      "Registry-based Factory (Map<Type, Supplier<T>> -- avoids switch statements entirely, supports dynamic registration)",
+      "Static Factory Method (Effective Java Item 1: valueOf(), of(), getInstance() -- not GoF but widely used in Java)",
     ],
     antiPatterns: [
       "Switch explosion -- giant switch/if-else blocks that grow with every new type (use registry pattern instead)",
-      "Factory for everything -- creating a factory when you only have one product type is over-engineering",
-      "Leaking concrete types -- returning the concrete type instead of the interface from the factory",
+      "Factory for everything -- creating a factory when you only have one product type and no foreseeable variation is over-engineering",
+      "Leaking concrete types -- returning the concrete type instead of the interface from the factory method, defeating the purpose",
+      "Factory with side effects -- factory methods that perform logging, I/O, or mutation beyond object creation violate SRP and surprise callers",
     ],
     interviewDepth: [
       {
         question: "When would you use Factory Method vs Abstract Factory?",
-        expectedAnswer: "Factory Method creates ONE product -- the type depends on input (e.g., NotificationFactory.create('email') returns EmailNotification). Abstract Factory creates FAMILIES of related products that must be compatible (e.g., WindowsFactory creates WindowsButton + WindowsCheckbox -- all Windows-family).",
+        expectedAnswer: "Factory Method creates ONE product -- the type depends on input (e.g., NotificationFactory.create('email') returns EmailNotification). Abstract Factory creates FAMILIES of related products that must be compatible (e.g., WindowsFactory creates WindowsButton + WindowsCheckbox -- all Windows-family). Factory Method uses inheritance (subclass overrides the method); Abstract Factory uses composition (client holds a factory reference).",
         followUp: "How does the Abstract Factory guarantee that products from the same family are used together?",
+      },
+      {
+        question: "How does Factory Method support the Open/Closed Principle?",
+        expectedAnswer: "The factory method defines a product interface. Adding a new product type means creating a new class that implements the interface and a new creator subclass (or a new entry in a registry map). Existing factory code, client code, and other product classes remain unchanged. In a registry-based factory, registration is the only new line of code. Real example: adding PushNotification to a NotificationFactory requires zero changes to EmailNotification or SMSNotification.",
+        followUp: "What happens if the factory method needs to accept different constructor arguments for different product types?",
+      },
+      {
+        question: "Design a notification system where new channels (email, SMS, push, Slack) can be added without modifying existing code.",
+        expectedAnswer: "Define a Notification interface with send(recipient, message). Each channel implements it: EmailNotification, SMSNotification, PushNotification. A NotificationFactory with a Map<string, () => Notification> registry. New channels register themselves at startup. The factory's create(type) method does a lookup and returns the interface. Client code calls factory.create(userPreference).send(). Adding Slack means one new class + one registration line.",
       },
     ],
   },
