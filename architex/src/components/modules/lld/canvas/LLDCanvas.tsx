@@ -148,77 +148,13 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>, con
   }, []);
 
   /**
-   * Fit all content into the viewport by computing the proper scale
-   * and translate to center the content bounds within the container.
-   * With a fixed viewBox (0 0 2000 2000), the CSS transform handles
-   * ALL fitting — no dual-system coordination needed.
+   * Fit diagram to canvas. The dynamic viewBox (with min dimensions)
+   * + xMidYMid meet handles ALL scaling and centering automatically.
+   * "Fit" simply resets the CSS zoom/pan transform to identity.
    */
-  const zoomFit = useCallback((bounds?: { x: number; y: number; w: number; h: number }) => {
-    const svg = svgRef.current;
-    if (!svg || !bounds || bounds.w <= 0 || bounds.h <= 0) {
-      setZoom({ scale: 1, translateX: 0, translateY: 0 });
-      return;
-    }
-
-    // Find the actual visible area. Strategy:
-    // 1. Try <main> ancestor (normal mode — sized by resizable panel)
-    // 2. Try overflow:hidden parent (presentation mode — sized by overlay)
-    // 3. Fallback to SVG itself
-    let rect = svg.getBoundingClientRect();
-    const mainEl = svg.closest("main");
-    if (mainEl && mainEl.getBoundingClientRect().height < rect.height) {
-      rect = mainEl.getBoundingClientRect();
-    } else {
-      // Walk up to find smallest overflow-hidden ancestor
-      let el = svg.parentElement;
-      while (el) {
-        const r = el.getBoundingClientRect();
-        if (r.height > 0 && r.height < rect.height) rect = r;
-        if (el.tagName === "BODY") break;
-        el = el.parentElement;
-      }
-    }
-    const sxRatio = rect.width / 2000;   // SVG X unit → screen px
-    const syRatio = rect.height / 2000;  // SVG Y unit → screen px
-    if (sxRatio <= 0 || syRatio <= 0) return;
-
-    const PAD = 40;
-    const availW = rect.width - PAD * 2;
-    const availH = rect.height - PAD * 2;
-    if (availW <= 0 || availH <= 0) return;
-
-    // Content size in screen pixels at transform scale=1
-    const contentScreenW = bounds.w * sxRatio;
-    const contentScreenH = bounds.h * syRatio;
-    if (contentScreenW <= 0 || contentScreenH <= 0) return;
-
-    // Uniform scale to fit within available space (preserve aspect ratio).
-    // Max scale is CONTENT-AWARE: diagrams with few/small classes should
-    // NOT be blown up to fill the screen. The target is ~11px font size
-    // for class text, which means class boxes should render at roughly
-    // their natural SVG size. We compute this by targeting a "comfortable"
-    // content density: the content should fill 50-80% of the available area.
-    const scaleX = availW / contentScreenW;
-    const scaleY = availH / contentScreenH;
-    const rawFit = Math.min(scaleX, scaleY);
-
-    // Target: content fills ~65% of available space (comfortable padding)
-    const TARGET_FILL = 0.65;
-    const idealScale = rawFit * TARGET_FILL;
-
-    // But never scale below ZOOM_MIN or above the raw fit
-    const fitScale = Math.max(ZOOM_MIN, Math.min(idealScale, rawFit));
-
-    // Center the content in the visible container
-    const contentCenterX = (bounds.x + bounds.w / 2) * sxRatio;
-    const contentCenterY = (bounds.y + bounds.h / 2) * syRatio;
-
-    setZoom({
-      scale: fitScale,
-      translateX: rect.width / 2 - contentCenterX * fitScale,
-      translateY: rect.height / 2 - contentCenterY * fitScale,
-    });
-  }, [svgRef]);
+  const zoomFit = useCallback(() => {
+    setZoom({ scale: 1, translateX: 0, translateY: 0 });
+  }, []);
 
   const setViewportPosition = useCallback(
     (svgX: number, svgY: number) => {
@@ -1284,7 +1220,7 @@ export const LLDCanvas = memo(function LLDCanvas({
   // (pattern switch, bottom panel open/close, window resize)
   const classIdsKey = useMemo(() => classes.map((c) => c.id).join(","), [classes]);
   useEffect(() => {
-    if (classes.length > 0) zoomFit(contentBounds);
+    if (classes.length > 0) zoomFit();
   }, [classIdsKey, containerSize.width, containerSize.height]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [connectionDrag, setConnectionDrag] = useState<ConnectionDragState | null>(null);
@@ -1402,11 +1338,24 @@ export const LLDCanvas = memo(function LLDCanvas({
     if (classes.length === 0)
       return { x: -50, y: -50, w: 800, h: 600 };
     const pad = CANVAS_VIEWBOX_PAD;
+    const rawW = contentBounds.w + pad * 2;
+    const rawH = contentBounds.h + pad * 2;
+    // Minimum viewBox dimensions prevent small diagrams from over-zooming.
+    // A 3-class pattern might have 400×300 content — without minimum,
+    // xMidYMid meet would zoom it to fill the canvas. With min 900×700,
+    // the content renders at a comfortable size with natural whitespace.
+    const MIN_W = 900;
+    const MIN_H = 700;
+    const w = Math.max(rawW, MIN_W);
+    const h = Math.max(rawH, MIN_H);
+    // Center the content within the (possibly larger) viewBox
+    const cx = contentBounds.x + contentBounds.w / 2;
+    const cy = contentBounds.y + contentBounds.h / 2;
     return {
-      x: contentBounds.x - pad,
-      y: contentBounds.y - pad,
-      w: contentBounds.w + pad * 2,
-      h: contentBounds.h + pad * 2,
+      x: cx - w / 2,
+      y: cy - h / 2,
+      w,
+      h,
     };
   }, [classes]);
 
@@ -1591,7 +1540,7 @@ export const LLDCanvas = memo(function LLDCanvas({
                   <span className="min-w-[2.5rem] text-center text-[10px] font-semibold text-foreground-subtle">{zoomPercent}%</span>
                   <button onClick={zoomIn} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom in" aria-label="Zoom in">+</button>
                   <div className="mx-0.5 h-3 w-px bg-border/30" />
-                  <button onClick={() => zoomFit(contentBounds)} className="rounded px-2 py-0.5 text-[10px] font-semibold text-foreground-muted hover:bg-accent hover:text-foreground" title="Fit to view" aria-label="Fit to view">Fit</button>
+                  <button onClick={() => zoomFit()} className="rounded px-2 py-0.5 text-[10px] font-semibold text-foreground-muted hover:bg-accent hover:text-foreground" title="Fit to view" aria-label="Fit to view">Fit</button>
                   <button onClick={zoomReset} className="rounded px-2 py-0.5 text-[10px] font-semibold text-foreground-muted hover:bg-accent hover:text-foreground" title="Reset to 100%" aria-label="Reset to 100%">100%</button>
                 </div>
               </>
@@ -1603,8 +1552,8 @@ export const LLDCanvas = memo(function LLDCanvas({
         <svg
           ref={svgRef}
           data-lld-canvas-svg
-          viewBox="0 0 2000 2000"
-          preserveAspectRatio="none"
+          viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+          preserveAspectRatio="xMidYMid meet"
           className="h-full w-full"
           style={{ minHeight: 400 }}
           onClick={handleBgClick}
@@ -1640,18 +1589,18 @@ export const LLDCanvas = memo(function LLDCanvas({
             </filter>
           </defs>
           <rect
-            x={-500}
-            y={-500}
-            width={3000}
-            height={3000}
+            x={viewBox.x}
+            y={viewBox.y}
+            width={viewBox.w}
+            height={viewBox.h}
             fill="url(#lld-grid)"
           />
           {/* Radial vignette overlay — lighter center, darker edges for depth */}
           <rect
-            x={-500}
-            y={-500}
-            width={3000}
-            height={3000}
+            x={viewBox.x}
+            y={viewBox.y}
+            width={viewBox.w}
+            height={viewBox.h}
             fill="url(#lld-canvas-vignette)"
             pointerEvents="none"
           />
@@ -1660,8 +1609,8 @@ export const LLDCanvas = memo(function LLDCanvas({
           {!reducedMotion && (
             <g pointerEvents="none">
               {Array.from({ length: 12 }, (_, i) => {
-                const cx = Math.random() * 2000;
-                const cy = Math.random() * 2000;
+                const cx = viewBox.x + Math.random() * viewBox.w;
+                const cy = viewBox.y + Math.random() * viewBox.h;
                 const dx = (Math.random() - 0.5) * 80;
                 const dy = (Math.random() - 0.5) * 80;
                 return (
