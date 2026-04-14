@@ -334,8 +334,10 @@ function astarSearch(
 /**
  * Ensure every segment is strictly orthogonal (H or V). Any diagonal segment
  * gets split into two segments via an intermediate corner point.
+ * Obstacle-aware: checks both routing options (V-first vs H-first) and
+ * picks the one that doesn't cross an obstacle.
  */
-function orthogonalize(pts: Pt[]): Pt[] {
+function orthogonalize(pts: Pt[], obstacles: Obstacle[]): Pt[] {
   if (pts.length <= 1) return pts;
   const result: Pt[] = [pts[0]];
   for (let i = 1; i < pts.length; i++) {
@@ -343,8 +345,29 @@ function orthogonalize(pts: Pt[]): Pt[] {
     const curr = pts[i];
     // If neither purely horizontal nor purely vertical, insert a corner
     if (prev.x !== curr.x && prev.y !== curr.y) {
-      // Prefer going vertical first, then horizontal (typical UML flow)
-      result.push({ x: prev.x, y: curr.y });
+      // Option A: vertical first (prev.x, curr.y) — go down/up, then left/right
+      const cornerA: Pt = { x: prev.x, y: curr.y };
+      // Option B: horizontal first (curr.x, prev.y) — go left/right, then down/up
+      const cornerB: Pt = { x: curr.x, y: prev.y };
+
+      // Check which option doesn't cross any obstacle
+      const aBlocked =
+        segmentBlockedByObstacle(prev.x, prev.y, cornerA.x, cornerA.y, obstacles) ||
+        segmentBlockedByObstacle(cornerA.x, cornerA.y, curr.x, curr.y, obstacles);
+      const bBlocked =
+        segmentBlockedByObstacle(prev.x, prev.y, cornerB.x, cornerB.y, obstacles) ||
+        segmentBlockedByObstacle(cornerB.x, cornerB.y, curr.x, curr.y, obstacles);
+
+      // Prefer the unblocked option; if both blocked or both clear, prefer H-first
+      // (horizontal departure looks cleaner for top-bottom UML layouts)
+      if (aBlocked && !bBlocked) {
+        result.push(cornerB);
+      } else if (!aBlocked && bBlocked) {
+        result.push(cornerA);
+      } else {
+        // Both clear or both blocked — prefer horizontal-first
+        result.push(cornerB);
+      }
     }
     result.push(curr);
   }
@@ -510,6 +533,6 @@ export function routeEdgeAStar(
     fullPath.push(tgt);
   }
 
-  // Step 6: Ensure all segments are orthogonal, then simplify
-  return simplifyPath(orthogonalize(fullPath));
+  // Step 6: Ensure all segments are orthogonal (obstacle-aware), then simplify
+  return simplifyPath(orthogonalize(fullPath, obstacles));
 }
