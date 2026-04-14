@@ -894,7 +894,7 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
 
   return (
     <motion.g
-      style={{ opacity: dimmed ? 0.2 : undefined, transition: "opacity 0.15s ease" }}
+      style={{ opacity: dimmed ? 0.2 : 1, transition: "opacity 0.15s ease" }}
       {...(reducedMotion
         ? {}
         : {
