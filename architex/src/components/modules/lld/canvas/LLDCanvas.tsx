@@ -204,7 +204,7 @@ export const ZoomToolbar = memo(function ZoomToolbar({
   onZoomReset: () => void;
 }) {
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 rounded-xl border border-border/30 backdrop-blur-md bg-background/80 px-2 py-1.5 shadow-xl">
+    <div className="absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-xl border border-border/30 backdrop-blur-md bg-background/90 px-2 py-1.5 shadow-xl">
       <button
         onClick={onZoomOut}
         className="flex h-6 w-6 items-center justify-center rounded-full bg-background/80 backdrop-blur border border-border/50 text-xs font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
@@ -739,9 +739,11 @@ interface UMLEdgeProps {
   tgtPortOffset?: number;
   /** Whether this edge's source or target class is being hovered. */
   highlighted?: boolean;
+  /** How many edges share the same source port group (for visual bundling). */
+  siblingCount?: number;
 }
 
-const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0, highlighted = false }: UMLEdgeProps) {
+const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0, highlighted = false, siblingCount = 1 }: UMLEdgeProps) {
   const srcCls = classById.get(rel.source);
   const tgtCls = classById.get(rel.target);
   if (!srcCls || !tgtCls) return null;
@@ -838,16 +840,16 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
             transition: { delay: edgeDelay, duration: 0.2 },
           })}
     >
-      {/* Subtle shadow path for depth */}
+      {/* Subtle shadow path for depth — reduced when edges are bundled */}
       <path
         d={pathD}
         fill="none"
-        stroke="rgba(0,0,0,0.12)"
-        strokeWidth="3"
+        stroke={siblingCount > 1 ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.12)"}
+        strokeWidth={siblingCount > 1 ? 2 : 3}
         strokeDasharray={isDashed ? "10 6" : undefined}
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ filter: "blur(2px)" }}
+        style={{ filter: siblingCount > 1 ? "blur(1px)" : "blur(2px)" }}
       />
       {/* Main edge path — with draw animation on load */}
       <path
@@ -864,13 +866,29 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
             ? `url(#arrow-${rel.type})`
             : undefined
         }
-        style={drawStyle}
+        style={{
+          ...drawStyle,
+          ...(highlighted ? { filter: "drop-shadow(0 0 6px var(--lld-rel-highlight))" } : {}),
+        }}
         className={cn(
           "transition-all duration-300",
           highlighted && "lld-edge-highlight",
         )}
-        style={highlighted ? { filter: "drop-shadow(0 0 6px var(--lld-rel-highlight))" } : undefined}
       />
+      {/* Animated flowing dot — shows relationship direction */}
+      {!reducedMotion && pathD && (
+        <circle
+          r="2.5"
+          fill={highlighted ? "var(--lld-rel-highlight)" : "var(--lld-rel-stroke)"}
+          opacity={highlighted ? 0.9 : 0.5}
+          className="lld-dot-flow"
+          style={{
+            offsetPath: `path('${pathD}')`,
+            "--dot-duration": "2.5s",
+            "--dot-delay": `${edgeDelay + 0.8}s`,
+          } as React.CSSProperties}
+        />
+      )}
       {/* Label — opaque pill with subtle border + shadow */}
       {rel.label && (
         <g className="pointer-events-none">
@@ -1213,9 +1231,11 @@ export const LLDCanvas = memo(function LLDCanvas({
   }, [classes]);
 
   // Pre-compute port offsets so edges sharing the same box-side are spread apart.
-  // Key = "classId:side:src|tgt", value = Map<relId, offsetPx>
-  const portOffsets = useMemo(() => {
+  // Key = "classId:side:src|tgt:relId", value = offsetPx
+  // siblingCounts: key = relId, value = max group size across src/tgt ports
+  const { portOffsets, siblingCounts } = useMemo(() => {
     const offsets = new Map<string, number>();
+    const counts = new Map<string, number>();
     // Group edges by (classId + side + role)
     const groups = new Map<string, string[]>();
 
@@ -1250,8 +1270,12 @@ export const LLDCanvas = memo(function LLDCanvas({
         const off = (i - (total - 1) / 2) * PORT_SPREAD;
         offsets.set(`${key}:${relIds[i]}`, off);
       }
+      // Track max sibling count per edge (take the larger of src/tgt group)
+      for (const relId of relIds) {
+        counts.set(relId, Math.max(counts.get(relId) ?? 0, total));
+      }
     }
-    return offsets;
+    return { portOffsets: offsets, siblingCounts: counts };
   }, [relationships, classById]);
 
   // Raw content bounds (no padding) — used by zoomFit
@@ -1523,7 +1547,7 @@ export const LLDCanvas = memo(function LLDCanvas({
               const sOff = portOffsets.get(`${rel.source}:${sSide}:src:${rel.id}`) ?? 0;
               const tOff = portOffsets.get(`${rel.target}:${tSide}:tgt:${rel.id}`) ?? 0;
               const isHighlighted = hoveredClassId != null && (rel.source === hoveredClassId || rel.target === hoveredClassId);
-              return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} highlighted={isHighlighted} />;
+              return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} highlighted={isHighlighted} siblingCount={siblingCounts.get(rel.id) ?? 1} />;
             })}
 
             {connectionDrag && previewLineStart && (

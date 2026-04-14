@@ -830,6 +830,19 @@ body {
   filter: drop-shadow(0 6px 16px rgba(0,0,0,0.4));
 }
 
+/* ── Animated dot flow on edges ── */
+@keyframes lld-dot-flow {
+  0%   { offset-distance: 0%; opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+.lld-dot-flow {
+  offset-rotate: 0deg;
+  animation: lld-dot-flow var(--dot-duration, 3s) linear infinite;
+  animation-delay: var(--dot-delay, 0s);
+}
+
 .react-flow__edge-path-animated {
   animation: architex-dash-flow 0.6s linear infinite;
 }
