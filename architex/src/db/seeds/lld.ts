@@ -17,6 +17,7 @@
 import type { Database } from "@/db";
 import { moduleContent } from "@/db/schema/module-content";
 import type { NewModuleContent } from "@/db/schema/module-content";
+import { sql } from "drizzle-orm";
 
 const MODULE_ID = "lld";
 
@@ -176,13 +177,13 @@ export async function seed(db: Database) {
           moduleContent.slug,
         ],
         set: {
-          name: moduleContent.name,
-          category: moduleContent.category,
-          difficulty: moduleContent.difficulty,
-          sortOrder: moduleContent.sortOrder,
-          content: moduleContent.content,
-          summary: moduleContent.summary,
-          tags: moduleContent.tags,
+          name: sql`excluded.name`,
+          category: sql`excluded.category`,
+          difficulty: sql`excluded.difficulty`,
+          sortOrder: sql`excluded.sort_order`,
+          content: sql`excluded.content`,
+          summary: sql`excluded.summary`,
+          tags: sql`excluded.tags`,
           updatedAt: new Date(),
         },
       });
