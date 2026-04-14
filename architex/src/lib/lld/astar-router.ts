@@ -90,13 +90,14 @@ function buildGridCoords(
   return { xs, ys };
 }
 
-/** Compute the stub point one EXIT_STUB away from an anchor in the exit direction. */
-function stubPoint(anchor: Pt, side: Side): Pt {
+/** Compute the stub point EXIT_STUB+extra away from an anchor in the exit direction. */
+function stubPoint(anchor: Pt, side: Side, extra: number = 0): Pt {
+  const d = EXIT_STUB + Math.abs(extra);
   switch (side) {
-    case "top":    return { x: anchor.x, y: anchor.y - EXIT_STUB };
-    case "bottom": return { x: anchor.x, y: anchor.y + EXIT_STUB };
-    case "left":   return { x: anchor.x - EXIT_STUB, y: anchor.y };
-    case "right":  return { x: anchor.x + EXIT_STUB, y: anchor.y };
+    case "top":    return { x: anchor.x, y: anchor.y - d };
+    case "bottom": return { x: anchor.x, y: anchor.y + d };
+    case "left":   return { x: anchor.x - d, y: anchor.y };
+    case "right":  return { x: anchor.x + d, y: anchor.y };
   }
 }
 
@@ -452,6 +453,8 @@ export function routeEdgeAStar(
   tgt: Pt,
   tgtSide: Side,
   obstacles: Obstacle[],
+  /** Extra offset added to EXIT_STUB to stagger parallel approach channels. */
+  channelOffset: number = 0,
 ): Pt[] {
   // No obstacles — simple routing is sufficient
   if (obstacles.length === 0) {
@@ -537,5 +540,34 @@ export function routeEdgeAStar(
   }
 
   // Step 6: Ensure all segments are orthogonal (obstacle-aware), then simplify
-  return simplifyPath(orthogonalize(fullPath, obstacles));
+  let result = simplifyPath(orthogonalize(fullPath, obstacles));
+
+  // Step 7: If channelOffset is set, shift the approach segments near tgt
+  // so parallel edges entering the same box side use different Y/X channels.
+  if (channelOffset !== 0 && result.length >= 3) {
+    const isVertTgt = tgtSide === "top" || tgtSide === "bottom";
+    // Find the last bend before tgt and shift its approach coordinate
+    for (let i = result.length - 2; i >= 1; i--) {
+      const pt = result[i];
+      const next = result[i + 1];
+      if (isVertTgt && pt.y === next.y && pt.y !== tgt.y) {
+        // This is a horizontal approach segment — shift its Y
+        result[i] = { x: pt.x, y: pt.y - channelOffset };
+        // Also shift the preceding point's Y if it connects vertically
+        if (i > 0 && result[i - 1].x === pt.x) {
+          result[i - 1] = { x: result[i - 1].x, y: result[i].y };
+        }
+        break;
+      }
+      if (!isVertTgt && pt.x === next.x && pt.x !== tgt.x) {
+        result[i] = { x: pt.x - channelOffset, y: pt.y };
+        if (i > 0 && result[i - 1].y === pt.y) {
+          result[i - 1] = { x: result[i].x, y: result[i - 1].y };
+        }
+        break;
+      }
+    }
+  }
+
+  return result;
 }

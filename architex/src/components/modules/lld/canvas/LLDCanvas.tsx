@@ -786,7 +786,7 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
     .map((c) => ({ x: c.x, y: c.y, w: classBoxWidth(c), h: classBoxHeight(c) }));
 
   // A*-routed orthogonal path that avoids obstacles, with rounded corners
-  const waypoints = routeEdgeAStar(src, srcSide, tgt, tgtSide, obstacles);
+  const waypoints = routeEdgeAStar(src, srcSide, tgt, tgtSide, obstacles, tgtPortOffset);
   const pathD = buildOrthoPathD(waypoints);
 
   // Label at the midpoint of the middle segment
