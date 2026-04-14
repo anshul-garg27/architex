@@ -300,80 +300,144 @@ public class DecoratorDemo {
     }
 }`,
 
-  facade: `// Facade — simplified interface to a complex subsystem
-class SubsystemA {
-    String operationA1() { return "SubsystemA: Ready!"; }
-    String operationA2() { return "SubsystemA: Go!"; }
-}
+  facade: `// Facade — e-commerce order facade coordinating subsystems
+class InventoryService {
+    private final java.util.Map<String, Integer> stock =
+        new java.util.HashMap<>(java.util.Map.of("SKU-1", 50, "SKU-2", 20));
 
-class SubsystemB {
-    String operationB1() { return "SubsystemB: Fire!"; }
-}
+    boolean checkAvailability(String itemId, int qty) {
+        return stock.getOrDefault(itemId, 0) >= qty;
+    }
 
-class SubsystemC {
-    String operationC1() { return "SubsystemC: Prepare!"; }
-    String operationC2() { return "SubsystemC: Execute!"; }
-}
+    String reserveItems(String[] itemIds, int[] qtys) {
+        for (int i = 0; i < itemIds.length; i++)
+            stock.merge(itemIds[i], -qtys[i], Integer::sum);
+        return "RES-" + System.currentTimeMillis();
+    }
 
-class Facade {
-    private final SubsystemA a = new SubsystemA();
-    private final SubsystemB b = new SubsystemB();
-    private final SubsystemC c = new SubsystemC();
-
-    public String operation() {
-        return String.join("\\n",
-            a.operationA1(), c.operationC1(), b.operationB1(),
-            a.operationA2(), c.operationC2());
+    void releaseReservation(String reservationId) {
+        System.out.println("Inventory: released " + reservationId);
     }
 }
 
-// Usage
+class PaymentService {
+    String charge(double amount, String card) {
+        System.out.println("Payment: charged $" + amount + " on " + card);
+        return "TX-" + System.currentTimeMillis();
+    }
+    void refund(String transactionId) {
+        System.out.println("Payment: refunded " + transactionId);
+    }
+}
+
+class ShippingService {
+    String createShipment(String orderId, String address) {
+        String trackingId = "SHIP-" + System.currentTimeMillis();
+        System.out.println("Shipping: " + orderId + " to " + address + " (" + trackingId + ")");
+        return trackingId;
+    }
+    void cancelShipment(String trackingId) {
+        System.out.println("Shipping: cancelled " + trackingId);
+    }
+}
+
+class OrderFacade {
+    private final InventoryService inventory = new InventoryService();
+    private final PaymentService payment = new PaymentService();
+    private final ShippingService shipping = new ShippingService();
+
+    String placeOrder(String[] itemIds, int[] qtys, String card, String address) {
+        for (int i = 0; i < itemIds.length; i++) {
+            if (\!inventory.checkAvailability(itemIds[i], qtys[i]))
+                throw new RuntimeException("Out of stock: " + itemIds[i]);
+        }
+        String resId = inventory.reserveItems(itemIds, qtys);
+        int total = 0;
+        for (int q : qtys) total += q * 10;
+        String txId = payment.charge(total, card);
+        String trackingId = shipping.createShipment(txId, address);
+        return "Order confirmed - tracking: " + trackingId;
+    }
+
+    void cancelOrder(String orderId) {
+        shipping.cancelShipment(orderId);
+        payment.refund(orderId);
+        System.out.println("OrderFacade: order " + orderId + " cancelled");
+    }
+}
+
+// Usage — CheckoutController only talks to the facade
 public class FacadeDemo {
     public static void main(String[] args) {
-        Facade facade = new Facade();
-        System.out.println(facade.operation());
+        OrderFacade facade = new OrderFacade();
+        String result = facade.placeOrder(
+            new String[]{"SKU-1"}, new int[]{2}, "VISA-4242", "123 Main St"
+        );
+        System.out.println(result);
     }
 }`,
 
-  proxy: `// Proxy — lazy-loading with caching and access control
-interface Subject {
-    String request();
+  proxy: `// Proxy — image caching proxy with lazy loading
+import java.util.HashMap;
+import java.util.Map;
+
+interface ImageService {
+    String loadImage(String url);
+    String getImage(String url);
 }
 
-class RealSubject implements Subject {
-    public String request() {
-        System.out.println("RealSubject: handling request (expensive operation)...");
-        return "Real data loaded from remote source";
+class RemoteImageService implements ImageService {
+    private final String apiBaseUrl = "https://img.example.com";
+    public String loadImage(String url) {
+        System.out.println("RemoteImageService: downloading " + url + "...");
+        return "[ImageData: " + url + "]";
     }
+    public String getImage(String url) { return loadImage(url); }
 }
 
-class ImageProxy implements Subject {
-    private RealSubject realSubject;
-    private String cache;
+class CachedImageProxy implements ImageService {
+    private final RemoteImageService realService = new RemoteImageService();
+    private final Map<String, String> cache = new HashMap<>();
+    private final long ttlMs;
+    private final Map<String, Long> timestamps = new HashMap<>();
 
-    private boolean checkAccess() {
-        System.out.println("Proxy: checking access.");
-        return true;
+    CachedImageProxy(long ttlMs) { this.ttlMs = ttlMs; }
+
+    private boolean isCached(String url) {
+        return cache.containsKey(url) &&
+               System.currentTimeMillis() - timestamps.get(url) < ttlMs;
     }
 
-    public String request() {
-        if (cache != null) {
-            System.out.println("Proxy: returning cached result.");
-            return cache;
+    public String loadImage(String url) {
+        if (isCached(url)) {
+            System.out.println("[Cache HIT] " + url);
+            return cache.get(url);
         }
-        if (!checkAccess()) return "Access denied";
-        if (realSubject == null) realSubject = new RealSubject();
-        cache = realSubject.request();
-        return cache;
+        System.out.println("[Cache MISS] " + url);
+        String data = realService.loadImage(url);
+        cache.put(url, data);
+        timestamps.put(url, System.currentTimeMillis());
+        return data;
+    }
+
+    public String getImage(String url) { return cache.get(url); }
+
+    public void clearCache() {
+        cache.clear();
+        timestamps.clear();
+        System.out.println("CachedImageProxy: cache cleared");
     }
 }
 
-// Usage
+// Usage — ImageGallery works with any ImageService
 public class ProxyDemo {
     public static void main(String[] args) {
-        Subject proxy = new ImageProxy();
-        System.out.println(proxy.request()); // Loads from real subject
-        System.out.println(proxy.request()); // Returns cached result
+        CachedImageProxy proxy = new CachedImageProxy(5000);
+        System.out.println(proxy.loadImage("cat.png"));  // MISS
+        System.out.println(proxy.loadImage("dog.png"));  // MISS
+        System.out.println(proxy.loadImage("cat.png"));  // HIT
+        System.out.println("Cached? " + (proxy.getImage("cat.png") \!= null));
+        proxy.clearCache();
     }
 }`,
 
@@ -548,15 +612,17 @@ class Subject {
     }
 }
 
-class ConcreteObserverA implements Observer {
+class LoggingObserver implements Observer {
     public void update(Subject s) {
-        System.out.println("ObserverA reacted to " + s.getState());
+        System.out.println("[LOG] State changed to " + s.getState());
     }
 }
 
-class ConcreteObserverB implements Observer {
+class AlertObserver implements Observer {
     public void update(Subject s) {
-        System.out.println("ObserverB reacted to " + s.getState());
+        if (s.getState() > 100) {
+            System.out.println("[ALERT] Threshold exceeded: " + s.getState());
+        }
     }
 }
 
@@ -564,53 +630,88 @@ class ConcreteObserverB implements Observer {
 public class ObserverDemo {
     public static void main(String[] args) {
         Subject subject = new Subject();
-        subject.attach(new ConcreteObserverA());
-        subject.attach(new ConcreteObserverB());
+        subject.attach(new LoggingObserver());
+        subject.attach(new AlertObserver());
         subject.setState(42); // Both observers notified
     }
 }`,
 
-  strategy: `// Strategy — interchangeable algorithms via interfaces
-interface Strategy {
-    int execute(int[] data);
+  strategy: `// Strategy — payment processing with interchangeable payment methods
+interface PaymentStrategy {
+    boolean pay(double amount);
+    double calculateFee(double amount);
+    String getName();
 }
 
-class SumStrategy implements Strategy {
-    public int execute(int[] data) {
-        int sum = 0;
-        for (int n : data) sum += n;
-        return sum;
+class CreditCardPayment implements PaymentStrategy {
+    private final String cardNumber;
+    private final double feePercent;
+    CreditCardPayment(String cardNumber) { this(cardNumber, 0.029); }
+    CreditCardPayment(String cardNumber, double feePercent) {
+        this.cardNumber = cardNumber; this.feePercent = feePercent;
     }
-}
-
-class MaxStrategy implements Strategy {
-    public int execute(int[] data) {
-        int max = Integer.MIN_VALUE;
-        for (int n : data) if (n > max) max = n;
-        return max;
+    public boolean pay(double amount) {
+        System.out.println("Charging $" + amount + " to card ending " + cardNumber.substring(cardNumber.length() - 4));
+        return true;
     }
+    public double calculateFee(double amount) { return amount * feePercent; }
+    public String getName() { return "Credit Card"; }
 }
 
-class Context {
-    private Strategy strategy;
-    Context(Strategy strategy) { this.strategy = strategy; }
-    void setStrategy(Strategy s) { this.strategy = s; }
-    int doWork(int[] data) { return strategy.execute(data); }
+class PayPalPayment implements PaymentStrategy {
+    private final String email;
+    private final double feePercent;
+    PayPalPayment(String email) { this(email, 0.035); }
+    PayPalPayment(String email, double feePercent) {
+        this.email = email; this.feePercent = feePercent;
+    }
+    public boolean pay(double amount) {
+        System.out.println("Sending $" + amount + " via PayPal to " + email);
+        return true;
+    }
+    public double calculateFee(double amount) { return amount * feePercent; }
+    public String getName() { return "PayPal"; }
+}
+
+class CryptoPayment implements PaymentStrategy {
+    private final String walletAddress;
+    private final double networkFee;
+    CryptoPayment(String walletAddress) { this(walletAddress, 1.5); }
+    CryptoPayment(String walletAddress, double networkFee) {
+        this.walletAddress = walletAddress; this.networkFee = networkFee;
+    }
+    public boolean pay(double amount) {
+        System.out.println("Transferring $" + amount + " to wallet " + walletAddress.substring(0, 8) + "...");
+        return true;
+    }
+    public double calculateFee(double amount) { return networkFee; }
+    public String getName() { return "Crypto"; }
+}
+
+class PaymentProcessor {
+    private PaymentStrategy strategy;
+    PaymentProcessor(PaymentStrategy strategy) { this.strategy = strategy; }
+    void setStrategy(PaymentStrategy s) { this.strategy = s; }
+    boolean processPayment(double amount) {
+        double fee = strategy.calculateFee(amount);
+        System.out.println("Processing via " + strategy.getName() + " | fee: $" + String.format("%.2f", fee));
+        return strategy.pay(amount + fee);
+    }
 }
 
 // Usage
 public class StrategyDemo {
     public static void main(String[] args) {
-        int[] data = {1, 2, 3};
-        Context ctx = new Context(new SumStrategy());
-        System.out.println(ctx.doWork(data)); // 6
-
-        ctx.setStrategy(new MaxStrategy());
-        System.out.println(ctx.doWork(data)); // 3
+        PaymentProcessor processor = new PaymentProcessor(new CreditCardPayment("4111111111111234"));
+        processor.processPayment(99.99);
+        processor.setStrategy(new PayPalPayment("user@example.com"));
+        processor.processPayment(49.99);
+        processor.setStrategy(new CryptoPayment("0xABC123FF"));
+        processor.processPayment(200);
     }
 }`,
 
-  command: `// Command — encapsulate requests as objects with undo
+  command: `// Command — document editor with undo/redo via command history
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -619,137 +720,215 @@ interface Command {
     void undo();
 }
 
-class Receiver {
-    private StringBuilder data = new StringBuilder();
-    void action(String text) {
-        data.append(text);
-        System.out.println("Data: " + data);
+class DocumentEditor {
+    private StringBuilder content = new StringBuilder();
+    private String filePath = "";
+    void save() { System.out.println("Saved: " + content.substring(0, Math.min(30, content.length())) + "..."); }
+    void open(String path) { filePath = path; System.out.println("Opened: " + path); }
+    void revert(String c) { content = new StringBuilder(c); }
+    void insert(String text, int pos) { content.insert(pos, text); }
+    String deleteText(int pos, int len) {
+        String deleted = content.substring(pos, pos + len);
+        content.delete(pos, pos + len);
+        return deleted;
     }
-    void reverseAction(String text) {
-        data.delete(data.length() - text.length(), data.length());
-        System.out.println("Data after undo: " + data);
-    }
+    String getContent() { return content.toString(); }
 }
 
-class WriteCommand implements Command {
-    private final Receiver receiver;
-    private final String text;
-    WriteCommand(Receiver r, String text) { this.receiver = r; this.text = text; }
-    public void execute() { receiver.action(text); }
-    public void undo()    { receiver.reverseAction(text); }
+class SaveDocumentCommand implements Command {
+    private final DocumentEditor editor;
+    private final String prev;
+    SaveDocumentCommand(DocumentEditor e) { this.editor = e; this.prev = e.getContent(); }
+    public void execute() { editor.save(); }
+    public void undo() { editor.revert(prev); System.out.println("Save undone"); }
 }
 
-class Invoker {
-    private final Deque<Command> history = new ArrayDeque<>();
+class OpenFileCommand implements Command {
+    private final DocumentEditor editor;
+    private final String filePath, prev;
+    OpenFileCommand(DocumentEditor e, String p) { editor = e; filePath = p; prev = e.getContent(); }
+    public void execute() { editor.open(filePath); }
+    public void undo() { editor.revert(prev); System.out.println("Open undone"); }
+}
+
+class DeleteCommand implements Command {
+    private final DocumentEditor editor;
+    private final int position, length;
+    private String deletedData = "";
+    DeleteCommand(DocumentEditor e, int p, int l) { editor = e; position = p; length = l; }
+    public void execute() { deletedData = editor.deleteText(position, length); }
+    public void undo() { editor.insert(deletedData, position); }
+}
+
+class CommandHistory {
+    private final Deque<Command> undoStack = new ArrayDeque<>();
+    private final Deque<Command> redoStack = new ArrayDeque<>();
+    void push(Command cmd) { undoStack.push(cmd); redoStack.clear(); }
+    void undo() { Command c = undoStack.poll(); if (c \!= null) { c.undo(); redoStack.push(c); } }
+    void redo() { Command c = redoStack.poll(); if (c \!= null) { c.execute(); undoStack.push(c); } }
+}
+
+class EditorInvoker {
+    private final CommandHistory history = new CommandHistory();
     void executeCommand(Command cmd) { cmd.execute(); history.push(cmd); }
-    void undoLast() {
-        Command cmd = history.poll();
-        if (cmd != null) cmd.undo();
-    }
+    void undo() { history.undo(); }
+    void redo() { history.redo(); }
 }
 
 // Usage
 public class CommandDemo {
     public static void main(String[] args) {
-        Receiver receiver = new Receiver();
-        Invoker invoker = new Invoker();
-        invoker.executeCommand(new WriteCommand(receiver, "Hello "));
-        invoker.executeCommand(new WriteCommand(receiver, "World"));
-        invoker.undoLast(); // Undo "World"
+        DocumentEditor editor = new DocumentEditor();
+        EditorInvoker invoker = new EditorInvoker();
+        invoker.executeCommand(new OpenFileCommand(editor, "/docs/readme.md"));
+        invoker.executeCommand(new SaveDocumentCommand(editor));
+        invoker.undo();
+        invoker.redo();
     }
 }`,
 
-  state: `// State — object behavior changes when internal state changes
-interface State {
-    void handle(TrafficLight context);
+  state: `// State — document workflow with draft, review, published transitions
+interface DocumentState {
+    void edit(Document doc);
+    void review(Document doc);
+    void publish(Document doc);
+    void reject(Document doc);
 }
 
-class TrafficLight {
-    private State state;
-    TrafficLight(State initial) { this.state = initial; }
-    void setState(State s) {
-        System.out.println("Transitioning to " + s.getClass().getSimpleName());
+class Document {
+    private DocumentState state;
+    String content = "";
+    String author = "";
+    Document(DocumentState initial) { this.state = initial; }
+    void setState(DocumentState s) {
+        System.out.println("Document: transitioning to " + s.getClass().getSimpleName());
         this.state = s;
     }
-    void request() { state.handle(this); }
+    void edit() { state.edit(this); }
+    void review() { state.review(this); }
+    void publish() { state.publish(this); }
 }
 
-class GreenLight implements State {
-    public void handle(TrafficLight ctx) {
-        System.out.println("GREEN: Cars go.");
-        ctx.setState(new YellowLight());
+class DraftState implements DocumentState {
+    public void edit(Document doc) { System.out.println("DraftState: editing document..."); }
+    public void review(Document doc) {
+        System.out.println("DraftState: submitting for review...");
+        doc.setState(new ReviewState());
+    }
+    public void publish(Document doc) { System.out.println("DraftState: cannot publish, must be reviewed first."); }
+    public void reject(Document doc) { System.out.println("DraftState: already a draft, nothing to reject."); }
+}
+
+class ReviewState implements DocumentState {
+    public void edit(Document doc) { System.out.println("ReviewState: cannot edit, currently under review."); }
+    public void review(Document doc) { System.out.println("ReviewState: already under review."); }
+    public void publish(Document doc) {
+        System.out.println("ReviewState: approved\! Publishing...");
+        doc.setState(new PublishedState());
+    }
+    public void reject(Document doc) {
+        System.out.println("ReviewState: rejected, returning to draft.");
+        doc.setState(new DraftState());
     }
 }
 
-class YellowLight implements State {
-    public void handle(TrafficLight ctx) {
-        System.out.println("YELLOW: Caution!");
-        ctx.setState(new RedLight());
+class PublishedState implements DocumentState {
+    public void edit(Document doc) {
+        System.out.println("PublishedState: creating new draft from published...");
+        doc.setState(new DraftState());
     }
-}
-
-class RedLight implements State {
-    public void handle(TrafficLight ctx) {
-        System.out.println("RED: Cars stop.");
-        ctx.setState(new GreenLight());
-    }
+    public void review(Document doc) { System.out.println("PublishedState: already published."); }
+    public void publish(Document doc) { System.out.println("PublishedState: already published."); }
+    public void reject(Document doc) { System.out.println("PublishedState: cannot reject a published document."); }
 }
 
 // Usage
 public class StateDemo {
     public static void main(String[] args) {
-        TrafficLight light = new TrafficLight(new GreenLight());
-        light.request(); // GREEN -> Yellow
-        light.request(); // YELLOW -> Red
-        light.request(); // RED -> Green
+        Document doc = new Document(new DraftState());
+        doc.edit();     // DraftState: editing...
+        doc.publish();  // DraftState: cannot publish
+        doc.review();   // DraftState -> ReviewState
+        doc.publish();  // ReviewState -> PublishedState
+        doc.edit();     // PublishedState -> DraftState
     }
 }`,
 
-  iterator: `// Iterator — implements java.util.Iterator<T>
+  iterator: `// Iterator — playlist traversal with sequential and shuffle iterators
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-class NumberCollection implements Iterable<Integer> {
-    private final List<Integer> items = new ArrayList<>();
-
-    void addItem(int item) { items.add(item); }
-    List<Integer> getItems() { return items; }
-
-    public Iterator<Integer> iterator() {
-        return new NumberIterator(this);
+class Song {
+    final String title, artist;
+    final int durationMs;
+    Song(String title, String artist, int durationMs) {
+        this.title = title; this.artist = artist; this.durationMs = durationMs;
     }
+    public String toString() { return title + " by " + artist; }
 }
 
-class NumberIterator implements Iterator<Integer> {
-    private final NumberCollection collection;
+interface SongIterator {
+    boolean hasNext();
+    Song next();
+    void reset();
+}
+
+class Playlist {
+    private final List<Song> songs = new ArrayList<>();
+    final String name;
+    Playlist(String name) { this.name = name; }
+    void addSong(Song song) { songs.add(song); }
+    List<Song> getSongs() { return List.copyOf(songs); }
+    SongIterator createIterator() { return new PlaylistIterator(this); }
+    SongIterator createShuffleIterator() { return new ShuffleIterator(this); }
+}
+
+class PlaylistIterator implements SongIterator {
+    private final Playlist playlist;
     private int position = 0;
-
-    NumberIterator(NumberCollection collection) { this.collection = collection; }
-
-    public boolean hasNext() {
-        return position < collection.getItems().size();
+    PlaylistIterator(Playlist p) { this.playlist = p; }
+    public boolean hasNext() { return position < playlist.getSongs().size(); }
+    public Song next() {
+        if (\!hasNext()) throw new NoSuchElementException();
+        return playlist.getSongs().get(position++);
     }
+    public void reset() { position = 0; }
+}
 
-    public Integer next() {
-        if (!hasNext()) throw new NoSuchElementException();
-        return collection.getItems().get(position++);
+class ShuffleIterator implements SongIterator {
+    private final Playlist playlist;
+    private final List<Integer> indices;
+    private int position = 0;
+    ShuffleIterator(Playlist p) {
+        this.playlist = p;
+        this.indices = new ArrayList<>();
+        for (int i = 0; i < p.getSongs().size(); i++) indices.add(i);
+        Collections.shuffle(indices);
     }
+    public boolean hasNext() { return position < indices.size(); }
+    public Song next() {
+        if (\!hasNext()) throw new NoSuchElementException();
+        return playlist.getSongs().get(indices.get(position++));
+    }
+    public void reset() { position = 0; }
 }
 
 // Usage
 public class IteratorDemo {
     public static void main(String[] args) {
-        NumberCollection col = new NumberCollection();
-        col.addItem(10);
-        col.addItem(20);
-        col.addItem(30);
+        Playlist pl = new Playlist("Road Trip");
+        pl.addSong(new Song("Bohemian Rhapsody", "Queen", 354000));
+        pl.addSong(new Song("Hotel California", "Eagles", 391000));
+        pl.addSong(new Song("Stairway to Heaven", "Led Zeppelin", 482000));
 
-        // Works with for-each because we implement Iterable
-        for (int n : col) {
-            System.out.println(n); // 10, 20, 30
-        }
+        SongIterator it = pl.createIterator();
+        while (it.hasNext()) System.out.println(it.next());
+
+        System.out.println("--- Shuffle ---");
+        SongIterator shuffle = pl.createShuffleIterator();
+        while (shuffle.hasNext()) System.out.println(shuffle.next());
     }
 }`,
 
@@ -757,36 +936,51 @@ public class IteratorDemo {
 import java.util.ArrayList;
 import java.util.List;
 
-interface Mediator {
-    void notify(Colleague sender, String event);
+interface ChatMediator {
+    void sendMessage(ChatUser sender, String message);
+    void addUser(ChatUser user);
+    void removeUser(ChatUser user);
 }
 
-abstract class Colleague {
-    protected Mediator mediator;
-    void setMediator(Mediator m) { this.mediator = m; }
-}
-
-class ChatUser extends Colleague {
-    final String name;
-    ChatUser(String name) { this.name = name; }
-    void send(String message) {
-        System.out.println(name + " sends: " + message);
-        if (mediator != null) mediator.notify(this, message);
+abstract class ChatUser {
+    protected ChatMediator mediator;
+    protected final String username;
+    ChatUser(String username) { this.username = username; }
+    void setMediator(ChatMediator m) { this.mediator = m; }
+    void sendMessage(String message) {
+        System.out.println(username + " sends: " + message);
+        if (mediator \!= null) mediator.sendMessage(this, message);
     }
-    void receive(String message) {
-        System.out.println(name + " receives: " + message);
+    void receiveMessage(String from, String message) {
+        System.out.println(username + " receives from " + from + ": " + message);
     }
 }
 
-class ChatRoom implements Mediator {
+class AdminUser extends ChatUser {
+    AdminUser(String username) { super(username); }
+    void kickUser(String target) {
+        System.out.println("[Admin] " + username + " kicked " + target);
+    }
+}
+
+class RegularUser extends ChatUser {
+    RegularUser(String username) { super(username); }
+}
+
+class GroupChatRoom implements ChatMediator {
     private final List<ChatUser> users = new ArrayList<>();
-    void register(ChatUser user) {
+    public void addUser(ChatUser user) {
         user.setMediator(this);
         users.add(user);
+        System.out.println(user.username + " joined the room");
     }
-    public void notify(Colleague sender, String event) {
+    public void removeUser(ChatUser user) {
+        users.remove(user);
+        System.out.println(user.username + " left the room");
+    }
+    public void sendMessage(ChatUser sender, String message) {
         for (ChatUser u : users) {
-            if (u != sender) u.receive(event);
+            if (u \!= sender) u.receiveMessage(sender.username, message);
         }
     }
 }
@@ -794,169 +988,169 @@ class ChatRoom implements Mediator {
 // Usage
 public class MediatorDemo {
     public static void main(String[] args) {
-        ChatRoom room = new ChatRoom();
-        ChatUser alice = new ChatUser("Alice");
-        ChatUser bob = new ChatUser("Bob");
-        room.register(alice);
-        room.register(bob);
-        alice.send("Hello everyone!"); // Bob receives
+        GroupChatRoom room = new GroupChatRoom();
+        AdminUser alice = new AdminUser("Alice");
+        RegularUser bob = new RegularUser("Bob");
+        RegularUser charlie = new RegularUser("Charlie");
+        room.addUser(alice);
+        room.addUser(bob);
+        room.addUser(charlie);
+        alice.sendMessage("Hello everyone\!");
+        bob.sendMessage("Hi Alice\!");
+        alice.kickUser("Charlie");
     }
 }`,
 
-  "template-method": `// Template Method — skeleton algorithm with overridable steps
-abstract class DataParser {
-    // Template method — final prevents subclasses from changing the skeleton
-    public final String[] templateMethod(String data) {
-        String raw = openSource(data);
-        String[] records = parseData(raw);
-        closeSource();
-        hook();
-        return records;
+  "template-method": `// Template Method — data export with overridable formatting steps
+import java.util.*;
+
+abstract class DataExporter {
+    public final String export(List<Map<String, String>> records) {
+        if (records.isEmpty()) return "";
+        List<String> columns = new ArrayList<>(records.get(0).keySet());
+        StringBuilder output = new StringBuilder();
+        output.append(formatHeader(columns));
+        for (Map<String, String> row : records) { output.append(formatRow(row)); }
+        output.append(addFooter());
+        return writeOutput(output.toString());
     }
-    protected abstract String openSource(String data);
-    protected abstract String[] parseData(String raw);
-    protected abstract void closeSource();
-    protected void hook() {} // optional override
+    protected abstract String formatHeader(List<String> columns);
+    protected abstract String formatRow(Map<String, String> row);
+    protected abstract String writeOutput(String content);
+    protected String addFooter() { return ""; }
 }
 
-class CSVParser extends DataParser {
-    protected String openSource(String data) {
-        System.out.println("Opening CSV data...");
-        return data;
-    }
-    protected String[] parseData(String raw) {
-        return raw.split("\\n");
-    }
-    protected void closeSource() {
-        System.out.println("CSV source closed.");
-    }
+class CSVExporter extends DataExporter {
+    private final String delimiter;
+    CSVExporter() { this(","); }
+    CSVExporter(String delimiter) { this.delimiter = delimiter; }
+    protected String formatHeader(List<String> columns) { return String.join(delimiter, columns) + "\n"; }
+    protected String formatRow(Map<String, String> row) { return String.join(delimiter, row.values()) + "\n"; }
+    protected String writeOutput(String content) { System.out.println("Writing CSV..."); return content; }
 }
 
-class JSONParser extends DataParser {
-    protected String openSource(String data) {
-        System.out.println("Opening JSON data...");
-        return data;
-    }
-    protected String[] parseData(String raw) {
-        return new String[]{raw}; // simplified
-    }
-    protected void closeSource() {
-        System.out.println("JSON source closed.");
-    }
-    protected void hook() {
-        System.out.println("JSONParser: validating schema...");
-    }
+class PDFExporter extends DataExporter {
+    protected String formatHeader(List<String> columns) { return "[PDF Header] " + String.join(" | ", columns) + "\n"; }
+    protected String formatRow(Map<String, String> row) { return "[PDF Row] " + String.join(" | ", row.values()) + "\n"; }
+    protected String writeOutput(String content) { System.out.println("Rendering PDF..."); return content; }
+    protected String addFooter() { return "[PDF Footer] Page 1 of 1\n"; }
 }
 
 // Usage
 public class TemplateMethodDemo {
     public static void main(String[] args) {
-        DataParser csv = new CSVParser();
-        String[] result = csv.templateMethod("a,b\\nc,d");
-        System.out.println(java.util.Arrays.toString(result));
+        var records = List.of(Map.of("name","Alice","role","Engineer"), Map.of("name","Bob","role","Designer"));
+        System.out.println(new CSVExporter().export(records));
+        System.out.println(new PDFExporter().export(records));
     }
 }`,
 
-  "chain-of-responsibility": `// Chain of Responsibility — request passes through handler chain
-abstract class Handler {
-    protected Handler next;
+  "chain-of-responsibility": `// Chain of Responsibility — support ticket escalation
+import java.util.List;
 
-    Handler setNext(Handler handler) {
-        this.next = handler;
-        return handler; // enables chaining
-    }
+class SupportTicket {
+    private final String category, priority, description;
+    SupportTicket(String c, String p, String d) { category = c; priority = p; description = d; }
+    String getCategory() { return category; }
+    String getPriority() { return priority; }
+    String getDescription() { return description; }
+}
 
-    String handle(String request, java.util.Map<String, String> headers) {
-        if (next != null) return next.handle(request, headers);
+abstract class SupportHandler {
+    protected SupportHandler next;
+    protected final String handlerName;
+    SupportHandler(String name) { this.handlerName = name; }
+    SupportHandler setNext(SupportHandler h) { this.next = h; return h; }
+    String handle(SupportTicket ticket) {
+        if (canHandle(ticket)) return "[" + handlerName + "] Resolved: " + ticket.getDescription();
+        if (next \!= null) return next.handle(ticket);
         return null;
     }
+    protected abstract boolean canHandle(SupportTicket ticket);
 }
 
-class AuthHandler extends Handler {
-    String handle(String request, java.util.Map<String, String> headers) {
-        if (!headers.containsKey("authorization")) {
-            return "401 Unauthorized";
-        }
-        System.out.println("Auth: token verified");
-        return super.handle(request, headers);
-    }
+class TechnicalSupport extends SupportHandler {
+    private final List<String> specialties = List.of("bug", "crash", "error");
+    TechnicalSupport() { super("TechnicalSupport"); }
+    protected boolean canHandle(SupportTicket t) { return specialties.contains(t.getCategory()); }
 }
 
-class RateLimitHandler extends Handler {
-    private final java.util.Map<String, Integer> counts = new java.util.HashMap<>();
-    String handle(String request, java.util.Map<String, String> headers) {
-        int count = counts.merge("default", 1, Integer::sum);
-        if (count > 100) return "429 Too Many Requests";
-        System.out.println("RateLimit: " + count + "/100");
-        return super.handle(request, headers);
-    }
+class BillingSupport extends SupportHandler {
+    BillingSupport() { super("BillingSupport"); }
+    protected boolean canHandle(SupportTicket t) { return "billing".equals(t.getCategory()); }
 }
 
-class LoggingHandler extends Handler {
-    String handle(String request, java.util.Map<String, String> headers) {
-        System.out.println("Log: " + request);
-        return super.handle(request, headers);
-    }
+class ManagerEscalation extends SupportHandler {
+    ManagerEscalation() { super("ManagerEscalation"); }
+    protected boolean canHandle(SupportTicket t) { return true; }
 }
 
 // Usage
 public class ChainDemo {
     public static void main(String[] args) {
-        Handler auth = new AuthHandler();
-        auth.setNext(new RateLimitHandler()).setNext(new LoggingHandler());
-
-        var headers = java.util.Map.of("authorization", "Bearer token123");
-        String result = auth.handle("/api/users", new java.util.HashMap<>(headers));
-        System.out.println(result != null ? result : "200 OK");
+        SupportHandler tech = new TechnicalSupport();
+        tech.setNext(new BillingSupport()).setNext(new ManagerEscalation());
+        for (SupportTicket t : new SupportTicket[]{
+            new SupportTicket("bug","high","App crashes on login"),
+            new SupportTicket("billing","medium","Double charged"),
+            new SupportTicket("other","low","Feature request")
+        }) {
+            String r = tech.handle(t);
+            System.out.println(r \!= null ? r : "Unhandled");
+        }
     }
 }`,
 
-  memento: `// Memento — capture and restore object state
+  memento: `// Memento — text editor with snapshot-based undo/redo
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.time.Instant;
 
-class Memento {
-    private final String state;
-    Memento(String state) { this.state = state; }
-    String getState() { return state; }
-}
-
-class Originator {
-    private String state;
-    Originator(String state) { this.state = state; }
-    void setState(String s) { this.state = s; }
-    String getState() { return state; }
-    Memento save() { return new Memento(state); }
-    void restore(Memento m) { this.state = m.getState(); }
-}
-
-class Caretaker {
-    private final Deque<Memento> history = new ArrayDeque<>();
-    private final Originator originator;
-    Caretaker(Originator o) { this.originator = o; }
-    void backup() { history.push(originator.save()); }
-    void undo() {
-        Memento m = history.poll();
-        if (m != null) originator.restore(m);
+class EditorSnapshot {
+    private final String content;
+    private final int cursorPosition;
+    private final Instant timestamp;
+    EditorSnapshot(String content, int cursorPosition) {
+        this.content = content; this.cursorPosition = cursorPosition; this.timestamp = Instant.now();
     }
+    String getContent() { return content; }
+    int getCursorPosition() { return cursorPosition; }
+    Instant getTimestamp() { return timestamp; }
+}
+
+class TextEditor {
+    private StringBuilder content = new StringBuilder();
+    private int cursorPosition = 0;
+    void insertText(String text) { content.insert(cursorPosition, text); cursorPosition += text.length(); }
+    String getContent() { return content.toString(); }
+    EditorSnapshot save() { return new EditorSnapshot(content.toString(), cursorPosition); }
+    void restore(EditorSnapshot s) { content = new StringBuilder(s.getContent()); cursorPosition = s.getCursorPosition(); }
+}
+
+class UndoHistory {
+    private final Deque<EditorSnapshot> undoStack = new ArrayDeque<>();
+    private final Deque<EditorSnapshot> redoStack = new ArrayDeque<>();
+    private final TextEditor editor;
+    UndoHistory(TextEditor editor) { this.editor = editor; }
+    void backup() { undoStack.push(editor.save()); redoStack.clear(); }
+    void undo() { EditorSnapshot s = undoStack.poll(); if (s \!= null) { redoStack.push(editor.save()); editor.restore(s); } }
+    void redo() { EditorSnapshot s = redoStack.poll(); if (s \!= null) { undoStack.push(editor.save()); editor.restore(s); } }
 }
 
 // Usage
 public class MementoDemo {
     public static void main(String[] args) {
-        Originator editor = new Originator("Hello");
-        Caretaker history = new Caretaker(editor);
-
+        TextEditor editor = new TextEditor();
+        UndoHistory history = new UndoHistory(editor);
         history.backup();
-        editor.setState("Hello World");
+        editor.insertText("Hello");
         history.backup();
-        editor.setState("Hello World!!!");
-
-        System.out.println(editor.getState()); // Hello World!!!
+        editor.insertText(" World");
+        System.out.println(editor.getContent()); // Hello World
         history.undo();
-        System.out.println(editor.getState()); // Hello World
-        history.undo();
-        System.out.println(editor.getState()); // Hello
+        System.out.println(editor.getContent()); // Hello
+        history.redo();
+        System.out.println(editor.getContent()); // Hello World
     }
 }`,
 
@@ -1080,33 +1274,51 @@ interface Repository<T> {
     void delete(String id);
 }
 
-class User {
-    final String id, name, email;
-    User(String id, String name, String email) {
-        this.id = id; this.name = name; this.email = email;
+class Entity {
+    final String id, name;
+    final java.time.Instant createdAt;
+    Entity(String id, String name) {
+        this.id = id; this.name = name; this.createdAt = java.time.Instant.now();
     }
-    public String toString() { return "User(" + name + ")"; }
+    public String toString() { return "Entity(" + name + ")"; }
 }
 
-class InMemoryUserRepository implements Repository<User> {
-    private final Map<String, User> store = new LinkedHashMap<>();
-    public User findById(String id) { return store.get(id); }
-    public List<User> findAll()     { return new ArrayList<>(store.values()); }
-    public void save(User user)     { store.put(user.id, user); }
-    public void delete(String id)   { store.remove(id); }
+class SQLRepository implements Repository<Entity> {
+    public Entity findById(String id) {
+        System.out.println("SQL: SELECT * FROM entities WHERE id = '" + id + "'");
+        return null;
+    }
+    public List<Entity> findAll() {
+        System.out.println("SQL: SELECT * FROM entities");
+        return List.of();
+    }
+    public void save(Entity entity) {
+        System.out.println("SQL: INSERT INTO entities VALUES ('" + entity.id + "', '" + entity.name + "')");
+    }
+    public void delete(String id) {
+        System.out.println("SQL: DELETE FROM entities WHERE id = '" + id + "'");
+    }
+}
+
+class MongoRepository implements Repository<Entity> {
+    private final Map<String, Entity> store = new LinkedHashMap<>();
+    public Entity findById(String id) { return store.get(id); }
+    public List<Entity> findAll()     { return new ArrayList<>(store.values()); }
+    public void save(Entity entity)   { store.put(entity.id, entity); }
+    public void delete(String id)     { store.remove(id); }
 }
 
 // Usage — business logic is decoupled from storage
 public class RepositoryDemo {
-    static void createUser(Repository<User> repo, String name) {
+    static void createEntity(Repository<Entity> repo, String name) {
         String id = UUID.randomUUID().toString();
-        repo.save(new User(id, name, name.toLowerCase() + "@example.com"));
+        repo.save(new Entity(id, name));
     }
     public static void main(String[] args) {
-        Repository<User> repo = new InMemoryUserRepository();
-        createUser(repo, "Alice");
-        createUser(repo, "Bob");
-        System.out.println(repo.findAll()); // [User(Alice), User(Bob)]
+        Repository<Entity> repo = new MongoRepository();
+        createEntity(repo, "Alice");
+        createEntity(repo, "Bob");
+        System.out.println(repo.findAll()); // [Entity(Alice), Entity(Bob)]
     }
 }`,
 
@@ -1149,54 +1361,106 @@ class CommandBus {
     }
 }
 
+class QueryBus {
+    private final Map<String, QueryHandler<?>> handlers = new HashMap<>();
+    <R> void register(String type, QueryHandler<R> h) { handlers.put(type, h); }
+    @SuppressWarnings("unchecked")
+    <R> R execute(Query q) {
+        QueryHandler<R> h = (QueryHandler<R>) handlers.get(q.type());
+        if (h == null) throw new IllegalArgumentException("No handler for " + q.type());
+        return h.handle(q);
+    }
+}
+
+class WriteModel {
+    private final Map<String, Object> store = new HashMap<>();
+    void save(String id, Object entity) {
+        store.put(id, entity);
+        System.out.println("[WRITE MODEL] Saved " + id);
+    }
+}
+
+class ReadModel {
+    private final Map<String, Object> cache = new HashMap<>();
+    List<Object> query() { return new ArrayList<>(cache.values()); }
+    Object getById(String id) { return cache.get(id); }
+    void project(String id, Object data) { cache.put(id, data); }
+}
+
+class DomainEvent {
+    final String eventType, aggregateId;
+    final Object payload;
+    DomainEvent(String eventType, String aggregateId, Object payload) {
+        this.eventType = eventType; this.aggregateId = aggregateId;
+        this.payload = payload;
+    }
+}
+
 // Usage
 public class CQRSDemo {
     public static void main(String[] args) {
-        CommandBus bus = new CommandBus();
-        bus.register("CreateOrder", new CreateOrderHandler());
-        bus.dispatch(new CreateOrderCommand("ord-1", "cust-1"));
+        CommandBus commandBus = new CommandBus();
+        commandBus.register("CreateOrder", new CreateOrderHandler());
+        commandBus.dispatch(new CreateOrderCommand("ord-1", "cust-1"));
     }
 }`,
 
   "event-sourcing": `// Event Sourcing — store events, derive state by replay
 import java.util.*;
 
-abstract class DomainEvent {
+abstract class Event {
     final String id, aggregateId;
-    DomainEvent(String id, String aggregateId) {
+    Event(String id, String aggregateId) {
         this.id = id; this.aggregateId = aggregateId;
     }
+    abstract String getType();
 }
 
-class MoneyDeposited extends DomainEvent {
+class MoneyDeposited extends Event {
     final double amount;
     MoneyDeposited(String id, String aggId, double amount) {
         super(id, aggId); this.amount = amount;
     }
+    String getType() { return "MoneyDeposited"; }
 }
 
-class MoneyWithdrawn extends DomainEvent {
+class MoneyWithdrawn extends Event {
     final double amount;
     MoneyWithdrawn(String id, String aggId, double amount) {
         super(id, aggId); this.amount = amount;
     }
+    String getType() { return "MoneyWithdrawn"; }
 }
 
 class EventStore {
-    private final List<DomainEvent> events = new ArrayList<>();
-    void append(DomainEvent e) { events.add(e); }
-    List<DomainEvent> getEvents(String aggregateId) {
+    private final List<Event> events = new ArrayList<>();
+    void append(Event e) { events.add(e); }
+    List<Event> getEvents(String aggregateId) {
         return events.stream().filter(e -> e.aggregateId.equals(aggregateId)).toList();
     }
 }
 
-class BankAccount {
+class EventBus {
+    private final Map<String, List<java.util.function.Consumer<Event>>> handlers = new HashMap<>();
+    void subscribe(String eventType, java.util.function.Consumer<Event> handler) {
+        handlers.computeIfAbsent(eventType, k -> new ArrayList<>()).add(handler);
+    }
+    void publish(Event event) {
+        List<java.util.function.Consumer<Event>> fns = handlers.getOrDefault(event.getType(), List.of());
+        for (var fn : fns) fn.accept(event);
+    }
+}
+
+class Aggregate {
     private double balance;
-    void apply(DomainEvent event) {
+    private int version;
+
+    void apply(Event event) {
         if (event instanceof MoneyDeposited d)  balance += d.amount;
         if (event instanceof MoneyWithdrawn w)  balance -= w.amount;
+        version++;
     }
-    void loadFromHistory(List<DomainEvent> events) {
+    void loadFromHistory(List<Event> events) {
         events.forEach(this::apply);
     }
     double getBalance() { return balance; }
@@ -1206,12 +1470,20 @@ class BankAccount {
 public class EventSourcingDemo {
     public static void main(String[] args) {
         EventStore store = new EventStore();
+        EventBus bus = new EventBus();
         String accId = "acc-001";
-        store.append(new MoneyDeposited("e1", accId, 1000));
-        store.append(new MoneyDeposited("e2", accId, 500));
-        store.append(new MoneyWithdrawn("e3", accId, 200));
 
-        BankAccount account = new BankAccount();
+        bus.subscribe("MoneyDeposited", e ->
+            System.out.println("[BUS] Deposit: " + ((MoneyDeposited) e).amount));
+
+        Event e1 = new MoneyDeposited("e1", accId, 1000);
+        Event e2 = new MoneyDeposited("e2", accId, 500);
+        Event e3 = new MoneyWithdrawn("e3", accId, 200);
+        store.append(e1); bus.publish(e1);
+        store.append(e2); bus.publish(e2);
+        store.append(e3); bus.publish(e3);
+
+        Aggregate account = new Aggregate();
         account.loadFromHistory(store.getEvents(accId));
         System.out.println("Balance: $" + account.getBalance()); // $1300.0
     }
@@ -1254,6 +1526,17 @@ class SagaOrchestrator {
             step.compensate(ctx);
         }
     }
+}
+
+class SagaLog {
+    private final String sagaId;
+    private final List<Map<String, String>> entries = new ArrayList<>();
+    SagaLog(String sagaId) { this.sagaId = sagaId; }
+    void recordStepStarted(String stepName) { entries.add(Map.of("step", stepName, "status", "started")); }
+    void recordStepCompleted(String stepName) { entries.add(Map.of("step", stepName, "status", "completed")); }
+    void recordStepFailed(String stepName, String error) { entries.add(Map.of("step", stepName, "status", "failed", "error", error)); }
+    void recordCompensation(String stepName) { entries.add(Map.of("step", stepName, "status", "compensated")); }
+    List<Map<String, String>> getEntries() { return List.copyOf(entries); }
 }
 
 // Usage
@@ -1549,6 +1832,13 @@ public class ThreadPoolDemo {
   "producer-consumer": `// Producer-Consumer — shared bounded buffer with backpressure
 import java.util.concurrent.*;
 
+class Lock {
+    private final java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
+    void acquire() { lock.lock(); }
+    void release() { lock.unlock(); }
+    boolean isLocked() { return lock.isLocked(); }
+}
+
 class SharedBuffer<T> {
     private final BlockingQueue<T> queue;
     SharedBuffer(int capacity) { this.queue = new ArrayBlockingQueue<>(capacity); }
@@ -1614,52 +1904,93 @@ public class ProducerConsumerDemo {
   "react-pattern": `// ReAct — interleave Thought, Action, Observation in a loop
 import java.util.*;
 
-class Thought {
-    final String reasoning;
-    final String toolName;      // null if final answer
-    final Map<String, Object> toolInput;
-    final boolean isFinal;
-    final String finalAnswer;
-
-    Thought(String reasoning, String toolName, Map<String, Object> input,
-            boolean isFinal, String finalAnswer) {
-        this.reasoning = reasoning; this.toolName = toolName;
-        this.toolInput = input; this.isFinal = isFinal; this.finalAnswer = finalAnswer;
-    }
-}
-
 interface Tool {
     String name();
     String execute(Map<String, Object> input);
 }
 
-class Agent {
+class ToolRegistry {
+    private final Map<String, Tool> tools = new LinkedHashMap<>();
+    void register(Tool tool) { tools.put(tool.name(), tool); }
+    Tool get(String name) { return tools.get(name); }
+    List<String> list() { return new ArrayList<>(tools.keySet()); }
+}
+
+class Action {
+    final String toolName;
+    final Map<String, Object> input;
+    Action(String toolName, Map<String, Object> input) {
+        this.toolName = toolName; this.input = input;
+    }
+    boolean validate() { return toolName != null && !toolName.isEmpty(); }
+}
+
+class Observation {
+    final String result;
+    final boolean success;
+    Observation(String result, boolean success) {
+        this.result = result; this.success = success;
+    }
+    String toPrompt() { return "Observation [" + (success ? "ok" : "err") + "]: " + result; }
+    boolean isError() { return !success; }
+}
+
+class Thought {
+    final String reasoning;
+    final Action nextAction;
+    final boolean isFinal;
+    final String finalAnswer;
+    Thought(String reasoning, Action nextAction, boolean isFinal, String finalAnswer) {
+        this.reasoning = reasoning; this.nextAction = nextAction;
+        this.isFinal = isFinal; this.finalAnswer = finalAnswer;
+    }
+    boolean hasAction() { return nextAction != null; }
+    String toPrompt() { return "Thought: " + reasoning; }
+}
+
+class Environment {
     private final Map<String, Tool> tools;
+    private final Map<String, Object> state = new HashMap<>();
+    Environment(Map<String, Tool> tools) { this.tools = tools; }
+    Observation execute(Action action) {
+        Tool tool = tools.get(action.toolName);
+        if (tool == null) return new Observation("Tool not found: " + action.toolName, false);
+        try {
+            String result = tool.execute(action.input);
+            return new Observation(result, true);
+        } catch (Exception e) {
+            return new Observation(e.getMessage(), false);
+        }
+    }
+    Map<String, Object> getState() { return Map.copyOf(state); }
+}
+
+class Agent {
+    private final ToolRegistry registry;
+    private final Environment env;
     private final int maxSteps;
     private final List<String> history = new ArrayList<>();
-
     Agent(Map<String, Tool> tools, int maxSteps) {
-        this.tools = tools; this.maxSteps = maxSteps;
+        this.registry = new ToolRegistry();
+        tools.values().forEach(registry::register);
+        this.env = new Environment(tools);
+        this.maxSteps = maxSteps;
     }
-
     String run(String query) {
         history.clear();
         history.add("User query: " + query);
         for (int i = 0; i < maxSteps; i++) {
             Thought thought = think();
             if (thought.isFinal) return thought.finalAnswer;
-            if (thought.toolName != null) {
-                Tool tool = tools.get(thought.toolName);
-                String observation = (tool != null) ? tool.execute(thought.toolInput) : "Tool not found";
-                history.add("Observation: " + observation);
+            if (thought.hasAction()) {
+                Observation observation = env.execute(thought.nextAction);
+                history.add(observation.toPrompt());
             }
         }
         return "Max steps reached.";
     }
-
     private Thought think() {
-        // Placeholder: in production, call an LLM with history
-        return new Thought("Done", null, null, true, "42");
+        return new Thought("Done", null, true, "42");
     }
 }
 
@@ -1732,11 +2063,43 @@ class CalculatorTool implements Tool {
     }
 }
 
+class WebSearchTool implements Tool {
+    public String name() { return "web_search"; }
+    public String description() { return "Search the web for current information"; }
+    public ToolSchema schema() {
+        return new ToolSchema() {
+            public String name() { return "web_search"; }
+            public String description() { return "Search the web"; }
+            public Map<String, String> parameters() { return Map.of("query", "string"); }
+        };
+    }
+    public ToolResult execute(Map<String, Object> input) {
+        return new SimpleResult("Results for: " + input.get("query"), true);
+    }
+}
+
+class DatabaseTool implements Tool {
+    public String name() { return "database"; }
+    public String description() { return "Query a SQL database"; }
+    public ToolSchema schema() {
+        return new ToolSchema() {
+            public String name() { return "database"; }
+            public String description() { return "Query a SQL database"; }
+            public Map<String, String> parameters() { return Map.of("sql", "string"); }
+        };
+    }
+    public ToolResult execute(Map<String, Object> input) {
+        return new SimpleResult("Query result for: " + input.get("sql"), true);
+    }
+}
+
 // Usage
 public class ToolUseDemo {
     public static void main(String[] args) {
         ToolRegistry registry = new ToolRegistry();
+        registry.register(new WebSearchTool());
         registry.register(new CalculatorTool());
+        registry.register(new DatabaseTool());
         Tool tool = registry.get("calculator");
         ToolResult result = tool.execute(Map.of("expression", "2 + 2"));
         System.out.println(result.output()); // 4.0
@@ -1778,6 +2141,16 @@ class CoderAgent implements SpecialistAgent {
     }
 }
 
+class ReviewerAgent implements SpecialistAgent {
+    public boolean canHandle(Task t) { return "review".equals(t.type()); }
+    public Result execute(Task t, SharedMemory mem) {
+        String code = (String) mem.get("code-" + t.id());
+        String feedback = "Review of: " + (code != null ? code : "no code found");
+        mem.set("review-" + t.id(), feedback);
+        return new Result(t.id(), feedback, true);
+    }
+}
+
 class Orchestrator {
     private final List<SpecialistAgent> agents = new ArrayList<>();
     private final SharedMemory memory = new SharedMemory();
@@ -1805,6 +2178,7 @@ public class MultiAgentDemo {
         Orchestrator orch = new Orchestrator();
         orch.register(new ResearchAgent());
         orch.register(new CoderAgent());
+        orch.register(new ReviewerAgent());
         System.out.println(orch.run("Build a REST API"));
     }
 }`,

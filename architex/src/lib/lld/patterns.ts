@@ -1331,77 +1331,158 @@ const facade: DesignPattern = {
     { id: rid(), source: "f-client", target: "f-order-facade", type: "dependency", label: "uses" },
   ],
   code: {
-    typescript: `class SubsystemA {
-  operationA1(): string { return "SubsystemA: Ready!"; }
-  operationA2(): string { return "SubsystemA: Go!"; }
-}
+    typescript: `// Subsystem services — each handles one domain concern
+class InventoryService {
+  private stock = new Map<string, number>([["SKU-1", 50], ["SKU-2", 20]]);
 
-class SubsystemB {
-  operationB1(): string { return "SubsystemB: Fire!"; }
-}
+  checkAvailability(itemId: string, qty: number): boolean {
+    return (this.stock.get(itemId) ?? 0) >= qty;
+  }
 
-class SubsystemC {
-  operationC1(): string { return "SubsystemC: Prepare!"; }
-  operationC2(): string { return "SubsystemC: Execute!"; }
-}
+  reserveItems(items: { id: string; qty: number }[]): string {
+    items.forEach(i => this.stock.set(i.id, (this.stock.get(i.id) ?? 0) - i.qty));
+    return "RES-" + Date.now();
+  }
 
-class Facade {
-  private a = new SubsystemA();
-  private b = new SubsystemB();
-  private c = new SubsystemC();
-
-  operation(): string {
-    const results = [
-      this.a.operationA1(),
-      this.c.operationC1(),
-      this.b.operationB1(),
-      this.a.operationA2(),
-      this.c.operationC2(),
-    ];
-    return results.join("\\n");
+  releaseReservation(reservationId: string): void {
+    console.log(\`Inventory: released \${reservationId}\`);
   }
 }
 
-// Usage
-const facade = new Facade();
-console.log(facade.operation());`,
-    python: `class SubsystemA:
-    def operation_a1(self) -> str:
-        return "SubsystemA: Ready!"
+class PaymentService {
+  charge(amount: number, info: { card: string }): { txId: string; ok: boolean } {
+    console.log(\`Payment: charged $\${amount} on \${info.card}\`);
+    return { txId: "TX-" + Date.now(), ok: true };
+  }
 
-    def operation_a2(self) -> str:
-        return "SubsystemA: Go!"
+  refund(transactionId: string): void {
+    console.log(\`Payment: refunded \${transactionId}\`);
+  }
+}
 
-class SubsystemB:
-    def operation_b1(self) -> str:
-        return "SubsystemB: Fire!"
+class ShippingService {
+  createShipment(orderId: string, address: string): string {
+    const trackingId = "SHIP-" + Date.now();
+    console.log(\`Shipping: \${orderId} to \${address} (\${trackingId})\`);
+    return trackingId;
+  }
 
-class SubsystemC:
-    def operation_c1(self) -> str:
-        return "SubsystemC: Prepare!"
+  cancelShipment(trackingId: string): void {
+    console.log(\`Shipping: cancelled \${trackingId}\`);
+  }
+}
 
-    def operation_c2(self) -> str:
-        return "SubsystemC: Execute!"
+// Facade — one simple call coordinates all three subsystems
+class OrderFacade {
+  private inventory = new InventoryService();
+  private payment = new PaymentService();
+  private shipping = new ShippingService();
 
-class Facade:
+  placeOrder(items: { id: string; qty: number }[], card: string, address: string): string {
+    for (const item of items) {
+      if (\!this.inventory.checkAvailability(item.id, item.qty))
+        throw new Error(\`Out of stock: \${item.id}\`);
+    }
+    const resId = this.inventory.reserveItems(items);
+    const total = items.reduce((s, i) => s + i.qty * 10, 0);
+    const { txId, ok } = this.payment.charge(total, { card });
+    if (\!ok) { this.inventory.releaseReservation(resId); throw new Error("Payment failed"); }
+    const trackingId = this.shipping.createShipment(txId, address);
+    return \`Order confirmed — tracking: \${trackingId}\`;
+  }
+
+  cancelOrder(orderId: string): void {
+    this.shipping.cancelShipment(orderId);
+    this.payment.refund(orderId);
+    console.log(\`OrderFacade: order \${orderId} cancelled\`);
+  }
+}
+
+// Usage — CheckoutController only talks to the facade
+class CheckoutController {
+  private facade = new OrderFacade();
+
+  handleCheckout(): void {
+    const result = this.facade.placeOrder(
+      [{ id: "SKU-1", qty: 2 }], "VISA-4242", "123 Main St"
+    );
+    console.log(result);
+  }
+}
+
+const ctrl = new CheckoutController();
+ctrl.handleCheckout();`,
+    python: `# Subsystem services — each handles one domain concern
+class InventoryService:
     def __init__(self):
-        self._a = SubsystemA()
-        self._b = SubsystemB()
-        self._c = SubsystemC()
+        self._stock = {"SKU-1": 50, "SKU-2": 20}
 
-    def operation(self) -> str:
-        results = [
-            self._a.operation_a1(),
-            self._c.operation_c1(),
-            self._b.operation_b1(),
-            self._a.operation_a2(),
-            self._c.operation_c2(),
-        ]
-        return "\\n".join(results)
+    def check_availability(self, item_id: str, qty: int) -> bool:
+        return self._stock.get(item_id, 0) >= qty
 
-# Usage
-facade = Facade()
-print(facade.operation())`,
+    def reserve_items(self, items: list[dict]) -> str:
+        for item in items:
+            self._stock[item["id"]] -= item["qty"]
+        return f"RES-{id(items)}"
+
+    def release_reservation(self, reservation_id: str) -> None:
+        print(f"Inventory: released {reservation_id}")
+
+class PaymentService:
+    def charge(self, amount: float, card: str) -> tuple[str, bool]:
+        print(f"Payment: charged \${amount} on {card}")
+        return f"TX-{id(card)}", True
+
+    def refund(self, transaction_id: str) -> None:
+        print(f"Payment: refunded {transaction_id}")
+
+class ShippingService:
+    def create_shipment(self, order_id: str, address: str) -> str:
+        tracking = f"SHIP-{id(order_id)}"
+        print(f"Shipping: {order_id} to {address} ({tracking})")
+        return tracking
+
+    def cancel_shipment(self, tracking_id: str) -> None:
+        print(f"Shipping: cancelled {tracking_id}")
+
+# Facade — one simple call coordinates all three subsystems
+class OrderFacade:
+    def __init__(self):
+        self._inventory = InventoryService()
+        self._payment = PaymentService()
+        self._shipping = ShippingService()
+
+    def place_order(self, items: list[dict], card: str, address: str) -> str:
+        for item in items:
+            if not self._inventory.check_availability(item["id"], item["qty"]):
+                raise ValueError(f"Out of stock: {item['id']}")
+        res_id = self._inventory.reserve_items(items)
+        total = sum(i["qty"] * 10 for i in items)
+        tx_id, ok = self._payment.charge(total, card)
+        if not ok:
+            self._inventory.release_reservation(res_id)
+            raise RuntimeError("Payment failed")
+        tracking = self._shipping.create_shipment(tx_id, address)
+        return f"Order confirmed - tracking: {tracking}"
+
+    def cancel_order(self, order_id: str) -> None:
+        self._shipping.cancel_shipment(order_id)
+        self._payment.refund(order_id)
+        print(f"OrderFacade: order {order_id} cancelled")
+
+# Usage — CheckoutController only talks to the facade
+class CheckoutController:
+    def __init__(self):
+        self._facade = OrderFacade()
+
+    def handle_checkout(self) -> None:
+        result = self._facade.place_order(
+            [{"id": "SKU-1", "qty": 2}], "VISA-4242", "123 Main St"
+        )
+        print(result)
+
+ctrl = CheckoutController()
+ctrl.handle_checkout()`,
   },
   realWorldExamples: [
     "Video conversion library wrapping codec, bitrate, and format subsystems",
@@ -1524,57 +1605,14 @@ const observer: DesignPattern = {
       x: 620,
       y: 280,
     },
-    {
-      id: "o-event",
-      name: "Event",
-      stereotype: "class",
-      attributes: [
-        { id: "o-event-attr-0", name: "type", type: "string", visibility: "-" },
-        { id: "o-event-attr-1", name: "data", type: "unknown", visibility: "-" },
-        { id: "o-event-attr-2", name: "timestamp", type: "Date", visibility: "-" },
-      ],
-      methods: [
-        { id: "o-event-meth-0", name: "getType", returnType: "string", params: [], visibility: "+" },
-        { id: "o-event-meth-1", name: "getData", returnType: "unknown", params: [], visibility: "+" },
-      ],
-      x: 150,
-      y: 480,
-    },
-    {
-      id: "o-eventbus",
-      name: "EventBus",
-      stereotype: "class",
-      attributes: [
-        { id: "o-eventbus-attr-0", name: "handlers", type: "Map<string, EventHandler[]>", visibility: "-" },
-        { id: "o-eventbus-attr-1", name: "eventLog", type: "Event[]", visibility: "-" },
-      ],
-      methods: [
-        { id: "o-eventbus-meth-0", name: "subscribe", returnType: "void", params: ["eventType: string", "handler: EventHandler"], visibility: "+" },
-        { id: "o-eventbus-meth-1", name: "unsubscribe", returnType: "void", params: ["eventType: string", "handler: EventHandler"], visibility: "+" },
-        { id: "o-eventbus-meth-2", name: "publish", returnType: "void", params: ["event: Event"], visibility: "+" },
-      ],
-      x: 380,
-      y: 480,
-    },
-    {
-      id: "o-eventhandler",
-      name: "EventHandler",
-      stereotype: "interface",
-      attributes: [],
-      methods: [
-        { id: "o-eventhandler-meth-0", name: "handle", returnType: "void", params: ["event: Event"], visibility: "+" },
-      ],
-      x: 620,
-      y: 480,
-    },
+
+
+
   ],
   relationships: [
     { id: rid(), source: "o-subject", target: "o-observer", type: "aggregation", label: "notifies", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "o-concrete-a", target: "o-observer", type: "realization" },
     { id: rid(), source: "o-concrete-b", target: "o-observer", type: "realization" },
-    { id: rid(), source: "o-eventbus", target: "o-eventhandler", type: "aggregation", label: "routes to", targetCardinality: "*" },
-    { id: rid(), source: "o-eventbus", target: "o-event", type: "dependency", label: "publishes" },
-    { id: rid(), source: "o-eventhandler", target: "o-event", type: "dependency", label: "handles" },
   ],
   code: {
     typescript: `interface Observer {
@@ -2798,96 +2836,162 @@ const state: DesignPattern = {
     { id: rid(), source: "st-document", target: "st-doc-state", type: "aggregation", label: "current state" },
   ],
   code: {
-    typescript: `interface State {
-  handle(context: Context): void;
+    typescript: `// State interface — each document state handles transitions differently
+interface DocumentState {
+  edit(doc: Document): void;
+  review(doc: Document): void;
+  publish(doc: Document): void;
+  reject(doc: Document): void;
 }
 
-class Context {
-  private state: State;
+class Document {
+  private state: DocumentState;
+  content = "";
+  author = "";
 
-  constructor(initialState: State) {
+  constructor(initialState: DocumentState) {
     this.state = initialState;
   }
 
-  // setState is public because STATES themselves trigger transitions.
-  // Unlike Strategy where the CLIENT picks, here the STATE decides what's next.
-  setState(state: State): void {
-    console.log(\`Context: transitioning to \${state.constructor.name}\`);
+  setState(state: DocumentState): void {
+    console.log(\`Document: transitioning to \${state.constructor.name}\`);
     this.state = state;
   }
 
-  // Same method, different behavior depending on current state.
-  // The caller doesn't know which state is active — that's the point.
-  request(): void {
-    this.state.handle(this);
+  edit(): void { this.state.edit(this); }
+  review(): void { this.state.review(this); }
+  publish(): void { this.state.publish(this); }
+}
+
+class DraftState implements DocumentState {
+  edit(doc: Document): void {
+    console.log("DraftState: editing document...");
+  }
+  review(doc: Document): void {
+    console.log("DraftState: submitting for review...");
+    doc.setState(new ReviewState());
+  }
+  publish(doc: Document): void {
+    console.log("DraftState: cannot publish, must be reviewed first.");
+  }
+  reject(doc: Document): void {
+    console.log("DraftState: already a draft, nothing to reject.");
   }
 }
 
-class GreenLight implements State {
-  handle(context: Context): void {
-    console.log("GREEN: Cars go. Transitioning to Yellow...");
-    // Each state knows its successor — this creates a state machine.
-    // The transition logic lives IN the state, not in a giant switch block.
-    context.setState(new YellowLight());
+class ReviewState implements DocumentState {
+  edit(doc: Document): void {
+    console.log("ReviewState: cannot edit, currently under review.");
+  }
+  review(doc: Document): void {
+    console.log("ReviewState: already under review.");
+  }
+  publish(doc: Document): void {
+    console.log("ReviewState: approved\! Publishing...");
+    doc.setState(new PublishedState());
+  }
+  reject(doc: Document): void {
+    console.log("ReviewState: rejected, returning to draft.");
+    doc.setState(new DraftState());
   }
 }
 
-class YellowLight implements State {
-  handle(context: Context): void {
-    console.log("YELLOW: Caution! Transitioning to Red...");
-    context.setState(new RedLight());
+class PublishedState implements DocumentState {
+  edit(doc: Document): void {
+    console.log("PublishedState: creating new draft from published...");
+    doc.setState(new DraftState());
+  }
+  review(doc: Document): void {
+    console.log("PublishedState: already published.");
+  }
+  publish(doc: Document): void {
+    console.log("PublishedState: already published.");
+  }
+  reject(doc: Document): void {
+    console.log("PublishedState: cannot reject a published document.");
   }
 }
 
-class RedLight implements State {
-  handle(context: Context): void {
-    console.log("RED: Cars stop. Transitioning to Green...");
-    context.setState(new GreenLight());
-  }
-}
-
-// Usage - traffic light state machine
-const light = new Context(new GreenLight());
-light.request(); // GREEN -> Yellow
-light.request(); // YELLOW -> Red
-light.request(); // RED -> Green`,
+// Usage — document workflow state machine
+const doc = new Document(new DraftState());
+doc.edit();     // DraftState: editing...
+doc.publish();  // DraftState: cannot publish
+doc.review();   // DraftState -> ReviewState
+doc.publish();  // ReviewState -> PublishedState
+doc.edit();     // PublishedState -> DraftState (new draft)`,
     python: `from abc import ABC, abstractmethod
 
-class State(ABC):
+# State interface — each document state handles transitions differently
+class DocumentState(ABC):
     @abstractmethod
-    def handle(self, context: "Context") -> None: ...
+    def edit(self, doc: "Document") -> None: ...
+    @abstractmethod
+    def review(self, doc: "Document") -> None: ...
+    @abstractmethod
+    def publish(self, doc: "Document") -> None: ...
+    @abstractmethod
+    def reject(self, doc: "Document") -> None: ...
 
-class Context:
-    def __init__(self, initial_state: State):
+class Document:
+    def __init__(self, initial_state: DocumentState):
         self._state = initial_state
+        self.content = ""
+        self.author = ""
 
-    def set_state(self, state: State) -> None:
-        print(f"Context: transitioning to {type(state).__name__}")
+    def set_state(self, state: DocumentState) -> None:
+        print(f"Document: transitioning to {type(state).__name__}")
         self._state = state
 
-    def request(self) -> None:
-        self._state.handle(self)
+    def edit(self) -> None:
+        self._state.edit(self)
 
-class GreenLight(State):
-    def handle(self, context: Context) -> None:
-        print("GREEN: Cars go. Transitioning to Yellow...")
-        context.set_state(YellowLight())
+    def review(self) -> None:
+        self._state.review(self)
 
-class YellowLight(State):
-    def handle(self, context: Context) -> None:
-        print("YELLOW: Caution! Transitioning to Red...")
-        context.set_state(RedLight())
+    def publish(self) -> None:
+        self._state.publish(self)
 
-class RedLight(State):
-    def handle(self, context: Context) -> None:
-        print("RED: Cars stop. Transitioning to Green...")
-        context.set_state(GreenLight())
+class DraftState(DocumentState):
+    def edit(self, doc: Document) -> None:
+        print("DraftState: editing document...")
+    def review(self, doc: Document) -> None:
+        print("DraftState: submitting for review...")
+        doc.set_state(ReviewState())
+    def publish(self, doc: Document) -> None:
+        print("DraftState: cannot publish, must be reviewed first.")
+    def reject(self, doc: Document) -> None:
+        print("DraftState: already a draft, nothing to reject.")
 
-# Usage - traffic light state machine
-light = Context(GreenLight())
-light.request()  # GREEN -> Yellow
-light.request()  # YELLOW -> Red
-light.request()  # RED -> Green`,
+class ReviewState(DocumentState):
+    def edit(self, doc: Document) -> None:
+        print("ReviewState: cannot edit, currently under review.")
+    def review(self, doc: Document) -> None:
+        print("ReviewState: already under review.")
+    def publish(self, doc: Document) -> None:
+        print("ReviewState: approved\! Publishing...")
+        doc.set_state(PublishedState())
+    def reject(self, doc: Document) -> None:
+        print("ReviewState: rejected, returning to draft.")
+        doc.set_state(DraftState())
+
+class PublishedState(DocumentState):
+    def edit(self, doc: Document) -> None:
+        print("PublishedState: creating new draft from published...")
+        doc.set_state(DraftState())
+    def review(self, doc: Document) -> None:
+        print("PublishedState: already published.")
+    def publish(self, doc: Document) -> None:
+        print("PublishedState: already published.")
+    def reject(self, doc: Document) -> None:
+        print("PublishedState: cannot reject a published document.")
+
+# Usage — document workflow state machine
+doc = Document(DraftState())
+doc.edit()     # DraftState: editing...
+doc.publish()  # DraftState: cannot publish
+doc.review()   # DraftState -> ReviewState
+doc.publish()  # ReviewState -> PublishedState
+doc.edit()     # PublishedState -> DraftState (new draft)`,
   },
   realWorldExamples: [
     "Traffic light controller (green/yellow/red transitions)",
@@ -3017,276 +3121,152 @@ const proxy: DesignPattern = {
     { id: rid(), source: "px-client", target: "px-image-service", type: "dependency", label: "uses" },
   ],
   code: {
-    typescript: `interface Subject {
-  request(): string;
+    typescript: `// Service interface — both real and proxy implement this
+interface ImageService {
+  loadImage(url: string): string;
+  getImage(url: string): string | null;
 }
 
-class RealSubject implements Subject {
-  request(): string {
-    console.log("RealSubject: handling request (expensive operation)...");
-    return "Real data loaded from remote source";
+// Real service — expensive remote calls
+class RemoteImageService implements ImageService {
+  private apiBaseUrl = "https://img.example.com";
+
+  loadImage(url: string): string {
+    console.log(\`RemoteImageService: downloading \${url}...\`);
+    return \`[ImageData: \${url}]\`;
+  }
+
+  getImage(url: string): string | null {
+    return this.loadImage(url);
   }
 }
 
-class ImageProxy implements Subject {
-  private realSubject: RealSubject | null = null;
-  private cache: string | null = null;
-
-  private checkAccess(): boolean {
-    console.log("Proxy: checking access before forwarding request.");
-    return true;
-  }
-
-  private logAccess(): void {
-    console.log("Proxy: logging time of request.");
-  }
-
-  request(): string {
-    if (this.cache) {
-      console.log("Proxy: returning cached result.");
-      return this.cache;
-    }
-
-    if (!this.checkAccess()) {
-      return "Access denied";
-    }
-
-    // Lazy initialization
-    if (!this.realSubject) {
-      this.realSubject = new RealSubject();
-    }
-
-    const result = this.realSubject.request();
-    this.cache = result;
-    this.logAccess();
-    return result;
-  }
-}
-
-// Usage - lazy-loading image proxy
-const proxy: Subject = new ImageProxy();
-console.log(proxy.request()); // Loads from real subject
-console.log(proxy.request()); // Returns cached result
-
-// --- Variant: Protection Proxy (Access Control) ---
-
-interface SecureDoc {
-  read(): string;
-  write(content: string): void;
-}
-
-class RealDocument implements SecureDoc {
-  private content = "Confidential data";
-
-  read(): string { return this.content; }
-  write(content: string): void { this.content = content; }
-}
-
-type UserRole = "admin" | "editor" | "viewer";
-
-class ProtectionProxy implements SecureDoc {
-  constructor(
-    private doc: RealDocument,
-    private userRole: UserRole
-  ) {}
-
-  read(): string {
-    console.log(\`[Protection] \${this.userRole} reading document\`);
-    return this.doc.read();
-  }
-
-  write(content: string): void {
-    if (this.userRole !== "admin" && this.userRole !== "editor") {
-      throw new Error(\`Access denied: \${this.userRole} cannot write\`);
-    }
-    console.log(\`[Protection] \${this.userRole} writing document\`);
-    this.doc.write(content);
-  }
-}
-
-// Usage — Protection Proxy
-const realDoc = new RealDocument();
-const viewerProxy: SecureDoc = new ProtectionProxy(realDoc, "viewer");
-console.log(viewerProxy.read()); // OK
-// viewerProxy.write("hack"); // throws "Access denied: viewer cannot write"
-
-const adminProxy: SecureDoc = new ProtectionProxy(realDoc, "admin");
-adminProxy.write("Updated by admin"); // OK
-
-// --- Variant: Caching Proxy (Memoization) ---
-
-interface DataService {
-  fetchData(query: string): string;
-}
-
-class ExpensiveService implements DataService {
-  fetchData(query: string): string {
-    console.log(\`[Expensive] Fetching "\${query}" from database...\`);
-    return \`Result for: \${query}\`;
-  }
-}
-
-class CachingProxy implements DataService {
+// Proxy — caches results, avoids redundant downloads
+class CachedImageProxy implements ImageService {
+  private realService: RemoteImageService;
   private cache = new Map<string, { data: string; timestamp: number }>();
   private ttlMs: number;
 
-  constructor(private service: ExpensiveService, ttlMs = 60_000) {
+  constructor(ttlMs = 60_000) {
+    this.realService = new RemoteImageService();
     this.ttlMs = ttlMs;
   }
 
-  fetchData(query: string): string {
-    const cached = this.cache.get(query);
-    if (cached && Date.now() - cached.timestamp < this.ttlMs) {
-      console.log(\`[Cache HIT] "\${query}"\`);
-      return cached.data;
-    }
+  private isCached(url: string): boolean {
+    const entry = this.cache.get(url);
+    return \!\!entry && Date.now() - entry.timestamp < this.ttlMs;
+  }
 
-    console.log(\`[Cache MISS] "\${query}"\`);
-    const data = this.service.fetchData(query);
-    this.cache.set(query, { data, timestamp: Date.now() });
+  loadImage(url: string): string {
+    if (this.isCached(url)) {
+      console.log(\`[Cache HIT] \${url}\`);
+      return this.cache.get(url)\!.data;
+    }
+    console.log(\`[Cache MISS] \${url}\`);
+    const data = this.realService.loadImage(url);
+    this.cache.set(url, { data, timestamp: Date.now() });
     return data;
   }
 
-  invalidate(query: string): void { this.cache.delete(query); }
-  clearCache(): void { this.cache.clear(); }
+  getImage(url: string): string | null {
+    return this.cache.get(url)?.data ?? null;
+  }
+
+  clearCache(): void {
+    this.cache.clear();
+    console.log("CachedImageProxy: cache cleared");
+  }
 }
 
-// Usage — Caching Proxy
-const service: DataService = new CachingProxy(new ExpensiveService(), 5000);
-console.log(service.fetchData("users")); // Cache MISS, hits DB
-console.log(service.fetchData("users")); // Cache HIT, returns cached`,
+// Usage — ImageGallery works with any ImageService
+class ImageGallery {
+  constructor(private service: ImageService) {}
+
+  displayImages(urls: string[]): void {
+    for (const url of urls) {
+      console.log("Displaying:", this.service.loadImage(url));
+    }
+  }
+
+  refresh(): void {
+    console.log("Gallery: refreshing all images");
+  }
+}
+
+const proxy = new CachedImageProxy(5000);
+const gallery = new ImageGallery(proxy);
+gallery.displayImages(["cat.png", "dog.png", "cat.png"]); // cat.png cache HIT 2nd time
+console.log("Cached?", proxy.getImage("cat.png") \!== null);
+proxy.clearCache();`,
     python: `from abc import ABC, abstractmethod
-
-class Subject(ABC):
-    @abstractmethod
-    def request(self) -> str: ...
-
-class RealSubject(Subject):
-    def request(self) -> str:
-        print("RealSubject: handling request (expensive operation)...")
-        return "Real data loaded from remote source"
-
-class ImageProxy(Subject):
-    def __init__(self):
-        self._real_subject: RealSubject | None = None
-        self._cache: str | None = None
-
-    def _check_access(self) -> bool:
-        print("Proxy: checking access before forwarding request.")
-        return True
-
-    def _log_access(self) -> None:
-        print("Proxy: logging time of request.")
-
-    def request(self) -> str:
-        if self._cache:
-            print("Proxy: returning cached result.")
-            return self._cache
-
-        if not self._check_access():
-            return "Access denied"
-
-        # Lazy initialization
-        if not self._real_subject:
-            self._real_subject = RealSubject()
-
-        result = self._real_subject.request()
-        self._cache = result
-        self._log_access()
-        return result
-
-# Usage - lazy-loading image proxy
-proxy: Subject = ImageProxy()
-print(proxy.request())  # Loads from real subject
-print(proxy.request())  # Returns cached result
-
-# --- Variant: Protection Proxy (Access Control) ---
-
-from typing import Literal
-
-class SecureDoc(ABC):
-    @abstractmethod
-    def read(self) -> str: ...
-    @abstractmethod
-    def write(self, content: str) -> None: ...
-
-class RealDocument(SecureDoc):
-    def __init__(self):
-        self._content = "Confidential data"
-
-    def read(self) -> str:
-        return self._content
-
-    def write(self, content: str) -> None:
-        self._content = content
-
-UserRole = Literal["admin", "editor", "viewer"]
-
-class ProtectionProxy(SecureDoc):
-    def __init__(self, doc: RealDocument, user_role: UserRole):
-        self._doc = doc
-        self._user_role = user_role
-
-    def read(self) -> str:
-        print(f"[Protection] {self._user_role} reading document")
-        return self._doc.read()
-
-    def write(self, content: str) -> None:
-        if self._user_role not in ("admin", "editor"):
-            raise PermissionError(f"Access denied: {self._user_role} cannot write")
-        print(f"[Protection] {self._user_role} writing document")
-        self._doc.write(content)
-
-# Usage - Protection Proxy
-real_doc = RealDocument()
-viewer_proxy: SecureDoc = ProtectionProxy(real_doc, "viewer")
-print(viewer_proxy.read())  # OK
-# viewer_proxy.write("hack")  # raises PermissionError
-
-admin_proxy: SecureDoc = ProtectionProxy(real_doc, "admin")
-admin_proxy.write("Updated by admin")  # OK
-
-# --- Variant: Caching Proxy (Memoization) ---
-
 import time
 
-class DataService(ABC):
+# Service interface — both real and proxy implement this
+class ImageService(ABC):
     @abstractmethod
-    def fetch_data(self, query: str) -> str: ...
+    def load_image(self, url: str) -> str: ...
+    @abstractmethod
+    def get_image(self, url: str) -> str | None: ...
 
-class ExpensiveService(DataService):
-    def fetch_data(self, query: str) -> str:
-        print(f'[Expensive] Fetching "{query}" from database...')
-        return f"Result for: {query}"
+# Real service — expensive remote calls
+class RemoteImageService(ImageService):
+    def __init__(self):
+        self._api_base_url = "https://img.example.com"
 
-class CachingProxy(DataService):
-    def __init__(self, service: ExpensiveService, ttl_seconds: float = 60):
-        self._service = service
-        self._ttl = ttl_seconds
+    def load_image(self, url: str) -> str:
+        print(f"RemoteImageService: downloading {url}...")
+        return f"[ImageData: {url}]"
+
+    def get_image(self, url: str) -> str | None:
+        return self.load_image(url)
+
+# Proxy — caches results, avoids redundant downloads
+class CachedImageProxy(ImageService):
+    def __init__(self, ttl_seconds: float = 60):
+        self._real_service = RemoteImageService()
         self._cache: dict[str, tuple[str, float]] = {}
+        self._ttl = ttl_seconds
 
-    def fetch_data(self, query: str) -> str:
-        if query in self._cache:
-            data, timestamp = self._cache[query]
-            if time.time() - timestamp < self._ttl:
-                print(f'[Cache HIT] "{query}"')
-                return data
+    def _is_cached(self, url: str) -> bool:
+        if url not in self._cache:
+            return False
+        _, ts = self._cache[url]
+        return time.time() - ts < self._ttl
 
-        print(f'[Cache MISS] "{query}"')
-        data = self._service.fetch_data(query)
-        self._cache[query] = (data, time.time())
+    def load_image(self, url: str) -> str:
+        if self._is_cached(url):
+            print(f"[Cache HIT] {url}")
+            return self._cache[url][0]
+        print(f"[Cache MISS] {url}")
+        data = self._real_service.load_image(url)
+        self._cache[url] = (data, time.time())
         return data
 
-    def invalidate(self, query: str) -> None:
-        self._cache.pop(query, None)
+    def get_image(self, url: str) -> str | None:
+        entry = self._cache.get(url)
+        return entry[0] if entry else None
 
     def clear_cache(self) -> None:
         self._cache.clear()
+        print("CachedImageProxy: cache cleared")
 
-# Usage - Caching Proxy
-service: DataService = CachingProxy(ExpensiveService(), ttl_seconds=5)
-print(service.fetch_data("users"))  # Cache MISS, hits DB
-print(service.fetch_data("users"))  # Cache HIT, returns cached`,
+# Usage — ImageGallery works with any ImageService
+class ImageGallery:
+    def __init__(self, service: ImageService):
+        self._service = service
+
+    def display_images(self, urls: list[str]) -> None:
+        for url in urls:
+            print("Displaying:", self._service.load_image(url))
+
+    def refresh(self) -> None:
+        print("Gallery: refreshing all images")
+
+proxy = CachedImageProxy(ttl_seconds=5)
+gallery = ImageGallery(proxy)
+gallery.display_images(["cat.png", "dog.png", "cat.png"])  # cat.png cache HIT 2nd time
+print("Cached?", proxy.get_image("cat.png") is not None)
+proxy.clear_cache()`,
   },
   realWorldExamples: [
     "Caching proxy for expensive API calls or database queries",
@@ -3438,142 +3418,174 @@ const iterator: DesignPattern = {
     { id: rid(), source: "it-playlist", target: "it-song", type: "aggregation", label: "contains *" },
   ],
   code: {
-    typescript: `interface Iterator<T> {
+    typescript: `// Iterator interface for traversing songs
+interface SongIterator {
   hasNext(): boolean;
-  next(): T;
+  next(): Song;
+  reset(): void;
 }
 
-interface IterableCollection<T> {
-  createIterator(): Iterator<T>;
+class Song {
+  constructor(
+    public readonly title: string,
+    public readonly artist: string,
+    public readonly durationMs: number,
+  ) {}
+
+  toString(): string { return \`\${this.title} by \${this.artist}\`; }
 }
 
-class NumberCollection implements IterableCollection<number> {
-  private items: number[] = [];
+// Collection — creates iterators but hides internal storage
+class Playlist {
+  private songs: Song[] = [];
+  constructor(public readonly name: string) {}
 
-  addItem(item: number): void {
-    this.items.push(item);
-  }
+  addSong(song: Song): void { this.songs.push(song); }
+  getSongs(): Song[] { return [...this.songs]; }
 
-  getItems(): number[] {
-    return this.items;
-  }
-
-  createIterator(): Iterator<number> {
-    return new NumberIterator(this);
-  }
+  createIterator(): SongIterator { return new PlaylistIterator(this); }
+  createShuffleIterator(): SongIterator { return new ShuffleIterator(this); }
 }
 
-class NumberIterator implements Iterator<number> {
+// Sequential iterator
+class PlaylistIterator implements SongIterator {
+  private position = 0;
+  constructor(private playlist: Playlist) {}
+
+  hasNext(): boolean { return this.position < this.playlist.getSongs().length; }
+  next(): Song {
+    if (\!this.hasNext()) throw new Error("No more songs");
+    return this.playlist.getSongs()[this.position++];
+  }
+  reset(): void { this.position = 0; }
+}
+
+// Shuffle iterator — random order, no repeats
+class ShuffleIterator implements SongIterator {
+  private indices: number[];
   private position = 0;
 
-  constructor(private collection: NumberCollection) {}
-
-  hasNext(): boolean {
-    return this.position < this.collection.getItems().length;
+  constructor(private playlist: Playlist) {
+    this.indices = [...Array(playlist.getSongs().length).keys()];
+    for (let i = this.indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.indices[i], this.indices[j]] = [this.indices[j], this.indices[i]];
+    }
   }
 
-  next(): number {
-    const item = this.collection.getItems()[this.position];
-    this.position++;
-    return item;
+  hasNext(): boolean { return this.position < this.indices.length; }
+  next(): Song {
+    if (\!this.hasNext()) throw new Error("No more songs");
+    return this.playlist.getSongs()[this.indices[this.position++]];
   }
+  reset(): void { this.position = 0; }
 }
 
 // Usage
-const collection = new NumberCollection();
-collection.addItem(10);
-collection.addItem(20);
-collection.addItem(30);
+const playlist = new Playlist("Road Trip");
+playlist.addSong(new Song("Bohemian Rhapsody", "Queen", 354000));
+playlist.addSong(new Song("Hotel California", "Eagles", 391000));
+playlist.addSong(new Song("Stairway to Heaven", "Led Zeppelin", 482000));
 
-const iter = collection.createIterator();
-while (iter.hasNext()) {
-  console.log(iter.next()); // 10, 20, 30
-}
+const iter = playlist.createIterator();
+while (iter.hasNext()) console.log(iter.next().toString());
 
-// ── Generator Variant ──────────────────────────────────
-// Generators are syntactic sugar for the Iterator pattern.
-
-// TypeScript: Symbol.iterator / for-of protocol
-class NumberRange {
-  constructor(private start: number, private end: number) {}
-
-  *[Symbol.iterator](): Generator<number> {
-    for (let i = this.start; i <= this.end; i++) {
-      yield i;
-    }
-  }
-}
-
-// for-of automatically calls Symbol.iterator and .next()
-for (const n of new NumberRange(1, 5)) {
-  console.log(n); // 1, 2, 3, 4, 5
-}`,
+console.log("--- Shuffle ---");
+const shuffle = playlist.createShuffleIterator();
+while (shuffle.hasNext()) console.log(shuffle.next().toString());`,
     python: `from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+import random
 
-T = TypeVar("T")
-
-class Iterator(ABC, Generic[T]):
+# Iterator interface for traversing songs
+class SongIterator(ABC):
     @abstractmethod
     def has_next(self) -> bool: ...
-
     @abstractmethod
-    def next(self) -> T: ...
-
-class IterableCollection(ABC, Generic[T]):
+    def next(self) -> "Song": ...
     @abstractmethod
-    def create_iterator(self) -> "Iterator[T]": ...
+    def reset(self) -> None: ...
 
-class NumberCollection(IterableCollection[int]):
-    def __init__(self):
-        self._items: list[int] = []
+class Song:
+    def __init__(self, title: str, artist: str, duration_ms: int):
+        self.title = title
+        self.artist = artist
+        self.duration_ms = duration_ms
 
-    def add_item(self, item: int) -> None:
-        self._items.append(item)
+    def __str__(self) -> str:
+        return f"{self.title} by {self.artist}"
 
-    def get_items(self) -> list[int]:
-        return self._items
+# Collection — creates iterators but hides internal storage
+class Playlist:
+    def __init__(self, name: str):
+        self.name = name
+        self._songs: list[Song] = []
 
-    def create_iterator(self) -> "Iterator[int]":
-        return NumberIterator(self)
+    def add_song(self, song: Song) -> None:
+        self._songs.append(song)
 
-class NumberIterator(Iterator[int]):
-    def __init__(self, collection: NumberCollection):
-        self._collection = collection
+    def get_songs(self) -> list["Song"]:
+        return list(self._songs)
+
+    def create_iterator(self) -> SongIterator:
+        return PlaylistIterator(self)
+
+    def create_shuffle_iterator(self) -> SongIterator:
+        return ShuffleIterator(self)
+
+# Sequential iterator
+class PlaylistIterator(SongIterator):
+    def __init__(self, playlist: Playlist):
+        self._playlist = playlist
         self._position = 0
 
     def has_next(self) -> bool:
-        return self._position < len(self._collection.get_items())
+        return self._position < len(self._playlist.get_songs())
 
-    def next(self) -> int:
-        item = self._collection.get_items()[self._position]
+    def next(self) -> Song:
+        if not self.has_next():
+            raise StopIteration("No more songs")
+        song = self._playlist.get_songs()[self._position]
         self._position += 1
-        return item
+        return song
+
+    def reset(self) -> None:
+        self._position = 0
+
+# Shuffle iterator — random order, no repeats
+class ShuffleIterator(SongIterator):
+    def __init__(self, playlist: Playlist):
+        self._playlist = playlist
+        self._indices = list(range(len(playlist.get_songs())))
+        random.shuffle(self._indices)
+        self._position = 0
+
+    def has_next(self) -> bool:
+        return self._position < len(self._indices)
+
+    def next(self) -> Song:
+        if not self.has_next():
+            raise StopIteration("No more songs")
+        song = self._playlist.get_songs()[self._indices[self._position]]
+        self._position += 1
+        return song
+
+    def reset(self) -> None:
+        self._position = 0
 
 # Usage
-collection = NumberCollection()
-collection.add_item(10)
-collection.add_item(20)
-collection.add_item(30)
+playlist = Playlist("Road Trip")
+playlist.add_song(Song("Bohemian Rhapsody", "Queen", 354000))
+playlist.add_song(Song("Hotel California", "Eagles", 391000))
+playlist.add_song(Song("Stairway to Heaven", "Led Zeppelin", 482000))
 
-it = collection.create_iterator()
+it = playlist.create_iterator()
 while it.has_next():
-    print(it.next())  # 10, 20, 30
+    print(it.next())
 
-# ── Generator Variant ──────────────────────────────────
-# Generators are syntactic sugar for the Iterator pattern.
-
-# Python: yield keyword creates a generator (iterator) automatically
-def number_range(start: int, end: int):
-    """Generator function — each yield suspends and produces a value."""
-    i = start
-    while i <= end:
-        yield i
-        i += 1
-
-# for-in automatically calls __iter__ / __next__ on the generator
-for n in number_range(1, 5):
-    print(n)  # 1, 2, 3, 4, 5`,
+print("--- Shuffle ---")
+shuffle = playlist.create_shuffle_iterator()
+while shuffle.has_next():
+    print(shuffle.next())`,
   },
   realWorldExamples: [
     "Database cursor iterating over query result rows",
@@ -3717,111 +3729,144 @@ const mediator: DesignPattern = {
     { id: rid(), source: "med-group-chat", target: "med-regular-user", type: "association", label: "coordinates" },
   ],
   code: {
-    typescript: `interface Mediator {
-  notify(sender: Colleague, event: string): void;
+    typescript: `// Mediator interface — central hub for communication
+interface ChatMediator {
+  sendMessage(sender: ChatUser, message: string): void;
+  addUser(user: ChatUser): void;
+  removeUser(user: ChatUser): void;
 }
 
-abstract class Colleague {
-  protected mediator?: Mediator;
+// Abstract colleague — knows only the mediator, not other users
+abstract class ChatUser {
+  protected mediator?: ChatMediator;
+  constructor(public readonly username: string) {}
 
-  setMediator(mediator: Mediator): void {
+  setMediator(mediator: ChatMediator): void {
     this.mediator = mediator;
   }
-}
 
-class ChatUser extends Colleague {
-  constructor(public name: string) {
-    super();
+  sendMessage(message: string): void {
+    console.log(\`\${this.username} sends: \${message}\`);
+    this.mediator?.sendMessage(this, message);
   }
 
-  send(message: string): void {
-    console.log(\`\${this.name} sends: \${message}\`);
-    this.mediator?.notify(this, message);
-  }
-
-  receive(message: string): void {
-    console.log(\`\${this.name} receives: \${message}\`);
+  receiveMessage(from: string, message: string): void {
+    console.log(\`\${this.username} receives from \${from}: \${message}\`);
   }
 }
 
-class ChatRoom implements Mediator {
+class AdminUser extends ChatUser {
+  kickUser(target: string): void {
+    console.log(\`[Admin] \${this.username} kicked \${target}\`);
+  }
+}
+
+class RegularUser extends ChatUser {}
+
+// Concrete mediator — routes messages to all other users
+class GroupChatRoom implements ChatMediator {
   private users: ChatUser[] = [];
 
-  register(user: ChatUser): void {
+  addUser(user: ChatUser): void {
     user.setMediator(this);
     this.users.push(user);
+    console.log(\`\${user.username} joined the room\`);
   }
 
-  notify(sender: Colleague, event: string): void {
+  removeUser(user: ChatUser): void {
+    this.users = this.users.filter(u => u \!== user);
+    console.log(\`\${user.username} left the room\`);
+  }
+
+  sendMessage(sender: ChatUser, message: string): void {
     for (const user of this.users) {
-      if (user !== sender) {
-        user.receive(event);
+      if (user \!== sender) {
+        user.receiveMessage(sender.username, message);
       }
     }
   }
 }
 
-// Usage - chat room mediator
-const room = new ChatRoom();
-const alice = new ChatUser("Alice");
-const bob = new ChatUser("Bob");
-const charlie = new ChatUser("Charlie");
+// Usage — users communicate only through the mediator
+const room = new GroupChatRoom();
+const alice = new AdminUser("Alice");
+const bob = new RegularUser("Bob");
+const charlie = new RegularUser("Charlie");
 
-room.register(alice);
-room.register(bob);
-room.register(charlie);
+room.addUser(alice);
+room.addUser(bob);
+room.addUser(charlie);
 
-alice.send("Hello everyone!"); // Bob and Charlie receive`,
+alice.sendMessage("Hello everyone\!");   // Bob & Charlie receive
+bob.sendMessage("Hi Alice\!");           // Alice & Charlie receive
+alice.kickUser("Charlie");`,
     python: `from abc import ABC, abstractmethod
 
-class Mediator(ABC):
+# Mediator interface — central hub for communication
+class ChatMediator(ABC):
     @abstractmethod
-    def notify(self, sender: "Colleague", event: str) -> None: ...
+    def send_message(self, sender: "ChatUser", message: str) -> None: ...
+    @abstractmethod
+    def add_user(self, user: "ChatUser") -> None: ...
+    @abstractmethod
+    def remove_user(self, user: "ChatUser") -> None: ...
 
-class Colleague(ABC):
-    def __init__(self):
-        self._mediator: Mediator | None = None
+# Abstract colleague — knows only the mediator, not other users
+class ChatUser(ABC):
+    def __init__(self, username: str):
+        self.username = username
+        self._mediator: ChatMediator | None = None
 
-    def set_mediator(self, mediator: Mediator) -> None:
+    def set_mediator(self, mediator: ChatMediator) -> None:
         self._mediator = mediator
 
-class ChatUser(Colleague):
-    def __init__(self, name: str):
-        super().__init__()
-        self.name = name
-
-    def send(self, message: str) -> None:
-        print(f"{self.name} sends: {message}")
+    def send_message(self, message: str) -> None:
+        print(f"{self.username} sends: {message}")
         if self._mediator:
-            self._mediator.notify(self, message)
+            self._mediator.send_message(self, message)
 
-    def receive(self, message: str) -> None:
-        print(f"{self.name} receives: {message}")
+    def receive_message(self, from_user: str, message: str) -> None:
+        print(f"{self.username} receives from {from_user}: {message}")
 
-class ChatRoom(Mediator):
+class AdminUser(ChatUser):
+    def kick_user(self, target: str) -> None:
+        print(f"[Admin] {self.username} kicked {target}")
+
+class RegularUser(ChatUser):
+    pass
+
+# Concrete mediator — routes messages to all other users
+class GroupChatRoom(ChatMediator):
     def __init__(self):
         self._users: list[ChatUser] = []
 
-    def register(self, user: ChatUser) -> None:
+    def add_user(self, user: ChatUser) -> None:
         user.set_mediator(self)
         self._users.append(user)
+        print(f"{user.username} joined the room")
 
-    def notify(self, sender: Colleague, event: str) -> None:
+    def remove_user(self, user: ChatUser) -> None:
+        self._users = [u for u in self._users if u is not user]
+        print(f"{user.username} left the room")
+
+    def send_message(self, sender: ChatUser, message: str) -> None:
         for user in self._users:
             if user is not sender:
-                user.receive(event)
+                user.receive_message(sender.username, message)
 
-# Usage - chat room mediator
-room = ChatRoom()
-alice = ChatUser("Alice")
-bob = ChatUser("Bob")
-charlie = ChatUser("Charlie")
+# Usage — users communicate only through the mediator
+room = GroupChatRoom()
+alice = AdminUser("Alice")
+bob = RegularUser("Bob")
+charlie = RegularUser("Charlie")
 
-room.register(alice)
-room.register(bob)
-room.register(charlie)
+room.add_user(alice)
+room.add_user(bob)
+room.add_user(charlie)
 
-alice.send("Hello everyone!")  # Bob and Charlie receive`,
+alice.send_message("Hello everyone\!")   # Bob & Charlie receive
+bob.send_message("Hi Alice\!")           # Alice & Charlie receive
+alice.kick_user("Charlie")`,
   },
   realWorldExamples: [
     "Chat room routing messages between participants",
@@ -4196,22 +4241,18 @@ interface Repository<T extends Entity> {
   delete(id: string): void;
 }
 
-interface User extends Entity {
-  email: string;
-}
+class MongoRepository<T extends Entity> implements Repository<T> {
+  private store = new Map<string, T>();
 
-class InMemoryUserRepository implements Repository<User> {
-  private store = new Map<string, User>();
-
-  findById(id: string): User | null {
+  findById(id: string): T | null {
     return this.store.get(id) ?? null;
   }
 
-  findAll(): User[] {
+  findAll(): T[] {
     return Array.from(this.store.values());
   }
 
-  save(entity: User): void {
+  save(entity: T): void {
     this.store.set(entity.id, entity);
   }
 
@@ -4220,15 +4261,15 @@ class InMemoryUserRepository implements Repository<User> {
   }
 }
 
-class SQLUserRepository implements Repository<User> {
-  findById(id: string): User | null {
-    // SELECT * FROM users WHERE id = ?
+class SQLRepository<T extends Entity> implements Repository<T> {
+  findById(id: string): T | null {
+    // SELECT * FROM entities WHERE id = ?
     console.log(\`SQL: SELECT * FROM users WHERE id = '\${id}'\`);
     return null; // simplified
   }
 
-  findAll(): User[] {
-    console.log("SQL: SELECT * FROM users");
+  findAll(): T[] {
+    console.log("SQL: SELECT * FROM entities");
     return [];
   }
 
@@ -4242,18 +4283,18 @@ class SQLUserRepository implements Repository<User> {
 }
 
 // Usage - swap implementations without changing business logic
-function createUser(repo: Repository<User>, name: string): void {
-  const user: User = {
+function createEntity(repo: Repository<Entity>, name: string): void {
+  const entity: Entity = {
     id: crypto.randomUUID(),
     name,
     email: \`\${name.toLowerCase()}@example.com\`,
     createdAt: new Date(),
   };
-  repo.save(user);
+  repo.save(entity);
 }
 
-const repo = new InMemoryUserRepository();
-createUser(repo, "Alice");
+const repo = new MongoRepository<Entity>();
+createEntity(repo, "Alice");
 console.log(repo.findAll());`,
     python: `from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -4282,52 +4323,47 @@ class Repository(ABC, Generic[T]):
     @abstractmethod
     def delete(self, id: str) -> None: ...
 
-@dataclass
-class User(Entity):
-    email: str = ""
-
-class InMemoryUserRepository(Repository[User]):
+class MongoRepository(Repository[T]):
     def __init__(self):
-        self._store: dict[str, User] = {}
+        self._store: dict[str, T] = {}
 
-    def find_by_id(self, id: str) -> User | None:
+    def find_by_id(self, id: str) -> T | None:
         return self._store.get(id)
 
-    def find_all(self) -> list[User]:
+    def find_all(self) -> list[T]:
         return list(self._store.values())
 
-    def save(self, entity: User) -> None:
+    def save(self, entity: T) -> None:
         self._store[entity.id] = entity
 
     def delete(self, id: str) -> None:
         self._store.pop(id, None)
 
-class SQLUserRepository(Repository[User]):
-    def find_by_id(self, id: str) -> User | None:
-        print(f"SQL: SELECT * FROM users WHERE id = '{id}'")
+class SQLRepository(Repository[T]):
+    def find_by_id(self, id: str) -> T | None:
+        print(f"SQL: SELECT * FROM entities WHERE id = '{id}'")
         return None
 
-    def find_all(self) -> list[User]:
-        print("SQL: SELECT * FROM users")
+    def find_all(self) -> list[T]:
+        print("SQL: SELECT * FROM entities")
         return []
 
-    def save(self, entity: User) -> None:
-        print(f"SQL: INSERT INTO users VALUES ('{entity.id}', '{entity.name}')")
+    def save(self, entity: T) -> None:
+        print(f"SQL: INSERT INTO entities VALUES ('{entity.id}', '{entity.name}')")
 
     def delete(self, id: str) -> None:
-        print(f"SQL: DELETE FROM users WHERE id = '{id}'")
+        print(f"SQL: DELETE FROM entities WHERE id = '{id}'")
 
 # Usage - swap implementations without changing business logic
-def create_user(repo: Repository[User], name: str) -> None:
-    user = User(
+def create_entity(repo: Repository[Entity], name: str) -> None:
+    entity = Entity(
         id=str(uuid.uuid4()),
         name=name,
-        email=f"{name.lower()}@example.com",
     )
-    repo.save(user)
+    repo.save(entity)
 
-repo = InMemoryUserRepository()
-create_user(repo, "Alice")
+repo = MongoRepository[Entity]()
+create_entity(repo, "Alice")
 print(repo.find_all())`,
   },
   realWorldExamples: [
@@ -6503,6 +6539,48 @@ class QueryBus {
   }
 }
 
+// ── Write/Read Models ───────────────────────────────────
+class WriteModel {
+  private store = new Map<string, object>();
+
+  save(id: string, entity: object): void {
+    this.store.set(id, entity);
+    console.log(\`[WRITE MODEL] Saved \${id}\`);
+  }
+
+  update(id: string, data: Partial<object>): void {
+    const existing = this.store.get(id);
+    if (!existing) throw new Error(\`Entity \${id} not found\`);
+    this.store.set(id, { ...existing, ...data });
+  }
+}
+
+class ReadModel {
+  private cache = new Map<string, object>();
+
+  query(filters: Record<string, unknown>): object[] {
+    return Array.from(this.cache.values());
+  }
+
+  getById(id: string): object | null {
+    return this.cache.get(id) ?? null;
+  }
+
+  project(id: string, data: object): void {
+    this.cache.set(id, data);
+  }
+}
+
+// ── Domain Event (syncs write to read) ──────────────────
+class DomainEvent {
+  constructor(
+    public readonly eventType: string,
+    public readonly aggregateId: string,
+    public readonly payload: object,
+    public readonly timestamp = new Date(),
+  ) {}
+}
+
 // Usage
 const commandBus = new CommandBus();
 commandBus.register("CreateOrder", new CreateOrderHandler());
@@ -6604,6 +6682,42 @@ class QueryBus:
         if not handler:
             raise ValueError(f"No handler for {query.type}")
         return handler.handle(query)
+
+# ── Write/Read Models ────────────────────────────────────
+class WriteModel:
+    def __init__(self):
+        self._store: dict[str, dict] = {}
+
+    def save(self, id: str, entity: dict) -> None:
+        self._store[id] = entity
+        print(f"[WRITE MODEL] Saved {id}")
+
+    def update(self, id: str, data: dict) -> None:
+        existing = self._store.get(id)
+        if not existing:
+            raise ValueError(f"Entity {id} not found")
+        existing.update(data)
+
+class ReadModel:
+    def __init__(self):
+        self._cache: dict[str, dict] = {}
+
+    def query(self, filters: dict) -> list[dict]:
+        return list(self._cache.values())
+
+    def get_by_id(self, id: str) -> dict | None:
+        return self._cache.get(id)
+
+    def project(self, id: str, data: dict) -> None:
+        self._cache[id] = data
+
+# ── Domain Event (syncs write to read) ──────────────────
+@dataclass
+class DomainEvent:
+    event_type: str
+    aggregate_id: str
+    payload: dict
+    timestamp: datetime = field(default_factory=datetime.now)
 
 # Usage
 command_bus = CommandBus()
@@ -6779,15 +6893,15 @@ const eventSourcing: DesignPattern = {
     { id: rid(), source: "es-eventbus", target: "es-event", type: "dependency", label: "publishes" },
   ],
   code: {
-    typescript: `// ── Domain Events ────────────────────────────────
-interface DomainEvent {
+    typescript: `// ── Events ────────────────────────────────
+interface Event {
   readonly id: string;
   readonly aggregateId: string;
   readonly timestamp: Date;
   readonly type: string;
 }
 
-class MoneyDeposited implements DomainEvent {
+class MoneyDeposited implements Event {
   readonly type = "MoneyDeposited";
   readonly timestamp = new Date();
   constructor(
@@ -6797,7 +6911,7 @@ class MoneyDeposited implements DomainEvent {
   ) {}
 }
 
-class MoneyWithdrawn implements DomainEvent {
+class MoneyWithdrawn implements Event {
   readonly type = "MoneyWithdrawn";
   readonly timestamp = new Date();
   constructor(
@@ -6809,21 +6923,38 @@ class MoneyWithdrawn implements DomainEvent {
 
 // ── Event Store ─────────────────────────────────
 class EventStore {
-  private events: DomainEvent[] = [];
+  private events: Event[] = [];
 
-  append(event: DomainEvent): void {
+  append(event: Event): void {
     this.events.push(event);
   }
 
-  getEvents(aggregateId: string): DomainEvent[] {
+  getEvents(aggregateId: string): Event[] {
     return this.events.filter(e => e.aggregateId === aggregateId);
   }
 }
 
+// ── Event Bus ───────────────────────────────────────────
+class EventBus {
+  private handlers = new Map<string, ((event: Event) => void)[]>();
+
+  subscribe(eventType: string, handler: (event: Event) => void): void {
+    if (!this.handlers.has(eventType)) this.handlers.set(eventType, []);
+    this.handlers.get(eventType)!.push(handler);
+  }
+
+  publish(event: Event): void {
+    const fns = this.handlers.get(event.type) ?? [];
+    for (const fn of fns) fn(event);
+  }
+}
+
 // ── Aggregate (state rebuilt from events) ───────
-class BankAccount {
+class Aggregate {
   private _balance = 0;
-  private _id: string;
+  protected _id: string;
+  protected _version = 0;
+  private _uncommittedEvents: Event[] = [];
 
   constructor(id: string) {
     this._id = id;
@@ -6832,105 +6963,142 @@ class BankAccount {
   get balance(): number { return this._balance; }
 
   // Apply event to update state
-  apply(event: DomainEvent): void {
+  apply(event: Event): void {
     if (event instanceof MoneyDeposited) {
       this._balance += event.amount;
     } else if (event instanceof MoneyWithdrawn) {
       this._balance -= event.amount;
     }
+    this._version++;
   }
 
   // Reconstruct state from event history
-  loadFromHistory(events: DomainEvent[]): void {
+  loadFromHistory(events: Event[]): void {
     for (const event of events) {
       this.apply(event);
     }
   }
+
+  getUncommitted(): Event[] { return [...this._uncommittedEvents]; }
 }
 
 // Usage
 const store = new EventStore();
+const bus = new EventBus();
 const accountId = "acc-001";
 
+// Subscribe to events
+bus.subscribe("MoneyDeposited", (e) => console.log("[BUS] Deposit: " + (e as MoneyDeposited).amount));
+
 // Record events (not direct state mutations!)
-store.append(new MoneyDeposited("e1", accountId, 1000));
-store.append(new MoneyDeposited("e2", accountId, 500));
-store.append(new MoneyWithdrawn("e3", accountId, 200));
+const e1 = new MoneyDeposited("e1", accountId, 1000);
+const e2 = new MoneyDeposited("e2", accountId, 500);
+const e3 = new MoneyWithdrawn("e3", accountId, 200);
+store.append(e1); bus.publish(e1);
+store.append(e2); bus.publish(e2);
+store.append(e3); bus.publish(e3);
 
 // Reconstruct current state
-const account = new BankAccount(accountId);
+const account = new Aggregate(accountId);
 account.loadFromHistory(store.getEvents(accountId));
 console.log(\`Balance: \$\${account.balance}\`); // Balance: $1300
 
 // Time-travel: reconstruct state at event 2
-const accountAtE2 = new BankAccount(accountId);
+const accountAtE2 = new Aggregate(accountId);
 accountAtE2.loadFromHistory(store.getEvents(accountId).slice(0, 2));
 console.log(\`Balance at e2: \$\${accountAtE2.balance}\`); // Balance at e2: $1500`,
     python: `from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Callable
 import uuid
 
-# ── Domain Events ────────────────────────────────
+# ── Events ────────────────────────────────
 @dataclass(frozen=True)
-class DomainEvent:
+class Event:
     id: str
     aggregate_id: str
     timestamp: datetime = field(default_factory=datetime.now)
 
 @dataclass(frozen=True)
-class MoneyDeposited(DomainEvent):
+class MoneyDeposited(Event):
     amount: float = 0
 
 @dataclass(frozen=True)
-class MoneyWithdrawn(DomainEvent):
+class MoneyWithdrawn(Event):
     amount: float = 0
 
 # ── Event Store ─────────────────────────────────
 class EventStore:
     def __init__(self):
-        self._events: list[DomainEvent] = []
+        self._events: list[Event] = []
 
-    def append(self, event: DomainEvent) -> None:
+    def append(self, event: Event) -> None:
         self._events.append(event)
 
-    def get_events(self, aggregate_id: str) -> list[DomainEvent]:
+    def get_events(self, aggregate_id: str) -> list[Event]:
         return [e for e in self._events if e.aggregate_id == aggregate_id]
 
+# ── Event Bus ───────────────────────────────────────────
+class EventBus:
+    def __init__(self):
+        self._handlers: dict[str, list] = {}
+
+    def subscribe(self, event_type: str, handler) -> None:
+        self._handlers.setdefault(event_type, []).append(handler)
+
+    def publish(self, event: Event) -> None:
+        event_type = type(event).__name__
+        for handler in self._handlers.get(event_type, []):
+            handler(event)
+
 # ── Aggregate (state rebuilt from events) ───────
-class BankAccount:
+class Aggregate:
     def __init__(self, id: str):
         self._id = id
         self._balance = 0.0
+        self._version = 0
+        self._uncommitted_events: list[Event] = []
 
     @property
     def balance(self) -> float:
         return self._balance
 
-    def apply(self, event: DomainEvent) -> None:
+    def apply(self, event: Event) -> None:
         if isinstance(event, MoneyDeposited):
             self._balance += event.amount
         elif isinstance(event, MoneyWithdrawn):
             self._balance -= event.amount
+        self._version += 1
 
-    def load_from_history(self, events: list[DomainEvent]) -> None:
+    def load_from_history(self, events: list[Event]) -> None:
         for event in events:
             self.apply(event)
 
+    def get_uncommitted(self) -> list[Event]:
+        return list(self._uncommitted_events)
+
 # Usage
 store = EventStore()
+bus = EventBus()
 account_id = "acc-001"
 
-store.append(MoneyDeposited(str(uuid.uuid4()), account_id, amount=1000))
-store.append(MoneyDeposited(str(uuid.uuid4()), account_id, amount=500))
-store.append(MoneyWithdrawn(str(uuid.uuid4()), account_id, amount=200))
+# Subscribe to events
+bus.subscribe("MoneyDeposited", lambda e: print(f"[BUS] Deposit: {e.amount}"))
 
-account = BankAccount(account_id)
+e1 = MoneyDeposited(str(uuid.uuid4()), account_id, amount=1000)
+e2 = MoneyDeposited(str(uuid.uuid4()), account_id, amount=500)
+e3 = MoneyWithdrawn(str(uuid.uuid4()), account_id, amount=200)
+store.append(e1); bus.publish(e1)
+store.append(e2); bus.publish(e2)
+store.append(e3); bus.publish(e3)
+
+account = Aggregate(account_id)
 account.load_from_history(store.get_events(account_id))
 print(f"Balance: {account.balance}")  # Balance: 1300.0
 
 # Time-travel: state at event 2
-account_at_e2 = BankAccount(account_id)
+account_at_e2 = Aggregate(account_id)
 account_at_e2.load_from_history(store.get_events(account_id)[:2])
 print(f"Balance at e2: {account_at_e2.balance}")  # Balance at e2: 1500.0`,
   },
@@ -7136,6 +7304,25 @@ class SagaOrchestrator {
   }
 }
 
+// ── Audit Log ───────────────────────────────────────────────────
+class SagaLog {
+  private entries: Array<{ step: string; status: string; timestamp: number; error?: string }> = [];
+  constructor(private sagaId: string) {}
+  recordStepStarted(stepName: string): void {
+    this.entries.push({ step: stepName, status: "started", timestamp: Date.now() });
+  }
+  recordStepCompleted(stepName: string): void {
+    this.entries.push({ step: stepName, status: "completed", timestamp: Date.now() });
+  }
+  recordStepFailed(stepName: string, error: string): void {
+    this.entries.push({ step: stepName, status: "failed", timestamp: Date.now(), error });
+  }
+  recordCompensation(stepName: string): void {
+    this.entries.push({ step: stepName, status: "compensated", timestamp: Date.now() });
+  }
+  getEntries() { return [...this.entries]; }
+}
+
 // ── Concrete Steps ──────────────────────────────
 const reserveInventory: SagaStep = {
   name: "Reserve Inventory",
@@ -7239,6 +7426,22 @@ class SagaOrchestrator:
                 await step.compensate(context)
             except Exception as e:
                 print(f"[SAGA] Compensation failed for: {step.name}")
+
+# ── Audit Log ────────────────────────────────────────────────────
+@dataclass
+class SagaLog:
+    saga_id: str
+    entries: list[dict[str, Any]] = field(default_factory=list)
+    def record_step_started(self, step_name: str) -> None:
+        self.entries.append({"step": step_name, "status": "started"})
+    def record_step_completed(self, step_name: str) -> None:
+        self.entries.append({"step": step_name, "status": "completed"})
+    def record_step_failed(self, step_name: str, error: str) -> None:
+        self.entries.append({"step": step_name, "status": "failed", "error": error})
+    def record_compensation(self, step_name: str) -> None:
+        self.entries.append({"step": step_name, "status": "compensated"})
+    def get_entries(self) -> list[dict[str, Any]]:
+        return list(self.entries)
 
 # ── Concrete Steps ──────────────────────────────
 class ReserveInventory(SagaStep):
@@ -8714,7 +8917,22 @@ const producerConsumer: DesignPattern = {
     { id: rid(), source: "pc-buffer", target: "pc-lock", type: "composition", label: "synchronized by" },
   ],
   code: {
-    typescript: `class SharedBuffer<T> {
+    typescript: `class Lock {
+  private locked = false;
+  private waitQueue: Array<() => void> = [];
+  async acquire(): Promise<void> {
+    if (!this.locked) { this.locked = true; return; }
+    await new Promise<void>((resolve) => this.waitQueue.push(resolve));
+    this.locked = true;
+  }
+  release(): void {
+    this.locked = false;
+    const next = this.waitQueue.shift();
+    next?.();
+  }
+}
+
+class SharedBuffer<T> {
   private buffer: T[] = [];
   private resolvers: Array<() => void> = [];
 
@@ -8785,6 +9003,14 @@ from queue import Queue
 from typing import TypeVar, Generic
 
 T = TypeVar("T")
+
+class Lock:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+    def acquire(self) -> None:
+        self._lock.acquire()
+    def release(self) -> None:
+        self._lock.release()
 
 class SharedBuffer(Generic[T]):
     def __init__(self, capacity: int):
@@ -9015,56 +9241,84 @@ const react: DesignPattern = {
   execute(input: Record<string, unknown>): Promise<string>;
 }
 
-interface Thought {
-  reasoning: string;
-  action?: { tool: string; input: Record<string, unknown> };
-  isFinal: boolean;
-  finalAnswer?: string;
+class ToolRegistry {
+  private tools = new Map<string, Tool>();
+  register(tool: Tool): void { this.tools.set(tool.name, tool); }
+  get(name: string): Tool | undefined { return this.tools.get(name); }
+  list(): string[] { return [...this.tools.keys()]; }
+}
+
+class Action {
+  constructor(
+    public toolName: string,
+    public input: Record<string, unknown>,
+  ) {}
+  validate(): boolean { return !!this.toolName; }
+  toJSON(): object { return { tool: this.toolName, input: this.input }; }
+}
+
+class Observation {
+  constructor(
+    public result: string,
+    public success: boolean,
+  ) {}
+  toPrompt(): string { return \`Observation [\${this.success ? "ok" : "err"}]: \${this.result}\`; }
+  isError(): boolean { return !this.success; }
+}
+
+class Thought {
+  constructor(
+    public reasoning: string,
+    public nextAction: Action | null,
+    public isFinal: boolean,
+    public finalAnswer?: string,
+  ) {}
+  hasAction(): boolean { return this.nextAction !== null; }
+  toPrompt(): string { return \`Thought: \${this.reasoning}\`; }
+}
+
+class Environment {
+  private state = new Map<string, unknown>();
+  constructor(private tools: Map<string, Tool>) {}
+  async execute(action: Action): Promise<Observation> {
+    const tool = this.tools.get(action.toolName);
+    if (!tool) return new Observation(\`Tool "\${action.toolName}" not found\`, false);
+    try {
+      const result = await tool.execute(action.input);
+      return new Observation(result, true);
+    } catch (e) {
+      return new Observation(String(e), false);
+    }
+  }
+  getState(): Map<string, unknown> { return new Map(this.state); }
 }
 
 class Agent {
   private history: string[] = [];
-
-  constructor(
-    private tools: Map<string, Tool>,
-    private maxSteps = 10,
-  ) {}
-
+  private registry: ToolRegistry;
+  private env: Environment;
+  constructor(tools: Map<string, Tool>, private maxSteps = 10) {
+    this.registry = new ToolRegistry();
+    tools.forEach((t) => this.registry.register(t));
+    this.env = new Environment(tools);
+  }
   async run(query: string): Promise<string> {
     this.history = [\`User query: \${query}\`];
-
     for (let step = 0; step < this.maxSteps; step++) {
-      // THINK — ask the LLM to reason about what to do next
       const thought = await this.think();
-
-      if (thought.isFinal) {
-        return thought.finalAnswer ?? "No answer produced.";
-      }
-
-      // ACT — execute the chosen tool
-      if (thought.action) {
-        const observation = await this.act(thought.action);
-        // OBSERVE — feed the result back into history
-        this.history.push(\`Observation: \${observation}\`);
+      if (thought.isFinal) return thought.finalAnswer ?? "No answer produced.";
+      if (thought.hasAction()) {
+        const observation = await this.env.execute(thought.nextAction!);
+        this.history.push(observation.toPrompt());
       }
     }
-
     return "Reached max steps without a final answer.";
   }
-
   private async think(): Promise<Thought> {
-    // In production, this calls an LLM with the full history
-    // and asks it to output structured Thought JSON.
-    const context = this.history.join("\\n");
+    const context = this.history.join("\n");
     const thought = await callLLM(context); // placeholder
     this.history.push(\`Thought: \${thought.reasoning}\`);
     return thought;
-  }
-
-  private async act(action: { tool: string; input: Record<string, unknown> }): Promise<string> {
-    const tool = this.tools.get(action.tool);
-    if (!tool) return \`Error: tool "\${action.tool}" not found\`;
-    return tool.execute(action.input);
   }
 }
 
@@ -9090,53 +9344,88 @@ class Tool(ABC):
     @abstractmethod
     def execute(self, **kwargs: Any) -> str: ...
 
+class ToolRegistry:
+    def __init__(self) -> None:
+        self._tools: dict[str, Tool] = {}
+    def register(self, tool: Tool) -> None:
+        self._tools[tool.name] = tool
+    def get(self, name: str) -> Tool | None:
+        return self._tools.get(name)
+    def list(self) -> list[str]:
+        return list(self._tools.keys())
+
+@dataclass
+class Action:
+    tool_name: str
+    input: dict[str, Any]
+    def validate(self) -> bool:
+        return bool(self.tool_name)
+
+@dataclass
+class Observation:
+    result: str
+    success: bool
+    def to_prompt(self) -> str:
+        tag = "ok" if self.success else "err"
+        return f"Observation [{tag}]: {self.result}"
+    def is_error(self) -> bool:
+        return not self.success
+
 @dataclass
 class Thought:
     reasoning: str
-    action: dict | None = None  # {"tool": str, "input": dict}
+    next_action: Action | None = None
     is_final: bool = False
     final_answer: str | None = None
+    def has_action(self) -> bool:
+        return self.next_action is not None
+    def to_prompt(self) -> str:
+        return f"Thought: {self.reasoning}"
+
+class Environment:
+    def __init__(self, tools: dict[str, Tool]) -> None:
+        self._tools = tools
+        self._state: dict[str, Any] = {}
+    def execute(self, action: Action) -> Observation:
+        tool = self._tools.get(action.tool_name)
+        if not tool:
+            return Observation(f'Tool "{action.tool_name}" not found', False)
+        try:
+            result = tool.execute(**action.input)
+            return Observation(result, True)
+        except Exception as e:
+            return Observation(str(e), False)
+    def get_state(self) -> dict[str, Any]:
+        return dict(self._state)
 
 class Agent:
     def __init__(self, tools: dict[str, Tool], max_steps: int = 10):
-        self._tools = tools
+        self._registry = ToolRegistry()
+        for t in tools.values():
+            self._registry.register(t)
+        self._env = Environment(tools)
         self._max_steps = max_steps
         self._history: list[str] = []
-
     def run(self, query: str) -> str:
         self._history = [f"User query: {query}"]
-
         for _ in range(self._max_steps):
-            # THINK
             thought = self._think()
             if thought.is_final:
                 return thought.final_answer or "No answer produced."
-
-            # ACT
-            if thought.action:
-                observation = self._act(thought.action)
-                # OBSERVE
-                self._history.append(f"Observation: {observation}")
-
+            if thought.has_action():
+                observation = self._env.execute(thought.next_action)
+                self._history.append(observation.to_prompt())
         return "Reached max steps without a final answer."
-
     def _think(self) -> Thought:
-        context = "\\n".join(self._history)
+        context = "\n".join(self._history)
         thought = call_llm(context)  # placeholder
         self._history.append(f"Thought: {thought.reasoning}")
         return thought
-
-    def _act(self, action: dict) -> str:
-        tool = self._tools.get(action["tool"])
-        if not tool:
-            return f'Error: tool "{action["tool"]}" not found'
-        return tool.execute(**action.get("input", {}))
 
 # Usage
 class WebSearchTool(Tool):
     name = "web_search"
     description = "Search the web for information"
-
     def execute(self, query: str = "", **kwargs: Any) -> str:
         return f'Results for "{query}": ...'
 
@@ -9336,6 +9625,16 @@ class CoderAgent implements SpecialistAgent {
   }
 }
 
+class ReviewerAgent implements SpecialistAgent {
+  canHandle(task: Task): boolean { return task.type === "review"; }
+  async execute(task: Task, memory: SharedMemory): Promise<Result> {
+    const code = memory.get(\`code-\${task.dependencies?.[0]}\`) as string ?? "";
+    const feedback = await reviewCode(code); // placeholder
+    memory.set(\`review-\${task.id}\`, feedback);
+    return { taskId: task.id, output: feedback, success: true };
+  }
+}
+
 class Orchestrator {
   private agents: SpecialistAgent[] = [];
   private memory = new SharedMemory();
@@ -9373,6 +9672,7 @@ class Orchestrator {
 const orchestrator = new Orchestrator();
 orchestrator.register(new ResearchAgent());
 orchestrator.register(new CoderAgent());
+orchestrator.register(new ReviewerAgent());
 const result = await orchestrator.run("Build a REST API for user management");`,
     python: `from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -9420,12 +9720,20 @@ class ResearchAgent(SpecialistAgent):
 class CoderAgent(SpecialistAgent):
     def can_handle(self, task: Task) -> bool:
         return task.type == "code"
-
     def execute(self, task: Task, memory: SharedMemory) -> Result:
         context = memory.get("research-context") or ""
         code = generate_code(task.description, context)  # placeholder
         memory.set(f"code-{task.id}", code)
         return Result(task.id, code, True)
+
+class ReviewerAgent(SpecialistAgent):
+    def can_handle(self, task: Task) -> bool:
+        return task.type == "review"
+    def execute(self, task: Task, memory: SharedMemory) -> Result:
+        code = memory.get(f"code-{task.dependencies[0]}") if task.dependencies else ""
+        feedback = review_code(code)  # placeholder
+        memory.set(f"review-{task.id}", feedback)
+        return Result(task.id, feedback, True)
 
 class Orchestrator:
     def __init__(self) -> None:
@@ -9461,6 +9769,7 @@ class Orchestrator:
 orchestrator = Orchestrator()
 orchestrator.register(ResearchAgent())
 orchestrator.register(CoderAgent())
+orchestrator.register(ReviewerAgent())
 result = orchestrator.run("Build a REST API for user management")`,
   },
   realWorldExamples: [
@@ -9715,11 +10024,40 @@ class CalculatorTool implements Tool {
   }
 }
 
+class DatabaseTool implements Tool {
+  name = "database";
+  description = "Query a SQL database";
+  schema(): ToolSchema {
+    return {
+      name: this.name, description: this.description,
+      parameters: { sql: { type: "string", description: "SQL query" } },
+    };
+  }
+  async execute(input: { sql: string }): Promise<ToolResult> {
+    return { output: \`Query result for: \${input.sql}\`, success: true };
+  }
+}
+
+class Agent {
+  private registry: ToolRegistry;
+  constructor(registry: ToolRegistry) { this.registry = registry; }
+  async run(query: string): Promise<string> {
+    const schemas = this.registry.listSchemas();
+    const toolCall = await selectTool(query, schemas); // placeholder
+    const tool = this.registry.get(toolCall.name);
+    if (!tool) return \`No tool found: \${toolCall.name}\`;
+    const result = await tool.execute(toolCall.input);
+    return result.output;
+  }
+}
+
 // Usage
 const registry = new ToolRegistry();
 registry.register(new WebSearchTool());
 registry.register(new CalculatorTool());
+registry.register(new DatabaseTool());
 
+const agent = new Agent(registry);
 // Agent sends registry.listSchemas() to the LLM
 // LLM responds with: { tool: "calculator", input: { expression: "2+2" } }
 const tool = registry.get("calculator")!;
@@ -9815,11 +10153,36 @@ def _safe_eval(node: ast.expr) -> float:
         return ops[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
     raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
+class DatabaseTool(Tool):
+    name = "database"
+    description = "Query a SQL database"
+    def schema(self) -> ToolSchema:
+        return ToolSchema(
+            name=self.name, description=self.description,
+            parameters={"sql": {"type": "string", "description": "SQL query"}},
+        )
+    def execute(self, sql: str = "", **kwargs: Any) -> ToolResult:
+        return ToolResult(output=f"Query result for: {sql}", success=True)
+
+class Agent:
+    def __init__(self, registry: ToolRegistry) -> None:
+        self._registry = registry
+    def run(self, query: str) -> str:
+        schemas = self._registry.list_schemas()
+        tool_call = select_tool(query, schemas)  # placeholder
+        tool = self._registry.get(tool_call["name"])
+        if not tool:
+            return f"No tool found: {tool_call['name']}"
+        result = tool.execute(**tool_call.get("input", {}))
+        return result.output
+
 # Usage
 registry = ToolRegistry()
 registry.register(WebSearchTool())
 registry.register(CalculatorTool())
+registry.register(DatabaseTool())
 
+agent = Agent(registry)
 # Agent sends registry.list_schemas() to the LLM
 # LLM responds with: {"tool": "calculator", "input": {"expression": "2+2"}}
 tool = registry.get("calculator")
