@@ -797,12 +797,15 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
 
   // Cardinality labels — offset perpendicular to the exit side of the orthogonal line.
   // For vertical exits (top/bottom), offset horizontally. For horizontal exits, offset vertically.
+  // Position cardinality labels well away from the box edge on the approach line.
+  // For vertical sides (top/bottom), push 45px outward along the line + 18px sideways.
+  // For horizontal sides (left/right), push 45px outward + 12px up.
   const cardPos = (anchor: Pt, side: string): Pt => {
     const isVert = side === "top" || side === "bottom";
     const outward = (side === "bottom" || side === "right") ? 1 : -1;
     return isVert
-      ? { x: anchor.x + 16, y: anchor.y + outward * 14 }
-      : { x: anchor.x + outward * 14, y: anchor.y - 10 };
+      ? { x: anchor.x + 20, y: anchor.y + outward * 45 }
+      : { x: anchor.x + outward * 45, y: anchor.y - 12 };
   };
   const srcCardPos = cardPos(src, srcSide);
   const tgtCardPos = cardPos(tgt, tgtSide);
