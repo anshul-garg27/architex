@@ -407,21 +407,13 @@ export function routeEdgeAStar(
   tgtSide: Side,
   obstacles: Obstacle[],
 ): Pt[] {
-  // Trivial case: no obstacles or few obstacles, use simple routing
+  // No obstacles — simple routing is sufficient
   if (obstacles.length === 0) {
     return fallbackOrthoPath(src, srcSide, tgt, tgtSide);
   }
 
-  // Quick check: does the simple fallback path actually cross any obstacle?
-  // If not, skip A* entirely (avoids expensive computation for simple cases).
-  const simplePath = fallbackOrthoPath(src, srcSide, tgt, tgtSide);
-  let simpleBlocked = false;
-  for (let i = 0; i < simplePath.length - 1 && !simpleBlocked; i++) {
-    if (segmentBlockedByObstacle(simplePath[i].x, simplePath[i].y, simplePath[i + 1].x, simplePath[i + 1].y, obstacles)) {
-      simpleBlocked = true;
-    }
-  }
-  if (!simpleBlocked) return simplePath;
+  // Always run A* when obstacles exist — the fast-path optimization
+  // missed some collisions, causing lines to pass through boxes.
 
   // Step 1: Build sparse grid coordinates
   const { xs, ys } = buildGridCoords(src, srcSide, tgt, tgtSide, obstacles);
