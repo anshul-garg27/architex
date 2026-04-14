@@ -460,7 +460,6 @@ export function routeEdgeAStar(
   const astarPath = astarSearch(xs, ys, startXi, startYi, endXi, endYi, obstacles, initialDir);
 
   if (!astarPath || astarPath.length === 0) {
-    // A* failed — fall back to simple routing
     return fallbackOrthoPath(src, srcSide, tgt, tgtSide);
   }
 

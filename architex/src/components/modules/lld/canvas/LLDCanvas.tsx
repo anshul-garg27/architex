@@ -204,7 +204,7 @@ export const ZoomToolbar = memo(function ZoomToolbar({
   onZoomReset: () => void;
 }) {
   return (
-    <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1 rounded-xl border border-border/30 backdrop-blur-md bg-background/60 px-1.5 py-1 shadow-lg">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 rounded-xl border border-border/30 backdrop-blur-md bg-background/80 px-2 py-1.5 shadow-xl">
       <button
         onClick={onZoomOut}
         className="flex h-6 w-6 items-center justify-center rounded-full bg-background/80 backdrop-blur border border-border/50 text-xs font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
@@ -1213,7 +1213,7 @@ export const LLDCanvas = memo(function LLDCanvas({
     }
 
     // For groups with >1 edge, spread them with PORT_SPREAD gap
-    const PORT_SPREAD = 18;
+    const PORT_SPREAD = 28;
     for (const [key, relIds] of groups) {
       if (relIds.length <= 1) {
         offsets.set(`${key}:${relIds[0]}`, 0);
