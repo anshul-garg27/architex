@@ -431,10 +431,10 @@ const UMLClassBox = memo(function UMLClassBox({
       style={{
         cursor: "grab",
         outline: "none",
-        transition: "filter 0.3s ease, opacity 0.3s ease",
-        opacity: dimmed ? 0.15 : 1,
+        transition: "filter 0.15s ease, opacity 0.15s ease",
+        opacity: dimmed ? 0.35 : 1,
       }}
-      filter={isSelected ? "url(#glow)" : isHovered ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))" : dimmed ? "grayscale(0.8)" : undefined}
+      filter={isSelected ? "url(#glow)" : isHovered ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))" : undefined}
       {...(reducedMotion
         ? {}
         : {
@@ -855,12 +855,12 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
 
   return (
     <motion.g
-      style={{ opacity: dimmed ? 0.1 : undefined, transition: "opacity 0.3s ease" }}
+      style={{ opacity: dimmed ? 0.2 : undefined, transition: "opacity 0.15s ease" }}
       {...(reducedMotion
         ? {}
         : {
             initial: { opacity: 0 },
-            animate: { opacity: dimmed ? 0.1 : 1 },
+            animate: { opacity: dimmed ? 0.2 : 1 },
             transition: { delay: edgeDelay, duration: 0.2 },
           })}
     >
