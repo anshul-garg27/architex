@@ -52,7 +52,7 @@ interface SVGZoomPanState {
   translateY: number;
 }
 
-export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
+export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>, containerRef?: React.RefObject<HTMLDivElement | null>) {
   const [zoom, setZoom] = useState<SVGZoomPanState>({
     scale: 1,
     translateX: 0,
@@ -154,17 +154,19 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
    * ALL fitting — no dual-system coordination needed.
    */
   const zoomFit = useCallback((bounds?: { x: number; y: number; w: number; h: number }) => {
+    // Use containerRef (the overflow-hidden div) for accurate visible dimensions.
+    // The SVG element may report incorrect size, but the container is properly
+    // sized by the resizable panel layout.
+    const container = containerRef?.current;
     const svg = svgRef.current;
-    if (!svg || !bounds || bounds.w <= 0 || bounds.h <= 0) {
+    if (!svg || !container || !bounds || bounds.w <= 0 || bounds.h <= 0) {
       setZoom({ scale: 1, translateX: 0, translateY: 0 });
       return;
     }
 
     // With preserveAspectRatio="none", the viewBox (0 0 2000 2000) stretches
-    // to fill the container exactly. So:
-    //   1 SVG-X unit = rect.width / 2000 screen pixels
-    //   1 SVG-Y unit = rect.height / 2000 screen pixels
-    const rect = svg.getBoundingClientRect();
+    // to fill the container exactly. Use CONTAINER rect, not SVG rect.
+    const rect = container.getBoundingClientRect();
     const sxRatio = rect.width / 2000;   // SVG X unit → screen px
     const syRatio = rect.height / 2000;  // SVG Y unit → screen px
     if (sxRatio <= 0 || syRatio <= 0) return;
@@ -1239,7 +1241,7 @@ export const LLDCanvas = memo(function LLDCanvas({
     zoomReset,
     zoomFit,
     setViewportPosition,
-  } = useSVGZoomPan(svgRef);
+  } = useSVGZoomPan(svgRef, containerRef);
 
   // Track container pixel dimensions for Minimap viewport scaling + auto-fit
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
