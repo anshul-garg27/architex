@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { DesignPattern, PatternCategory } from "./types";
+import { JAVA_CODE } from "@/db/seeds/java-code-gen";
 
 // ── Helper: generate relationship ids ──────────────────────
 
@@ -10058,6 +10059,12 @@ export const DESIGN_PATTERNS: DesignPattern[] = [
   multiAgentOrchestration,
   toolUse,
 ];
+
+// Inject Java code samples from seed data into each pattern
+for (const p of DESIGN_PATTERNS) {
+  const java = JAVA_CODE[p.id];
+  if (java) p.code.java = java;
+}
 
 export function getPatternById(id: string): DesignPattern | undefined {
   return DESIGN_PATTERNS.find((p) => p.id === id);

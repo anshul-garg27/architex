@@ -18,7 +18,7 @@ import { eq, and, sql } from "drizzle-orm";
 // Java implementations for all 36 design patterns
 // ─────────────────────────────────────────────────────────────
 
-const JAVA_CODE: Record<string, string> = {
+export const JAVA_CODE: Record<string, string> = {
 
   // ════════════════════════════════════════════════════════════
   //  CREATIONAL PATTERNS
