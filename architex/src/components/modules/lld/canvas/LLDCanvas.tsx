@@ -160,9 +160,21 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
       return;
     }
 
-    const rect = svg.getBoundingClientRect();
+    // Use the actual visible area — walk up to find the nearest parent
+    // with a constrained height (the main element clips at the real viewport)
+    let visibleRect = svg.getBoundingClientRect();
+    let parent = svg.parentElement;
+    while (parent) {
+      const pr = parent.getBoundingClientRect();
+      if (pr.height < visibleRect.height) {
+        visibleRect = { ...visibleRect, height: pr.height, y: pr.y } as DOMRect;
+      }
+      if (parent.tagName === "MAIN") break;
+      parent = parent.parentElement;
+    }
+    const rect = { width: visibleRect.width, height: visibleRect.height };
+
     // Fixed viewBox "0 0 2000 2000" with preserveAspectRatio="xMinYMin meet"
-    // meet scales to the SMALLER dimension: min(w/2000, h/2000)
     const svgToScreen = Math.min(rect.width, rect.height) / 2000;
     if (svgToScreen <= 0) return;
 
