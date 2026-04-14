@@ -1,13 +1,87 @@
 "use client";
 
 /**
- * InterviewPrepTab — interview tips and common mistakes for a pattern.
- * Reads pattern.interviewTips[] and pattern.commonMistakes[].
+ * InterviewPrepTab — interview tips, common mistakes, and Q&A for a pattern.
+ * Reads pattern.interviewTips[] and pattern.commonMistakes[] from static data,
+ * plus fetches interview-qa content from the DB via useCatalog.
  */
 
-import React, { memo } from "react";
-import { Lightbulb, AlertTriangle } from "lucide-react";
+import React, { memo, useState, useMemo } from "react";
+import { Lightbulb, AlertTriangle, ChevronDown, ChevronRight, MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useCatalog } from "@/hooks/use-content";
+import type { ContentDetailItem } from "@/hooks/use-content";
 import type { DesignPattern } from "@/lib/lld";
+
+// ── Q&A Types ───────────────────────────────────────────────
+
+interface InterviewQuestion {
+  question: string;
+  answer: string;
+  difficulty?: "warmup" | "core" | "deep-dive";
+  followUps?: string[];
+}
+
+const DIFFICULTY_STYLES: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  warmup: { label: "Warmup", color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/30" },
+  core: { label: "Core", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/30" },
+  "deep-dive": { label: "Deep Dive", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30" },
+};
+
+// ── Expandable Q&A Card ─────────────────────────────────────
+
+const QACard = memo(function QACard({ q }: { q: InterviewQuestion }) {
+  const [expanded, setExpanded] = useState(false);
+  const style = DIFFICULTY_STYLES[q.difficulty ?? "core"] ?? DIFFICULTY_STYLES.core;
+
+  return (
+    <div className="rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm overflow-hidden transition-all">
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition-colors hover:bg-elevated"
+      >
+        {expanded ? (
+          <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground-subtle" />
+        ) : (
+          <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground-subtle" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium leading-relaxed text-foreground">{q.question}</p>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold",
+            style.color, style.bg, style.border,
+          )}
+        >
+          {style.label}
+        </span>
+      </button>
+      {expanded && (
+        <div className="border-t border-border/20 px-3 py-2.5 space-y-2">
+          <p className="text-[11px] leading-relaxed text-foreground-muted pl-5.5">
+            {q.answer}
+          </p>
+          {q.followUps && q.followUps.length > 0 && (
+            <div className="pl-5.5 space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
+                Follow-up Questions
+              </p>
+              {q.followUps.map((fu, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" />
+                  <p className="text-[11px] leading-relaxed text-foreground-subtle">{fu}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ── Main Component ──────────────────────────────────────────
 
 interface InterviewPrepTabProps {
   pattern: DesignPattern;
@@ -19,7 +93,22 @@ export const InterviewPrepTab = memo(function InterviewPrepTab({
   const tips = pattern.interviewTips ?? [];
   const mistakes = pattern.commonMistakes ?? [];
 
-  if (tips.length === 0 && mistakes.length === 0) {
+  // Fetch interview Q&A from content API
+  const { data: qaData, isLoading: qaLoading } = useCatalog("lld", "interview-qa", { full: true });
+
+  const questions: InterviewQuestion[] = useMemo(() => {
+    if (!qaData?.items) return [];
+    const item = qaData.items.find(
+      (i) => (i as unknown as ContentDetailItem).slug === pattern.id,
+    ) as unknown as ContentDetailItem | undefined;
+    if (!item?.content) return [];
+    return (item.content.questions ?? []) as InterviewQuestion[];
+  }, [qaData, pattern.id]);
+
+  const hasStaticContent = tips.length > 0 || mistakes.length > 0;
+  const hasQA = questions.length > 0;
+
+  if (!hasStaticContent && !hasQA && !qaLoading) {
     return (
       <div className="flex flex-1 items-center justify-center py-8">
         <p className="text-xs text-foreground-subtle">
@@ -74,6 +163,26 @@ export const InterviewPrepTab = memo(function InterviewPrepTab({
                     {mistake}
                   </p>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Interview Q&A from DB */}
+        {qaLoading && (
+          <div className="flex items-center gap-2 py-2">
+            <MessageSquare className="h-3.5 w-3.5 animate-pulse text-primary" />
+            <span className="text-[10px] text-foreground-subtle">Loading Q&amp;A...</span>
+          </div>
+        )}
+        {hasQA && (
+          <div className="space-y-2">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
+              Interview Questions
+            </h3>
+            <div className="grid gap-2">
+              {questions.map((q, i) => (
+                <QACard key={i} q={q} />
               ))}
             </div>
           </div>

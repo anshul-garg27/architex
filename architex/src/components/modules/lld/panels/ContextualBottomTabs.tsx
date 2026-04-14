@@ -31,6 +31,7 @@ const PatternQuiz = lazy(() => import("./PatternQuiz").then(m => ({ default: m.P
 const ConfusedWithTab = lazy(() => import("./ConfusedWithTab").then(m => ({ default: m.ConfusedWithTab })));
 const InterviewPrepTab = lazy(() => import("./InterviewPrepTab").then(m => ({ default: m.InterviewPrepTab })));
 const PatternQuizFiltered = lazy(() => import("./PatternQuizFiltered").then(m => ({ default: m.PatternQuizFiltered })));
+const WalkthroughPlayer = lazy(() => import("./WalkthroughPlayer").then(m => ({ default: m.WalkthroughPlayer })));
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -199,15 +200,18 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
           {mode === "pattern" && activePattern && (
             <>
               {resolvedTabId === "explain" && (
-                <div className="flex h-full">
-                  <div className={cn("h-full overflow-hidden", classes.length > 0 ? "w-1/2 border-r border-border/30" : "w-full")}>
-                    <LLDBottomPanel pattern={activePattern} classCount={classes.length} relationshipCount={relationships.length} />
-                  </div>
-                  {classes.length > 0 && (
-                    <div className="h-full w-1/2 overflow-hidden">
-                      <GeneratedCodePanel classes={classes} relationships={relationships} />
+                <div className="flex h-full flex-col">
+                  <WalkthroughPlayer pattern={activePattern} />
+                  <div className="flex flex-1 min-h-0">
+                    <div className={cn("h-full overflow-hidden", classes.length > 0 ? "w-1/2 border-r border-border/30" : "w-full")}>
+                      <LLDBottomPanel pattern={activePattern} classCount={classes.length} relationshipCount={relationships.length} />
                     </div>
-                  )}
+                    {classes.length > 0 && (
+                      <div className="h-full w-1/2 overflow-hidden">
+                        <GeneratedCodePanel classes={classes} relationships={relationships} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {resolvedTabId === "quiz" && <PatternQuizFiltered pattern={activePattern} />}

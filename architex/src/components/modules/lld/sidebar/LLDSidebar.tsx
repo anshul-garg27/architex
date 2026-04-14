@@ -6,6 +6,7 @@
  */
 
 import React, { memo, useState, useCallback, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronRight,
   ChevronDown,
@@ -23,6 +24,8 @@ import {
   AlertTriangle,
   BookOpen,
   Trophy,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
@@ -54,6 +57,8 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { StreakCounter } from "../panels/StreakCounter";
+import { useDueReviews } from "@/hooks/use-due-reviews";
+import { useSearch, type SearchResult } from "@/hooks/use-search";
 
 // ── Pattern Browser ──────────────────────────────────────
 
@@ -616,6 +621,123 @@ const CodeToDiagramPanel = memo(function CodeToDiagramPanel({
   );
 });
 
+// ── Sidebar Search ──────────────────────────────────────
+
+const CONTENT_TYPE_COLORS: Record<string, string> = {
+  pattern: "text-violet-400 border-violet-500/30 bg-violet-500/10",
+  problem: "text-amber-400 border-amber-500/30 bg-amber-500/10",
+  demo: "text-blue-400 border-blue-500/30 bg-blue-500/10",
+  concept: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+};
+
+function buildResultHref(r: SearchResult): string {
+  switch (r.contentType) {
+    case "pattern":
+      return `/patterns/${r.slug}`;
+    case "problem":
+      return `/lld-problems/${r.slug}`;
+    default:
+      return `/${r.moduleId}/${r.slug}`;
+  }
+}
+
+function HighlightSnippet({ text, query }: { text: string; query: string }) {
+  if (!query || query.length < 2) return <>{text}</>;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <span key={i} className="font-semibold text-primary">
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+const SidebarSearch = memo(function SidebarSearch() {
+  const { query, setQuery, results, isSearching } = useSearch("lld");
+  const router = useRouter();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [showResults, setShowResults] = useState(false);
+
+  // Show dropdown when there are results
+  useEffect(() => {
+    setShowResults(results.length > 0 && query.length >= 2);
+  }, [results, query]);
+
+  // Click outside to close
+  useEffect(() => {
+    if (!showResults) return;
+    function handlePointerDown(e: PointerEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowResults(false);
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [showResults]);
+
+  return (
+    <div ref={wrapperRef} className="relative px-2 py-2 border-b border-border/30">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-foreground-subtle" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => results.length > 0 && query.length >= 2 && setShowResults(true)}
+          placeholder="Search patterns, problems..."
+          className="w-full rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm pl-7 pr-7 py-1.5 text-[11px] text-foreground placeholder:text-foreground-subtle/40 focus:border-primary/50 focus:outline-none focus:shadow-[0_0_15px_rgba(110,86,207,0.1)]"
+        />
+        {isSearching && (
+          <Loader2 className="absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-foreground-subtle" />
+        )}
+      </div>
+
+      {showResults && (
+        <div className="absolute left-2 right-2 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-border/30 bg-background/90 backdrop-blur-xl shadow-2xl">
+          {results.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => {
+                setShowResults(false);
+                setQuery("");
+                router.push(buildResultHref(r));
+              }}
+              className="flex w-full flex-col gap-0.5 border-b border-border/20 px-3 py-2 text-left transition-colors last:border-0 hover:bg-accent/50"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-foreground truncate">
+                  {r.name}
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-medium backdrop-blur-sm capitalize",
+                    CONTENT_TYPE_COLORS[r.contentType] ?? "text-foreground-subtle border-border/30 bg-elevated/50",
+                  )}
+                >
+                  {r.contentType}
+                </span>
+              </div>
+              {r.snippet && (
+                <span className="text-[10px] leading-relaxed text-foreground-subtle line-clamp-2">
+                  <HighlightSnippet text={r.snippet} query={query} />
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 // ── Main Sidebar Component ───────────────────────────────
 
 const SIDEBAR_TABS: { mode: SidebarMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -685,6 +807,8 @@ export const LLDSidebar = memo(function LLDSidebar({
 }: LLDSidebarProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [isNarrow, setIsNarrow] = useState(false);
+  const { data: dueData } = useDueReviews("lld");
+  const dueCount = dueData?.count ?? 0;
 
   useEffect(() => {
     const el = tabBarRef.current?.parentElement;
@@ -701,9 +825,19 @@ export const LLDSidebar = memo(function LLDSidebar({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-border/30 px-3 py-3">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
-          LLD Studio
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            LLD Studio
+          </h2>
+          {dueCount > 0 && (
+            <span
+              className="inline-flex items-center rounded-full border border-violet-400/30 bg-violet-500/10 backdrop-blur-sm px-2 py-0.5 text-[9px] font-bold text-violet-400 shadow-[0_0_8px_rgba(139,92,246,0.1)]"
+              title={`${dueCount} item${dueCount !== 1 ? "s" : ""} due for review`}
+            >
+              {dueCount} due
+            </span>
+          )}
+        </div>
         <StreakCounter />
       </div>
       <div ref={tabBarRef} className="relative flex overflow-x-auto border-b border-border/30 scrollbar-none">
@@ -745,6 +879,7 @@ export const LLDSidebar = memo(function LLDSidebar({
           })}
         </TooltipProvider>
       </div>
+      <SidebarSearch />
       <div className="flex-1 overflow-y-auto px-2 py-3">
         {mode === "patterns" && (
           <PatternBrowser
