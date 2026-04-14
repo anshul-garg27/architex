@@ -37,7 +37,7 @@ import type {
   StateNode,
 } from "@/lib/lld";
 import { formatMethodParams } from "@/lib/lld";
-import { Highlight, themes } from "prism-react-renderer";
+import { Highlight, Prism, themes } from "prism-react-renderer";
 import { useLLDDataContext } from "../LLDDataContext";
 import {
   STEREOTYPE_BORDER_COLOR,
@@ -47,6 +47,38 @@ import {
   SEQ_TYPE_COLORS,
   smStateColor,
 } from "../constants";
+
+/* ── Register Java with Prism ──────────────────────────────
+   prism-react-renderer v2 only bundles ~30 languages.
+   Java isn't included, but `clike` (its base grammar) is.
+   Register once at module scope so <Highlight language="java"> works. */
+if (!Prism.languages.java) {
+  Prism.languages.java = Prism.languages.extend("clike", {
+    "class-name": [
+      /\b[A-Z](?:\w|\.\s)*\b/,
+      /\b[A-Z]\w*(?=\s+\w+\s*[;,=())])/,
+    ],
+    keyword:
+      /\b(?:abstract|assert|boolean|break|byte|case|catch|char|class|continue|default|do|double|else|enum|extends|final|finally|float|for|if|implements|import|instanceof|int|interface|long|native|new|null|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while)\b/,
+    function: /\b\w+(?=\s*\()/,
+    number:
+      /\b0b[01][01_]*L?\b|\b0x(?:[\da-f_]*\.)?[\da-f_p+-]+\b|(?:\b\d[\d_]*(?:\.[\d_]*)?|\B\.\d[\d_]*)(?:e[+-]?\d[\d_]*)?[dfl]?\b/i,
+    operator: {
+      pattern:
+        /(^|[^.])(?:<<=?|>>>?=?|->|--|\+\+|&&|\|\||::|[?:~]|[-+*/%&|^!=<>]=?)/m,
+      lookbehind: true,
+    },
+    string: {
+      pattern: /(^|[^\\])"(?:\\.|[^"\\])*"/,
+      lookbehind: true,
+      greedy: true,
+    },
+    annotation: {
+      pattern: /(?:@\w+)/,
+      alias: "punctuation",
+    },
+  });
+}
 
 const PRISM_LANG: Record<string, string> = {
   typescript: "typescript",
