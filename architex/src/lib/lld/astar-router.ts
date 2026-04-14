@@ -21,8 +21,11 @@ interface Obstacle {
   h: number;
 }
 
-/** Padding around obstacles so edges don't hug box borders. */
-const OBSTACLE_PAD = 25;
+/** Padding around obstacles so edges don't hug box borders.
+ *  ROUTE_PAD is the grid coordinate (where lines can go).
+ *  BLOCK_PAD is the collision zone (slightly smaller, so lines route outside). */
+const ROUTE_PAD = 35;
+const BLOCK_PAD = 30;
 
 /** Small cost penalty added when changing direction (to prefer straighter paths). */
 const BEND_PENALTY = 8;
@@ -40,7 +43,7 @@ const EXIT_STUB = 25;
  * We use:
  *   - Source and target points
  *   - Exit-stub waypoints (so the path departs perpendicular to the side)
- *   - Each obstacle edge (left, right, top, bottom) +/- OBSTACLE_PAD
+ *   - Each obstacle edge (left, right, top, bottom) +/- ROUTE_PAD
  *
  * The intersections of all unique Xs and Ys form the candidate waypoints.
  */
@@ -71,10 +74,10 @@ function buildGridCoords(
 
   // Obstacle edges with padding
   for (const ob of obstacles) {
-    const left = ob.x - OBSTACLE_PAD;
-    const right = ob.x + ob.w + OBSTACLE_PAD;
-    const top = ob.y - OBSTACLE_PAD;
-    const bottom = ob.y + ob.h + OBSTACLE_PAD;
+    const left = ob.x - ROUTE_PAD;
+    const right = ob.x + ob.w + ROUTE_PAD;
+    const top = ob.y - ROUTE_PAD;
+    const bottom = ob.y + ob.h + ROUTE_PAD;
 
     xSet.add(left);
     xSet.add(right);
@@ -106,10 +109,10 @@ function stubPoint(anchor: Pt, side: Side): Pt {
 function isInsideObstacle(x: number, y: number, obstacles: Obstacle[]): boolean {
   for (const ob of obstacles) {
     if (
-      x > ob.x - OBSTACLE_PAD &&
-      x < ob.x + ob.w + OBSTACLE_PAD &&
-      y > ob.y - OBSTACLE_PAD &&
-      y < ob.y + ob.h + OBSTACLE_PAD
+      x > ob.x - BLOCK_PAD &&
+      x < ob.x + ob.w + BLOCK_PAD &&
+      y > ob.y - BLOCK_PAD &&
+      y < ob.y + ob.h + BLOCK_PAD
     ) {
       return true;
     }
@@ -133,10 +136,10 @@ function segmentBlockedByObstacle(
   obstacles: Obstacle[],
 ): boolean {
   for (const ob of obstacles) {
-    const oLeft   = ob.x - OBSTACLE_PAD;
-    const oRight  = ob.x + ob.w + OBSTACLE_PAD;
-    const oTop    = ob.y - OBSTACLE_PAD;
-    const oBottom = ob.y + ob.h + OBSTACLE_PAD;
+    const oLeft   = ob.x - BLOCK_PAD;
+    const oRight  = ob.x + ob.w + BLOCK_PAD;
+    const oTop    = ob.y - BLOCK_PAD;
+    const oBottom = ob.y + ob.h + BLOCK_PAD;
 
     if (ax === bx) {
       // Vertical segment: check if x is within obstacle's horizontal range
