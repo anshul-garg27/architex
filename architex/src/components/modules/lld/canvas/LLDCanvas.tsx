@@ -13,6 +13,7 @@ import { CanvasEmptyState } from "@/components/shared/lld-empty-states";
 import { cn } from "@/lib/utils";
 import type { UMLClass, UMLRelationship, UMLRelationshipType, UMLMethodParam } from "@/lib/lld";
 import { formatMethodParams } from "@/lib/lld";
+import { routeEdgeAStar } from "@/lib/lld/astar-router";
 import { motion } from "motion/react";
 import {
   CLASS_HEADER_HEIGHT,
@@ -117,26 +118,71 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
   }, []);
 
   const zoomIn = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
     setZoom((prev) => {
       const newScale = Math.min(ZOOM_MAX, prev.scale * (1 + ZOOM_STEP));
-      return { ...prev, scale: newScale };
+      const ratio = newScale / prev.scale;
+      return { scale: newScale, translateX: cx - ratio * (cx - prev.translateX), translateY: cy - ratio * (cy - prev.translateY) };
     });
-  }, []);
+  }, [svgRef]);
 
   const zoomOut = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
     setZoom((prev) => {
       const newScale = Math.max(ZOOM_MIN, prev.scale * (1 - ZOOM_STEP));
-      return { ...prev, scale: newScale };
+      const ratio = newScale / prev.scale;
+      return { scale: newScale, translateX: cx - ratio * (cx - prev.translateX), translateY: cy - ratio * (cy - prev.translateY) };
     });
-  }, []);
+  }, [svgRef]);
 
   const zoomReset = useCallback(() => {
     setZoom({ scale: 1, translateX: 0, translateY: 0 });
   }, []);
 
+  /** Fit all content into the viewport by computing the bounding box of
+   *  the zoom group and calculating scale + translate to center it. */
   const zoomFit = useCallback(() => {
-    setZoom({ scale: 1, translateX: 0, translateY: 0 });
-  }, []);
+    const svg = svgRef.current;
+    if (!svg) return;
+    const container = svg.getBoundingClientRect();
+    const zoomGroup = svg.querySelector("g[style]") as SVGGElement | null;
+    if (!zoomGroup) { setZoom({ scale: 1, translateX: 0, translateY: 0 }); return; }
+
+    // Temporarily reset transform to measure true content bounds
+    const origTransform = zoomGroup.getAttribute("transform") || "";
+    const origStyle = zoomGroup.style.cssText;
+    zoomGroup.setAttribute("transform", "");
+    zoomGroup.style.transform = "none";
+    const bbox = zoomGroup.getBBox();
+    zoomGroup.setAttribute("transform", origTransform);
+    zoomGroup.style.cssText = origStyle;
+
+    if (bbox.width === 0 || bbox.height === 0) {
+      setZoom({ scale: 1, translateX: 0, translateY: 0 });
+      return;
+    }
+
+    const PAD = 60;
+    const scaleX = (container.width - PAD * 2) / bbox.width;
+    const scaleY = (container.height - PAD * 2) / bbox.height;
+    const fitScale = Math.max(ZOOM_MIN, Math.min(Math.min(scaleX, scaleY), 1.2));
+
+    const contentCX = bbox.x + bbox.width / 2;
+    const contentCY = bbox.y + bbox.height / 2;
+    setZoom({
+      scale: fitScale,
+      translateX: container.width / 2 - contentCX * fitScale,
+      translateY: container.height / 2 - contentCY * fitScale,
+    });
+  }, [svgRef]);
 
   const setViewportPosition = useCallback(
     (svgX: number, svgY: number) => {
@@ -612,8 +658,6 @@ const UMLClassBox = memo(function UMLClassBox({
 
 // ── SVG: UML Relationship Edge ─────────────────────────────
 
-/** Minimum gap between a box edge and the routing channel. */
-const ROUTE_GAP = 20;
 /** Radius for rounded corners on orthogonal bends — larger = softer. */
 const BEND_R = 12;
 
@@ -655,46 +699,6 @@ function sideAnchor(cls: UMLClass, side: "top" | "bottom" | "left" | "right"): P
     case "left":   return { x: cls.x, y: cls.y + h / 2 };
     case "right":  return { x: cls.x + w, y: cls.y + h / 2 };
   }
-}
-
-/**
- * Build an orthogonal (Manhattan-routed) SVG path between two box-side anchors.
- * Exits perpendicular to the source side, routes with right-angle bends,
- * and enters perpendicular to the target side.
- */
-function orthoPath(src: Pt, srcSide: string, tgt: Pt, tgtSide: string): Pt[] {
-  const pts: Pt[] = [src];
-
-  const isVertSrc = srcSide === "top" || srcSide === "bottom";
-  const isVertTgt = tgtSide === "top" || tgtSide === "bottom";
-  const srcSign = (srcSide === "bottom" || srcSide === "right") ? 1 : -1;
-  const tgtSign = (tgtSide === "bottom" || tgtSide === "right") ? 1 : -1;
-
-  if (isVertSrc && isVertTgt) {
-    // Both exit vertically — route: vert → horiz → vert
-    const midY = (src.y + tgt.y) / 2;
-    // If target is on the right side, route through midpoint
-    const exitY = src.y + srcSign * ROUTE_GAP;
-    const enterY = tgt.y + tgtSign * ROUTE_GAP;
-    // Use midY if both going same direction, else average of exits
-    const jogY = (srcSign === tgtSign) ? (src.y + tgt.y) / 2 : (exitY + enterY) / 2;
-    pts.push({ x: src.x, y: jogY });
-    pts.push({ x: tgt.x, y: jogY });
-  } else if (!isVertSrc && !isVertTgt) {
-    // Both exit horizontally — route: horiz → vert → horiz
-    const jogX = (src.x + tgt.x) / 2;
-    pts.push({ x: jogX, y: src.y });
-    pts.push({ x: jogX, y: tgt.y });
-  } else if (isVertSrc && !isVertTgt) {
-    // src exits vertically, tgt exits horizontally
-    pts.push({ x: src.x, y: tgt.y });
-  } else {
-    // src exits horizontally, tgt exits vertically
-    pts.push({ x: tgt.x, y: src.y });
-  }
-
-  pts.push(tgt);
-  return pts;
 }
 
 /**
@@ -750,6 +754,8 @@ function buildOrthoPathD(pts: Pt[]): string {
 interface UMLEdgeProps {
   rel: UMLRelationship;
   classById: Map<string, UMLClass>;
+  /** All classes on the canvas — used to compute A* routing obstacles. */
+  allClasses: UMLClass[];
   edgeDelay: number;
   reducedMotion: boolean;
   /** Dagre-computed route points for this edge (if available). */
@@ -760,7 +766,7 @@ interface UMLEdgeProps {
   tgtPortOffset?: number;
 }
 
-const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0 }: UMLEdgeProps) {
+const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0 }: UMLEdgeProps) {
   const srcCls = classById.get(rel.source);
   const tgtCls = classById.get(rel.target);
   if (!srcCls || !tgtCls) return null;
@@ -802,8 +808,13 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
   const hasDiamond =
     rel.type === "composition" || rel.type === "aggregation";
 
-  // Build orthogonal (Manhattan) path with rounded corners
-  const waypoints = orthoPath(src, srcSide, tgt, tgtSide);
+  // Build obstacle list from all classes except source and target
+  const obstacles = allClasses
+    .filter((c) => c.id !== rel.source && c.id !== rel.target)
+    .map((c) => ({ x: c.x, y: c.y, w: classBoxWidth(c), h: classBoxHeight(c) }));
+
+  // A*-routed orthogonal path that avoids obstacles, with rounded corners
+  const waypoints = routeEdgeAStar(src, srcSide, tgt, tgtSide, obstacles);
   const pathD = buildOrthoPathD(waypoints);
 
   // Label at the midpoint of the middle segment
@@ -1511,7 +1522,7 @@ export const LLDCanvas = memo(function LLDCanvas({
               const tSide = exitSide(tgtCls, rt);
               const sOff = portOffsets.get(`${rel.source}:${sSide}:src:${rel.id}`) ?? 0;
               const tOff = portOffsets.get(`${rel.target}:${tSide}:tgt:${rel.id}`) ?? 0;
-              return <UMLEdge key={rel.id} rel={rel} classById={classById} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} />;
+              return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} />;
             })}
 
             {connectionDrag && previewLineStart && (
