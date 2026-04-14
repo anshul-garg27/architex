@@ -193,9 +193,11 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>, con
     if (contentScreenW <= 0 || contentScreenH <= 0) return;
 
     // Uniform scale to fit within available space (preserve aspect ratio)
+    // Cap at 1.0 so diagrams are never enlarged beyond natural size —
+    // small patterns should look compact with whitespace, not zoomed in
     const scaleX = availW / contentScreenW;
     const scaleY = availH / contentScreenH;
-    const fitScale = Math.max(ZOOM_MIN, Math.min(Math.min(scaleX, scaleY), 2.5));
+    const fitScale = Math.max(ZOOM_MIN, Math.min(Math.min(scaleX, scaleY), 1.0));
 
     // Center the content in the visible container
     const contentCenterX = (bounds.x + bounds.w / 2) * sxRatio;
