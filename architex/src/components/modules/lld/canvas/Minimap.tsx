@@ -14,9 +14,9 @@ import React, { memo, useState, useCallback, useRef, useMemo } from "react";
 import { Map as MapIcon } from "lucide-react";
 import type { UMLClass, UMLRelationship } from "@/lib/lld";
 import {
-  CLASS_BOX_WIDTH,
   STEREOTYPE_BORDER_COLOR,
   classBoxHeight,
+  classBoxWidth,
 } from "../constants";
 
 // ── Props ───────────────────────────────────────────────────
@@ -67,7 +67,7 @@ export const Minimap = memo(function Minimap({
       const h = classBoxHeight(cls);
       minX = Math.min(minX, cls.x);
       minY = Math.min(minY, cls.y);
-      maxX = Math.max(maxX, cls.x + CLASS_BOX_WIDTH);
+      maxX = Math.max(maxX, cls.x + classBoxWidth(cls));
       maxY = Math.max(maxY, cls.y + h);
     }
     return {
@@ -179,9 +179,9 @@ export const Minimap = memo(function Minimap({
               const srcH = classBoxHeight(src);
               const tgtH = classBoxHeight(tgt);
 
-              const x1 = (src.x + CLASS_BOX_WIDTH / 2 - bounds.minX) * scale;
+              const x1 = (src.x + classBoxWidth(src) / 2 - bounds.minX) * scale;
               const y1 = (src.y + srcH / 2 - bounds.minY) * scale;
-              const x2 = (tgt.x + CLASS_BOX_WIDTH / 2 - bounds.minX) * scale;
+              const x2 = (tgt.x + classBoxWidth(tgt) / 2 - bounds.minX) * scale;
               const y2 = (tgt.y + tgtH / 2 - bounds.minY) * scale;
 
               const isDashed =
@@ -206,7 +206,7 @@ export const Minimap = memo(function Minimap({
               const h = classBoxHeight(cls);
               const rx = (cls.x - bounds.minX) * scale;
               const ry = (cls.y - bounds.minY) * scale;
-              const rw = CLASS_BOX_WIDTH * scale;
+              const rw = classBoxWidth(cls) * scale;
               const rh = h * scale;
               const color = STEREOTYPE_BORDER_COLOR[cls.stereotype];
 

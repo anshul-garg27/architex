@@ -17,13 +17,13 @@ import type { UMLClass, UMLRelationship, UMLMethodParam } from "@/lib/lld";
 import { generateMermaid } from "@/lib/lld/codegen/diagram-to-mermaid";
 import { parseMermaidClassDiagram } from "@/lib/lld/codegen/mermaid-to-diagram";
 import {
-  CLASS_BOX_WIDTH,
   CLASS_HEADER_HEIGHT,
   ROW_HEIGHT,
   SECTION_PAD,
   STEREOTYPE_LABEL_HEIGHT,
   STEREOTYPE_BORDER_COLOR,
   STEREOTYPE_LABEL,
+  classBoxWidth,
 } from "../constants";
 
 // ── Props ───────────────────────────────────────────────────
@@ -151,6 +151,7 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
   const borderColor = STEREOTYPE_BORDER_COLOR[cls.stereotype];
   const stereo = STEREOTYPE_LABEL[cls.stereotype];
   const h = classBoxHeight(cls);
+  const w = classBoxWidth(cls);
   const hasStereo = stereo.length > 0;
 
   let yOff = cls.y;
@@ -176,7 +177,7 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
       <rect
         x={cls.x + 2}
         y={cls.y + 2}
-        width={CLASS_BOX_WIDTH}
+        width={w}
         height={h}
         rx={6}
         fill="black"
@@ -186,7 +187,7 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
       <rect
         x={cls.x}
         y={cls.y}
-        width={CLASS_BOX_WIDTH}
+        width={w}
         height={h}
         rx={6}
         fill="var(--card)"
@@ -197,7 +198,7 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
       <rect
         x={cls.x}
         y={cls.y}
-        width={CLASS_BOX_WIDTH}
+        width={w}
         height={CLASS_HEADER_HEIGHT + (hasStereo ? STEREOTYPE_LABEL_HEIGHT : 0)}
         rx={6}
         fill={borderColor}
@@ -206,7 +207,7 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
       {/* Stereotype */}
       {hasStereo && (
         <text
-          x={cls.x + CLASS_BOX_WIDTH / 2}
+          x={cls.x + w / 2}
           y={headerY + 12}
           textAnchor="middle"
           fill={borderColor}
@@ -218,7 +219,7 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
       )}
       {/* Class name */}
       <text
-        x={cls.x + CLASS_BOX_WIDTH / 2}
+        x={cls.x + w / 2}
         y={headerY + (hasStereo ? 26 : 20)}
         textAnchor="middle"
         fill="var(--foreground)"
@@ -244,7 +245,7 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
       <line
         x1={cls.x + 8}
         y1={dividerY}
-        x2={cls.x + CLASS_BOX_WIDTH - 8}
+        x2={cls.x + w - 8}
         y2={dividerY}
         stroke="var(--border)"
         strokeOpacity={0.3}
@@ -288,7 +289,7 @@ function MiniPreview({ classes, relationships }: { classes: UMLClass[]; relation
     const h = classBoxHeight(cls);
     minX = Math.min(minX, cls.x);
     minY = Math.min(minY, cls.y);
-    maxX = Math.max(maxX, cls.x + CLASS_BOX_WIDTH);
+    maxX = Math.max(maxX, cls.x + classBoxWidth(cls));
     maxY = Math.max(maxY, cls.y + h);
   }
 
@@ -316,9 +317,9 @@ function MiniPreview({ classes, relationships }: { classes: UMLClass[]; relation
         const srcH = classBoxHeight(src);
         const tgtH = classBoxHeight(tgt);
 
-        const x1 = src.x + CLASS_BOX_WIDTH / 2;
+        const x1 = src.x + classBoxWidth(src) / 2;
         const y1 = src.y + srcH / 2;
-        const x2 = tgt.x + CLASS_BOX_WIDTH / 2;
+        const x2 = tgt.x + classBoxWidth(tgt) / 2;
         const y2 = tgt.y + tgtH / 2;
 
         const isDashed = rel.type === "dependency" || rel.type === "realization";

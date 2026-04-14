@@ -61,7 +61,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import type { UMLClass } from "@/lib/lld";
-import { CLASS_BOX_WIDTH, classBoxHeight } from "../constants";
+import { classBoxHeight, classBoxWidth } from "../constants";
 
 // ── Props ───────────────────────────────────────────────────
 
@@ -83,12 +83,12 @@ export const AlignmentToolbar = memo(function AlignmentToolbar({
 
   const alignRight = useCallback(() => {
     const maxRight = Math.max(
-      ...selectedClasses.map((c) => c.x + CLASS_BOX_WIDTH),
+      ...selectedClasses.map((c) => c.x + classBoxWidth(c)),
     );
     onUpdateClasses(
       selectedClasses.map((c) => ({
         ...c,
-        x: maxRight - CLASS_BOX_WIDTH,
+        x: maxRight - classBoxWidth(c),
       })),
     );
   }, [selectedClasses, onUpdateClasses]);
@@ -112,12 +112,12 @@ export const AlignmentToolbar = memo(function AlignmentToolbar({
 
   const alignCenterH = useCallback(() => {
     const avgCx =
-      selectedClasses.reduce((sum, c) => sum + c.x + CLASS_BOX_WIDTH / 2, 0) /
+      selectedClasses.reduce((sum, c) => sum + c.x + classBoxWidth(c) / 2, 0) /
       selectedClasses.length;
     onUpdateClasses(
       selectedClasses.map((c) => ({
         ...c,
-        x: avgCx - CLASS_BOX_WIDTH / 2,
+        x: avgCx - classBoxWidth(c) / 2,
       })),
     );
   }, [selectedClasses, onUpdateClasses]);
@@ -140,9 +140,9 @@ export const AlignmentToolbar = memo(function AlignmentToolbar({
     if (selectedClasses.length < 3) return;
     const sorted = [...selectedClasses].sort((a, b) => a.x - b.x);
     const leftmost = sorted[0].x;
-    const rightmost = sorted[sorted.length - 1].x + CLASS_BOX_WIDTH;
+    const rightmost = sorted[sorted.length - 1].x + classBoxWidth(sorted[sorted.length - 1]);
     const totalContentWidth = sorted.reduce(
-      (sum, c) => sum + CLASS_BOX_WIDTH,
+      (sum, c) => sum + classBoxWidth(c),
       0,
     );
     const gap =
@@ -152,7 +152,7 @@ export const AlignmentToolbar = memo(function AlignmentToolbar({
     let currentX = leftmost;
     const updated = sorted.map((c) => {
       const newC = { ...c, x: currentX };
-      currentX += CLASS_BOX_WIDTH + gap;
+      currentX += classBoxWidth(c) + gap;
       return newC;
     });
 

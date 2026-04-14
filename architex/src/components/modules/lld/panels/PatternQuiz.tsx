@@ -12,13 +12,13 @@ import type { DesignPattern, UMLRelationshipType } from "@/lib/lld";
 import { useLLDDataContext } from "../LLDDataContext";
 import { RelationshipDefs } from "../canvas/LLDCanvas";
 import {
-  CLASS_BOX_WIDTH,
   CLASS_HEADER_HEIGHT,
   ROW_HEIGHT,
   SECTION_PAD,
   STEREOTYPE_BORDER_COLOR,
   STEREOTYPE_LABEL,
   classBoxHeight,
+  classBoxWidth,
   classCenter,
   borderPoint,
 } from "../constants";
@@ -233,11 +233,11 @@ export const PatternQuiz = memo(function PatternQuiz() {
               for (const c of cs) {
                 mnX = Math.min(mnX, c.x);
                 mnY = Math.min(mnY, c.y);
-                mxX = Math.max(mxX, c.x + CLASS_BOX_WIDTH);
+                mxX = Math.max(mxX, c.x + classBoxWidth(c));
                 mxY = Math.max(mxY, c.y + classBoxHeight(c));
               }
               const p = 40;
-              return `${mnX - p} ${mnY - p} ${mxX - mnX + CLASS_BOX_WIDTH + p * 2} ${mxY - mnY + p * 3}`;
+              return `${mnX - p} ${mnY - p} ${mxX - mnX + p * 2} ${mxY - mnY + p * 3}`;
             })()}
             className="h-full w-full"
             style={{ minHeight: 120, maxHeight: 200 }}
@@ -279,15 +279,16 @@ export const PatternQuiz = memo(function PatternQuiz() {
               const hasStereo = STEREOTYPE_LABEL[cls.stereotype].length > 0;
               return (
                 <g key={cls.id}>
-                  <rect x={cls.x} y={cls.y} width={CLASS_BOX_WIDTH} height={h} rx={4}
+                  {(() => { const cw = classBoxWidth(cls); return (<>
+                  <rect x={cls.x} y={cls.y} width={cw} height={h} rx={4}
                     fill="var(--lld-canvas-bg)" stroke={bc} strokeWidth={1.5} />
                   {hasStereo && (
-                    <text x={cls.x + CLASS_BOX_WIDTH / 2} y={cls.y + 14}
+                    <text x={cls.x + cw / 2} y={cls.y + 14}
                       textAnchor="middle" fill={bc} fontSize="11" fontFamily="monospace">
                       {`\u00AB${STEREOTYPE_LABEL[cls.stereotype]}\u00BB`}
                     </text>
                   )}
-                  <text x={cls.x + CLASS_BOX_WIDTH / 2}
+                  <text x={cls.x + cw / 2}
                     y={hasStereo ? cls.y + 16 + 10 : cls.y + 22}
                     textAnchor="middle" fill="var(--lld-canvas-text)" fontSize="13" fontWeight="700">
                     {feedbackShown ? cls.name : "???"}
@@ -296,7 +297,7 @@ export const PatternQuiz = memo(function PatternQuiz() {
                     <rect key={`a-${ai}`}
                       x={cls.x + 10}
                       y={cls.y + (hasStereo ? 16 : 0) + CLASS_HEADER_HEIGHT + SECTION_PAD + ai * ROW_HEIGHT + 4}
-                      width={CLASS_BOX_WIDTH - 20}
+                      width={cw - 20}
                       height={8}
                       rx={2}
                       fill={feedbackShown ? "transparent" : "color-mix(in srgb, var(--lld-canvas-text-subtle) 10%, transparent)"}
@@ -306,12 +307,13 @@ export const PatternQuiz = memo(function PatternQuiz() {
                     <rect key={`m-${mi}`}
                       x={cls.x + 10}
                       y={cls.y + (hasStereo ? 16 : 0) + CLASS_HEADER_HEIGHT + SECTION_PAD + cls.attributes.length * ROW_HEIGHT + SECTION_PAD + mi * ROW_HEIGHT + 4}
-                      width={CLASS_BOX_WIDTH - 20}
+                      width={cw - 20}
                       height={8}
                       rx={2}
                       fill={feedbackShown ? "transparent" : "color-mix(in srgb, var(--lld-canvas-text-subtle) 10%, transparent)"}
                     />
                   ))}
+                  </>); })()}
                 </g>
               );
             })}

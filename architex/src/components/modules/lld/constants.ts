@@ -8,6 +8,7 @@ import type {
   PatternCategory,
   SOLIDPrinciple,
 } from "@/lib/lld";
+import { formatMethodParams } from "@/lib/lld";
 
 // ── Category Constants ───────────────────────────────────
 
@@ -310,9 +311,31 @@ export function classBoxHeight(c: UMLClass): number {
   );
 }
 
+/** Approximate character width for 11px monospace font in SVG. */
+const MONO_CHAR_W = 6.6;
+/** Horizontal padding inside class boxes (icon + left/right margins). */
+const BOX_TEXT_PAD = 24;
+
+/** Compute dynamic box width based on longest text line. */
+export function classBoxWidth(c: UMLClass): number {
+  let maxChars = c.name.length;
+  for (const attr of c.attributes) {
+    // "⊕ name: type"
+    const len = 2 + attr.name.length + 2 + attr.type.length;
+    if (len > maxChars) maxChars = len;
+  }
+  for (const meth of c.methods) {
+    // "⊕ name(params): returnType"
+    const paramsStr = formatMethodParams(meth.params);
+    const len = 2 + meth.name.length + 1 + paramsStr.length + 1 + 2 + meth.returnType.length;
+    if (len > maxChars) maxChars = len;
+  }
+  return Math.max(CLASS_BOX_WIDTH, Math.ceil(maxChars * MONO_CHAR_W + BOX_TEXT_PAD));
+}
+
 export function classCenter(c: UMLClass): { cx: number; cy: number } {
   return {
-    cx: c.x + CLASS_BOX_WIDTH / 2,
+    cx: c.x + classBoxWidth(c) / 2,
     cy: c.y + classBoxHeight(c) / 2,
   };
 }
@@ -322,7 +345,7 @@ export function borderPoint(
   tx: number,
   ty: number,
 ): { x: number; y: number } {
-  const w = CLASS_BOX_WIDTH;
+  const w = classBoxWidth(cls);
   const h = classBoxHeight(cls);
   const cx = cls.x + w / 2;
   const cy = cls.y + h / 2;

@@ -15,7 +15,6 @@ import type { UMLClass, UMLRelationship, UMLRelationshipType, UMLMethodParam } f
 import { formatMethodParams } from "@/lib/lld";
 import { motion } from "motion/react";
 import {
-  CLASS_BOX_WIDTH,
   CLASS_HEADER_HEIGHT,
   ROW_HEIGHT,
   SECTION_PAD,
@@ -33,6 +32,7 @@ import {
   CONNECTION_HANDLE_R,
   CLASS_BOX_SHADOW_OFFSET,
   classBoxHeight,
+  classBoxWidth,
   classCenter,
   borderPoint,
 } from "../constants";
@@ -351,6 +351,7 @@ const UMLClassBox = memo(function UMLClassBox({
   const borderColor = STEREOTYPE_BORDER_COLOR[cls.stereotype];
   const stereo = STEREOTYPE_LABEL[cls.stereotype];
   const h = classBoxHeight(cls);
+  const w = classBoxWidth(cls);
   const hasStereo = stereo.length > 0;
   const isEditing = editingNameId === cls.id;
   const foreignObjectRef = useRef<SVGForeignObjectElement>(null);
@@ -423,10 +424,10 @@ const UMLClassBox = memo(function UMLClassBox({
   const methStartY = yOff + SECTION_PAD;
 
   const handles: Array<{ side: "top" | "bottom" | "left" | "right"; cx: number; cy: number }> = [
-    { side: "top", cx: cls.x + CLASS_BOX_WIDTH / 2, cy: cls.y },
-    { side: "bottom", cx: cls.x + CLASS_BOX_WIDTH / 2, cy: cls.y + h },
+    { side: "top", cx: cls.x + w / 2, cy: cls.y },
+    { side: "bottom", cx: cls.x + w / 2, cy: cls.y + h },
     { side: "left", cx: cls.x, cy: cls.y + h / 2 },
-    { side: "right", cx: cls.x + CLASS_BOX_WIDTH, cy: cls.y + h / 2 },
+    { side: "right", cx: cls.x + w, cy: cls.y + h / 2 },
   ];
 
   return (
@@ -462,7 +463,7 @@ const UMLClassBox = memo(function UMLClassBox({
       <rect
         x={cls.x + CLASS_BOX_SHADOW_OFFSET}
         y={cls.y + CLASS_BOX_SHADOW_OFFSET}
-        width={CLASS_BOX_WIDTH}
+        width={w}
         height={h}
         rx={4}
         fill="rgba(0,0,0,0.25)"
@@ -471,7 +472,7 @@ const UMLClassBox = memo(function UMLClassBox({
       <rect
         x={cls.x}
         y={cls.y}
-        width={CLASS_BOX_WIDTH}
+        width={w}
         height={h}
         rx={4}
         fill="var(--lld-canvas-bg)"
@@ -482,7 +483,7 @@ const UMLClassBox = memo(function UMLClassBox({
       <rect
         x={cls.x}
         y={cls.y}
-        width={CLASS_BOX_WIDTH}
+        width={w}
         height={CLASS_HEADER_HEIGHT + (hasStereo ? STEREOTYPE_LABEL_HEIGHT : 0)}
         rx={4}
         fill={borderColor}
@@ -492,7 +493,7 @@ const UMLClassBox = memo(function UMLClassBox({
       <rect
         x={cls.x}
         y={cls.y + CLASS_HEADER_HEIGHT + (hasStereo ? STEREOTYPE_LABEL_HEIGHT / 2 : 0)}
-        width={CLASS_BOX_WIDTH}
+        width={w}
         height={STEREOTYPE_LABEL_HEIGHT / 2}
         fill={borderColor}
         opacity={0.094}
@@ -501,7 +502,7 @@ const UMLClassBox = memo(function UMLClassBox({
       {/* Stereotype label */}
       {hasStereo && (
         <text
-          x={cls.x + CLASS_BOX_WIDTH / 2}
+          x={cls.x + w / 2}
           y={headerY + 14}
           textAnchor="middle"
           fill={borderColor}
@@ -518,7 +519,7 @@ const UMLClassBox = memo(function UMLClassBox({
           ref={foreignObjectRef}
           x={cls.x + 10}
           y={hasStereo ? stereoY - 2 : headerY + 6}
-          width={CLASS_BOX_WIDTH - 20}
+          width={w - 20}
           height={22}
         >
           <input
@@ -548,7 +549,7 @@ const UMLClassBox = memo(function UMLClassBox({
         </foreignObject>
       ) : (
         <text
-          x={cls.x + CLASS_BOX_WIDTH / 2}
+          x={cls.x + w / 2}
           y={hasStereo ? stereoY + 10 : headerY + 22}
           textAnchor="middle"
           fill="var(--lld-canvas-text)"
@@ -566,7 +567,7 @@ const UMLClassBox = memo(function UMLClassBox({
       <line
         x1={cls.x}
         y1={attrStartY - SECTION_PAD}
-        x2={cls.x + CLASS_BOX_WIDTH}
+        x2={cls.x + w}
         y2={attrStartY - SECTION_PAD}
         stroke={borderColor}
         strokeWidth="0.5"
@@ -596,7 +597,7 @@ const UMLClassBox = memo(function UMLClassBox({
       <line
         x1={cls.x}
         y1={dividerY}
-        x2={cls.x + CLASS_BOX_WIDTH}
+        x2={cls.x + w}
         y2={dividerY}
         stroke={borderColor}
         strokeWidth="0.5"
@@ -1002,16 +1003,17 @@ export const LLDCanvas = memo(function LLDCanvas({
       maxX = -Infinity,
       maxY = -Infinity;
     for (const c of classes) {
+      const cw = classBoxWidth(c);
       minX = Math.min(minX, c.x);
       minY = Math.min(minY, c.y);
-      maxX = Math.max(maxX, c.x + CLASS_BOX_WIDTH);
+      maxX = Math.max(maxX, c.x + cw);
       maxY = Math.max(maxY, c.y + classBoxHeight(c));
     }
     const pad = CANVAS_VIEWBOX_PAD;
     return {
       x: minX - pad,
       y: minY - pad,
-      w: maxX - minX + CLASS_BOX_WIDTH + pad * 2,
+      w: maxX - minX + pad * 2,
       h: maxY - minY + pad * 3,
     };
   }, [classes]);
@@ -1037,12 +1039,13 @@ export const LLDCanvas = memo(function LLDCanvas({
       const cls = classes.find((c) => c.id === classId);
       if (!cls) return;
       const h = classBoxHeight(cls);
+      const cw = classBoxWidth(cls);
       let cx: number, cy: number;
       switch (side) {
-        case "top": cx = cls.x + CLASS_BOX_WIDTH / 2; cy = cls.y; break;
-        case "bottom": cx = cls.x + CLASS_BOX_WIDTH / 2; cy = cls.y + h; break;
+        case "top": cx = cls.x + cw / 2; cy = cls.y; break;
+        case "bottom": cx = cls.x + cw / 2; cy = cls.y + h; break;
         case "left": cx = cls.x; cy = cls.y + h / 2; break;
-        case "right": cx = cls.x + CLASS_BOX_WIDTH; cy = cls.y + h / 2; break;
+        case "right": cx = cls.x + cw; cy = cls.y + h / 2; break;
       }
       setConnectionDrag({
         sourceClassId: classId,
@@ -1072,7 +1075,7 @@ export const LLDCanvas = memo(function LLDCanvas({
         const h = classBoxHeight(c);
         return (
           svgPt.x >= c.x &&
-          svgPt.x <= c.x + CLASS_BOX_WIDTH &&
+          svgPt.x <= c.x + classBoxWidth(c) &&
           svgPt.y >= c.y &&
           svgPt.y <= c.y + h
         );
@@ -1124,11 +1127,12 @@ export const LLDCanvas = memo(function LLDCanvas({
     const srcCls = classes.find((c) => c.id === connectionDrag.sourceClassId);
     if (srcCls) {
       const h = classBoxHeight(srcCls);
+      const sw = classBoxWidth(srcCls);
       switch (connectionDrag.sourceSide) {
-        case "top": previewLineStart = { x: srcCls.x + CLASS_BOX_WIDTH / 2, y: srcCls.y }; break;
-        case "bottom": previewLineStart = { x: srcCls.x + CLASS_BOX_WIDTH / 2, y: srcCls.y + h }; break;
+        case "top": previewLineStart = { x: srcCls.x + sw / 2, y: srcCls.y }; break;
+        case "bottom": previewLineStart = { x: srcCls.x + sw / 2, y: srcCls.y + h }; break;
         case "left": previewLineStart = { x: srcCls.x, y: srcCls.y + h / 2 }; break;
-        case "right": previewLineStart = { x: srcCls.x + CLASS_BOX_WIDTH, y: srcCls.y + h / 2 }; break;
+        case "right": previewLineStart = { x: srcCls.x + sw, y: srcCls.y + h / 2 }; break;
       }
     }
   }

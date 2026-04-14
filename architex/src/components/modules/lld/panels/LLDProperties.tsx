@@ -37,6 +37,7 @@ import type {
   StateNode,
 } from "@/lib/lld";
 import { formatMethodParams } from "@/lib/lld";
+import { Highlight, themes } from "prism-react-renderer";
 import { useLLDDataContext } from "../LLDDataContext";
 import {
   STEREOTYPE_BORDER_COLOR,
@@ -46,6 +47,12 @@ import {
   SEQ_TYPE_COLORS,
   smStateColor,
 } from "../constants";
+
+const PRISM_LANG: Record<string, string> = {
+  typescript: "typescript",
+  python: "python",
+  java: "java",
+};
 
 // ── Visibility/Stereotype Options ────────────────────────
 
@@ -386,9 +393,26 @@ export const LLDProperties = memo(function LLDProperties({
               </button>
             )}
           </div>
-          <pre className="overflow-auto rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm p-3 text-[10px] leading-relaxed text-foreground-muted">
-            <code>{pattern!.code[codeTab] ?? ""}</code>
-          </pre>
+          <Highlight
+            theme={themes.nightOwl}
+            code={(pattern!.code[codeTab] ?? "").trim()}
+            language={PRISM_LANG[codeTab] ?? "typescript"}
+          >
+            {({ style, tokens, getLineProps, getTokenProps }) => (
+              <pre
+                className="overflow-auto rounded-xl border border-border/30 p-3 text-[10px] leading-relaxed"
+                style={{ ...style, background: "rgba(var(--elevated-rgb, 30,30,40), 0.5)", backdropFilter: "blur(8px)" }}
+              >
+                {tokens.map((line, i) => (
+                  <div key={i} {...getLineProps({ line })}>
+                    {line.map((token, j) => (
+                      <span key={j} {...getTokenProps({ token })} />
+                    ))}
+                  </div>
+                ))}
+              </pre>
+            )}
+          </Highlight>
         </div>
 
         <div>
