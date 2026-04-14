@@ -154,19 +154,17 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>, con
    * ALL fitting — no dual-system coordination needed.
    */
   const zoomFit = useCallback((bounds?: { x: number; y: number; w: number; h: number }) => {
-    // Use containerRef (the overflow-hidden div) for accurate visible dimensions.
-    // The SVG element may report incorrect size, but the container is properly
-    // sized by the resizable panel layout.
-    const container = containerRef?.current;
     const svg = svgRef.current;
-    if (!svg || !container || !bounds || bounds.w <= 0 || bounds.h <= 0) {
+    if (!svg || !bounds || bounds.w <= 0 || bounds.h <= 0) {
       setZoom({ scale: 1, translateX: 0, translateY: 0 });
       return;
     }
 
-    // With preserveAspectRatio="none", the viewBox (0 0 2000 2000) stretches
-    // to fill the container exactly. Use CONTAINER rect, not SVG rect.
-    const rect = container.getBoundingClientRect();
+    // Find the actual visible area: the nearest <main> ancestor is properly
+    // sized by the resizable panel layout. The SVG and its container may
+    // overflow beyond the visible area.
+    const mainEl = svg.closest("main");
+    const rect = mainEl ? mainEl.getBoundingClientRect() : svg.getBoundingClientRect();
     const sxRatio = rect.width / 2000;   // SVG X unit → screen px
     const syRatio = rect.height / 2000;  // SVG Y unit → screen px
     if (sxRatio <= 0 || syRatio <= 0) return;
