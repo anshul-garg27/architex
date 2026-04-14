@@ -204,7 +204,7 @@ export const ZoomToolbar = memo(function ZoomToolbar({
   onZoomReset: () => void;
 }) {
   return (
-    <div className="absolute top-2 right-14 z-30 flex items-center gap-1 rounded-xl border border-border/30 backdrop-blur-md bg-background/90 px-2 py-1.5 shadow-xl">
+    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 rounded-xl border border-border/30 backdrop-blur-md bg-background/90 px-2 py-1.5 shadow-xl">
       <button
         onClick={onZoomOut}
         className="flex h-6 w-6 items-center justify-center rounded-full bg-background/80 backdrop-blur border border-border/50 text-xs font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
@@ -1334,7 +1334,7 @@ export const LLDCanvas = memo(function LLDCanvas({
       x: contentBounds.x - pad,
       y: contentBounds.y - pad,
       w: contentBounds.w + pad * 2,
-      h: contentBounds.h + pad * 3,
+      h: contentBounds.h + pad * 2,
     };
   }, [classes]);
 
