@@ -229,85 +229,48 @@ export const ZoomToolbar = memo(function ZoomToolbar({
 
 // ── SVG: Relationship Markers ──────────────────────────────
 
+/** Single monochrome stroke for all UML relationships (per UML 2.5 standard). */
+const REL_STROKE = "var(--lld-rel-stroke)";
+/** Background fill for hollow markers (triangle/diamond). */
+const REL_FILL_BG = "var(--lld-canvas-bg-deep, #0f0f1a)";
+
 export const RelationshipDefs = memo(function RelationshipDefs() {
   return (
     <defs>
-      {/* Inheritance: solid line + hollow triangle */}
-      <marker
-        id="arrow-inheritance"
-        viewBox="0 0 12 12"
-        refX="12"
-        refY="6"
-        markerWidth="12"
-        markerHeight="12"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 12 6 L 0 12 Z" fill="none" stroke="var(--lld-canvas-edge)" strokeWidth="1.5" />
+      {/* ── Inheritance: solid line + HOLLOW triangle (16×16) ── */}
+      <marker id="arrow-inheritance" viewBox="0 0 16 16" refX="16" refY="8"
+        markerWidth="14" markerHeight="14" orient="auto-start-reverse">
+        <path d="M 0 0 L 16 8 L 0 16 Z" fill={REL_FILL_BG} stroke={REL_STROKE} strokeWidth="2" />
       </marker>
 
-      {/* Realization: dashed line + hollow triangle */}
-      <marker
-        id="arrow-realization"
-        viewBox="0 0 12 12"
-        refX="12"
-        refY="6"
-        markerWidth="12"
-        markerHeight="12"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 12 6 L 0 12 Z" fill="none" stroke="var(--lld-canvas-edge)" strokeWidth="1.5" />
+      {/* ── Realization: dashed line + HOLLOW triangle (same as inheritance) ── */}
+      <marker id="arrow-realization" viewBox="0 0 16 16" refX="16" refY="8"
+        markerWidth="14" markerHeight="14" orient="auto-start-reverse">
+        <path d="M 0 0 L 16 8 L 0 16 Z" fill={REL_FILL_BG} stroke={REL_STROKE} strokeWidth="2" />
       </marker>
 
-      {/* Composition: filled diamond */}
-      <marker
-        id="arrow-composition"
-        viewBox="0 0 14 10"
-        refX="0"
-        refY="5"
-        markerWidth="14"
-        markerHeight="10"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 5 L 7 0 L 14 5 L 7 10 Z" fill="var(--lld-canvas-edge)" stroke="var(--lld-canvas-edge)" strokeWidth="1" />
+      {/* ── Composition: solid line + FILLED diamond (18×12) ── */}
+      <marker id="arrow-composition" viewBox="0 0 18 12" refX="0" refY="6"
+        markerWidth="16" markerHeight="11" orient="auto-start-reverse">
+        <path d="M 0 6 L 9 0 L 18 6 L 9 12 Z" fill={REL_STROKE} stroke={REL_STROKE} strokeWidth="1" />
       </marker>
 
-      {/* Aggregation: hollow diamond */}
-      <marker
-        id="arrow-aggregation"
-        viewBox="0 0 14 10"
-        refX="0"
-        refY="5"
-        markerWidth="14"
-        markerHeight="10"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 5 L 7 0 L 14 5 L 7 10 Z" fill="none" stroke="var(--lld-canvas-edge)" strokeWidth="1.5" />
+      {/* ── Aggregation: solid line + HOLLOW diamond (18×12) ── */}
+      <marker id="arrow-aggregation" viewBox="0 0 18 12" refX="0" refY="6"
+        markerWidth="16" markerHeight="11" orient="auto-start-reverse">
+        <path d="M 0 6 L 9 0 L 18 6 L 9 12 Z" fill={REL_FILL_BG} stroke={REL_STROKE} strokeWidth="2" />
       </marker>
 
-      {/* Association: open arrow */}
-      <marker
-        id="arrow-association"
-        viewBox="0 0 10 10"
-        refX="10"
-        refY="5"
-        markerWidth="10"
-        markerHeight="10"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="var(--lld-canvas-edge)" strokeWidth="1.5" />
+      {/* ── Association: solid line + open V arrow (12×12) ── */}
+      <marker id="arrow-association" viewBox="0 0 12 12" refX="12" refY="6"
+        markerWidth="11" markerHeight="11" orient="auto-start-reverse">
+        <path d="M 0 1 L 11 6 L 0 11" fill="none" stroke={REL_STROKE} strokeWidth="2" strokeLinecap="round" />
       </marker>
 
-      {/* Dependency: open arrow (dashed line is on the path) */}
-      <marker
-        id="arrow-dependency"
-        viewBox="0 0 10 10"
-        refX="10"
-        refY="5"
-        markerWidth="10"
-        markerHeight="10"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="var(--lld-canvas-edge)" strokeWidth="1.5" />
+      {/* ── Dependency: dashed line + open V arrow (same shape as association) ── */}
+      <marker id="arrow-dependency" viewBox="0 0 12 12" refX="12" refY="6"
+        markerWidth="11" markerHeight="11" orient="auto-start-reverse">
+        <path d="M 0 1 L 11 6 L 0 11" fill="none" stroke={REL_STROKE} strokeWidth="2" strokeLinecap="round" />
       </marker>
     </defs>
   );
@@ -836,27 +799,17 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
   const midB = waypoints[midIdx];
   const labelPos = { x: (midA.x + midB.x) / 2, y: (midA.y + midB.y) / 2 - 10 };
 
-  // Cardinality label offsets — push outward from the border point along the
-  // perpendicular of the approach direction so they don't overlap the line.
-  const cardinalityOffset = (
-    end: { x: number; y: number },
-    other: { x: number; y: number },
-  ) => {
-    const dx = other.x - end.x;
-    const dy = other.y - end.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len < 1) return { x: end.x, y: end.y };
-    // Push perpendicular + slightly outward from the box
-    const nx = -dy / len;
-    const ny = dx / len;
-    return {
-      x: end.x + nx * 14 - (dx / len) * 6,
-      y: end.y + ny * 14 - (dy / len) * 6,
-    };
+  // Cardinality labels — offset perpendicular to the exit side of the orthogonal line.
+  // For vertical exits (top/bottom), offset horizontally. For horizontal exits, offset vertically.
+  const cardPos = (anchor: Pt, side: string): Pt => {
+    const isVert = side === "top" || side === "bottom";
+    const outward = (side === "bottom" || side === "right") ? 1 : -1;
+    return isVert
+      ? { x: anchor.x + 16, y: anchor.y + outward * 14 }
+      : { x: anchor.x + outward * 14, y: anchor.y - 10 };
   };
-
-  const srcCardPos = cardinalityOffset(src, tgt);
-  const tgtCardPos = cardinalityOffset(tgt, src);
+  const srcCardPos = cardPos(src, srcSide);
+  const tgtCardPos = cardPos(tgt, tgtSide);
 
   return (
     <motion.g
@@ -871,9 +824,10 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
       <path
         d={pathD}
         fill="none"
-        stroke="var(--lld-canvas-border)"
+        stroke={REL_STROKE}
         strokeWidth="1.5"
-        strokeDasharray={isDashed ? "6 4" : undefined}
+        strokeDasharray={isDashed ? "8 5" : undefined}
+        strokeLinecap="round"
         markerEnd={markerMap[rel.type] || undefined}
         markerStart={
           hasDiamond
@@ -1349,15 +1303,34 @@ export const LLDCanvas = memo(function LLDCanvas({
                 </div>
               ))}
               <div className="mx-1 h-3 w-px bg-border/30" />
-              {(["inheritance", "composition", "aggregation"] as const).map((rel) => (
-                <Tooltip key={rel}>
+              {/* ── UML Relationship Legend with mini-icons ── */}
+              {([
+                { type: "inheritance" as const, label: "Inheritance", dash: false, marker: "triangle" },
+                { type: "composition" as const, label: "Composition", dash: false, marker: "diamond-filled" },
+                { type: "aggregation" as const, label: "Aggregation", dash: false, marker: "diamond-hollow" },
+              ] as const).map((item) => (
+                <Tooltip key={item.type}>
                   <TooltipTrigger asChild>
-                    <span className="cursor-help text-[10px] text-foreground-subtle capitalize underline decoration-dotted underline-offset-2">
-                      {rel}
+                    <span className="flex cursor-help items-center gap-1">
+                      <svg width="28" height="12" viewBox="0 0 28 12" className="shrink-0">
+                        <line x1="0" y1="6" x2="18" y2="6"
+                          stroke="var(--lld-rel-stroke)" strokeWidth="1.5"
+                          strokeDasharray={item.dash ? "4 3" : undefined} />
+                        {item.marker === "triangle" && (
+                          <path d="M 18 1 L 27 6 L 18 11 Z" fill="var(--lld-canvas-bg-deep, #0f0f1a)" stroke="var(--lld-rel-stroke)" strokeWidth="1.5" />
+                        )}
+                        {item.marker === "diamond-filled" && (
+                          <path d="M 0 6 L 6 2 L 12 6 L 6 10 Z" fill="var(--lld-rel-stroke)" stroke="var(--lld-rel-stroke)" strokeWidth="1" transform="translate(0,0)" />
+                        )}
+                        {item.marker === "diamond-hollow" && (
+                          <path d="M 0 6 L 6 2 L 12 6 L 6 10 Z" fill="var(--lld-canvas-bg-deep, #0f0f1a)" stroke="var(--lld-rel-stroke)" strokeWidth="1.5" />
+                        )}
+                      </svg>
+                      <span className="text-[10px] text-foreground-subtle">{item.label}</span>
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px] text-xs">
-                    {RELATIONSHIP_TOOLTIPS[rel]}
+                    {RELATIONSHIP_TOOLTIPS[item.type]}
                   </TooltipContent>
                 </Tooltip>
               ))}
