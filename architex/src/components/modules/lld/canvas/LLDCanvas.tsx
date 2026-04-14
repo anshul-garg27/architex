@@ -147,42 +147,14 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
     setZoom({ scale: 1, translateX: 0, translateY: 0 });
   }, []);
 
-  /** Fit all content into the viewport by computing the bounding box of
-   *  the zoom group and calculating scale + translate to center it. */
+  /**
+   * Fit all content into the viewport.
+   * The SVG viewBox already maps content bounds to the viewport perfectly.
+   * "Fit" simply resets the zoom/pan transform to identity.
+   */
   const zoomFit = useCallback(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const container = svg.getBoundingClientRect();
-    const zoomGroup = svg.querySelector("g[style]") as SVGGElement | null;
-    if (!zoomGroup) { setZoom({ scale: 1, translateX: 0, translateY: 0 }); return; }
-
-    // Temporarily reset transform to measure true content bounds
-    const origTransform = zoomGroup.getAttribute("transform") || "";
-    const origStyle = zoomGroup.style.cssText;
-    zoomGroup.setAttribute("transform", "");
-    zoomGroup.style.transform = "none";
-    const bbox = zoomGroup.getBBox();
-    zoomGroup.setAttribute("transform", origTransform);
-    zoomGroup.style.cssText = origStyle;
-
-    if (bbox.width === 0 || bbox.height === 0) {
-      setZoom({ scale: 1, translateX: 0, translateY: 0 });
-      return;
-    }
-
-    const PAD = 60;
-    const scaleX = (container.width - PAD * 2) / bbox.width;
-    const scaleY = (container.height - PAD * 2) / bbox.height;
-    const fitScale = Math.max(ZOOM_MIN, Math.min(Math.min(scaleX, scaleY), 1.2));
-
-    const contentCX = bbox.x + bbox.width / 2;
-    const contentCY = bbox.y + bbox.height / 2;
-    setZoom({
-      scale: fitScale,
-      translateX: container.width / 2 - contentCX * fitScale,
-      translateY: container.height / 2 - contentCY * fitScale,
-    });
-  }, [svgRef]);
+    setZoom({ scale: 1, translateX: 0, translateY: 0 });
+  }, []);
 
   const setViewportPosition = useCallback(
     (svgX: number, svgY: number) => {
@@ -1256,26 +1228,28 @@ export const LLDCanvas = memo(function LLDCanvas({
     return offsets;
   }, [relationships, classById]);
 
+  // Raw content bounds (no padding) — used by zoomFit
+  const contentBounds = useMemo(() => {
+    if (classes.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of classes) {
+      minX = Math.min(minX, c.x);
+      minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x + classBoxWidth(c));
+      maxY = Math.max(maxY, c.y + classBoxHeight(c));
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }, [classes]);
+
   const viewBox = useMemo(() => {
     if (classes.length === 0)
       return { x: -50, y: -50, w: 800, h: 600 };
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    for (const c of classes) {
-      const cw = classBoxWidth(c);
-      minX = Math.min(minX, c.x);
-      minY = Math.min(minY, c.y);
-      maxX = Math.max(maxX, c.x + cw);
-      maxY = Math.max(maxY, c.y + classBoxHeight(c));
-    }
     const pad = CANVAS_VIEWBOX_PAD;
     return {
-      x: minX - pad,
-      y: minY - pad,
-      w: maxX - minX + pad * 2,
-      h: maxY - minY + pad * 3,
+      x: contentBounds.x - pad,
+      y: contentBounds.y - pad,
+      w: contentBounds.w + pad * 2,
+      h: contentBounds.h + pad * 3,
     };
   }, [classes]);
 
