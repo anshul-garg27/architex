@@ -332,6 +332,26 @@ function astarSearch(
 // ── Path Simplification ─────────────────────────────────────
 
 /**
+ * Ensure every segment is strictly orthogonal (H or V). Any diagonal segment
+ * gets split into two segments via an intermediate corner point.
+ */
+function orthogonalize(pts: Pt[]): Pt[] {
+  if (pts.length <= 1) return pts;
+  const result: Pt[] = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const prev = result[result.length - 1];
+    const curr = pts[i];
+    // If neither purely horizontal nor purely vertical, insert a corner
+    if (prev.x !== curr.x && prev.y !== curr.y) {
+      // Prefer going vertical first, then horizontal (typical UML flow)
+      result.push({ x: prev.x, y: curr.y });
+    }
+    result.push(curr);
+  }
+  return result;
+}
+
+/**
  * Remove redundant collinear points. If three consecutive points lie on the
  * same horizontal or vertical line, the middle one is unnecessary.
  */
@@ -490,6 +510,6 @@ export function routeEdgeAStar(
     fullPath.push(tgt);
   }
 
-  // Step 6: Simplify to remove redundant collinear points
-  return simplifyPath(fullPath);
+  // Step 6: Ensure all segments are orthogonal, then simplify
+  return simplifyPath(orthogonalize(fullPath));
 }
