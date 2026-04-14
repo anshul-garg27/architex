@@ -1202,6 +1202,12 @@ export const LLDCanvas = memo(function LLDCanvas({
     setViewportPosition,
   } = useSVGZoomPan(svgRef);
 
+  // Auto-fit zoom when diagram content changes (pattern/problem switch)
+  const classIdsKey = useMemo(() => classes.map((c) => c.id).join(","), [classes]);
+  useEffect(() => {
+    if (classes.length > 0) zoomFit();
+  }, [classIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Track container pixel dimensions for Minimap viewport scaling
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   useEffect(() => {
