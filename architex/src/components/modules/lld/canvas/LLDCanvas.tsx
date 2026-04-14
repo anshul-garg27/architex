@@ -6,7 +6,8 @@
  */
 
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { Layers } from "lucide-react";
+import { Layers, Sparkles, Loader2 } from "lucide-react";
+import { AIReviewPanel } from "./AIReviewPanel";
 import { CanvasEmptyState } from "@/components/shared/lld-empty-states";
 import { cn } from "@/lib/utils";
 import type { UMLClass, UMLRelationship, UMLRelationshipType } from "@/lib/lld";
@@ -930,6 +931,8 @@ export const LLDCanvas = memo(function LLDCanvas({
     y: number;
   } | null>(null);
 
+  const [aiReviewOpen, setAiReviewOpen] = useState(false);
+
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1236,6 +1239,26 @@ export const LLDCanvas = memo(function LLDCanvas({
           onZoomOut={zoomOut}
           onZoomFit={zoomFit}
           onZoomReset={zoomReset}
+        />
+
+        {/* AI Review button — bottom-right of canvas */}
+        {classes.length > 0 && (
+          <button
+            onClick={() => setAiReviewOpen((o) => !o)}
+            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-xl border border-border/30 backdrop-blur-md bg-background/60 px-2.5 py-1.5 text-[11px] font-medium text-foreground-muted shadow-lg transition-all hover:bg-accent hover:text-foreground hover:shadow-[0_0_15px_rgba(110,86,207,0.15)]"
+            title="AI Review"
+            aria-label="Run AI review on diagram"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Review
+          </button>
+        )}
+
+        <AIReviewPanel
+          isOpen={aiReviewOpen}
+          onClose={() => setAiReviewOpen(false)}
+          classes={classes}
+          relationships={relationships}
         />
 
         {pickerState && (
