@@ -614,8 +614,8 @@ const UMLClassBox = memo(function UMLClassBox({
 
 /** Minimum gap between a box edge and the routing channel. */
 const ROUTE_GAP = 20;
-/** Radius for rounded corners on orthogonal bends. */
-const BEND_R = 6;
+/** Radius for rounded corners on orthogonal bends — larger = softer. */
+const BEND_R = 12;
 
 type Pt = { x: number; y: number };
 
@@ -834,71 +834,119 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
             transition: { delay: edgeDelay, duration: 0.3 },
           })}
     >
+      {/* Subtle shadow path for depth — offset by 1px, slightly thicker */}
+      <path
+        d={pathD}
+        fill="none"
+        stroke="rgba(0,0,0,0.15)"
+        strokeWidth="3"
+        strokeDasharray={isDashed ? "10 6" : undefined}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ filter: "blur(2px)" }}
+      />
+      {/* Main edge path */}
       <path
         d={pathD}
         fill="none"
         stroke={REL_STROKE}
-        strokeWidth="1.5"
-        strokeDasharray={isDashed ? "8 5" : undefined}
+        strokeWidth="1.2"
+        strokeDasharray={isDashed ? "10 6" : undefined}
         strokeLinecap="round"
+        strokeLinejoin="round"
         markerEnd={markerMap[rel.type] || undefined}
         markerStart={
           hasDiamond
             ? `url(#arrow-${rel.type})`
             : undefined
         }
+        className="transition-all duration-200 hover:stroke-[var(--lld-canvas-selected)] hover:[stroke-width:2]"
       />
-      {/* Label — centered on an opaque pill with border for readability */}
+      {/* Label — opaque pill with subtle border + shadow */}
       {rel.label && (
-        <g>
+        <g className="pointer-events-none">
+          {/* Pill shadow for depth */}
           <rect
-            x={labelPos.x - (rel.label.length * 3.5 + 8)}
-            y={labelPos.y - 10}
-            width={rel.label.length * 7 + 16}
-            height={17}
-            rx={5}
+            x={labelPos.x - (rel.label.length * 3.3 + 10)}
+            y={labelPos.y - 9}
+            width={rel.label.length * 6.6 + 20}
+            height={19}
+            rx={9.5}
+            fill="rgba(0,0,0,0.3)"
+            style={{ filter: "blur(3px)" }}
+          />
+          {/* Pill background */}
+          <rect
+            x={labelPos.x - (rel.label.length * 3.3 + 10)}
+            y={labelPos.y - 9}
+            width={rel.label.length * 6.6 + 20}
+            height={19}
+            rx={9.5}
             fill="var(--lld-canvas-bg-deep, #0f0f1a)"
-            stroke="var(--lld-canvas-border)"
-            strokeWidth="0.5"
+            stroke="var(--lld-rel-stroke)"
+            strokeWidth="0.6"
             opacity="0.95"
           />
           <text
             x={labelPos.x}
-            y={labelPos.y + 3}
+            y={labelPos.y + 4}
             textAnchor="middle"
-            fill="var(--lld-canvas-text-muted, #94a3b8)"
-            fontSize="11"
+            fill="var(--lld-rel-stroke)"
+            fontSize="10"
             fontStyle="italic"
+            letterSpacing="0.3"
           >
             {rel.label}
           </text>
         </g>
       )}
-      {/* Source cardinality */}
+      {/* Source cardinality — small pill */}
       {rel.sourceCardinality && (
-        <text
-          x={srcCardPos.x}
-          y={srcCardPos.y}
-          textAnchor="middle"
-          fill="var(--lld-canvas-edge)"
-          fontSize="11"
-          fontWeight="500"
-        >
-          {rel.sourceCardinality}
-        </text>
+        <g className="pointer-events-none">
+          <rect
+            x={srcCardPos.x - (rel.sourceCardinality.length * 3.5 + 5)}
+            y={srcCardPos.y - 8}
+            width={rel.sourceCardinality.length * 7 + 10}
+            height={15}
+            rx={7.5}
+            fill="var(--lld-canvas-bg-deep, #0f0f1a)"
+            opacity="0.85"
+          />
+          <text
+            x={srcCardPos.x}
+            y={srcCardPos.y + 3}
+            textAnchor="middle"
+            fill="var(--lld-rel-stroke)"
+            fontSize="10"
+            fontWeight="600"
+          >
+            {rel.sourceCardinality}
+          </text>
+        </g>
       )}
-      {/* Target cardinality */}
+      {/* Target cardinality — small pill */}
       {rel.targetCardinality && (
-        <text
-          x={tgtCardPos.x}
-          y={tgtCardPos.y}
-          textAnchor="middle"
-          fill="var(--lld-canvas-edge)"
-          fontSize="11"
-          fontWeight="500"
-        >
-          {rel.targetCardinality}
-        </text>
+        <g className="pointer-events-none">
+          <rect
+            x={tgtCardPos.x - (rel.targetCardinality.length * 3.5 + 5)}
+            y={tgtCardPos.y - 8}
+            width={rel.targetCardinality.length * 7 + 10}
+            height={15}
+            rx={7.5}
+            fill="var(--lld-canvas-bg-deep, #0f0f1a)"
+            opacity="0.85"
+          />
+          <text
+            x={tgtCardPos.x}
+            y={tgtCardPos.y + 3}
+            textAnchor="middle"
+            fill="var(--lld-rel-stroke)"
+            fontSize="10"
+            fontWeight="600"
+          >
+            {rel.targetCardinality}
+          </text>
+        </g>
       )}
     </motion.g>
   );
