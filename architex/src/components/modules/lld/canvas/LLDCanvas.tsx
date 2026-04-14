@@ -204,7 +204,7 @@ export const ZoomToolbar = memo(function ZoomToolbar({
   onZoomReset: () => void;
 }) {
   return (
-    <div className="absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-xl border border-border/30 backdrop-blur-md bg-background/90 px-2 py-1.5 shadow-xl">
+    <div className="absolute top-2 right-14 z-30 flex items-center gap-1 rounded-xl border border-border/30 backdrop-blur-md bg-background/90 px-2 py-1.5 shadow-xl">
       <button
         onClick={onZoomOut}
         className="flex h-6 w-6 items-center justify-center rounded-full bg-background/80 backdrop-blur border border-border/50 text-xs font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
@@ -1708,21 +1708,17 @@ export const LLDCanvas = memo(function LLDCanvas({
             onCancel={handlePickerCancel}
           />
         )}
+        {/* Zoom toolbar — inside canvas container, top-right to avoid minimap overlap */}
+        {classes.length > 0 && (
+          <ZoomToolbar
+            zoomPercent={zoomPercent}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            onZoomFit={zoomFit}
+            onZoomReset={zoomReset}
+          />
+        )}
       </div>
-      {/* ZoomToolbar positioned relative to the outer flex container, not inside overflow-hidden */}
-      {classes.length > 0 && (
-        <div className="relative">
-          <div className="absolute bottom-2 right-3 z-30">
-            <ZoomToolbar
-              zoomPercent={zoomPercent}
-              onZoomIn={zoomIn}
-              onZoomOut={zoomOut}
-              onZoomFit={zoomFit}
-              onZoomReset={zoomReset}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 });
