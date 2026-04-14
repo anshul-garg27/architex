@@ -34,6 +34,14 @@ export async function seed(db: Database) {
 
   const rows: NewModuleContent[] = [];
 
+  // Debug: check Strategy pattern enrichment
+  const strategyDbg = DESIGN_PATTERNS.find((p) => p.id === "strategy");
+  if (strategyDbg) {
+    console.log(`    [DEBUG] Strategy classes: ${strategyDbg.classes.map((c) => c.name).join(", ")}`);
+    console.log(`    [DEBUG] Strategy hasComplexity: ${!!strategyDbg.complexityAnalysis}`);
+    console.log(`    [DEBUG] Strategy hasRationale: ${!!strategyDbg.designRationale}`);
+  }
+
   // ── Design Patterns (36) ─────────────────────────────────
   for (let i = 0; i < DESIGN_PATTERNS.length; i++) {
     const p = DESIGN_PATTERNS[i];
