@@ -161,24 +161,27 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
     }
 
     const rect = svg.getBoundingClientRect();
-    // The SVG viewBox is fixed 2000x2000, so 1 SVG unit = rect.width/2000 screen pixels
-    const svgToScreen = rect.width / 2000;
+    // Fixed viewBox "0 0 2000 2000" with preserveAspectRatio="xMinYMin meet"
+    // meet scales to the SMALLER dimension: min(w/2000, h/2000)
+    const svgToScreen = Math.min(rect.width, rect.height) / 2000;
+    if (svgToScreen <= 0) return;
 
-    const PAD = 60;
+    const PAD = 40;
     const availW = rect.width - PAD * 2;
     const availH = rect.height - PAD * 2;
     if (availW <= 0 || availH <= 0) return;
 
-    // Content size in screen pixels at scale=1
+    // Content size in screen pixels at transform scale=1
     const contentScreenW = bounds.w * svgToScreen;
     const contentScreenH = bounds.h * svgToScreen;
+    if (contentScreenW <= 0 || contentScreenH <= 0) return;
 
     // Scale to fit content within available space
     const scaleX = availW / contentScreenW;
     const scaleY = availH / contentScreenH;
-    const fitScale = Math.max(ZOOM_MIN, Math.min(Math.min(scaleX, scaleY), ZOOM_MAX));
+    const fitScale = Math.max(ZOOM_MIN, Math.min(Math.min(scaleX, scaleY), 2.5));
 
-    // Center the content
+    // Center the content in the container
     const contentCenterX = (bounds.x + bounds.w / 2) * svgToScreen;
     const contentCenterY = (bounds.y + bounds.h / 2) * svgToScreen;
 
@@ -883,7 +886,7 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
   const drawStyle = (!reducedMotion && pathLength > 0) ? {
     strokeDasharray: isDashed ? "10 6" : pathLength,
     strokeDashoffset: isDashed ? undefined : pathLength,
-    animation: isDashed ? undefined : `lld-edge-draw 0.7s cubic-bezier(0.4,0,0.2,1) ${edgeDelay}s forwards`,
+    animation: isDashed ? undefined : `lld-edge-draw 0.4s cubic-bezier(0.4,0,0.2,1) ${edgeDelay}s forwards`,
   } : undefined;
 
   return (
@@ -942,7 +945,7 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
           style={{
             offsetPath: `path('${pathD}')`,
             "--dot-duration": "2.5s",
-            "--dot-delay": `${edgeDelay + 0.8}s`,
+            "--dot-delay": `${edgeDelay + 0.4}s`,
           } as React.CSSProperties}
         />
       )}
@@ -1275,7 +1278,8 @@ export const LLDCanvas = memo(function LLDCanvas({
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const edgeDelay = useMemo(() => classes.length * 0.08 + 0.15, [classes.length]);
+  // Edges appear quickly after boxes (0.3s base, not waiting for all boxes)
+  const edgeDelay = useMemo(() => Math.min(classes.length * 0.03, 0.3) + 0.1, [classes.length]);
 
   // Focus mode: compute which class IDs are connected to the hovered class
   const connectedIds = useMemo(() => {
