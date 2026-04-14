@@ -6,13 +6,23 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { MotionProvider } from "@/components/providers/MotionProvider";
 import { AnalyticsProvider } from "@/components/providers/AnalyticsProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
-
-// @ts-expect-error -- Clerk v7 conditional exports resolve at runtime but not in static analysis with moduleResolution: "bundler"
-import { ClerkProvider } from "@clerk/nextjs";
 import { ToastContainer } from "@/components/ui/toast";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { UpdateToast } from "@/components/pwa/UpdateToast";
 import "./globals.css";
+
+// Only import ClerkProvider when a publishable key is configured.
+// Without it, Clerk's keyless mode shows an intrusive "Configure your application" popup.
+let MaybeClerkProvider: React.ComponentType<{ children: React.ReactNode }> | null = null;
+if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+  try {
+    // @ts-expect-error -- Clerk v7 conditional exports resolve at runtime
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    MaybeClerkProvider = require("@clerk/nextjs").ClerkProvider;
+  } catch {
+    // Clerk not available
+  }
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://architex.dev"),
@@ -57,6 +67,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const Wrapper = MaybeClerkProvider ?? (({ children: c }: { children: React.ReactNode }) => <>{c}</>);
+
   return (
     <html
       lang="en"
@@ -64,7 +76,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="h-full overflow-hidden bg-background text-foreground">
-        <ClerkProvider>
+        <Wrapper>
           <ThemeProvider>
             <MotionProvider>
               <AnalyticsProvider>
@@ -80,7 +92,7 @@ export default function RootLayout({
               </AnalyticsProvider>
             </MotionProvider>
           </ThemeProvider>
-        </ClerkProvider>
+        </Wrapper>
       </body>
     </html>
   );
