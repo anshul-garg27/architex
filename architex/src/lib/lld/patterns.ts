@@ -87,101 +87,117 @@ const singleton: DesignPattern = {
     { id: rid(), source: "singleton-class", target: "s-connection", type: "composition", sourceCardinality: "1", targetCardinality: "0..*" },
   ],
   code: {
-    typescript: `class Singleton {
-  // Static field ensures the instance lives on the class, not on any particular object.
-  // This is what makes it "one per class" rather than "one per import."
-  private static instance: Singleton;
-  private data = new Map<string, string>();
+    typescript: `// Singleton — ensures exactly one database connection pool exists application-wide
+class Connection {
+  private active = true;
+  constructor(private url: string) {}
 
-  // Private constructor is the enforcement mechanism — without it, anyone could call \`new Singleton()\`.
-  // This forces all access through getInstance(), which is where we control instantiation.
+  execute(query: string): string {
+    if (!this.active) throw new Error("Connection is closed");
+    return \`[Result from \${this.url}]: \${query}\`;
+  }
+
+  close(): void {
+    this.active = false;
+  }
+}
+
+class DatabaseConnectionPool {
+  private static instance: DatabaseConnectionPool;
+  private connections: Connection[] = [];
+  private maxPoolSize = 10;
+
+  // Private constructor prevents \`new DatabaseConnectionPool()\`.
+  // All access goes through getInstance(), which controls the single instance.
   private constructor() {}
 
-  static getInstance(): Singleton {
-    // Lazy initialization: we don't create until first request.
-    // Tradeoff: simpler than eager init, but NOT thread-safe in multi-threaded envs.
-    if (!Singleton.instance) {
-      Singleton.instance = new Singleton();
+  static getInstance(): DatabaseConnectionPool {
+    if (!DatabaseConnectionPool.instance) {
+      DatabaseConnectionPool.instance = new DatabaseConnectionPool();
     }
-    return Singleton.instance;
+    return DatabaseConnectionPool.instance;
   }
 
-  getData(key: string): string | undefined {
-    return this.data.get(key);
+  getConnection(): Connection {
+    if (this.connections.length >= this.maxPoolSize) {
+      throw new Error("Pool exhausted — no available connections");
+    }
+    const conn = new Connection("postgres://db:5432/app");
+    this.connections.push(conn);
+    return conn;
   }
 
-  setData(key: string, value: string): void {
-    this.data.set(key, value);
+  releaseConnection(conn: Connection): void {
+    conn.close();
+    this.connections = this.connections.filter(c => c !== conn);
+  }
+
+  getActiveCount(): number {
+    return this.connections.length;
   }
 }
 
 // Usage
-const a = Singleton.getInstance();
-const b = Singleton.getInstance();
-console.log(a === b); // true
+const pool1 = DatabaseConnectionPool.getInstance();
+const pool2 = DatabaseConnectionPool.getInstance();
+console.log(pool1 === pool2); // true — same pool everywhere
 
-// ─── Thread-Safe Variant (Module-Scoped) ────────────────
-// In TypeScript/Node.js, ES modules are evaluated once and cached.
-// Exporting a single instance from a module is inherently thread-safe
-// because the module system guarantees single evaluation.
+const conn = pool1.getConnection();
+console.log(conn.execute("SELECT * FROM users"));
+console.log(pool1.getActiveCount()); // 1
+pool1.releaseConnection(conn);
+console.log(pool1.getActiveCount()); // 0`,
+    python: `# Singleton — ensures exactly one database connection pool exists application-wide
+class Connection:
+    def __init__(self, url: str):
+        self._url = url
+        self._active = True
 
-// singleton.ts (module-scoped approach)
-// const instance = new Map<string, string>();
-//
-// export function getData(key: string): string | undefined {
-//   return instance.get(key);
-// }
-//
-// export function setData(key: string, value: string): void {
-//   instance.set(key, value);
-// }
-//
-// Every import of this module shares the same \`instance\`.
-// No class needed — the module IS the singleton.`,
-    python: `class Singleton:
+    def execute(self, query: str) -> str:
+        if not self._active:
+            raise RuntimeError("Connection is closed")
+        return f"[Result from {self._url}]: {query}"
+
+    def close(self) -> None:
+        self._active = False
+
+class DatabaseConnectionPool:
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._data = {}
+            cls._instance._connections: list[Connection] = []
+            cls._instance._max_pool_size = 10
         return cls._instance
 
-    def get_data(self, key: str) -> str | None:
-        return self._data.get(key)
+    def get_instance(cls):
+        return cls()
 
-    def set_data(self, key: str, value: str) -> None:
-        self._data[key] = value
+    def get_connection(self) -> Connection:
+        if len(self._connections) >= self._max_pool_size:
+            raise RuntimeError("Pool exhausted — no available connections")
+        conn = Connection("postgres://db:5432/app")
+        self._connections.append(conn)
+        return conn
+
+    def release_connection(self, conn: Connection) -> None:
+        conn.close()
+        self._connections = [c for c in self._connections if c is not conn]
+
+    def get_active_count(self) -> int:
+        return len(self._connections)
 
 # Usage
-a = Singleton()
-b = Singleton()
-print(a is b)  # True
+pool1 = DatabaseConnectionPool()
+pool2 = DatabaseConnectionPool()
+print(pool1 is pool2)  # True — same pool everywhere
 
-# ─── Thread-Safe Variant (with threading.Lock) ───────────
-# In multi-threaded Python, __new__ alone has a race condition.
-# Use a lock to ensure only one thread creates the instance.
-
-# import threading
-#
-# class ThreadSafeSingleton:
-#     _instance = None
-#     _lock = threading.Lock()
-#
-#     def __new__(cls):
-#         if cls._instance is None:
-#             with cls._lock:
-#                 # Double-checked locking
-#                 if cls._instance is None:
-#                     cls._instance = super().__new__(cls)
-#                     cls._instance._data = {}
-#         return cls._instance
-#
-#     def get_data(self, key: str) -> str | None:
-#         return self._data.get(key)
-#
-#     def set_data(self, key: str, value: str) -> None:
-#         self._data[key] = value`,
+conn = pool1.get_connection()
+print(conn.execute("SELECT * FROM users"))
+print(pool1.get_active_count())  # 1
+pool1.release_connection(conn)
+print(pool1.get_active_count())  # 0`,
   },
   realWorldExamples: [
     "Database connection pool manager",
