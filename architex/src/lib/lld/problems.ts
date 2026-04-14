@@ -552,7 +552,7 @@ const atm: LLDProblem = {
   keyPatterns: ["State", "Chain of Responsibility", "Strategy", "Command"],
   interviewFrequency: "medium",
   classCount: 13,
-  relatedProblems: ["vending-machine", "stock-exchange", "hotel-booking"],
+  relatedProblems: ["vending-machine", "stock-brokerage", "hotel-booking"],
   starterClasses: [
     {
       id: "atm-machine",
@@ -1262,7 +1262,7 @@ const airlineBooking: LLDProblem = {
   keyPatterns: ["Strategy", "Observer", "State", "Builder"],
   interviewFrequency: "medium",
   classCount: 18,
-  relatedProblems: ["hotel-booking", "movie-ticket-booking", "stock-exchange"],
+  relatedProblems: ["hotel-booking", "movie-ticket-booking", "stock-brokerage"],
   starterClasses: [
     {
       id: "ab-flight",

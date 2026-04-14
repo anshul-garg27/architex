@@ -342,6 +342,7 @@ export const PatternQuizFiltered = memo(function PatternQuizFiltered({
   }, [pattern.id]);
 
   const question = questions[current];
+  if (!question) return null;
 
   const handleSelect = useCallback(
     (idx: number) => {

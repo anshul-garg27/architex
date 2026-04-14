@@ -62,7 +62,14 @@ export const WalkthroughPlayer = memo(function WalkthroughPlayer({
   }
 
   if (!walkthrough) {
-    return null; // No walkthrough — fall through to existing Explain content
+    return (
+      <div className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Footprints className="h-3.5 w-3.5 text-foreground-subtle/50" />
+          <span className="text-[10px] text-foreground-subtle">No walkthrough available</span>
+        </div>
+      </div>
+    );
   }
 
   const step = walkthrough[stepIndex];

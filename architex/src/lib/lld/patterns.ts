@@ -1411,7 +1411,7 @@ const observer: DesignPattern = {
     },
   ],
   relationships: [
-    { id: rid(), source: "o-subject", target: "o-observer", type: "association", label: "notifies", targetCardinality: "*" },
+    { id: rid(), source: "o-subject", target: "o-observer", type: "aggregation", label: "notifies", sourceCardinality: "1", targetCardinality: "*" },
     { id: rid(), source: "o-concrete-a", target: "o-observer", type: "realization" },
     { id: rid(), source: "o-concrete-b", target: "o-observer", type: "realization" },
   ],
@@ -4764,21 +4764,6 @@ const request: Request = {
   path: "/api/users",
   headers: { authorization: "Bearer token123" },
   ip: "192.168.1.1",
-  interviewTips: [
-    "Middleware pipelines (Express.js, Django) are Chain of Responsibility — use this real-world hook",
-    "Key question: what happens if NO handler in the chain handles the request?",
-    "Show that handlers can short-circuit OR pass to the next — discuss both variants",
-  ],
-  commonMistakes: [
-    "No handler handles the request — always have a default/fallback handler at the end",
-    "Chain order matters but isn't documented — leads to subtle bugs when handlers are reordered",
-    "Making the chain too long — performance degrades as requests traverse many handlers",
-  ],
-  relatedPatterns: [
-    { patternId: "command", relationship: "Command is a specific request object that the Chain of Responsibility routes to a handler" },
-    { patternId: "decorator", relationship: "Both use recursive composition, but Chain passes requests along while Decorator enhances a single object" },
-    { patternId: "composite", relationship: "Chain of Responsibility can follow the parent links in a Composite tree" },
-  ],
 };
 
 const result = auth.handle(request);
@@ -6670,22 +6655,6 @@ const reserveInventory: SagaStep = {
     ctx.inventoryReserved = false;
     console.log("  ↩ Inventory released");
   },
-  interviewTips: [
-    "Two variants: orchestration (central coordinator) vs choreography (event-driven) — explain both",
-    "Key insight: every step must have a compensating action for rollback",
-    "Real-world hook: e-commerce order flow (reserve inventory > charge payment > ship) is a Saga",
-  ],
-  commonMistakes: [
-    "Missing compensating actions — if step 3 fails, steps 1 and 2 must be explicitly undone",
-    "Not handling partial failures — what if the compensation itself fails?",
-    "Using Saga for operations that can be done in a single ACID transaction",
-  ],
-  relatedPatterns: [
-    { patternId: "event-sourcing", relationship: "Events from Event Sourcing can drive Saga steps and compensations" },
-    { patternId: "command", relationship: "Each Saga step is often modeled as a Command with an undo (compensation)" },
-    { patternId: "chain-of-responsibility", relationship: "Saga steps form a chain, but with rollback capability that Chain of Responsibility lacks" },
-    { patternId: "state", relationship: "Saga execution can be modeled as a state machine transitioning through step states" },
-  ],
 };
 
 const chargePayment: SagaStep = {
@@ -8585,22 +8554,6 @@ const searchTool: Tool = {
   async execute(input) {
     return \`Results for "\${input.query}": ...\`;
   },
-  interviewTips: [
-    "ReAct = Reason + Act loop — the LLM alternates between thinking and tool-calling",
-    "Key insight: the 'thought' step makes the agent's reasoning transparent and debuggable",
-    "Contrast with chain-of-thought: CoT just thinks, ReAct thinks AND acts",
-  ],
-  commonMistakes: [
-    "Infinite loops: the agent keeps calling tools without converging on an answer",
-    "Not including a stopping condition — the loop runs until max iterations or token limit",
-    "Overloading the agent with too many tools — the LLM gets confused about which to use",
-  ],
-  relatedPatterns: [
-    { patternId: "tool-use", relationship: "ReAct agents use the Tool Use pattern for their action steps" },
-    { patternId: "multi-agent-orchestration", relationship: "ReAct is a single-agent pattern; Multi-Agent Orchestration coordinates multiple ReAct agents" },
-    { patternId: "chain-of-responsibility", relationship: "ReAct's tool selection is similar to routing a request through a chain of potential handlers" },
-    { patternId: "strategy", relationship: "Each tool in a ReAct agent is like a Strategy that the reasoning step selects" },
-  ],
 };
 
 const agent = new Agent(new Map([["web_search", searchTool]]));

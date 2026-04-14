@@ -7,7 +7,7 @@
  * suitable for sidebar placement or as a floating widget.
  */
 
-import { memo, useState } from "react";
+import { memo, useState, useEffect } from "react";
 import { RotateCcw, Brain, ChevronRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useReviewSession } from "@/hooks/use-due-reviews";
@@ -28,6 +28,9 @@ export const ReviewWidget = memo(function ReviewWidget() {
 
   // Reset answer visibility when item changes
   const currentConceptId = currentItem?.conceptId;
+  useEffect(() => {
+    setShowAnswer(false);
+  }, [currentConceptId]);
 
   // Look up pattern info for the current review item
   const pattern = currentConceptId
