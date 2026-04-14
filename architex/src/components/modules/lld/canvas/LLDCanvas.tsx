@@ -148,13 +148,46 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>) {
   }, []);
 
   /**
-   * Fit all content into the viewport.
-   * The SVG viewBox already maps content bounds to the viewport perfectly.
-   * "Fit" simply resets the zoom/pan transform to identity.
+   * Fit all content into the viewport by computing the proper scale
+   * and translate to center the content bounds within the container.
+   * With a fixed viewBox (0 0 2000 2000), the CSS transform handles
+   * ALL fitting — no dual-system coordination needed.
    */
-  const zoomFit = useCallback(() => {
-    setZoom({ scale: 1, translateX: 0, translateY: 0 });
-  }, []);
+  const zoomFit = useCallback((bounds?: { x: number; y: number; w: number; h: number }) => {
+    const svg = svgRef.current;
+    if (!svg || !bounds || bounds.w <= 0 || bounds.h <= 0) {
+      setZoom({ scale: 1, translateX: 0, translateY: 0 });
+      return;
+    }
+
+    const rect = svg.getBoundingClientRect();
+    // The SVG viewBox is fixed 2000x2000, so 1 SVG unit = rect.width/2000 screen pixels
+    const svgToScreen = rect.width / 2000;
+
+    const PAD = 60;
+    const availW = rect.width - PAD * 2;
+    const availH = rect.height - PAD * 2;
+    if (availW <= 0 || availH <= 0) return;
+
+    // Content size in screen pixels at scale=1
+    const contentScreenW = bounds.w * svgToScreen;
+    const contentScreenH = bounds.h * svgToScreen;
+
+    // Scale to fit content within available space
+    const scaleX = availW / contentScreenW;
+    const scaleY = availH / contentScreenH;
+    const fitScale = Math.max(ZOOM_MIN, Math.min(Math.min(scaleX, scaleY), ZOOM_MAX));
+
+    // Center the content
+    const contentCenterX = (bounds.x + bounds.w / 2) * svgToScreen;
+    const contentCenterY = (bounds.y + bounds.h / 2) * svgToScreen;
+
+    setZoom({
+      scale: fitScale,
+      translateX: rect.width / 2 - contentCenterX * fitScale,
+      translateY: rect.height / 2 - contentCenterY * fitScale,
+    });
+  }, [svgRef]);
 
   const setViewportPosition = useCallback(
     (svgX: number, svgY: number) => {
@@ -1205,7 +1238,7 @@ export const LLDCanvas = memo(function LLDCanvas({
   // Auto-fit zoom when diagram content changes (pattern/problem switch)
   const classIdsKey = useMemo(() => classes.map((c) => c.id).join(","), [classes]);
   useEffect(() => {
-    if (classes.length > 0) zoomFit();
+    if (classes.length > 0) zoomFit(contentBounds);
   }, [classIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track container pixel dimensions for Minimap viewport scaling
@@ -1524,7 +1557,7 @@ export const LLDCanvas = memo(function LLDCanvas({
                   <button onClick={zoomOut} className="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom out" aria-label="Zoom out">-</button>
                   <span className="min-w-[2.5rem] text-center text-[9px] font-medium text-foreground-subtle">{zoomPercent}%</span>
                   <button onClick={zoomIn} className="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom in" aria-label="Zoom in">+</button>
-                  <button onClick={zoomFit} className="ml-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted hover:bg-accent hover:text-foreground" title="Fit to view" aria-label="Fit to view">Fit</button>
+                  <button onClick={() => zoomFit(contentBounds)} className="ml-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted hover:bg-accent hover:text-foreground" title="Fit to view" aria-label="Fit to view">Fit</button>
                   <button onClick={zoomReset} className="rounded px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted hover:bg-accent hover:text-foreground" title="Reset to 100%" aria-label="Reset to 100%">100%</button>
                 </div>
               </>
@@ -1536,7 +1569,8 @@ export const LLDCanvas = memo(function LLDCanvas({
         <svg
           ref={svgRef}
           data-lld-canvas-svg
-          viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+          viewBox="0 0 2000 2000"
+          preserveAspectRatio="xMinYMin meet"
           className="h-full w-full"
           style={{ minHeight: 400 }}
           onClick={handleBgClick}
@@ -1572,18 +1606,18 @@ export const LLDCanvas = memo(function LLDCanvas({
             </filter>
           </defs>
           <rect
-            x={viewBox.x}
-            y={viewBox.y}
-            width={viewBox.w}
-            height={viewBox.h}
+            x={-500}
+            y={-500}
+            width={3000}
+            height={3000}
             fill="url(#lld-grid)"
           />
           {/* Radial vignette overlay — lighter center, darker edges for depth */}
           <rect
-            x={viewBox.x}
-            y={viewBox.y}
-            width={viewBox.w}
-            height={viewBox.h}
+            x={-500}
+            y={-500}
+            width={3000}
+            height={3000}
             fill="url(#lld-canvas-vignette)"
             pointerEvents="none"
           />
@@ -1592,8 +1626,8 @@ export const LLDCanvas = memo(function LLDCanvas({
           {!reducedMotion && (
             <g pointerEvents="none">
               {Array.from({ length: 12 }, (_, i) => {
-                const cx = viewBox.x + Math.random() * viewBox.w;
-                const cy = viewBox.y + Math.random() * viewBox.h;
+                const cx = Math.random() * 2000;
+                const cy = Math.random() * 2000;
                 const dx = (Math.random() - 0.5) * 80;
                 const dy = (Math.random() - 0.5) * 80;
                 return (
