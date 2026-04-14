@@ -311,6 +311,8 @@ interface UMLClassBoxProps {
   onConnectionDragStart: (classId: string, side: "top" | "bottom" | "left" | "right", e: React.PointerEvent) => void;
   index: number;
   reducedMotion: boolean;
+  /** Focus mode: true when another class is hovered and this one is NOT connected to it. */
+  dimmed?: boolean;
 }
 
 const UMLClassBox = memo(function UMLClassBox({
@@ -328,6 +330,7 @@ const UMLClassBox = memo(function UMLClassBox({
   onConnectionDragStart,
   index,
   reducedMotion,
+  dimmed = false,
 }: UMLClassBoxProps) {
   const borderColor = STEREOTYPE_BORDER_COLOR[cls.stereotype];
   const stereo = STEREOTYPE_LABEL[cls.stereotype];
@@ -425,8 +428,13 @@ const UMLClassBox = memo(function UMLClassBox({
           onSelect(cls.id);
         }
       }}
-      style={{ cursor: "grab", outline: "none", transition: "filter 0.2s ease" }}
-      filter={isSelected ? "url(#glow)" : isHovered ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))" : undefined}
+      style={{
+        cursor: "grab",
+        outline: "none",
+        transition: "filter 0.3s ease, opacity 0.3s ease",
+        opacity: dimmed ? 0.15 : 1,
+      }}
+      filter={isSelected ? "url(#glow)" : isHovered ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))" : dimmed ? "grayscale(0.8)" : undefined}
       {...(reducedMotion
         ? {}
         : {
@@ -752,11 +760,13 @@ interface UMLEdgeProps {
   tgtPortOffset?: number;
   /** Whether this edge's source or target class is being hovered. */
   highlighted?: boolean;
+  /** Focus mode: edge is not connected to hovered class, should dim. */
+  dimmed?: boolean;
   /** How many edges share the same source port group (for visual bundling). */
   siblingCount?: number;
 }
 
-const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0, highlighted = false, siblingCount = 1 }: UMLEdgeProps) {
+const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0, highlighted = false, dimmed = false, siblingCount = 1 }: UMLEdgeProps) {
   const srcCls = classById.get(rel.source);
   const tgtCls = classById.get(rel.target);
   if (!srcCls || !tgtCls) return null;
@@ -845,11 +855,12 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
 
   return (
     <motion.g
+      style={{ opacity: dimmed ? 0.1 : undefined, transition: "opacity 0.3s ease" }}
       {...(reducedMotion
         ? {}
         : {
             initial: { opacity: 0 },
-            animate: { opacity: 1 },
+            animate: { opacity: dimmed ? 0.1 : 1 },
             transition: { delay: edgeDelay, duration: 0.2 },
           })}
     >
@@ -1227,6 +1238,17 @@ export const LLDCanvas = memo(function LLDCanvas({
 
   const edgeDelay = useMemo(() => classes.length * 0.08 + 0.15, [classes.length]);
 
+  // Focus mode: compute which class IDs are connected to the hovered class
+  const connectedIds = useMemo(() => {
+    if (!hoveredClassId) return null;
+    const ids = new Set<string>([hoveredClassId]);
+    for (const rel of relationships) {
+      if (rel.source === hoveredClassId) ids.add(rel.target);
+      if (rel.target === hoveredClassId) ids.add(rel.source);
+    }
+    return ids;
+  }, [hoveredClassId, relationships]);
+
   const zoomScaleRef = useRef(zoomState.scale);
   zoomScaleRef.current = zoomState.scale;
   const handleZoomAwareDrag = useCallback(
@@ -1562,6 +1584,35 @@ export const LLDCanvas = memo(function LLDCanvas({
             pointerEvents="none"
           />
 
+          {/* Ambient floating particles — creates a living canvas feel */}
+          {!reducedMotion && (
+            <g pointerEvents="none">
+              {Array.from({ length: 12 }, (_, i) => {
+                const cx = viewBox.x + Math.random() * viewBox.w;
+                const cy = viewBox.y + Math.random() * viewBox.h;
+                const dx = (Math.random() - 0.5) * 80;
+                const dy = (Math.random() - 0.5) * 80;
+                return (
+                  <circle
+                    key={`particle-${i}`}
+                    cx={cx}
+                    cy={cy}
+                    r={Math.random() * 1.5 + 0.5}
+                    fill="var(--primary)"
+                    className="lld-particle"
+                    style={{
+                      "--p-dx": `${dx}px`,
+                      "--p-dy": `${dy}px`,
+                      "--p-duration": `${6 + Math.random() * 6}s`,
+                      "--p-delay": `${Math.random() * 6}s`,
+                      "--p-opacity": `${0.1 + Math.random() * 0.15}`,
+                    } as React.CSSProperties}
+                  />
+                );
+              })}
+            </g>
+          )}
+
           <g transform={zoomTransform} style={{ transformOrigin: "0 0" }}>
             {relationships.map((rel) => {
               const srcCls = classById.get(rel.source);
@@ -1576,7 +1627,8 @@ export const LLDCanvas = memo(function LLDCanvas({
               const sOff = portOffsets.get(`${rel.source}:${sSide}:src:${rel.id}`) ?? 0;
               const tOff = portOffsets.get(`${rel.target}:${tSide}:tgt:${rel.id}`) ?? 0;
               const isHighlighted = hoveredClassId != null && (rel.source === hoveredClassId || rel.target === hoveredClassId);
-              return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} highlighted={isHighlighted} siblingCount={siblingCounts.get(rel.id) ?? 1} />;
+              const isDimmedEdge = hoveredClassId != null && !isHighlighted;
+              return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} highlighted={isHighlighted} dimmed={isDimmedEdge} siblingCount={siblingCounts.get(rel.id) ?? 1} />;
             })}
 
             {connectionDrag && previewLineStart && (
@@ -1610,6 +1662,7 @@ export const LLDCanvas = memo(function LLDCanvas({
                 onConnectionDragStart={handleConnectionDragStart}
                 index={i}
                 reducedMotion={reducedMotion}
+                dimmed={connectedIds != null && !connectedIds.has(cls.id)}
               />
             ))}
           </g>

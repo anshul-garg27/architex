@@ -830,6 +830,18 @@ body {
   filter: drop-shadow(0 6px 16px rgba(0,0,0,0.4));
 }
 
+/* ── Ambient floating particles ── */
+@keyframes lld-particle-drift {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: var(--p-opacity, 0.3); }
+  90%  { opacity: var(--p-opacity, 0.3); }
+  100% { transform: translate(var(--p-dx, 40px), var(--p-dy, -60px)); opacity: 0; }
+}
+.lld-particle {
+  animation: lld-particle-drift var(--p-duration, 8s) ease-in-out infinite;
+  animation-delay: var(--p-delay, 0s);
+}
+
 /* ── Animated dot flow on edges ── */
 @keyframes lld-dot-flow {
   0%   { offset-distance: 0%; opacity: 0; }
