@@ -649,33 +649,73 @@ const UMLClassBox = memo(function UMLClassBox({
 
 // ── SVG: UML Relationship Edge ─────────────────────────────
 
-/** Build a smooth SVG path through an array of points using Catmull-Rom → cubic bezier. */
-function smoothPathD(points: Array<{ x: number; y: number }>): string {
+/** Length of the straight "approach" segment at each endpoint.
+ *  Ensures SVG markers orient correctly with the approach direction. */
+const MARKER_APPROACH = 16;
+
+/** Lerp between two points at ratio t. */
+function lerp(a: { x: number; y: number }, b: { x: number; y: number }, t: number) {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+/** Point `dist` px away from `end`, along the line from `end` toward `from`. */
+function approachPoint(end: { x: number; y: number }, from: { x: number; y: number }, dist: number) {
+  const dx = from.x - end.x;
+  const dy = from.y - end.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1) return end;
+  const t = Math.min(dist / len, 0.4); // cap at 40% of the segment
+  return { x: end.x + dx * t, y: end.y + dy * t };
+}
+
+/**
+ * Build an SVG path `d` attribute through a sequence of waypoints.
+ * The first and last MARKER_APPROACH px are straight lines so that
+ * SVG markers (arrows, diamonds) orient along the approach direction
+ * rather than the bezier tangent.
+ */
+function buildEdgePath(points: Array<{ x: number; y: number }>): string {
   if (points.length < 2) return "";
   if (points.length === 2) {
-    // Simple straight line
     return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
   }
 
-  // For 3+ points, use smooth cubic bezier through the waypoints
-  let d = `M ${points[0].x} ${points[0].y}`;
+  // Inject approach points near the start and end for marker alignment
+  const first = points[0];
+  const second = points[1];
+  const secondLast = points[points.length - 2];
+  const last = points[points.length - 1];
 
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(points.length - 1, i + 2)];
+  const startApproach = approachPoint(first, second, MARKER_APPROACH);
+  const endApproach = approachPoint(last, secondLast, MARKER_APPROACH);
 
-    // Catmull-Rom to cubic bezier control points (tension = 0.3)
-    const tension = 0.3;
-    const cp1x = p1.x + (p2.x - p0.x) * tension;
-    const cp1y = p1.y + (p2.y - p0.y) * tension;
-    const cp2x = p2.x - (p3.x - p1.x) * tension;
-    const cp2y = p2.y - (p3.y - p1.y) * tension;
+  // Build: straight start → curve through middle → straight end
+  const middle = points.slice(1, -1);
+  const curvePoints = [startApproach, ...middle, endApproach];
 
-    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  let d = `M ${first.x} ${first.y} L ${startApproach.x} ${startApproach.y}`;
+
+  if (curvePoints.length === 2) {
+    d += ` L ${endApproach.x} ${endApproach.y}`;
+  } else {
+    // Catmull-Rom through the middle points
+    for (let i = 0; i < curvePoints.length - 1; i++) {
+      const p0 = curvePoints[Math.max(0, i - 1)];
+      const p1 = curvePoints[i];
+      const p2 = curvePoints[i + 1];
+      const p3 = curvePoints[Math.min(curvePoints.length - 1, i + 2)];
+
+      const tension = 0.3;
+      const cp1x = p1.x + (p2.x - p0.x) * tension;
+      const cp1y = p1.y + (p2.y - p0.y) * tension;
+      const cp2x = p2.x - (p3.x - p1.x) * tension;
+      const cp2y = p2.y - (p3.y - p1.y) * tension;
+
+      d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+    }
   }
 
+  d += ` L ${last.x} ${last.y}`;
   return d;
 }
 
@@ -714,33 +754,51 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
   const hasDiamond =
     rel.type === "composition" || rel.type === "aggregation";
 
-  // Build the path: use dagre route points if available, otherwise a gentle bezier
+  // Build the path
   let pathD: string;
   let labelPos: { x: number; y: number };
 
   if (routePoints && routePoints.length >= 2) {
     // Use dagre's computed waypoints with border-clamped endpoints
     const allPoints = [src, ...routePoints.slice(1, -1), tgt];
-    pathD = smoothPathD(allPoints);
+    pathD = buildEdgePath(allPoints);
     // Label at the middle waypoint
     const mid = routePoints[Math.floor(routePoints.length / 2)];
-    labelPos = { x: mid.x, y: mid.y - 8 };
+    labelPos = { x: mid.x, y: mid.y - 10 };
   } else {
-    // No dagre points: compute a gentle bezier curve
-    // Offset the control point perpendicular to the line to avoid overlap
+    // No dagre points: compute a gentle bezier with straight approach segments
     const dx = tgt.x - src.x;
     const dy = tgt.y - src.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    // Curve offset scales with distance (min 0 for short edges, up to 30 for long ones)
     const offset = Math.min(30, dist * 0.1);
-    // Perpendicular direction (rotated 90°)
     const nx = dist > 0 ? -dy / dist : 0;
     const ny = dist > 0 ? dx / dist : 0;
-    const midX = (src.x + tgt.x) / 2 + nx * offset;
-    const midY = (src.y + tgt.y) / 2 + ny * offset;
-    pathD = `M ${src.x} ${src.y} Q ${midX} ${midY} ${tgt.x} ${tgt.y}`;
-    labelPos = { x: midX, y: midY - 8 };
+    const midPt = { x: (src.x + tgt.x) / 2 + nx * offset, y: (src.y + tgt.y) / 2 + ny * offset };
+    pathD = buildEdgePath([src, midPt, tgt]);
+    labelPos = { x: midPt.x, y: midPt.y - 10 };
   }
+
+  // Cardinality label offsets — push outward from the border point along the
+  // perpendicular of the approach direction so they don't overlap the line.
+  const cardinalityOffset = (
+    end: { x: number; y: number },
+    other: { x: number; y: number },
+  ) => {
+    const dx = other.x - end.x;
+    const dy = other.y - end.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 1) return { x: end.x, y: end.y };
+    // Push perpendicular + slightly outward from the box
+    const nx = -dy / len;
+    const ny = dx / len;
+    return {
+      x: end.x + nx * 14 - (dx / len) * 6,
+      y: end.y + ny * 14 - (dy / len) * 6,
+    };
+  };
+
+  const srcCardPos = cardinalityOffset(src, tgt);
+  const tgtCardPos = cardinalityOffset(tgt, src);
 
   return (
     <motion.g
@@ -765,38 +823,51 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
             : undefined
         }
       />
-      {/* Label */}
+      {/* Label — centered on a semi-transparent pill for readability */}
       {rel.label && (
-        <text
-          x={labelPos.x}
-          y={labelPos.y}
-          textAnchor="middle"
-          fill="var(--lld-canvas-edge)"
-          fontSize="11"
-          fontStyle="italic"
-        >
-          {rel.label}
-        </text>
+        <g>
+          <rect
+            x={labelPos.x - (rel.label.length * 3.5 + 6)}
+            y={labelPos.y - 9}
+            width={rel.label.length * 7 + 12}
+            height={14}
+            rx={4}
+            fill="var(--lld-canvas-bg, rgba(20,20,30,0.85))"
+          />
+          <text
+            x={labelPos.x}
+            y={labelPos.y + 2}
+            textAnchor="middle"
+            fill="var(--lld-canvas-edge)"
+            fontSize="11"
+            fontStyle="italic"
+          >
+            {rel.label}
+          </text>
+        </g>
       )}
-      {/* Cardinality */}
+      {/* Source cardinality */}
       {rel.sourceCardinality && (
         <text
-          x={src.x + (tgt.x > src.x ? 14 : -14)}
-          y={src.y + (tgt.y > src.y ? 16 : -8)}
+          x={srcCardPos.x}
+          y={srcCardPos.y}
           textAnchor="middle"
           fill="var(--lld-canvas-edge)"
           fontSize="11"
+          fontWeight="500"
         >
           {rel.sourceCardinality}
         </text>
       )}
+      {/* Target cardinality */}
       {rel.targetCardinality && (
         <text
-          x={tgt.x + (src.x > tgt.x ? 14 : -14)}
-          y={tgt.y + (src.y > tgt.y ? 16 : -8)}
+          x={tgtCardPos.x}
+          y={tgtCardPos.y}
           textAnchor="middle"
           fill="var(--lld-canvas-edge)"
           fontSize="11"
+          fontWeight="500"
         >
           {rel.targetCardinality}
         </text>
