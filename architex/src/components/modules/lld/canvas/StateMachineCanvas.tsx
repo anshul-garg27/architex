@@ -119,7 +119,7 @@ function TransitionTooltip({
         y={y - 12}
         textAnchor="middle"
         fontSize="9"
-        fontFamily="monospace"
+        fontFamily="var(--font-geist-mono, monospace)"
         fill="var(--lld-canvas-text)"
       >
         {label}
@@ -254,31 +254,13 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
     transitionPairs.get(key)!.push(t);
   }
 
-  // Seeded pseudo-random for particles (stable across re-renders)
-  const particles = useMemo(() => {
-    const seed = statesLength * 7 + 42;
-    const rng = (i: number) => {
-      const x = Math.sin(seed + i * 9301 + 49297) * 49979;
-      return x - Math.floor(x);
-    };
-    return Array.from({ length: 12 }, (_, i) => ({
-      cx: viewBox.x + rng(i * 4) * viewBox.w,
-      cy: viewBox.y + rng(i * 4 + 1) * viewBox.h,
-      dx: (rng(i * 4 + 2) - 0.5) * 80,
-      dy: (rng(i * 4 + 3) - 0.5) * 80,
-      r: rng(i * 4 + 10) * 1.5 + 0.5,
-      duration: 6 + rng(i * 4 + 20) * 6,
-      delay: rng(i * 4 + 30) * 6,
-      opacity: 0.1 + rng(i * 4 + 40) * 0.15,
-    }));
-  }, [viewBox.x, viewBox.y, viewBox.w, viewBox.h, statesLength]);
 
   return (
     <div className="flex h-full flex-col">
       {title && (
-        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated/50 backdrop-blur-sm px-4 py-2">
+        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated px-4 py-2">
           <Circle className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
             {title}
           </span>
           <div className="ml-auto flex items-center gap-3">
@@ -300,7 +282,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
             <div className="flex items-center gap-1">
               <button
                 onClick={smZoomOut}
-                className="flex h-5 w-5 items-center justify-center rounded-full bg-background/80 backdrop-blur border border-border/50 text-[10px] font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border/50 text-[10px] font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
                 title="Zoom out"
                 aria-label="Zoom out"
               >
@@ -311,7 +293,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
               </span>
               <button
                 onClick={smZoomIn}
-                className="flex h-5 w-5 items-center justify-center rounded-full bg-background/80 backdrop-blur border border-border/50 text-[10px] font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border/50 text-[10px] font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
                 title="Zoom in"
                 aria-label="Zoom in"
               >
@@ -319,7 +301,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
               </button>
               <button
                 onClick={smZoomFit}
-                className="rounded-full bg-background/80 backdrop-blur border border-border/50 px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+                className="rounded-full bg-background border border-border/50 px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
                 title="Fit to view"
                 aria-label="Fit to view"
               >
@@ -327,7 +309,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
               </button>
               <button
                 onClick={smZoomReset}
-                className="rounded-full bg-background/80 backdrop-blur border border-border/50 px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+                className="rounded-full bg-background border border-border/50 px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
                 title="Reset to 100%"
                 aria-label="Reset to 100%"
               >
@@ -382,7 +364,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
               <circle
                 cx={gridSize / 2}
                 cy={gridSize / 2}
-                r="0.8"
+                r="1"
                 fill="var(--lld-canvas-text-subtle)"
                 opacity="0.18"
               />
@@ -412,27 +394,6 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
             fill="url(#sm-canvas-vignette)"
             pointerEvents="none"
           />
-
-          {/* Ambient floating particles */}
-          <g pointerEvents="none">
-            {particles.map((p, i) => (
-              <circle
-                key={`sm-particle-${i}`}
-                cx={p.cx}
-                cy={p.cy}
-                r={p.r}
-                fill="var(--primary)"
-                className="lld-particle"
-                style={{
-                  "--p-dx": `${p.dx}px`,
-                  "--p-dy": `${p.dy}px`,
-                  "--p-duration": `${p.duration}s`,
-                  "--p-delay": `${p.delay}s`,
-                  "--p-opacity": `${p.opacity}`,
-                } as React.CSSProperties}
-              />
-            ))}
-          </g>
 
           <g transform={smZoomTransform} style={{ transformOrigin: "0 0" }}>
           {/* Transitions */}
@@ -765,7 +726,7 @@ export const SimToast = memo(function SimToast({ message }: { message: string })
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-xl border border-border/30 backdrop-blur-md bg-background/60 px-4 py-2 shadow-lg shadow-[0_0_15px_rgba(110,86,207,0.15)]"
+      className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-xl border border-border/30 backdrop-blur-md bg-background/60 px-4 py-2 shadow-lg shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)]"
     >
       <div className="flex items-center gap-2">
         <Zap className="h-3.5 w-3.5 text-primary" />
@@ -799,22 +760,22 @@ export const SimTransitionPanel = memo(function SimTransitionPanel({
   }, [states]);
 
   return (
-    <div className="border-t border-border/30 bg-elevated/50 backdrop-blur-sm px-4 py-3">
+    <div className="border-t border-border/30 bg-elevated px-4 py-3">
       <div className="flex items-center gap-3 mb-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
           Available Transitions
         </span>
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={onReset}
-            className="flex items-center gap-1 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-2 py-1 text-[10px] font-medium text-foreground-subtle transition-colors hover:bg-accent hover:text-foreground"
+            className="flex items-center gap-1 rounded-xl border border-border/30 bg-elevated px-2 py-1 text-[10px] font-medium text-foreground-subtle transition-colors hover:bg-accent hover:text-foreground"
           >
             <RotateCw className="h-3 w-3" />
             Reset
           </button>
           <button
             onClick={onExit}
-            className="flex items-center gap-1 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-2 py-1 text-[10px] font-medium text-foreground-subtle transition-colors hover:bg-accent hover:text-foreground"
+            className="flex items-center gap-1 rounded-xl border border-border/30 bg-elevated px-2 py-1 text-[10px] font-medium text-foreground-subtle transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="h-3 w-3" />
             Exit
@@ -833,7 +794,7 @@ export const SimTransitionPanel = memo(function SimTransitionPanel({
               <button
                 key={t.id}
                 onClick={() => onFireTransition(t)}
-                className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-3 py-2 text-[11px] font-medium text-foreground shadow-[0_0_15px_rgba(110,86,207,0.15)] transition-colors hover:bg-primary/15"
+                className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-elevated px-3 py-2 text-[11px] font-medium text-foreground shadow-[0_0_15px_rgba(var(--primary-rgb),0.15)] transition-colors hover:bg-primary/15"
               >
                 <Play className="h-3 w-3 text-primary" />
                 <span className="font-mono">{t.trigger}</span>
@@ -854,7 +815,7 @@ export const SimTransitionPanel = memo(function SimTransitionPanel({
       {history.length > 0 && (
         <div className="mt-3 flex items-center gap-2">
           <History className="h-3 w-3 text-foreground-subtle" />
-          <span className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
             History:
           </span>
           <div className="flex items-center gap-1 overflow-x-auto">
@@ -863,7 +824,7 @@ export const SimTransitionPanel = memo(function SimTransitionPanel({
               return (
                 <React.Fragment key={`${stateId}-${i}`}>
                   {i > 0 && <span className="text-[10px] text-foreground-subtle">{"\u2192"}</span>}
-                  <span className="rounded-lg bg-elevated/50 backdrop-blur-sm border border-border/30 px-1.5 py-0.5 text-[10px] font-medium text-foreground-muted whitespace-nowrap">
+                  <span className="rounded-lg bg-elevated border border-border/30 px-1.5 py-0.5 text-[10px] font-medium text-foreground-muted whitespace-nowrap">
                     {s?.name ?? stateId}
                   </span>
                 </React.Fragment>

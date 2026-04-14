@@ -214,9 +214,9 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
   return (
     <div className="flex h-full flex-col">
       {title && (
-        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated/50 backdrop-blur-sm px-4 py-2">
+        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated px-4 py-2">
           <GitBranch className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
             {title}
           </span>
           <div className="ml-auto flex items-center gap-3">
@@ -238,7 +238,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
             ))}
             {/* (#9) Compact zoom controls in header bar */}
             <div className="mx-0.5 h-4 w-px bg-border/30" />
-            <div className="flex items-center gap-1 rounded-lg border border-border/30 bg-background/60 px-1.5 py-0.5">
+            <div className="flex items-center gap-1 rounded-lg border border-border/30 bg-background px-1.5 py-0.5">
               <button onClick={seqZoomOut} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom out" aria-label="Zoom out">&minus;</button>
               <span className="min-w-[2.5rem] text-center text-[10px] font-semibold text-foreground-subtle">{seqZoomPercent}%</span>
               <button onClick={seqZoomIn} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom in" aria-label="Zoom in">+</button>
@@ -291,8 +291,8 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
             </filter>
             {/* Subtle gradient fill for participant boxes */}
             <linearGradient id="seq-participant-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--lld-canvas-bg)" stopOpacity="1" />
-              <stop offset="100%" stopColor="var(--lld-canvas-bg)" stopOpacity="0.7" />
+              <stop offset="0%" stopColor="var(--lld-class-fill)" stopOpacity="1" />
+              <stop offset="100%" stopColor="var(--lld-class-fill)" stopOpacity="0.7" />
             </linearGradient>
             <marker
               id="seq-arrow-sync"
@@ -511,7 +511,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                     y={y + 4}
                     fill={isCurrent || isSelected ? "var(--lld-canvas-text)" : "var(--lld-canvas-text-muted)"}
                     fontSize="10"
-                    fontFamily="monospace"
+                    fontFamily="var(--font-geist-mono, monospace)"
                     fontWeight={isCurrent ? "bold" : "normal"}
                   >
                     {msg.label}
@@ -605,7 +605,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                   textAnchor="end"
                   fill="var(--lld-canvas-border)"
                   fontSize="11"
-                  fontFamily="monospace"
+                  fontFamily="var(--font-geist-mono, monospace)"
                 >
                   {msg.order}
                 </text>
@@ -615,7 +615,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                   textAnchor="middle"
                   fill={isCurrent || isSelected ? "var(--lld-canvas-text)" : "var(--lld-canvas-text-muted)"}
                   fontSize="10"
-                  fontFamily="monospace"
+                  fontFamily="var(--font-geist-mono, monospace)"
                   fontWeight={isCurrent ? "bold" : "normal"}
                 >
                   {msg.label}
@@ -700,7 +700,7 @@ export const SequencePlaybackToolbar = memo(function SequencePlaybackToolbar({
       {isAtEnd ? (
         <button
           onClick={onReplay}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(110,86,207,0.4)] transition-colors hover:bg-primary/90"
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] transition-colors hover:bg-primary/90"
           title="Replay"
           aria-label="Replay"
         >
@@ -709,7 +709,7 @@ export const SequencePlaybackToolbar = memo(function SequencePlaybackToolbar({
       ) : state.playing ? (
         <button
           onClick={onPause}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(110,86,207,0.4)] transition-colors hover:bg-primary/90"
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] transition-colors hover:bg-primary/90"
           title="Pause"
           aria-label="Pause"
         >
@@ -718,7 +718,7 @@ export const SequencePlaybackToolbar = memo(function SequencePlaybackToolbar({
       ) : (
         <button
           onClick={onPlay}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(110,86,207,0.4)] transition-colors hover:bg-primary/90"
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] transition-colors hover:bg-primary/90"
           title="Play"
           aria-label="Play"
         >
