@@ -160,11 +160,24 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>, con
       return;
     }
 
-    // Find the actual visible area: the nearest <main> ancestor is properly
-    // sized by the resizable panel layout. The SVG and its container may
-    // overflow beyond the visible area.
+    // Find the actual visible area. Strategy:
+    // 1. Try <main> ancestor (normal mode — sized by resizable panel)
+    // 2. Try overflow:hidden parent (presentation mode — sized by overlay)
+    // 3. Fallback to SVG itself
+    let rect = svg.getBoundingClientRect();
     const mainEl = svg.closest("main");
-    const rect = mainEl ? mainEl.getBoundingClientRect() : svg.getBoundingClientRect();
+    if (mainEl && mainEl.getBoundingClientRect().height < rect.height) {
+      rect = mainEl.getBoundingClientRect();
+    } else {
+      // Walk up to find smallest overflow-hidden ancestor
+      let el = svg.parentElement;
+      while (el) {
+        const r = el.getBoundingClientRect();
+        if (r.height > 0 && r.height < rect.height) rect = r;
+        if (el.tagName === "BODY") break;
+        el = el.parentElement;
+      }
+    }
     const sxRatio = rect.width / 2000;   // SVG X unit → screen px
     const syRatio = rect.height / 2000;  // SVG Y unit → screen px
     if (sxRatio <= 0 || syRatio <= 0) return;
