@@ -1107,7 +1107,7 @@ export const SOLIDViolationSpotter = memo(function SOLIDViolationSpotter({
         <div className="border-t border-border/30 px-4 py-2 bg-amber-500/5">
           <div className="space-y-1">
             {exercise.hints.slice(0, hintIdx + 1).map((hint, i) => (
-              <div key={i} className="flex items-start gap-1.5 text-[10px] text-amber-300">
+              <div key={i} className="flex items-start gap-1.5 text-[10px] text-amber-700 dark:text-amber-300">
                 <Lightbulb className="h-3 w-3 mt-0.5 shrink-0" />
                 <span>{hint}</span>
               </div>

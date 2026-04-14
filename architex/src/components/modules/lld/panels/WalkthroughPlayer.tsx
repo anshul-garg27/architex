@@ -107,9 +107,9 @@ function MultipleChoiceCheckpoint({
             className={cn(
               "w-full text-left rounded-lg border px-3 py-2 text-[11px] transition-all",
               isAnswered && isCorrect
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                 : showResult && !isCorrect
-                  ? "border-red-500/40 bg-red-500/10 text-red-300"
+                  ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300"
                   : isSelected
                     ? "border-primary/40 bg-primary/10 text-foreground"
                     : "border-border/30 bg-elevated/30 text-foreground-muted hover:bg-elevated/60 hover:text-foreground",
@@ -211,8 +211,8 @@ function FillBlankCheckpoint({
                     className={cn(
                       "inline-block min-w-[80px] rounded border-b-2 px-1 font-semibold",
                       state.status === "correct" || state.status === "revealed"
-                        ? "border-emerald-500 text-emerald-300"
-                        : "border-red-500 text-red-300",
+                        ? "border-emerald-500 text-emerald-700 dark:text-emerald-300"
+                        : "border-red-500 text-red-700 dark:text-red-300",
                     )}
                   >
                     {state.status === "revealed" ? correctAnswers[i] : localAnswers[i]}
@@ -331,9 +331,9 @@ function OrderStepsCheckpoint({
               "flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] transition-all",
               dragIndex === posIdx && "opacity-50",
               isCorrectPosition
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                 : showCorrectPosition
-                  ? "border-red-500/40 bg-red-500/10 text-red-300"
+                  ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300"
                   : "border-border/30 bg-elevated/30 text-foreground-muted",
               !isAnswered && "cursor-grab active:cursor-grabbing",
             )}
@@ -673,8 +673,8 @@ export const WalkthroughPlayer = memo(function WalkthroughPlayer({
         </p>
         {step.keyInsight && (
           <div className="flex items-start gap-2 rounded-xl border border-amber-600/20 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/5 backdrop-blur-sm px-3 py-2">
-            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-600 dark:text-amber-400" />
-            <p className="text-[11px] font-medium leading-relaxed text-amber-800 dark:text-amber-800 dark:text-amber-300">
+            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <p className="text-[11px] font-medium leading-relaxed text-amber-800 dark:text-amber-300">
               {step.keyInsight}
             </p>
           </div>
@@ -733,7 +733,7 @@ export const WalkthroughPlayer = memo(function WalkthroughPlayer({
                 className={cn(
                   "text-[10px] leading-relaxed",
                   currentCheckpointState.status === "correct"
-                    ? "text-emerald-300"
+                    ? "text-emerald-700 dark:text-emerald-300"
                     : "text-amber-800 dark:text-amber-300",
                 )}
               >

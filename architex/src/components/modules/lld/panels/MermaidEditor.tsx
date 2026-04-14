@@ -107,7 +107,7 @@ function highlightMermaid(code: string): React.ReactNode[] {
       const methodPart = content.match(/^(\w+)\(([^)]*)\)(\*?)\s*(.*)$/);
       if (methodPart) {
         const [, mName, mParams, mAbstract, mReturn] = methodPart;
-        parts.push(<span key={key++} className="text-amber-300">{mName}</span>);
+        parts.push(<span key={key++} className="text-amber-700 dark:text-amber-300">{mName}</span>);
         parts.push(<span key={key++} className="text-foreground-subtle">(</span>);
         parts.push(<span key={key++} className="text-foreground-muted">{mParams}</span>);
         parts.push(<span key={key++} className="text-foreground-subtle">)</span>);

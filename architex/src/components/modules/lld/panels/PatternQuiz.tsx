@@ -397,12 +397,12 @@ export const PatternQuiz = memo(function PatternQuiz() {
                       {QUIZ_HINTS[q.pattern.category] ?? "Look at the relationship types and class hierarchy."}
                     </p>
                     {differenceText && (
-                      <p className="rounded border border-red-500/20 bg-red-500/5 px-2 py-1 text-[10px] text-red-300">
+                      <p className="rounded border border-red-500/20 bg-red-500/5 px-2 py-1 text-[10px] text-red-700 dark:text-red-300">
                         <span className="font-semibold">Key difference:</span> {differenceText}
                       </p>
                     )}
                     {!differenceText && chosenPattern && (
-                      <p className="text-[10px] text-red-300">
+                      <p className="text-[10px] text-red-700 dark:text-red-300">
                         {q.pattern.name} uses {q.pattern.classes.length} participants with{" "}
                         {q.pattern.relationships.length > 0
                           ? `a ${q.pattern.relationships[0].type} relationship`

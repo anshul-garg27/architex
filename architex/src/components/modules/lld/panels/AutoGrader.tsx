@@ -218,7 +218,7 @@ function CategoryCard({
                 <p
                   className={cn(
                     "text-[10px]",
-                    item.passed ? "text-emerald-300/70" : "text-red-300/70",
+                    item.passed ? "text-emerald-700 dark:text-emerald-300/70" : "text-red-700 dark:text-red-300/70",
                   )}
                 >
                   {item.feedback}

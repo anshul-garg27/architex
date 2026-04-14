@@ -261,7 +261,7 @@ export const DailyChallenge = memo(function DailyChallenge() {
                 className={cn(
                   "rounded-md border px-3 py-2 text-[11px] leading-relaxed transition-all",
                   idx < hintsRevealed
-                    ? "border-amber-500/30 bg-amber-500/5 backdrop-blur-sm shadow-[0_0_15px_rgba(245,158,11,0.05)] text-amber-300"
+                    ? "border-amber-500/30 bg-amber-500/5 backdrop-blur-sm shadow-[0_0_15px_rgba(245,158,11,0.05)] text-amber-700 dark:text-amber-300"
                     : "border-border/30 bg-elevated/50 backdrop-blur-sm text-foreground-subtle opacity-40",
                 )}
               >
