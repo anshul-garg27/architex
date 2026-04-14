@@ -813,6 +813,21 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
   const srcCardPos = cardPos(src, srcSide);
   const tgtCardPos = cardPos(tgt, tgtSide);
 
+  // Edge draw animation: measure path length, animate stroke-dashoffset
+  const pathRef = useRef<SVGPathElement>(null);
+  const [pathLength, setPathLength] = useState(0);
+  useEffect(() => {
+    if (pathRef.current) {
+      setPathLength(pathRef.current.getTotalLength());
+    }
+  }, [pathD]);
+
+  const drawStyle = (!reducedMotion && pathLength > 0) ? {
+    strokeDasharray: isDashed ? "10 6" : pathLength,
+    strokeDashoffset: isDashed ? undefined : pathLength,
+    animation: isDashed ? undefined : `lld-edge-draw 0.7s cubic-bezier(0.4,0,0.2,1) ${edgeDelay}s forwards`,
+  } : undefined;
+
   return (
     <motion.g
       {...(reducedMotion
@@ -820,27 +835,27 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
         : {
             initial: { opacity: 0 },
             animate: { opacity: 1 },
-            transition: { delay: edgeDelay, duration: 0.3 },
+            transition: { delay: edgeDelay, duration: 0.2 },
           })}
     >
-      {/* Subtle shadow path for depth — offset by 1px, slightly thicker */}
+      {/* Subtle shadow path for depth */}
       <path
         d={pathD}
         fill="none"
-        stroke="rgba(0,0,0,0.15)"
+        stroke="rgba(0,0,0,0.12)"
         strokeWidth="3"
         strokeDasharray={isDashed ? "10 6" : undefined}
         strokeLinecap="round"
         strokeLinejoin="round"
         style={{ filter: "blur(2px)" }}
       />
-      {/* Main edge path */}
+      {/* Main edge path — with draw animation on load */}
       <path
+        ref={pathRef}
         d={pathD}
         fill="none"
         stroke={highlighted ? "var(--lld-rel-highlight)" : REL_STROKE}
         strokeWidth={highlighted ? 2 : 1.2}
-        strokeDasharray={isDashed ? "10 6" : undefined}
         strokeLinecap="round"
         strokeLinejoin="round"
         markerEnd={markerMap[rel.type] || undefined}
@@ -849,6 +864,7 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
             ? `url(#arrow-${rel.type})`
             : undefined
         }
+        style={drawStyle}
         className={cn(
           "transition-all duration-300",
           highlighted && "lld-edge-highlight",
