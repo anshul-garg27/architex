@@ -266,7 +266,89 @@ Must update ALL consumers when box width changes: Canvas, Minimap, AlignmentTool
 
 ---
 
-## 12. Commit Checklist for New Module
+## 12. Cardinality & Relationship Labels
+
+### Cardinality Labels ("1", "*", "1..*")
+- Positioned **45px along the approach line** from the box edge, + 20px sideways
+- Rendered as small pills: `<rect rx="7.5">` background + `<text>` overlay
+- For vertical sides (top/bottom): offset Y by ±45px outward, X by +20px
+- For horizontal sides (left/right): offset X by ±45px outward, Y by -12px
+- `fontSize="10"`, `fontWeight="600"`, fill uses `var(--lld-rel-stroke)`
+
+### Relationship Labels ("creates", "uses", "notifies")
+- Positioned at the midpoint of the middle segment of the path
+- Rendered as rounded capsule pills:
+  - Shadow: `<rect rx="9.5" fill="rgba(0,0,0,0.3)" filter="blur(3px)">`
+  - Background: `<rect rx="9.5" fill="var(--lld-canvas-bg-deep)" stroke="var(--lld-rel-stroke)" strokeWidth="0.6">`
+  - Text: `fontSize="10"`, `fontStyle="italic"`, `letterSpacing="0.3"`
+- `pointer-events: none` so they don't block edge hover interactions
+
+### Edge Shadow for Depth
+Each edge has a blurred shadow path behind it:
+```tsx
+<path d={pathD} fill="none"
+  stroke={siblingCount > 1 ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.12)"}
+  strokeWidth={siblingCount > 1 ? 2 : 3}
+  style={{ filter: `blur(${siblingCount > 1 ? 1 : 2}px)` }} />
+```
+When bundled (`siblingCount > 1`), shadow fades so overlapping edges merge visually.
+
+---
+
+## 13. Lessons Learned — What NOT to Do
+
+### Don't: Channel staggering for parallel edge approach
+**Attempt:** Shift the horizontal approach segment's Y by the port offset to separate parallel edges entering the same box side.
+**Result:** Created angular/non-orthogonal paths that looked worse than the crossing.
+**Lesson:** Minor edge crossings near entry points are acceptable. Professional UML tools allow them.
+
+### Don't: Fast-path skip for A* router
+**Attempt:** Check if the simple fallback path crosses any box before running A*. Skip A* if it doesn't.
+**Result:** The `segmentBlockedByObstacle` check missed some collisions (boundary precision), causing lines to pass through boxes.
+**Lesson:** Always run A* when obstacles exist. The sparse grid keeps it fast enough.
+
+### Don't: Use getBBox() for zoom-fit calculations
+**Attempt:** Temporarily reset the zoom transform, measure SVG getBBox(), restore transform.
+**Result:** Unreliable — getBBox returns different results depending on render timing and SVG viewBox.
+**Lesson:** Let the SVG `viewBox` handle content fitting. "Fit" = reset zoom to identity.
+
+### Don't: Use OBSTACLE_PAD for both grid coords AND collision detection
+**Attempt:** Same padding value for routing grid lines and obstacle blocking.
+**Result:** Lines route exactly ON the padded boundary — visually touching the box.
+**Lesson:** Use separate values: `ROUTE_PAD=35` (where lines go) vs `BLOCK_PAD=30` (what's blocked). The 5px gap ensures visible clearance.
+
+### Don't: Hardcode colors in SVG elements
+**Problem:** `fill="#ffffff"` for dot grid, `stopColor="#0a0e14"` for vignette — invisible in the opposite theme.
+**Lesson:** Always use CSS variables: `fill="var(--lld-canvas-border)"`, `stopColor="var(--lld-canvas-bg-deep)"`.
+
+### Don't: Use text-*-300 without dark: prefix
+**Problem:** `text-amber-300`, `text-red-300`, `text-emerald-300` are too light for white backgrounds.
+**Lesson:** Always pair: `text-red-700 dark:text-red-300`.
+
+### Don't: Set aggressive focus mode dimming
+**Attempt:** 15% opacity + grayscale filter on dimmed classes.
+**Result:** Diagram became unreadable — too much faded to nothing.
+**Lesson:** Use 35% opacity, no grayscale, 150ms transitions. The dimmed elements should be clearly secondary but still visible.
+
+---
+
+## 14. A* Router Bug History (Cautionary Tale)
+
+The A* router went through 5 bug-fix commits. Document these for anyone implementing similar:
+
+1. **Cycle in path reconstruction** — `parentMap` could create circular references when parent pointers were overwritten. Fix: `visited` Set in reconstruction loop + `path.length < 200` cap.
+
+2. **Fast-path incorrectly skipping A*** — The simple-path collision check missed cases. Fix: removed fast-path, always run A*.
+
+3. **Diagonal segments from port spreading** — Port-spread anchor points didn't align with A* grid coordinates. Fix: `orthogonalize()` post-processing that splits diagonals into H/V.
+
+4. **Orthogonalize choosing wrong direction** — Default "vertical first" sent lines through boxes. Fix: obstacle-aware orthogonalize that checks both V-first and H-first.
+
+5. **Lines routing ON padded boundary** — Same padding for grid and collision. Fix: separate ROUTE_PAD (35) and BLOCK_PAD (30).
+
+---
+
+## 15. Commit Checklist for New Module
 
 When upgrading another module to this quality bar:
 
@@ -292,7 +374,7 @@ When upgrading another module to this quality bar:
 
 ## Session Stats
 
-- **27 commits** in one session
+- **32 commits** in one session
 - **Files created:** `dagre-layout.ts`, `astar-router.ts`
 - **Files modified:** `LLDCanvas.tsx`, `useLLDModuleImpl.tsx`, `LLDProperties.tsx`, `globals.css`, `constants.ts`, `Minimap.tsx`, `AlignmentToolbar.tsx`, `PatternQuiz.tsx`, `MermaidEditor.tsx`, `WalkthroughPlayer.tsx`, `AutoGrader.tsx`, `DailyChallenge.tsx`, `SOLIDViolationSpotter.tsx`, `package.json`
 - **Libraries added:** `@dagrejs/dagre`, `prism-react-renderer` (Java grammar)
