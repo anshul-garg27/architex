@@ -12,7 +12,7 @@
     ],
     "priority": "P1",
     "effort": "S",
-    "status": "in_progress",
+    "status": "in-progress",
     "phase": 3,
     "module": "data-structures",
     "category": "frontend",
