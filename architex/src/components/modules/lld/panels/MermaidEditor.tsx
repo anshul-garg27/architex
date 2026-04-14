@@ -190,7 +190,7 @@ const MiniClassBox = memo(function MiniClassBox({ cls }: { cls: UMLClass }) {
         width={w}
         height={h}
         rx={6}
-        fill="var(--card)"
+        fill="var(--lld-class-fill)"
         stroke={borderColor}
         strokeWidth={1.5}
       />

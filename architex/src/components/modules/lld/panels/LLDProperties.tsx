@@ -162,14 +162,14 @@ export const LLDProperties = memo(function LLDProperties({
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/30 px-3 py-3">
-          <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+          <h2 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
             Class Details
           </h2>
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
           {/* Name — editable */}
           <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Name
             </label>
             <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export const LLDProperties = memo(function LLDProperties({
 
           {/* Stereotype dropdown */}
           <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Stereotype
             </label>
             <select
@@ -223,7 +223,7 @@ export const LLDProperties = memo(function LLDProperties({
           {/* Attributes */}
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 Attributes ({selectedClass.attributes.length})
               </h3>
               <button
@@ -239,7 +239,7 @@ export const LLDProperties = memo(function LLDProperties({
               {selectedClass.attributes.map((a) => (
                 <div
                   key={a.id}
-                  className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-2 py-1"
+                  className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-elevated px-2 py-1"
                 >
                   <select
                     value={a.visibility}
@@ -278,7 +278,7 @@ export const LLDProperties = memo(function LLDProperties({
           {/* Methods */}
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 Methods ({selectedClass.methods.length})
               </h3>
               <button
@@ -294,7 +294,7 @@ export const LLDProperties = memo(function LLDProperties({
               {selectedClass.methods.map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-2 py-1"
+                  className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-elevated px-2 py-1"
                 >
                   <select
                     value={m.visibility}
@@ -356,7 +356,7 @@ export const LLDProperties = memo(function LLDProperties({
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border/30 px-3 py-3">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-primary">
           {pattern!.name} Pattern
         </h2>
       </div>
@@ -368,7 +368,7 @@ export const LLDProperties = memo(function LLDProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <Lightbulb className="h-3 w-3 text-amber-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Real-World Examples
             </h3>
           </div>
@@ -388,7 +388,7 @@ export const LLDProperties = memo(function LLDProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <Code className="h-3 w-3 text-blue-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Code Sample
             </h3>
           </div>
@@ -454,7 +454,7 @@ export const LLDProperties = memo(function LLDProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <BookOpen className="h-3 w-3 text-green-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               When to Use
             </h3>
           </div>
@@ -474,7 +474,7 @@ export const LLDProperties = memo(function LLDProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <BookOpen className="h-3 w-3 text-red-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               When Not to Use
             </h3>
           </div>
@@ -512,7 +512,7 @@ export const LLDSOLIDProperties = memo(function LLDSOLIDProperties({
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border/30 px-3 py-3">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
           SOLID Principle
         </h2>
       </div>
@@ -533,7 +533,7 @@ export const LLDSOLIDProperties = memo(function LLDSOLIDProperties({
         <div>
           <button
             onClick={onToggleView}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-3 py-2 text-xs font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/30 bg-elevated px-3 py-2 text-xs font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
           >
             <ArrowRightLeft className="h-3.5 w-3.5" />
             {solidView === "before" ? "Show After (Refactored)" : "Show Before (Violation)"}
@@ -546,7 +546,7 @@ export const LLDSOLIDProperties = memo(function LLDSOLIDProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <Lightbulb className="h-3 w-3 text-amber-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Explanation
             </h3>
           </div>
@@ -558,7 +558,7 @@ export const LLDSOLIDProperties = memo(function LLDSOLIDProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <BookOpen className="h-3 w-3 text-green-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Real-World Analogy
             </h3>
           </div>
@@ -584,7 +584,7 @@ export const LLDProblemProperties = memo(function LLDProblemProperties({
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border/30 px-3 py-3">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
           Problem Details
         </h2>
       </div>
@@ -612,7 +612,7 @@ export const LLDProblemProperties = memo(function LLDProblemProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <BookOpen className="h-3 w-3 text-blue-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Requirements
             </h3>
           </div>
@@ -632,7 +632,7 @@ export const LLDProblemProperties = memo(function LLDProblemProperties({
         <div>
           <button
             onClick={() => setShowHints((p) => !p)}
-            className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted hover:text-foreground transition-colors"
           >
             <AlertTriangle className="h-3 w-3 text-amber-400" />
             Hints
@@ -680,26 +680,26 @@ export const SequenceProperties = memo(function SequenceProperties({
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/30 px-3 py-3">
-          <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+          <h2 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
             Message Details
           </h2>
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
           <div>
-            <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Label
             </h3>
             <p className="font-mono text-xs text-foreground">{selectedMessage.label}</p>
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 From
               </h3>
               <p className="text-xs text-foreground-muted">{fromP?.name ?? selectedMessage.from}</p>
             </div>
             <div className="flex-1">
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 To
               </h3>
               <p className="text-xs text-foreground-muted">{toP?.name ?? selectedMessage.to}</p>
@@ -707,7 +707,7 @@ export const SequenceProperties = memo(function SequenceProperties({
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 Type
               </h3>
               <span
@@ -721,7 +721,7 @@ export const SequenceProperties = memo(function SequenceProperties({
               </span>
             </div>
             <div className="flex-1">
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 Order
               </h3>
               <p className="text-xs text-foreground-muted">#{selectedMessage.order}</p>
@@ -735,7 +735,7 @@ export const SequenceProperties = memo(function SequenceProperties({
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border/30 px-3 py-3">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
           Sequence Diagram
         </h2>
       </div>
@@ -749,7 +749,7 @@ export const SequenceProperties = memo(function SequenceProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <Layers className="h-3 w-3 text-blue-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Participants ({example!.data.participants.length})
             </h3>
           </div>
@@ -776,7 +776,7 @@ export const SequenceProperties = memo(function SequenceProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <ArrowRightLeft className="h-3 w-3 text-green-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Messages ({example!.data.messages.length})
             </h3>
           </div>
@@ -809,13 +809,13 @@ export const StateMachineProperties = memo(function StateMachineProperties({
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/30 px-3 py-3">
-          <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+          <h2 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
             State Details
           </h2>
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
           <div>
-            <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Name
             </h3>
             <p className="text-xs font-medium" style={{ color }}>{selectedState.name}</p>
@@ -834,7 +834,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
           </div>
           {selectedState.entryAction && (
             <div>
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 Entry Action
               </h3>
               <p className="font-mono text-xs text-foreground-muted">{selectedState.entryAction}</p>
@@ -842,7 +842,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
           )}
           {selectedState.exitAction && (
             <div>
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 Exit Action
               </h3>
               <p className="font-mono text-xs text-foreground-muted">{selectedState.exitAction}</p>
@@ -850,14 +850,14 @@ export const StateMachineProperties = memo(function StateMachineProperties({
           )}
           {outgoing.length > 0 && (
             <div>
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 Outgoing Transitions ({outgoing.length})
               </h3>
               <div className="space-y-1">
                 {outgoing.map((t: any) => {
                   const target = example.data.states.find((s: any) => s.id === t.to);
                   return (
-                    <div key={t.id} className="rounded-xl bg-elevated/50 backdrop-blur-sm px-2 py-1 text-[11px] text-foreground-muted">
+                    <div key={t.id} className="rounded-xl bg-elevated px-2 py-1 text-[11px] text-foreground-muted">
                       <span className="font-mono text-foreground">{t.trigger}</span>
                       {t.guard && <span className="text-amber-400"> [{t.guard}]</span>}
                       <span className="text-foreground-subtle"> {"\u2192"} {target?.name ?? t.to}</span>
@@ -869,14 +869,14 @@ export const StateMachineProperties = memo(function StateMachineProperties({
           )}
           {incoming.length > 0 && (
             <div>
-              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+              <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
                 Incoming Transitions ({incoming.length})
               </h3>
               <div className="space-y-1">
                 {incoming.map((t: any) => {
                   const source = example.data.states.find((s: any) => s.id === t.from);
                   return (
-                    <div key={t.id} className="rounded-xl bg-elevated/50 backdrop-blur-sm px-2 py-1 text-[11px] text-foreground-muted">
+                    <div key={t.id} className="rounded-xl bg-elevated px-2 py-1 text-[11px] text-foreground-muted">
                       <span className="text-foreground-subtle">{source?.name ?? t.from} {"\u2192"}</span>
                       <span className="font-mono text-foreground"> {t.trigger}</span>
                       {t.guard && <span className="text-amber-400"> [{t.guard}]</span>}
@@ -894,7 +894,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border/30 px-3 py-3">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
           State Machine
         </h2>
       </div>
@@ -908,7 +908,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <Circle className="h-3 w-3 text-blue-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               States ({example!.data.states.length})
             </h3>
           </div>
@@ -932,7 +932,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <ArrowRightLeft className="h-3 w-3 text-green-400" />
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
               Transitions ({example!.data.transitions.length})
             </h3>
           </div>

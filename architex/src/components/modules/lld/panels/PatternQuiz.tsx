@@ -281,7 +281,7 @@ export const PatternQuiz = memo(function PatternQuiz() {
                 <g key={cls.id}>
                   {(() => { const cw = classBoxWidth(cls); return (<>
                   <rect x={cls.x} y={cls.y} width={cw} height={h} rx={4}
-                    fill="var(--lld-canvas-bg)" stroke={bc} strokeWidth={1.5} />
+                    fill="var(--lld-class-fill)" stroke={bc} strokeWidth={1.5} />
                   {hasStereo && (
                     <text x={cls.x + cw / 2} y={cls.y + 14}
                       textAnchor="middle" fill={bc} fontSize="11" fontFamily="monospace">

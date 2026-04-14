@@ -5,7 +5,7 @@
  * Split from LLDModule.tsx (LLD-037).
  */
 
-import React, { memo, useState, useCallback, useRef } from "react";
+import React, { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   GitBranch,
   Play,
@@ -27,6 +27,7 @@ import {
   SEQ_LIFELINE_START,
   SEQ_ACTIVATION_WIDTH,
   SEQ_TYPE_COLORS,
+  CANVAS_GRID_SIZE,
   type SequencePlaybackState,
 } from "../constants";
 
@@ -48,6 +49,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
   playbackStep,
 }: SequenceDiagramCanvasProps) {
   const seqSvgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const {
     svgTransform: seqZoomTransform,
     zoomPercent: seqZoomPercent,
@@ -60,9 +62,63 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
     zoomFit: seqZoomFit,
   } = useSVGZoomPan(seqSvgRef);
 
+  // (#5) Participant hover state — tracks which participant header is hovered
+  const [hoveredParticipant, setHoveredParticipant] = useState<string | null>(null);
+
+  // (#7) Message hover tooltip
+  const [tooltipMsg, setTooltipMsg] = useState<{
+    msg: SequenceMessage;
+    x: number;
+    y: number;
+  } | null>(null);
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // (#1) Track container size with ResizeObserver for auto-fit
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      }
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // (#1) Auto-fit when sequence data or container size changes
+  const messagesKey = useMemo(
+    () => data?.messages.map((m) => m.id).join(",") ?? "",
+    [data?.messages],
+  );
+  useEffect(() => {
+    if (data && data.messages.length > 0) seqZoomFit();
+  }, [messagesKey, containerSize.width, containerSize.height]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleBgClick = useCallback(() => {
     onSelectMessage(null);
   }, [onSelectMessage]);
+
+  // (#7) Tooltip show/hide helpers
+  const showTooltip = useCallback((msg: SequenceMessage, clientX: number, clientY: number) => {
+    if (!msg.narration) return;
+    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+    tooltipTimer.current = setTimeout(() => {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      setTooltipMsg({ msg, x: clientX - rect.left, y: clientY - rect.top });
+    }, 400);
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    if (tooltipTimer.current) {
+      clearTimeout(tooltipTimer.current);
+      tooltipTimer.current = null;
+    }
+    setTooltipMsg(null);
+  }, []);
 
   if (!data || data.participants.length === 0) {
     return (
@@ -85,12 +141,24 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
   const pIndex = new Map<string, number>();
   data.participants.forEach((p, i) => pIndex.set(p.id, i));
 
-  const totalWidth =
+  const computedWidth =
     60 + data.participants.length * SEQ_PARTICIPANT_GAP + 60;
-  const totalHeight =
+  const computedHeight =
     SEQ_LIFELINE_START +
     sortedMessages.length * SEQ_MESSAGE_ROW_HEIGHT +
     80;
+
+  // (#10) ViewBox minimum dimensions — prevent over-zoom on small sequences
+  const MIN_W = 800;
+  const MIN_H = 500;
+  const totalWidth = Math.max(computedWidth, MIN_W);
+  const totalHeight = Math.max(computedHeight, MIN_H);
+
+  // Center content within (possibly larger) viewBox
+  const contentCX = computedWidth / 2;
+  const contentCY = computedHeight / 2;
+  const vbX = contentCX - totalWidth / 2;
+  const vbY = contentCY - totalHeight / 2;
 
   const activations: Array<{
     participantIdx: number;
@@ -135,6 +203,14 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
   const messageY = (orderIdx: number) =>
     SEQ_LIFELINE_START + orderIdx * SEQ_MESSAGE_ROW_HEIGHT + 25;
 
+  // (#5) Helper: is a message related to the hovered participant?
+  const isRelatedToHovered = (msg: SequenceMessage) => {
+    if (!hoveredParticipant) return true;
+    return msg.from === hoveredParticipant || msg.to === hoveredParticipant;
+  };
+
+  const gridSize = CANVAS_GRID_SIZE;
+
   return (
     <div className="flex h-full flex-col">
       {title && (
@@ -160,29 +236,51 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                 </span>
               </div>
             ))}
+            {/* (#9) Compact zoom controls in header bar */}
+            <div className="mx-0.5 h-4 w-px bg-border/30" />
+            <div className="flex items-center gap-1 rounded-lg border border-border/30 bg-background/60 px-1.5 py-0.5">
+              <button onClick={seqZoomOut} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom out" aria-label="Zoom out">&minus;</button>
+              <span className="min-w-[2.5rem] text-center text-[10px] font-semibold text-foreground-subtle">{seqZoomPercent}%</span>
+              <button onClick={seqZoomIn} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom in" aria-label="Zoom in">+</button>
+              <div className="mx-0.5 h-3 w-px bg-border/30" />
+              <button onClick={() => seqZoomFit()} className="rounded px-2 py-0.5 text-[10px] font-semibold text-foreground-muted hover:bg-accent hover:text-foreground" title="Fit to view" aria-label="Fit to view">Fit</button>
+              <button onClick={seqZoomReset} className="rounded px-2 py-0.5 text-[10px] font-semibold text-foreground-muted hover:bg-accent hover:text-foreground" title="Reset to 100%" aria-label="Reset to 100%">100%</button>
+            </div>
           </div>
         </div>
       )}
-      <div className="relative flex-1 overflow-hidden bg-background" onClick={handleBgClick}>
+      <div
+        ref={containerRef}
+        className="relative flex-1 overflow-hidden bg-background"
+        onClick={handleBgClick}
+      >
         <svg
           ref={seqSvgRef}
-          viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+          viewBox={`${vbX} ${vbY} ${totalWidth} ${totalHeight}`}
+          preserveAspectRatio="xMidYMid meet"
           className="h-full w-full"
-          style={{ minHeight: 400, minWidth: totalWidth }}
+          style={{ minHeight: 400 }}
           onPointerDown={seqHandlePanStart}
           onPointerMove={seqHandlePanMove}
           onPointerUp={seqHandlePanEnd}
         >
           <defs>
-            <pattern id="seq-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path
-                d="M 40 0 L 0 0 0 40"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="0.3"
-                opacity="0.06"
+            {/* (#3) Dot grid — Figma-style, matching LLDCanvas */}
+            <pattern id="seq-grid" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
+              <circle
+                cx={gridSize / 2}
+                cy={gridSize / 2}
+                r="0.8"
+                fill="var(--lld-canvas-border)"
+                opacity="0.3"
               />
             </pattern>
+            {/* (#4) Radial vignette — lighter center, darker edges for depth */}
+            <radialGradient id="seq-vignette" cx="50%" cy="50%" r="75%" fx="50%" fy="50%">
+              <stop offset="0%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
+              <stop offset="80%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
+              <stop offset="100%" stopColor="var(--lld-canvas-bg-deep)" stopOpacity="0.2" />
+            </radialGradient>
             {/* Glassmorphism glow filter for active/selected messages */}
             <filter id="seq-glow">
               <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
@@ -230,7 +328,9 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
               <path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="var(--lld-seq-return)" strokeWidth="1.5" />
             </marker>
           </defs>
-          <rect x="0" y="0" width={totalWidth} height={totalHeight} fill="url(#seq-grid)" />
+          <rect x={vbX} y={vbY} width={totalWidth} height={totalHeight} fill="url(#seq-grid)" />
+          {/* (#4) Vignette overlay */}
+          <rect x={vbX} y={vbY} width={totalWidth} height={totalHeight} fill="url(#seq-vignette)" pointerEvents="none" />
 
           <g transform={seqZoomTransform} style={{ transformOrigin: "0 0" }}>
 
@@ -238,8 +338,28 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
           {data.participants.map((p, i) => {
             const x = participantX(i);
             const isActor = p.type === "actor";
+            const isHovered = hoveredParticipant === p.id;
             return (
-              <g key={p.id}>
+              <g
+                key={p.id}
+                onPointerEnter={() => setHoveredParticipant(p.id)}
+                onPointerLeave={() => setHoveredParticipant(null)}
+                style={{ cursor: "pointer" }}
+              >
+                {/* (#5) Highlight ring when hovered */}
+                {isHovered && (
+                  <rect
+                    x={x - 3}
+                    y={SEQ_TOP_MARGIN - 3}
+                    width={SEQ_PARTICIPANT_WIDTH + 6}
+                    height={SEQ_PARTICIPANT_HEIGHT + 6}
+                    rx={10}
+                    fill="none"
+                    stroke="var(--lld-canvas-selected)"
+                    strokeWidth="1.5"
+                    opacity="0.5"
+                  />
+                )}
                 <rect
                   x={x}
                   y={SEQ_TOP_MARGIN}
@@ -249,7 +369,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                   fill={isActor ? "var(--lld-canvas-actor-bg)" : "url(#seq-participant-gradient)"}
                   stroke={isActor ? "var(--lld-stereo-interface)" : "var(--lld-canvas-border)"}
                   strokeWidth={1.5}
-                  strokeOpacity={0.3}
+                  strokeOpacity={isHovered ? 0.6 : 0.3}
                 />
                 {isActor && (
                   <text
@@ -320,12 +440,17 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
             const color = SEQ_TYPE_COLORS[msg.type];
 
             const strokeW = isCurrent ? 3 : isSelected ? 2.5 : 1.5;
-            const msgOpacity = isCurrent ? 1 : (playbackStep !== null ? 0.7 : 1);
+            // (#5) Dim non-related messages when a participant is hovered
+            const related = isRelatedToHovered(msg);
+            const hoverDim = hoveredParticipant && !related ? 0.35 : 1;
+            const msgOpacity = isCurrent ? 1 : (playbackStep !== null ? 0.7 : hoverDim);
 
             if (msg.type === "self" || msg.from === msg.to) {
               const cx = participantCenterX(fromIdx);
               const loopW = 40;
               const loopH = 20;
+              // (#6) Compute polyline total length for draw animation
+              const selfPathLen = loopW + loopH + loopW; // 3 segments of the U-shape
               return (
                 <g
                   key={msg.id}
@@ -333,6 +458,8 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                     e.stopPropagation();
                     onSelectMessage(msg.id);
                   }}
+                  onPointerEnter={(e) => showTooltip(msg, e.clientX, e.clientY)}
+                  onPointerLeave={hideTooltip}
                   style={{ cursor: "pointer", opacity: msgOpacity }}
                   filter={(isSelected || isCurrent) ? "url(#seq-glow)" : undefined}
                 >
@@ -361,11 +488,13 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                     fill="none"
                     stroke={color}
                     strokeWidth={strokeW}
+                    strokeDasharray={isCurrent ? `${selfPathLen}` : undefined}
+                    strokeDashoffset={isCurrent ? `${selfPathLen}` : undefined}
                   >
                     {isCurrent && (
                       <animate
                         attributeName="stroke-dashoffset"
-                        from="200"
+                        from={`${selfPathLen}`}
                         to="0"
                         dur="0.2s"
                         fill="freeze"
@@ -421,6 +550,8 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                   e.stopPropagation();
                   onSelectMessage(msg.id);
                 }}
+                onPointerEnter={(e) => showTooltip(msg, e.clientX, e.clientY)}
+                onPointerLeave={hideTooltip}
                 style={{ cursor: "pointer", opacity: msgOpacity }}
                 filter={(isSelected || isCurrent) ? "url(#seq-glow)" : undefined}
               >
@@ -446,6 +577,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                     opacity="0.08"
                   />
                 )}
+                {/* (#6) Fixed draw animation — dasharray/dashoffset from lineLen to 0 */}
                 <line
                   x1={x1}
                   y1={y}
@@ -454,7 +586,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
                   stroke={color}
                   strokeWidth={strokeW}
                   strokeDasharray={isDashed ? "6 4" : (isCurrent ? `${lineLen}` : undefined)}
-                  strokeDashoffset={isCurrent ? undefined : undefined}
+                  strokeDashoffset={isCurrent && !isDashed ? `${lineLen}` : undefined}
                   markerEnd={markerUrl}
                 >
                   {isCurrent && !isDashed && (
@@ -493,6 +625,27 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
           })}
           </g>
         </svg>
+
+        {/* (#7) Message hover tooltip */}
+        {tooltipMsg && (
+          <div
+            className="pointer-events-none absolute z-40 max-w-xs rounded-lg border border-border/30 bg-background/95 backdrop-blur-md px-3 py-2 shadow-xl"
+            style={{
+              left: Math.min(tooltipMsg.x, (containerSize.width || 600) - 280),
+              top: tooltipMsg.y + 16,
+            }}
+          >
+            <p className="text-[11px] font-semibold text-foreground mb-0.5">
+              {tooltipMsg.msg.label}
+            </p>
+            {tooltipMsg.msg.narration && (
+              <p className="text-[10px] text-foreground-muted leading-relaxed">
+                {tooltipMsg.msg.narration}
+              </p>
+            )}
+          </div>
+        )}
+
         <ZoomToolbar
           zoomPercent={seqZoomPercent}
           onZoomIn={seqZoomIn}

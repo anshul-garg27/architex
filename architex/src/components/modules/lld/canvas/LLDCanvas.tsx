@@ -86,7 +86,9 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>, con
   const handlePanStart = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
       if (e.button !== 0) return;
-      if (e.target !== e.currentTarget && (e.target as SVGElement).tagName !== "rect") return;
+      // Allow pan from any common SVG child element (rect, line, path, text, etc.)
+      const tag = (e.target as SVGElement).tagName;
+      if (e.target !== e.currentTarget && !["rect", "line", "path", "text", "circle", "polyline", "g"].includes(tag)) return;
       isPanning.current = true;
       panStart.current = {
         x: e.clientX,
@@ -477,7 +479,7 @@ const UMLClassBox = memo(function UMLClassBox({
         width={w}
         height={h}
         rx={4}
-        fill="var(--lld-canvas-bg)"
+        fill="var(--lld-class-fill)"
         stroke={isSelected ? "var(--lld-canvas-selected)" : borderColor}
         strokeWidth={isSelected ? 2.5 : 1.5}
       />
@@ -510,7 +512,7 @@ const UMLClassBox = memo(function UMLClassBox({
           textAnchor="middle"
           fill={borderColor}
           fontSize="11"
-          fontFamily="monospace"
+          fontFamily="var(--font-geist-mono, monospace)"
         >
           {`\u00AB${stereo}\u00BB`}
         </text>
@@ -585,7 +587,7 @@ const UMLClassBox = memo(function UMLClassBox({
           y={attrStartY + i * ROW_HEIGHT + 13}
           fill="var(--lld-canvas-text-muted)"
           fontSize="11"
-          fontFamily="monospace"
+          fontFamily="var(--font-geist-mono, monospace)"
         >
           <tspan fill="var(--lld-canvas-text-subtle)">
             <title>{VISIBILITY_TOOLTIP[attr.visibility] ?? attr.visibility}</title>
@@ -615,7 +617,7 @@ const UMLClassBox = memo(function UMLClassBox({
           y={methStartY + i * ROW_HEIGHT + 13}
           fill={meth.isAbstract ? "var(--lld-canvas-abstract)" : "var(--lld-canvas-text-muted)"}
           fontSize="11"
-          fontFamily="monospace"
+          fontFamily="var(--font-geist-mono, monospace)"
           fontStyle={meth.isAbstract ? "italic" : "normal"}
         >
           <tspan fill="var(--lld-canvas-text-subtle)">
@@ -1568,9 +1570,9 @@ export const LLDCanvas = memo(function LLDCanvas({
               <circle
                 cx={CANVAS_GRID_SIZE / 2}
                 cy={CANVAS_GRID_SIZE / 2}
-                r="0.8"
-                fill="var(--lld-canvas-border)"
-                opacity="0.3"
+                r="1.0"
+                fill="var(--lld-canvas-text-subtle)"
+                opacity="0.18"
               />
             </pattern>
             {/* Task LLD-150: radial gradient overlay — lighter at center, darker at edges */}
@@ -1604,35 +1606,6 @@ export const LLDCanvas = memo(function LLDCanvas({
             fill="url(#lld-canvas-vignette)"
             pointerEvents="none"
           />
-
-          {/* Ambient floating particles — creates a living canvas feel */}
-          {!reducedMotion && (
-            <g pointerEvents="none">
-              {Array.from({ length: 12 }, (_, i) => {
-                const cx = viewBox.x + Math.random() * viewBox.w;
-                const cy = viewBox.y + Math.random() * viewBox.h;
-                const dx = (Math.random() - 0.5) * 80;
-                const dy = (Math.random() - 0.5) * 80;
-                return (
-                  <circle
-                    key={`particle-${i}`}
-                    cx={cx}
-                    cy={cy}
-                    r={Math.random() * 1.5 + 0.5}
-                    fill="var(--primary)"
-                    className="lld-particle"
-                    style={{
-                      "--p-dx": `${dx}px`,
-                      "--p-dy": `${dy}px`,
-                      "--p-duration": `${6 + Math.random() * 6}s`,
-                      "--p-delay": `${Math.random() * 6}s`,
-                      "--p-opacity": `${0.1 + Math.random() * 0.15}`,
-                    } as React.CSSProperties}
-                  />
-                );
-              })}
-            </g>
-          )}
 
           <g transform={zoomTransform} style={{ transformOrigin: "0 0" }}>
             {relationships.map((rel) => {

@@ -17,7 +17,7 @@
   /* Foreground */
   --foreground: hsl(220 14% 90%);
   --foreground-muted: hsl(220 10% 50%);
-  --foreground-subtle: hsl(220 10% 55%);
+  --foreground-subtle: hsl(220 10% 62%);
 
   /* Card / Popover */
   --card: hsl(228 15% 10%);
@@ -26,9 +26,10 @@
   --popover-foreground: hsl(220 14% 90%);
 
   /* Primary — Violet accent (Linear-inspired) */
-  --primary: hsl(252 87% 67%);
+  --primary: hsl(252 78% 64%);
   --primary-foreground: hsl(0 0% 100%);
-  --primary-hover: hsl(252 87% 60%);
+  --primary-hover: hsl(252 78% 57%);
+  --primary-rgb: 118 66 230;
 
   /* Secondary */
   --secondary: hsl(228 15% 15%);
@@ -49,7 +50,7 @@
   /* Border & Ring */
   --border: hsl(228 15% 16%);
   --input: hsl(228 15% 16%);
-  --ring: hsl(252 87% 67%);
+  --ring: hsl(252 78% 64%);
 
   /* Radius */
   --radius: 0.5rem;
@@ -147,40 +148,42 @@
   --canvas-dot: hsl(228 15% 14%);
   --canvas-selection: hsla(252 87% 67% / 0.15);
 
-  /* ── LLD Canvas (UML diagrams) ── */
-  --lld-canvas-bg: #2F353B;
-  --lld-canvas-bg-deep: #0f0f1a;
-  --lld-canvas-text: #e2e8f0;
-  --lld-canvas-text-muted: #94a3b8;
-  --lld-canvas-text-subtle: #64748b;
-  --lld-canvas-border: #6b7280;
-  --lld-canvas-edge: #9ca3af;
-  --lld-rel-stroke: #94a3b8;         /* monochrome stroke for all relationship types */
-  --lld-rel-highlight: #60a5fa;     /* highlighted edge color on hover */
-  --lld-canvas-selected: #60a5fa;
-  --lld-canvas-abstract: #c4b5fd;
-  --lld-canvas-lifeline: #4b5563;
-  --lld-canvas-activation: #2d3748;
-  --lld-canvas-actor-bg: #1e3a5f;
+  /* ── LLD Canvas (UML diagrams) — rebuilt on 228-degree HSL family ── */
+  --lld-canvas-bg: hsl(228 12% 17%);
+  --lld-canvas-bg-deep: hsl(228 15% 8%);
+  --lld-class-fill: hsl(228 12% 21%);
+  --lld-class-fill-hover: hsl(228 12% 24%);
+  --lld-canvas-text: hsl(220 14% 88%);
+  --lld-canvas-text-muted: hsl(220 10% 62%);
+  --lld-canvas-text-subtle: hsl(220 10% 48%);
+  --lld-canvas-border: hsl(220 10% 38%);
+  --lld-canvas-edge: hsl(220 10% 55%);
+  --lld-rel-stroke: hsl(220 10% 55%);
+  --lld-rel-highlight: hsl(217 90% 65%);
+  --lld-canvas-selected: hsl(217 90% 65%);
+  --lld-canvas-abstract: hsl(260 80% 82%);
+  --lld-canvas-lifeline: hsl(220 10% 32%);
+  --lld-canvas-activation: hsl(220 14% 20%);
+  --lld-canvas-actor-bg: hsl(217 50% 24%);
 
-  /* ── LLD Stereotype Colors ── */
-  --lld-stereo-interface: #3b82f6;
-  --lld-stereo-abstract: #a855f7;
-  --lld-stereo-enum: #22c55e;
-  --lld-stereo-class: #6b7280;
+  /* ── LLD Stereotype Colors — harmonized saturation ── */
+  --lld-stereo-interface: hsl(217 80% 62%);
+  --lld-stereo-abstract: hsl(272 68% 64%);
+  --lld-stereo-enum: hsl(152 60% 48%);
+  --lld-stereo-class: hsl(220 12% 52%);
 
   /* ── LLD SOLID Principle Colors ── */
-  --lld-solid-srp: #f59e0b;
-  --lld-solid-ocp: #3b82f6;
-  --lld-solid-lsp: #22c55e;
-  --lld-solid-isp: #a855f7;
-  --lld-solid-dip: #ef4444;
+  --lld-solid-srp: hsl(38 92% 50%);
+  --lld-solid-ocp: hsl(217 80% 62%);
+  --lld-solid-lsp: hsl(152 60% 48%);
+  --lld-solid-isp: hsl(272 68% 64%);
+  --lld-solid-dip: hsl(0 72% 51%);
 
-  /* ── LLD Difficulty Colors ── */
-  --lld-diff-easy: #22c55e;
-  --lld-diff-medium: #f59e0b;
-  --lld-diff-hard: #ef4444;
-  --lld-diff-expert: #dc2626;
+  /* ── LLD Difficulty Colors — clear perceptual steps ── */
+  --lld-diff-easy: hsl(152 65% 45%);
+  --lld-diff-medium: hsl(42 90% 52%);
+  --lld-diff-hard: hsl(25 90% 55%);
+  --lld-diff-expert: hsl(0 75% 52%);
 
   /* ── LLD Sequence Message Colors ── */
   --lld-seq-sync: #60a5fa;

@@ -152,33 +152,33 @@ export const DIFFICULTY_COLORS: Record<number, string> = {
 
 // ── Glassmorphism Shared Class Strings ──────────────────
 
-/** Glassmorphism container: rounded-xl + translucent bg + border + blur */
+/** Solid container: rounded-xl + solid bg + border */
 export const GLASS_CONTAINER =
-  "rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm";
+  "rounded-xl border border-border/30 bg-elevated";
 
-/** Gradient header text: primary to violet */
+/** Section label: solid muted text for hierarchy */
 export const GLASS_GRADIENT_TEXT =
-  "bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent";
+  "text-foreground-muted";
 
 /** Primary action button: rounded-full + glow ring */
 export const GLASS_BTN_PRIMARY =
   "rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-[0_0_12px_rgba(var(--primary-rgb),0.4)] transition-all hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.55)]";
 
-/** Secondary button: rounded-xl + border/30 + blur */
+/** Secondary button: rounded-xl + border */
 export const GLASS_BTN_SECONDARY =
-  "rounded-xl border border-border/30 bg-background/60 px-3 py-1.5 text-xs font-medium text-foreground-muted backdrop-blur-sm transition-all hover:bg-accent hover:text-foreground";
+  "rounded-xl border border-border/30 bg-elevated px-3 py-1.5 text-xs font-medium text-foreground-muted transition-all hover:bg-accent hover:text-foreground";
 
-/** Icon button: rounded-full + bg-background/80 */
+/** Icon button: rounded-full + solid bg */
 export const GLASS_BTN_ICON =
-  "flex items-center justify-center rounded-full bg-background/80 transition-colors hover:bg-accent hover:text-foreground";
+  "flex items-center justify-center rounded-full bg-elevated transition-colors hover:bg-accent hover:text-foreground";
 
 /** Badge: rounded-full with color glow */
 export const GLASS_BADGE =
   "rounded-full px-2.5 py-0.5 text-[10px] font-semibold";
 
-/** Info box: accent color border/30 + bg/5 + blur + shadow glow */
+/** Info box: accent color border + subtle bg + glow */
 export const GLASS_INFO_BOX =
-  "rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-sm shadow-[0_0_15px_rgba(var(--primary-rgb),0.08)]";
+  "rounded-xl border border-primary/30 bg-primary/5 shadow-[0_0_15px_rgba(var(--primary-rgb),0.08)]";
 
 // ── Sequence Diagram Constants ───────────────────────────
 

@@ -5,7 +5,7 @@
  * Split from LLDModule.tsx (LLD-037).
  */
 
-import React, { memo, useMemo, useRef } from "react";
+import React, { memo, useMemo, useRef, useState, useEffect, useCallback } from "react";
 import {
   Circle,
   Play,
@@ -26,12 +26,108 @@ import {
   SM_STATE_HEIGHT,
   SM_INITIAL_DOT_R,
   CANVAS_VIEWBOX_PAD,
+  CANVAS_GRID_SIZE,
   smStateColor,
   layoutStateMachine,
   smStateCenter,
   smBorderPoint,
   type StateMachineSimState,
 } from "../constants";
+
+// ── Animated Transition Edge ────────────────────────────
+// Measures its own path length and runs the lld-edge-draw animation on mount.
+
+const SMTransitionEdge = memo(function SMTransitionEdge({
+  pathD,
+  markerEnd,
+  highlighted,
+  dimmed,
+  delay,
+}: {
+  pathD: string;
+  markerEnd: string;
+  highlighted: boolean;
+  dimmed: boolean;
+  delay: number;
+}) {
+  const pathRef = useRef<SVGPathElement>(null);
+  const [pathLength, setPathLength] = useState(0);
+
+  useEffect(() => {
+    if (pathRef.current) setPathLength(pathRef.current.getTotalLength());
+  }, [pathD]);
+
+  const drawStyle: React.CSSProperties | undefined =
+    pathLength > 0
+      ? {
+          strokeDasharray: pathLength,
+          strokeDashoffset: pathLength,
+          animation: `lld-edge-draw 0.4s cubic-bezier(0.4,0,0.2,1) ${delay}s forwards`,
+        }
+      : undefined;
+
+  return (
+    <path
+      ref={pathRef}
+      d={pathD}
+      fill="none"
+      stroke="var(--lld-canvas-edge)"
+      strokeWidth={highlighted ? 2.5 : 1.5}
+      markerEnd={markerEnd}
+      opacity={dimmed ? 0.35 : 1}
+      style={{ ...drawStyle, transition: "opacity 0.2s ease, stroke-width 0.2s ease" }}
+    />
+  );
+});
+
+// ── Transition Hover Tooltip ────────────────────────────
+// Floating pill shown when hovering a transition arrow.
+
+function TransitionTooltip({
+  x,
+  y,
+  trigger,
+  guard,
+  action,
+}: {
+  x: number;
+  y: number;
+  trigger: string;
+  guard?: string;
+  action?: string;
+}) {
+  if (!guard && !action) return null;
+  const parts: string[] = [];
+  if (guard) parts.push(`[${guard}]`);
+  if (action) parts.push(`/ ${action}`);
+  const label = parts.join(" ");
+  const estimatedW = label.length * 5.8 + 16;
+  return (
+    <g pointerEvents="none">
+      <rect
+        x={x - estimatedW / 2}
+        y={y - 24}
+        width={estimatedW}
+        height={18}
+        rx={9}
+        fill="var(--lld-canvas-bg)"
+        stroke="var(--lld-canvas-border)"
+        strokeWidth={0.5}
+        opacity={0.95}
+      />
+      <text
+        x={x}
+        y={y - 12}
+        textAnchor="middle"
+        fontSize="9"
+        fontFamily="monospace"
+        fill="var(--lld-canvas-text)"
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
 
 // ── State Machine Canvas Component ───────────────────────
 
@@ -51,6 +147,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
   simState,
 }: StateMachineCanvasProps) {
   const smSvgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const {
     svgTransform: smZoomTransform,
     zoomPercent: smZoomPercent,
@@ -63,10 +160,65 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
     zoomFit: smZoomFit,
   } = useSVGZoomPan(smSvgRef);
 
+  // ── Hover state for interactive highlighting ──────────
+  const [hoveredStateId, setHoveredStateId] = useState<string | null>(null);
+  const [hoveredTransitionId, setHoveredTransitionId] = useState<string | null>(null);
+
+  // ── Container resize tracking ─────────────────────────
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerSize({ w: entry.contentRect.width, h: entry.contentRect.height });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const positions = useMemo(
     () => (data ? layoutStateMachine(data) : new Map<string, { x: number; y: number }>()),
     [data],
   );
+
+  const statesLength = data?.states.length ?? 0;
+
+  // ── Auto-fit on load / data change / container resize ──
+  useEffect(() => {
+    if (statesLength > 0) smZoomFit();
+  }, [statesLength, containerSize.w, containerSize.h]);
+
+  // ── Connections from/to hovered state (for highlight) ──
+  const hoveredConnections = useMemo(() => {
+    if (!hoveredStateId || !data) return new Set<string>();
+    const ids = new Set<string>();
+    for (const t of data.transitions) {
+      if (t.from === hoveredStateId || t.to === hoveredStateId) ids.add(t.id);
+    }
+    return ids;
+  }, [hoveredStateId, data]);
+
+  const connectedStates = useMemo(() => {
+    if (!hoveredStateId || !data) return new Set<string>();
+    const ids = new Set<string>([hoveredStateId]);
+    for (const t of data.transitions) {
+      if (t.from === hoveredStateId) ids.add(t.to);
+      if (t.to === hoveredStateId) ids.add(t.from);
+    }
+    return ids;
+  }, [hoveredStateId, data]);
+
+  // ── Glow color by state type ──────────────────────────
+  const hoveredGlowColor = useMemo(() => {
+    if (!hoveredStateId || !data) return "var(--lld-canvas-border)";
+    const s = data.states.find((st) => st.id === hoveredStateId);
+    if (!s) return "var(--lld-canvas-border)";
+    if (s.isInitial) return "var(--lld-stereo-interface)";
+    if (s.isFinal) return "var(--lld-stereo-enum)";
+    return "var(--lld-canvas-border)";
+  }, [hoveredStateId, data]);
 
   if (!data || data.states.length === 0) {
     return (
@@ -81,18 +233,30 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
     );
   }
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  positions.forEach((pos) => {
-    minX = Math.min(minX, pos.x);
-    minY = Math.min(minY, pos.y);
-    maxX = Math.max(maxX, pos.x + SM_STATE_WIDTH);
-    maxY = Math.max(maxY, pos.y + SM_STATE_HEIGHT);
-  });
+  // ── ViewBox with minimum dimensions ───────────────────
+  const contentBounds = (() => {
+    let cMinX = Infinity, cMinY = Infinity, cMaxX = -Infinity, cMaxY = -Infinity;
+    positions.forEach((pos) => {
+      cMinX = Math.min(cMinX, pos.x);
+      cMinY = Math.min(cMinY, pos.y);
+      cMaxX = Math.max(cMaxX, pos.x + SM_STATE_WIDTH);
+      cMaxY = Math.max(cMaxY, pos.y + SM_STATE_HEIGHT);
+    });
+    return { x: cMinX, y: cMinY, w: cMaxX - cMinX, h: cMaxY - cMinY };
+  })();
+
   const pad = CANVAS_VIEWBOX_PAD;
-  const vbX = minX - pad;
-  const vbY = minY - pad - 30;
-  const vbW = maxX - minX + 2 * pad;
-  const vbH = maxY - minY + 2 * pad + 30;
+  const rawW = contentBounds.w + 2 * pad;
+  const rawH = contentBounds.h + 2 * pad + 30;
+  const MIN_W = 800;
+  const MIN_H = 500;
+  const vbW = Math.max(rawW, MIN_W);
+  const vbH = Math.max(rawH, MIN_H);
+  const cx = contentBounds.x + contentBounds.w / 2;
+  const cy = contentBounds.y + contentBounds.h / 2;
+  const viewBox = { x: cx - vbW / 2, y: cy - vbH / 2 - 15, w: vbW, h: vbH };
+
+  const gridSize = CANVAS_GRID_SIZE;
 
   const transitionPairs = new Map<string, StateTransition[]>();
   for (const t of data.transitions) {
@@ -100,6 +264,25 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
     if (!transitionPairs.has(key)) transitionPairs.set(key, []);
     transitionPairs.get(key)!.push(t);
   }
+
+  // Seeded pseudo-random for particles (stable across re-renders)
+  const particles = useMemo(() => {
+    const seed = statesLength * 7 + 42;
+    const rng = (i: number) => {
+      const x = Math.sin(seed + i * 9301 + 49297) * 49979;
+      return x - Math.floor(x);
+    };
+    return Array.from({ length: 12 }, (_, i) => ({
+      cx: viewBox.x + rng(i * 4) * viewBox.w,
+      cy: viewBox.y + rng(i * 4 + 1) * viewBox.h,
+      dx: (rng(i * 4 + 2) - 0.5) * 80,
+      dy: (rng(i * 4 + 3) - 0.5) * 80,
+      r: rng(i * 4 + 10) * 1.5 + 0.5,
+      duration: 6 + rng(i * 4 + 20) * 6,
+      delay: rng(i * 4 + 30) * 6,
+      opacity: 0.1 + rng(i * 4 + 40) * 0.15,
+    }));
+  }, [viewBox.x, viewBox.y, viewBox.w, viewBox.h, statesLength]);
 
   return (
     <div className="flex h-full flex-col">
@@ -110,26 +293,68 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
             {title}
           </span>
           <div className="ml-auto flex items-center gap-3">
+            {/* Legend — using CSS variables for light/dark compatibility */}
             <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-full bg-blue-400" />
+              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--lld-stereo-interface)" }} />
               <span className="text-[10px] text-foreground-subtle">Initial</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-full border border-green-400" style={{ borderWidth: 2 }} />
+              <div className="h-2 w-2 rounded-full" style={{ border: "2px solid var(--lld-stereo-enum)", boxSizing: "border-box" }} />
               <span className="text-[10px] text-foreground-subtle">Final</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-full bg-gray-500" />
+              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--lld-canvas-border)" }} />
               <span className="text-[10px] text-foreground-subtle">State</span>
+            </div>
+            {/* Compact zoom controls in header */}
+            <div className="mx-1 h-4 w-px bg-border/30" />
+            <div className="flex items-center gap-1">
+              <button
+                onClick={smZoomOut}
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-background/80 backdrop-blur border border-border/50 text-[10px] font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+                title="Zoom out"
+                aria-label="Zoom out"
+              >
+                -
+              </button>
+              <span className="min-w-[2rem] text-center text-[10px] font-medium text-foreground-subtle tabular-nums">
+                {smZoomPercent}%
+              </span>
+              <button
+                onClick={smZoomIn}
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-background/80 backdrop-blur border border-border/50 text-[10px] font-bold text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+                title="Zoom in"
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+              <button
+                onClick={smZoomFit}
+                className="rounded-full bg-background/80 backdrop-blur border border-border/50 px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+                title="Fit to view"
+                aria-label="Fit to view"
+              >
+                Fit
+              </button>
+              <button
+                onClick={smZoomReset}
+                className="rounded-full bg-background/80 backdrop-blur border border-border/50 px-1.5 py-0.5 text-[9px] font-medium text-foreground-muted transition-colors hover:bg-accent hover:text-foreground"
+                title="Reset to 100%"
+                aria-label="Reset to 100%"
+              >
+                100%
+              </button>
             </div>
           </div>
         </div>
       )}
-      <div className="relative flex-1 overflow-hidden bg-background">
+      <div ref={containerRef} className="relative flex-1 overflow-hidden bg-background">
         <svg
           ref={smSvgRef}
-          viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+          viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+          preserveAspectRatio="xMidYMid meet"
           className="h-full w-full"
+          style={{ minHeight: 400 }}
           onClick={() => onSelectState(null)}
           onPointerDown={smHandlePanStart}
           onPointerMove={smHandlePanMove}
@@ -155,11 +380,74 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
                 <feMergeNode in="SourceGraphic"/>
               </feMerge>
             </filter>
+            {/* Colored glow filter for hovered state type */}
+            <filter id="sm-hover-glow">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            {/* Dot grid background pattern */}
+            <pattern id="sm-grid" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
+              <circle
+                cx={gridSize / 2}
+                cy={gridSize / 2}
+                r="0.8"
+                fill="var(--lld-canvas-text-subtle)"
+                opacity="0.18"
+              />
+            </pattern>
+            {/* Vignette radial gradient — lighter center, darker edges */}
+            <radialGradient id="sm-canvas-vignette" cx="50%" cy="50%" r="75%" fx="50%" fy="50%">
+              <stop offset="0%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
+              <stop offset="80%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
+              <stop offset="100%" stopColor="var(--lld-canvas-bg-deep)" stopOpacity="0.2" />
+            </radialGradient>
           </defs>
+
+          {/* Dot grid background */}
+          <rect
+            x={viewBox.x}
+            y={viewBox.y}
+            width={viewBox.w}
+            height={viewBox.h}
+            fill="url(#sm-grid)"
+          />
+          {/* Radial vignette overlay */}
+          <rect
+            x={viewBox.x}
+            y={viewBox.y}
+            width={viewBox.w}
+            height={viewBox.h}
+            fill="url(#sm-canvas-vignette)"
+            pointerEvents="none"
+          />
+
+          {/* Ambient floating particles */}
+          <g pointerEvents="none">
+            {particles.map((p, i) => (
+              <circle
+                key={`sm-particle-${i}`}
+                cx={p.cx}
+                cy={p.cy}
+                r={p.r}
+                fill="var(--primary)"
+                className="lld-particle"
+                style={{
+                  "--p-dx": `${p.dx}px`,
+                  "--p-dy": `${p.dy}px`,
+                  "--p-duration": `${p.duration}s`,
+                  "--p-delay": `${p.delay}s`,
+                  "--p-opacity": `${p.opacity}`,
+                } as React.CSSProperties}
+              />
+            ))}
+          </g>
 
           <g transform={smZoomTransform} style={{ transformOrigin: "0 0" }}>
           {/* Transitions */}
-          {data.transitions.map((t) => {
+          {data.transitions.map((t, tIdx) => {
             const fromPos = positions.get(t.from);
             const toPos = positions.get(t.to);
             if (!fromPos || !toPos) return null;
@@ -167,29 +455,59 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
             const fromC = smStateCenter(fromPos);
             const toC = smStateCenter(toPos);
 
+            const isHighlighted = hoveredConnections.has(t.id);
+            const isDimmed = hoveredStateId !== null && !isHighlighted;
+            const isTransitionHovered = hoveredTransitionId === t.id;
+
             if (t.from === t.to) {
-              const cx = fromPos.x + SM_STATE_WIDTH / 2;
+              const selfCx = fromPos.x + SM_STATE_WIDTH / 2;
               const topY = fromPos.y;
               const loopR = 24;
+              const loopPathD = `M ${selfCx - 12} ${topY} C ${selfCx - 12} ${topY - loopR * 2}, ${selfCx + 12} ${topY - loopR * 2}, ${selfCx + 12} ${topY}`;
               return (
-                <g key={t.id}>
-                  <path
-                    d={`M ${cx - 12} ${topY} C ${cx - 12} ${topY - loopR * 2}, ${cx + 12} ${topY - loopR * 2}, ${cx + 12} ${topY}`}
-                    fill="none"
-                    stroke="var(--lld-canvas-edge)"
-                    strokeWidth="1.5"
+                <g
+                  key={t.id}
+                  onPointerEnter={() => setHoveredTransitionId(t.id)}
+                  onPointerLeave={() => setHoveredTransitionId(null)}
+                  style={{ cursor: "default" }}
+                >
+                  <SMTransitionEdge
+                    pathD={loopPathD}
                     markerEnd="url(#sm-arrow)"
+                    highlighted={isHighlighted}
+                    dimmed={isDimmed}
+                    delay={tIdx * 0.08}
+                  />
+                  {/* Wider invisible hit area for hover */}
+                  <path
+                    d={loopPathD}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth="14"
+                    pointerEvents="stroke"
+                    onPointerEnter={() => setHoveredTransitionId(t.id)}
+                    onPointerLeave={() => setHoveredTransitionId(null)}
                   />
                   <text
-                    x={cx}
+                    x={selfCx}
                     y={topY - loopR * 2 + 4}
                     textAnchor="middle"
                     className="text-[11px]"
                     fill="var(--lld-canvas-edge)"
+                    opacity={isDimmed ? 0.35 : 1}
                   >
                     {t.trigger}
                     {t.guard ? ` [${t.guard}]` : ""}
                   </text>
+                  {isTransitionHovered && (
+                    <TransitionTooltip
+                      x={selfCx}
+                      y={topY - loopR * 2 - 10}
+                      trigger={t.trigger}
+                      guard={t.guard}
+                      action={t.action}
+                    />
+                  )}
                 </g>
               );
             }
@@ -220,13 +538,28 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
             const label = t.trigger + (t.guard ? ` [${t.guard}]` : "");
 
             return (
-              <g key={t.id}>
+              <g
+                key={t.id}
+                onPointerEnter={() => setHoveredTransitionId(t.id)}
+                onPointerLeave={() => setHoveredTransitionId(null)}
+                style={{ cursor: "default" }}
+              >
+                <SMTransitionEdge
+                  pathD={pathD}
+                  markerEnd="url(#sm-arrow)"
+                  highlighted={isHighlighted}
+                  dimmed={isDimmed}
+                  delay={tIdx * 0.08}
+                />
+                {/* Wider invisible hit area for hover */}
                 <path
                   d={pathD}
                   fill="none"
-                  stroke="var(--lld-canvas-edge)"
-                  strokeWidth="1.5"
-                  markerEnd="url(#sm-arrow)"
+                  stroke="transparent"
+                  strokeWidth="14"
+                  pointerEvents="stroke"
+                  onPointerEnter={() => setHoveredTransitionId(t.id)}
+                  onPointerLeave={() => setHoveredTransitionId(null)}
                 />
                 <rect
                   x={labelX - label.length * 2.8}
@@ -235,7 +568,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
                   height={14}
                   rx="3"
                   fill="var(--lld-canvas-bg)"
-                  opacity="0.85"
+                  opacity={isDimmed ? 0.35 * 0.85 : 0.85}
                 />
                 <text
                   x={labelX}
@@ -243,9 +576,19 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
                   textAnchor="middle"
                   className="text-[11px]"
                   fill="var(--lld-canvas-edge)"
+                  opacity={isDimmed ? 0.35 : 1}
                 >
                   {label}
                 </text>
+                {isTransitionHovered && (
+                  <TransitionTooltip
+                    x={labelX}
+                    y={labelY - 22}
+                    trigger={t.trigger}
+                    guard={t.guard}
+                    action={t.action}
+                  />
+                )}
               </g>
             );
           })}
@@ -297,6 +640,9 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
             const isSimActive = simState?.active === true;
             const isSimCurrent = isSimActive && simState?.currentStateId === state.id;
             const simOpacity = isSimActive && !isSimCurrent ? 0.5 : 1;
+            const isStateHovered = hoveredStateId === state.id;
+            const isDimmedState = hoveredStateId !== null && !connectedStates.has(state.id);
+            const stateOpacity = isDimmedState ? 0.35 : simOpacity;
 
             return (
               <g
@@ -305,9 +651,27 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
                   e.stopPropagation();
                   onSelectState(state.id);
                 }}
-                style={{ cursor: "pointer", opacity: simOpacity, transition: "opacity 0.3s ease" }}
-                filter={(isSelected || isSimCurrent) ? "url(#sm-glow)" : undefined}
+                onPointerEnter={() => setHoveredStateId(state.id)}
+                onPointerLeave={() => setHoveredStateId(null)}
+                style={{ cursor: "pointer", opacity: stateOpacity, transition: "opacity 0.2s ease" }}
+                filter={(isSelected || isSimCurrent || isStateHovered) ? "url(#sm-glow)" : undefined}
               >
+                {/* Hover glow ring — colored by state type */}
+                {isStateHovered && !isSimCurrent && !isSelected && (
+                  <rect
+                    x={pos.x - 5}
+                    y={pos.y - 5}
+                    width={SM_STATE_WIDTH + 10}
+                    height={SM_STATE_HEIGHT + 10}
+                    rx={SM_STATE_RX + 3}
+                    ry={SM_STATE_RY + 3}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="2"
+                    opacity={0.35}
+                  />
+                )}
+
                 {state.isInitial && (
                   <>
                     <circle
@@ -373,7 +737,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
                   rx={SM_STATE_RX}
                   ry={SM_STATE_RY}
                   fill={color}
-                  fillOpacity={isSimCurrent ? 0.2 : 0.07}
+                  fillOpacity={isSimCurrent ? 0.2 : isStateHovered ? 0.12 : 0.07}
                   stroke={isSimCurrent ? "var(--lld-solid-srp)" : isSelected ? "var(--lld-solid-srp)" : color}
                   strokeWidth={isSimCurrent ? 2.5 : isSelected ? 2.5 : 1.5}
                 />
@@ -485,8 +849,8 @@ export const SimTransitionPanel = memo(function SimTransitionPanel({
                 <Play className="h-3 w-3 text-primary" />
                 <span className="font-mono">{t.trigger}</span>
                 {t.guard && (
-                  <span className="flex items-center gap-0.5 rounded-lg bg-amber-500/15 px-1 py-0.5 text-[9px] text-amber-400">
-                    <CheckCircle2 className="h-2.5 w-2.5 text-green-400" />
+                  <span className="flex items-center gap-0.5 rounded-lg px-1 py-0.5 text-[9px]" style={{ backgroundColor: "rgba(245,158,11,0.15)", color: "var(--lld-diff-medium)" }}>
+                    <CheckCircle2 className="h-2.5 w-2.5" style={{ color: "var(--lld-stereo-enum)" }} />
                     [{t.guard}]
                   </span>
                 )}

@@ -108,7 +108,7 @@ const PatternBrowser = memo(function PatternBrowser({
                     <ChevronRight className="h-3 w-3" />
                   )}
                   {CATEGORY_LABELS[cat]}
-                  <span className="ml-auto text-[10px] font-normal rounded-full border border-border/30 bg-elevated/50 backdrop-blur-sm px-1.5 py-0.5 text-foreground-subtle">
+                  <span className="ml-auto text-[10px] font-normal rounded-full border border-border/30 bg-elevated px-1.5 py-0.5 text-foreground-subtle">
                     {catPatterns.length}
                   </span>
                 </button>
@@ -171,7 +171,7 @@ const ClassPalette = memo(function ClassPalette({
           <button
             key={item.type}
             onClick={() => onAddClass(item.type)}
-            className="flex w-full items-center gap-2 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-2 py-2 text-xs text-foreground-muted transition-all hover:bg-elevated hover:text-foreground hover:shadow-[0_0_10px_rgba(110,86,207,0.08)]"
+            className="flex w-full items-center gap-2 rounded-xl border border-border/30 bg-elevated px-2 py-2 text-xs text-foreground-muted transition-all hover:bg-elevated hover:text-foreground hover:shadow-[0_0_10px_rgba(110,86,207,0.08)]"
           >
             <GripVertical className="h-3 w-3 shrink-0 opacity-40" />
             <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: STEREOTYPE_BORDER_COLOR[item.type] }} />
@@ -351,7 +351,7 @@ export const PracticeModeSetup = memo(function PracticeModeSetup({
                 "flex-1 rounded-xl py-1.5 text-[11px] font-medium transition-all",
                 minutes === opt
                   ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(110,86,207,0.3)]"
-                  : "bg-elevated/50 backdrop-blur-sm text-foreground-muted hover:bg-elevated hover:text-foreground",
+                  : "bg-elevated text-foreground-muted hover:bg-elevated hover:text-foreground",
               )}
             >
               {opt}m
@@ -368,7 +368,7 @@ export const PracticeModeSetup = memo(function PracticeModeSetup({
         </button>
         <button
           onClick={onCancel}
-          className="rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-3 py-2 text-[11px] font-medium text-foreground-subtle transition-all hover:bg-elevated hover:text-foreground hover:shadow-[0_0_10px_rgba(110,86,207,0.08)]"
+          className="rounded-xl border border-border/30 bg-elevated px-3 py-2 text-[11px] font-medium text-foreground-subtle transition-all hover:bg-elevated hover:text-foreground hover:shadow-[0_0_10px_rgba(110,86,207,0.08)]"
         >
           Cancel
         </button>
@@ -564,7 +564,7 @@ const CodeToDiagramPanel = memo(function CodeToDiagramPanel({
         inheritance relationships onto the canvas.
       </p>
 
-      <div className="flex gap-1 rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm p-1">
+      <div className="flex gap-1 rounded-xl border border-border/30 bg-elevated p-1">
         <button
           onClick={() => { setLang("typescript"); setError(null); }}
           className={cn(
@@ -597,7 +597,7 @@ const CodeToDiagramPanel = memo(function CodeToDiagramPanel({
             ? "class Dog extends Animal {\n  private name: string;\n  bark(): void;\n}"
             : "class Dog(Animal):\n    def __init__(self, name):\n        self.name = name\n    def bark(self) -> None:\n        pass"
         }
-        className="h-48 w-full resize-y rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-3 py-2 font-mono text-[11px] text-foreground placeholder:text-foreground-subtle/40 focus:border-primary/50 focus:outline-none focus:shadow-[0_0_15px_rgba(110,86,207,0.1)]"
+        className="h-48 w-full resize-y rounded-xl border border-border/30 bg-elevated px-3 py-2 font-mono text-[11px] text-foreground placeholder:text-foreground-subtle/40 focus:border-primary/50 focus:outline-none focus:shadow-[0_0_15px_rgba(110,86,207,0.1)]"
         spellCheck={false}
       />
 
@@ -616,7 +616,7 @@ const CodeToDiagramPanel = memo(function CodeToDiagramPanel({
       </button>
       <button
         onClick={handleLoadSample}
-        className="w-full rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm px-3 py-1.5 text-[10px] font-medium text-foreground-subtle transition-all hover:bg-elevated hover:text-foreground hover:shadow-[0_0_10px_rgba(110,86,207,0.08)]"
+        className="w-full rounded-xl border border-border/30 bg-elevated px-3 py-1.5 text-[10px] font-medium text-foreground-subtle transition-all hover:bg-elevated hover:text-foreground hover:shadow-[0_0_10px_rgba(110,86,207,0.08)]"
       >
         Load Sample {lang === "typescript" ? "TypeScript" : "Python"}
       </button>
@@ -696,7 +696,7 @@ const SidebarSearch = memo(function SidebarSearch() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && query.length >= 2 && setShowResults(true)}
           placeholder="Search patterns, problems..."
-          className="w-full rounded-xl border border-border/30 bg-elevated/50 backdrop-blur-sm pl-7 pr-7 py-1.5 text-[11px] text-foreground placeholder:text-foreground-subtle/40 focus:border-primary/50 focus:outline-none focus:shadow-[0_0_15px_rgba(110,86,207,0.1)]"
+          className="w-full rounded-xl border border-border/30 bg-elevated pl-7 pr-7 py-1.5 text-[11px] text-foreground placeholder:text-foreground-subtle/40 focus:border-primary/50 focus:outline-none focus:shadow-[0_0_15px_rgba(110,86,207,0.1)]"
         />
         {isSearching && (
           <Loader2 className="absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-foreground-subtle" />
