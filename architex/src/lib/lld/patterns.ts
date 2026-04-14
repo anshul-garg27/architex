@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { DesignPattern, PatternCategory } from "./types";
-import { JAVA_CODE } from "@/db/seeds/java-code-gen";
+import { JAVA_CODE } from "./java-code";
 
 // ── Helper: generate relationship ids ──────────────────────
 

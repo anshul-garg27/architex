@@ -766,7 +766,7 @@ export function useLLDModule() {
   const handleLoadObserver = useCallback(() => {
     const observer = DESIGN_PATTERNS.find((p) => p.id === "observer");
     if (observer) handleSelectPattern(observer);
-  }, [handleSelectPattern]);
+  }, [DESIGN_PATTERNS, handleSelectPattern]);
 
   // ── Streak & Exploration Tracking ─────────────────────
 
