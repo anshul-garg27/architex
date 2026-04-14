@@ -1241,14 +1241,7 @@ export const LLDCanvas = memo(function LLDCanvas({
     setViewportPosition,
   } = useSVGZoomPan(svgRef);
 
-  // Auto-fit zoom when diagram content OR container size changes
-  // (pattern switch, bottom panel open/close, window resize)
-  const classIdsKey = useMemo(() => classes.map((c) => c.id).join(","), [classes]);
-  useEffect(() => {
-    if (classes.length > 0) zoomFit(contentBounds);
-  }, [classIdsKey, containerSize.width, containerSize.height]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Track container pixel dimensions for Minimap viewport scaling
+  // Track container pixel dimensions for Minimap viewport scaling + auto-fit
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   useEffect(() => {
     const el = containerRef.current;
@@ -1261,6 +1254,13 @@ export const LLDCanvas = memo(function LLDCanvas({
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
+
+  // Auto-fit zoom when diagram content OR container size changes
+  // (pattern switch, bottom panel open/close, window resize)
+  const classIdsKey = useMemo(() => classes.map((c) => c.id).join(","), [classes]);
+  useEffect(() => {
+    if (classes.length > 0) zoomFit(contentBounds);
+  }, [classIdsKey, containerSize.width, containerSize.height]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [connectionDrag, setConnectionDrag] = useState<ConnectionDragState | null>(null);
   const [pickerState, setPickerState] = useState<{
