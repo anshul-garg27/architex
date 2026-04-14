@@ -344,7 +344,7 @@ async function logUsage(
   const db = getDb();
   await db.insert(aiUsage).values({
     userId,
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     tokens,
     cost,
     purpose: "explain",
@@ -476,7 +476,7 @@ Guidelines:
     const client = new Anthropic({ apiKey });
 
     const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
       system: systemPrompt,
       messages: [
