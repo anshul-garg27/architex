@@ -74,9 +74,9 @@ export function layoutDagre(
 ): LayoutResult {
   const {
     rankDir = "TB",
-    nodeSep = 60,
-    rankSep = 80,
-    edgeSep = 20,
+    nodeSep = 80,
+    rankSep = 100,
+    edgeSep = 30,
     align,
   } = options;
 

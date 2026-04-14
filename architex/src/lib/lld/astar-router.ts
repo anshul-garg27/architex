@@ -22,16 +22,16 @@ interface Obstacle {
 }
 
 /** Padding around obstacles so edges don't hug box borders. */
-const OBSTACLE_PAD = 15;
+const OBSTACLE_PAD = 25;
 
 /** Small cost penalty added when changing direction (to prefer straighter paths). */
-const BEND_PENALTY = 5;
+const BEND_PENALTY = 8;
 
 /**
  * Minimum perpendicular stub length when exiting/entering a box side.
  * This ensures the path starts moving away from the box before turning.
  */
-const EXIT_STUB = 20;
+const EXIT_STUB = 25;
 
 // ── Grid Construction ───────────────────────────────────────
 
