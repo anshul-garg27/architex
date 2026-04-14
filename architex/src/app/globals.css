@@ -450,6 +450,28 @@ html.light {
   --canvas-dot: hsl(220 13% 88%);
   --canvas-selection: hsla(252 87% 55% / 0.1);
 
+  /* ── LLD Canvas (light mode) ── */
+  --lld-canvas-bg: #ffffff;
+  --lld-canvas-bg-deep: #f8fafc;
+  --lld-canvas-text: #1e293b;
+  --lld-canvas-text-muted: #475569;
+  --lld-canvas-text-subtle: #94a3b8;
+  --lld-canvas-border: #cbd5e1;
+  --lld-canvas-edge: #64748b;
+  --lld-rel-stroke: #64748b;
+  --lld-rel-highlight: #3b82f6;
+  --lld-canvas-selected: #3b82f6;
+  --lld-canvas-abstract: #7c3aed;
+  --lld-canvas-lifeline: #cbd5e1;
+  --lld-canvas-activation: #e2e8f0;
+  --lld-canvas-actor-bg: #dbeafe;
+
+  /* ── LLD Stereotype Colors (light mode) ── */
+  --lld-stereo-interface: #2563eb;
+  --lld-stereo-abstract: #7c3aed;
+  --lld-stereo-enum: #16a34a;
+  --lld-stereo-class: #64748b;
+
   --statusbar: hsl(0 0% 97%);
   --statusbar-foreground: hsl(220 10% 40%);
 
