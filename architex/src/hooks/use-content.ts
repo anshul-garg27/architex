@@ -119,7 +119,7 @@ export function useCatalog(
   return useQuery({
     queryKey: contentKeys.list(moduleId, type, filters),
     queryFn: () => fetchCatalog(moduleId, type, filters),
-    staleTime: Infinity, // catalog data changes only on re-seed
+    staleTime: 5 * 60 * 1000, // 5 minutes — cache during session, refetch after re-seed
     enabled: !!moduleId && !!type,
   });
 }
@@ -139,7 +139,7 @@ export function useContentDetail(
   return useQuery({
     queryKey: contentKeys.detail(moduleId, type, slug ?? ""),
     queryFn: () => fetchContentDetail(moduleId, type, slug!),
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!moduleId && !!type && !!slug,
   });
 }
