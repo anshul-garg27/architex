@@ -1534,15 +1534,15 @@ export const LLDCanvas = memo(function LLDCanvas({
                 cx={CANVAS_GRID_SIZE / 2}
                 cy={CANVAS_GRID_SIZE / 2}
                 r="0.8"
-                fill="#ffffff"
-                opacity="0.12"
+                fill="var(--lld-canvas-border)"
+                opacity="0.3"
               />
             </pattern>
             {/* Task LLD-150: radial gradient overlay — lighter at center, darker at edges */}
             <radialGradient id="lld-canvas-vignette" cx="50%" cy="50%" r="75%" fx="50%" fy="50%">
               <stop offset="0%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
               <stop offset="80%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
-              <stop offset="100%" stopColor="#0a0e14" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="var(--lld-canvas-bg-deep)" stopOpacity="0.2" />
             </radialGradient>
             {/* Glassmorphism glow filter for selected/active elements */}
             <filter id="glow">
