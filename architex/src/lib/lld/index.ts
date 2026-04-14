@@ -89,6 +89,8 @@ export {
 export { generateTypeScript, generateTypeScriptFiles } from "./codegen/diagram-to-typescript";
 export { generatePython } from "./codegen/diagram-to-python";
 export { generateMermaid } from "./codegen/diagram-to-mermaid";
+export { parseMermaidClassDiagram } from "./codegen/mermaid-to-diagram";
+export type { MermaidParseResult } from "./codegen/mermaid-to-diagram";
 
 // ── Code-to-Diagram Parsing ─────────────────────────────────
 export {

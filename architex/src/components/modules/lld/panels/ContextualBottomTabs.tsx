@@ -32,6 +32,7 @@ const ConfusedWithTab = lazy(() => import("./ConfusedWithTab").then(m => ({ defa
 const InterviewPrepTab = lazy(() => import("./InterviewPrepTab").then(m => ({ default: m.InterviewPrepTab })));
 const PatternQuizFiltered = lazy(() => import("./PatternQuizFiltered").then(m => ({ default: m.PatternQuizFiltered })));
 const WalkthroughPlayer = lazy(() => import("./WalkthroughPlayer").then(m => ({ default: m.WalkthroughPlayer })));
+const MermaidEditor = lazy(() => import("./MermaidEditor"));
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -56,6 +57,7 @@ function getPatternTabs(pattern: DesignPattern): TabDef[] {
     { id: "scenario", label: "Scenario" },
     { id: "interview", label: "Interview" },
     { id: "challenge", label: "Challenge" },
+    { id: "dsl-editor", label: "DSL Editor" },
   ];
   if (RESILIENCE_SIM_IDS.has(pattern.id)) {
     tabs.push({ id: "simulate", label: "Simulate" });
@@ -109,6 +111,7 @@ interface ContextualBottomTabsProps {
   isPracticeSubmitted: boolean;
   practiceAssessment: React.ReactNode | null;
   onLoadPattern: (pattern: DesignPattern) => void;
+  onDiagramUpdate?: (classes: UMLClass[], relationships: UMLRelationship[]) => void;
 }
 
 // ── Component ───────────────────────────────────────────────
@@ -125,6 +128,7 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
   isPracticeSubmitted,
   practiceAssessment,
   onLoadPattern,
+  onDiagramUpdate,
 }: ContextualBottomTabsProps) {
   const [activeTabId, setActiveTabId] = useState<string>("explain");
 
@@ -220,6 +224,9 @@ export const ContextualBottomTabs = memo(function ContextualBottomTabs({
               {resolvedTabId === "interview" && <InterviewPrepTab pattern={activePattern} />}
               {resolvedTabId === "challenge" && <DailyChallenge />}
               {resolvedTabId === "simulate" && <PatternBehavioralSimulator />}
+              {resolvedTabId === "dsl-editor" && onDiagramUpdate && (
+                <MermaidEditor classes={classes} relationships={relationships} onDiagramUpdate={onDiagramUpdate} />
+              )}
             </>
           )}
 

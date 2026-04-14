@@ -961,6 +961,13 @@ export function useLLDModule() {
     <PracticeAssessment problem={practiceState!.problem} checkedHints={practiceState!.checkedHints} onToggleHint={handleTogglePracticeHint} onRetry={handlePracticeRetry} onExit={handlePracticeCancel} />
   ) : null;
 
+  const handleDiagramUpdateFromMermaid = useCallback((newClasses: UMLClass[], newRels: UMLRelationship[]) => {
+    pushUndo();
+    setClasses(newClasses.map((c) => ({ ...c, attributes: [...c.attributes], methods: [...c.methods] })));
+    setRelationships([...newRels]);
+    setIsDirty(true);
+  }, [pushUndo]);
+
   const bottomPanel = (
     <ContextualBottomTabs
       activePattern={activePattern}
@@ -974,6 +981,7 @@ export function useLLDModule() {
       isPracticeSubmitted={isPracticeSubmitted}
       practiceAssessment={practiceAssessment}
       onLoadPattern={handleSelectPattern}
+      onDiagramUpdate={handleDiagramUpdateFromMermaid}
     />
   );
 
