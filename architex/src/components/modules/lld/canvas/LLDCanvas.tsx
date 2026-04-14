@@ -6,7 +6,7 @@
  */
 
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { Layers, Sparkles, Loader2 } from "lucide-react";
+import { Layers, Sparkles, Loader2, LayoutGrid } from "lucide-react";
 import { AIReviewPanel } from "./AIReviewPanel";
 import { Minimap } from "./Minimap";
 import { CanvasEmptyState } from "@/components/shared/lld-empty-states";
@@ -649,14 +649,46 @@ const UMLClassBox = memo(function UMLClassBox({
 
 // ── SVG: UML Relationship Edge ─────────────────────────────
 
+/** Build a smooth SVG path through an array of points using Catmull-Rom → cubic bezier. */
+function smoothPathD(points: Array<{ x: number; y: number }>): string {
+  if (points.length < 2) return "";
+  if (points.length === 2) {
+    // Simple straight line
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
+
+  // For 3+ points, use smooth cubic bezier through the waypoints
+  let d = `M ${points[0].x} ${points[0].y}`;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+
+    // Catmull-Rom to cubic bezier control points (tension = 0.3)
+    const tension = 0.3;
+    const cp1x = p1.x + (p2.x - p0.x) * tension;
+    const cp1y = p1.y + (p2.y - p0.y) * tension;
+    const cp2x = p2.x - (p3.x - p1.x) * tension;
+    const cp2y = p2.y - (p3.y - p1.y) * tension;
+
+    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  }
+
+  return d;
+}
+
 interface UMLEdgeProps {
   rel: UMLRelationship;
   classById: Map<string, UMLClass>;
   edgeDelay: number;
   reducedMotion: boolean;
+  /** Dagre-computed route points for this edge (if available). */
+  routePoints?: Array<{ x: number; y: number }>;
 }
 
-const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion }: UMLEdgeProps) {
+const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion, routePoints }: UMLEdgeProps) {
   const srcCls = classById.get(rel.source);
   const tgtCls = classById.get(rel.target);
   if (!srcCls || !tgtCls) return null;
@@ -682,8 +714,33 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
   const hasDiamond =
     rel.type === "composition" || rel.type === "aggregation";
 
-  const midX = (src.x + tgt.x) / 2;
-  const midY = (src.y + tgt.y) / 2;
+  // Build the path: use dagre route points if available, otherwise a gentle bezier
+  let pathD: string;
+  let labelPos: { x: number; y: number };
+
+  if (routePoints && routePoints.length >= 2) {
+    // Use dagre's computed waypoints with border-clamped endpoints
+    const allPoints = [src, ...routePoints.slice(1, -1), tgt];
+    pathD = smoothPathD(allPoints);
+    // Label at the middle waypoint
+    const mid = routePoints[Math.floor(routePoints.length / 2)];
+    labelPos = { x: mid.x, y: mid.y - 8 };
+  } else {
+    // No dagre points: compute a gentle bezier curve
+    // Offset the control point perpendicular to the line to avoid overlap
+    const dx = tgt.x - src.x;
+    const dy = tgt.y - src.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Curve offset scales with distance (min 0 for short edges, up to 30 for long ones)
+    const offset = Math.min(30, dist * 0.1);
+    // Perpendicular direction (rotated 90°)
+    const nx = dist > 0 ? -dy / dist : 0;
+    const ny = dist > 0 ? dx / dist : 0;
+    const midX = (src.x + tgt.x) / 2 + nx * offset;
+    const midY = (src.y + tgt.y) / 2 + ny * offset;
+    pathD = `M ${src.x} ${src.y} Q ${midX} ${midY} ${tgt.x} ${tgt.y}`;
+    labelPos = { x: midX, y: midY - 8 };
+  }
 
   return (
     <motion.g
@@ -695,11 +752,9 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
             transition: { delay: edgeDelay, duration: 0.3 },
           })}
     >
-      <line
-        x1={src.x}
-        y1={src.y}
-        x2={tgt.x}
-        y2={tgt.y}
+      <path
+        d={pathD}
+        fill="none"
         stroke="var(--lld-canvas-border)"
         strokeWidth="1.5"
         strokeDasharray={isDashed ? "6 4" : undefined}
@@ -713,8 +768,8 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, edgeDelay, reducedMotion
       {/* Label */}
       {rel.label && (
         <text
-          x={midX}
-          y={midY - 8}
+          x={labelPos.x}
+          y={labelPos.y}
           textAnchor="middle"
           fill="var(--lld-canvas-edge)"
           fontSize="11"
@@ -908,6 +963,10 @@ interface LLDCanvasProps {
   onCreateRelationship: (sourceId: string, targetId: string, type: UMLRelationshipType, label: string, srcCard: string, tgtCard: string) => void;
   /** Called when user clicks "Load Observer Pattern" in the empty state CTA */
   onLoadObserver?: () => void;
+  /** Dagre-computed edge routing points, keyed by relationship id */
+  edgePoints?: Record<string, Array<{ x: number; y: number }>>;
+  /** Callback to trigger dagre auto-layout */
+  onAutoLayout?: () => void;
 }
 
 export const LLDCanvas = memo(function LLDCanvas({
@@ -926,6 +985,8 @@ export const LLDCanvas = memo(function LLDCanvas({
   onHoverClass,
   onCreateRelationship,
   onLoadObserver,
+  edgePoints,
+  onAutoLayout,
 }: LLDCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1231,7 +1292,7 @@ export const LLDCanvas = memo(function LLDCanvas({
 
           <g transform={zoomTransform} style={{ transformOrigin: "0 0" }}>
             {relationships.map((rel) => (
-              <UMLEdge key={rel.id} rel={rel} classById={classById} edgeDelay={edgeDelay} reducedMotion={reducedMotion} />
+              <UMLEdge key={rel.id} rel={rel} classById={classById} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} />
             ))}
 
             {connectionDrag && previewLineStart && (
@@ -1291,17 +1352,30 @@ export const LLDCanvas = memo(function LLDCanvas({
           />
         )}
 
-        {/* AI Review button — bottom-right of canvas */}
+        {/* AI Review + Auto Layout buttons — top-left of canvas */}
         {classes.length > 0 && (
-          <button
-            onClick={() => setAiReviewOpen((o) => !o)}
-            className="absolute top-2 left-2 z-20 flex items-center gap-1.5 rounded-xl border border-primary/30 backdrop-blur-md bg-primary/10 px-3 py-2 text-xs font-semibold text-primary shadow-lg transition-all hover:bg-primary/20 hover:shadow-[0_0_20px_rgba(110,86,207,0.25)]"
-            title="AI Review"
-            aria-label="Run AI review on diagram"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Review
-          </button>
+          <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5">
+            <button
+              onClick={() => setAiReviewOpen((o) => !o)}
+              className="flex items-center gap-1.5 rounded-xl border border-primary/30 backdrop-blur-md bg-primary/10 px-3 py-2 text-xs font-semibold text-primary shadow-lg transition-all hover:bg-primary/20 hover:shadow-[0_0_20px_rgba(110,86,207,0.25)]"
+              title="AI Review"
+              aria-label="Run AI review on diagram"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI Review
+            </button>
+            {onAutoLayout && (
+              <button
+                onClick={onAutoLayout}
+                className="flex items-center gap-1.5 rounded-xl border border-border/30 backdrop-blur-md bg-elevated/60 px-3 py-2 text-xs font-semibold text-foreground-muted shadow-lg transition-all hover:bg-elevated hover:text-foreground hover:border-primary/30"
+                title="Auto-layout diagram using hierarchical algorithm"
+                aria-label="Auto layout"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Auto Layout
+              </button>
+            )}
+          </div>
         )}
 
         <AIReviewPanel

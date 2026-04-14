@@ -44,6 +44,7 @@ import {
   addRelationship,
 } from "@/lib/lld";
 import { useLLDData, useLLDFullPattern } from "./useLLDData";
+import { layoutDagre, type LayoutEdgePoints } from "@/lib/lld/dagre-layout";
 import { LLDDataProvider } from "../LLDDataContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -93,14 +94,17 @@ export function useLLDModule() {
   React.useEffect(() => {
     if (fullPattern && selectedPatternSlug) {
       setActivePattern(fullPattern);
-      setClasses(
-        (fullPattern.classes ?? []).map((c: UMLClass) => ({
-          ...c,
-          attributes: [...(c.attributes ?? [])],
-          methods: [...(c.methods ?? [])],
-        })),
-      );
-      setRelationships([...(fullPattern.relationships ?? [])]);
+      const cls = (fullPattern.classes ?? []).map((c: UMLClass) => ({
+        ...c,
+        attributes: [...(c.attributes ?? [])],
+        methods: [...(c.methods ?? [])],
+      }));
+      const rels = [...(fullPattern.relationships ?? [])];
+      // Auto-layout using dagre for proper hierarchy and spacing
+      const result = layoutDagre(cls, rels);
+      setClasses(result.classes);
+      setRelationships(rels);
+      setEdgePoints(result.edgePoints);
     }
   }, [fullPattern, selectedPatternSlug]);
 
@@ -111,6 +115,7 @@ export function useLLDModule() {
   const [solidView, setSolidView] = useState<"before" | "after">("before");
   const [classes, setClasses] = useState<UMLClass[]>([]);
   const [relationships, setRelationships] = useState<UMLRelationship[]>([]);
+  const [edgePoints, setEdgePoints] = useState<LayoutEdgePoints>({});
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [selectedStateId, setSelectedStateId] = useState<string | null>(null);
@@ -361,8 +366,13 @@ export function useLLDModule() {
       // If pattern has full content (static mode), use directly
       if (pattern.classes && pattern.code) {
         setActivePattern(pattern);
-        setClasses(pattern.classes.map((c) => ({ ...c, attributes: [...(c.attributes ?? [])], methods: [...(c.methods ?? [])] })));
-        setRelationships([...(pattern.relationships ?? [])]);
+        const cls = pattern.classes.map((c) => ({ ...c, attributes: [...(c.attributes ?? [])], methods: [...(c.methods ?? [])] }));
+        const rels = [...(pattern.relationships ?? [])];
+        // Auto-layout for proper hierarchy and spacing
+        const result = layoutDagre(cls, rels);
+        setClasses(result.classes);
+        setRelationships(rels);
+        setEdgePoints(result.edgePoints);
       } else {
         // API mode: pattern is metadata-only, trigger detail fetch via slug
         setSelectedPatternSlug(pattern.id);
@@ -607,7 +617,19 @@ export function useLLDModule() {
   const handleDragClass = useCallback((id: string, dx: number, dy: number) => {
     if (!dragUndoPushedRef.current) { pushUndo(); dragUndoPushedRef.current = true; }
     setClasses((prev) => prev.map((c) => c.id === id ? { ...c, x: c.x + dx, y: c.y + dy } : c));
+    // Clear dagre edge points when user drags — edges revert to gentle bezier
+    setEdgePoints({});
   }, [pushUndo]);
+
+  /** Run dagre hierarchical auto-layout on current classes + relationships. */
+  const handleAutoLayout = useCallback(() => {
+    if (classes.length === 0) return;
+    pushUndo();
+    const result = layoutDagre(classes, relationships);
+    setClasses(result.classes);
+    setEdgePoints(result.edgePoints);
+    setIsDirty(true);
+  }, [classes, relationships, pushUndo]);
 
   useEffect(() => {
     const handlePointerUp = () => { dragUndoPushedRef.current = false; };
@@ -870,7 +892,7 @@ export function useLLDModule() {
         ) : screenReaderMode ? (
           <ScreenReaderView title={canvasTitle} classes={classes} relationships={relationships} />
         ) : (
-          <LLDCanvas classes={classes} relationships={relationships} selectedClassId={selectedClassId} onSelectClass={setSelectedClassId} onDragClass={handleDragClass} patternName={canvasTitle} editingNameId={editingNameId} editingNameValue={editingNameValue} onStartEditName={handleStartEditName} onChangeEditName={handleChangeEditName} onCommitEditName={handleCommitEditName} hoveredClassId={hoveredClassId} onHoverClass={setHoveredClassId} onCreateRelationship={handleCreateRelationship} onLoadObserver={handleLoadObserver} />
+          <LLDCanvas classes={classes} relationships={relationships} selectedClassId={selectedClassId} onSelectClass={setSelectedClassId} onDragClass={handleDragClass} patternName={canvasTitle} editingNameId={editingNameId} editingNameValue={editingNameValue} onStartEditName={handleStartEditName} onChangeEditName={handleChangeEditName} onCommitEditName={handleCommitEditName} hoveredClassId={hoveredClassId} onHoverClass={setHoveredClassId} onCreateRelationship={handleCreateRelationship} onLoadObserver={handleLoadObserver} edgePoints={edgePoints} onAutoLayout={handleAutoLayout} />
         )}
         {!isSequenceMode && !isStateMachineMode && (
           <div className="absolute right-3 top-[5.5rem] z-10 flex items-center gap-1 rounded-xl border border-border/30 bg-background/60 px-1.5 py-1 shadow-[0_0_15px_rgba(var(--primary-rgb),0.06)] backdrop-blur-md">
