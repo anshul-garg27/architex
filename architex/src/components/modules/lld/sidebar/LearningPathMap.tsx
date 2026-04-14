@@ -82,7 +82,7 @@ const STATUS_CLASSES: Record<TileStatus, string> = {
 
 // ── Abbreviate long names ───────────────────────────────────
 
-function abbreviate(name: string, maxLen = 10): string {
+function abbreviate(name: string, maxLen = 16): string {
   if (name.length <= maxLen) return name;
   // Common abbreviations
   const abbrevs: Record<string, string> = {
@@ -183,7 +183,7 @@ const PatternTile = memo(function PatternTile({
           {isLocked ? (
             <Lock className="h-3 w-3 mb-0.5" />
           ) : null}
-          <span className="text-[9px] font-medium leading-tight">
+          <span className="text-[10px] font-medium leading-tight truncate w-full px-0.5">
             {abbreviate(node.name)}
           </span>
         </button>
@@ -262,7 +262,7 @@ export const LearningPathMap = memo(function LearningPathMap({
       <div className="space-y-2">
         <StatsBar nodes={nodes} dueCount={dueReviewCount} />
         <div className="px-1">
-          <div className="grid grid-cols-6 gap-1.5">
+          <div className="grid grid-cols-4 gap-1.5">
             {nodes.map((node) => (
               <PatternTile
                 key={node.id}
