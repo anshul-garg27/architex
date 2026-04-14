@@ -26,6 +26,7 @@ import {
   Trophy,
   Search,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
@@ -59,6 +60,7 @@ import {
 import { StreakCounter } from "../panels/StreakCounter";
 import { useDueReviews } from "@/hooks/use-due-reviews";
 import { useSearch, type SearchResult } from "@/hooks/use-search";
+import { LearningPathMap } from "./LearningPathMap";
 
 // ── Pattern Browser ──────────────────────────────────────
 
@@ -742,6 +744,7 @@ const SidebarSearch = memo(function SidebarSearch() {
 
 const SIDEBAR_TABS: { mode: SidebarMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { mode: "patterns", label: "Patterns", icon: Layers },
+  { mode: "progress", label: "Progress", icon: BarChart3 },
   { mode: "solid", label: "SOLID", icon: BookOpen },
   { mode: "problems", label: "Problems", icon: Trophy },
   { mode: "sequence", label: "Sequence", icon: GitBranch },
@@ -886,6 +889,13 @@ export const LLDSidebar = memo(function LLDSidebar({
             activePatternId={activePatternId}
             onSelect={onSelectPattern}
             patterns={patterns}
+          />
+        )}
+        {mode === "progress" && (
+          <LearningPathMap
+            onSelectPattern={onSelectPattern}
+            patterns={patterns}
+            dueReviewCount={dueCount}
           />
         )}
         {mode === "palette" && <ClassPalette onAddClass={onAddClass} />}

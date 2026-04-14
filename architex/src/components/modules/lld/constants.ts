@@ -265,7 +265,7 @@ export const SOLID_PRINCIPLE_LABELS: Record<SOLIDPrinciple, string> = {
 
 // ── Shared Type Definitions ──────────────────────────────
 
-export type SidebarMode = "patterns" | "palette" | "solid" | "problems" | "sequence" | "state-machine" | "code-to-diagram";
+export type SidebarMode = "patterns" | "progress" | "palette" | "solid" | "problems" | "sequence" | "state-machine" | "code-to-diagram";
 
 export type PracticeTimerOption = 15 | 30 | 45 | 60;
 
