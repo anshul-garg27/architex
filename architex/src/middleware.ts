@@ -100,7 +100,8 @@ export default clerkMiddleware(async (auth: { protect: () => Promise<void> }, re
   }
 
   // ── Clerk auth: protect non-public routes ──────────────────
-  if (!isPublicRoute(req)) {
+  // Only enforce auth when Clerk is properly configured
+  if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && !isPublicRoute(req)) {
     await auth.protect();
   }
 
