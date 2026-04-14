@@ -1539,15 +1539,10 @@ export const LLDCanvas = memo(function LLDCanvas({
               />
             </pattern>
             {/* Task LLD-150: radial gradient overlay — lighter at center, darker at edges */}
-            <radialGradient id="lld-canvas-vignette" cx="50%" cy="50%" r="70%" fx="50%" fy="50%">
+            <radialGradient id="lld-canvas-vignette" cx="50%" cy="50%" r="75%" fx="50%" fy="50%">
               <stop offset="0%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
-              <stop offset="60%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
-              <stop offset="100%" stopColor="#0a0e14" stopOpacity="0.7" />
-            </radialGradient>
-            {/* Subtle center spotlight — warm primary tint */}
-            <radialGradient id="lld-canvas-spotlight" cx="50%" cy="45%" r="50%" fx="50%" fy="45%">
-              <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.03" />
-              <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+              <stop offset="80%" stopColor="var(--lld-canvas-bg)" stopOpacity="0" />
+              <stop offset="100%" stopColor="#0a0e14" stopOpacity="0.25" />
             </radialGradient>
             {/* Glassmorphism glow filter for selected/active elements */}
             <filter id="glow">
@@ -1572,15 +1567,6 @@ export const LLDCanvas = memo(function LLDCanvas({
             width={viewBox.w}
             height={viewBox.h}
             fill="url(#lld-canvas-vignette)"
-            pointerEvents="none"
-          />
-          {/* Subtle primary spotlight at center — creates warmth and depth */}
-          <rect
-            x={viewBox.x}
-            y={viewBox.y}
-            width={viewBox.w}
-            height={viewBox.h}
-            fill="url(#lld-canvas-spotlight)"
             pointerEvents="none"
           />
 
