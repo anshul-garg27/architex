@@ -463,9 +463,85 @@ Both canvases are significantly behind the Class Diagram canvas:
 3. Sequence edge animation broken (strokeDashoffset always undefined)
 4. Light mode: white grid on white background
 
+**Status: FIXED** — Both canvases upgraded in commit `59243b0`:
+- Auto-fit + ResizeObserver added
+- Pan works on all SVG elements
+- Dot grid + vignette + hover effects + draw animations
+- Light mode fixed
+- Zoom controls in header
+- ViewBox min dimensions
+
 ---
 
-## 19. Task Board
+## 19. Color Audit — 10 Design Token Fixes
+
+Applied across ALL three canvases (Class, Sequence, State Machine):
+
+### 1. --primary-rgb (62 broken glow shadows)
+```css
+--primary-rgb: 99 75 204;  /* for rgba(var(--primary-rgb), 0.3) */
+```
+All `rgba(110,86,207,...)` hardcoded shadows replaced with `rgba(var(--primary-rgb), ...)`.
+
+### 2. LLD canvas colors on 228° HSL family
+All canvas CSS variables rebuilt on a consistent 228° hue:
+```css
+--lld-canvas-bg: hsl(228 18% 22%);
+--lld-canvas-text: hsl(220 20% 90%);
+--lld-canvas-border: hsl(220 12% 40%);
+```
+
+### 3. --lld-class-fill token
+```css
+--lld-class-fill: hsl(228 18% 26%);  /* distinct from canvas bg */
+```
+Class boxes use `var(--lld-class-fill)` so they're visually distinct from the canvas background.
+
+### 4. --foreground-subtle WCAG AA contrast
+```css
+--foreground-subtle: hsl(220 10% 62%);  /* passes 4.5:1 on dark bg */
+```
+
+### 5. Difficulty colors: hard→orange, expert→red
+```css
+--difficulty-hard: hsl(25 95% 53%);    /* orange, not red */
+--difficulty-expert: hsl(0 72% 50%);   /* red, clearly different */
+```
+
+### 6. Glassmorphism removed from non-floating elements
+`backdrop-blur` + `bg-*/50` only on floating overlays (tooltips, popovers, modals). Static containers use solid backgrounds.
+
+### 7. Canvas grid dots larger/brighter
+```tsx
+<circle r="1" fill="var(--lld-canvas-text-subtle)" opacity="0.18" />
+```
+Was `r="0.8"` at 0.12 opacity — too faint.
+
+### 8. SVG font→Geist Mono
+```tsx
+fontFamily="var(--font-geist-mono, monospace)"
+```
+All SVG `<text>` elements use the project's Geist Mono font.
+
+### 9. Stereotype colors harmonized to HSL
+```css
+--lld-stereo-interface: hsl(217 80% 62%);
+--lld-stereo-abstract: hsl(272 68% 64%);
+--lld-stereo-enum: hsl(152 60% 48%);
+--lld-stereo-class: hsl(220 12% 52%);
+```
+
+### 10. 34 gradient text→solid text-foreground-muted
+Replaced all `bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent` with `text-foreground-muted`. The gradient looked flashy but failed in light mode and was hard to read.
+
+### Additional:
+- Ambient particles removed (distracted from content)
+- Primary saturation 87%→78% (less aggressive)
+- `GLASS_CONTAINER` and `GLASS_GRADIENT_TEXT` constants updated in `constants.ts`
+
+---
+
+## 20. Task Board
 
 79 tasks created in `docs/tasks/`:
 - `batch-lld-content-enrichment.json` — 36 tasks (LLD-200 to LLD-235)
