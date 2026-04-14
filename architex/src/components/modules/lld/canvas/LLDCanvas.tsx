@@ -1245,7 +1245,7 @@ export const LLDCanvas = memo(function LLDCanvas({
         {classes.length > 0 && (
           <button
             onClick={() => setAiReviewOpen((o) => !o)}
-            className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-xl border border-border/30 backdrop-blur-md bg-background/60 px-2.5 py-1.5 text-[11px] font-medium text-foreground-muted shadow-lg transition-all hover:bg-accent hover:text-foreground hover:shadow-[0_0_15px_rgba(110,86,207,0.15)]"
+            className="absolute top-2 right-2 z-20 flex items-center gap-1.5 rounded-xl border border-primary/30 backdrop-blur-md bg-primary/10 px-3 py-2 text-xs font-semibold text-primary shadow-lg transition-all hover:bg-primary/20 hover:shadow-[0_0_20px_rgba(110,86,207,0.25)]"
             title="AI Review"
             aria-label="Run AI review on diagram"
           >
