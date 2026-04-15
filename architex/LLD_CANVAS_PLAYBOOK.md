@@ -663,12 +663,101 @@ Status values must be: `backlog`, `ready`, `in-progress`, `done`, `blocked` (NOT
 
 ---
 
+## 26. Code-Diagram Alignment (30 Patterns × 3 Languages)
+
+**Problem:** UML diagrams used realistic domain names (e.g., `EncryptionDecorator`) but code samples used generic GoF names (e.g., `LoggingDecorator`). Students couldn't connect diagram to code.
+
+**Fix:** 6 parallel agents rewrote ALL TypeScript, Python, AND Java code samples to use the EXACT same class names as the UML diagram.
+
+**Scale:** 30 patterns × 3 languages = 90 code sample rewrites, 1,782 lines changed.
+
+**Example:**
+| Pattern | Diagram | Code Before | Code After |
+|---------|---------|-------------|------------|
+| Decorator | `EncryptionDecorator` | `LoggingDecorator` | `EncryptionDecorator` |
+| State | `DraftState`, `ReviewState` | `GreenLight`, `RedLight` | `DraftState`, `ReviewState` |
+| Facade | `OrderFacade` | `Facade` | `OrderFacade` |
+
+**Observer diagram cleanup:** Removed 3 variant classes (Event, EventBus, EventHandler) that confused students. Core diagram now has 4 classes only.
+
+---
+
+## 27. Problem Enrichment — All 33 Problems
+
+Every LLD problem now has:
+- **8-12 starter classes** (was 4-6) with 2+ attributes, 2+ methods each
+- **5-7 progressive hints** (easy: entity identification → hard: concurrency/edge cases)
+- **complexityAnalysis** field with time/space breakdown per operation
+- **Reference solutions** — 23 NEW Java solutions written from scratch + 10 from reference materials
+
+**Class expansion examples:**
+| Problem | Before | After |
+|---------|--------|-------|
+| Parking Lot | 4 classes | 10 (added Ticket, PaymentProcessor, EntryGate, ExitGate, FeeCalculator, DisplayBoard) |
+| Chess | 6 classes | 10 (added King, Knight, Pawn, MoveValidator with inheritance) |
+| LRU Cache | 3 classes | 8 (added EvictionPolicy, CacheConfig, CacheEntry, CacheStats, TTLManager) |
+| Elevator | 4 classes | 9 (added Floor, Button, Door, Display, ElevatorController) |
+
+---
+
+## 28. Canvas Polish — All 10 Tasks Complete
+
+| Task | What |
+|------|------|
+| LLD-400 | Disconnected nodes audit — all 36 patterns verified, zero broken IDs |
+| LLD-401 | Edge bundling — 5px cable spacing for 3+ parallel edges, directional gradient |
+| LLD-402 | FLIP animation — AnimatePresence exit (fade+shrink), spring entry, smooth transitions |
+| LLD-403 | Export to PlantUML/Mermaid — new `export-diagram.ts`, copy-to-clipboard with toast |
+| LLD-404 | Pattern comparison mode — full-screen overlay, auto-suggest from confusedWith, side-by-side |
+| LLD-405 | Mermaid editing — already bidirectional, added sync status indicator (Synced/Editing/Error) |
+| LLD-406 | Light mode — 21 CSS vars added, hardcoded rgba replaced, dark: prefixes across 6 files |
+| LLD-407 | Performance — A* routing wrapped in useMemo, only reruns on class position changes |
+| LLD-408 | Accessibility — aria-labels on all edges/states/participants, role="img" on SVG containers |
+| LLD-409 | Mobile — pinch-to-zoom, touch-action:none, reduced viewBox min on mobile, responsive header |
+
+---
+
+## 29. Sequence + State Machine Canvas Upgrades
+
+Both canvases upgraded to match Class Diagram quality:
+
+| Feature | Sequence | State Machine |
+|---------|----------|---------------|
+| Dot grid background | ✅ | ✅ |
+| Vignette overlay | ✅ | ✅ |
+| Hover effects (highlight related) | ✅ | ✅ |
+| Edge/transition draw animation | ✅ | ✅ |
+| Auto-fit on load + resize | ✅ | ✅ |
+| Zoom controls in header | ✅ | ✅ |
+| ViewBox min dimensions | ✅ | ✅ |
+| Tooltip on hover | ✅ (messages) | ✅ (transitions) |
+| Light mode fixes | ✅ | ✅ |
+| 10 color audit fixes | ✅ | ✅ |
+| Pan on all SVG elements | ✅ | ✅ |
+| Mobile responsive | ✅ | ✅ |
+
+---
+
+## 30. Final Task Board — 79/79 Complete
+
+| Task Group | Done | Total |
+|------------|------|-------|
+| Pattern Enrichment (LLD-200 to 235) | 36 | 36 |
+| Problem Enrichment (LLD-300 to 332) | 33 | 33 |
+| Canvas Polish (LLD-400 to 409) | 10 | 10 |
+| **TOTAL** | **79** | **79** |
+
+---
+
 ## Session Stats
 
-- **60+ commits** across three sessions
-- **Files created:** `dagre-layout.ts`, `astar-router.ts`, `pattern-enrichment.ts`, `problem-solutions.ts`, `java-code.ts`, 3 task JSON files, `LLD_CANVAS_PLAYBOOK.md`
-- **Files modified:** `LLDCanvas.tsx`, `useLLDModuleImpl.tsx`, `LLDProperties.tsx`, `globals.css`, `constants.ts`, `Minimap.tsx`, `AlignmentToolbar.tsx`, `PatternQuiz.tsx`, `MermaidEditor.tsx`, `WalkthroughPlayer.tsx`, `AutoGrader.tsx`, `DailyChallenge.tsx`, `SOLIDViolationSpotter.tsx`, `InterviewPrepTab.tsx`, `ContextualBottomTabs.tsx`, `use-content.ts`, `seeds/lld.ts`, `seeds/java-code-gen.ts`, `patterns.ts`, `problems.ts`, `types.ts`, `index.ts`, `LLDSidebar.tsx`, `StateMachineCanvas.tsx`, `package.json`
+- **90+ commits** across multiple sessions
+- **Files created:** `dagre-layout.ts`, `astar-router.ts`, `pattern-enrichment.ts`, `problem-solutions.ts`, `export-diagram.ts`, `PatternComparisonOverlay.tsx`, 3 task JSON files, `LLD_CANVAS_PLAYBOOK.md`
+- **Files modified:** 30+ files across canvas, panels, hooks, sidebar, constants, globals, seeds
 - **Libraries added:** `@dagrejs/dagre`, `prism-react-renderer`
-- **Content added:** 28,377 lines of reference solutions + 1,812 lines of Java code samples
+- **Content added:** ~50,000+ lines of enrichment (reference solutions, walkthroughs, interview scripts, code samples, complexity analysis)
 - **Diagrams upgraded:** 79 (36 patterns + 33 problems + 10 SOLID demos)
-- **Design system:** 3-agent research audit → unified palette with 50+ token changes, 15 new tokens
+- **Code-diagram alignment:** 30 patterns × 3 languages = 90 code sample rewrites
+- **All 79 LLD tasks completed** (36 pattern + 33 problem + 10 canvas polish)
+- **Parallel agents used:** 40+ agents across all sessions
+- **Design system:** 10 color audit fixes applied across all 3 canvases
