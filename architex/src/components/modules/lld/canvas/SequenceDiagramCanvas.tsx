@@ -6,6 +6,7 @@
  */
 
 import React, { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useIsMobile } from "@/hooks/use-media-query";
 import {
   GitBranch,
   Play,
@@ -50,6 +51,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
 }: SequenceDiagramCanvasProps) {
   const seqSvgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const {
     svgTransform: seqZoomTransform,
     zoomPercent: seqZoomPercent,
@@ -149,8 +151,9 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
     80;
 
   // (#10) ViewBox minimum dimensions — prevent over-zoom on small sequences
-  const MIN_W = 800;
-  const MIN_H = 500;
+  // On mobile, use smaller minimums so content fits narrow viewports
+  const MIN_W = isMobile ? 450 : 800;
+  const MIN_H = isMobile ? 350 : 500;
   const totalWidth = Math.max(computedWidth, MIN_W);
   const totalHeight = Math.max(computedHeight, MIN_H);
 
@@ -214,13 +217,14 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
   return (
     <div className="flex h-full flex-col">
       {title && (
-        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated px-4 py-2">
-          <GitBranch className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
+        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated px-4 py-2 overflow-x-auto">
+          <GitBranch className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
             {title}
           </span>
           <div className="ml-auto flex items-center gap-3">
-            {(["sync", "async", "return", "self"] as const).map((t) => (
+            {/* Legend items — hidden on mobile to prevent overflow */}
+            {!isMobile && (["sync", "async", "return", "self"] as const).map((t) => (
               <div key={t} className="flex items-center gap-1">
                 <div
                   className="h-0.5 w-4 rounded-lg"
@@ -237,7 +241,7 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
               </div>
             ))}
             {/* (#9) Compact zoom controls in header bar */}
-            <div className="mx-0.5 h-4 w-px bg-border/30" />
+            {!isMobile && <div className="mx-0.5 h-4 w-px bg-border/30" />}
             <div className="flex items-center gap-1 rounded-lg border border-border/30 bg-background px-1.5 py-0.5">
               <button onClick={seqZoomOut} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom out" aria-label="Zoom out">&minus;</button>
               <span className="min-w-[2.5rem] text-center text-[10px] font-semibold text-foreground-subtle">{seqZoomPercent}%</span>
@@ -256,10 +260,12 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
       >
         <svg
           ref={seqSvgRef}
+          role="img"
+          aria-label={`Sequence diagram${title ? `: ${title}` : ""} with ${data.participants.length} participants and ${sortedMessages.length} messages`}
           viewBox={`${vbX} ${vbY} ${totalWidth} ${totalHeight}`}
           preserveAspectRatio="xMidYMid meet"
           className="h-full w-full"
-          style={{ minHeight: 400 }}
+          style={{ minHeight: 400, touchAction: "none" }}
           onPointerDown={seqHandlePanStart}
           onPointerMove={seqHandlePanMove}
           onPointerUp={seqHandlePanEnd}
@@ -342,6 +348,8 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
             return (
               <g
                 key={p.id}
+                role="img"
+                aria-label={`Participant: ${p.name}${p.type === "actor" ? " (actor)" : ""}`}
                 onPointerEnter={() => setHoveredParticipant(p.id)}
                 onPointerLeave={() => setHoveredParticipant(null)}
                 style={{ cursor: "pointer" }}
@@ -454,6 +462,8 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
               return (
                 <g
                   key={msg.id}
+                  role="img"
+                  aria-label={`Self-call: ${msg.from} calls ${msg.label}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelectMessage(msg.id);
@@ -546,6 +556,8 @@ export const SequenceDiagramCanvas = memo(function SequenceDiagramCanvas({
             return (
               <g
                 key={msg.id}
+                role="img"
+                aria-label={`${msg.type} message: ${msg.from} sends ${msg.label} to ${msg.to}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectMessage(msg.id);

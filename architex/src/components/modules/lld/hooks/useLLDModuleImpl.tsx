@@ -20,6 +20,7 @@ import {
   ChevronRight,
   X,
   Accessibility,
+  Columns2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
@@ -60,6 +61,7 @@ import { ContextualBottomTabs } from "../panels/ContextualBottomTabs";
 import { PracticeTimerBar, PracticeAssessment } from "../panels/InterviewPractice";
 import { ScreenReaderView } from "../panels/ScreenReaderView";
 import { useExportDiagram } from "./useExportDiagram";
+import { PatternComparisonOverlay } from "../panels/PatternComparisonOverlay";
 import {
   CATEGORY_LABELS,
   type SidebarMode,
@@ -133,6 +135,7 @@ export function useLLDModule() {
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
   const [presentationPatternIdx, setPresentationPatternIdx] = useState(0);
+  const [comparisonMode, setComparisonMode] = useState(false);
 
   // Dirty-tracking: true when user has manually edited the diagram
   const [isDirty, setIsDirty] = useState(false);
@@ -774,6 +777,10 @@ export function useLLDModule() {
     setExportDropdownOpen(false);
   }, [canvasTitle, exportAsPNG]);
 
+  // Comparison mode
+  const handleEnterComparison = useCallback(() => { setComparisonMode(true); }, []);
+  const handleExitComparison = useCallback(() => { setComparisonMode(false); }, []);
+
   // Presentation mode
   const presentationCategoryPatterns = useMemo(() => { if (!activePattern) return []; return getPatternsByCategory(activePattern.category); }, [activePattern]);
   const handleEnterPresentation = useCallback(() => { if (!activePattern) return; const idx = presentationCategoryPatterns.findIndex((p) => p.id === activePattern.id); setPresentationPatternIdx(idx >= 0 ? idx : 0); setPresentationMode(true); }, [activePattern, presentationCategoryPatterns]);
@@ -954,6 +961,11 @@ export function useLLDModule() {
                 <Maximize2 className="h-3.5 w-3.5" /><span>Present</span>
               </button>
             )}
+            {!isSequenceMode && !isStateMachineMode && (
+              <button onClick={handleEnterComparison} className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-background/60 px-2.5 py-1.5 text-[11px] font-medium text-foreground-muted backdrop-blur-sm transition-all hover:bg-accent hover:text-foreground" title="Compare patterns">
+                <Columns2 className="h-3.5 w-3.5" /><span>Compare</span>
+              </button>
+            )}
             {!isSequenceMode && !isStateMachineMode && classes.length > 0 && (
               <div className="relative">
                 <button onClick={() => setExportDropdownOpen((p) => !p)} className="flex items-center gap-1.5 rounded-xl border border-border/30 bg-background/60 px-2.5 py-1.5 text-[11px] font-medium text-foreground-muted backdrop-blur-sm transition-all hover:bg-accent hover:text-foreground" title="Export diagram">
@@ -1050,6 +1062,15 @@ export function useLLDModule() {
     </div>
   ) : null;
 
+  // Comparison mode overlay
+  const comparisonOverlay = comparisonMode ? (
+    <PatternComparisonOverlay
+      patterns={DESIGN_PATTERNS}
+      initialPatternA={activePattern}
+      onExit={handleExitComparison}
+    />
+  ) : null;
+
   const confirmDialog = (
     <ConfirmDialog
       open={pendingAction !== null}
@@ -1086,5 +1107,7 @@ export function useLLDModule() {
     </LLDDataProvider>
   );
 
-  return { sidebar, canvas, properties: wrappedProperties, bottomPanel: wrappedBottomPanel, mockOverlay: presentationOverlay, confirmDialog };
+  const combinedOverlay = presentationOverlay ?? comparisonOverlay;
+
+  return { sidebar, canvas, properties: wrappedProperties, bottomPanel: wrappedBottomPanel, mockOverlay: combinedOverlay, confirmDialog };
 }

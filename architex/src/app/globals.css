@@ -487,12 +487,33 @@ html.light {
   --lld-canvas-lifeline: #cbd5e1;
   --lld-canvas-activation: #e2e8f0;
   --lld-canvas-actor-bg: #dbeafe;
+  --lld-class-fill: #ffffff;
+  --lld-class-fill-hover: #f8fafc;
 
   /* ── LLD Stereotype Colors (light mode) ── */
   --lld-stereo-interface: #2563eb;
   --lld-stereo-abstract: #7c3aed;
   --lld-stereo-enum: #16a34a;
   --lld-stereo-class: #64748b;
+
+  /* ── LLD SOLID Colors (light mode — darkened for contrast) ── */
+  --lld-solid-srp: hsl(38 92% 40%);
+  --lld-solid-ocp: hsl(217 80% 48%);
+  --lld-solid-lsp: hsl(152 60% 36%);
+  --lld-solid-isp: hsl(272 68% 50%);
+  --lld-solid-dip: hsl(0 72% 42%);
+
+  /* ── LLD Difficulty Colors (light mode — darkened) ── */
+  --lld-diff-easy: hsl(172 80% 30%);
+  --lld-diff-medium: hsl(42 90% 38%);
+  --lld-diff-hard: hsl(25 90% 42%);
+  --lld-diff-expert: hsl(0 75% 42%);
+
+  /* ── LLD Sequence Colors (light mode — darkened) ── */
+  --lld-seq-sync: hsl(217 92% 50%);
+  --lld-seq-async: hsl(160 60% 38%);
+  --lld-seq-return: hsl(220 8% 48%);
+  --lld-seq-self: hsl(38 92% 40%);
 
   --statusbar: hsl(0 0% 97%);
   --statusbar-foreground: hsl(220 10% 40%);

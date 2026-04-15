@@ -260,7 +260,7 @@ export const LLDProperties = memo(function LLDProperties({
                   </span>
                   <button
                     onClick={() => onRemoveAttribute?.(selectedClass.id, a.id)}
-                    className="shrink-0 rounded p-0.5 text-foreground-subtle transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    className="shrink-0 rounded p-0.5 text-foreground-subtle transition-colors hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
                     title="Remove attribute"
                   >
                     <X className="h-3 w-3" />
@@ -320,7 +320,7 @@ export const LLDProperties = memo(function LLDProperties({
                   </span>
                   <button
                     onClick={() => onRemoveMethod?.(selectedClass.id, m.id)}
-                    className="shrink-0 rounded p-0.5 text-foreground-subtle transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    className="shrink-0 rounded p-0.5 text-foreground-subtle transition-colors hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
                     title="Remove method"
                   >
                     <X className="h-3 w-3" />
@@ -340,7 +340,7 @@ export const LLDProperties = memo(function LLDProperties({
             <div className="border-t border-border/30 pt-3">
               <button
                 onClick={onDeleteClass}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/5 backdrop-blur-sm shadow-[0_0_15px_rgba(239,68,68,0.05)] px-3 py-2 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/5 backdrop-blur-sm shadow-[0_0_15px_rgba(239,68,68,0.05)] px-3 py-2 text-[11px] font-medium text-red-600 dark:text-red-400 transition-colors hover:bg-red-500/10"
               >
                 <Trash2 className="h-3 w-3" />
                 Delete Class
@@ -822,12 +822,12 @@ export const StateMachineProperties = memo(function StateMachineProperties({
           </div>
           <div className="flex gap-3">
             {selectedState.isInitial && (
-              <span className="rounded-sm bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+              <span className="rounded-sm bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400">
                 Initial
               </span>
             )}
             {selectedState.isFinal && (
-              <span className="rounded-sm bg-green-500/15 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+              <span className="rounded-sm bg-green-500/15 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:text-green-400">
                 Final
               </span>
             )}
@@ -859,7 +859,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
                   return (
                     <div key={t.id} className="rounded-xl bg-elevated px-2 py-1 text-[11px] text-foreground-muted">
                       <span className="font-mono text-foreground">{t.trigger}</span>
-                      {t.guard && <span className="text-amber-400"> [{t.guard}]</span>}
+                      {t.guard && <span className="text-amber-700 dark:text-amber-400"> [{t.guard}]</span>}
                       <span className="text-foreground-subtle"> {"\u2192"} {target?.name ?? t.to}</span>
                     </div>
                   );
@@ -879,7 +879,7 @@ export const StateMachineProperties = memo(function StateMachineProperties({
                     <div key={t.id} className="rounded-xl bg-elevated px-2 py-1 text-[11px] text-foreground-muted">
                       <span className="text-foreground-subtle">{source?.name ?? t.from} {"\u2192"}</span>
                       <span className="font-mono text-foreground"> {t.trigger}</span>
-                      {t.guard && <span className="text-amber-400"> [{t.guard}]</span>}
+                      {t.guard && <span className="text-amber-700 dark:text-amber-400"> [{t.guard}]</span>}
                     </div>
                   );
                 })}
@@ -923,8 +923,8 @@ export const StateMachineProperties = memo(function StateMachineProperties({
                   style={{ backgroundColor: smStateColor(s) }}
                 />
                 {s.name}
-                {s.isInitial && <span className="text-[9px] text-blue-400">(initial)</span>}
-                {s.isFinal && <span className="text-[9px] text-green-400">(final)</span>}
+                {s.isInitial && <span className="text-[9px] text-blue-600 dark:text-blue-400">(initial)</span>}
+                {s.isFinal && <span className="text-[9px] text-green-600 dark:text-green-400">(final)</span>}
               </div>
             ))}
           </div>

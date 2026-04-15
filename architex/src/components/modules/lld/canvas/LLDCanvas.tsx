@@ -6,11 +6,14 @@
  */
 
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { Layers, Sparkles, Loader2, LayoutGrid } from "lucide-react";
+import { Layers, Sparkles, Loader2, LayoutGrid, Share2, Copy, Check, ChevronDown } from "lucide-react";
+import { exportToMermaid, exportToPlantUML } from "@/lib/lld/export-diagram";
+import { toast } from "@/components/ui/toast";
 import { AIReviewPanel } from "./AIReviewPanel";
 import { Minimap } from "./Minimap";
 import { CanvasEmptyState } from "@/components/shared/lld-empty-states";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-media-query";
 import type { UMLClass, UMLRelationship, UMLRelationshipType, UMLMethodParam } from "@/lib/lld";
 import { formatMethodParams } from "@/lib/lld";
 import { routeEdgeAStar } from "@/lib/lld/astar-router";
@@ -61,6 +64,16 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>, con
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
 
+  // ── Pinch-to-zoom state (touch) ──────────────────────
+  const pinchRef = useRef<{
+    active: boolean;
+    initialDist: number;
+    initialScale: number;
+    centerX: number;
+    centerY: number;
+  }>({ active: false, initialDist: 0, initialScale: 1, centerX: 0, centerY: 0 });
+
+  // ── Wheel zoom (mouse) ───────────────────────────────
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -81,6 +94,78 @@ export function useSVGZoomPan(svgRef: React.RefObject<SVGSVGElement | null>, con
     };
     svg.addEventListener("wheel", handler, { passive: false });
     return () => svg.removeEventListener("wheel", handler);
+  }, [svgRef]);
+
+  // ── Pinch-to-zoom touch handlers ─────────────────────
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    function touchDist(t1: Touch, t2: Touch): number {
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const rect = svg.getBoundingClientRect();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        pinchRef.current = {
+          active: true,
+          initialDist: touchDist(t1, t2),
+          initialScale: 1,
+          centerX: (t1.clientX + t2.clientX) / 2 - rect.left,
+          centerY: (t1.clientY + t2.clientY) / 2 - rect.top,
+        };
+        // Capture current scale at pinch start
+        setZoom((prev) => {
+          pinchRef.current.initialScale = prev.scale;
+          return prev;
+        });
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current.active) {
+        e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const currentDist = touchDist(t1, t2);
+        const ratio = currentDist / pinchRef.current.initialDist;
+        const cx = pinchRef.current.centerX;
+        const cy = pinchRef.current.centerY;
+
+        setZoom((prev) => {
+          const newScale = Math.min(
+            ZOOM_MAX,
+            Math.max(ZOOM_MIN, pinchRef.current.initialScale * ratio),
+          );
+          const scaleRatio = newScale / prev.scale;
+          const newTx = cx - scaleRatio * (cx - prev.translateX);
+          const newTy = cy - scaleRatio * (cy - prev.translateY);
+          return { scale: newScale, translateX: newTx, translateY: newTy };
+        });
+      }
+    };
+
+    const handleTouchEnd = () => {
+      pinchRef.current.active = false;
+    };
+
+    svg.addEventListener("touchstart", handleTouchStart, { passive: false });
+    svg.addEventListener("touchmove", handleTouchMove, { passive: false });
+    svg.addEventListener("touchend", handleTouchEnd);
+    svg.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      svg.removeEventListener("touchstart", handleTouchStart);
+      svg.removeEventListener("touchmove", handleTouchMove);
+      svg.removeEventListener("touchend", handleTouchEnd);
+      svg.removeEventListener("touchcancel", handleTouchEnd);
+    };
   }, [svgRef]);
 
   const handlePanStart = useCallback(
@@ -436,7 +521,7 @@ const UMLClassBox = memo(function UMLClassBox({
         transition: "filter 0.15s ease, opacity 0.15s ease",
         opacity: dimmed ? 0.35 : 1,
       }}
-      filter={isSelected ? "url(#glow)" : isHovered ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))" : undefined}
+      filter={isSelected ? "url(#glow)" : isHovered ? "url(#class-hover-shadow)" : undefined}
       {...(reducedMotion
         ? {}
         : {
@@ -463,14 +548,15 @@ const UMLClassBox = memo(function UMLClassBox({
           style={{ filter: "blur(12px)", transition: "opacity 0.3s ease" }}
         />
       )}
-      {/* Shadow */}
+      {/* Shadow — uses canvas edge color for light/dark compatibility */}
       <rect
         x={cls.x + CLASS_BOX_SHADOW_OFFSET}
         y={cls.y + CLASS_BOX_SHADOW_OFFSET}
         width={w}
         height={h}
         rx={4}
-        fill="rgba(0,0,0,0.25)"
+        fill="var(--lld-canvas-edge)"
+        opacity={0.18}
       />
       {/* Background */}
       <rect
@@ -768,32 +854,20 @@ interface UMLEdgeProps {
   siblingCount?: number;
 }
 
+/** Relationship type to human-readable verb for aria-labels (LLD-408). */
+const EDGE_ARIA_VERB: Record<UMLRelationshipType, string> = {
+  inheritance: "inherits from",
+  realization: "realizes",
+  composition: "composes",
+  aggregation: "aggregates",
+  association: "associates with",
+  dependency: "depends on",
+};
+
 const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0, highlighted = false, dimmed = false, siblingCount = 1 }: UMLEdgeProps) {
   const srcCls = classById.get(rel.source);
   const tgtCls = classById.get(rel.target);
   if (!srcCls || !tgtCls) return null;
-
-  const srcCenter = classCenter(srcCls);
-  const tgtCenter = classCenter(tgtCls);
-
-  // Compute the best exit/enter sides for orthogonal routing
-  const rawSrc = borderPoint(srcCls, tgtCenter.cx, tgtCenter.cy);
-  const rawTgt = borderPoint(tgtCls, srcCenter.cx, srcCenter.cy);
-  const srcSide = exitSide(srcCls, rawSrc);
-  const tgtSide = exitSide(tgtCls, rawTgt);
-
-  // Use side-center anchors + port offset for spread
-  const srcBase = sideAnchor(srcCls, srcSide);
-  const tgtBase = sideAnchor(tgtCls, tgtSide);
-  // Apply offset along the side (perpendicular to the exit direction)
-  const isVertSrc = srcSide === "top" || srcSide === "bottom";
-  const isVertTgt = tgtSide === "top" || tgtSide === "bottom";
-  const src = isVertSrc
-    ? { x: srcBase.x + srcPortOffset, y: srcBase.y }
-    : { x: srcBase.x, y: srcBase.y + srcPortOffset };
-  const tgt = isVertTgt
-    ? { x: tgtBase.x + tgtPortOffset, y: tgtBase.y }
-    : { x: tgtBase.x, y: tgtBase.y + tgtPortOffset };
 
   const isDashed =
     rel.type === "dependency" || rel.type === "realization";
@@ -810,14 +884,39 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
   const hasDiamond =
     rel.type === "composition" || rel.type === "aggregation";
 
-  // Build obstacle list from all classes except source and target
-  const obstacles = allClasses
-    .filter((c) => c.id !== rel.source && c.id !== rel.target)
-    .map((c) => ({ x: c.x, y: c.y, w: classBoxWidth(c), h: classBoxHeight(c) }));
+  // LLD-407: Memoize the entire A* routing + geometry computation.
+  // Without this, every render recomputes obstacles + A* for each edge
+  // (~20 edges in Chess = 20 A* calls per render). Keyed on class object
+  // references so it only recalculates when classes actually change.
+  const { pathD, waypoints, src, tgt, srcSide, tgtSide } = useMemo(() => {
+    const sc = classCenter(srcCls);
+    const tc = classCenter(tgtCls);
+    const rawSrc = borderPoint(srcCls, tc.cx, tc.cy);
+    const rawTgt = borderPoint(tgtCls, sc.cx, sc.cy);
+    const sSide = exitSide(srcCls, rawSrc);
+    const tSide = exitSide(tgtCls, rawTgt);
 
-  // A*-routed orthogonal path that avoids obstacles, with rounded corners
-  const waypoints = routeEdgeAStar(src, srcSide, tgt, tgtSide, obstacles, tgtPortOffset);
-  const pathD = buildOrthoPathD(waypoints);
+    const srcBase = sideAnchor(srcCls, sSide);
+    const tgtBase = sideAnchor(tgtCls, tSide);
+    const isVertSrc = sSide === "top" || sSide === "bottom";
+    const isVertTgt = tSide === "top" || tSide === "bottom";
+    const srcPt = isVertSrc
+      ? { x: srcBase.x + srcPortOffset, y: srcBase.y }
+      : { x: srcBase.x, y: srcBase.y + srcPortOffset };
+    const tgtPt = isVertTgt
+      ? { x: tgtBase.x + tgtPortOffset, y: tgtBase.y }
+      : { x: tgtBase.x, y: tgtBase.y + tgtPortOffset };
+
+    // Build obstacle list from all classes except source and target
+    const obstacles = allClasses
+      .filter((c) => c.id !== rel.source && c.id !== rel.target)
+      .map((c) => ({ x: c.x, y: c.y, w: classBoxWidth(c), h: classBoxHeight(c) }));
+
+    const wp = routeEdgeAStar(srcPt, sSide, tgtPt, tSide, obstacles, tgtPortOffset);
+    const d = buildOrthoPathD(wp);
+
+    return { pathD: d, waypoints: wp, src: srcPt, tgt: tgtPt, srcSide: sSide, tgtSide: tSide };
+  }, [srcCls, tgtCls, srcPortOffset, tgtPortOffset, rel.source, rel.target, allClasses]);
 
   // Label at the midpoint of the middle segment
   const midIdx = Math.floor(waypoints.length / 2);
@@ -825,12 +924,8 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
   const midB = waypoints[midIdx];
   const labelPos = { x: (midA.x + midB.x) / 2, y: (midA.y + midB.y) / 2 - 10 };
 
-  // Cardinality labels — offset perpendicular to the exit side of the orthogonal line.
-  // For vertical exits (top/bottom), offset horizontally. For horizontal exits, offset vertically.
-  // Position cardinality labels well away from the box edge on the approach line.
-  // For vertical sides (top/bottom), push 45px outward along the line + 18px sideways.
-  // For horizontal sides (left/right), push 45px outward + 12px up.
-  const cardPos = (anchor: Pt, side: string): Pt => {
+  // Cardinality labels
+  const cardPos = (anchor: { x: number; y: number }, side: string): Pt => {
     const isVert = side === "top" || side === "bottom";
     const outward = (side === "bottom" || side === "right") ? 1 : -1;
     return isVert
@@ -839,6 +934,9 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
   };
   const srcCardPos = cardPos(src, srcSide);
   const tgtCardPos = cardPos(tgt, tgtSide);
+
+  // LLD-408: Accessible label describing this relationship
+  const edgeAriaLabel = `${srcCls.name} ${EDGE_ARIA_VERB[rel.type] ?? rel.type} ${tgtCls.name}${rel.label ? ` (${rel.label})` : ""}`;
 
   // Edge draw animation: measure path length, animate stroke-dashoffset
   const pathRef = useRef<SVGPathElement>(null);
@@ -857,6 +955,8 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
 
   return (
     <motion.g
+      role="img"
+      aria-label={edgeAriaLabel}
       style={{ opacity: dimmed ? 0.2 : 1, transition: "opacity 0.15s ease" }}
       {...(reducedMotion
         ? {}
@@ -870,11 +970,12 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
       <path
         d={pathD}
         fill="none"
-        stroke={siblingCount > 1 ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.12)"}
+        stroke="var(--lld-canvas-edge)"
         strokeWidth={siblingCount > 1 ? 2 : 3}
         strokeDasharray={isDashed ? "10 6" : undefined}
         strokeLinecap="round"
         strokeLinejoin="round"
+        opacity={siblingCount > 1 ? 0.04 : 0.12}
         style={{ filter: siblingCount > 1 ? "blur(1px)" : "blur(2px)" }}
       />
       {/* Main edge path — with draw animation on load */}
@@ -918,14 +1019,15 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
       {/* Label — opaque pill with subtle border + shadow */}
       {rel.label && (
         <g className="pointer-events-none">
-          {/* Pill shadow for depth */}
+          {/* Pill shadow for depth — theme-aware */}
           <rect
             x={labelPos.x - (rel.label.length * 3.3 + 10)}
             y={labelPos.y - 9}
             width={rel.label.length * 6.6 + 20}
             height={19}
             rx={9.5}
-            fill="rgba(0,0,0,0.3)"
+            fill="var(--lld-canvas-edge)"
+            opacity={0.2}
             style={{ filter: "blur(3px)" }}
           />
           {/* Pill background */}
@@ -1144,6 +1246,129 @@ function RelationshipTypePicker({ x, y, onSelect, onCancel }: RelationshipTypePi
   );
 }
 
+// ── Export Dropdown (LLD-403) ────────────────────────────
+
+interface ExportDropdownProps {
+  classes: UMLClass[];
+  relationships: UMLRelationship[];
+}
+
+const ExportDropdown = memo(function ExportDropdown({
+  classes,
+  relationships,
+}: ExportDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const [copiedFormat, setCopiedFormat] = useState<"mermaid" | "plantuml" | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Cleanup timer
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const handleCopy = useCallback(
+    async (format: "mermaid" | "plantuml") => {
+      const text =
+        format === "mermaid"
+          ? exportToMermaid(classes, relationships)
+          : exportToPlantUML(classes, relationships);
+
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // Fallback for non-secure contexts
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      const label = format === "mermaid" ? "Mermaid" : "PlantUML";
+      toast("success", `${label} copied to clipboard`);
+      setCopiedFormat(format);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopiedFormat(null), 2000);
+    },
+    [classes, relationships],
+  );
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-xl border border-border/30 backdrop-blur-md bg-elevated/60 px-3 py-2 text-xs font-semibold text-foreground-muted shadow-lg transition-all hover:bg-elevated hover:text-foreground hover:border-primary/30"
+        title="Export diagram as Mermaid or PlantUML"
+        aria-label="Export diagram"
+        aria-expanded={open}
+        aria-haspopup="true"
+      >
+        <Share2 className="h-3.5 w-3.5" />
+        Export
+        <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full z-30 mt-1.5 w-52 overflow-hidden rounded-xl border border-border/50 bg-popover/95 shadow-xl backdrop-blur-md"
+          role="menu"
+          aria-label="Export format options"
+        >
+          <button
+            role="menuitem"
+            onClick={() => handleCopy("mermaid")}
+            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-xs transition-colors hover:bg-accent/50"
+          >
+            {copiedFormat === "mermaid" ? (
+              <Check className="h-3.5 w-3.5 text-green-400" />
+            ) : (
+              <Copy className="h-3.5 w-3.5 text-foreground-muted" />
+            )}
+            <div className="min-w-0 flex-1">
+              <span className="font-medium text-foreground">Copy as Mermaid</span>
+              <p className="mt-0.5 text-[10px] text-foreground-subtle">classDiagram syntax</p>
+            </div>
+          </button>
+          <div className="mx-3 border-t border-border/30" />
+          <button
+            role="menuitem"
+            onClick={() => handleCopy("plantuml")}
+            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-xs transition-colors hover:bg-accent/50"
+          >
+            {copiedFormat === "plantuml" ? (
+              <Check className="h-3.5 w-3.5 text-green-400" />
+            ) : (
+              <Copy className="h-3.5 w-3.5 text-foreground-muted" />
+            )}
+            <div className="min-w-0 flex-1">
+              <span className="font-medium text-foreground">Copy as PlantUML</span>
+              <p className="mt-0.5 text-[10px] text-foreground-subtle">@startuml class diagram</p>
+            </div>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
+
 // ── Canvas Component ─────────────────────────────────────
 
 interface LLDCanvasProps {
@@ -1190,6 +1415,7 @@ export const LLDCanvas = memo(function LLDCanvas({
 }: LLDCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const {
     zoom: zoomState,
     svgTransform: zoomTransform,
@@ -1343,11 +1569,9 @@ export const LLDCanvas = memo(function LLDCanvas({
     const rawW = contentBounds.w + pad * 2;
     const rawH = contentBounds.h + pad * 2;
     // Minimum viewBox dimensions prevent small diagrams from over-zooming.
-    // A 3-class pattern might have 400×300 content — without minimum,
-    // xMidYMid meet would zoom it to fill the canvas. With min 900×700,
-    // the content renders at a comfortable size with natural whitespace.
-    const MIN_W = 900;
-    const MIN_H = 700;
+    // On mobile (<768px), use smaller minimums so class boxes fit the viewport.
+    const MIN_W = isMobile ? 500 : 900;
+    const MIN_H = isMobile ? 400 : 700;
     const w = Math.max(rawW, MIN_W);
     const h = Math.max(rawH, MIN_H);
     // Center the content within the (possibly larger) viewBox
@@ -1359,7 +1583,7 @@ export const LLDCanvas = memo(function LLDCanvas({
       w,
       h,
     };
-  }, [classes]);
+  }, [classes, isMobile]);
 
   const screenToSVG = useCallback(
     (clientX: number, clientY: number): { x: number; y: number } => {
@@ -1483,13 +1707,14 @@ export const LLDCanvas = memo(function LLDCanvas({
   return (
     <div className="flex h-full flex-col">
       {(patternName || classes.length > 0) && (
-        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated/50 backdrop-blur-sm px-4 py-2">
-          <Layers className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated/50 backdrop-blur-sm px-4 py-2 overflow-x-auto">
+          <Layers className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
             {patternName ?? "Class Diagram"}
           </span>
           <div className="ml-auto flex items-center gap-3">
-            <TooltipProvider delayDuration={200}>
+            {/* Legend items — hidden on mobile (<768px) to prevent header overflow */}
+            {!isMobile && (<TooltipProvider delayDuration={200}>
               {(["interface", "abstract", "enum", "class"] as const).map((st) => (
                 <div key={st} className="flex items-center gap-1">
                   <div
@@ -1533,10 +1758,10 @@ export const LLDCanvas = memo(function LLDCanvas({
                   </TooltipContent>
                 </Tooltip>
               ))}
-            </TooltipProvider>
+            </TooltipProvider>)}
             {classes.length > 0 && (
               <>
-                <div className="mx-2 h-4 w-px bg-border/50" />
+                {!isMobile && <div className="mx-2 h-4 w-px bg-border/50" />}
                 <div className="flex items-center gap-1 rounded-lg border border-border/30 bg-background/60 px-1.5 py-0.5">
                   <button onClick={zoomOut} className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-foreground-muted hover:bg-accent hover:text-foreground" title="Zoom out" aria-label="Zoom out">−</button>
                   <span className="min-w-[2.5rem] text-center text-[10px] font-semibold text-foreground-subtle">{zoomPercent}%</span>
@@ -1554,10 +1779,12 @@ export const LLDCanvas = memo(function LLDCanvas({
         <svg
           ref={svgRef}
           data-lld-canvas-svg
+          role="img"
+          aria-label={`UML class diagram${patternName ? `: ${patternName}` : ""} with ${classes.length} classes and ${relationships.length} relationships`}
           viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
           preserveAspectRatio="xMidYMid meet"
           className="h-full w-full"
-          style={{ minHeight: 400 }}
+          style={{ minHeight: 400, touchAction: "none" }}
           onClick={handleBgClick}
           onPointerDown={handleZoomPanStart}
           onPointerMove={handleZoomPanMove}
@@ -1588,6 +1815,10 @@ export const LLDCanvas = memo(function LLDCanvas({
                 <feMergeNode in="coloredBlur"/>
                 <feMergeNode in="SourceGraphic"/>
               </feMerge>
+            </filter>
+            {/* Hover shadow filter — works in both light and dark mode */}
+            <filter id="class-hover-shadow" x="-10%" y="-10%" width="130%" height="140%">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="var(--lld-canvas-edge)" floodOpacity="0.25"/>
             </filter>
           </defs>
           <rect
@@ -1698,6 +1929,7 @@ export const LLDCanvas = memo(function LLDCanvas({
                 Auto Layout
               </button>
             )}
+            <ExportDropdown classes={classes} relationships={relationships} />
           </div>
         )}
 

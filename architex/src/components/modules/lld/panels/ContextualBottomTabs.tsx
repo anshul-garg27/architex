@@ -150,9 +150,9 @@ function markPatternVisited(slug: string): void {
 // ── Difficulty badge helpers ───────────────────────────────
 
 const DIFFICULTY_BADGE: Record<string, { label: string; className: string }> = {
-  easy: { label: "Easy", className: "bg-green-500/10 text-green-400 border-green-500/30" },
-  medium: { label: "Medium", className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" },
-  hard: { label: "Hard", className: "bg-red-500/10 text-red-400 border-red-500/30" },
+  easy: { label: "Easy", className: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30" },
+  medium: { label: "Medium", className: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" },
+  hard: { label: "Hard", className: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30" },
 };
 
 function getDifficultyBadge(difficulty: number): { label: string; className: string } {

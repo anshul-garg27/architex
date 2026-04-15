@@ -99,6 +99,12 @@ export { generateMermaid } from "./codegen/diagram-to-mermaid";
 export { parseMermaidClassDiagram } from "./codegen/mermaid-to-diagram";
 export type { MermaidParseResult } from "./codegen/mermaid-to-diagram";
 
+// ── Diagram Export (LLD-403) ───────────────────────────────────
+export {
+  exportToMermaid as exportDiagramToMermaid,
+  exportToPlantUML as exportDiagramToPlantUML,
+} from "./export-diagram";
+
 // ── Code-to-Diagram Parsing ─────────────────────────────────
 export {
   parseTypeScript as parseTypeScriptCode,

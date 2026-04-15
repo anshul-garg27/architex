@@ -627,10 +627,10 @@ const CodeToDiagramPanel = memo(function CodeToDiagramPanel({
 // ── Sidebar Search ──────────────────────────────────────
 
 const CONTENT_TYPE_COLORS: Record<string, string> = {
-  pattern: "text-violet-400 border-violet-500/30 bg-violet-500/10",
-  problem: "text-amber-400 border-amber-500/30 bg-amber-500/10",
-  demo: "text-blue-400 border-blue-500/30 bg-blue-500/10",
-  concept: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+  pattern: "text-violet-700 dark:text-violet-400 border-violet-500/30 bg-violet-500/10",
+  problem: "text-amber-700 dark:text-amber-400 border-amber-500/30 bg-amber-500/10",
+  demo: "text-blue-700 dark:text-blue-400 border-blue-500/30 bg-blue-500/10",
+  concept: "text-emerald-700 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
 };
 
 function buildResultHref(r: SearchResult): string {
@@ -847,7 +847,7 @@ export const LLDSidebar = memo(function LLDSidebar({
           </h2>
           {dueCount > 0 && (
             <span
-              className="inline-flex items-center rounded-full border border-violet-400/30 bg-violet-500/10 backdrop-blur-sm px-2 py-0.5 text-[9px] font-bold text-violet-400 shadow-[0_0_8px_rgba(139,92,246,0.1)]"
+              className="inline-flex items-center rounded-full border border-violet-400/30 bg-violet-500/10 backdrop-blur-sm px-2 py-0.5 text-[9px] font-bold text-violet-700 dark:text-violet-400 shadow-[0_0_8px_rgba(139,92,246,0.1)]"
               title={`${dueCount} item${dueCount !== 1 ? "s" : ""} due for review`}
             >
               {dueCount} due

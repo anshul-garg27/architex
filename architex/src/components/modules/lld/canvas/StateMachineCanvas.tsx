@@ -6,6 +6,7 @@
  */
 
 import React, { memo, useMemo, useRef, useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-media-query";
 import {
   Circle,
   Play,
@@ -147,6 +148,7 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
 }: StateMachineCanvasProps) {
   const smSvgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const {
     svgTransform: smZoomTransform,
     zoomPercent: smZoomPercent,
@@ -237,8 +239,9 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
   const pad = CANVAS_VIEWBOX_PAD;
   const rawW = contentBounds.w + 2 * pad;
   const rawH = contentBounds.h + 2 * pad + 30;
-  const MIN_W = 800;
-  const MIN_H = 500;
+  // On mobile, use smaller minimums so content fits narrow viewports
+  const MIN_W = isMobile ? 450 : 800;
+  const MIN_H = isMobile ? 350 : 500;
   const vbW = Math.max(rawW, MIN_W);
   const vbH = Math.max(rawH, MIN_H);
   const cx = contentBounds.x + contentBounds.w / 2;
@@ -258,27 +261,30 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
   return (
     <div className="flex h-full flex-col">
       {title && (
-        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated px-4 py-2">
-          <Circle className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
+        <div className="flex items-center gap-2 border-b border-border/30 bg-elevated px-4 py-2 overflow-x-auto">
+          <Circle className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
             {title}
           </span>
           <div className="ml-auto flex items-center gap-3">
-            {/* Legend — using CSS variables for light/dark compatibility */}
-            <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--lld-stereo-interface)" }} />
-              <span className="text-[10px] text-foreground-subtle">Initial</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-full" style={{ border: "2px solid var(--lld-stereo-enum)", boxSizing: "border-box" }} />
-              <span className="text-[10px] text-foreground-subtle">Final</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--lld-canvas-border)" }} />
-              <span className="text-[10px] text-foreground-subtle">State</span>
-            </div>
-            {/* Compact zoom controls in header */}
-            <div className="mx-1 h-4 w-px bg-border/30" />
+            {/* Legend — hidden on mobile to prevent header overflow */}
+            {!isMobile && (
+              <>
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--lld-stereo-interface)" }} />
+                  <span className="text-[10px] text-foreground-subtle">Initial</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full" style={{ border: "2px solid var(--lld-stereo-enum)", boxSizing: "border-box" }} />
+                  <span className="text-[10px] text-foreground-subtle">Final</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--lld-canvas-border)" }} />
+                  <span className="text-[10px] text-foreground-subtle">State</span>
+                </div>
+                <div className="mx-1 h-4 w-px bg-border/30" />
+              </>
+            )}
             <div className="flex items-center gap-1">
               <button
                 onClick={smZoomOut}
@@ -322,10 +328,12 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
       <div ref={containerRef} className="relative flex-1 overflow-hidden bg-background">
         <svg
           ref={smSvgRef}
+          role="img"
+          aria-label={`State machine diagram${title ? `: ${title}` : ""} with ${data.states.length} states and ${data.transitions.length} transitions`}
           viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
           preserveAspectRatio="xMidYMid meet"
           className="h-full w-full"
-          style={{ minHeight: 400 }}
+          style={{ minHeight: 400, touchAction: "none" }}
           onClick={() => onSelectState(null)}
           onPointerDown={smHandlePanStart}
           onPointerMove={smHandlePanMove}
@@ -417,6 +425,8 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
               return (
                 <g
                   key={t.id}
+                  role="img"
+                  aria-label={`Self-transition on ${t.from}: ${t.trigger}${t.guard ? ` when ${t.guard}` : ""}`}
                   onPointerEnter={() => setHoveredTransitionId(t.id)}
                   onPointerLeave={() => setHoveredTransitionId(null)}
                   style={{ cursor: "default" }}
@@ -490,6 +500,8 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
             return (
               <g
                 key={t.id}
+                role="img"
+                aria-label={`Transition from ${t.from} to ${t.to}: ${t.trigger}${t.guard ? ` when ${t.guard}` : ""}${t.action ? `, action: ${t.action}` : ""}`}
                 onPointerEnter={() => setHoveredTransitionId(t.id)}
                 onPointerLeave={() => setHoveredTransitionId(null)}
                 style={{ cursor: "default" }}
@@ -597,13 +609,16 @@ export const StateMachineCanvas = memo(function StateMachineCanvas({
             return (
               <g
                 key={state.id}
+                tabIndex={0}
+                role="button"
+                aria-label={`${state.isInitial ? "Initial " : ""}${state.isFinal ? "Final " : ""}State: ${state.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectState(state.id);
                 }}
                 onPointerEnter={() => setHoveredStateId(state.id)}
                 onPointerLeave={() => setHoveredStateId(null)}
-                style={{ cursor: "pointer", opacity: stateOpacity, transition: "opacity 0.2s ease" }}
+                style={{ cursor: "pointer", opacity: stateOpacity, transition: "opacity 0.2s ease", outline: "none" }}
                 filter={(isSelected || isSimCurrent || isStateHovered) ? "url(#sm-glow)" : undefined}
               >
                 {/* Hover glow ring — colored by state type */}

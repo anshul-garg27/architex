@@ -73,7 +73,7 @@ function MenuItem({ label, onClick, danger, submenu, disabled, shortcut }: MenuI
           disabled
             ? "cursor-not-allowed text-foreground-subtle/40"
             : danger
-              ? "text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              ? "text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-300"
               : "text-foreground-muted hover:bg-accent hover:text-foreground"
         }`}
       >
