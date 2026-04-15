@@ -27339,11 +27339,6154 @@ the fine based on days overdue and the applicable policy.
 O(M) for member records. O(L) for active loans.`,
 };
 
+
+// ============================================================
+//  11-design-parking-lot -> prob-parking-lot
+// ============================================================
+
+export const parkingLotSolution: ProblemSolutionContent = {
+  referenceSolution: `# Design a Parking Lot System -- Complete Java Implementation
+
+## Table of Contents
+
+1. [VehicleType Enum](#1-vehicletype-enum)
+2. [SpotType Enum](#2-spottype-enum)
+3. [Vehicle](#3-vehicle)
+4. [ParkingSpot](#4-parkingspot)
+5. [Ticket](#5-ticket)
+6. [FeeCalculator Interface](#6-feecalculator-interface)
+7. [HourlyFeeCalculator](#7-hourlyfeecalculator)
+8. [ParkingFloor](#8-parkingfloor)
+9. [DisplayBoard](#9-displayboard)
+10. [EntryGate](#10-entrygate)
+11. [ExitGate](#11-exitgate)
+12. [PaymentProcessor](#12-paymentprocessor)
+13. [ParkingLot](#13-parkinglot)
+14. [ParkingLotDemo (Main)](#14-parkinglotdemo-main)
+
+---
+
+## 1. VehicleType Enum
+
+\`\`\`java
+public enum VehicleType {
+    MOTORCYCLE, CAR, BUS
+}
+\`\`\`
+
+---
+
+## 2. SpotType Enum
+
+\`\`\`java
+public enum SpotType {
+    SMALL, MEDIUM, LARGE;
+
+    public boolean canFit(VehicleType type) {
+        return switch (type) {
+            case MOTORCYCLE -> true;
+            case CAR -> this != SMALL;
+            case BUS -> this == LARGE;
+        };
+    }
+}
+\`\`\`
+
+---
+
+## 3. Vehicle
+
+\`\`\`java
+public class Vehicle {
+    private final String licensePlate;
+    private final VehicleType type;
+    private final String color;
+
+    public Vehicle(String licensePlate, VehicleType type, String color) {
+        this.licensePlate = licensePlate;
+        this.type = type;
+        this.color = color;
+    }
+
+    public VehicleType getType() { return type; }
+    public String getLicensePlate() { return licensePlate; }
+}
+\`\`\`
+
+---
+
+## 4. ParkingSpot
+
+\`\`\`java
+public class ParkingSpot {
+    private final String id;
+    private final SpotType type;
+    private Vehicle vehicle;
+
+    public ParkingSpot(String id, SpotType type) {
+        this.id = id;
+        this.type = type;
+    }
+
+    public synchronized boolean isOccupied() { return vehicle != null; }
+
+    public synchronized boolean assignVehicle(Vehicle v) {
+        if (vehicle != null || !type.canFit(v.getType())) return false;
+        this.vehicle = v;
+        return true;
+    }
+
+    public synchronized Vehicle removeVehicle() {
+        Vehicle v = this.vehicle;
+        this.vehicle = null;
+        return v;
+    }
+
+    public String getId() { return id; }
+    public SpotType getType() { return type; }
+}
+\`\`\`
+
+---
+
+## 5. Ticket
+
+\`\`\`java
+import java.time.*;
+
+public class Ticket {
+    private final String ticketId;
+    private final LocalDateTime entryTime;
+    private final Vehicle vehicle;
+    private final ParkingSpot spot;
+
+    public Ticket(String ticketId, Vehicle vehicle, ParkingSpot spot) {
+        this.ticketId = ticketId;
+        this.entryTime = LocalDateTime.now();
+        this.vehicle = vehicle;
+        this.spot = spot;
+    }
+
+    public long getParkedHours() {
+        return Duration.between(entryTime, LocalDateTime.now()).toHours() + 1;
+    }
+
+    public String getTicketId() { return ticketId; }
+    public Vehicle getVehicle() { return vehicle; }
+    public ParkingSpot getSpot() { return spot; }
+    public LocalDateTime getEntryTime() { return entryTime; }
+}
+\`\`\`
+
+---
+
+## 6. FeeCalculator Interface
+
+\`\`\`java
+public interface FeeCalculator {
+    double calculateFee(Ticket ticket);
+    double getHourlyRate(VehicleType type);
+}
+\`\`\`
+
+---
+
+## 7. HourlyFeeCalculator
+
+\`\`\`java
+public class HourlyFeeCalculator implements FeeCalculator {
+    @Override
+    public double calculateFee(Ticket ticket) {
+        return ticket.getParkedHours() * getHourlyRate(ticket.getVehicle().getType());
+    }
+
+    @Override
+    public double getHourlyRate(VehicleType type) {
+        return switch (type) {
+            case MOTORCYCLE -> 1.0;
+            case CAR -> 2.0;
+            case BUS -> 5.0;
+        };
+    }
+}
+\`\`\`
+
+---
+
+## 8. ParkingFloor
+
+\`\`\`java
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+public class ParkingFloor {
+    private final int floorNumber;
+    private final Map<SpotType, Queue<ParkingSpot>> freeSpots = new EnumMap<>(SpotType.class);
+
+    public ParkingFloor(int floorNumber, List<ParkingSpot> spots) {
+        this.floorNumber = floorNumber;
+        for (SpotType t : SpotType.values()) freeSpots.put(t, new ConcurrentLinkedQueue<>());
+        for (ParkingSpot s : spots) freeSpots.get(s.getType()).add(s);
+    }
+
+    public ParkingSpot findAvailableSpot(VehicleType type) {
+        for (SpotType st : SpotType.values()) {
+            if (st.canFit(type)) {
+                ParkingSpot s = freeSpots.get(st).poll();
+                if (s != null) return s;
+            }
+        }
+        return null;
+    }
+
+    public void freeSpot(ParkingSpot spot) {
+        freeSpots.get(spot.getType()).add(spot);
+    }
+
+    public int getFloorNumber() { return floorNumber; }
+}
+\`\`\`
+
+---
+
+## 13. ParkingLot
+
+\`\`\`java
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class ParkingLot {
+    private static ParkingLot instance;
+    private final String name;
+    private final List<ParkingFloor> floors;
+    private final Map<String, Ticket> activeTickets = new ConcurrentHashMap<>();
+    private final FeeCalculator feeCalculator;
+    private int ticketCounter = 0;
+
+    private ParkingLot(String name, List<ParkingFloor> floors, FeeCalculator calc) {
+        this.name = name;
+        this.floors = floors;
+        this.feeCalculator = calc;
+    }
+
+    public static synchronized ParkingLot getInstance(String name,
+            List<ParkingFloor> floors, FeeCalculator calc) {
+        if (instance == null) instance = new ParkingLot(name, floors, calc);
+        return instance;
+    }
+
+    public synchronized Ticket parkVehicle(Vehicle vehicle) {
+        for (ParkingFloor floor : floors) {
+            ParkingSpot spot = floor.findAvailableSpot(vehicle.getType());
+            if (spot != null && spot.assignVehicle(vehicle)) {
+                String id = "T-" + (++ticketCounter);
+                Ticket ticket = new Ticket(id, vehicle, spot);
+                activeTickets.put(id, ticket);
+                return ticket;
+            }
+        }
+        throw new RuntimeException("Parking lot is full for " + vehicle.getType());
+    }
+
+    public double unparkVehicle(String ticketId) {
+        Ticket ticket = activeTickets.remove(ticketId);
+        if (ticket == null) throw new RuntimeException("Invalid ticket: " + ticketId);
+        ticket.getSpot().removeVehicle();
+        for (ParkingFloor f : floors) {
+            if (f.getFloorNumber() == 0) { f.freeSpot(ticket.getSpot()); break; }
+        }
+        return feeCalculator.calculateFee(ticket);
+    }
+}
+\`\`\`
+
+---
+
+## 14. ParkingLotDemo (Main)
+
+\`\`\`java
+public class ParkingLotDemo {
+    public static void main(String[] args) {
+        List<ParkingSpot> spots = new ArrayList<>();
+        for (int i = 0; i < 5; i++) spots.add(new ParkingSpot("S" + i, SpotType.SMALL));
+        for (int i = 0; i < 10; i++) spots.add(new ParkingSpot("M" + i, SpotType.MEDIUM));
+        for (int i = 0; i < 3; i++) spots.add(new ParkingSpot("L" + i, SpotType.LARGE));
+
+        ParkingFloor floor = new ParkingFloor(0, spots);
+        ParkingLot lot = ParkingLot.getInstance("Main Lot",
+                List.of(floor), new HourlyFeeCalculator());
+
+        Vehicle car = new Vehicle("ABC-123", VehicleType.CAR, "Red");
+        Ticket t = lot.parkVehicle(car);
+        System.out.println("Parked: " + t.getTicketId());
+
+        double fee = lot.unparkVehicle(t.getTicketId());
+        System.out.println("Fee: $" + fee);
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Parking Lot System
+
+## Step 1: Entity Identification
+
+The core entities emerge from the requirements:
+- **ParkingLot** -- the top-level aggregate that owns everything
+- **ParkingFloor** -- floors within the lot, each with spots
+- **ParkingSpot** -- individual spots with type and occupancy state
+- **Vehicle** -- the car/motorcycle/bus being parked
+- **Ticket** -- connects a vehicle to its spot and records entry time
+- **FeeCalculator** -- Strategy interface for pricing
+- **EntryGate / ExitGate** -- physical entry and exit points
+- **DisplayBoard** -- shows real-time availability per floor
+
+## Step 2: Relationship Design
+
+- **Composition:** ParkingLot -> ParkingFloor -> ParkingSpot (lifecycle ownership)
+- **Association:** ParkingSpot <-> Vehicle (temporary, while parked)
+- **Dependency:** ExitGate -> FeeCalculator (calculates fee on exit)
+- **Singleton:** ParkingLot -- only one instance per physical lot
+
+## Step 3: Design Patterns
+
+1. **Strategy** for FeeCalculator -- swap HourlyFee, DailyFee, WeekendFee
+2. **Factory Method** for Vehicle creation based on type
+3. **Singleton** for ParkingLot -- ensures single source of truth
+4. **Observer** for DisplayBoard -- updates when spot availability changes
+
+## Step 4: Key Design Decisions
+
+- Use a \`ConcurrentLinkedQueue<ParkingSpot>\` per SpotType for O(1) amortized spot allocation
+- Use \`ConcurrentHashMap<ticketId, Ticket>\` for O(1) ticket lookup on exit
+- Synchronize \`assignVehicle()\` and \`removeVehicle()\` on ParkingSpot to prevent double-booking
+- Separate FeeCalculator as a Strategy so pricing can change without modifying core classes
+
+## Step 5: Edge Cases
+
+- **Full lot:** throw exception or return null when no spot is available
+- **Oversized vehicle:** SpotType.canFit(VehicleType) prevents a bus from parking in a small spot
+- **Concurrent parking:** synchronized spot assignment prevents double-booking
+- **Payment failure:** retain ticket until payment succeeds; barrier stays down`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+### Time Complexity
+
+| Operation | Complexity | Notes |
+|-----------|-----------|-------|
+| Park vehicle | O(1) amortized | Queue.poll() per spot type |
+| Unpark vehicle | O(1) | HashMap lookup by ticket ID |
+| Fee calculation | O(1) | Arithmetic on hours x rate |
+| Find available spot | O(F) worst case | F floors if first floors are full |
+
+### Space Complexity
+
+| Component | Space | Notes |
+|-----------|-------|-------|
+| Spots | O(F x S) | F floors, S spots per floor |
+| Active tickets | O(V) | V = currently parked vehicles |
+| Free spot queues | O(S) | One queue per SpotType per floor |
+
+### Key Insight
+Using a per-type free-spot queue (ConcurrentLinkedQueue) converts the spot search from O(S) linear scan to O(1) amortized. The HashMap for active tickets makes unpark O(1) instead of searching all spots.`
+};
+
+
+// ============================================================
+//  12-design-elevator -> prob-elevator
+// ============================================================
+
+export const elevatorSolution: ProblemSolutionContent = {
+  referenceSolution: `# Design an Elevator System -- Complete Java Implementation
+
+## Table of Contents
+
+1. [Direction Enum](#1-direction-enum)
+2. [ElevatorState Enum](#2-elevatorstate-enum)
+3. [Request](#3-request)
+4. [Door](#4-door)
+5. [Display](#5-display)
+6. [Button](#6-button)
+7. [Floor](#7-floor)
+8. [Elevator](#8-elevator)
+9. [Dispatcher Interface](#9-dispatcher-interface)
+10. [SCANDispatcher](#10-scandispatcher)
+11. [ElevatorController](#11-elevatorcontroller)
+12. [Building](#12-building)
+13. [ElevatorDemo (Main)](#13-elevatordemo-main)
+
+---
+
+## 1. Direction Enum
+
+\`\`\`java
+public enum Direction {
+    UP, DOWN, IDLE
+}
+\`\`\`
+
+---
+
+## 2. ElevatorState Enum
+
+\`\`\`java
+public enum ElevatorState {
+    IDLE, MOVING_UP, MOVING_DOWN, DOOR_OPEN, MAINTENANCE
+}
+\`\`\`
+
+---
+
+## 3. Request
+
+\`\`\`java
+public class Request {
+    private final int floor;
+    private final Direction direction;
+    private final long timestamp;
+
+    public Request(int floor, Direction direction) {
+        this.floor = floor;
+        this.direction = direction;
+        this.timestamp = System.currentTimeMillis();
+    }
+
+    public int getFloor() { return floor; }
+    public Direction getDirection() { return direction; }
+    public long getTimestamp() { return timestamp; }
+}
+\`\`\`
+
+---
+
+## 4-6. Door, Display, Button
+
+\`\`\`java
+public class Door {
+    private boolean open = false;
+
+    public void open() { open = true; System.out.println("  Door opened"); }
+    public void close() { open = false; System.out.println("  Door closed"); }
+    public boolean isOpen() { return open; }
+}
+
+public class Display {
+    private int currentFloor;
+    private Direction direction;
+
+    public void update(int floor, Direction dir) {
+        this.currentFloor = floor;
+        this.direction = dir;
+    }
+    public String show() { return "Floor " + currentFloor + " " + direction; }
+}
+
+public class Button {
+    private boolean pressed = false;
+    private final Direction direction;
+
+    public Button(Direction direction) { this.direction = direction; }
+    public void press() { pressed = true; }
+    public void reset() { pressed = false; }
+    public boolean isPressed() { return pressed; }
+    public Direction getDirection() { return direction; }
+}
+\`\`\`
+
+---
+
+## 7. Floor
+
+\`\`\`java
+public class Floor {
+    private final int floorNumber;
+    private final Button upButton;
+    private final Button downButton;
+
+    public Floor(int number) {
+        this.floorNumber = number;
+        this.upButton = new Button(Direction.UP);
+        this.downButton = new Button(Direction.DOWN);
+    }
+
+    public Request pressUp() { upButton.press(); return new Request(floorNumber, Direction.UP); }
+    public Request pressDown() { downButton.press(); return new Request(floorNumber, Direction.DOWN); }
+    public int getFloorNumber() { return floorNumber; }
+}
+\`\`\`
+
+---
+
+## 8. Elevator
+
+\`\`\`java
+import java.util.TreeSet;
+
+public class Elevator {
+    private final int id;
+    private int currentFloor = 0;
+    private ElevatorState state = ElevatorState.IDLE;
+    private final int capacity;
+    private int currentLoad = 0;
+    private final Door door = new Door();
+    private final Display display = new Display();
+    private final TreeSet<Integer> upStops = new TreeSet<>();
+    private final TreeSet<Integer> downStops = new TreeSet<>(java.util.Collections.reverseOrder());
+
+    public Elevator(int id, int capacity) {
+        this.id = id;
+        this.capacity = capacity;
+    }
+
+    public synchronized void addStop(int floor) {
+        if (floor > currentFloor) upStops.add(floor);
+        else if (floor < currentFloor) downStops.add(floor);
+    }
+
+    public void step() {
+        if (state == ElevatorState.MOVING_UP && !upStops.isEmpty()) {
+            int next = upStops.first();
+            currentFloor = next;
+            upStops.remove(next);
+            door.open();
+            display.update(currentFloor, Direction.UP);
+            door.close();
+            if (upStops.isEmpty()) state = downStops.isEmpty() ? ElevatorState.IDLE : ElevatorState.MOVING_DOWN;
+        } else if (state == ElevatorState.MOVING_DOWN && !downStops.isEmpty()) {
+            int next = downStops.first();
+            currentFloor = next;
+            downStops.remove(next);
+            door.open();
+            display.update(currentFloor, Direction.DOWN);
+            door.close();
+            if (downStops.isEmpty()) state = upStops.isEmpty() ? ElevatorState.IDLE : ElevatorState.MOVING_UP;
+        }
+    }
+
+    public int getCurrentFloor() { return currentFloor; }
+    public ElevatorState getState() { return state; }
+    public int getId() { return id; }
+    public boolean isIdle() { return state == ElevatorState.IDLE; }
+    public void setState(ElevatorState s) { this.state = s; }
+    public boolean hasCapacity() { return currentLoad < capacity; }
+}
+\`\`\`
+
+---
+
+## 9-10. Dispatcher Interface and SCANDispatcher
+
+\`\`\`java
+public interface Dispatcher {
+    Elevator selectElevator(List<Elevator> elevators, int floor, Direction dir);
+}
+
+public class SCANDispatcher implements Dispatcher {
+    @Override
+    public Elevator selectElevator(List<Elevator> elevators, int floor, Direction dir) {
+        Elevator best = null;
+        int minDist = Integer.MAX_VALUE;
+
+        for (Elevator e : elevators) {
+            if (e.getState() == ElevatorState.MAINTENANCE) continue;
+            if (!e.hasCapacity()) continue;
+
+            int dist = Math.abs(e.getCurrentFloor() - floor);
+            boolean sameDirection = (dir == Direction.UP && e.getState() == ElevatorState.MOVING_UP && e.getCurrentFloor() <= floor)
+                    || (dir == Direction.DOWN && e.getState() == ElevatorState.MOVING_DOWN && e.getCurrentFloor() >= floor);
+
+            if (e.isIdle()) dist -= 1; // prefer idle elevators
+            if (sameDirection) dist -= 2; // prefer same-direction elevators
+
+            if (dist < minDist) { minDist = dist; best = e; }
+        }
+        return best != null ? best : elevators.get(0);
+    }
+}
+\`\`\`
+
+---
+
+## 12. Building
+
+\`\`\`java
+import java.util.*;
+
+public class Building {
+    private final int totalFloors;
+    private final List<Elevator> elevators;
+    private final List<Floor> floors;
+    private final Dispatcher dispatcher;
+
+    public Building(int totalFloors, int numElevators, int elevatorCapacity) {
+        this.totalFloors = totalFloors;
+        this.dispatcher = new SCANDispatcher();
+        this.elevators = new ArrayList<>();
+        this.floors = new ArrayList<>();
+        for (int i = 0; i < numElevators; i++) elevators.add(new Elevator(i, elevatorCapacity));
+        for (int i = 0; i < totalFloors; i++) floors.add(new Floor(i));
+    }
+
+    public void requestElevator(int floor, Direction dir) {
+        Elevator e = dispatcher.selectElevator(elevators, floor, dir);
+        e.addStop(floor);
+        if (e.isIdle()) {
+            e.setState(floor > e.getCurrentFloor() ? ElevatorState.MOVING_UP : ElevatorState.MOVING_DOWN);
+        }
+        System.out.println("Elevator " + e.getId() + " dispatched to floor " + floor);
+    }
+
+    public void step() { for (Elevator e : elevators) e.step(); }
+}
+\`\`\`
+
+---
+
+## 13. ElevatorDemo (Main)
+
+\`\`\`java
+public class ElevatorDemo {
+    public static void main(String[] args) {
+        Building building = new Building(10, 3, 8);
+
+        building.requestElevator(5, Direction.UP);
+        building.requestElevator(2, Direction.DOWN);
+        building.requestElevator(8, Direction.UP);
+
+        for (int i = 0; i < 10; i++) building.step();
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Elevator System
+
+## Step 1: Entity Identification
+
+- **Building** -- top-level aggregate owning elevators and floors
+- **Elevator** -- moves between floors, has state and stop queue
+- **Floor** -- has up/down buttons that generate requests
+- **Button** -- physical button with pressed state
+- **Request** -- data object: floor number + direction + timestamp
+- **Door** -- open/close mechanism on each elevator
+- **Display** -- shows current floor and direction
+- **Dispatcher** -- Strategy interface for selecting which elevator to send
+- **ElevatorController** -- manages a single elevator's stop queue
+
+## Step 2: Key Design Decisions
+
+### Data Structure for Stops
+Use two TreeSets: one for upward stops (natural order) and one for downward stops (reverse order). This gives O(log N) insertion and O(1) next-stop retrieval via first().
+
+### Dispatch Algorithm
+The SCAN algorithm works like a disk arm: the elevator goes all the way up serving stops, then reverses to go all the way down. The LOOK variant reverses as soon as there are no more stops in the current direction.
+
+## Step 3: Design Patterns
+
+1. **Strategy** for Dispatcher -- swap SCANDispatcher, LOOKDispatcher, NearestFirstDispatcher
+2. **State** for Elevator -- Idle, MovingUp, MovingDown, DoorOpen, Maintenance
+3. **Observer** for Display -- updates when elevator floor changes
+4. **Command** for Request -- encapsulates a floor request
+
+## Step 4: Concurrency Considerations
+
+- Synchronize addStop() on each Elevator to prevent race conditions
+- The Dispatcher evaluates all elevators atomically to prevent two requests from selecting the same elevator simultaneously
+- Door open/close uses a timer to prevent premature closing
+
+## Step 5: Edge Cases
+
+- **Elevator at capacity:** skip pick-up, dispatch another elevator
+- **Maintenance mode:** exclude from dispatcher selection
+- **Starvation prevention:** implement aging so old requests get priority
+- **Multiple simultaneous requests:** dispatcher batch-processes request queue`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+### Time Complexity
+
+| Operation | Complexity | Notes |
+|-----------|-----------|-------|
+| Dispatch (select elevator) | O(E) | Evaluate all E elevators |
+| Add stop to elevator | O(log N) | TreeSet insertion, N = pending stops |
+| Get next stop | O(1) | TreeSet.first() |
+| Process one floor move | O(1) | Move + door open/close |
+| Handle one request | O(E + log N) | Dispatch + add stop |
+
+### Space Complexity
+
+| Component | Space | Notes |
+|-----------|-------|-------|
+| Stop queues | O(E x N) | E elevators, N stops each |
+| Floor state | O(F) | F floors with buttons |
+| Request buffer | O(R) | R pending requests |
+
+### Key Insight
+The SCAN algorithm ensures each floor is visited at most once per sweep, giving predictable O(F) worst-case time for a full sweep of F floors. Using TreeSet for stops means the next destination is always available in O(1) without re-sorting.`
+};
+
+
+// ============================================================
+//  design-file-system -> prob-file-system
+// ============================================================
+
+export const fileSystemSolution: ProblemSolutionContent = {
+  referenceSolution: `# In-Memory File System -- Complete Java Implementation
+
+> All classes in a single file for interview convenience.
+> Compiles and runs with: \`javac FileSystemDemo.java && java FileSystemDemo\`
+
+---
+
+## Full Source Code
+
+\`\`\`java
+import java.util.*;
+
+// ============================================================================
+// PERMISSION
+// ============================================================================
+
+class Permission {
+    private boolean read;
+    private boolean write;
+    private boolean execute;
+
+    public Permission(boolean r, boolean w, boolean x) {
+        this.read = r; this.write = w; this.execute = x;
+    }
+
+    public boolean canRead()    { return read; }
+    public boolean canWrite()   { return write; }
+    public boolean canExecute() { return execute; }
+}
+
+// ============================================================================
+// FILE SYSTEM VISITOR (Visitor Pattern)
+// ============================================================================
+
+interface FileSystemVisitor {
+    void visitFile(File file);
+    void visitDirectory(Directory dir);
+}
+
+// ============================================================================
+// FILE SYSTEM ENTRY -- abstract component (Composite Pattern)
+// ============================================================================
+
+abstract class FileSystemEntry {
+    protected String name;
+    protected Directory parent;
+    protected Date createdAt;
+    protected Permission permissions;
+
+    public FileSystemEntry(String name, Directory parent) {
+        this.name = name;
+        this.parent = parent;
+        this.createdAt = new Date();
+        this.permissions = new Permission(true, true, false);
+    }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public Directory getParent() { return parent; }
+    public void setParent(Directory parent) { this.parent = parent; }
+
+    public String getPath() {
+        if (parent == null) return "/" + name;
+        String parentPath = parent.getPath();
+        return parentPath.equals("/") ? "/" + name : parentPath + "/" + name;
+    }
+
+    public abstract long getSize();
+    public abstract void accept(FileSystemVisitor visitor);
+
+    public void delete() {
+        if (parent \!= null) parent.removeEntry(name);
+    }
+}
+
+// ============================================================================
+// FILE -- leaf node
+// ============================================================================
+
+class File extends FileSystemEntry {
+    private StringBuilder content;
+    private String extension;
+
+    public File(String name, Directory parent) {
+        super(name, parent);
+        this.content = new StringBuilder();
+        int dotIdx = name.lastIndexOf('.');
+        this.extension = dotIdx >= 0 ? name.substring(dotIdx + 1) : "";
+    }
+
+    public String read()        { return content.toString(); }
+    public void write(String data) { content = new StringBuilder(data); }
+    public void append(String data) { content.append(data); }
+    public String getExtension() { return extension; }
+
+    @Override public long getSize() { return content.length(); }
+
+    @Override public void accept(FileSystemVisitor visitor) {
+        visitor.visitFile(this);
+    }
+}
+
+// ============================================================================
+// DIRECTORY -- composite node
+// ============================================================================
+
+class Directory extends FileSystemEntry {
+    private Map<String, FileSystemEntry> children = new LinkedHashMap<>();
+
+    public Directory(String name, Directory parent) {
+        super(name, parent);
+    }
+
+    public void addEntry(FileSystemEntry entry) {
+        children.put(entry.getName(), entry);
+        entry.setParent(this);
+    }
+
+    public void removeEntry(String name) { children.remove(name); }
+
+    public FileSystemEntry getChild(String name) {
+        return children.get(name);
+    }
+
+    public List<FileSystemEntry> list() {
+        return new ArrayList<>(children.values());
+    }
+
+    @Override
+    public long getSize() {
+        long total = 0;
+        for (FileSystemEntry child : children.values()) total += child.getSize();
+        return total;
+    }
+
+    @Override
+    public void accept(FileSystemVisitor visitor) {
+        visitor.visitDirectory(this);
+        for (FileSystemEntry child : children.values()) child.accept(visitor);
+    }
+}
+
+// ============================================================================
+// SEARCH VISITOR
+// ============================================================================
+
+class SearchVisitor implements FileSystemVisitor {
+    private String pattern;
+    private List<FileSystemEntry> results = new ArrayList<>();
+
+    public SearchVisitor(String pattern) { this.pattern = pattern; }
+
+    @Override public void visitFile(File file) {
+        if (file.getName().contains(pattern)) results.add(file);
+    }
+    @Override public void visitDirectory(Directory dir) {
+        if (dir.getName().contains(pattern)) results.add(dir);
+    }
+    public List<FileSystemEntry> getResults() { return results; }
+}
+
+// ============================================================================
+// SIZE VISITOR
+// ============================================================================
+
+class SizeVisitor implements FileSystemVisitor {
+    private long totalSize = 0;
+
+    @Override public void visitFile(File file)      { totalSize += file.getSize(); }
+    @Override public void visitDirectory(Directory d) { /* size accumulated via file visits */ }
+    public long getTotalSize() { return totalSize; }
+}
+
+// ============================================================================
+// FILE SYSTEM FACADE
+// ============================================================================
+
+class FileSystem {
+    private Directory root;
+
+    public FileSystem() {
+        this.root = new Directory("", null);
+    }
+
+    public Directory getRoot() { return root; }
+
+    public FileSystemEntry resolve(String path) {
+        if (path.equals("/")) return root;
+        String[] parts = path.split("/");
+        FileSystemEntry current = root;
+        for (int i = 1; i < parts.length; i++) {
+            if (\!(current instanceof Directory)) return null;
+            current = ((Directory) current).getChild(parts[i]);
+            if (current == null) return null;
+        }
+        return current;
+    }
+
+    public Directory mkdir(String path) {
+        String[] parts = path.split("/");
+        Directory current = root;
+        for (int i = 1; i < parts.length; i++) {
+            FileSystemEntry child = current.getChild(parts[i]);
+            if (child == null) {
+                Directory newDir = new Directory(parts[i], current);
+                current.addEntry(newDir);
+                current = newDir;
+            } else if (child instanceof Directory) {
+                current = (Directory) child;
+            } else {
+                throw new RuntimeException("Path conflict: " + parts[i] + " is a file");
+            }
+        }
+        return current;
+    }
+
+    public File createFile(String path, String content) {
+        int lastSlash = path.lastIndexOf('/');
+        String dirPath = path.substring(0, lastSlash == 0 ? 1 : lastSlash);
+        String fileName = path.substring(lastSlash + 1);
+        Directory dir = (Directory) resolve(dirPath);
+        if (dir == null) dir = mkdir(dirPath);
+        File file = new File(fileName, dir);
+        file.write(content);
+        dir.addEntry(file);
+        return file;
+    }
+
+    public void move(String src, String dest) {
+        FileSystemEntry entry = resolve(src);
+        if (entry == null) throw new RuntimeException("Source not found: " + src);
+        Directory destDir = (Directory) resolve(dest);
+        if (destDir == null) throw new RuntimeException("Destination not found: " + dest);
+        entry.delete();
+        destDir.addEntry(entry);
+    }
+
+    public List<FileSystemEntry> search(String pattern) {
+        SearchVisitor visitor = new SearchVisitor(pattern);
+        root.accept(visitor);
+        return visitor.getResults();
+    }
+}
+
+// ============================================================================
+// MAIN -- Demo
+// ============================================================================
+
+public class FileSystemDemo {
+    public static void main(String[] args) {
+        FileSystem fs = new FileSystem();
+        fs.mkdir("/home/user/docs");
+        fs.mkdir("/home/user/photos");
+        fs.createFile("/home/user/docs/readme.txt", "Hello World");
+        fs.createFile("/home/user/docs/notes.txt", "Meeting notes...");
+        fs.createFile("/home/user/photos/pic.jpg", "binary-data-placeholder");
+
+        Directory root = fs.getRoot();
+        System.out.println("Root size: " + root.getSize() + " bytes");
+
+        List<FileSystemEntry> results = fs.search("txt");
+        System.out.println("Search 'txt': " + results.size() + " results");
+        for (FileSystemEntry e : results) System.out.println("  " + e.getPath());
+
+        fs.move("/home/user/docs/readme.txt", "/home/user/photos");
+        FileSystemEntry moved = fs.resolve("/home/user/photos/readme.txt");
+        System.out.println("Moved file path: " + moved.getPath());
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `## Design Walkthrough -- In-Memory File System
+
+### Step 1: Identify the Core Abstraction
+The file system is a **tree** where every node is either a File (leaf) or
+Directory (composite). This is the textbook **Composite Pattern**.
+
+### Step 2: Define the Component (FileSystemEntry)
+Abstract class with: name, parent reference, createdAt, permissions.
+Abstract methods: getSize(), accept(visitor).
+Concrete method: getPath() walks up the parent chain.
+
+### Step 3: Implement Leaf (File)
+Holds content as StringBuilder, computes size as content length.
+Extension extracted from name for search filtering.
+
+### Step 4: Implement Composite (Directory)
+Holds children in a LinkedHashMap<String, FileSystemEntry>.
+getSize() sums children recursively. add/remove/find operate on the map.
+
+### Step 5: Apply the Visitor Pattern
+FileSystemVisitor interface with visitFile() and visitDirectory().
+SearchVisitor matches names against a pattern and collects results.
+SizeVisitor accumulates total file sizes across the tree.
+New operations (permission audit, export) can be added without changing
+the tree classes -- just create a new visitor.
+
+### Step 6: Build the Facade (FileSystem)
+FileSystem holds the root Directory and provides:
+- resolve(path): walks the tree segment by segment
+- mkdir(path): creates intermediate directories as needed
+- createFile(path, content): resolves parent dir, creates File
+- move(src, dest): detach from old parent, attach to new
+- search(pattern): delegates to SearchVisitor
+
+### Step 7: Path Handling
+Paths are split on "/" and walked segment by segment.
+Absolute paths start from root; relative could start from currentDir.
+".." resolution would walk to parent.
+
+### Step 8: Design Patterns Used
+- **Composite**: File/Directory tree structure
+- **Visitor**: SearchVisitor, SizeVisitor for extensible operations
+- **Facade**: FileSystem class simplifies complex tree operations
+- **Iterator**: Directory.list() returns ordered children
+
+### Step 9: Key Design Decisions
+- LinkedHashMap preserves insertion order for directory listings
+- StringBuilder for file content (efficient appends)
+- Parent reference enables getPath() without global state
+- Visitor avoids polluting tree classes with search/size logic`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| resolve(path) | O(D) | O(1) | D = depth of path segments |
+| mkdir(path) | O(D) | O(D) | Creates up to D directories |
+| createFile(path) | O(D) | O(C) | C = content size |
+| delete() | O(1) | O(1) | Remove from parent's map |
+| getSize() on File | O(1) | O(1) | Content length |
+| getSize() on Directory | O(N) | O(H) | N = total descendants, H = tree height (recursion) |
+| search(pattern) | O(N) | O(N) | Visits every node, stores matches |
+| move(src, dest) | O(D) | O(1) | Resolve paths + reparent |
+| Directory.list() | O(K) | O(K) | K = direct children |
+
+**Recursive getSize():** O(N) where N is total nodes in the subtree.
+Each node is visited exactly once. Stack depth is O(H) where H is tree height.
+
+**Search via Visitor:** O(N) -- must visit every node. Results list is O(M)
+where M is match count.
+
+**Memory:** O(N + C_total) where N is node count and C_total is total
+content bytes across all files.`,
+};
+
+// ============================================================
+//  design-lru-cache -> prob-lru-cache
+// ============================================================
+
+export const lruCacheSolution: ProblemSolutionContent = {
+  referenceSolution: `# LRU Cache -- Complete Java Implementation
+
+> All classes in a single file for interview convenience.
+> Compiles and runs with: \`javac LRUCacheDemo.java && java LRUCacheDemo\`
+
+---
+
+## Full Source Code
+
+\`\`\`java
+import java.util.*;
+
+// ============================================================================
+// NODE -- Doubly linked list node
+// ============================================================================
+
+class Node<K, V> {
+    K key;
+    V value;
+    Node<K, V> prev;
+    Node<K, V> next;
+    long createdAt;
+    long ttl; // milliseconds, 0 = no expiry
+
+    public Node(K key, V value) {
+        this.key = key;
+        this.value = value;
+        this.createdAt = System.currentTimeMillis();
+        this.ttl = 0;
+    }
+
+    public boolean isExpired() {
+        return ttl > 0 && System.currentTimeMillis() - createdAt > ttl;
+    }
+}
+
+// ============================================================================
+// DOUBLY LINKED LIST -- maintains access order
+// ============================================================================
+
+class DoublyLinkedList<K, V> {
+    private Node<K, V> head; // sentinel
+    private Node<K, V> tail; // sentinel
+    private int size;
+
+    public DoublyLinkedList() {
+        head = new Node<>(null, null);
+        tail = new Node<>(null, null);
+        head.next = tail;
+        tail.prev = head;
+        size = 0;
+    }
+
+    public void addToFront(Node<K, V> node) {
+        node.next = head.next;
+        node.prev = head;
+        head.next.prev = node;
+        head.next = node;
+        size++;
+    }
+
+    public void removeNode(Node<K, V> node) {
+        node.prev.next = node.next;
+        node.next.prev = node.prev;
+        size--;
+    }
+
+    public Node<K, V> removeLast() {
+        if (size == 0) return null;
+        Node<K, V> last = tail.prev;
+        removeNode(last);
+        return last;
+    }
+
+    public void moveToFront(Node<K, V> node) {
+        removeNode(node);
+        addToFront(node);
+    }
+
+    public int size() { return size; }
+}
+
+// ============================================================================
+// EVICTION POLICY (Strategy Pattern)
+// ============================================================================
+
+interface EvictionPolicy<K, V> {
+    void onAccess(Node<K, V> node);
+    void onInsert(Node<K, V> node);
+    Node<K, V> evict();
+}
+
+class LRUEvictionPolicy<K, V> implements EvictionPolicy<K, V> {
+    private DoublyLinkedList<K, V> list;
+
+    public LRUEvictionPolicy(DoublyLinkedList<K, V> list) {
+        this.list = list;
+    }
+
+    @Override public void onAccess(Node<K, V> node) { list.moveToFront(node); }
+    @Override public void onInsert(Node<K, V> node) { list.addToFront(node); }
+    @Override public Node<K, V> evict() { return list.removeLast(); }
+}
+
+// ============================================================================
+// CACHE STATS
+// ============================================================================
+
+class CacheStats {
+    private long hits;
+    private long misses;
+    private long evictions;
+
+    public void recordHit()     { hits++; }
+    public void recordMiss()    { misses++; }
+    public void recordEviction() { evictions++; }
+
+    public double getHitRate() {
+        long total = hits + misses;
+        return total == 0 ? 0.0 : (double) hits / total;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("hits=%d, misses=%d, evictions=%d, hitRate=%.2f%%",
+            hits, misses, evictions, getHitRate() * 100);
+    }
+}
+
+// ============================================================================
+// LRU CACHE
+// ============================================================================
+
+class LRUCache<K, V> {
+    private final int capacity;
+    private final Map<K, Node<K, V>> map;
+    private final DoublyLinkedList<K, V> list;
+    private final EvictionPolicy<K, V> evictionPolicy;
+    private final CacheStats stats;
+
+    public LRUCache(int capacity) {
+        this.capacity = capacity;
+        this.map = new HashMap<>();
+        this.list = new DoublyLinkedList<>();
+        this.evictionPolicy = new LRUEvictionPolicy<>(list);
+        this.stats = new CacheStats();
+    }
+
+    public V get(K key) {
+        Node<K, V> node = map.get(key);
+        if (node == null) {
+            stats.recordMiss();
+            return null;
+        }
+        if (node.isExpired()) {
+            removeNode(node);
+            stats.recordMiss();
+            return null;
+        }
+        evictionPolicy.onAccess(node);
+        stats.recordHit();
+        return node.value;
+    }
+
+    public void put(K key, V value) {
+        Node<K, V> existing = map.get(key);
+        if (existing \!= null) {
+            existing.value = value;
+            evictionPolicy.onAccess(existing);
+            return;
+        }
+        if (map.size() >= capacity) {
+            Node<K, V> evicted = evictionPolicy.evict();
+            if (evicted \!= null) {
+                map.remove(evicted.key);
+                stats.recordEviction();
+            }
+        }
+        Node<K, V> newNode = new Node<>(key, value);
+        map.put(key, newNode);
+        evictionPolicy.onInsert(newNode);
+    }
+
+    public void putWithTTL(K key, V value, long ttlMs) {
+        put(key, value);
+        Node<K, V> node = map.get(key);
+        if (node \!= null) node.ttl = ttlMs;
+    }
+
+    public boolean remove(K key) {
+        Node<K, V> node = map.remove(key);
+        if (node == null) return false;
+        list.removeNode(node);
+        return true;
+    }
+
+    public int size()    { return map.size(); }
+    public int capacity() { return capacity; }
+    public CacheStats getStats() { return stats; }
+
+    public void clear() {
+        map.clear();
+        list = null; // will be GC'd; reinitialize if needed
+    }
+}
+
+// ============================================================================
+// MAIN -- Demo
+// ============================================================================
+
+public class LRUCacheDemo {
+    public static void main(String[] args) {
+        LRUCache<Integer, String> cache = new LRUCache<>(3);
+
+        cache.put(1, "one");
+        cache.put(2, "two");
+        cache.put(3, "three");
+        System.out.println("Get 1: " + cache.get(1));  // "one" -- moves 1 to front
+
+        cache.put(4, "four"); // evicts key 2 (least recently used)
+        System.out.println("Get 2: " + cache.get(2));  // null -- evicted
+        System.out.println("Get 3: " + cache.get(3));  // "three"
+
+        cache.put(5, "five"); // evicts key 4
+        System.out.println("Get 4: " + cache.get(4));  // null
+        System.out.println("Stats: " + cache.getStats());
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `## Design Walkthrough -- LRU Cache
+
+### Step 1: Understand the O(1) Requirement
+Both get(key) and put(key, value) must be O(1). No data structure alone
+achieves this -- we need a combination.
+
+### Step 2: Choose the Data Structures
+- **HashMap** gives O(1) lookup by key
+- **Doubly Linked List** gives O(1) insertion/removal at any position
+- Combine: HashMap maps key -> Node in the DLL
+
+### Step 3: Define the Node
+Each Node holds key, value, prev, next pointers. The key is stored in the
+node so that when we evict the tail, we can remove it from the HashMap.
+
+### Step 4: Sentinel Nodes
+Use dummy head and tail sentinels in the DLL. This eliminates null checks:
+- head.next is always the most recently used node
+- tail.prev is always the least recently used node
+
+### Step 5: Implement Core Operations
+- **get(key)**: Look up in map. If found, move node to front, return value.
+  If not found, return null.
+- **put(key, value)**: If key exists, update value and move to front.
+  If new, check capacity. If full, evict tail.prev (LRU). Insert new
+  node at front and add to map.
+
+### Step 6: Apply Strategy Pattern for Eviction
+Extract eviction logic behind an EvictionPolicy interface:
+- LRUEvictionPolicy: evicts tail (least recently used)
+- Could swap to LFUEvictionPolicy or FIFOEvictionPolicy
+
+### Step 7: Add TTL Support
+Each Node gets a createdAt timestamp and optional ttl.
+On get(), check isExpired() -- if expired, remove and return null (lazy expiry).
+Optional: background thread for proactive cleanup.
+
+### Step 8: Track Statistics
+CacheStats records hits, misses, evictions. Useful for monitoring
+cache effectiveness and tuning capacity.
+
+### Step 9: Design Patterns Used
+- **Strategy**: EvictionPolicy interface (LRU, LFU, FIFO)
+- **Singleton**: Cache instance per application (optional)
+- **Proxy**: Cache-through pattern wraps a slow data source
+- **Observer**: Eviction events notify listeners
+
+### Step 10: Thread Safety (Extension)
+Wrap get/put in ReadWriteLock. Reads can be concurrent; writes exclusive.
+Consider ConcurrentHashMap + synchronized DLL for better throughput.`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| get(key) | O(1) | O(1) | HashMap lookup + DLL move |
+| put(key, value) | O(1) | O(1) | HashMap insert + DLL addToFront |
+| remove(key) | O(1) | O(1) | HashMap remove + DLL removeNode |
+| evict (on capacity) | O(1) | O(1) | DLL removeLast + HashMap remove |
+| size() | O(1) | O(1) | Map.size() |
+| clear() | O(N) | O(1) | HashMap.clear() iterates |
+| putWithTTL() | O(1) | O(1) | Same as put + set ttl field |
+| isExpired() check | O(1) | O(1) | Timestamp comparison |
+
+**Why O(1) for get/put?**
+- HashMap provides O(1) average lookup (amortized, assuming good hash)
+- DLL operations (addToFront, removeNode, moveToFront) are O(1) because
+  we hold a direct reference to the Node -- no traversal needed
+- Sentinel nodes eliminate null checks and special cases
+
+**Space:** O(capacity) for the HashMap + DLL. Each entry stores key, value,
+and 4 pointers (prev, next, HashMap bucket chain).
+
+**TTL cleanup:** Lazy expiry is O(1) per access. Proactive cleanup via
+background thread scans all entries: O(N).`,
+};
+
+// ============================================================
+//  design-restaurant-management -> prob-restaurant-management
+// ============================================================
+
+export const restaurantManagementSolution: ProblemSolutionContent = {
+  referenceSolution: `# Restaurant Management System -- Complete Java Implementation
+
+> All classes in a single file for interview convenience.
+> Compiles and runs with: \`javac RestaurantDemo.java && java RestaurantDemo\`
+
+---
+
+## Full Source Code
+
+\`\`\`java
+import java.util.*;
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum TableStatus { AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE }
+enum OrderStatus { PLACED, IN_PREPARATION, READY, SERVED, BILLED, CANCELLED }
+
+// ============================================================================
+// CUSTOMER
+// ============================================================================
+
+class Customer {
+    private String id;
+    private String name;
+    private String phone;
+
+    public Customer(String id, String name, String phone) {
+        this.id = id; this.name = name; this.phone = phone;
+    }
+    public String getId() { return id; }
+    public String getName() { return name; }
+}
+
+// ============================================================================
+// TABLE
+// ============================================================================
+
+class Table {
+    private String id;
+    private int capacity;
+    private TableStatus status;
+    private String section;
+
+    public Table(String id, int capacity, String section) {
+        this.id = id; this.capacity = capacity;
+        this.section = section; this.status = TableStatus.AVAILABLE;
+    }
+
+    public String getId() { return id; }
+    public int getCapacity() { return capacity; }
+    public TableStatus getStatus() { return status; }
+
+    public void assign(int partySize) {
+        if (partySize > capacity) throw new RuntimeException("Party too large");
+        this.status = TableStatus.OCCUPIED;
+    }
+    public void release() { this.status = TableStatus.AVAILABLE; }
+    public void reserve() { this.status = TableStatus.RESERVED; }
+}
+
+// ============================================================================
+// RESERVATION
+// ============================================================================
+
+class Reservation {
+    private String id;
+    private Customer customer;
+    private Table table;
+    private Date time;
+    private int partySize;
+
+    public Reservation(String id, Customer cust, Table table, Date time, int partySize) {
+        this.id = id; this.customer = cust; this.table = table;
+        this.time = time; this.partySize = partySize;
+        table.reserve();
+    }
+
+    public void confirm() { table.assign(partySize); }
+    public void cancel()  { table.release(); }
+    public Table getTable() { return table; }
+}
+
+// ============================================================================
+// MENU ITEM
+// ============================================================================
+
+class MenuItem {
+    private String id;
+    private String name;
+    private double price;
+    private String category;
+    private int prepTimeMinutes;
+    private boolean available;
+
+    public MenuItem(String id, String name, double price, String category, int prepTime) {
+        this.id = id; this.name = name; this.price = price;
+        this.category = category; this.prepTimeMinutes = prepTime;
+        this.available = true;
+    }
+
+    public String getName() { return name; }
+    public double getPrice() { return price; }
+    public boolean isAvailable() { return available; }
+    public String getCategory() { return category; }
+}
+
+// ============================================================================
+// ORDER ITEM
+// ============================================================================
+
+class OrderItem {
+    private MenuItem menuItem;
+    private int quantity;
+    private String specialInstructions;
+
+    public OrderItem(MenuItem item, int qty, String instructions) {
+        this.menuItem = item; this.quantity = qty;
+        this.specialInstructions = instructions;
+    }
+
+    public double getSubtotal() { return menuItem.getPrice() * quantity; }
+    public MenuItem getMenuItem() { return menuItem; }
+    public int getQuantity() { return quantity; }
+}
+
+// ============================================================================
+// ORDER STATUS OBSERVER (Observer Pattern)
+// ============================================================================
+
+interface OrderObserver {
+    void onStatusChange(Order order, OrderStatus oldStatus, OrderStatus newStatus);
+}
+
+// ============================================================================
+// ORDER (State Pattern for status)
+// ============================================================================
+
+class Order {
+    private String id;
+    private List<OrderItem> items = new ArrayList<>();
+    private OrderStatus status;
+    private Table table;
+    private List<OrderObserver> observers = new ArrayList<>();
+
+    public Order(String id, Table table) {
+        this.id = id; this.table = table; this.status = OrderStatus.PLACED;
+    }
+
+    public void addItem(MenuItem item, int qty, String instructions) {
+        if (status \!= OrderStatus.PLACED)
+            throw new RuntimeException("Cannot modify order in " + status);
+        items.add(new OrderItem(item, qty, instructions));
+    }
+
+    public double getTotal() {
+        return items.stream().mapToDouble(OrderItem::getSubtotal).sum();
+    }
+
+    public void updateStatus(OrderStatus newStatus) {
+        OrderStatus old = this.status;
+        this.status = newStatus;
+        for (OrderObserver obs : observers) obs.onStatusChange(this, old, newStatus);
+    }
+
+    public void addObserver(OrderObserver obs) { observers.add(obs); }
+    public String getId() { return id; }
+    public OrderStatus getStatus() { return status; }
+    public Table getTable() { return table; }
+    public List<OrderItem> getItems() { return items; }
+}
+
+// ============================================================================
+// KITCHEN (Observer + Command-style queue)
+// ============================================================================
+
+class Kitchen implements OrderObserver {
+    private Queue<Order> orderQueue = new LinkedList<>();
+    private int capacity;
+
+    public Kitchen(int capacity) { this.capacity = capacity; }
+
+    public void receiveOrder(Order order) {
+        orderQueue.add(order);
+        order.updateStatus(OrderStatus.IN_PREPARATION);
+    }
+
+    public void markReady(String orderId) {
+        for (Order o : orderQueue) {
+            if (o.getId().equals(orderId)) {
+                o.updateStatus(OrderStatus.READY);
+                orderQueue.remove(o);
+                return;
+            }
+        }
+    }
+
+    @Override
+    public void onStatusChange(Order order, OrderStatus old, OrderStatus news) {
+        System.out.println("[Kitchen] Order " + order.getId() + ": " + old + " -> " + news);
+    }
+
+    public List<Order> getPendingOrders() { return new ArrayList<>(orderQueue); }
+}
+
+// ============================================================================
+// WAITER
+// ============================================================================
+
+class Waiter {
+    private String id;
+    private String name;
+    private List<Table> assignedTables = new ArrayList<>();
+
+    public Waiter(String id, String name) { this.id = id; this.name = name; }
+
+    public void assignTable(Table t) { assignedTables.add(t); }
+
+    public Order takeOrder(Table table, Kitchen kitchen) {
+        Order order = new Order(UUID.randomUUID().toString().substring(0, 8), table);
+        order.addObserver(kitchen);
+        return order;
+    }
+
+    public void serveOrder(Order order) {
+        order.updateStatus(OrderStatus.SERVED);
+    }
+}
+
+// ============================================================================
+// BILL (Strategy Pattern for split/discount)
+// ============================================================================
+
+class Bill {
+    private String id;
+    private Order order;
+    private double tax;
+    private double tip;
+
+    public Bill(String id, Order order, double taxRate) {
+        this.id = id; this.order = order;
+        this.tax = order.getTotal() * taxRate;
+        this.tip = 0;
+    }
+
+    public void setTip(double tip) { this.tip = tip; }
+
+    public double calculateTotal() { return order.getTotal() + tax + tip; }
+
+    public List<Double> splitPayment(int ways) {
+        double each = calculateTotal() / ways;
+        List<Double> splits = new ArrayList<>();
+        for (int i = 0; i < ways; i++) splits.add(Math.round(each * 100.0) / 100.0);
+        return splits;
+    }
+}
+
+// ============================================================================
+// MENU
+// ============================================================================
+
+class Menu {
+    private List<MenuItem> items = new ArrayList<>();
+
+    public void addItem(MenuItem item) { items.add(item); }
+
+    public List<MenuItem> getItemsByCategory(String cat) {
+        List<MenuItem> result = new ArrayList<>();
+        for (MenuItem mi : items) if (mi.getCategory().equals(cat)) result.add(mi);
+        return result;
+    }
+
+    public List<MenuItem> getAllItems() { return items; }
+}
+
+// ============================================================================
+// RESTAURANT (Facade)
+// ============================================================================
+
+class Restaurant {
+    private String name;
+    private List<Table> tables = new ArrayList<>();
+    private Menu menu;
+    private Kitchen kitchen;
+
+    public Restaurant(String name, int kitchenCapacity) {
+        this.name = name; this.menu = new Menu();
+        this.kitchen = new Kitchen(kitchenCapacity);
+    }
+
+    public void addTable(Table t) { tables.add(t); }
+    public Menu getMenu() { return menu; }
+    public Kitchen getKitchen() { return kitchen; }
+
+    public List<Table> getAvailableTables(int partySize) {
+        List<Table> result = new ArrayList<>();
+        for (Table t : tables)
+            if (t.getStatus() == TableStatus.AVAILABLE && t.getCapacity() >= partySize)
+                result.add(t);
+        return result;
+    }
+
+    public Reservation reserveTable(Customer cust, int partySize, Date time) {
+        List<Table> avail = getAvailableTables(partySize);
+        if (avail.isEmpty()) throw new RuntimeException("No tables available");
+        Table table = avail.get(0); // simplest: first-fit
+        return new Reservation(UUID.randomUUID().toString().substring(0, 8),
+                               cust, table, time, partySize);
+    }
+}
+
+// ============================================================================
+// MAIN -- Demo
+// ============================================================================
+
+public class RestaurantDemo {
+    public static void main(String[] args) {
+        Restaurant r = new Restaurant("The Design Cafe", 10);
+        r.addTable(new Table("T1", 4, "main"));
+        r.addTable(new Table("T2", 2, "patio"));
+        r.addTable(new Table("T3", 6, "main"));
+
+        MenuItem pasta = new MenuItem("M1", "Pasta", 15.99, "entree", 12);
+        MenuItem salad = new MenuItem("M2", "Caesar Salad", 9.99, "appetizer", 5);
+        MenuItem steak = new MenuItem("M3", "Ribeye Steak", 34.99, "entree", 20);
+        r.getMenu().addItem(pasta);
+        r.getMenu().addItem(salad);
+        r.getMenu().addItem(steak);
+
+        Customer cust = new Customer("C1", "Alice", "555-0100");
+        Reservation res = r.reserveTable(cust, 4, new Date());
+        res.confirm();
+
+        Waiter waiter = new Waiter("W1", "Bob");
+        waiter.assignTable(res.getTable());
+        Order order = waiter.takeOrder(res.getTable(), r.getKitchen());
+        order.addItem(pasta, 2, "extra parmesan");
+        order.addItem(salad, 1, "");
+        order.addItem(steak, 1, "medium-rare");
+
+        r.getKitchen().receiveOrder(order);
+        r.getKitchen().markReady(order.getId());
+        waiter.serveOrder(order);
+
+        Bill bill = new Bill("B1", order, 0.08);
+        bill.setTip(12.00);
+        System.out.println("Total: $" + bill.calculateTotal());
+        System.out.println("Split 4 ways: " + bill.splitPayment(4));
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `## Design Walkthrough -- Restaurant Management System
+
+### Step 1: Identify Core Entities
+Restaurant, Table, Menu, MenuItem, Order, OrderItem, Customer, Waiter,
+Kitchen, Bill, Reservation. Each models a real-world concept.
+
+### Step 2: Table Management
+Tables have capacity, status (AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE),
+and a section. Restaurant.getAvailableTables() filters by status and size.
+
+### Step 3: Reservation Flow
+Customer requests a reservation with party size and time.
+Restaurant finds a suitable table and creates a Reservation.
+On arrival, confirm() changes table status to OCCUPIED.
+On cancel(), table returns to AVAILABLE.
+
+### Step 4: Order Lifecycle (State Pattern)
+Order status: PLACED -> IN_PREPARATION -> READY -> SERVED -> BILLED.
+Each transition is validated -- e.g., items can only be added in PLACED.
+
+### Step 5: Kitchen as Observer
+Kitchen implements OrderObserver and receives notifications on status
+changes. It maintains a FIFO queue of orders being prepared.
+
+### Step 6: Command Pattern for Orders
+Each OrderItem acts like a command sent to the kitchen. Items can be
+added, and the kitchen processes them in order. Cancellation is handled
+by checking the order status before preparation begins.
+
+### Step 7: Billing with Strategy
+Bill calculates subtotal from order items, adds tax, and accepts tip.
+splitPayment() divides the total evenly. Could extend with a
+BillingStrategy for percentage-split, per-item split, or discount codes.
+
+### Step 8: Waiter Coordination
+Waiter is assigned to tables, takes orders, and serves food.
+The waiter creates the Order and registers the Kitchen as an observer.
+
+### Step 9: Design Patterns Used
+- **Observer**: Kitchen observes Order status changes
+- **Command**: OrderItems as kitchen commands
+- **State**: Order lifecycle transitions
+- **Strategy**: BillingStrategy for flexible payment splitting
+- **Facade**: Restaurant class orchestrates all subsystems
+
+### Step 10: Edge Cases
+- Table reassignment: release old table, assign new
+- Order modification: only allowed in PLACED status
+- Kitchen capacity: queue orders when at limit
+- Concurrent reservations: synchronize table status checks`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| getAvailableTables(size) | O(T) | O(T) | T = total tables, filter by status+capacity |
+| reserveTable() | O(T) | O(1) | First-fit from available tables |
+| addItem(to order) | O(1) | O(1) | Append to list |
+| getTotal() | O(I) | O(1) | I = items in order |
+| kitchen.receiveOrder() | O(1) | O(1) | Queue enqueue |
+| kitchen.markReady() | O(Q) | O(1) | Q = queue size, linear scan for orderId |
+| calculateTotal(bill) | O(I) | O(1) | Sum items + tax + tip |
+| splitPayment(ways) | O(W) | O(W) | W = number of splits |
+| menu.getByCategory() | O(M) | O(M) | M = menu items |
+
+**Table assignment:** O(T) where T is total tables. For large restaurants,
+use a sorted structure or index by capacity for O(log T) assignment.
+
+**Kitchen queue:** FIFO queue gives O(1) enqueue. markReady() scans for
+a specific order: O(Q). Could use a HashMap<orderId, Order> for O(1).
+
+**Memory:** O(T + M + O*I) where T = tables, M = menu items,
+O = active orders, I = items per order.`,
+};
+
+
+
+// ============================================================
+//  25-design-spreadsheet -> prob-spreadsheet
+// ============================================================
+
+export const spreadsheetSolution: ProblemSolutionContent = {
+  referenceSolution: `# Spreadsheet Application -- Complete Java Implementation
+
+> Single-file implementation for interview convenience.
+> Compiles and runs: \`javac SpreadsheetApp.java && java SpreadsheetApp\`
+
+---
+
+## Full Source Code
+
+\`\`\`java
+import java.util.*;
+import java.util.regex.*;
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum CellValueType { NUMBER, TEXT, BOOLEAN, ERROR }
+
+// ============================================================================
+// CellReference -- immutable, parses "A1" into column + row
+// ============================================================================
+
+class CellReference {
+    private final String column;
+    private final int row;
+
+    public CellReference(String column, int row) {
+        this.column = column.toUpperCase();
+        this.row = row;
+    }
+
+    public static CellReference parse(String ref) {
+        Matcher m = Pattern.compile("([A-Za-z]+)(\\d+)").matcher(ref.trim());
+        if (\!m.matches()) throw new IllegalArgumentException("Invalid ref: " + ref);
+        return new CellReference(m.group(1), Integer.parseInt(m.group(2)));
+    }
+
+    public String toKey() { return column + row; }
+
+    @Override public boolean equals(Object o) {
+        if (\!(o instanceof CellReference)) return false;
+        CellReference c = (CellReference) o;
+        return column.equals(c.column) && row == c.row;
+    }
+    @Override public int hashCode() { return Objects.hash(column, row); }
+    @Override public String toString() { return toKey(); }
+}
+
+// ============================================================================
+// CellValue -- discriminated union of value types
+// ============================================================================
+
+class CellValue {
+    private final CellValueType type;
+    private final Double numericValue;
+    private final String textValue;
+
+    private CellValue(CellValueType type, Double num, String text) {
+        this.type = type; this.numericValue = num; this.textValue = text;
+    }
+
+    public static CellValue number(double v) { return new CellValue(CellValueType.NUMBER, v, null); }
+    public static CellValue text(String v)   { return new CellValue(CellValueType.TEXT, null, v); }
+    public static CellValue error(String msg){ return new CellValue(CellValueType.ERROR, null, msg); }
+
+    public CellValueType getType() { return type; }
+    public double asNumber() {
+        if (type \!= CellValueType.NUMBER) throw new RuntimeException("#VALUE\!");
+        return numericValue;
+    }
+    public boolean isError() { return type == CellValueType.ERROR; }
+
+    @Override public String toString() {
+        if (type == CellValueType.NUMBER) return String.valueOf(numericValue);
+        return textValue \!= null ? textValue : "";
+    }
+}
+
+// ============================================================================
+// DependencyGraph -- tracks cell dependencies, detects cycles, topo-sorts
+// ============================================================================
+
+class DependencyGraph {
+    private final Map<String, Set<String>> dependents = new HashMap<>(); // A1 -> {B1, C3}
+
+    public void setDependencies(String cell, Set<String> dependencies) {
+        // Remove old reverse edges
+        for (Map.Entry<String, Set<String>> e : dependents.entrySet()) {
+            e.getValue().remove(cell);
+        }
+        // Add new: each dependency points to this cell as a dependent
+        for (String dep : dependencies) {
+            dependents.computeIfAbsent(dep, k -> new HashSet<>()).add(cell);
+        }
+    }
+
+    public Set<String> getDependents(String cell) {
+        return dependents.getOrDefault(cell, Collections.emptySet());
+    }
+
+    public boolean hasCircle(String start, Map<String, Set<String>> formulaDeps) {
+        Set<String> visited = new HashSet<>();
+        Deque<String> stack = new ArrayDeque<>();
+        stack.push(start);
+        while (\!stack.isEmpty()) {
+            String cur = stack.pop();
+            if (\!visited.add(cur)) continue;
+            Set<String> deps = formulaDeps.getOrDefault(cur, Collections.emptySet());
+            if (deps.contains(start)) return true;
+            for (String d : deps) stack.push(d);
+        }
+        return false;
+    }
+
+    /** Topological order of all cells that depend (transitively) on 'root'. */
+    public List<String> topologicalOrder(String root) {
+        List<String> order = new ArrayList<>();
+        Set<String> visited = new HashSet<>();
+        Deque<String> stack = new ArrayDeque<>();
+        stack.push(root);
+        while (\!stack.isEmpty()) {
+            String cur = stack.pop();
+            if (\!visited.add(cur)) continue;
+            order.add(cur);
+            for (String dep : getDependents(cur)) stack.push(dep);
+        }
+        return order;
+    }
+}
+
+// ============================================================================
+// Cell -- holds raw input, computed value, optional formula
+// ============================================================================
+
+class Cell {
+    private final CellReference reference;
+    private String rawValue;
+    private CellValue computedValue;
+    private Set<String> formulaDeps = new HashSet<>();
+
+    public Cell(CellReference ref) { this.reference = ref; this.rawValue = ""; this.computedValue = CellValue.text(""); }
+
+    public CellReference getReference() { return reference; }
+    public String getRawValue() { return rawValue; }
+    public CellValue getComputedValue() { return computedValue; }
+    public Set<String> getFormulaDeps() { return formulaDeps; }
+
+    public void setRawValue(String raw) { this.rawValue = raw; }
+    public void setComputedValue(CellValue v) { this.computedValue = v; }
+    public void setFormulaDeps(Set<String> deps) { this.formulaDeps = deps; }
+    public boolean isFormula() { return rawValue.startsWith("="); }
+}
+
+// ============================================================================
+// Sheet -- the core engine: setCell, evaluate, recalculate
+// ============================================================================
+
+class Sheet {
+    private final String name;
+    private final Map<String, Cell> cells = new HashMap<>();
+    private final DependencyGraph depGraph = new DependencyGraph();
+
+    public Sheet(String name) { this.name = name; }
+
+    public CellValue getCell(String ref) {
+        Cell c = cells.get(ref.toUpperCase());
+        return c \!= null ? c.getComputedValue() : CellValue.text("");
+    }
+
+    public void setCell(String ref, String value) {
+        ref = ref.toUpperCase();
+        Cell cell = cells.computeIfAbsent(ref, k -> new Cell(CellReference.parse(k)));
+        cell.setRawValue(value);
+
+        // Parse formula dependencies
+        Set<String> deps = new HashSet<>();
+        if (value.startsWith("=")) {
+            Matcher m = Pattern.compile("[A-Za-z]+\\d+").matcher(value.substring(1));
+            while (m.find()) deps.add(m.group().toUpperCase());
+        }
+        cell.setFormulaDeps(deps);
+
+        // Check circular dependency
+        Map<String, Set<String>> allDeps = new HashMap<>();
+        for (Cell c : cells.values()) allDeps.put(c.getReference().toKey(), c.getFormulaDeps());
+        if (depGraph.hasCircle(ref, allDeps)) {
+            cell.setComputedValue(CellValue.error("#CIRCULAR\!"));
+            return;
+        }
+
+        depGraph.setDependencies(ref, deps);
+        recalculate(ref);
+    }
+
+    private void recalculate(String startRef) {
+        List<String> order = depGraph.topologicalOrder(startRef);
+        // Evaluate startRef first, then dependents
+        evaluate(startRef);
+        for (String ref : order) {
+            if (\!ref.equals(startRef)) evaluate(ref);
+        }
+    }
+
+    private void evaluate(String ref) {
+        Cell cell = cells.get(ref);
+        if (cell == null) return;
+        if (\!cell.isFormula()) {
+            try {
+                cell.setComputedValue(CellValue.number(Double.parseDouble(cell.getRawValue())));
+            } catch (NumberFormatException e) {
+                cell.setComputedValue(CellValue.text(cell.getRawValue()));
+            }
+        } else {
+            try {
+                String expr = cell.getRawValue().substring(1);
+                // Handle SUM(range)
+                Matcher sumM = Pattern.compile("SUM\\(([A-Z]+\\d+):([A-Z]+\\d+)\\)").matcher(expr);
+                if (sumM.matches()) {
+                    double sum = rangeReduce(sumM.group(1), sumM.group(2), 0, Double::sum);
+                    cell.setComputedValue(CellValue.number(sum));
+                    return;
+                }
+                // Simple expression: replace refs with values
+                Matcher refM = Pattern.compile("[A-Z]+\\d+").matcher(expr);
+                StringBuffer sb = new StringBuffer();
+                while (refM.find()) {
+                    CellValue v = getCell(refM.group());
+                    refM.appendReplacement(sb, String.valueOf(v.asNumber()));
+                }
+                refM.appendTail(sb);
+                cell.setComputedValue(CellValue.number(evalSimpleExpr(sb.toString())));
+            } catch (Exception e) {
+                cell.setComputedValue(CellValue.error("#ERROR\!"));
+            }
+        }
+    }
+
+    private double rangeReduce(String startRef, String endRef, double identity,
+                               java.util.function.BinaryOperator<Double> op) {
+        CellReference s = CellReference.parse(startRef), e = CellReference.parse(endRef);
+        double result = identity;
+        for (int r = s.toKey().charAt(0); r <= e.toKey().charAt(0); r++) {
+            for (int row = Integer.parseInt(startRef.replaceAll("[A-Z]+", ""));
+                 row <= Integer.parseInt(endRef.replaceAll("[A-Z]+", "")); row++) {
+                String key = ((char)r) + "" + row;
+                CellValue v = getCell(key);
+                if (v.getType() == CellValueType.NUMBER) result = op.apply(result, v.asNumber());
+            }
+        }
+        return result;
+    }
+
+    private double evalSimpleExpr(String expr) {
+        // Minimal evaluator for +, -, *, / with left-to-right
+        return new Object() {
+            int pos = -1; char ch;
+            void next() { ch = (++pos < expr.length()) ? expr.charAt(pos) : 0; }
+            double parse() { next(); double v = parseExpr(); return v; }
+            double parseExpr() {
+                double x = parseTerm();
+                while (ch == '+' || ch == '-') { char op = ch; next(); double y = parseTerm(); x = op == '+' ? x + y : x - y; }
+                return x;
+            }
+            double parseTerm() {
+                double x = parseFactor();
+                while (ch == '*' || ch == '/') { char op = ch; next(); double y = parseFactor(); x = op == '*' ? x * y : x / y; }
+                return x;
+            }
+            double parseFactor() {
+                if (ch == '(') { next(); double x = parseExpr(); next(); return x; }
+                int start = pos;
+                if (ch == '-') next();
+                while (Character.isDigit(ch) || ch == '.') next();
+                return Double.parseDouble(expr.substring(start, pos));
+            }
+        }.parse();
+    }
+}
+
+// ============================================================================
+// DRIVER
+// ============================================================================
+
+public class SpreadsheetApp {
+    public static void main(String[] args) {
+        Sheet sheet = new Sheet("Sheet1");
+
+        sheet.setCell("A1", "10");
+        sheet.setCell("A2", "20");
+        sheet.setCell("A3", "=A1+A2");       // 30
+        sheet.setCell("B1", "=A3*2");         // 60
+        sheet.setCell("C1", "=SUM(A1:A2)");   // 30
+
+        System.out.println("A1 = " + sheet.getCell("A1"));  // 10
+        System.out.println("A3 = " + sheet.getCell("A3"));  // 30
+        System.out.println("B1 = " + sheet.getCell("B1"));  // 60
+        System.out.println("C1 = " + sheet.getCell("C1"));  // 30
+
+        // Change A1 -> cascading recalculation
+        sheet.setCell("A1", "100");
+        System.out.println("After A1=100:");
+        System.out.println("A3 = " + sheet.getCell("A3"));  // 120
+        System.out.println("B1 = " + sheet.getCell("B1"));  // 240
+
+        // Circular reference
+        sheet.setCell("D1", "=D2+1");
+        sheet.setCell("D2", "=D1+1");
+        System.out.println("D2 = " + sheet.getCell("D2"));  // #CIRCULAR\!
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Low-Level Design: Spreadsheet Application
+
+## 1. Requirements Breakdown
+
+| Requirement | Design Decision |
+|---|---|
+| Cell values (number, text, formula) | CellValue discriminated union with type tag |
+| Formula evaluation | Recursive descent parser, expression tree |
+| Dependency tracking | DependencyGraph with adjacency list |
+| Circular reference detection | DFS cycle detection before accepting formula |
+| Range functions (SUM, AVG) | CellRange iterator over rectangular region |
+
+## 2. Core Design Patterns
+
+### Observer Pattern -- Dependency Cascade
+When cell A1 changes, the DependencyGraph identifies all transitive dependents
+(A3, B1, etc.) and triggers recalculation in topological order. This ensures
+each cell is evaluated only after all its dependencies have been updated.
+
+### Composite Pattern -- Expression Tree
+Formulas are parsed into an expression tree:
+- NumberLiteral: leaf node, evaluates to a constant
+- CellReference: leaf node, resolves via the sheet
+- BinaryOperation (+, -, *, /): internal node with two children
+- FunctionCall (SUM, AVG): internal node with a CellRange child
+
+### Memento Pattern -- Undo/Redo
+UndoManager stores CellEdit snapshots: (ref, oldRawValue, newRawValue).
+Undo replays the old value through setCell, which re-triggers dependency
+recalculation. Redo replays the new value.
+
+### Iterator Pattern -- Range Traversal
+CellRange(A1:C5) yields all CellReferences in the rectangular region.
+Range functions like SUM iterate over the range without materializing
+the full list, enabling efficient processing of large ranges.
+
+## 3. Key Design Decisions
+
+1. **Topological sort for recalculation**: After a cell changes, collect all
+   transitive dependents, topologically sort them by dependency order, and
+   evaluate in that order. This avoids redundant recalculations.
+
+2. **Cycle detection before acceptance**: When a formula is entered, check
+   for cycles in the dependency graph BEFORE accepting it. If a cycle is
+   found, mark the cell as #CIRCULAR\! error.
+
+3. **Lazy evaluation**: Cells are only evaluated when their value is needed
+   or when a dependency changes. Unchanged cells keep their cached value.
+
+4. **CellValue as discriminated union**: NUMBER, TEXT, BOOLEAN, ERROR --
+   each cell value carries its type, enabling type-safe operations and
+   meaningful error messages (e.g., #VALUE\!, #DIV/0\!, #CIRCULAR\!).
+
+## 4. Entity Summary (10 classes)
+
+| Entity | Purpose |
+|---|---|
+| Spreadsheet | Container for multiple sheets |
+| Sheet | Grid of cells with dependency graph |
+| Cell | Holds raw input, computed value, formula deps |
+| CellReference | Immutable (column, row) coordinate |
+| CellRange | Rectangular region of cell references |
+| CellValue | Discriminated union of value types |
+| Formula | Parsed expression tree |
+| FormulaParser | Tokenizer + recursive descent parser |
+| DependencyGraph | Adjacency list, cycle detection, topo-sort |
+| UndoManager | History stack for undo/redo operations |`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|---|---|---|---|
+| setCell() | O(D) | O(1) | D = number of transitive dependents to recalculate |
+| getCell() | O(1) | O(1) | Direct HashMap lookup |
+| evaluate(formula) | O(E) | O(E) | E = number of expression nodes in formula tree |
+| hasCircularDependency() | O(V + E) | O(V) | V = cells, E = dependency edges; DFS |
+| topologicalSort() | O(V + E) | O(V) | Standard Kahn's or DFS-based topo-sort |
+| SUM(A1:A100) | O(R) | O(1) | R = number of cells in range |
+| undo/redo | O(D) | O(H) | D = dependents, H = history size |
+
+**Cascading recalculation** is the critical path: changing one cell can trigger
+O(D) re-evaluations, each costing O(E) for formula evaluation. In the worst case
+(chain A1->A2->...->AN), this is O(N * E).
+
+**Memory**: O(C) for cells, O(E) for dependency edges, O(H) for undo history.
+A 1000x1000 sheet with 10% formulas uses ~100K cell entries and ~50K edges.`,
+};
+
+// ============================================================
+//  27-design-ride-sharing -> prob-ride-sharing
+// ============================================================
+
+export const rideSharingSolution: ProblemSolutionContent = {
+  referenceSolution: `# Ride-Sharing Service (Uber) -- Complete Java Implementation
+
+> All classes in a single file for interview convenience.
+> Compiles and runs: \`javac RideSharingApp.java && java RideSharingApp\`
+
+---
+
+## Full Source Code
+
+\`\`\`java
+import java.util.*;
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum TripStatus { REQUESTED, MATCHED, IN_PROGRESS, COMPLETED, CANCELLED }
+enum DriverStatus { AVAILABLE, ON_TRIP, OFFLINE }
+enum RideType { ECONOMY, PREMIUM, POOL }
+
+// ============================================================================
+// Location -- immutable, Haversine distance
+// ============================================================================
+
+class Location {
+    private final double latitude;
+    private final double longitude;
+
+    public Location(double lat, double lng) { this.latitude = lat; this.longitude = lng; }
+
+    public double distanceTo(Location other) {
+        double dLat = Math.toRadians(other.latitude - latitude);
+        double dLng = Math.toRadians(other.longitude - longitude);
+        double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                   Math.cos(Math.toRadians(latitude)) * Math.cos(Math.toRadians(other.latitude)) *
+                   Math.sin(dLng/2) * Math.sin(dLng/2);
+        return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); // km
+    }
+
+    @Override public String toString() { return "(" + latitude + ", " + longitude + ")"; }
+}
+
+// ============================================================================
+// Rider & Driver
+// ============================================================================
+
+class Rider {
+    private final String id;
+    private final String name;
+    private Location location;
+
+    public Rider(String id, String name, Location loc) { this.id = id; this.name = name; this.location = loc; }
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public Location getLocation() { return location; }
+}
+
+class Driver {
+    private final String id;
+    private final String name;
+    private Location location;
+    private DriverStatus status;
+    private double rating;
+
+    public Driver(String id, String name, Location loc) {
+        this.id = id; this.name = name; this.location = loc;
+        this.status = DriverStatus.AVAILABLE; this.rating = 5.0;
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public Location getLocation() { return location; }
+    public DriverStatus getStatus() { return status; }
+    public double getRating() { return rating; }
+    public void setStatus(DriverStatus s) { this.status = s; }
+    public void setLocation(Location loc) { this.location = loc; }
+    public void updateRating(double r) { this.rating = (this.rating + r) / 2.0; }
+}
+
+// ============================================================================
+// Fare & PricingStrategy
+// ============================================================================
+
+interface PricingStrategy {
+    double calculate(double distanceKm, double durationMin, double surgeMultiplier);
+}
+
+class StandardPricing implements PricingStrategy {
+    private static final double BASE = 2.0, PER_KM = 1.5, PER_MIN = 0.25;
+    public double calculate(double km, double min, double surge) {
+        return (BASE + km * PER_KM + min * PER_MIN) * surge;
+    }
+}
+
+class PremiumPricing implements PricingStrategy {
+    private static final double BASE = 5.0, PER_KM = 3.0, PER_MIN = 0.50;
+    public double calculate(double km, double min, double surge) {
+        return (BASE + km * PER_KM + min * PER_MIN) * surge;
+    }
+}
+
+class Fare {
+    private final double baseFare;
+    private final double distanceCharge;
+    private final double surgeMultiplier;
+    private final double total;
+
+    public Fare(double base, double dist, double surge, double total) {
+        this.baseFare = base; this.distanceCharge = dist;
+        this.surgeMultiplier = surge; this.total = total;
+    }
+    public double getTotal() { return total; }
+    @Override public String toString() { return String.format("$%.2f (surge: %.1fx)", total, surgeMultiplier); }
+}
+
+// ============================================================================
+// MatchingStrategy -- find best driver for a ride request
+// ============================================================================
+
+interface MatchingStrategy {
+    Driver findDriver(Location pickup, List<Driver> drivers);
+}
+
+class NearestDriverStrategy implements MatchingStrategy {
+    public Driver findDriver(Location pickup, List<Driver> drivers) {
+        return drivers.stream()
+            .filter(d -> d.getStatus() == DriverStatus.AVAILABLE)
+            .min(Comparator.comparingDouble(d -> d.getLocation().distanceTo(pickup)))
+            .orElse(null);
+    }
+}
+
+// ============================================================================
+// Trip -- state machine for ride lifecycle
+// ============================================================================
+
+class Trip {
+    private final String id;
+    private final Rider rider;
+    private Driver driver;
+    private TripStatus status;
+    private final Location pickup;
+    private final Location dropoff;
+    private Fare fare;
+    private final RideType rideType;
+
+    public Trip(String id, Rider rider, Location pickup, Location dropoff, RideType type) {
+        this.id = id; this.rider = rider; this.pickup = pickup;
+        this.dropoff = dropoff; this.status = TripStatus.REQUESTED; this.rideType = type;
+    }
+
+    public void assignDriver(Driver d) {
+        if (status \!= TripStatus.REQUESTED) throw new IllegalStateException("Cannot assign in " + status);
+        this.driver = d; this.status = TripStatus.MATCHED;
+        d.setStatus(DriverStatus.ON_TRIP);
+    }
+
+    public void start() {
+        if (status \!= TripStatus.MATCHED) throw new IllegalStateException("Cannot start in " + status);
+        this.status = TripStatus.IN_PROGRESS;
+    }
+
+    public Fare complete(PricingStrategy pricing, double surgeMultiplier) {
+        if (status \!= TripStatus.IN_PROGRESS) throw new IllegalStateException("Cannot complete in " + status);
+        double distance = pickup.distanceTo(dropoff);
+        double duration = distance * 2; // simplified: 2 min per km
+        double total = pricing.calculate(distance, duration, surgeMultiplier);
+        this.fare = new Fare(2.0, distance * 1.5, surgeMultiplier, total);
+        this.status = TripStatus.COMPLETED;
+        driver.setStatus(DriverStatus.AVAILABLE);
+        return fare;
+    }
+
+    public void cancel() {
+        if (status == TripStatus.COMPLETED) throw new IllegalStateException("Cannot cancel completed trip");
+        this.status = TripStatus.CANCELLED;
+        if (driver \!= null) driver.setStatus(DriverStatus.AVAILABLE);
+    }
+
+    public String getId() { return id; }
+    public TripStatus getStatus() { return status; }
+    public Fare getFare() { return fare; }
+
+    @Override public String toString() {
+        return String.format("Trip[%s] %s -> %s | status=%s | fare=%s",
+            id, pickup, dropoff, status, fare);
+    }
+}
+
+// ============================================================================
+// RideService -- orchestrates matching, pricing, trip lifecycle
+// ============================================================================
+
+class RideService {
+    private final List<Driver> drivers = new ArrayList<>();
+    private final Map<String, Trip> trips = new HashMap<>();
+    private MatchingStrategy matchingStrategy = new NearestDriverStrategy();
+    private int tripCounter = 0;
+
+    public void registerDriver(Driver d) { drivers.add(d); }
+
+    public Trip requestRide(Rider rider, Location pickup, Location dropoff, RideType type) {
+        Trip trip = new Trip("T" + (++tripCounter), rider, pickup, dropoff, type);
+        trips.put(trip.getId(), trip);
+
+        Driver matched = matchingStrategy.findDriver(pickup, drivers);
+        if (matched \!= null) {
+            trip.assignDriver(matched);
+            System.out.println("Matched driver: " + matched.getName());
+        } else {
+            System.out.println("No drivers available");
+        }
+        return trip;
+    }
+
+    public Fare completeTrip(String tripId, double surgeMultiplier) {
+        Trip trip = trips.get(tripId);
+        trip.start();
+        PricingStrategy pricing = trip.toString().contains("PREMIUM")
+            ? new PremiumPricing() : new StandardPricing();
+        return trip.complete(pricing, surgeMultiplier);
+    }
+}
+
+// ============================================================================
+// DRIVER
+// ============================================================================
+
+public class RideSharingApp {
+    public static void main(String[] args) {
+        RideService service = new RideService();
+
+        Driver d1 = new Driver("D1", "Alice", new Location(40.7128, -74.0060));
+        Driver d2 = new Driver("D2", "Bob",   new Location(40.7580, -73.9855));
+        service.registerDriver(d1);
+        service.registerDriver(d2);
+
+        Rider rider = new Rider("R1", "Charlie", new Location(40.7282, -73.7949));
+        Trip trip = service.requestRide(rider,
+            new Location(40.7282, -73.7949),
+            new Location(40.7484, -73.9857),
+            RideType.ECONOMY);
+
+        Fare fare = service.completeTrip(trip.getId(), 1.5);
+        System.out.println("Trip completed: " + trip);
+        System.out.println("Fare: " + fare);
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Low-Level Design: Ride-Sharing Service (Uber)
+
+## 1. Requirements Breakdown
+
+| Requirement | Design Decision |
+|---|---|
+| Rider requests trip | RideRequest value object with pickup, dropoff, rideType |
+| Driver matching | Strategy pattern: NearestDriver, HighestRated, LoadBalanced |
+| Trip lifecycle | State pattern: Requested -> Matched -> InProgress -> Completed |
+| Fare calculation | Strategy pattern: StandardPricing, PremiumPricing, PoolPricing |
+| Surge pricing | SurgeCalculator based on supply/demand ratio per region |
+| Ratings | Bidirectional Rating class, weighted moving average |
+
+## 2. Core Design Patterns
+
+### State Pattern -- Trip Lifecycle
+Each TripStatus defines valid transitions:
+- REQUESTED: can transition to MATCHED or CANCELLED
+- MATCHED: can transition to IN_PROGRESS or CANCELLED
+- IN_PROGRESS: can transition to COMPLETED
+- COMPLETED: terminal state
+
+### Strategy Pattern -- Matching and Pricing
+Two independent strategy hierarchies:
+1. MatchingStrategy: NearestDriverStrategy, HighestRatedStrategy
+2. PricingStrategy: StandardPricing, PremiumPricing, PoolPricing
+
+### Observer Pattern -- Real-Time Tracking
+When a driver updates their location during a trip, all subscribed
+observers (rider app, dispatcher, ETA calculator) are notified.
+
+## 3. Key Design Decisions
+
+1. **Spatial indexing for matching**: Use a QuadTree or geo-hash grid to
+   find nearby drivers in O(log n) instead of scanning all drivers O(n).
+
+2. **Surge pricing as a multiplier**: SurgeCalculator computes a multiplier
+   (1.0 to 3.0) based on the ratio of active requests to available drivers
+   in a region. This keeps the fare calculation clean.
+
+3. **Rating as weighted moving average**: newRating = (oldRating * weight + score) / (weight + 1).
+   This gives more stability to drivers with many trips.
+
+4. **Payment separation**: Payment is a separate class with its own lifecycle,
+   supporting credit card, wallet, or cash methods.
+
+## 4. Entity Summary (10 classes)
+
+| Entity | Purpose |
+|---|---|
+| Rider | Trip requester with location |
+| Driver | Trip executor with status and rating |
+| Trip | Ride lifecycle with state transitions |
+| Location | Lat/lng with distance calculation |
+| Fare | Calculated fare breakdown |
+| RideRequest | Value object for trip request parameters |
+| MatchingStrategy | Interface for driver selection algorithm |
+| PricingStrategy | Interface for fare calculation |
+| Rating | Bidirectional trip rating |
+| Payment | Payment processing with method selection |`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|---|---|---|---|
+| requestRide() | O(D) | O(1) | D = available drivers; linear scan |
+| requestRide() with QuadTree | O(log D) | O(D) | Spatial index amortizes lookups |
+| calculateFare() | O(1) | O(1) | Arithmetic on distance and duration |
+| calculateSurge() | O(1) | O(R) | R = regions; precomputed supply/demand |
+| assignDriver() | O(1) | O(1) | State transition + driver status update |
+| completeTrip() | O(1) | O(1) | State transition + fare calculation |
+| updateDriverLocation() | O(S) | O(1) | S = subscribers (Observer notification) |
+| rateTrip() | O(1) | O(1) | Weighted average update |
+
+**Matching is the bottleneck**: Naive nearest-driver is O(D) per request.
+With a QuadTree, it drops to O(log D) for finding k nearest drivers.
+At Uber's scale (~5M drivers), this is the difference between 5M comparisons
+and ~23 tree traversals per request.
+
+**Memory**: O(D) for driver state, O(T) for active trips, O(R) for ride history.`,
+};
+
+// ============================================================
+//  29-design-stock-brokerage -> prob-stock-brokerage
+// ============================================================
+
+export const stockBrokerageSolution: ProblemSolutionContent = {
+  referenceSolution: `# Stock Brokerage System -- Complete Java Implementation
+
+> All classes in a single file for interview convenience.
+> Compiles and runs: \`javac StockBrokerage.java && java StockBrokerage\`
+
+---
+
+## Full Source Code
+
+\`\`\`java
+import java.util.*;
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum OrderType { MARKET, LIMIT }
+enum Side { BUY, SELL }
+enum OrderStatus { OPEN, PARTIALLY_FILLED, FILLED, CANCELLED }
+
+// ============================================================================
+// Order -- a buy or sell request
+// ============================================================================
+
+class Order {
+    private final String id;
+    private final String userId;
+    private final String symbol;
+    private final OrderType type;
+    private final Side side;
+    private final double price;  // 0 for market orders
+    private int quantity;
+    private int filledQuantity;
+    private OrderStatus status;
+    private final long timestamp;
+
+    public Order(String id, String userId, String symbol, OrderType type,
+                 Side side, double price, int quantity) {
+        this.id = id; this.userId = userId; this.symbol = symbol;
+        this.type = type; this.side = side; this.price = price;
+        this.quantity = quantity; this.filledQuantity = 0;
+        this.status = OrderStatus.OPEN; this.timestamp = System.nanoTime();
+    }
+
+    public String getId() { return id; }
+    public String getUserId() { return userId; }
+    public String getSymbol() { return symbol; }
+    public OrderType getType() { return type; }
+    public Side getSide() { return side; }
+    public double getPrice() { return price; }
+    public int getQuantity() { return quantity; }
+    public int getRemainingQty() { return quantity - filledQuantity; }
+    public OrderStatus getStatus() { return status; }
+    public long getTimestamp() { return timestamp; }
+
+    public void fill(int qty) {
+        filledQuantity += qty;
+        status = filledQuantity >= quantity ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
+    }
+
+    public void cancel() { this.status = OrderStatus.CANCELLED; }
+
+    @Override public String toString() {
+        return String.format("%s %s %d %s @ %s [%s] filled=%d",
+            side, symbol, quantity, type, type == OrderType.MARKET ? "MKT" : price, status, filledQuantity);
+    }
+}
+
+// ============================================================================
+// Trade -- executed match between buy and sell
+// ============================================================================
+
+class Trade {
+    private final String id;
+    private final String buyOrderId;
+    private final String sellOrderId;
+    private final String symbol;
+    private final double price;
+    private final int quantity;
+    private final long timestamp;
+
+    public Trade(String id, String buyOrderId, String sellOrderId,
+                 String symbol, double price, int quantity) {
+        this.id = id; this.buyOrderId = buyOrderId;
+        this.sellOrderId = sellOrderId; this.symbol = symbol;
+        this.price = price; this.quantity = quantity;
+        this.timestamp = System.nanoTime();
+    }
+
+    public double getPrice() { return price; }
+    public int getQuantity() { return quantity; }
+    public String getBuyOrderId() { return buyOrderId; }
+    public String getSellOrderId() { return sellOrderId; }
+
+    @Override public String toString() {
+        return String.format("Trade: %d shares of %s @ $%.2f", quantity, symbol, price);
+    }
+}
+
+// ============================================================================
+// OrderBook -- price-time priority matching engine for one symbol
+// ============================================================================
+
+class OrderBook {
+    private final String symbol;
+    // Max-heap for bids (highest price first, then earliest time)
+    private final PriorityQueue<Order> bids = new PriorityQueue<>((a, b) -> {
+        int cmp = Double.compare(b.getPrice(), a.getPrice());
+        return cmp \!= 0 ? cmp : Long.compare(a.getTimestamp(), b.getTimestamp());
+    });
+    // Min-heap for asks (lowest price first, then earliest time)
+    private final PriorityQueue<Order> asks = new PriorityQueue<>((a, b) -> {
+        int cmp = Double.compare(a.getPrice(), b.getPrice());
+        return cmp \!= 0 ? cmp : Long.compare(a.getTimestamp(), b.getTimestamp());
+    });
+    private double lastTradedPrice = 0;
+    private int tradeCounter = 0;
+
+    public OrderBook(String symbol) { this.symbol = symbol; }
+
+    public List<Trade> addOrder(Order order) {
+        List<Trade> trades = new ArrayList<>();
+        if (order.getSide() == Side.BUY) {
+            matchBuy(order, trades);
+            if (order.getRemainingQty() > 0 && order.getType() == OrderType.LIMIT) {
+                bids.offer(order);
+            }
+        } else {
+            matchSell(order, trades);
+            if (order.getRemainingQty() > 0 && order.getType() == OrderType.LIMIT) {
+                asks.offer(order);
+            }
+        }
+        return trades;
+    }
+
+    private void matchBuy(Order buy, List<Trade> trades) {
+        while (buy.getRemainingQty() > 0 && \!asks.isEmpty()) {
+            Order bestAsk = asks.peek();
+            if (buy.getType() == OrderType.LIMIT && buy.getPrice() < bestAsk.getPrice()) break;
+            int matchQty = Math.min(buy.getRemainingQty(), bestAsk.getRemainingQty());
+            double matchPrice = bestAsk.getPrice();
+            Trade trade = new Trade("TR" + (++tradeCounter), buy.getId(),
+                bestAsk.getId(), symbol, matchPrice, matchQty);
+            trades.add(trade);
+            buy.fill(matchQty);
+            bestAsk.fill(matchQty);
+            lastTradedPrice = matchPrice;
+            if (bestAsk.getRemainingQty() == 0) asks.poll();
+        }
+    }
+
+    private void matchSell(Order sell, List<Trade> trades) {
+        while (sell.getRemainingQty() > 0 && \!bids.isEmpty()) {
+            Order bestBid = bids.peek();
+            if (sell.getType() == OrderType.LIMIT && sell.getPrice() > bestBid.getPrice()) break;
+            int matchQty = Math.min(sell.getRemainingQty(), bestBid.getRemainingQty());
+            double matchPrice = bestBid.getPrice();
+            Trade trade = new Trade("TR" + (++tradeCounter), bestBid.getId(),
+                sell.getId(), symbol, matchPrice, matchQty);
+            trades.add(trade);
+            sell.fill(matchQty);
+            bestBid.fill(matchQty);
+            lastTradedPrice = matchPrice;
+            if (bestBid.getRemainingQty() == 0) bids.poll();
+        }
+    }
+
+    public double getBestBid() { return bids.isEmpty() ? 0 : bids.peek().getPrice(); }
+    public double getBestAsk() { return asks.isEmpty() ? 0 : asks.peek().getPrice(); }
+    public double getLastTradedPrice() { return lastTradedPrice; }
+}
+
+// ============================================================================
+// Portfolio & Holding
+// ============================================================================
+
+class Holding {
+    private final String symbol;
+    private int quantity;
+    private double avgCostBasis;
+
+    public Holding(String symbol) { this.symbol = symbol; this.quantity = 0; this.avgCostBasis = 0; }
+
+    public void addShares(int qty, double price) {
+        double totalCost = avgCostBasis * quantity + price * qty;
+        quantity += qty;
+        avgCostBasis = quantity > 0 ? totalCost / quantity : 0;
+    }
+
+    public void removeShares(int qty) { quantity -= qty; }
+    public int getQuantity() { return quantity; }
+    public double getAvgCostBasis() { return avgCostBasis; }
+    public double getProfitLoss(double currentPrice) { return (currentPrice - avgCostBasis) * quantity; }
+
+    @Override public String toString() {
+        return String.format("%s: %d shares @ avg $%.2f", symbol, quantity, avgCostBasis);
+    }
+}
+
+class Portfolio {
+    private final String userId;
+    private final Map<String, Holding> holdings = new HashMap<>();
+    private double cashBalance;
+
+    public Portfolio(String userId, double initialBalance) {
+        this.userId = userId; this.cashBalance = initialBalance;
+    }
+
+    public void processTrade(Trade trade, Side side) {
+        String symbol = trade.toString().split(" of ")[1].split(" @")[0]; // simplified
+        Holding h = holdings.computeIfAbsent(symbol, Holding::new);
+        if (side == Side.BUY) {
+            h.addShares(trade.getQuantity(), trade.getPrice());
+            cashBalance -= trade.getPrice() * trade.getQuantity();
+        } else {
+            h.removeShares(trade.getQuantity());
+            cashBalance += trade.getPrice() * trade.getQuantity();
+        }
+    }
+
+    public double getCashBalance() { return cashBalance; }
+    public Map<String, Holding> getHoldings() { return holdings; }
+}
+
+// ============================================================================
+// StockExchange -- facade
+// ============================================================================
+
+class StockExchange {
+    private final Map<String, OrderBook> orderBooks = new HashMap<>();
+    private final Map<String, Portfolio> portfolios = new HashMap<>();
+    private int orderCounter = 0;
+
+    public void registerStock(String symbol) {
+        orderBooks.putIfAbsent(symbol, new OrderBook(symbol));
+    }
+
+    public Portfolio createAccount(String userId, double balance) {
+        Portfolio p = new Portfolio(userId, balance);
+        portfolios.put(userId, p);
+        return p;
+    }
+
+    public List<Trade> placeOrder(String userId, String symbol, OrderType type,
+                                   Side side, double price, int qty) {
+        Order order = new Order("O" + (++orderCounter), userId, symbol, type, side, price, qty);
+        OrderBook book = orderBooks.get(symbol);
+        if (book == null) throw new IllegalArgumentException("Unknown symbol: " + symbol);
+        List<Trade> trades = book.addOrder(order);
+        Portfolio portfolio = portfolios.get(userId);
+        if (portfolio \!= null) {
+            for (Trade t : trades) portfolio.processTrade(t, side);
+        }
+        return trades;
+    }
+
+    public OrderBook getOrderBook(String symbol) { return orderBooks.get(symbol); }
+}
+
+// ============================================================================
+// DRIVER
+// ============================================================================
+
+public class StockBrokerage {
+    public static void main(String[] args) {
+        StockExchange exchange = new StockExchange();
+        exchange.registerStock("AAPL");
+
+        Portfolio alice = exchange.createAccount("alice", 100000);
+        Portfolio bob   = exchange.createAccount("bob",   100000);
+
+        // Bob places sell limit orders
+        exchange.placeOrder("bob", "AAPL", OrderType.LIMIT, Side.SELL, 150.00, 100);
+        exchange.placeOrder("bob", "AAPL", OrderType.LIMIT, Side.SELL, 151.00, 50);
+
+        // Alice buys 120 shares at market -- fills 100@150 + 20@151 (partial fill)
+        List<Trade> trades = exchange.placeOrder("alice", "AAPL", OrderType.MARKET, Side.BUY, 0, 120);
+        for (Trade t : trades) System.out.println(t);
+
+        System.out.println("Best bid: " + exchange.getOrderBook("AAPL").getBestBid());
+        System.out.println("Best ask: " + exchange.getOrderBook("AAPL").getBestAsk());
+        System.out.println("Alice balance: $" + alice.getCashBalance());
+        System.out.println("Alice holdings: " + alice.getHoldings());
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Low-Level Design: Stock Brokerage System
+
+## 1. Requirements Breakdown
+
+| Requirement | Design Decision |
+|---|---|
+| Market and limit orders | OrderType enum, price-time priority matching |
+| Order book matching | Two heaps: max-heap for bids, min-heap for asks |
+| Portfolio tracking | Holding with average cost basis calculation |
+| Real-time price feeds | Observer pattern for price update subscription |
+| Partial fills | Order tracks filledQuantity vs total quantity |
+
+## 2. Core Design Patterns
+
+### Observer Pattern -- Price Updates
+When a Trade executes, the exchange notifies all subscribers:
+- Portfolio: updates holdings and P&L
+- PriceAlert: checks if target price was crossed
+- UI clients: display new last-traded price
+
+### Strategy Pattern -- Order Matching
+MarketOrderStrategy: matches at best available price (no price check).
+LimitOrderStrategy: only matches if price condition is met.
+
+### Command Pattern -- Order Execution
+Each Order is a command: it can be validated, queued, executed, and cancelled.
+The order book processes commands in price-time priority.
+
+## 3. Key Design Decisions
+
+1. **Price-time priority**: Orders at the same price are filled in FIFO order.
+   The priority queue uses a composite comparator: price first, then timestamp.
+
+2. **Partial fills**: A 100-share buy may match 60 shares from one seller and
+   40 from another. The Order tracks filledQuantity and transitions through
+   OPEN -> PARTIALLY_FILLED -> FILLED states.
+
+3. **Average cost basis**: On each buy, recalculate:
+   avgCost = (oldQty * oldAvg + newQty * tradePrice) / totalQty.
+
+4. **Separate OrderBook per symbol**: Each stock has its own independent
+   order book, enabling parallel matching across different stocks.
+
+## 4. Entity Summary (10 classes)
+
+| Entity | Purpose |
+|---|---|
+| StockExchange | Facade managing order books and portfolios |
+| OrderBook | Price-time priority matching engine per symbol |
+| Order | Buy/sell request with type, side, price, quantity |
+| Trade | Executed match between buy and sell orders |
+| Portfolio | User's holdings and cash balance |
+| Holding | Per-symbol quantity and average cost basis |
+| Stock | Symbol, name, exchange metadata |
+| Quote | Current bid/ask/last-traded price snapshot |
+| Account | User's cash balance for deposits/withdrawals |
+| PriceAlert | Threshold-based notification trigger |`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|---|---|---|---|
+| placeOrder() | O(K log N) | O(1) | K = matches, N = orders in book; heap ops |
+| matchOrders() | O(log N) per match | O(1) | Peek + poll from priority queue |
+| cancelOrder() | O(N) | O(1) | Linear scan to find order in heap |
+| getBestBid/Ask() | O(1) | O(1) | Peek at heap top |
+| getQuote() | O(1) | O(1) | Cached last-traded price |
+| updatePortfolio() | O(1) | O(1) | HashMap lookup + arithmetic |
+| getProfitLoss() | O(H) | O(1) | H = number of holdings |
+| notifySubscribers() | O(S) | O(1) | S = subscribers for this symbol |
+
+**Order matching is the critical path**: Each order placement triggers O(K)
+matches, each costing O(log N) for heap operations. At the NYSE's scale
+(~6B shares/day), the order book for popular stocks can have 10K+ orders.
+
+**Memory**: O(N) per order book (N = open orders), O(U * H) for portfolios
+(U = users, H = avg holdings per user). Trade history is O(T) and typically
+stored in append-only logs.`,
+};
+
+// ============================================================
+//  30-design-music-streaming -> prob-music-streaming
+// ============================================================
+
+export const musicStreamingSolution: ProblemSolutionContent = {
+  referenceSolution: `# Music Streaming (Spotify) -- Complete Java Implementation
+
+> All classes in a single file for interview convenience.
+> Compiles and runs: \`javac MusicStreaming.java && java MusicStreaming\`
+
+---
+
+## Full Source Code
+
+\`\`\`java
+import java.util.*;
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum PlayMode { SEQUENTIAL, SHUFFLE, REPEAT_ALL, REPEAT_ONE }
+enum PlayerState { PLAYING, PAUSED, STOPPED }
+
+// ============================================================================
+// Song, Album, Artist
+// ============================================================================
+
+class Song {
+    private final String id;
+    private final String title;
+    private final String artistName;
+    private final int durationMs;
+
+    public Song(String id, String title, String artist, int durationMs) {
+        this.id = id; this.title = title; this.artistName = artist; this.durationMs = durationMs;
+    }
+
+    public String getId() { return id; }
+    public String getTitle() { return title; }
+    public String getArtistName() { return artistName; }
+    public int getDurationMs() { return durationMs; }
+
+    @Override public String toString() { return title + " - " + artistName; }
+}
+
+class Album {
+    private final String id;
+    private final String title;
+    private final String artist;
+    private final List<Song> songs = new ArrayList<>();
+
+    public Album(String id, String title, String artist) {
+        this.id = id; this.title = title; this.artist = artist;
+    }
+
+    public void addSong(Song s) { songs.add(s); }
+    public List<Song> getSongs() { return Collections.unmodifiableList(songs); }
+    public String getTitle() { return title; }
+}
+
+class Artist {
+    private final String id;
+    private final String name;
+    private final List<Album> albums = new ArrayList<>();
+
+    public Artist(String id, String name) { this.id = id; this.name = name; }
+    public void addAlbum(Album a) { albums.add(a); }
+    public String getName() { return name; }
+    public List<Album> getAlbums() { return Collections.unmodifiableList(albums); }
+}
+
+// ============================================================================
+// Playlist -- user-curated collection
+// ============================================================================
+
+class Playlist {
+    private final String id;
+    private String name;
+    private final String ownerId;
+    private final List<Song> songs = new ArrayList<>();
+
+    public Playlist(String id, String name, String ownerId) {
+        this.id = id; this.name = name; this.ownerId = ownerId;
+    }
+
+    public void addSong(Song s) { songs.add(s); }
+    public void removeSong(String songId) { songs.removeIf(s -> s.getId().equals(songId)); }
+    public void reorder(int from, int to) {
+        Song song = songs.remove(from);
+        songs.add(to, song);
+    }
+    public List<Song> getSongs() { return Collections.unmodifiableList(songs); }
+    public String getName() { return name; }
+}
+
+// ============================================================================
+// PlayQueue -- supports sequential, shuffle, repeat modes
+// ============================================================================
+
+class PlayQueue {
+    private List<Song> songs = new ArrayList<>();
+    private List<Song> shuffled;
+    private int currentIndex = -1;
+    private PlayMode mode = PlayMode.SEQUENTIAL;
+
+    public void loadSongs(List<Song> songs) {
+        this.songs = new ArrayList<>(songs);
+        this.shuffled = null;
+        this.currentIndex = -1;
+    }
+
+    public void setMode(PlayMode mode) {
+        this.mode = mode;
+        if (mode == PlayMode.SHUFFLE) {
+            shuffled = new ArrayList<>(songs);
+            Collections.shuffle(shuffled); // Fisher-Yates via Collections.shuffle
+        } else {
+            shuffled = null;
+        }
+    }
+
+    public Song next() {
+        List<Song> active = getActiveList();
+        if (active.isEmpty()) return null;
+        if (mode == PlayMode.REPEAT_ONE) return active.get(Math.max(0, currentIndex));
+        currentIndex++;
+        if (currentIndex >= active.size()) {
+            if (mode == PlayMode.REPEAT_ALL) currentIndex = 0;
+            else return null; // end of queue
+        }
+        return active.get(currentIndex);
+    }
+
+    public Song previous() {
+        List<Song> active = getActiveList();
+        if (active.isEmpty()) return null;
+        currentIndex = Math.max(0, currentIndex - 1);
+        return active.get(currentIndex);
+    }
+
+    public Song current() {
+        List<Song> active = getActiveList();
+        if (currentIndex < 0 || currentIndex >= active.size()) return null;
+        return active.get(currentIndex);
+    }
+
+    private List<Song> getActiveList() {
+        return shuffled \!= null ? shuffled : songs;
+    }
+
+    public PlayMode getMode() { return mode; }
+}
+
+// ============================================================================
+// Player -- state machine for playback
+// ============================================================================
+
+class Player {
+    private final PlayQueue queue = new PlayQueue();
+    private Song currentSong;
+    private int positionMs;
+    private PlayerState state = PlayerState.STOPPED;
+
+    public void loadPlaylist(Playlist playlist) {
+        queue.loadSongs(playlist.getSongs());
+        state = PlayerState.STOPPED;
+        positionMs = 0;
+    }
+
+    public void play() {
+        if (state == PlayerState.STOPPED) {
+            currentSong = queue.next();
+        }
+        if (currentSong \!= null) state = PlayerState.PLAYING;
+    }
+
+    public void pause() {
+        if (state == PlayerState.PLAYING) state = PlayerState.PAUSED;
+    }
+
+    public void stop() {
+        state = PlayerState.STOPPED;
+        positionMs = 0;
+        currentSong = null;
+    }
+
+    public Song next() {
+        currentSong = queue.next();
+        if (currentSong \!= null) { positionMs = 0; state = PlayerState.PLAYING; }
+        else stop();
+        return currentSong;
+    }
+
+    public Song previous() {
+        currentSong = queue.previous();
+        positionMs = 0;
+        if (currentSong \!= null) state = PlayerState.PLAYING;
+        return currentSong;
+    }
+
+    public void seek(int positionMs) { this.positionMs = positionMs; }
+    public void setMode(PlayMode mode) { queue.setMode(mode); }
+
+    public Song getCurrentSong() { return currentSong; }
+    public PlayerState getState() { return state; }
+    public PlayQueue getQueue() { return queue; }
+}
+
+// ============================================================================
+// SearchEngine -- inverted index for songs
+// ============================================================================
+
+class SearchEngine {
+    private final Map<String, Set<Song>> index = new HashMap<>();
+
+    public void indexSong(Song song) {
+        for (String word : tokenize(song.getTitle())) {
+            index.computeIfAbsent(word, k -> new HashSet<>()).add(song);
+        }
+        for (String word : tokenize(song.getArtistName())) {
+            index.computeIfAbsent(word, k -> new HashSet<>()).add(song);
+        }
+    }
+
+    public List<Song> search(String query) {
+        Set<Song> results = new HashSet<>();
+        for (String word : tokenize(query)) {
+            Set<Song> matches = index.getOrDefault(word, Collections.emptySet());
+            results.addAll(matches);
+        }
+        return new ArrayList<>(results);
+    }
+
+    private List<String> tokenize(String text) {
+        return Arrays.asList(text.toLowerCase().split("\\\\s+"));
+    }
+}
+
+// ============================================================================
+// RecommendationStrategy -- pluggable recommendation algorithms
+// ============================================================================
+
+interface RecommendationStrategy {
+    List<Song> recommend(List<Song> history, List<Song> catalog, int limit);
+}
+
+class PopularityStrategy implements RecommendationStrategy {
+    public List<Song> recommend(List<Song> history, List<Song> catalog, int limit) {
+        // Simple: return songs not in history, up to limit
+        Set<String> heard = new HashSet<>();
+        for (Song s : history) heard.add(s.getId());
+        List<Song> result = new ArrayList<>();
+        for (Song s : catalog) {
+            if (\!heard.contains(s.getId())) result.add(s);
+            if (result.size() >= limit) break;
+        }
+        return result;
+    }
+}
+
+// ============================================================================
+// MusicService -- orchestrator
+// ============================================================================
+
+class MusicService {
+    private final Map<String, Player> players = new HashMap<>(); // userId -> Player
+    private final Map<String, Playlist> playlists = new HashMap<>();
+    private final SearchEngine searchEngine = new SearchEngine();
+    private final List<Song> catalog = new ArrayList<>();
+    private RecommendationStrategy recStrategy = new PopularityStrategy();
+
+    public void addToCatalog(Song song) {
+        catalog.add(song);
+        searchEngine.indexSong(song);
+    }
+
+    public Playlist createPlaylist(String userId, String id, String name) {
+        Playlist p = new Playlist(id, name, userId);
+        playlists.put(id, p);
+        return p;
+    }
+
+    public Player getPlayer(String userId) {
+        return players.computeIfAbsent(userId, k -> new Player());
+    }
+
+    public List<Song> search(String query) { return searchEngine.search(query); }
+
+    public List<Song> recommend(String userId, int limit) {
+        return recStrategy.recommend(new ArrayList<>(), catalog, limit);
+    }
+}
+
+// ============================================================================
+// DRIVER
+// ============================================================================
+
+public class MusicStreaming {
+    public static void main(String[] args) {
+        MusicService service = new MusicService();
+
+        Song s1 = new Song("S1", "Bohemian Rhapsody", "Queen", 354000);
+        Song s2 = new Song("S2", "Stairway to Heaven", "Led Zeppelin", 482000);
+        Song s3 = new Song("S3", "Hotel California", "Eagles", 391000);
+        Song s4 = new Song("S4", "Comfortably Numb", "Pink Floyd", 383000);
+
+        service.addToCatalog(s1); service.addToCatalog(s2);
+        service.addToCatalog(s3); service.addToCatalog(s4);
+
+        Playlist playlist = service.createPlaylist("U1", "PL1", "Classic Rock");
+        playlist.addSong(s1); playlist.addSong(s2);
+        playlist.addSong(s3); playlist.addSong(s4);
+
+        Player player = service.getPlayer("U1");
+        player.loadPlaylist(playlist);
+        player.play();
+        System.out.println("Now playing: " + player.getCurrentSong());
+
+        player.next();
+        System.out.println("Next: " + player.getCurrentSong());
+
+        player.setMode(PlayMode.SHUFFLE);
+        player.next();
+        System.out.println("Shuffle next: " + player.getCurrentSong());
+
+        // Search
+        List<Song> results = service.search("queen");
+        System.out.println("Search 'queen': " + results);
+
+        // Recommend
+        List<Song> recs = service.recommend("U1", 2);
+        System.out.println("Recommendations: " + recs);
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Low-Level Design: Music Streaming (Spotify)
+
+## 1. Requirements Breakdown
+
+| Requirement | Design Decision |
+|---|---|
+| Search songs | SearchEngine with inverted index |
+| Playlist CRUD | Playlist class with add/remove/reorder |
+| Play queue modes | Strategy via PlayMode enum (sequential, shuffle, repeat) |
+| Playback control | Player with State pattern (Playing, Paused, Stopped) |
+| Recommendations | Strategy pattern for swappable algorithms |
+
+## 2. Core Design Patterns
+
+### Iterator Pattern -- Play Queue
+The PlayQueue implements different traversal strategies:
+- SequentialIterator: plays songs in order, stops at end
+- ShuffleIterator: Fisher-Yates shuffle, plays all songs once
+- RepeatAllIterator: wraps around to beginning after last song
+- RepeatOneIterator: keeps returning the same song
+
+### Strategy Pattern -- Recommendations
+RecommendationStrategy interface with implementations:
+- PopularityStrategy: recommend trending songs not yet heard
+- CollaborativeFiltering: "users like you also listened to..."
+- ContentBasedStrategy: recommend songs with similar audio features
+
+### State Pattern -- Player
+Each PlayerState defines valid operations:
+- STOPPED: play() starts from queue beginning
+- PLAYING: pause() transitions to PAUSED, next()/prev() change song
+- PAUSED: play() resumes, stop() resets position
+
+### Observer Pattern -- Cross-Device Sync
+When playback state changes on one device, all other devices
+subscribed to that user session receive the update.
+
+## 3. Key Design Decisions
+
+1. **Fisher-Yates shuffle**: O(n) time, uniform distribution, ensures
+   every song is played exactly once before any repeats.
+
+2. **Playlist vs Album**: Both aggregate Songs, but Playlist is user-curated
+   (mutable) while Album is artist-published (immutable after release).
+
+3. **SearchEngine with inverted index**: Maps each word to a set of songs.
+   Search is O(W) where W = words in query, each lookup is O(1).
+
+4. **Player owns Queue**: The Player composes a PlayQueue, which manages
+   the song list and current position. This separates playback state
+   from queue traversal logic.
+
+## 4. Entity Summary (10 classes)
+
+| Entity | Purpose |
+|---|---|
+| User | Account with playlists and listening history |
+| Song | Immutable track metadata |
+| Album | Artist-published collection of songs |
+| Artist | Musician with discography |
+| Playlist | User-curated, mutable song collection |
+| Player | Playback controller with state machine |
+| Queue (PlayQueue) | Song list with traversal modes |
+| Recommendation | Strategy-based song suggestions |
+| SearchEngine | Inverted index for song lookup |
+| MusicService | Orchestrator facade |`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|---|---|---|---|
+| search(query) | O(W) | O(R) | W = words in query, R = result set |
+| addSong(playlist) | O(1) | O(1) | Append to list |
+| removeSong(playlist) | O(N) | O(1) | N = songs in playlist; linear scan |
+| reorder(playlist) | O(1) | O(1) | Remove + insert at index |
+| next() | O(1) | O(1) | Index increment |
+| shuffle() | O(N) | O(N) | Fisher-Yates on copy of song list |
+| play/pause/stop | O(1) | O(1) | State transition |
+| indexSong() | O(W) | O(W) | W = words in title + artist |
+| recommend() | O(C) | O(R) | C = catalog size, R = result limit |
+
+**Search is fast**: Inverted index gives O(1) per term lookup. Total search
+is O(W) where W = words in query, typically 1-5.
+
+**Shuffle is the most expensive playlist op**: Fisher-Yates is O(N) but only
+runs once when shuffle mode is activated. Subsequent next() calls are O(1).
+
+**Memory**: O(S) for song catalog, O(P * avg_songs) for playlists,
+O(S * avg_words) for search index. A catalog of 100M songs with an average
+of 5 indexed words uses ~500M index entries.`,
+};
+
+
+// ============================================================
+//  13-airline-booking -> prob-airline-booking
+// ============================================================
+
+export const airlineBookingSolution: ProblemSolutionContent = {
+  referenceSolution: `# Airline Booking System -- Key Java Classes
+
+\`\`\`java
+import java.util.*;
+import java.time.LocalDateTime;
+
+// ── Enums ──────────────────────────────────────────
+enum FareClass { ECONOMY, BUSINESS, FIRST }
+enum BookingStatus { RESERVED, CONFIRMED, CHECKED_IN, BOARDED, CANCELLED }
+enum FFTier { SILVER, GOLD, PLATINUM }
+
+// ── Seat ───────────────────────────────────────────
+class Seat {
+    private final String seatNumber;
+    private final FareClass fareClass;
+    private boolean booked;
+
+    public Seat(String seatNumber, FareClass fareClass) {
+        this.seatNumber = seatNumber;
+        this.fareClass = fareClass;
+        this.booked = false;
+    }
+
+    public synchronized boolean reserve() {
+        if (booked) return false;
+        booked = true;
+        return true;
+    }
+
+    public void release() { booked = false; }
+    public boolean isBooked() { return booked; }
+    public FareClass getFareClass() { return fareClass; }
+    public String getSeatNumber() { return seatNumber; }
+}
+
+// ── Flight ─────────────────────────────────────────
+class Flight {
+    private final String flightNumber;
+    private final String origin, destination;
+    private final LocalDateTime departure;
+    private final List<Seat> seats;
+    private final PricingStrategy pricingStrategy;
+    private final List<FlightObserver> observers = new ArrayList<>();
+
+    public Flight(String flightNumber, String origin, String destination,
+                  LocalDateTime departure, List<Seat> seats, PricingStrategy pricing) {
+        this.flightNumber = flightNumber;
+        this.origin = origin;
+        this.destination = destination;
+        this.departure = departure;
+        this.seats = seats;
+        this.pricingStrategy = pricing;
+    }
+
+    public List<Seat> getAvailableSeats(FareClass fc) {
+        List<Seat> avail = new ArrayList<>();
+        for (Seat s : seats)
+            if (\!s.isBooked() && s.getFareClass() == fc) avail.add(s);
+        return avail;
+    }
+
+    public double getPrice(FareClass fc) {
+        return pricingStrategy.calculate(flightNumber, fc, departure);
+    }
+
+    public void addObserver(FlightObserver o) { observers.add(o); }
+    public void notifyStatusChange(String msg) {
+        for (FlightObserver o : observers) o.onFlightUpdate(this, msg);
+    }
+
+    public String getFlightNumber() { return flightNumber; }
+    public String getOrigin() { return origin; }
+    public String getDestination() { return destination; }
+    public LocalDateTime getDeparture() { return departure; }
+}
+
+// ── Strategy: Pricing ──────────────────────────────
+interface PricingStrategy {
+    double calculate(String flightNumber, FareClass fc, LocalDateTime departure);
+}
+
+class DynamicPricingStrategy implements PricingStrategy {
+    private final Map<FareClass, Double> baseFares;
+    public DynamicPricingStrategy(Map<FareClass, Double> baseFares) {
+        this.baseFares = baseFares;
+    }
+    @Override
+    public double calculate(String fn, FareClass fc, LocalDateTime dep) {
+        double base = baseFares.getOrDefault(fc, 200.0);
+        long daysOut = java.time.Duration.between(LocalDateTime.now(), dep).toDays();
+        double multiplier = daysOut < 7 ? 2.0 : daysOut < 30 ? 1.3 : 1.0;
+        return base * multiplier;
+    }
+}
+
+// ── Observer ───────────────────────────────────────
+interface FlightObserver {
+    void onFlightUpdate(Flight flight, String message);
+}
+
+// ── Booking ────────────────────────────────────────
+class Booking {
+    private final String pnr;
+    private final Flight flight;
+    private final Passenger passenger;
+    private final Seat seat;
+    private BookingStatus status;
+
+    public Booking(String pnr, Flight flight, Passenger passenger, Seat seat) {
+        this.pnr = pnr;
+        this.flight = flight;
+        this.passenger = passenger;
+        this.seat = seat;
+        this.status = BookingStatus.RESERVED;
+    }
+
+    public void confirm()  { if (status == BookingStatus.RESERVED) status = BookingStatus.CONFIRMED; }
+    public BoardingPass checkIn() {
+        if (status \!= BookingStatus.CONFIRMED)
+            throw new IllegalStateException("Must be confirmed to check in");
+        status = BookingStatus.CHECKED_IN;
+        return new BoardingPass(this, "G12", "A");
+    }
+    public void cancel() {
+        if (status == BookingStatus.BOARDED)
+            throw new IllegalStateException("Cannot cancel after boarding");
+        seat.release();
+        status = BookingStatus.CANCELLED;
+    }
+
+    public BookingStatus getStatus() { return status; }
+    public String getPnr() { return pnr; }
+}
+
+// ── Passenger & FrequentFlyer ──────────────────────
+class Passenger {
+    private final String id, name, passport;
+    public Passenger(String id, String name, String passport) {
+        this.id = id; this.name = name; this.passport = passport;
+    }
+    public String getName() { return name; }
+}
+
+class FrequentFlyer extends Passenger implements FlightObserver {
+    private int points;
+    private FFTier tier;
+    public FrequentFlyer(String id, String name, String passport, FFTier tier) {
+        super(id, name, passport);
+        this.tier = tier;
+        this.points = 0;
+    }
+    public void earnPoints(int miles) { points += miles; }
+    @Override
+    public void onFlightUpdate(Flight f, String msg) {
+        System.out.println("[FF " + getName() + "] " + msg);
+    }
+}
+
+// ── BoardingPass ───────────────────────────────────
+class BoardingPass {
+    private final Booking booking;
+    private final String gate, boardingGroup;
+    public BoardingPass(Booking b, String gate, String group) {
+        this.booking = b; this.gate = gate; this.boardingGroup = group;
+    }
+}
+
+// ── Itinerary Builder ──────────────────────────────
+class Itinerary {
+    private final List<Flight> legs = new ArrayList<>();
+    public void addLeg(Flight f) { legs.add(f); }
+    public double getTotalPrice(FareClass fc) {
+        return legs.stream().mapToDouble(f -> f.getPrice(fc)).sum();
+    }
+    public int getLegCount() { return legs.size(); }
+}
+
+// ── FlightSchedule ─────────────────────────────────
+class FlightSchedule {
+    private final Map<String, List<Flight>> routeIndex = new HashMap<>();
+    public void addFlight(Flight f) {
+        String key = f.getOrigin() + "-" + f.getDestination();
+        routeIndex.computeIfAbsent(key, k -> new ArrayList<>()).add(f);
+    }
+    public List<Flight> search(String origin, String dest) {
+        return routeIndex.getOrDefault(origin + "-" + dest, List.of());
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Airline Booking System
+
+## 1. Problem Breakdown
+
+Design a reservation system handling flight search, seat selection, booking lifecycle,
+check-in with boarding pass generation, fare pricing, and frequent flyer integration.
+
+## 2. Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| Flight | Departure, route, seat inventory, pricing |
+| Seat | Individual seat with fare class and booking state |
+| Passenger | Traveler identity and passport |
+| Booking | Links passenger to seat on a flight, tracks lifecycle |
+| FrequentFlyer | Extends Passenger with tier and points |
+| BoardingPass | Generated at check-in with gate and boarding group |
+| Itinerary | Multi-leg trip composed of multiple flights |
+| FlightSchedule | Search index for flights by route and date |
+| PricingStrategy | Fare calculation algorithm (dynamic, loyalty, etc.) |
+| Payment | Captures amount, method, and refund capability |
+
+## 3. Key Design Decisions
+
+### 3.1 State Pattern for Booking Lifecycle
+Booking transitions: RESERVED -> CONFIRMED -> CHECKED_IN -> BOARDED.
+Cancel is allowed from RESERVED, CONFIRMED, and CHECKED_IN but not BOARDED.
+Each state enforces valid transitions and triggers side effects (seat release on cancel).
+
+### 3.2 Strategy Pattern for Pricing
+PricingStrategy interface with DynamicPricingStrategy (demand-based multiplier),
+LoyaltyPricingStrategy (tier discounts), and AdvancePurchaseStrategy.
+Flight delegates getPrice() to its strategy, making pricing rules swappable.
+
+### 3.3 Builder Pattern for Itineraries
+Multi-leg trips are built incrementally: builder validates layover times,
+fare class consistency, and total duration. ItineraryBuilder.addLeg() rejects
+invalid connections (layover < 1h or > 12h).
+
+### 3.4 Observer Pattern for Flight Status
+Passengers (especially FrequentFlyers) register as observers on their flights.
+Delays, gate changes, and cancellations broadcast to all registered observers.
+
+## 4. Overbooking and Cancellation
+
+Overbooking tracks sold bookings vs physical seats separately. When a flight is
+oversold at boarding time, a priority queue (sorted by tier, check-in time) determines
+bump order. Bumped passengers receive automatic rebooking on next available flight.
+
+For multi-leg cancellation, cancelling any leg propagates to all downstream legs,
+triggering seat releases and refund calculations for each segment.`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| searchFlights() | O(F) | O(1) | F = flights on route; HashMap lookup + filter |
+| getAvailableSeats() | O(S) | O(S) | S = seats per flight; linear scan |
+| reserveSeat() | O(1) | O(1) | Synchronized boolean flip |
+| confirm/checkIn/cancel | O(1) | O(1) | State transition + side effects |
+| getPrice() | O(1) | O(1) | Strategy calculation with base fare and multiplier |
+| buildItinerary() | O(L) | O(L) | L = number of legs; validation per leg |
+| notifyObservers() | O(O) | O(1) | O = observers registered on flight |
+
+**Search index:** O(R) space for R routes, each with a list of flights.
+Route lookup is O(1) via HashMap, then O(F) to filter by date/availability.
+
+**Booking storage:** O(B) for B active bookings. PNR lookup is O(1) with HashMap.
+
+**Overbooking resolution:** O(P log P) to sort P passengers by priority at boarding time.`,
+};
+
+// ============================================================
+//  14-tic-tac-toe -> prob-tic-tac-toe
+// ============================================================
+
+export const ticTacToeSolution: ProblemSolutionContent = {
+  referenceSolution: `# Tic-Tac-Toe -- Key Java Classes
+
+\`\`\`java
+import java.util.*;
+
+// ── Enums ──────────────────────────────────────────
+enum Symbol { X, O, EMPTY }
+enum GameStatus { IN_PROGRESS, WIN, DRAW }
+
+// ── Move (value object) ───────────────────────────
+class Move {
+    final int row, col;
+    final Player player;
+    public Move(int row, int col, Player player) {
+        this.row = row; this.col = col; this.player = player;
+    }
+}
+
+// ── Board ──────────────────────────────────────────
+class Board {
+    private final int size;
+    private final Symbol[][] grid;
+    private int moveCount;
+
+    public Board(int size) {
+        this.size = size;
+        this.grid = new Symbol[size][size];
+        for (Symbol[] row : grid) Arrays.fill(row, Symbol.EMPTY);
+        this.moveCount = 0;
+    }
+
+    public boolean placeMark(int row, int col, Symbol symbol) {
+        if (row < 0 || row >= size || col < 0 || col >= size) return false;
+        if (grid[row][col] \!= Symbol.EMPTY) return false;
+        grid[row][col] = symbol;
+        moveCount++;
+        return true;
+    }
+
+    public boolean isFull() { return moveCount == size * size; }
+    public Symbol getCell(int r, int c) { return grid[r][c]; }
+    public int getSize() { return size; }
+
+    public List<Move> getEmptyCells() {
+        List<Move> moves = new ArrayList<>();
+        for (int r = 0; r < size; r++)
+            for (int c = 0; c < size; c++)
+                if (grid[r][c] == Symbol.EMPTY) moves.add(new Move(r, c, null));
+        return moves;
+    }
+}
+
+// ── WinChecker (O(1) per move) ─────────────────────
+class WinChecker {
+    private final int size;
+    private final int[][] rowCounts, colCounts;
+    private final int[] diag1, diag2; // main and anti diagonal
+
+    public WinChecker(int size) {
+        this.size = size;
+        rowCounts = new int[2][size]; // index 0 = X, 1 = O
+        colCounts = new int[2][size];
+        diag1 = new int[2];
+        diag2 = new int[2];
+    }
+
+    /** Returns true if this move wins the game. */
+    public boolean recordMove(int row, int col, Symbol symbol) {
+        int idx = symbol == Symbol.X ? 0 : 1;
+        rowCounts[idx][row]++;
+        colCounts[idx][col]++;
+        if (row == col) diag1[idx]++;
+        if (row + col == size - 1) diag2[idx]++;
+        return rowCounts[idx][row] == size || colCounts[idx][col] == size
+            || diag1[idx] == size || diag2[idx] == size;
+    }
+}
+
+// ── Player hierarchy ───────────────────────────────
+abstract class Player {
+    protected final String name;
+    protected final Symbol symbol;
+    public Player(String name, Symbol symbol) { this.name = name; this.symbol = symbol; }
+    public abstract Move getMove(Board board);
+    public Symbol getSymbol() { return symbol; }
+    public String getName() { return name; }
+}
+
+class HumanPlayer extends Player {
+    private final Scanner scanner = new Scanner(System.in);
+    public HumanPlayer(String name, Symbol symbol) { super(name, symbol); }
+    @Override
+    public Move getMove(Board board) {
+        System.out.print(name + " (" + symbol + ") enter row col: ");
+        return new Move(scanner.nextInt(), scanner.nextInt(), this);
+    }
+}
+
+// ── AI with Strategy ───────────────────────────────
+interface MoveStrategy {
+    Move computeMove(Board board, Symbol symbol);
+}
+
+class RandomStrategy implements MoveStrategy {
+    private final Random rng = new Random();
+    @Override
+    public Move computeMove(Board board, Symbol symbol) {
+        List<Move> empty = board.getEmptyCells();
+        Move m = empty.get(rng.nextInt(empty.size()));
+        return new Move(m.row, m.col, null);
+    }
+}
+
+class MinimaxStrategy implements MoveStrategy {
+    @Override
+    public Move computeMove(Board board, Symbol symbol) {
+        int[] best = minimax(board, symbol, symbol, true, Integer.MIN_VALUE, Integer.MAX_VALUE);
+        return new Move(best[1], best[2], null);
+    }
+    private int[] minimax(Board b, Symbol cur, Symbol ai, boolean isMax, int alpha, int beta) {
+        // Returns [score, row, col]. Full minimax with alpha-beta pruning.
+        // Omitted for brevity -- standard NegaMax implementation.
+        return new int[]{0, 0, 0}; // placeholder
+    }
+}
+
+class AIPlayer extends Player {
+    private final MoveStrategy strategy;
+    public AIPlayer(String name, Symbol symbol, MoveStrategy strategy) {
+        super(name, symbol); this.strategy = strategy;
+    }
+    @Override
+    public Move getMove(Board board) {
+        Move m = strategy.computeMove(board, symbol);
+        return new Move(m.row, m.col, this);
+    }
+}
+
+// ── Game ───────────────────────────────────────────
+class Game {
+    private final Board board;
+    private final Player[] players;
+    private final WinChecker winChecker;
+    private int currentTurn;
+    private GameStatus status;
+
+    public Game(int boardSize, Player p1, Player p2) {
+        this.board = new Board(boardSize);
+        this.players = new Player[]{p1, p2};
+        this.winChecker = new WinChecker(boardSize);
+        this.currentTurn = 0;
+        this.status = GameStatus.IN_PROGRESS;
+    }
+
+    public boolean makeMove(int row, int col) {
+        if (status \!= GameStatus.IN_PROGRESS) return false;
+        Player current = players[currentTurn % 2];
+        if (\!board.placeMark(row, col, current.getSymbol())) return false;
+        if (winChecker.recordMove(row, col, current.getSymbol())) {
+            status = GameStatus.WIN;
+        } else if (board.isFull()) {
+            status = GameStatus.DRAW;
+        }
+        currentTurn++;
+        return true;
+    }
+
+    public void play() {
+        while (status == GameStatus.IN_PROGRESS) {
+            Player p = players[currentTurn % 2];
+            Move m = p.getMove(board);
+            makeMove(m.row, m.col);
+        }
+        if (status == GameStatus.WIN)
+            System.out.println(players[(currentTurn - 1) % 2].getName() + " wins\!");
+        else
+            System.out.println("Draw\!");
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Tic-Tac-Toe
+
+## 1. Problem Breakdown
+
+Design an NxN tic-tac-toe game supporting human and AI players with efficient
+win detection and extensible AI difficulty levels.
+
+## 2. Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| Game | Orchestrates turns, checks win/draw, manages lifecycle |
+| Board | NxN grid storage, mark placement, empty cell queries |
+| Player | Abstract: provides getMove(). Subclasses: Human, AI |
+| Move | Immutable value object: row, col, player |
+| WinChecker | O(1) win detection via row/col/diagonal counters |
+| MoveStrategy | Strategy interface for AI move computation |
+| GameResult | Final outcome: winner or draw, move history |
+
+## 3. Key Design Decisions
+
+### 3.1 O(1) Win Detection
+Instead of scanning the full board after each move, WinChecker maintains
+per-player counts for each row, column, and both diagonals. When any counter
+reaches N, that player wins. This reduces win check from O(N^2) to O(1).
+
+### 3.2 Strategy Pattern for AI
+MoveStrategy interface with implementations:
+- RandomStrategy: picks a random empty cell (O(1) amortized)
+- MinimaxStrategy: full game tree search for optimal play
+- AlphaBetaStrategy: minimax with pruning, reduces O(b^d) to O(b^(d/2))
+
+### 3.3 Factory Method for Players
+PlayerFactory.create("human", "X") or PlayerFactory.create("ai-hard", "O")
+decouples Game from concrete player types. New AI strategies can be added
+without modifying Game.
+
+### 3.4 Memento for Undo
+Each Move is stored in a history list. Undo pops the last move, restores
+the board cell to EMPTY, decrements WinChecker counters, and reverts turn.`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| placeMark() | O(1) | O(1) | Array index assignment |
+| WinChecker.recordMove() | O(1) | O(1) | Increment + 4 comparisons |
+| isFull() | O(1) | O(1) | Compare moveCount to N*N |
+| Board.getEmptyCells() | O(N^2) | O(N^2) | Scan full grid for AI |
+| RandomStrategy | O(N^2) | O(N^2) | Build empty list, random pick |
+| MinimaxStrategy | O(b^d) | O(d) | b = branching, d = depth; b <= N^2 |
+| AlphaBetaStrategy | O(b^(d/2)) | O(d) | Pruning halves effective depth |
+
+**Board storage:** O(N^2) for the grid. WinChecker uses O(N) for row/column
+arrays plus O(1) for diagonals.
+
+**Game tree for 3x3:** 9\! = 362,880 terminal nodes without pruning.
+Alpha-beta reduces this to roughly 1,000 nodes examined.
+
+**Scaling to NxN:** For N > 5, minimax becomes impractical. Use heuristic
+evaluation (count open lines) with depth-limited search instead.`,
+};
+
+// ============================================================
+//  15-snake-game -> prob-snake-game
+// ============================================================
+
+export const snakeGameSolution: ProblemSolutionContent = {
+  referenceSolution: `# Snake Game -- Key Java Classes
+
+\`\`\`java
+import java.util.*;
+
+// ── Enums ──────────────────────────────────────────
+enum Direction {
+    UP(-1, 0), DOWN(1, 0), LEFT(0, -1), RIGHT(0, 1);
+    final int dr, dc;
+    Direction(int dr, int dc) { this.dr = dr; this.dc = dc; }
+    public boolean isOpposite(Direction other) {
+        return this.dr + other.dr == 0 && this.dc + other.dc == 0;
+    }
+}
+
+enum GameStatus { RUNNING, PAUSED, GAME_OVER }
+enum CellType { EMPTY, SNAKE, FOOD, WALL }
+
+// ── Position (value object) ────────────────────────
+class Position {
+    final int row, col;
+    public Position(int row, int col) { this.row = row; this.col = col; }
+    @Override public boolean equals(Object o) {
+        if (\!(o instanceof Position)) return false;
+        Position p = (Position) o;
+        return row == p.row && col == p.col;
+    }
+    @Override public int hashCode() { return 31 * row + col; }
+}
+
+// ── Snake ──────────────────────────────────────────
+class Snake {
+    private final Deque<Position> body = new ArrayDeque<>();
+    private final Set<Position> bodySet = new HashSet<>();
+    private Direction direction;
+
+    public Snake(Position start, Direction dir) {
+        body.addFirst(start);
+        bodySet.add(start);
+        direction = dir;
+    }
+
+    public void changeDirection(Direction newDir) {
+        if (\!direction.isOpposite(newDir)) direction = newDir;
+    }
+
+    public Position peekNextHead() {
+        Position head = body.peekFirst();
+        return new Position(head.row + direction.dr, head.col + direction.dc);
+    }
+
+    public void move(boolean grow) {
+        Position newHead = peekNextHead();
+        body.addFirst(newHead);
+        bodySet.add(newHead);
+        if (\!grow) {
+            Position tail = body.removeLast();
+            bodySet.remove(tail);
+        }
+    }
+
+    public boolean collidesWithSelf(Position pos) { return bodySet.contains(pos); }
+    public Position getHead() { return body.peekFirst(); }
+    public int getLength() { return body.size(); }
+}
+
+// ── Food ───────────────────────────────────────────
+class Food {
+    private Position position;
+    private final int points;
+    public Food(Position pos, int points) { this.position = pos; this.points = points; }
+    public Position getPosition() { return position; }
+    public int getPoints() { return points; }
+}
+
+// ── FoodGenerator (Strategy) ───────────────────────
+interface FoodGenerator {
+    Food generate(int width, int height, Set<Position> occupied);
+}
+
+class RandomFoodGenerator implements FoodGenerator {
+    private final Random rng = new Random();
+    @Override
+    public Food generate(int w, int h, Set<Position> occupied) {
+        Position pos;
+        do { pos = new Position(rng.nextInt(h), rng.nextInt(w)); }
+        while (occupied.contains(pos));
+        return new Food(pos, 10);
+    }
+}
+
+// ── Grid ───────────────────────────────────────────
+class Grid {
+    private final int width, height;
+    public Grid(int width, int height) { this.width = width; this.height = height; }
+    public boolean isInBounds(Position p) {
+        return p.row >= 0 && p.row < height && p.col >= 0 && p.col < width;
+    }
+    public int getWidth() { return width; }
+    public int getHeight() { return height; }
+}
+
+// ── ScoreTracker (Observer subject) ────────────────
+interface ScoreListener { void onScoreChanged(int newScore); }
+
+class ScoreTracker {
+    private int score, highScore;
+    private final List<ScoreListener> listeners = new ArrayList<>();
+    public void addListener(ScoreListener l) { listeners.add(l); }
+    public void addPoints(int pts) {
+        score += pts;
+        if (score > highScore) highScore = score;
+        for (ScoreListener l : listeners) l.onScoreChanged(score);
+    }
+    public int getScore() { return score; }
+    public double getSpeedMultiplier() { return 1.0 + (score / 100) * 0.1; }
+}
+
+// ── Game ───────────────────────────────────────────
+class SnakeGame {
+    private final Grid grid;
+    private final Snake snake;
+    private Food currentFood;
+    private final ScoreTracker scoreTracker;
+    private final FoodGenerator foodGen;
+    private GameStatus status;
+
+    public SnakeGame(int width, int height) {
+        this.grid = new Grid(width, height);
+        this.snake = new Snake(new Position(height / 2, width / 2), Direction.RIGHT);
+        this.scoreTracker = new ScoreTracker();
+        this.foodGen = new RandomFoodGenerator();
+        this.currentFood = foodGen.generate(width, height, new HashSet<>(List.of(snake.getHead())));
+        this.status = GameStatus.RUNNING;
+    }
+
+    public void handleInput(Direction dir) {
+        if (status == GameStatus.RUNNING) snake.changeDirection(dir);
+    }
+
+    public void tick() {
+        if (status \!= GameStatus.RUNNING) return;
+        Position nextHead = snake.peekNextHead();
+
+        // Wall collision
+        if (\!grid.isInBounds(nextHead)) { status = GameStatus.GAME_OVER; return; }
+        // Self collision (check before move, exclude current tail)
+        if (snake.collidesWithSelf(nextHead)) { status = GameStatus.GAME_OVER; return; }
+
+        boolean ateFood = nextHead.equals(currentFood.getPosition());
+        snake.move(ateFood);
+
+        if (ateFood) {
+            scoreTracker.addPoints(currentFood.getPoints());
+            currentFood = foodGen.generate(grid.getWidth(), grid.getHeight(),
+                new HashSet<>()); // simplified; pass snake body set in production
+        }
+    }
+
+    public GameStatus getStatus() { return status; }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Snake Game
+
+## 1. Problem Breakdown
+
+Design a snake game with grid movement, food spawning, self-collision detection,
+score tracking, and progressive speed increase.
+
+## 2. Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| SnakeGame | Game loop: tick(), handleInput(), lifecycle management |
+| Snake | Body as deque + hash set, movement, direction changes |
+| Grid | Bounds checking, dimensions |
+| Food | Position and point value |
+| FoodGenerator | Strategy for spawning food at valid positions |
+| Position | Immutable (row, col) with equals/hashCode |
+| Direction | Enum with delta offsets and opposite detection |
+| ScoreTracker | Score, high score, observer notifications, speed multiplier |
+
+## 3. Key Design Decisions
+
+### 3.1 Deque + HashSet for Snake Body
+The body is a Deque<Position> for O(1) head insertion and tail removal.
+A parallel HashSet<Position> enables O(1) self-collision checks instead
+of O(n) linear scan through the body list.
+
+### 3.2 State Pattern for Game Lifecycle
+GameStatus: RUNNING, PAUSED, GAME_OVER. In PAUSED, tick() is a no-op
+and handleInput() only responds to unpause. In GAME_OVER, all input is
+ignored. This avoids scattered if-checks throughout the game loop.
+
+### 3.3 Strategy Pattern for Food Generation
+FoodGenerator interface with RandomFoodGenerator (uniform random on empty cells)
+and WeightedFoodGenerator (bonus items near edges, penalty items after score
+milestones). Easily swappable without modifying game logic.
+
+### 3.4 Observer for Score Updates
+ScoreTracker notifies ScoreListeners on every point change. The UI layer
+and speed controller both subscribe, keeping game logic decoupled from
+rendering and difficulty scaling.
+
+### 3.5 Direction Safety
+Direction.isOpposite() prevents 180-degree turns that would cause instant
+self-collision. The snake ignores input that reverses direction.`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| snake.move() | O(1) | O(1) | Deque addFirst + removeLast |
+| collidesWithSelf() | O(1) | O(1) | HashSet.contains() |
+| changeDirection() | O(1) | O(1) | Opposite check + assignment |
+| grid.isInBounds() | O(1) | O(1) | Two comparisons |
+| foodGen.generate() | O(1) avg | O(1) | Random retry; O(W*H) worst case when grid nearly full |
+| tick() | O(1) | O(1) | Bounded by collision + move |
+| scoreTracker.addPoints() | O(L) | O(1) | L = number of listeners |
+
+**Snake body storage:** O(N) for N body segments (both deque and hash set).
+
+**Grid:** No explicit cell storage needed -- only dimensions. The snake body
+set and food position are the authoritative state. Rendering reconstructs
+the grid view from these sources.
+
+**Speed scaling:** getSpeedMultiplier() is O(1). The game loop timer
+adjusts tick interval = baseTick / speedMultiplier.`,
+};
+
+// ============================================================
+//  16-card-game -> prob-card-game
+// ============================================================
+
+export const cardGameSolution: ProblemSolutionContent = {
+  referenceSolution: `# Card Game (Blackjack) -- Key Java Classes
+
+\`\`\`java
+import java.util.*;
+
+// ── Enums ──────────────────────────────────────────
+enum Suit { HEARTS, DIAMONDS, CLUBS, SPADES }
+enum Rank {
+    ACE(11), TWO(2), THREE(3), FOUR(4), FIVE(5), SIX(6), SEVEN(7),
+    EIGHT(8), NINE(9), TEN(10), JACK(10), QUEEN(10), KING(10);
+    final int value;
+    Rank(int v) { this.value = v; }
+    public int getValue() { return value; }
+}
+enum Action { HIT, STAND, DOUBLE_DOWN, SPLIT }
+enum Outcome { WIN, LOSE, PUSH, BLACKJACK }
+
+// ── Card ───────────────────────────────────────────
+class Card {
+    private final Suit suit;
+    private final Rank rank;
+    private boolean faceUp;
+    public Card(Suit suit, Rank rank) {
+        this.suit = suit; this.rank = rank; this.faceUp = true;
+    }
+    public int getValue() { return rank.getValue(); }
+    public boolean isAce() { return rank == Rank.ACE; }
+    public void setFaceUp(boolean up) { faceUp = up; }
+    public Rank getRank() { return rank; }
+}
+
+// ── Deck ───────────────────────────────────────────
+class Deck {
+    private final List<Card> cards = new ArrayList<>();
+    public Deck() {
+        for (Suit s : Suit.values())
+            for (Rank r : Rank.values())
+                cards.add(new Card(s, r));
+    }
+    public void shuffle() { Collections.shuffle(cards); }
+    public Card deal() {
+        if (cards.isEmpty()) throw new IllegalStateException("Deck empty");
+        return cards.remove(cards.size() - 1);
+    }
+    public int remaining() { return cards.size(); }
+}
+
+// ── Hand ───────────────────────────────────────────
+class Hand {
+    private final List<Card> cards = new ArrayList<>();
+    public void addCard(Card c) { cards.add(c); }
+
+    public int getScore() {
+        int total = 0, aces = 0;
+        for (Card c : cards) {
+            total += c.getValue();
+            if (c.isAce()) aces++;
+        }
+        while (total > 21 && aces > 0) { total -= 10; aces--; }
+        return total;
+    }
+
+    public boolean isBust() { return getScore() > 21; }
+    public boolean isBlackjack() { return cards.size() == 2 && getScore() == 21; }
+    public List<Card> getCards() { return Collections.unmodifiableList(cards); }
+    public void clear() { cards.clear(); }
+}
+
+// ── Player ─────────────────────────────────────────
+class Player {
+    private final String name;
+    private Hand hand;
+    private int chips;
+    private int currentBet;
+
+    public Player(String name, int chips) {
+        this.name = name; this.chips = chips; this.hand = new Hand();
+    }
+    public void placeBet(int amount) {
+        if (amount > chips) throw new IllegalArgumentException("Insufficient chips");
+        currentBet = amount; chips -= amount;
+    }
+    public void win(int payout) { chips += payout; }
+    public Hand getHand() { return hand; }
+    public int getChips() { return chips; }
+    public int getCurrentBet() { return currentBet; }
+    public String getName() { return name; }
+    public void resetHand() { hand = new Hand(); currentBet = 0; }
+}
+
+// ── Dealer ─────────────────────────────────────────
+class Dealer {
+    private final Hand hand = new Hand();
+    private static final int STAND_THRESHOLD = 17;
+    public boolean shouldHit() { return hand.getScore() < STAND_THRESHOLD; }
+    public Hand getHand() { return hand; }
+    public void resetHand() { hand.clear(); }
+}
+
+// ── Bet ────────────────────────────────────────────
+class Bet {
+    private final int amount;
+    private final String type; // "main", "insurance", "double"
+    public Bet(int amount, String type) { this.amount = amount; this.type = type; }
+    public int payout(double multiplier) { return (int)(amount * multiplier); }
+    public int getAmount() { return amount; }
+}
+
+// ── BlackjackGame (Template Method) ────────────────
+class BlackjackGame {
+    private final Deck deck;
+    private final List<Player> players;
+    private final Dealer dealer;
+    private final List<GameObserver> observers = new ArrayList<>();
+
+    public BlackjackGame(List<Player> players) {
+        this.deck = new Deck();
+        this.players = players;
+        this.dealer = new Dealer();
+    }
+
+    public void playRound() {
+        deck.shuffle();
+        collectBets();
+        dealInitial();
+        playerTurns();
+        dealerTurn();
+        evaluateWinners();
+        notifyRoundComplete();
+    }
+
+    private void collectBets() {
+        for (Player p : players) p.placeBet(10); // simplified
+    }
+
+    private void dealInitial() {
+        for (int i = 0; i < 2; i++) {
+            for (Player p : players) p.getHand().addCard(deck.deal());
+            dealer.getHand().addCard(deck.deal());
+        }
+    }
+
+    private void playerTurns() {
+        for (Player p : players) {
+            while (p.getHand().getScore() < 21) {
+                // Simplified: hit until 17
+                if (p.getHand().getScore() >= 17) break;
+                p.getHand().addCard(deck.deal());
+            }
+        }
+    }
+
+    private void dealerTurn() {
+        while (dealer.shouldHit()) dealer.getHand().addCard(deck.deal());
+    }
+
+    private void evaluateWinners() {
+        int dealerScore = dealer.getHand().getScore();
+        boolean dealerBust = dealer.getHand().isBust();
+        for (Player p : players) {
+            int playerScore = p.getHand().getScore();
+            if (p.getHand().isBust()) continue; // already lost
+            if (p.getHand().isBlackjack()) p.win(p.getCurrentBet() * 3); // 3:2
+            else if (dealerBust || playerScore > dealerScore) p.win(p.getCurrentBet() * 2);
+            else if (playerScore == dealerScore) p.win(p.getCurrentBet()); // push
+        }
+    }
+
+    interface GameObserver { void onRoundComplete(List<Player> players, Dealer dealer); }
+    public void addObserver(GameObserver o) { observers.add(o); }
+    private void notifyRoundComplete() {
+        for (GameObserver o : observers) o.onRoundComplete(players, dealer);
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Card Game (Blackjack)
+
+## 1. Problem Breakdown
+
+Design a Blackjack game with deck management, hand evaluation (including Ace
+dual-value logic), multi-player betting, dealer AI, and extensibility for
+split/double-down/insurance.
+
+## 2. Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| Card | Immutable: Suit + Rank, face-up/down state |
+| Deck | 52 cards, shuffle (Fisher-Yates), deal from top |
+| Hand | Card collection with Blackjack scoring (Ace = 1 or 11) |
+| Player | Name, chips, current bet, hand management |
+| Dealer | Follows fixed rules: hit below 17, stand on 17+ |
+| Bet | Amount + type (main/insurance/double), payout calculation |
+| BlackjackGame | Template Method: collectBets -> deal -> play -> evaluate |
+| GameResult | Per-player outcome: win/lose/push/blackjack |
+| Suit/Rank | Enums for card properties |
+
+## 3. Key Design Decisions
+
+### 3.1 Template Method for Game Loop
+BlackjackGame defines the skeleton: collectBets(), dealInitial(), playerTurns(),
+dealerTurn(), evaluateWinners(). Subclasses (e.g., SpanishBlackjack) override
+specific steps while reusing the overall flow.
+
+### 3.2 Strategy for Player Decisions
+Player.decide() delegates to a PlayStrategy: HumanInputStrategy prompts the
+user, BasicStrategy follows optimal play charts, DealerStrategy always hits
+below 17. This makes AI and human players interchangeable.
+
+### 3.3 Ace Value Resolution
+Hand.getScore() first counts all Aces as 11, then downgrades Aces to 1 one
+at a time until the total is <= 21 or all Aces are downgraded. This greedy
+approach always finds the best legal total.
+
+### 3.4 Observer for Game Events
+Observers receive events for card dealt, player busted, round complete.
+UI rendering, logging, and statistics tracking subscribe independently.
+
+### 3.5 Split Handling
+When a player splits, their single Hand becomes two Hand objects, each
+receiving one card from the original pair plus a new dealt card. Each
+split hand plays independently with its own Bet.`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| Deck.shuffle() | O(52) = O(1) | O(1) | Fisher-Yates in-place |
+| Deck.deal() | O(1) | O(1) | Remove from end of ArrayList |
+| Hand.getScore() | O(H) | O(1) | H = cards in hand (max ~11) |
+| Hand.isBlackjack() | O(H) | O(1) | Check size == 2 and score == 21 |
+| playerTurns() | O(P * H) | O(1) | P = players, H = avg hits per player |
+| dealerTurn() | O(H) | O(1) | Max ~10 hits before bust |
+| evaluateWinners() | O(P) | O(1) | Compare each player to dealer |
+| playRound() | O(P * H) | O(P * H) | Total cards dealt across all hands |
+
+**Deck:** O(52) = O(1) constant space. Reshuffled per round.
+
+**Hand storage:** O(H) per hand. In Blackjack, H is bounded by ~11
+(minimum 2-value cards to reach 21). Effectively O(1).
+
+**Multi-round game:** O(R * P * H) for R rounds. State resets each round,
+so memory is constant per round.`,
+};
+
+// ============================================================
+//  17-notification-service -> prob-notification-service
+// ============================================================
+
+export const notificationServiceSolution: ProblemSolutionContent = {
+  referenceSolution: `# Notification Service -- Key Java Classes
+
+\`\`\`java
+import java.util.*;
+import java.time.LocalTime;
+
+// ── Enums ──────────────────────────────────────────
+enum ChannelType { EMAIL, SMS, PUSH, IN_APP }
+enum NotificationType { MARKETING, TRANSACTIONAL, ALERT, REMINDER }
+enum DeliveryStatus { PENDING, SENT, DELIVERED, FAILED, READ }
+
+// ── Channel Interface (Strategy) ───────────────────
+interface Channel {
+    DeliveryResult deliver(String message, String recipient);
+    ChannelType getType();
+}
+
+class DeliveryResult {
+    private final boolean success;
+    private final String errorMessage;
+    public DeliveryResult(boolean success, String error) {
+        this.success = success; this.errorMessage = error;
+    }
+    public boolean isSuccess() { return success; }
+    public String getError() { return errorMessage; }
+}
+
+// ── Concrete Channels ──────────────────────────────
+class EmailChannel implements Channel {
+    @Override
+    public DeliveryResult deliver(String message, String recipient) {
+        System.out.println("[EMAIL -> " + recipient + "] " + message);
+        return new DeliveryResult(true, null);
+    }
+    @Override public ChannelType getType() { return ChannelType.EMAIL; }
+}
+
+class SMSChannel implements Channel {
+    @Override
+    public DeliveryResult deliver(String message, String recipient) {
+        System.out.println("[SMS -> " + recipient + "] " + message);
+        return new DeliveryResult(true, null);
+    }
+    @Override public ChannelType getType() { return ChannelType.SMS; }
+}
+
+class PushChannel implements Channel {
+    @Override
+    public DeliveryResult deliver(String message, String recipient) {
+        System.out.println("[PUSH -> " + recipient + "] " + message);
+        return new DeliveryResult(true, null);
+    }
+    @Override public ChannelType getType() { return ChannelType.PUSH; }
+}
+
+// ── Template ───────────────────────────────────────
+class Template {
+    private final String id, body;
+    private final List<String> variables;
+    public Template(String id, String body, List<String> variables) {
+        this.id = id; this.body = body; this.variables = variables;
+    }
+    public String render(Map<String, String> data) {
+        String result = body;
+        for (String v : variables)
+            result = result.replace("{{" + v + "}}", data.getOrDefault(v, ""));
+        return result;
+    }
+}
+
+// ── Preference ─────────────────────────────────────
+class Preference {
+    private final String userId;
+    private final Map<NotificationType, List<ChannelType>> channelPrefs;
+    private final LocalTime quietStart, quietEnd;
+
+    public Preference(String userId, Map<NotificationType, List<ChannelType>> prefs,
+                      LocalTime quietStart, LocalTime quietEnd) {
+        this.userId = userId; this.channelPrefs = prefs;
+        this.quietStart = quietStart; this.quietEnd = quietEnd;
+    }
+
+    public List<ChannelType> getChannels(NotificationType type) {
+        return channelPrefs.getOrDefault(type, List.of(ChannelType.EMAIL));
+    }
+
+    public boolean isQuietTime() {
+        LocalTime now = LocalTime.now();
+        return now.isAfter(quietStart) && now.isBefore(quietEnd);
+    }
+}
+
+// ── Notification ───────────────────────────────────
+class Notification {
+    private final String id;
+    private final NotificationType type;
+    private String content;
+    private DeliveryStatus status;
+    private int retryCount;
+
+    public Notification(String id, NotificationType type, String content) {
+        this.id = id; this.type = type; this.content = content;
+        this.status = DeliveryStatus.PENDING; this.retryCount = 0;
+    }
+
+    public void markSent() { status = DeliveryStatus.SENT; }
+    public void markFailed() { status = DeliveryStatus.FAILED; retryCount++; }
+    public DeliveryStatus getStatus() { return status; }
+    public int getRetryCount() { return retryCount; }
+    public String getContent() { return content; }
+}
+
+// ── RetryPolicy ────────────────────────────────────
+class RetryPolicy {
+    private final int maxRetries;
+    private final long baseDelayMs;
+    public RetryPolicy(int maxRetries, long baseDelayMs) {
+        this.maxRetries = maxRetries; this.baseDelayMs = baseDelayMs;
+    }
+    public boolean shouldRetry(Notification n) {
+        return n.getRetryCount() < maxRetries;
+    }
+    public long getNextDelay(int attempt) {
+        return baseDelayMs * (1L << attempt); // exponential backoff
+    }
+}
+
+// ── NotificationService ────────────────────────────
+class NotificationService {
+    private final Map<ChannelType, Channel> channels = new HashMap<>();
+    private final Map<String, Template> templates = new HashMap<>();
+    private final Map<String, Preference> preferences = new HashMap<>();
+    private final RetryPolicy retryPolicy;
+    private final List<DeliveryListener> listeners = new ArrayList<>();
+
+    public NotificationService(RetryPolicy retryPolicy) {
+        this.retryPolicy = retryPolicy;
+    }
+
+    public void registerChannel(Channel ch) { channels.put(ch.getType(), ch); }
+    public void addTemplate(Template t) { templates.put(t.id, t); }
+    public void setPreference(Preference p) { preferences.put(p.userId, p); }
+
+    public void send(String userId, NotificationType type, String templateId,
+                     Map<String, String> data) {
+        Preference pref = preferences.get(userId);
+        if (pref \!= null && pref.isQuietTime() && type \!= NotificationType.ALERT) return;
+
+        Template tmpl = templates.get(templateId);
+        String content = tmpl \!= null ? tmpl.render(data) : data.toString();
+        Notification notification = new Notification(UUID.randomUUID().toString(), type, content);
+
+        List<ChannelType> targetChannels = pref \!= null
+            ? pref.getChannels(type) : List.of(ChannelType.EMAIL);
+
+        for (ChannelType ct : targetChannels) {
+            Channel ch = channels.get(ct);
+            if (ch == null) continue;
+            DeliveryResult result = ch.deliver(content, userId);
+            if (result.isSuccess()) {
+                notification.markSent();
+                notifyListeners(notification, ct, true);
+            } else {
+                notification.markFailed();
+                notifyListeners(notification, ct, false);
+                // Retry logic would enqueue for later delivery
+            }
+        }
+    }
+
+    interface DeliveryListener {
+        void onDelivery(Notification n, ChannelType ch, boolean success);
+    }
+    public void addListener(DeliveryListener l) { listeners.add(l); }
+    private void notifyListeners(Notification n, ChannelType ch, boolean success) {
+        for (DeliveryListener l : listeners) l.onDelivery(n, ch, success);
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Notification Service
+
+## 1. Problem Breakdown
+
+Design a multi-channel notification system with template rendering, user
+preference-based routing, quiet hours, delivery tracking, and retry logic.
+
+## 2. Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| NotificationService | Orchestrates send flow: preference -> template -> channel -> track |
+| Channel | Interface for delivery (Email, SMS, Push, InApp implementations) |
+| Template | Variable substitution for notification content |
+| Preference | Per-user channel preferences and quiet hours |
+| Notification | Tracks delivery status and retry count |
+| RetryPolicy | Exponential backoff logic, max retry cap |
+| DeliveryResult | Success/failure result from channel delivery |
+| DeliveryListener | Observer for delivery events (analytics, retry queue) |
+
+## 3. Key Design Decisions
+
+### 3.1 Strategy Pattern for Channels
+Each Channel implementation (EmailChannel, SMSChannel, PushChannel) has
+different delivery mechanics but shares the same deliver() contract.
+NotificationService selects channels based on user Preference lookups.
+
+### 3.2 Builder Pattern for Notifications
+NotificationBuilder.to(userId).type(ALERT).template("order-shipped")
+.data("orderId", "123").via(EMAIL, PUSH).build() creates rich notifications
+with validation (required fields, valid template, channel availability).
+
+### 3.3 Observer for Delivery Events
+DeliveryListeners receive events on every send attempt. Analytics listeners
+track delivery rates, retry listeners enqueue failed notifications,
+and audit listeners log compliance records.
+
+### 3.4 Retry with Exponential Backoff
+RetryPolicy calculates delay = baseDelay * 2^attempt. After maxRetries,
+the notification moves to a dead-letter queue for manual review.
+Transactional notifications get higher retry limits than marketing.
+
+### 3.5 Quiet Hours and Priority
+Preference.isQuietTime() gates non-critical notifications. ALERT type
+notifications bypass quiet hours entirely. Queued quiet-hour notifications
+are scheduled for delivery when quiet hours end.`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| send() | O(C) | O(1) | C = channels per user preference (typically 1-3) |
+| template.render() | O(V * L) | O(L) | V = variables, L = template length |
+| channel.deliver() | O(1) local | O(1) | Network I/O is separate concern |
+| sendBulk() | O(U * C) | O(U) | U = users, C = channels per user |
+| preference lookup | O(1) | O(1) | HashMap by userId |
+| retryPolicy.getNextDelay() | O(1) | O(1) | Bit shift for 2^attempt |
+| isQuietTime() | O(1) | O(1) | LocalTime comparison |
+
+**Template storage:** O(T * L) for T templates of average length L.
+
+**Preference storage:** O(U) for U users.
+
+**Notification tracking:** O(N) for N active notifications. Completed
+notifications are archived to a persistent store and removed from memory.
+
+**Retry queue:** O(R) for R pending retries. Priority queue sorted by
+next-retry-time for efficient scheduling.`,
+};
+
+// ============================================================
+//  18-logging-framework -> prob-logging-framework
+// ============================================================
+
+export const loggingFrameworkSolution: ProblemSolutionContent = {
+  referenceSolution: `# Logging Framework -- Key Java Classes
+
+\`\`\`java
+import java.util.*;
+import java.time.Instant;
+import java.util.concurrent.*;
+
+// ── LogLevel Enum ──────────────────────────────────
+enum LogLevel {
+    TRACE(0), DEBUG(1), INFO(2), WARN(3), ERROR(4), FATAL(5);
+    final int severity;
+    LogLevel(int s) { this.severity = s; }
+    public boolean isAtLeast(LogLevel threshold) { return severity >= threshold.severity; }
+}
+
+// ── LogEntry (value object) ────────────────────────
+class LogEntry {
+    private final Instant timestamp;
+    private final LogLevel level;
+    private final String message;
+    private final String loggerName;
+    private final Map<String, Object> metadata;
+
+    public LogEntry(LogLevel level, String message, String loggerName,
+                    Map<String, Object> metadata) {
+        this.timestamp = Instant.now();
+        this.level = level;
+        this.message = message;
+        this.loggerName = loggerName;
+        this.metadata = metadata \!= null ? metadata : Map.of();
+    }
+
+    public Instant getTimestamp() { return timestamp; }
+    public LogLevel getLevel() { return level; }
+    public String getMessage() { return message; }
+    public String getLoggerName() { return loggerName; }
+    public Map<String, Object> getMetadata() { return metadata; }
+}
+
+// ── Formatter Interface (Strategy) ─────────────────
+interface Formatter {
+    String format(LogEntry entry);
+}
+
+class PlainTextFormatter implements Formatter {
+    @Override
+    public String format(LogEntry e) {
+        return String.format("[%s] %s %s -- %s %s",
+            e.getTimestamp(), e.getLevel(), e.getLoggerName(),
+            e.getMessage(), e.getMetadata().isEmpty() ? "" : e.getMetadata());
+    }
+}
+
+class JsonFormatter implements Formatter {
+    @Override
+    public String format(LogEntry e) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        sb.append("\\"timestamp\\":\\"").append(e.getTimestamp()).append("\\",");
+        sb.append("\\"level\\":\\"").append(e.getLevel()).append("\\",");
+        sb.append("\\"logger\\":\\"").append(e.getLoggerName()).append("\\",");
+        sb.append("\\"message\\":\\"").append(e.getMessage()).append("\\"");
+        if (\!e.getMetadata().isEmpty()) {
+            sb.append(",\\"meta\\":{");
+            e.getMetadata().forEach((k, v) ->
+                sb.append("\\"").append(k).append("\\":\\"").append(v).append("\\","));
+            sb.setLength(sb.length() - 1);
+            sb.append("}");
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+}
+
+// ── Sink Interface (Chain of Responsibility) ───────
+interface Sink {
+    void write(LogEntry entry);
+    void flush();
+}
+
+class ConsoleSink implements Sink {
+    private final Formatter formatter;
+    private final LogLevel minLevel;
+
+    public ConsoleSink(Formatter formatter, LogLevel minLevel) {
+        this.formatter = formatter;
+        this.minLevel = minLevel;
+    }
+
+    @Override
+    public void write(LogEntry entry) {
+        if (entry.getLevel().isAtLeast(minLevel))
+            System.out.println(formatter.format(entry));
+    }
+
+    @Override public void flush() { System.out.flush(); }
+}
+
+class FileSink implements Sink {
+    private final Formatter formatter;
+    private final LogLevel minLevel;
+    private final String filePath;
+    private final long maxSizeBytes;
+    private final BlockingQueue<LogEntry> buffer = new LinkedBlockingQueue<>();
+
+    public FileSink(Formatter formatter, LogLevel minLevel,
+                    String filePath, long maxSizeBytes) {
+        this.formatter = formatter;
+        this.minLevel = minLevel;
+        this.filePath = filePath;
+        this.maxSizeBytes = maxSizeBytes;
+        startWriterThread();
+    }
+
+    @Override
+    public void write(LogEntry entry) {
+        if (entry.getLevel().isAtLeast(minLevel))
+            buffer.offer(entry);
+    }
+
+    private void startWriterThread() {
+        Thread writer = new Thread(() -> {
+            while (true) {
+                try {
+                    LogEntry e = buffer.take();
+                    // Write formatter.format(e) to file
+                    // Check file size, rotate if > maxSizeBytes
+                } catch (InterruptedException ex) { break; }
+            }
+        }, "log-file-writer");
+        writer.setDaemon(true);
+        writer.start();
+    }
+
+    @Override public void flush() { /* flush file buffer */ }
+}
+
+// ── Logger ─────────────────────────────────────────
+class Logger {
+    private static final Map<String, Logger> loggers = new ConcurrentHashMap<>();
+    private static Logger rootLogger;
+
+    private final String name;
+    private LogLevel level;
+    private final List<Sink> sinks;
+
+    private Logger(String name, LogLevel level, List<Sink> sinks) {
+        this.name = name; this.level = level; this.sinks = sinks;
+    }
+
+    public static Logger getLogger(String name) {
+        return loggers.computeIfAbsent(name, n -> {
+            if (rootLogger \!= null) return new Logger(n, rootLogger.level, rootLogger.sinks);
+            return new Logger(n, LogLevel.INFO, new ArrayList<>());
+        });
+    }
+
+    public static void configureRoot(LogLevel level, List<Sink> sinks) {
+        rootLogger = new Logger("ROOT", level, sinks);
+        loggers.put("ROOT", rootLogger);
+    }
+
+    public void log(LogLevel lvl, String message, Map<String, Object> meta) {
+        if (\!lvl.isAtLeast(level)) return;
+        LogEntry entry = new LogEntry(lvl, message, name, meta);
+        for (Sink sink : sinks) sink.write(entry);
+    }
+
+    public void trace(String msg) { log(LogLevel.TRACE, msg, null); }
+    public void debug(String msg) { log(LogLevel.DEBUG, msg, null); }
+    public void info(String msg)  { log(LogLevel.INFO, msg, null); }
+    public void warn(String msg)  { log(LogLevel.WARN, msg, null); }
+    public void error(String msg, Map<String, Object> meta) { log(LogLevel.ERROR, msg, meta); }
+    public void fatal(String msg) { log(LogLevel.FATAL, msg, null); }
+}
+
+// ── Usage ──────────────────────────────────────────
+// Logger.configureRoot(LogLevel.DEBUG, List.of(
+//     new ConsoleSink(new PlainTextFormatter(), LogLevel.INFO),
+//     new FileSink(new JsonFormatter(), LogLevel.DEBUG, "/var/log/app.log", 10_000_000)
+// ));
+// Logger log = Logger.getLogger("com.app.OrderService");
+// log.info("Order created");
+// log.error("Payment failed", Map.of("orderId", "ORD-123", "reason", "timeout"));
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Logging Framework
+
+## 1. Problem Breakdown
+
+Design a logging framework supporting multiple log levels, configurable output
+destinations (console, file, remote), structured metadata, pluggable formatters,
+and thread-safe concurrent writes.
+
+## 2. Core Entities
+
+| Entity | Responsibility |
+|--------|---------------|
+| Logger | Named logger with level threshold, dispatches to sinks |
+| LogLevel | Enum: TRACE through FATAL with severity ordering |
+| LogEntry | Immutable value object: timestamp, level, message, metadata |
+| Sink | Interface for output destinations (console, file, remote) |
+| Formatter | Interface for converting LogEntry to string (JSON, plain text) |
+| ConsoleSink | Writes formatted entries to stdout |
+| FileSink | Async file writing with rotation support |
+| LogConfig | Configuration loader, wires loggers to sinks and formatters |
+
+## 3. Key Design Decisions
+
+### 3.1 Singleton for Logger Registry
+Logger.getLogger(name) returns a cached instance from a ConcurrentHashMap.
+The root logger provides default level and sinks for all loggers. Individual
+loggers can override their level for fine-grained control.
+
+### 3.2 Chain of Responsibility for Level Filtering
+Each Sink has its own minimum LogLevel. The Logger dispatches to all sinks,
+and each sink independently decides whether to write based on its threshold.
+This allows console at INFO while file captures DEBUG.
+
+### 3.3 Strategy for Formatting
+Formatter interface with PlainTextFormatter, JsonFormatter, and
+PatternFormatter (configurable format string). Each Sink holds a Formatter
+reference, so different sinks can use different formats.
+
+### 3.4 Thread-Safe Async Writing
+FileSink uses a BlockingQueue with a background writer thread. Log calls
+are non-blocking (offer to queue). The writer thread drains the queue and
+writes to disk, handling file rotation when maxSize is exceeded.
+
+### 3.5 Structured Logging
+LogEntry carries a Map<String, Object> metadata field. Callers pass
+key-value pairs: log.error("Failed", Map.of("orderId", id, "retry", 3)).
+JsonFormatter serializes metadata as nested JSON fields.`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|-----------------|-------|
+| Logger.getLogger() | O(1) amortized | O(1) | ConcurrentHashMap.computeIfAbsent |
+| log() | O(S) | O(1) | S = number of sinks; level check is O(1) |
+| LogEntry creation | O(1) | O(M) | M = metadata entries |
+| PlainTextFormatter.format() | O(M) | O(L) | L = output string length |
+| JsonFormatter.format() | O(M) | O(L) | String concatenation for metadata |
+| ConsoleSink.write() | O(L) | O(1) | Print formatted string |
+| FileSink.write() | O(1) | O(1) | Non-blocking queue offer |
+| FileSink background flush | O(B) | O(1) | B = buffered entries drained |
+| File rotation | O(1) | O(1) | Rename + create new file |
+
+**Logger registry:** O(N) for N named loggers.
+
+**Sink buffer:** O(Q) for Q queued entries in FileSink. Bounded by queue capacity.
+
+**Throughput:** ConsoleSink is synchronous (stdout bottleneck). FileSink achieves
+higher throughput via async batching. Remote sink can use batched HTTP posts.
+
+**Thread safety:** ConcurrentHashMap for logger registry, BlockingQueue for
+file sink. No explicit locks needed in the hot path.`,
+};
+
+// ============================================================
+//  design-course-registration -> prob-course-registration
+// ============================================================
+
+export const courseRegistrationSolution: ProblemSolutionContent = {
+  referenceSolution: `# Course Registration System -- Complete Java Implementation
+
+## 1. Enums
+
+\`\`\`java
+enum DayOfWeek { MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY }
+enum EnrollmentStatus { ENROLLED, WAITLISTED, DROPPED, PENDING }
+\`\`\`
+
+## 2. TimeSlot & Schedule
+
+\`\`\`java
+class TimeSlot {
+    private final DayOfWeek day;
+    private final String startTime;
+    private final String endTime;
+    private final String room;
+
+    TimeSlot(DayOfWeek day, String start, String end, String room) {
+        this.day = day; this.startTime = start; this.endTime = end; this.room = room;
+    }
+
+    boolean overlapsWith(TimeSlot other) {
+        if (this.day != other.day) return false;
+        return this.startTime.compareTo(other.endTime) < 0
+            && other.startTime.compareTo(this.endTime) < 0;
+    }
+
+    DayOfWeek getDay() { return day; }
+    String getStartTime() { return startTime; }
+    String getEndTime() { return endTime; }
+}
+
+class Schedule {
+    private final List<TimeSlot> slots = new ArrayList<>();
+    boolean hasConflict(TimeSlot s) { return slots.stream().anyMatch(x -> x.overlapsWith(s)); }
+    void addSlot(TimeSlot s) { slots.add(s); }
+    void removeSlot(TimeSlot s) { slots.remove(s); }
+}
+\`\`\`
+
+## 3. Core Entities
+
+\`\`\`java
+class Student {
+    private final String id, name;
+    private final List<Course> completedCourses = new ArrayList<>();
+    private final Schedule schedule = new Schedule();
+    String getId() { return id; }
+    String getName() { return name; }
+    List<Course> getCompletedCourses() { return completedCourses; }
+    Schedule getSchedule() { return schedule; }
+    void addCompleted(Course c) { completedCourses.add(c); }
+    Student(String id, String name) { this.id = id; this.name = name; }
+}
+
+class Section {
+    private final String sectionId, instructor;
+    private final TimeSlot timeSlot;
+    Section(String id, String inst, TimeSlot ts) { sectionId = id; instructor = inst; timeSlot = ts; }
+    TimeSlot getTimeSlot() { return timeSlot; }
+}
+
+class Waitlist {
+    private final Queue<Student> queue = new LinkedList<>();
+    private final int maxSize;
+    Waitlist(int max) { maxSize = max; }
+    boolean add(Student s) { return queue.size() < maxSize && queue.offer(s); }
+    Student promoteNext() { return queue.poll(); }
+    int position(Student s) {
+        int i = 0; for (Student x : queue) { if (x.getId().equals(s.getId())) return i; i++; }
+        return -1;
+    }
+}
+
+class Course {
+    private final String id, name;
+    private final int capacity;
+    private final List<Course> prerequisites = new ArrayList<>();
+    private final List<Section> sections = new ArrayList<>();
+    private final Waitlist waitlist;
+    private int enrolled = 0;
+    Course(String id, String name, int cap) { this.id = id; this.name = name; capacity = cap; waitlist = new Waitlist(50); }
+    boolean hasSpace() { return enrolled < capacity; }
+    void incrementEnrolled() { enrolled++; }
+    void decrementEnrolled() { enrolled--; }
+    void addPrerequisite(Course c) { prerequisites.add(c); }
+    void addSection(Section s) { sections.add(s); }
+    String getId() { return id; }
+    String getName() { return name; }
+    List<Course> getPrerequisites() { return prerequisites; }
+    List<Section> getSections() { return sections; }
+    Waitlist getWaitlist() { return waitlist; }
+}
+
+class Enrollment {
+    private final Student student;
+    private final Course course;
+    private EnrollmentStatus status = EnrollmentStatus.PENDING;
+    Enrollment(Student s, Course c) { student = s; course = c; }
+    void confirm() { status = EnrollmentStatus.ENROLLED; }
+    void cancel() { status = EnrollmentStatus.DROPPED; }
+    void waitlist() { status = EnrollmentStatus.WAITLISTED; }
+    EnrollmentStatus getStatus() { return status; }
+}
+\`\`\`
+
+## 4. Chain of Responsibility -- Enrollment Validators
+
+\`\`\`java
+abstract class EnrollmentValidator {
+    private EnrollmentValidator next;
+    void setNext(EnrollmentValidator n) { next = n; }
+    String validate(Student s, Course c) {
+        String err = doValidate(s, c);
+        if (err != null) return err;
+        return next != null ? next.validate(s, c) : null;
+    }
+    protected abstract String doValidate(Student s, Course c);
+}
+
+class PrerequisiteCheck extends EnrollmentValidator {
+    protected String doValidate(Student s, Course c) {
+        Set<String> done = new HashSet<>();
+        for (Course x : s.getCompletedCourses()) done.add(x.getId());
+        for (Course p : c.getPrerequisites()) {
+            if (!done.contains(p.getId())) return "Missing prerequisite: " + p.getName();
+        }
+        return null;
+    }
+}
+
+class CapacityCheck extends EnrollmentValidator {
+    protected String doValidate(Student s, Course c) {
+        return c.hasSpace() ? null : c.getName() + " is full";
+    }
+}
+
+class TimeConflictCheck extends EnrollmentValidator {
+    protected String doValidate(Student s, Course c) {
+        for (Section sec : c.getSections()) {
+            if (s.getSchedule().hasConflict(sec.getTimeSlot())) return "Time conflict for " + c.getName();
+        }
+        return null;
+    }
+}
+\`\`\`
+
+## 5. Observer -- Waitlist Notification
+
+\`\`\`java
+interface EnrollmentObserver {
+    void onDrop(Student s, Course c);
+}
+
+class WaitlistNotifier implements EnrollmentObserver {
+    public void onDrop(Student s, Course c) {
+        Student next = c.getWaitlist().promoteNext();
+        if (next != null) System.out.println("[Waitlist] Promoting " + next.getName() + " for " + c.getName());
+    }
+}
+\`\`\`
+
+## 6. Registration Service
+
+\`\`\`java
+class RegistrationService {
+    private final EnrollmentValidator chain;
+    private final List<EnrollmentObserver> observers = new ArrayList<>();
+    RegistrationService() {
+        PrerequisiteCheck p = new PrerequisiteCheck();
+        CapacityCheck cap = new CapacityCheck();
+        TimeConflictCheck t = new TimeConflictCheck();
+        p.setNext(cap); cap.setNext(t);
+        chain = p;
+    }
+    void addObserver(EnrollmentObserver o) { observers.add(o); }
+    Enrollment enroll(Student s, Course c) {
+        String err = chain.validate(s, c);
+        if (err != null) {
+            System.out.println("[REJECTED] " + err);
+            if (c.getWaitlist().add(s)) { Enrollment e = new Enrollment(s, c); e.waitlist(); return e; }
+            return null;
+        }
+        Enrollment e = new Enrollment(s, c);
+        e.confirm(); c.incrementEnrolled();
+        for (Section sec : c.getSections()) s.getSchedule().addSlot(sec.getTimeSlot());
+        return e;
+    }
+    void drop(Student s, Course c) {
+        c.decrementEnrolled();
+        observers.forEach(o -> o.onDrop(s, c));
+    }
+}
+\`\`\`
+
+## 7. Demo
+
+\`\`\`java
+public class CourseRegistrationDemo {
+    public static void main(String[] args) {
+        Course cs101 = new Course("CS101", "Intro to CS", 2);
+        Course cs201 = new Course("CS201", "Data Structures", 30);
+        cs201.addPrerequisite(cs101);
+        TimeSlot mwf9 = new TimeSlot(DayOfWeek.MONDAY, "09:00", "10:00", "Room 101");
+        cs101.addSection(new Section("CS101-A", "Prof Smith", mwf9));
+        Student alice = new Student("S001", "Alice");
+        alice.addCompleted(cs101);
+        Student bob = new Student("S002", "Bob");
+        RegistrationService svc = new RegistrationService();
+        svc.addObserver(new WaitlistNotifier());
+        System.out.println(svc.enroll(alice, cs201).getStatus()); // ENROLLED
+        svc.enroll(bob, cs201); // REJECTED: missing prereq
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Course Registration System
+
+## Step 1: Entity Identification
+
+Core entities: Student, Course, Section, Enrollment, Schedule, TimeSlot,
+Prerequisite, Waitlist, Department, EnrollmentValidator.
+
+## Step 2: Pattern Selection
+
+| Pattern | Where | Why |
+|---------|-------|-----|
+| Chain of Responsibility | EnrollmentValidator | Prerequisite, capacity, time conflict, and deadline checks form a chain. Adding a new rule = adding a link. |
+| Observer | RegistrationService | When a student drops, the waitlist listener auto-promotes the next student. |
+| Strategy | WaitlistStrategy (extensible) | FIFO vs priority-based (seniors first) waitlist processing. |
+| Iterator | Course catalog browsing | Filter by department, availability, time. |
+
+## Step 3: Key Decisions
+
+1. Section vs Course capacity -- Section holds time slot; Course holds capacity. Multiple sections share one capacity pool.
+2. Prerequisite as DAG -- DFS validates the full transitive chain.
+3. Optimistic locking -- Version-based check on enrollment count prevents concurrent overbooking.
+4. Waitlist re-validation -- Promoted students re-run the full chain (they may have a new time conflict).
+
+## Step 4: Edge Cases
+
+- Circular prerequisites (detect at course creation via cycle detection)
+- Student already enrolled (idempotency check)
+- Credit-hour limit per semester (another chain link)
+- Add/drop deadline (date-based check in chain)`,
+
+  interviewScript: `# Design Course Registration -- LLD Interview Script (90 min)
+
+## Phase 1: Requirements (10 min)
+
+**Interviewer:** Design a university course registration system. Clarifying questions?
+
+**Candidate:** How many students/courses? Prerequisites? Waitlists?
+
+**Interviewer:** 50K students, 5K courses. Yes to both. Focus on enrollment flow.
+
+## Phase 2: Entities (20 min)
+
+**Candidate:** Core entities: Student, Course, Section, Enrollment, Schedule. Course has Sections for different time slots. Enrollment is the join table.
+
+**Interviewer:** How do you model prerequisites?
+
+**Candidate:** DAG. Course holds prerequisite list. DFS validates the chain.
+
+## Phase 3: Patterns (25 min)
+
+**Candidate:** Chain of Responsibility for validation: PrerequisiteCheck -> CapacityCheck -> TimeConflictCheck -> DeadlineCheck. Each handler passes or rejects.
+
+**Interviewer:** Course is full -- what happens?
+
+**Candidate:** CapacityCheck fails. We add to Waitlist. On drop, Observer fires WaitlistNotifier which promotes next student -- but re-runs the full chain first, since they might now have a time conflict.
+
+## Phase 4: Edge Cases (20 min)
+
+**Interviewer:** Two students, one seat, concurrent requests?
+
+**Candidate:** Optimistic locking on enrollment count. Read, validate, increment with version check. Loser retries and hits waitlist.
+
+## Phase 5: Complexity (15 min)
+
+**Candidate:** Enrollment is O(P + S): P for prereq DFS, S for schedule scan. Waitlist promotion is O(V) per candidate.`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time | Space | Notes |
+|-----------|------|-------|-------|
+| enroll() | O(P + S) | O(1) | P = prereq depth, S = schedule slots |
+| prerequisiteCheck() | O(P) | O(P) | DFS through DAG |
+| timeConflictCheck() | O(S) | O(1) | S = student's current slots |
+| waitlistPromotion() | O(V) | O(1) | V = validation chain length |
+| drop() | O(1) | O(1) | Decrement + notify |
+| browseCourses() | O(C) | O(C) | C = courses in department |
+
+**Memory:** O(S * E) where S = students, E = avg enrollments per student.
+Waitlist: O(W) per course where W = waitlist size.`,
+};
+
+// ============================================================
+//  design-coffee-vending-machine -> prob-coffee-vending-machine
+// ============================================================
+
+export const coffeeVendingMachineSolution: ProblemSolutionContent = {
+  referenceSolution: `# Coffee Vending Machine -- Complete Java Implementation
+
+## 1. Beverage Hierarchy (Decorator Pattern)
+
+\`\`\`java
+abstract class Beverage {
+    protected String id, name;
+    abstract double getCost();
+    abstract String getDescription();
+    String getId() { return id; }
+}
+
+class Espresso extends Beverage {
+    Espresso() { id = "espresso"; name = "Espresso"; }
+    double getCost() { return 3.00; }
+    String getDescription() { return "Espresso"; }
+}
+
+class Latte extends Beverage {
+    Latte() { id = "latte"; name = "Latte"; }
+    double getCost() { return 4.50; }
+    String getDescription() { return "Latte"; }
+}
+
+class Cappuccino extends Beverage {
+    Cappuccino() { id = "cappuccino"; name = "Cappuccino"; }
+    double getCost() { return 4.00; }
+    String getDescription() { return "Cappuccino"; }
+}
+\`\`\`
+
+### BeverageDecorator
+
+\`\`\`java
+abstract class BeverageDecorator extends Beverage {
+    protected Beverage wrapped;
+    BeverageDecorator(Beverage b) { wrapped = b; }
+}
+
+class ExtraShotDecorator extends BeverageDecorator {
+    ExtraShotDecorator(Beverage b) { super(b); }
+    double getCost() { return wrapped.getCost() + 0.75; }
+    String getDescription() { return wrapped.getDescription() + " + Extra Shot"; }
+}
+
+class OatMilkDecorator extends BeverageDecorator {
+    OatMilkDecorator(Beverage b) { super(b); }
+    double getCost() { return wrapped.getCost() + 0.60; }
+    String getDescription() { return wrapped.getDescription() + " + Oat Milk"; }
+}
+
+class SugarDecorator extends BeverageDecorator {
+    SugarDecorator(Beverage b) { super(b); }
+    double getCost() { return wrapped.getCost() + 0.25; }
+    String getDescription() { return wrapped.getDescription() + " + Sugar"; }
+}
+\`\`\`
+
+## 2. Recipe & Ingredient
+
+\`\`\`java
+class Ingredient {
+    private final String name;
+    private double quantity;
+    private final String unit;
+    Ingredient(String n, double q, String u) { name = n; quantity = q; unit = u; }
+    boolean consume(double amt) { if (quantity < amt) return false; quantity -= amt; return true; }
+    void refill(double amt) { quantity += amt; }
+    String getName() { return name; }
+    double getQuantity() { return quantity; }
+    String getUnit() { return unit; }
+}
+
+class Recipe {
+    private final Map<String, Double> ingredients;
+    Recipe(Map<String, Double> ing) { ingredients = Map.copyOf(ing); }
+    Map<String, Double> getIngredients() { return ingredients; }
+}
+\`\`\`
+
+## 3. Inventory
+
+\`\`\`java
+class IngredientInventory {
+    private final Map<String, Ingredient> stock = new HashMap<>();
+    void addIngredient(Ingredient i) { stock.put(i.getName(), i); }
+    boolean check(Recipe r) {
+        for (var e : r.getIngredients().entrySet()) {
+            Ingredient i = stock.get(e.getKey());
+            if (i == null || i.getQuantity() < e.getValue()) return false;
+        }
+        return true;
+    }
+    void consume(Recipe r) {
+        for (var e : r.getIngredients().entrySet()) stock.get(e.getKey()).consume(e.getValue());
+    }
+    List<String> getLowStockAlerts() {
+        List<String> a = new ArrayList<>();
+        for (Ingredient i : stock.values()) if (i.getQuantity() < 10) a.add(i.getName() + " low");
+        return a;
+    }
+}
+\`\`\`
+
+## 4. State Pattern
+
+\`\`\`java
+interface MachineState {
+    void selectBeverage(CoffeeVendingMachine m, String id);
+    void insertPayment(CoffeeVendingMachine m, double amount);
+    void brew(CoffeeVendingMachine m);
+}
+
+class IdleState implements MachineState {
+    public void selectBeverage(CoffeeVendingMachine m, String id) {
+        if (m.hasBeverage(id)) { m.setSelected(id); m.setState(new SelectingState()); }
+        else System.out.println("Unavailable.");
+    }
+    public void insertPayment(CoffeeVendingMachine m, double a) { System.out.println("Select first."); }
+    public void brew(CoffeeVendingMachine m) { System.out.println("Select first."); }
+}
+
+class SelectingState implements MachineState {
+    public void selectBeverage(CoffeeVendingMachine m, String id) { m.setSelected(id); }
+    public void insertPayment(CoffeeVendingMachine m, double amount) {
+        double price = m.getSelectedCost();
+        if (amount >= price) {
+            if (amount > price) System.out.printf("Change: $%.2f%n", amount - price);
+            m.setState(new BrewingState()); m.brew();
+        } else System.out.printf("Need $%.2f%n", price);
+    }
+    public void brew(CoffeeVendingMachine m) { System.out.println("Pay first."); }
+}
+
+class BrewingState implements MachineState {
+    public void selectBeverage(CoffeeVendingMachine m, String id) { System.out.println("Brewing..."); }
+    public void insertPayment(CoffeeVendingMachine m, double a) { System.out.println("Brewing..."); }
+    public void brew(CoffeeVendingMachine m) {
+        m.consumeIngredients();
+        System.out.println("Dispensing " + m.getSelectedDesc());
+        m.setState(new IdleState()); m.setSelected(null);
+    }
+}
+\`\`\`
+
+## 5. CoffeeVendingMachine
+
+\`\`\`java
+class CoffeeVendingMachine {
+    private MachineState state = new IdleState();
+    private final IngredientInventory inventory = new IngredientInventory();
+    private final Map<String, Beverage> menu = new LinkedHashMap<>();
+    private final Map<String, Recipe> recipes = new HashMap<>();
+    private String selectedId;
+
+    void register(Beverage b, Recipe r) { menu.put(b.getId(), b); recipes.put(b.getId(), r); }
+    void selectBeverage(String id) { state.selectBeverage(this, id); }
+    void insertPayment(double a) { state.insertPayment(this, a); }
+    void brew() { state.brew(this); }
+    void setState(MachineState s) { state = s; }
+    boolean hasBeverage(String id) { return menu.containsKey(id) && inventory.check(recipes.get(id)); }
+    void setSelected(String id) { selectedId = id; }
+    double getSelectedCost() { return menu.get(selectedId).getCost(); }
+    String getSelectedDesc() { return menu.get(selectedId).getDescription(); }
+    void consumeIngredients() { inventory.consume(recipes.get(selectedId)); }
+    IngredientInventory getInventory() { return inventory; }
+}
+\`\`\`
+
+## 6. Factory Method
+
+\`\`\`java
+abstract class BeverageFactory {
+    abstract Beverage create();
+    abstract Recipe recipe();
+}
+class EspressoFactory extends BeverageFactory {
+    Beverage create() { return new Espresso(); }
+    Recipe recipe() { return new Recipe(Map.of("coffee", 18.0, "water", 30.0)); }
+}
+class LatteFactory extends BeverageFactory {
+    Beverage create() { return new Latte(); }
+    Recipe recipe() { return new Recipe(Map.of("coffee", 18.0, "milk", 200.0, "water", 50.0)); }
+}
+\`\`\`
+
+## 7. Demo
+
+\`\`\`java
+public class CoffeeVendingDemo {
+    public static void main(String[] args) {
+        CoffeeVendingMachine m = new CoffeeVendingMachine();
+        m.getInventory().addIngredient(new Ingredient("coffee", 500, "g"));
+        m.getInventory().addIngredient(new Ingredient("milk", 2000, "ml"));
+        m.getInventory().addIngredient(new Ingredient("water", 5000, "ml"));
+        EspressoFactory ef = new EspressoFactory();
+        m.register(ef.create(), ef.recipe());
+        LatteFactory lf = new LatteFactory();
+        m.register(lf.create(), lf.recipe());
+        m.selectBeverage("latte");
+        m.insertPayment(5.00);
+    }
+}
+\`\`\``,
+
+  designWalkthrough: `# Low-Level Design: Coffee Vending Machine
+
+## Step 1: Entity Identification
+
+CoffeeVendingMachine, Beverage (abstract), BeverageDecorator, Ingredient,
+IngredientInventory, Recipe, MachineState (interface), Payment (interface).
+
+## Step 2: Pattern Selection
+
+| Pattern | Where | Why |
+|---------|-------|-----|
+| State | MachineState | Idle, Selecting, Brewing, Dispensing -- each state controls valid operations |
+| Decorator | BeverageDecorator | Customizations (extra shot, oat milk, sugar) wrap base beverage without subclass explosion |
+| Factory Method | BeverageFactory | Each factory encapsulates recipe + pricing for one drink type |
+| Strategy | Payment | CoinPayment, CardPayment implement same interface |
+
+## Step 3: Key Decisions
+
+1. Recipe as separate class -- decouples ingredient needs from Beverage hierarchy
+2. IngredientInventory wraps Map -- provides check(), consume(), getLowStockAlerts()
+3. Decorator vs subclassing -- 4 drinks x 3 customizations = 12+ subclasses avoided
+4. Graceful degradation -- when milk runs out, Latte unavailable but Espresso works
+
+## Step 4: Edge Cases
+
+- Ingredients run out mid-brew (pre-check via canBrew before payment)
+- Concurrent orders (state machine prevents overlapping orders)
+- Machine cleaning cycle (add MaintenanceState)
+- Coin jam / payment failure (add ErrorState with recovery)`,
+
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time | Space | Notes |
+|-----------|------|-------|-------|
+| selectBeverage() | O(1) | O(1) | Menu lookup by ID |
+| canBrew() | O(I) | O(1) | I = ingredients in recipe (2-4) |
+| insertPayment() | O(1) | O(1) | Amount comparison |
+| brew() | O(I) | O(1) | Consume each ingredient |
+| getCost() decorated | O(D) | O(D) | D = decorator count (1-3) |
+| getLowStockAlerts() | O(N) | O(A) | N = ingredient types, A = alerts |
+
+**Decorator chain:** O(D) per getCost()/getDescription(), D < 5 in practice.
+**State transitions:** Always O(1).
+**Memory:** O(B * I) recipes + O(N) inventory. Negligible for vending machine scale.`,
+};
+
+// ============================================================
+//  design-cache-system -> prob-cache-system
+// ============================================================
+
+export const cacheSystemSolution: ProblemSolutionContent = {
+  referenceSolution: `# Cache System -- Complete Java Implementation
+
+\`\`\`java
+// EvictionPolicy interface (Strategy Pattern)
+interface EvictionPolicy<K> {
+    void onAccess(K key); void onInsert(K key); K selectVictim(); void onRemove(K key);
+}
+
+// LRU: HashMap + DoublyLinkedList for O(1) all operations
+class LRUPolicy<K> implements EvictionPolicy<K> {
+    private final Map<K, Node<K>> map = new HashMap<>();
+    private final Node<K> head = new Node<>(null), tail = new Node<>(null);
+    LRUPolicy() { head.next = tail; tail.prev = head; }
+    public void onAccess(K key) {
+        Node<K> n = map.get(key); if (n != null) { rm(n); addFront(n); }
+    }
+    public void onInsert(K key) { Node<K> n = new Node<>(key); map.put(key, n); addFront(n); }
+    public K selectVictim() { return tail.prev == head ? null : tail.prev.key; }
+    public void onRemove(K key) { Node<K> n = map.remove(key); if (n != null) rm(n); }
+    void addFront(Node<K> n) { n.next = head.next; n.prev = head; head.next.prev = n; head.next = n; }
+    void rm(Node<K> n) { n.prev.next = n.next; n.next.prev = n.prev; }
+    static class Node<K> { K key; Node<K> prev, next; Node(K k) { key = k; } }
+}
+
+// LFU: frequency buckets with TreeMap
+class LFUPolicy<K> implements EvictionPolicy<K> {
+    private final Map<K, Integer> freq = new HashMap<>();
+    private final TreeMap<Integer, LinkedHashSet<K>> buckets = new TreeMap<>();
+    public void onAccess(K key) {
+        int f = freq.getOrDefault(key, 0); freq.put(key, f + 1);
+        if (f > 0) { buckets.get(f).remove(key); if (buckets.get(f).isEmpty()) buckets.remove(f); }
+        buckets.computeIfAbsent(f + 1, k -> new LinkedHashSet<>()).add(key);
+    }
+    public void onInsert(K key) { freq.put(key, 1); buckets.computeIfAbsent(1, k -> new LinkedHashSet<>()).add(key); }
+    public K selectVictim() { return buckets.isEmpty() ? null : buckets.firstEntry().getValue().iterator().next(); }
+    public void onRemove(K key) { int f = freq.remove(key); buckets.get(f).remove(key); if (buckets.get(f).isEmpty()) buckets.remove(f); }
+}
+
+// CacheEntry with TTL support
+class CacheEntry<V> {
+    final V value; final long created, ttlMs;
+    CacheEntry(V v, long ttl) { value = v; created = System.currentTimeMillis(); ttlMs = ttl; }
+    boolean isExpired() { return ttlMs > 0 && System.currentTimeMillis() - created > ttlMs; }
+}
+
+// Statistics tracker
+class CacheStats {
+    long hits, misses, evictions;
+    void hit() { hits++; } void miss() { misses++; } void evict() { evictions++; }
+    double hitRate() { long t = hits + misses; return t == 0 ? 0 : (double) hits / t; }
+}
+
+// Core Cache class -- thread-safe with synchronized
+class Cache<K, V> {
+    final int capacity; final long defaultTTL;
+    final Map<K, CacheEntry<V>> store = new HashMap<>();
+    final EvictionPolicy<K> policy; final CacheStats stats = new CacheStats();
+
+    Cache(int cap, long ttl, EvictionPolicy<K> p) { capacity = cap; defaultTTL = ttl; policy = p; }
+
+    synchronized V get(K key) {
+        CacheEntry<V> e = store.get(key);
+        if (e == null || e.isExpired()) {
+            if (e != null) { store.remove(key); policy.onRemove(key); }
+            stats.miss(); return null;
+        }
+        policy.onAccess(key); stats.hit(); return e.value;
+    }
+
+    synchronized void put(K key, V val) {
+        if (store.containsKey(key)) { store.put(key, new CacheEntry<>(val, defaultTTL)); policy.onAccess(key); return; }
+        if (store.size() >= capacity) {
+            K victim = policy.selectVictim();
+            if (victim != null) { store.remove(victim); policy.onRemove(victim); stats.evict(); }
+        }
+        store.put(key, new CacheEntry<>(val, defaultTTL)); policy.onInsert(key);
+    }
+}
+
+// Demo
+public class CacheSystem {
+    public static void main(String[] args) {
+        Cache<String, String> c = new Cache<>(3, 5000, new LRUPolicy<>());
+        c.put("a", "alpha"); c.put("b", "beta"); c.put("c", "gamma");
+        c.get("a");            // moves 'a' to front
+        c.put("d", "delta");  // evicts 'b' (LRU)
+        System.out.println(c.get("b")); // null
+        System.out.println("Hit rate: " + c.stats.hitRate());
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Cache System -- Design Walkthrough
+
+**Step 1 -- Core Entities:** Cache, CacheEntry, EvictionPolicy (interface), LRUPolicy, LFUPolicy, CacheStats, CacheConfig, CacheLoader, CacheEventListener, CacheManager.
+
+**Step 2 -- Eviction Strategy (Strategy Pattern):** EvictionPolicy interface with onAccess, onInsert, selectVictim, onRemove. LRU uses HashMap+DoublyLinkedList for O(1). LFU uses TreeMap of frequency buckets. TTL uses lazy expiration on access.
+
+**Step 3 -- Data Structure for LRU:** HashMap maps keys to DLL nodes. Most-recently-accessed at head, LRU at tail. On access: move to head. On eviction: remove tail. All O(1).
+
+**Step 4 -- Thread Safety:** synchronized get/put. For higher concurrency: ReadWriteLock or ConcurrentHashMap with striped locks.
+
+**Step 5 -- Cache-Through (Proxy Pattern):** CacheLoader interface with V load(K key). On miss, auto-load from source, store, and return. Prevents stampede with per-key mutex.
+
+**Step 6 -- Monitoring (Observer Pattern):** CacheEventListener receives onHit, onMiss, onEviction. CacheStats aggregates for dashboards.
+
+**Step 7 -- TTL Expiration:** Lazy deletion on every get(). Periodic cleanup sweeps. Hybrid avoids stale reads and memory bloat.
+
+**Step 8 -- Edge Cases:** Cache stampede (singleflight), write-through vs write-behind, distributed invalidation via pub-sub.`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time | Space | Notes |
+|-----------|------|-------|-------|
+| get/put (LRU) | O(1) | O(1) | HashMap + DLL |
+| selectVictim (LRU) | O(1) | O(1) | DLL tail |
+| get (LFU) | O(log F) | O(1) | F = distinct frequencies |
+| selectVictim (LFU) | O(1) | O(1) | TreeMap first |
+| isExpired | O(1) | O(1) | Timestamp compare |
+| TTL cleanup | O(N) | O(1) | Full scan |
+| Total space | -- | O(N) | N = capacity |
+
+LRU is the gold standard: every operation O(1). Key insight: HashMap + DoublyLinkedList.`,
+};
+
+// ============================================================
+//  design-task-scheduler -> prob-task-scheduler
+// ============================================================
+
+export const taskSchedulerSolution: ProblemSolutionContent = {
+  referenceSolution: `# Task Scheduler -- Complete Java Implementation
+
+\`\`\`java
+enum Priority { LOW(0), MEDIUM(1), HIGH(2), CRITICAL(3);
+    int level; Priority(int l) { level = l; } }
+enum TaskStatus { PENDING, RUNNING, COMPLETED, FAILED, CANCELLED }
+
+class ExecutionResult {
+    final String taskId; final boolean success; final String error; final long ms;
+    ExecutionResult(String id, boolean ok, String err, long ms) {
+        taskId = id; success = ok; error = err; this.ms = ms;
+    }
+}
+
+abstract class Task implements Comparable<Task> {
+    final String id, name; Priority priority;
+    TaskStatus status = TaskStatus.PENDING;
+    final List<Task> deps = new ArrayList<>();
+    int retries = 0; final int maxRetries;
+
+    Task(String id, String n, Priority p, int mr) { this.id = id; name = n; priority = p; maxRetries = mr; }
+    abstract ExecutionResult execute();
+    boolean isReady() { return status == TaskStatus.PENDING
+        && deps.stream().allMatch(d -> d.status == TaskStatus.COMPLETED); }
+    void addDep(Task d) { deps.add(d); }
+    boolean canRetry() { return retries < maxRetries; }
+    public int compareTo(Task o) { return Integer.compare(o.priority.level, priority.level); }
+}
+
+class OneTimeTask extends Task {
+    final Runnable action;
+    OneTimeTask(String id, String n, Priority p, Runnable a) { super(id, n, p, 3); action = a; }
+    ExecutionResult execute() {
+        long s = System.currentTimeMillis();
+        try { action.run(); return new ExecutionResult(id, true, null, System.currentTimeMillis() - s); }
+        catch (Exception e) { return new ExecutionResult(id, false, e.getMessage(), System.currentTimeMillis() - s); }
+    }
+}
+
+class RecurringTask extends Task {
+    final Runnable action; final long intervalMs; long lastRun;
+    RecurringTask(String id, String n, Priority p, Runnable a, long i) { super(id, n, p, 3); action = a; intervalMs = i; }
+    ExecutionResult execute() {
+        long s = System.currentTimeMillis();
+        try { action.run(); lastRun = System.currentTimeMillis();
+            return new ExecutionResult(id, true, null, System.currentTimeMillis() - s); }
+        catch (Exception e) { return new ExecutionResult(id, false, e.getMessage(), System.currentTimeMillis() - s); }
+    }
+    long getNextRunTime() { return lastRun + intervalMs; }
+}
+
+// Topological sort for dependency resolution
+class DependencyResolver {
+    List<Task> resolve(List<Task> tasks) {
+        Map<String, Integer> inDeg = new HashMap<>();
+        Map<String, List<Task>> adj = new HashMap<>();
+        Map<String, Task> map = new HashMap<>();
+        for (Task t : tasks) {
+            map.put(t.id, t); inDeg.putIfAbsent(t.id, 0);
+            for (Task d : t.deps) {
+                adj.computeIfAbsent(d.id, k -> new ArrayList<>()).add(t);
+                inDeg.merge(t.id, 1, Integer::sum);
+            }
+        }
+        PriorityQueue<Task> q = new PriorityQueue<>();
+        for (var e : inDeg.entrySet()) if (e.getValue() == 0) q.add(map.get(e.getKey()));
+        List<Task> sorted = new ArrayList<>();
+        while (!q.isEmpty()) {
+            Task c = q.poll(); sorted.add(c);
+            for (Task n : adj.getOrDefault(c.id, List.of()))
+                if (inDeg.merge(n.id, -1, Integer::sum) == 0) q.add(n);
+        }
+        if (sorted.size() != tasks.size()) throw new IllegalStateException("Circular dependency");
+        return sorted;
+    }
+}
+
+interface TaskListener { void onStart(Task t); void onComplete(ExecutionResult r); void onFail(Task t, String err); }
+
+class Worker {
+    boolean busy;
+    ExecutionResult run(Task t) {
+        busy = true; t.status = TaskStatus.RUNNING;
+        ExecutionResult r = t.execute();
+        t.status = r.success ? TaskStatus.COMPLETED : TaskStatus.FAILED;
+        busy = false; return r;
+    }
+}
+
+class Scheduler {
+    PriorityQueue<Task> queue = new PriorityQueue<>();
+    List<Worker> workers; DependencyResolver resolver = new DependencyResolver();
+    List<TaskListener> listeners = new ArrayList<>();
+
+    Scheduler(int n) { workers = new ArrayList<>(); for (int i = 0; i < n; i++) workers.add(new Worker()); }
+    void schedule(Task t) { queue.add(t); }
+    void addListener(TaskListener l) { listeners.add(l); }
+
+    void runAll() {
+        for (Task t : resolver.resolve(new ArrayList<>(queue))) {
+            if (t.status == TaskStatus.CANCELLED) continue;
+            Worker w = workers.stream().filter(x -> !x.busy).findFirst().orElse(workers.get(0));
+            listeners.forEach(l -> l.onStart(t));
+            ExecutionResult r = w.run(t);
+            if (r.success) listeners.forEach(l -> l.onComplete(r));
+            else if (t.canRetry()) { t.retries++; t.status = TaskStatus.PENDING; }
+            else listeners.forEach(l -> l.onFail(t, r.error));
+        }
+    }
+}
+
+public class TaskScheduler {
+    public static void main(String[] args) {
+        Scheduler s = new Scheduler(2);
+        Task a = new OneTimeTask("t1", "Init DB", Priority.HIGH, () -> System.out.println("DB init"));
+        Task b = new OneTimeTask("t2", "Config", Priority.MEDIUM, () -> System.out.println("Config loaded"));
+        Task c = new OneTimeTask("t3", "Server", Priority.CRITICAL, () -> System.out.println("Server up"));
+        c.addDep(a); c.addDep(b);
+        s.schedule(a); s.schedule(b); s.schedule(c);
+        s.runAll();
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Task Scheduler -- Design Walkthrough
+
+**Step 1 -- Entities:** Scheduler, Task (abstract), OneTimeTask, RecurringTask, Worker, DependencyResolver, ExecutionResult, TaskListener, Priority, TaskStatus.
+
+**Step 2 -- Command Pattern:** Each Task encapsulates execution via execute(). Scheduler invokes without knowing internals. Tasks are composable and retryable.
+
+**Step 3 -- State for Lifecycle:** PENDING->RUNNING->COMPLETED|FAILED|CANCELLED. Failed tasks check canRetry() for re-enqueue.
+
+**Step 4 -- Priority Queue:** Tasks implement Comparable by Priority. PriorityQueue ensures CRITICAL before LOW. O(log N) enqueue.
+
+**Step 5 -- DAG Resolution:** DependencyResolver uses Kahn's algorithm (BFS topological sort). Detects circular dependencies.
+
+**Step 6 -- Worker Pool:** Workers pull from queue. Pool size controls concurrency. Decouples scheduling from execution.
+
+**Step 7 -- Retry with Backoff:** On failure: increment retry, set PENDING, re-enqueue with exponential backoff.
+
+**Step 8 -- Observer:** TaskListener: onStart, onComplete, onFail. Decouples monitoring and alerting from scheduler logic.`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time | Space | Notes |
+|-----------|------|-------|-------|
+| schedule (enqueue) | O(log N) | O(1) | Heap insertion |
+| Topological sort | O(V + E) | O(V + E) | V tasks, E edges |
+| Circular dep check | O(V + E) | O(V) | DFS cycle detection |
+| Worker dispatch | O(W) | O(1) | Scan W workers |
+| Full runAll | O((V+E) + V log V) | O(V+E) | Sort + priority |
+| Retry re-enqueue | O(log N) | O(1) | Heap insertion |
+
+Bottleneck is topological sort O(V+E). For V<10K, E<50K, single-digit ms.`,
+};
+
+// ============================================================
+//  design-pub-sub-system -> prob-pub-sub-system
+// ============================================================
+
+export const pubSubSystemSolution: ProblemSolutionContent = {
+  referenceSolution: `# Pub-Sub System -- Complete Java Implementation
+
+\`\`\`java
+import java.util.*;
+
+class Message {
+    final String id; final Object payload; final long timestamp;
+    final Map<String, String> headers;
+    Message(String id, Object p, Map<String, String> h) {
+        this.id = id; payload = p; timestamp = System.currentTimeMillis();
+        headers = Collections.unmodifiableMap(h);
+    }
+}
+
+interface Subscriber { String getId(); void onMessage(Message m); }
+interface MessageFilter { boolean matches(Message m); }
+
+class Subscription {
+    final Subscriber sub; final MessageFilter filter;
+    final Set<String> pendingAcks = new HashSet<>(); int offset;
+    Subscription(Subscriber s, MessageFilter f) { sub = s; filter = f; }
+    boolean shouldReceive(Message m) { return filter == null || filter.matches(m); }
+    void track(String id) { pendingAcks.add(id); }
+    void ack(String id) { pendingAcks.remove(id); }
+}
+
+class DeadLetterQueue {
+    final List<Map.Entry<Message, String>> failed = new ArrayList<>();
+    void enqueue(Message m, String reason) { failed.add(Map.entry(m, reason)); }
+}
+
+class Topic {
+    final String name; final List<Subscription> subs = new ArrayList<>();
+    final List<Message> msgs = new ArrayList<>();
+    Topic(String n) { name = n; }
+    void addSub(Subscription s) { subs.add(s); }
+    void broadcast(Message m, DeadLetterQueue dlq) {
+        msgs.add(m);
+        for (Subscription s : subs) {
+            if (!s.shouldReceive(m)) continue;
+            try { s.track(m.id); s.sub.onMessage(m); s.ack(m.id); s.offset++; }
+            catch (Exception e) { dlq.enqueue(m, e.getMessage()); }
+        }
+    }
+}
+
+class MessageBroker {
+    final Map<String, Topic> topics = new HashMap<>();
+    final DeadLetterQueue dlq = new DeadLetterQueue();
+    Topic createTopic(String n) { Topic t = new Topic(n); topics.put(n, t); return t; }
+    void publish(String topic, Message m) { topics.get(topic).broadcast(m, dlq); }
+    void subscribe(String topic, Subscriber sub, MessageFilter f) {
+        topics.get(topic).addSub(new Subscription(sub, f));
+    }
+}
+
+public class PubSubSystem {
+    public static void main(String[] args) {
+        MessageBroker broker = new MessageBroker();
+        broker.createTopic("orders");
+        broker.subscribe("orders", new Subscriber() {
+            public String getId() { return "email"; }
+            public void onMessage(Message m) { System.out.println("Email: " + m.payload); }
+        }, m -> m.headers.containsKey("priority"));
+        broker.subscribe("orders", new Subscriber() {
+            public String getId() { return "analytics"; }
+            public void onMessage(Message m) { System.out.println("Analytics: " + m.payload); }
+        }, null);
+        broker.publish("orders", new Message("m1", "Order#1001", Map.of("priority", "high")));
+        broker.publish("orders", new Message("m2", "Order#1002", Map.of("type", "return")));
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Pub-Sub System -- Design Walkthrough
+
+**Step 1 -- Observer at Scale:** Pub-sub = Observer + Mediator. Publishers/subscribers decoupled. MessageBroker routes to topics.
+
+**Step 2 -- Entities:** MessageBroker, Topic, Message, Subscription, Subscriber, MessageFilter, DeadLetterQueue, AckManager, PartitionManager.
+
+**Step 3 -- Filtering (CoR):** Each Subscription holds a MessageFilter. Topic checks shouldReceive() before delivery.
+
+**Step 4 -- Delivery Guarantees:** At-least-once: pendingAcks + re-delivery. At-most-once: fire-and-forget. Exactly-once: subscriber idempotency.
+
+**Step 5 -- Dead Letter Queue:** Failed messages after maxRetries go to DLQ for inspection, replay, or alerting.
+
+**Step 6 -- Partitioning:** Hash-assign messages to partitions. One subscriber per partition in a group. PartitionManager rebalances.
+
+**Step 7 -- Backpressure:** Bounded buffer with blocking, or pull-based (Kafka-style).
+
+**Step 8 -- Ordering:** Within partition: by offset. Cross-partition: no global order.`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time | Space | Notes |
+|-----------|------|-------|-------|
+| publish | O(S) | O(1) | S = subscribers on topic |
+| subscribe | O(1) | O(1) | List append |
+| filter check | O(F) | O(1) | F = chain length |
+| acknowledge | O(1) | O(1) | HashSet remove |
+| DLQ enqueue | O(1) | O(1) | List append |
+| partition assign | O(1) | O(1) | Hash mod |
+| rebalance | O(S*P) | O(P) | S subs, P partitions |
+
+publish is O(S). Partitioning reduces effective S to S/P per partition.`,
+};
+
+// ============================================================
+//  design-rate-limiter -> prob-rate-limiter
+// ============================================================
+
+export const rateLimiterSolution: ProblemSolutionContent = {
+  referenceSolution: `# Rate Limiter -- Complete Java Implementation
+
+\`\`\`java
+import java.util.*; import java.util.concurrent.*;
+
+interface RateLimitAlgorithm { boolean tryConsume(String cid); int getRemaining(String cid); }
+
+class TokenBucket implements RateLimitAlgorithm {
+    final int max; final double ratePerMs;
+    final Map<String, double[]> buckets = new ConcurrentHashMap<>();
+    TokenBucket(int max, int perSec) { this.max = max; ratePerMs = perSec / 1000.0; }
+    public boolean tryConsume(String cid) {
+        double[] b = buckets.computeIfAbsent(cid, k -> new double[]{max, System.currentTimeMillis()});
+        synchronized (b) {
+            long now = System.currentTimeMillis();
+            b[0] = Math.min(max, b[0] + (now - b[1]) * ratePerMs); b[1] = now;
+            if (b[0] >= 1) { b[0]--; return true; } return false;
+        }
+    }
+    public int getRemaining(String cid) { double[] b = buckets.get(cid); return b == null ? max : (int) b[0]; }
+}
+
+class SlidingWindowLog implements RateLimitAlgorithm {
+    final int maxReq; final long windowMs;
+    final Map<String, LinkedList<Long>> logs = new ConcurrentHashMap<>();
+    SlidingWindowLog(int max, long w) { maxReq = max; windowMs = w; }
+    public boolean tryConsume(String cid) {
+        LinkedList<Long> l = logs.computeIfAbsent(cid, k -> new LinkedList<>());
+        synchronized (l) { long now = System.currentTimeMillis();
+            while (!l.isEmpty() && l.peekFirst() <= now - windowMs) l.pollFirst();
+            if (l.size() < maxReq) { l.addLast(now); return true; } return false; }
+    }
+    public int getRemaining(String cid) {
+        LinkedList<Long> l = logs.get(cid); if (l == null) return maxReq;
+        synchronized (l) { long now = System.currentTimeMillis();
+            while (!l.isEmpty() && l.peekFirst() <= now - windowMs) l.pollFirst();
+            return maxReq - l.size(); }
+    }
+}
+
+class FixedWindowCounter implements RateLimitAlgorithm {
+    final int maxReq; final long windowMs;
+    final Map<String, long[]> counters = new ConcurrentHashMap<>();
+    FixedWindowCounter(int max, long w) { maxReq = max; windowMs = w; }
+    public boolean tryConsume(String cid) {
+        long[] c = counters.computeIfAbsent(cid, k -> new long[]{0, System.currentTimeMillis()});
+        synchronized (c) { long now = System.currentTimeMillis();
+            if (now - c[1] >= windowMs) { c[0] = 0; c[1] = now; }
+            if (c[0] < maxReq) { c[0]++; return true; } return false; }
+    }
+    public int getRemaining(String cid) { long[] c = counters.get(cid); return c == null ? maxReq : (int)(maxReq - c[0]); }
+}
+
+class RateLimitResult {
+    final boolean allowed; final int remaining; final long retryAfterMs;
+    RateLimitResult(boolean a, int r, long retry) { allowed = a; remaining = r; retryAfterMs = retry; }
+    Map<String, String> toHeaders() {
+        Map<String, String> h = new HashMap<>(); h.put("X-RateLimit-Remaining", "" + remaining);
+        if (!allowed) h.put("Retry-After", "" + (retryAfterMs / 1000)); return h;
+    }
+}
+
+class RateLimiter {
+    final RateLimitAlgorithm algo; final long retryMs;
+    RateLimiter(RateLimitAlgorithm a, long r) { algo = a; retryMs = r; }
+    RateLimitResult isAllowed(String cid) {
+        boolean ok = algo.tryConsume(cid);
+        return new RateLimitResult(ok, algo.getRemaining(cid), ok ? 0 : retryMs);
+    }
+}
+
+public class RateLimiterApp {
+    public static void main(String[] args) {
+        RateLimiter lim = new RateLimiter(new TokenBucket(5, 1), 1000);
+        for (int i = 0; i < 8; i++) {
+            RateLimitResult r = lim.isAllowed("user-1");
+            System.out.printf("Req %d: allowed=%b remaining=%d%n", i + 1, r.allowed, r.remaining);
+        }
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Rate Limiter -- Design Walkthrough
+
+**Step 1 -- Strategy Pattern:** RateLimitAlgorithm with tryConsume and getRemaining. Three implementations: TokenBucket, SlidingWindowLog, FixedWindowCounter.
+
+**Step 2 -- Token Bucket:** Lazy refill on each call. O(1). Burst up to maxTokens. Industry standard (Stripe, AWS).
+
+**Step 3 -- Sliding Window Log:** Store sorted timestamps per client. Precise but O(N) space per client.
+
+**Step 4 -- Fixed Window Counter:** One counter per window. O(1) but 2x burst at boundaries.
+
+**Step 5 -- RateLimitResult:** Carries allowed, remaining, retryAfterMs. HTTP layer converts to X-RateLimit headers.
+
+**Step 6 -- Client Identification:** Resolve from API key, user ID, or IP address.
+
+**Step 7 -- Tiered Limits:** Subscription tiers (free/pro/enterprise) map to different rules.
+
+**Step 8 -- Distributed:** Redis INCR+TTL for counters. Lua script for atomic token bucket.`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time | Space | Notes |
+|-----------|------|-------|-------|
+| TokenBucket tryConsume | O(1) | O(1)/client | Lazy refill |
+| SlidingWindow tryConsume | O(K) | O(N)/client | K expired, N max |
+| FixedWindow tryConsume | O(1) | O(1)/client | Counter check |
+| Client lookup | O(1) | O(C) total | C clients |
+
+TokenBucket: O(1) time and space. 100K clients = ~1.6 MB. SlidingWindow: O(N)/client.`,
+};
+
+// ============================================================
+//  design-url-shortener -> prob-url-shortener
+// ============================================================
+
+export const urlShortenerSolution: ProblemSolutionContent = {
+  referenceSolution: `# URL Shortener -- Complete Java Implementation
+
+\`\`\`java
+import java.util.*; import java.util.concurrent.atomic.*; import java.security.*; import java.time.*;
+
+interface CodeGenerator { String generate(String input); }
+
+class Base62Encoder implements CodeGenerator {
+    static final String CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    final AtomicLong counter = new AtomicLong(100000);
+    public String generate(String input) { return encode(counter.incrementAndGet()); }
+    String encode(long n) { StringBuilder sb = new StringBuilder(); while (n > 0) { sb.append(CHARS.charAt((int)(n % 62))); n /= 62; } return sb.reverse().toString(); }
+}
+
+class HashGenerator implements CodeGenerator {
+    final int len; HashGenerator(int l) { len = l; }
+    public String generate(String input) {
+        try { byte[] d = MessageDigest.getInstance("MD5").digest(input.getBytes());
+            StringBuilder h = new StringBuilder(); for (byte b : d) h.append(String.format("%02x", b));
+            return h.substring(0, len); }
+        catch (Exception e) { throw new RuntimeException(e); }
+    }
+}
+
+class ClickEvent { final Instant ts; final String ref, geo; ClickEvent(String r, String g) { ts = Instant.now(); ref = r; geo = g; } }
+class Analytics { final List<ClickEvent> clicks = new ArrayList<>(); void record(String r, String g) { clicks.add(new ClickEvent(r, g)); } int total() { return clicks.size(); } }
+
+class ShortURL {
+    final String code, longUrl; final Instant created, expires; final Analytics analytics = new Analytics();
+    ShortURL(String c, String u, long ttl) { code = c; longUrl = u; created = Instant.now(); expires = ttl > 0 ? created.plusSeconds(ttl) : null; }
+    boolean isExpired() { return expires != null && Instant.now().isAfter(expires); }
+}
+
+class URLShortener {
+    final Map<String, ShortURL> store = new HashMap<>();
+    final Map<String, String> reverse = new HashMap<>();
+    final CodeGenerator gen; final long ttl;
+    URLShortener(CodeGenerator g, long t) { gen = g; ttl = t; }
+
+    String shorten(String longUrl, String alias) {
+        if (alias != null && !alias.isEmpty()) {
+            if (store.containsKey(alias)) throw new IllegalArgumentException("Taken");
+            store.put(alias, new ShortURL(alias, longUrl, ttl)); reverse.put(longUrl, alias); return alias;
+        }
+        if (reverse.containsKey(longUrl)) return reverse.get(longUrl);
+        String c = gen.generate(longUrl);
+        while (store.containsKey(c)) c = gen.generate(longUrl + c);
+        store.put(c, new ShortURL(c, longUrl, ttl)); reverse.put(longUrl, c); return c;
+    }
+
+    String resolve(String code) {
+        ShortURL u = store.get(code);
+        if (u == null) throw new IllegalArgumentException("Not found");
+        if (u.isExpired()) { store.remove(code); throw new IllegalArgumentException("Expired"); }
+        u.analytics.record("direct", "unknown"); return u.longUrl;
+    }
+}
+
+public class URLShortenerApp {
+    public static void main(String[] args) {
+        URLShortener svc = new URLShortener(new Base62Encoder(), 86400);
+        String c1 = svc.shorten("https://example.com/long/path", null);
+        String c2 = svc.shorten("https://example.com/other", "my-link");
+        System.out.println(c1 + " -> " + svc.resolve(c1));
+        System.out.println("my-link -> " + svc.resolve("my-link"));
+    }
+}
+\`\`\``,
+  designWalkthrough: `# URL Shortener -- Design Walkthrough
+
+**Step 1 -- Entities:** URLShortener, ShortURL, CodeGenerator, Base62Encoder, HashGenerator, Analytics, ClickEvent, ExpirationManager, URLValidator.
+
+**Step 2 -- Code Generation Strategy:** Base62 counter: collision-free, predictable. 7 chars = 3.5T codes. Hash: unpredictable, collisions possible.
+
+**Step 3 -- Collision Handling:** HashGenerator: append salt and re-hash on collision. Base62: impossible by construction.
+
+**Step 4 -- Custom Aliases:** Check availability, bypass CodeGenerator, store directly.
+
+**Step 5 -- Analytics (Observer):** Record ClickEvent on each resolve. Aggregate on read.
+
+**Step 6 -- Expiration:** Lazy check on resolve + periodic cleanup sweep.
+
+**Step 7 -- Deduplication:** Reverse map (longToShort) avoids duplicates.
+
+**Step 8 -- Scale:** Read:Write ~100:1. Cache hot codes. Shard by prefix. Snowflake ID for distributed counter.`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time | Space | Notes |
+|-----------|------|-------|-------|
+| shorten (counter) | O(1) | O(1) | Counter + base62 |
+| shorten (hash) | O(1) amortized | O(1) | MD5 + retry |
+| resolve | O(1) | O(1) | HashMap lookup |
+| delete | O(1) | O(1) | HashMap remove |
+| recordClick | O(1) | O(1) | List append |
+| cleanup | O(N) | O(1) | Full scan |
+
+7-char base62 = 3.5T URLs. Each ShortURL ~200 bytes. 1B URLs = 200 GB.`,
+};
+
+// ============================================================
+//  design-social-media-feed -> prob-social-media-feed
+// ============================================================
+
+export const socialMediaFeedSolution: ProblemSolutionContent = {
+  referenceSolution: `# Social Media Feed -- Complete Java Implementation
+
+\`\`\`java
+import java.util.*; import java.time.*;
+
+class User {
+    final String id, username; final Set<String> following = new HashSet<>(), followers = new HashSet<>();
+    final List<Post> posts = new ArrayList<>();
+    User(String id, String u) { this.id = id; username = u; }
+    void follow(String uid) { following.add(uid); } void addFollower(String id) { followers.add(id); }
+    int followerCount() { return followers.size(); }
+}
+
+class Post {
+    final String id, authorId, content; final Instant created;
+    final List<Comment> comments = new ArrayList<>(); final Set<String> likes = new HashSet<>();
+    Post(String id, String a, String c) { this.id = id; authorId = a; content = c; created = Instant.now(); }
+    void like(String uid) { likes.add(uid); } void addComment(Comment c) { comments.add(c); }
+    int likeCount() { return likes.size(); } int commentCount() { return comments.size(); }
+}
+
+class Comment { final String id, authorId, text; Comment(String id, String a, String t) { this.id = id; authorId = a; text = t; } }
+
+interface RankingStrategy { double score(Post p, User viewer); }
+
+class EngagementRanking implements RankingStrategy {
+    public double score(Post p, User v) { return p.created.toEpochMilli() / 1e13 + p.likeCount() * 2.0 + p.commentCount() * 3.0; }
+}
+
+class Timeline {
+    final LinkedList<Post> entries = new LinkedList<>(); static final int MAX = 1000;
+    void prepend(Post p) { entries.addFirst(p); if (entries.size() > MAX) entries.removeLast(); }
+    List<Post> paginate(int off, int lim) {
+        int end = Math.min(off + lim, entries.size());
+        return off >= entries.size() ? List.of() : new ArrayList<>(entries.subList(off, end));
+    }
+}
+
+class FeedGenerator {
+    final RankingStrategy strategy; final Map<String, User> users;
+    FeedGenerator(RankingStrategy s, Map<String, User> u) { strategy = s; users = u; }
+    List<Post> generate(User viewer, int count) {
+        List<Post> cands = new ArrayList<>();
+        for (String fid : viewer.following) { User f = users.get(fid); if (f != null) cands.addAll(f.posts); }
+        cands.sort((a, b) -> Double.compare(strategy.score(b, viewer), strategy.score(a, viewer)));
+        return cands.subList(0, Math.min(count, cands.size()));
+    }
+}
+
+class FeedService {
+    final Map<String, User> users = new HashMap<>();
+    final Map<String, Timeline> timelines = new HashMap<>();
+    final FeedGenerator gen; static final int CELEB = 10000;
+    FeedService(RankingStrategy s) { gen = new FeedGenerator(s, users); }
+    User createUser(String id, String name) { User u = new User(id, name); users.put(id, u); timelines.put(id, new Timeline()); return u; }
+    void follow(String a, String b) { users.get(a).follow(b); users.get(b).addFollower(a); }
+    Post createPost(String aid, String content) {
+        User a = users.get(aid); Post p = new Post(UUID.randomUUID().toString(), aid, content);
+        a.posts.add(p);
+        if (a.followerCount() < CELEB) for (String fid : a.followers) timelines.get(fid).prepend(p);
+        return p;
+    }
+    List<Post> getFeed(String uid, int count) {
+        List<Post> pushed = timelines.get(uid).paginate(0, count);
+        List<Post> pulled = gen.generate(users.get(uid), count);
+        Set<String> seen = new HashSet<>(); List<Post> merged = new ArrayList<>();
+        for (Post p : pushed) if (seen.add(p.id)) merged.add(p);
+        for (Post p : pulled) if (seen.add(p.id)) merged.add(p);
+        return merged.subList(0, Math.min(count, merged.size()));
+    }
+}
+
+public class SocialMediaFeed {
+    public static void main(String[] args) {
+        FeedService svc = new FeedService(new EngagementRanking());
+        svc.createUser("u1", "alice"); svc.createUser("u2", "bob"); svc.createUser("u3", "carol");
+        svc.follow("u1", "u2"); svc.follow("u1", "u3");
+        Post p1 = svc.createPost("u2", "Bob's post"); Post p2 = svc.createPost("u3", "Carol's post");
+        p1.like("u1"); p1.like("u3"); p2.addComment(new Comment("c1", "u1", "Nice!"));
+        for (Post p : svc.getFeed("u1", 10))
+            System.out.printf("[%s] %s (likes=%d)%n", p.authorId, p.content, p.likeCount());
+    }
+}
+\`\`\``,
+  designWalkthrough: `# Social Media Feed -- Design Walkthrough
+
+**Step 1 -- Entities:** User, Post, Comment, Like, Follow, FeedGenerator, RankingStrategy, Timeline, FeedService, Notification.
+
+**Step 2 -- Fan-out Strategy:** Push: write to all followers' timelines on post (good for <10K followers). Pull: fetch from followed on request (good for celebrities). Hybrid: push for normal, pull for celebrities.
+
+**Step 3 -- Ranking (Strategy):** ChronologicalRanking: score = timestamp. EngagementRanking: recency + likes*2 + comments*3.
+
+**Step 4 -- Timeline Cache:** Pre-computed LinkedList per user, capped at MAX_SIZE. Fan-out-on-write prepends.
+
+**Step 5 -- Cursor-Based Pagination:** Return last post ID as cursor. Stable across new insertions.
+
+**Step 6 -- Celebrity Problem:** Skip fan-out for >10K followers. Merge push + pull on getFeed. Deduplicate by post ID.
+
+**Step 7 -- Interactions:** Like = Set (prevents doubles). Comment = separate entity with author/text/timestamp.
+
+**Step 8 -- Notifications (Observer):** On like/comment/follow, notify recipient with type and referenceId.`,
+  complexityAnalysis: `## Complexity Analysis
+
+| Operation | Time | Space | Notes |
+|-----------|------|-------|-------|
+| createPost (push) | O(F) | O(F) | F = follower count |
+| createPost (pull) | O(1) | O(1) | Just store |
+| getFeed (push) | O(K) | O(K) | K = page size |
+| getFeed (pull) | O(N log N) | O(N) | N = candidates |
+| getFeed (hybrid) | O(K + N_celeb) | O(K + N_celeb) | Merge push + pull |
+| follow/unfollow | O(1) | O(1) | HashSet ops |
+| like/comment | O(1) | O(1) | Set/list append |
+
+Push: O(F)/post. 1M followers, 10 posts/day = 10M writes/day. Hybrid bounds both.`,
+};
+
+
 // ============================================================
 //  Lookup map: problem ID -> solution content
 // ============================================================
 
 export const PROBLEM_SOLUTIONS: Record<string, ProblemSolutionContent> = {
+  "prob-parking-lot": parkingLotSolution,
+  "prob-elevator": elevatorSolution,
   "prob-chess": chessSolution,
   "prob-vending-machine": vendingMachineSolution,
   "prob-movie-ticket-booking": movieTicketBookingSolution,
@@ -27354,4 +33497,25 @@ export const PROBLEM_SOLUTIONS: Record<string, ProblemSolutionContent> = {
   "prob-hotel": hotelSolution,
   "prob-food-delivery": foodDeliverySolution,
   "prob-library": librarySolution,
+  "prob-file-system": fileSystemSolution,
+  "prob-lru-cache": lruCacheSolution,
+  "prob-restaurant-management": restaurantManagementSolution,
+  "prob-spreadsheet": spreadsheetSolution,
+  "prob-ride-sharing": rideSharingSolution,
+  "prob-stock-brokerage": stockBrokerageSolution,
+  "prob-music-streaming": musicStreamingSolution,
+  "prob-course-registration": courseRegistrationSolution,
+  "prob-coffee-vending-machine": coffeeVendingMachineSolution,
+  "prob-airline-booking": airlineBookingSolution,
+  "prob-tic-tac-toe": ticTacToeSolution,
+  "prob-snake-game": snakeGameSolution,
+  "prob-card-game": cardGameSolution,
+  "prob-notification-service": notificationServiceSolution,
+  "prob-logging-framework": loggingFrameworkSolution,
+  "prob-cache-system": cacheSystemSolution,
+  "prob-task-scheduler": taskSchedulerSolution,
+  "prob-pub-sub-system": pubSubSystemSolution,
+  "prob-rate-limiter": rateLimiterSolution,
+  "prob-url-shortener": urlShortenerSolution,
+  "prob-social-media-feed": socialMediaFeedSolution,
 };

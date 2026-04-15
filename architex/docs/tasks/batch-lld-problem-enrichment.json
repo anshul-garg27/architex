@@ -2,8 +2,8 @@
   {
     "id": "LLD-300",
     "epic": "LLD",
-    "title": "Enrich Parking Lot System problem — reference solution, walkthrough, interview script",
-    "description": "Enrich the Parking Lot System problem (id: prob-parking-lot, difficulty: 2, category: object-modeling). Verify starter classes have sufficient entities (ParkingLot, ParkingFloor, ParkingSpot, Vehicle — currently 4 classes, needs 8+ for complex: add Ticket, PaymentProcessor, EntryGate, ExitGate). Verify all relationships correct (composition: Lot->Floor->Spot, association: Vehicle->Spot). Add referenceSolution with full working Java code for the complete system. Add designWalkthrough with step-by-step reasoning: entity identification, design decisions (Strategy for pricing, Factory for vehicle types, Observer for spot availability), complexity analysis. Add interviewScript simulating 90-min interview dialogue. Add complexityAnalysis for key operations (parkVehicle O(f*s), findSpot O(s)). Verify hints are progressive (5-7 hints, easy to hard). Add edge cases: full lot, oversized vehicle, concurrent parking.",
+    "title": "Enrich Parking Lot System problem \u2014 reference solution, walkthrough, interview script",
+    "description": "Enrich the Parking Lot System problem (id: prob-parking-lot, difficulty: 2, category: object-modeling). Verify starter classes have sufficient entities (ParkingLot, ParkingFloor, ParkingSpot, Vehicle \u2014 currently 4 classes, needs 8+ for complex: add Ticket, PaymentProcessor, EntryGate, ExitGate). Verify all relationships correct (composition: Lot->Floor->Spot, association: Vehicle->Spot). Add referenceSolution with full working Java code for the complete system. Add designWalkthrough with step-by-step reasoning: entity identification, design decisions (Strategy for pricing, Factory for vehicle types, Observer for spot availability), complexity analysis. Add interviewScript simulating 90-min interview dialogue. Add complexityAnalysis for key operations (parkVehicle O(f*s), findSpot O(s)). Verify hints are progressive (5-7 hints, easy to hard). Add edge cases: full lot, oversized vehicle, concurrent parking.",
     "acceptanceCriteria": [
       "Starter classes expanded to 8+ entities including Ticket, PaymentProcessor, EntryGate, ExitGate",
       "referenceSolution has complete working Java code with all classes and driver",
@@ -14,20 +14,28 @@
     ],
     "priority": "P0",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "parking-lot"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "parking-lot"
+    ]
   },
   {
     "id": "LLD-301",
     "epic": "LLD",
-    "title": "Enrich Elevator System problem — reference solution, walkthrough, interview script",
-    "description": "Enrich the Elevator System problem (id: prob-elevator, difficulty: 3, category: object-modeling). Verify starter classes (Building, Elevator, Dispatcher, Request — currently 4, needs 8+: add Floor, Button, Door, Display, ElevatorController). Verify relationships (composition: Building->Elevator, Strategy: Dispatcher algorithm). Add referenceSolution with full Java code implementing SCAN/LOOK dispatch algorithm. Add designWalkthrough: entity identification, Strategy for dispatch (SCAN, LOOK, Nearest-First), State for elevator (Moving, Idle, Maintenance), Observer for floor displays. Add interviewScript. Add complexityAnalysis (dispatch O(e*f) for e elevators and f floors). Add edge cases: multiple simultaneous requests, elevator at capacity, maintenance mode.",
+    "title": "Enrich Elevator System problem \u2014 reference solution, walkthrough, interview script",
+    "description": "Enrich the Elevator System problem (id: prob-elevator, difficulty: 3, category: object-modeling). Verify starter classes (Building, Elevator, Dispatcher, Request \u2014 currently 4, needs 8+: add Floor, Button, Door, Display, ElevatorController). Verify relationships (composition: Building->Elevator, Strategy: Dispatcher algorithm). Add referenceSolution with full Java code implementing SCAN/LOOK dispatch algorithm. Add designWalkthrough: entity identification, Strategy for dispatch (SCAN, LOOK, Nearest-First), State for elevator (Moving, Idle, Maintenance), Observer for floor displays. Add interviewScript. Add complexityAnalysis (dispatch O(e*f) for e elevators and f floors). Add edge cases: multiple simultaneous requests, elevator at capacity, maintenance mode.",
     "acceptanceCriteria": [
       "Starter classes expanded to 8+ entities with Floor, Button, Door, Display, Controller",
       "referenceSolution has complete working Java code with SCAN dispatch algorithm",
@@ -38,20 +46,28 @@
     ],
     "priority": "P0",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "elevator"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "elevator"
+    ]
   },
   {
     "id": "LLD-302",
     "epic": "LLD",
-    "title": "Enrich Chess Game problem — reference solution, walkthrough, interview script",
-    "description": "Enrich the Chess Game problem (id: prob-chess, difficulty: 4, category: game-design). Verify starter classes (Game, Board, Piece, Player, Move — currently 5, needs 10+: add Cell, King, Queen, Rook, Bishop, Knight, Pawn, GameStatus, MoveValidator). Verify relationships (inheritance: Piece->King/Queen/etc., composition: Board->Cell[][]). Add referenceSolution with full Java code including piece movement validation and check/checkmate detection. Add designWalkthrough: Strategy for piece movement, Command for move execution, Memento for undo, Observer for game state changes. Add interviewScript. Add complexityAnalysis (move validation O(n) for n squares, checkmate O(p*m) for p pieces and m moves). Add edge cases: castling, en passant, pawn promotion, stalemate.",
+    "title": "Enrich Chess Game problem \u2014 reference solution, walkthrough, interview script",
+    "description": "Enrich the Chess Game problem (id: prob-chess, difficulty: 4, category: game-design). Verify starter classes (Game, Board, Piece, Player, Move \u2014 currently 5, needs 10+: add Cell, King, Queen, Rook, Bishop, Knight, Pawn, GameStatus, MoveValidator). Verify relationships (inheritance: Piece->King/Queen/etc., composition: Board->Cell[][]). Add referenceSolution with full Java code including piece movement validation and check/checkmate detection. Add designWalkthrough: Strategy for piece movement, Command for move execution, Memento for undo, Observer for game state changes. Add interviewScript. Add complexityAnalysis (move validation O(n) for n squares, checkmate O(p*m) for p pieces and m moves). Add edge cases: castling, en passant, pawn promotion, stalemate.",
     "acceptanceCriteria": [
       "Starter classes expanded to 10+ entities with all piece subclasses and MoveValidator",
       "referenceSolution has complete Java code with piece movement and check/checkmate",
@@ -62,19 +78,27 @@
     ],
     "priority": "P0",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "game-design", "enrichment", "chess"]
+    "tags": [
+      "content",
+      "problem",
+      "game-design",
+      "enrichment",
+      "chess"
+    ]
   },
   {
     "id": "LLD-303",
     "epic": "LLD",
-    "title": "Enrich Vending Machine problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Vending Machine problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Vending Machine problem (id: prob-vending-machine, difficulty: 2, category: object-modeling). Verify starter classes have sufficient entities (needs 8+: VendingMachine, Product, Slot, Coin, State, IdleState, SelectionState, DispenseState, PaymentProcessor). Verify State pattern relationships. Add referenceSolution with full Java code implementing State pattern for machine lifecycle. Add designWalkthrough: State for machine states, Strategy for payment methods, Chain of Responsibility for coin validation. Add interviewScript. Add complexityAnalysis (dispense O(1), coin validation O(c) for c coin types). Add edge cases: insufficient change, out-of-stock, power failure recovery.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with explicit State subclasses and PaymentProcessor",
@@ -86,19 +110,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "vending-machine"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "vending-machine"
+    ]
   },
   {
     "id": "LLD-304",
     "epic": "LLD",
-    "title": "Enrich Library Management System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Library Management System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Library Management System problem (id: prob-library, difficulty: 2, category: object-modeling). Verify starter classes have sufficient entities (needs 8+: Library, Book, BookItem, Member, Librarian, Loan, Reservation, Fine, Catalog). Verify relationships (composition: Library->Catalog->Book, association: Member->Loan). Add referenceSolution with full Java code. Add designWalkthrough: Observer for due date notifications, State for book lifecycle (Available, Loaned, Reserved, Lost), Strategy for fine calculation, Iterator for catalog search. Add interviewScript. Add complexityAnalysis (search O(n), checkout O(1), overdue check O(m) for m loans). Add edge cases: concurrent reservation, maximum loans exceeded, lost book handling.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with BookItem, Loan, Reservation, Fine, Catalog",
@@ -110,19 +142,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "library"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "library"
+    ]
   },
   {
     "id": "LLD-305",
     "epic": "LLD",
-    "title": "Enrich ATM System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich ATM System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the ATM System problem (id: prob-atm, difficulty: 3, category: object-modeling). Verify starter classes have sufficient entities (needs 8+: ATM, Card, Account, Transaction, CashDispenser, Screen, Keypad, BankNetwork, Receipt). Verify relationships. Add referenceSolution with full Java code implementing State for ATM states and Chain of Responsibility for transaction validation. Add designWalkthrough: State for ATM lifecycle (Idle, CardInserted, PINVerification, TransactionSelection, Dispensing), Chain of Responsibility for validation checks, Command for transactions. Add interviewScript. Add complexityAnalysis. Add edge cases: incorrect PIN retries, insufficient funds, cash dispensing failure, network timeout.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with CashDispenser, Screen, Keypad, BankNetwork",
@@ -134,19 +174,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "atm"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "atm"
+    ]
   },
   {
     "id": "LLD-306",
     "epic": "LLD",
-    "title": "Enrich Hotel Reservation System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Hotel Reservation System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Hotel Reservation System problem (id: prob-hotel, difficulty: 3, category: booking-system). Verify starter classes have sufficient entities (needs 8+: Hotel, Room, RoomType, Guest, Reservation, Payment, BookingService, NotificationService, Invoice). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for pricing (seasonal, loyalty, dynamic), Factory for room types, Observer for booking confirmations, State for reservation lifecycle (Pending, Confirmed, CheckedIn, CheckedOut, Cancelled). Add interviewScript. Add complexityAnalysis. Add edge cases: overbooking, concurrent reservation, cancellation policy, group bookings.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with RoomType, Payment, BookingService, Invoice",
@@ -158,19 +206,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "booking-system", "enrichment", "hotel"]
+    "tags": [
+      "content",
+      "problem",
+      "booking-system",
+      "enrichment",
+      "hotel"
+    ]
   },
   {
     "id": "LLD-307",
     "epic": "LLD",
-    "title": "Enrich Snake & Ladder Game problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Snake & Ladder Game problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Snake & Ladder Game problem (id: prob-snake-ladder, difficulty: 2, category: game-design). Verify starter classes have sufficient entities (needs 8+: Game, Board, Player, Dice, Snake, Ladder, Cell, GameStatus). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Template Method for turn flow, Strategy for dice (fair vs loaded), Observer for position updates. Add interviewScript. Add complexityAnalysis (move O(1), game O(n*t) for n players and t turns). Add edge cases: snake at position 99, ladder to winning position, multiple players on same cell, draw conditions.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with Dice, Snake, Ladder, Cell, GameStatus",
@@ -182,19 +238,27 @@
     ],
     "priority": "P1",
     "effort": "M",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "game-design", "enrichment", "snake-ladder"]
+    "tags": [
+      "content",
+      "problem",
+      "game-design",
+      "enrichment",
+      "snake-ladder"
+    ]
   },
   {
     "id": "LLD-308",
     "epic": "LLD",
-    "title": "Enrich File System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich File System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the File System problem (id: prob-file-system, difficulty: 4, category: infrastructure). Verify starter classes have sufficient entities (needs 10+: FileSystem, FileSystemNode, File, Directory, Permission, User, Path, SearchVisitor, SizeVisitor, FileIterator). Verify Composite pattern relationships. Add referenceSolution with full Java code. Add designWalkthrough: Composite for tree structure, Iterator for traversal, Visitor for operations, Command for file operations with undo. Add interviewScript. Add complexityAnalysis (traversal O(n), search O(n), getSize recursive O(n)). Add edge cases: circular symlinks, concurrent access, permission inheritance, large directory listing.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Permission, User, Path, SearchVisitor, SizeVisitor",
@@ -206,19 +270,27 @@
     ],
     "priority": "P0",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "file-system"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "file-system"
+    ]
   },
   {
     "id": "LLD-309",
     "epic": "LLD",
-    "title": "Enrich LRU Cache problem — reference solution, walkthrough, interview script",
+    "title": "Enrich LRU Cache problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the LRU Cache problem (id: prob-lru-cache, difficulty: 3, category: infrastructure). Verify starter classes have sufficient entities (needs 8+: LRUCache, CacheEntry, DoublyLinkedList, Node, EvictionPolicy, CacheConfig, CacheStats, TTLManager). Verify relationships. Add referenceSolution with full Java code implementing HashMap + DoublyLinkedList for O(1) get/put. Add designWalkthrough: Strategy for eviction (LRU, LFU, FIFO), Proxy for cache-through, Singleton for cache instance, Observer for eviction events. Add interviewScript. Add complexityAnalysis (get/put O(1), eviction O(1) with DLL). Add edge cases: TTL expiration, cache stampede, concurrent access, memory pressure.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with DoublyLinkedList, Node, EvictionPolicy, CacheStats",
@@ -230,19 +302,27 @@
     ],
     "priority": "P0",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "lru-cache"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "lru-cache"
+    ]
   },
   {
     "id": "LLD-310",
     "epic": "LLD",
-    "title": "Enrich Movie Ticket Booking System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Movie Ticket Booking System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Movie Ticket Booking System problem (id: prob-movie-ticket-booking, difficulty: 3, category: booking-system). Verify starter classes have sufficient entities (needs 10+: Cinema, Screen, Show, Movie, Seat, Booking, Payment, User, Ticket, SeatMap). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for pricing (time-based, seat-type), Observer for seat availability updates, Factory for payment methods, Singleton for booking service. Add interviewScript. Add complexityAnalysis (seat selection O(s), booking O(1), concurrent booking handling). Add edge cases: double booking prevention, seat hold timeout, partial payment failure, show cancellation.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Screen, Show, Seat, SeatMap, Ticket",
@@ -254,19 +334,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "booking-system", "enrichment", "movie-ticket"]
+    "tags": [
+      "content",
+      "problem",
+      "booking-system",
+      "enrichment",
+      "movie-ticket"
+    ]
   },
   {
     "id": "LLD-311",
     "epic": "LLD",
-    "title": "Enrich Restaurant Management System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Restaurant Management System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Restaurant Management System problem (id: prob-restaurant-management, difficulty: 3, category: booking-system). Verify starter classes have sufficient entities (needs 10+: Restaurant, Table, Reservation, Order, MenuItem, Kitchen, Waiter, Bill, Customer, OrderItem). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Observer for order status updates, Command for order actions, Strategy for billing (split, discount), State for order lifecycle (Placed, Preparing, Ready, Served, Billed). Add interviewScript. Add complexityAnalysis. Add edge cases: table reassignment, order modification after placed, kitchen capacity, peak hour management.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Kitchen, Waiter, Bill, OrderItem",
@@ -278,19 +366,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "booking-system", "enrichment", "restaurant"]
+    "tags": [
+      "content",
+      "problem",
+      "booking-system",
+      "enrichment",
+      "restaurant"
+    ]
   },
   {
     "id": "LLD-312",
     "epic": "LLD",
-    "title": "Enrich Airline Booking System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Airline Booking System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Airline Booking System problem (id: prob-airline-booking, difficulty: 4, category: booking-system). Verify starter classes have sufficient entities (needs 10+: Airline, Flight, Aircraft, Seat, Passenger, Booking, Itinerary, Payment, BoardingPass, FlightSchedule). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for pricing (dynamic), Observer for flight status, State for booking lifecycle, Builder for itinerary construction. Add interviewScript. Add complexityAnalysis. Add edge cases: flight cancellation cascade, overbooking compensation, connecting flights, seat upgrade.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Aircraft, Itinerary, BoardingPass, FlightSchedule",
@@ -302,19 +398,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "booking-system", "enrichment", "airline"]
+    "tags": [
+      "content",
+      "problem",
+      "booking-system",
+      "enrichment",
+      "airline"
+    ]
   },
   {
     "id": "LLD-313",
     "epic": "LLD",
-    "title": "Enrich Tic-Tac-Toe problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Tic-Tac-Toe problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Tic-Tac-Toe problem (id: prob-tic-tac-toe, difficulty: 2, category: game-design). Verify starter classes have sufficient entities (needs 8+: Game, Board, Cell, Player, HumanPlayer, AIPlayer, Move, GameResult). Verify relationships. Add referenceSolution with full Java code including minimax AI. Add designWalkthrough: Strategy for AI difficulty levels (random, minimax, alpha-beta), State for game states, Observer for game updates, Factory for player creation. Add interviewScript. Add complexityAnalysis (minimax O(b^d) for branching factor b and depth d). Add edge cases: board size generalization (n*n), multiple players, draw detection.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with HumanPlayer, AIPlayer, Move, GameResult",
@@ -326,19 +430,27 @@
     ],
     "priority": "P1",
     "effort": "M",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "game-design", "enrichment", "tic-tac-toe"]
+    "tags": [
+      "content",
+      "problem",
+      "game-design",
+      "enrichment",
+      "tic-tac-toe"
+    ]
   },
   {
     "id": "LLD-314",
     "epic": "LLD",
-    "title": "Enrich Snake Game problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Snake Game problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Snake Game problem (id: prob-snake-game, difficulty: 3, category: game-design). Verify starter classes have sufficient entities (needs 8+: Game, Snake, Board, Cell, Food, FoodGenerator, Direction, GameLoop). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: State for game states, Observer for score updates, Strategy for food generation, Command for direction changes. Add interviewScript. Add complexityAnalysis (move O(1) with deque, collision O(n) for n body segments or O(1) with hash set). Add edge cases: self-collision, boundary wrapping vs wall death, food spawning on snake, increasing speed.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with Food, FoodGenerator, Direction, GameLoop",
@@ -350,19 +462,27 @@
     ],
     "priority": "P1",
     "effort": "M",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "game-design", "enrichment", "snake-game"]
+    "tags": [
+      "content",
+      "problem",
+      "game-design",
+      "enrichment",
+      "snake-game"
+    ]
   },
   {
     "id": "LLD-315",
     "epic": "LLD",
-    "title": "Enrich Card Game (Blackjack) problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Card Game (Blackjack) problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Card Game (Blackjack) problem (id: prob-card-game, difficulty: 3, category: game-design). Verify starter classes have sufficient entities (needs 10+: Game, Deck, Card, Suit, Rank, Hand, Player, Dealer, Bet, GameResult). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Template Method for turn flow, Strategy for dealer/player strategies (hit/stand), Factory for deck creation, Observer for game events. Add interviewScript. Add complexityAnalysis (shuffle O(n), deal O(1), hand value O(h) for h cards). Add edge cases: Ace as 1 or 11, split, double down, insurance, multiple players.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Deck, Card, Suit, Rank, Hand, Bet, GameResult",
@@ -374,19 +494,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "game-design", "enrichment", "card-game"]
+    "tags": [
+      "content",
+      "problem",
+      "game-design",
+      "enrichment",
+      "card-game"
+    ]
   },
   {
     "id": "LLD-316",
     "epic": "LLD",
-    "title": "Enrich Notification Service problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Notification Service problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Notification Service problem (id: prob-notification-service, difficulty: 3, category: infrastructure). Verify starter classes have sufficient entities (needs 8+: NotificationService, Notification, Channel, EmailChannel, SMSChannel, PushChannel, Template, UserPreference). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Observer for subscription management, Strategy for channel selection, Factory for notification creation, Builder for complex notifications. Add interviewScript. Add complexityAnalysis. Add edge cases: delivery failure retry, rate limiting per user, template rendering, notification priority queue.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with Channel subclasses, Template, UserPreference",
@@ -398,19 +526,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "notification-service"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "notification-service"
+    ]
   },
   {
     "id": "LLD-317",
     "epic": "LLD",
-    "title": "Enrich Logging Framework problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Logging Framework problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Logging Framework problem (id: prob-logging-framework, difficulty: 3, category: infrastructure). Verify starter classes have sufficient entities (needs 8+: Logger, LogLevel, LogHandler, ConsoleHandler, FileHandler, LogFormatter, LogConfig, LogEntry). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Singleton for global logger, Strategy for formatting, Chain of Responsibility for log level filtering, Observer for log event subscribers. Add interviewScript. Add complexityAnalysis. Add edge cases: async logging, log rotation, structured logging (JSON), log aggregation, thread-safe logging.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with LogHandler subclasses, LogFormatter, LogConfig",
@@ -422,19 +558,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "logging-framework"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "logging-framework"
+    ]
   },
   {
     "id": "LLD-318",
     "epic": "LLD",
-    "title": "Enrich Cache System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Cache System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Cache System problem (id: prob-cache-system, difficulty: 3, category: infrastructure). Verify starter classes have sufficient entities (needs 8+: CacheManager, Cache, CacheEntry, EvictionPolicy, LRUPolicy, LFUPolicy, CacheConfig, CacheLoader). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for eviction policies, Singleton for cache manager, Proxy for cache-through pattern, Observer for cache events (hit/miss/eviction). Add interviewScript. Add complexityAnalysis. Add edge cases: cache stampede, TTL-based expiration, write-through vs write-behind, distributed cache invalidation.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with EvictionPolicy subclasses, CacheLoader, CacheConfig",
@@ -446,19 +590,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "cache-system"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "cache-system"
+    ]
   },
   {
     "id": "LLD-319",
     "epic": "LLD",
-    "title": "Enrich Task Scheduler problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Task Scheduler problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Task Scheduler problem (id: prob-task-scheduler, difficulty: 4, category: infrastructure). Verify starter classes have sufficient entities (needs 10+: Scheduler, Task, RecurringTask, OneTimeTask, Worker, TaskQueue, PriorityQueue, ExecutionResult, CronExpression, TaskStatus). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for scheduling algorithms, Command for task execution, Observer for task completion events, State for task lifecycle (Pending, Running, Completed, Failed, Cancelled). Add interviewScript. Add complexityAnalysis. Add edge cases: task dependency chains, cron expression parsing, task failure retry, worker pool exhaustion.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Worker, PriorityQueue, CronExpression, TaskStatus",
@@ -470,19 +622,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "task-scheduler"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "task-scheduler"
+    ]
   },
   {
     "id": "LLD-320",
     "epic": "LLD",
-    "title": "Enrich Pub-Sub System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Pub-Sub System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Pub-Sub System problem (id: prob-pub-sub-system, difficulty: 4, category: infrastructure). Verify starter classes have sufficient entities (needs 10+: MessageBroker, Topic, Subscription, Publisher, Subscriber, Message, MessageFilter, DeadLetterQueue, AckManager, PartitionManager). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Observer for core pub-sub, Strategy for message routing, CoR for message filtering, Mediator for broker coordination. Add interviewScript. Add complexityAnalysis. Add edge cases: message ordering guarantees, at-least-once vs exactly-once delivery, subscriber backpressure, topic partitioning.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with MessageFilter, DeadLetterQueue, AckManager",
@@ -494,19 +654,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "pub-sub"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "pub-sub"
+    ]
   },
   {
     "id": "LLD-321",
     "epic": "LLD",
-    "title": "Enrich Rate Limiter problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Rate Limiter problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Rate Limiter problem (id: prob-rate-limiter, difficulty: 3, category: infrastructure). Verify starter classes have sufficient entities (needs 8+: RateLimiter, TokenBucket, SlidingWindowLog, SlidingWindowCounter, Config, RateLimitResult, ClientIdentifier, RateLimitRule). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for algorithm selection, Singleton for global limiter, Proxy for transparent rate limiting, Factory for limiter creation per client. Add interviewScript. Add complexityAnalysis (Token Bucket O(1), Sliding Window O(log n) with sorted set). Add edge cases: distributed rate limiting, burst handling, per-endpoint limits, graceful degradation.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with algorithm implementations and Config",
@@ -518,19 +686,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "rate-limiter"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "rate-limiter"
+    ]
   },
   {
     "id": "LLD-322",
     "epic": "LLD",
-    "title": "Enrich URL Shortener problem — reference solution, walkthrough, interview script",
+    "title": "Enrich URL Shortener problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the URL Shortener problem (id: prob-url-shortener, difficulty: 2, category: infrastructure). Verify starter classes have sufficient entities (needs 8+: URLShortener, ShortURL, URLMapping, HashGenerator, Base62Encoder, Analytics, ExpirationManager, URLValidator). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for hash generation (MD5-truncate, counter-based, UUID), Factory for URL creation, Singleton for service instance, Observer for analytics. Add interviewScript. Add complexityAnalysis (create O(1), redirect O(1) with hash map). Add edge cases: collision handling, custom short URLs, expiration, analytics tracking.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with HashGenerator, Base62Encoder, Analytics",
@@ -542,19 +718,27 @@
     ],
     "priority": "P1",
     "effort": "M",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "infrastructure", "enrichment", "url-shortener"]
+    "tags": [
+      "content",
+      "problem",
+      "infrastructure",
+      "enrichment",
+      "url-shortener"
+    ]
   },
   {
     "id": "LLD-323",
     "epic": "LLD",
-    "title": "Enrich Social Media Feed problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Social Media Feed problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Social Media Feed problem (id: prob-social-media-feed, difficulty: 4, category: real-time). Verify starter classes have sufficient entities (needs 10+: FeedService, Post, User, Comment, Like, FeedItem, FeedGenerator, RankingStrategy, Timeline, Notification). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Observer for follower notifications, Strategy for ranking (chronological, engagement, ML-based), Iterator for feed pagination, Decorator for post enrichment (with reactions, comments count). Add interviewScript. Add complexityAnalysis. Add edge cases: fan-out on write vs read, celebrity problem, content moderation, infinite scroll.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with FeedGenerator, RankingStrategy, Timeline",
@@ -566,19 +750,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "real-time", "enrichment", "social-media-feed"]
+    "tags": [
+      "content",
+      "problem",
+      "real-time",
+      "enrichment",
+      "social-media-feed"
+    ]
   },
   {
     "id": "LLD-324",
     "epic": "LLD",
-    "title": "Enrich Spreadsheet Application problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Spreadsheet Application problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Spreadsheet Application problem (id: prob-spreadsheet, difficulty: 4, category: real-time). Verify starter classes have sufficient entities (needs 10+: Spreadsheet, Sheet, Cell, Formula, CellReference, CellRange, DependencyGraph, FormulaParser, CellValue, UndoManager). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Observer for cell dependency updates, Composite for cell ranges, Memento for undo, Iterator for range traversal. Add interviewScript. Add complexityAnalysis (cell update with cascading O(d) for d dependents, formula eval O(e) for e expressions). Add edge cases: circular dependency detection, large range operations, concurrent editing, formula errors.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with DependencyGraph, FormulaParser, CellValue, UndoManager",
@@ -590,19 +782,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "real-time", "enrichment", "spreadsheet"]
+    "tags": [
+      "content",
+      "problem",
+      "real-time",
+      "enrichment",
+      "spreadsheet"
+    ]
   },
   {
     "id": "LLD-325",
     "epic": "LLD",
-    "title": "Enrich Splitwise (Expense Sharing) problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Splitwise (Expense Sharing) problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Splitwise problem (id: prob-splitwise, difficulty: 4, category: object-modeling). Verify starter classes have sufficient entities (needs 10+: ExpenseManager, User, Group, Expense, Split, EqualSplit, PercentageSplit, ExactSplit, Balance, Transaction). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for split calculation, Observer for balance updates, Mediator for group expense management, Iterator for balance settlement. Add interviewScript. Add complexityAnalysis (split O(n) for n users, simplify debts O(n^2) with greedy). Add edge cases: simplify debts optimization, multi-currency, group expense with different split types, settlement suggestions.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Split subclasses, Balance, Transaction",
@@ -614,19 +814,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "splitwise"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "splitwise"
+    ]
   },
   {
     "id": "LLD-326",
     "epic": "LLD",
-    "title": "Enrich Ride-Sharing Service (Uber) problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Ride-Sharing Service (Uber) problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Ride-Sharing Service problem (id: prob-ride-sharing, difficulty: 4, category: real-time). Verify starter classes have sufficient entities (needs 10+: RideService, Ride, Driver, Rider, Location, RideRequest, MatchingStrategy, PricingStrategy, RideStatus, Payment). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for matching (nearest, rating-based) and pricing (surge, distance), State for ride lifecycle (Requested, Matched, InProgress, Completed, Cancelled), Observer for real-time tracking, Singleton for service. Add interviewScript. Add complexityAnalysis. Add edge cases: surge pricing calculation, driver cancellation, GPS drift, concurrent ride requests.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with MatchingStrategy, PricingStrategy, RideStatus",
@@ -638,19 +846,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "real-time", "enrichment", "ride-sharing"]
+    "tags": [
+      "content",
+      "problem",
+      "real-time",
+      "enrichment",
+      "ride-sharing"
+    ]
   },
   {
     "id": "LLD-327",
     "epic": "LLD",
-    "title": "Enrich Online Shopping (Amazon) problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Online Shopping (Amazon) problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Online Shopping problem (id: prob-online-shopping, difficulty: 4, category: object-modeling). Verify starter classes have sufficient entities (needs 12+: Store, Product, Category, Cart, CartItem, Order, OrderStatus, Payment, Shipping, User, Address, Review). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Strategy for pricing/discounts and shipping, Observer for order status, State for order lifecycle, Factory for payment methods. Add interviewScript. Add complexityAnalysis. Add edge cases: inventory management, coupon stacking, return/refund flow, wish list, order splitting by warehouse.",
     "acceptanceCriteria": [
       "Starter classes at 12+ entities covering cart, order, payment, and shipping flows",
@@ -662,19 +878,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "online-shopping"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "online-shopping"
+    ]
   },
   {
     "id": "LLD-328",
     "epic": "LLD",
-    "title": "Enrich Stock Brokerage System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Stock Brokerage System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Stock Brokerage System problem (id: prob-stock-brokerage, difficulty: 4, category: real-time). Verify starter classes have sufficient entities (needs 10+: Exchange, Stock, Order, MarketOrder, LimitOrder, OrderBook, Trade, Portfolio, Account, PriceAlert). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Observer for price updates and alerts, Strategy for order matching, Command for order execution, Singleton for exchange. Add interviewScript. Add complexityAnalysis (order matching O(log n) with sorted order book). Add edge cases: partial fills, market vs limit order matching, price volatility, order cancellation, portfolio margin.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with OrderBook, Trade, Portfolio, PriceAlert",
@@ -686,19 +910,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "real-time", "enrichment", "stock-brokerage"]
+    "tags": [
+      "content",
+      "problem",
+      "real-time",
+      "enrichment",
+      "stock-brokerage"
+    ]
   },
   {
     "id": "LLD-329",
     "epic": "LLD",
-    "title": "Enrich Music Streaming (Spotify) problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Music Streaming (Spotify) problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Music Streaming problem (id: prob-music-streaming, difficulty: 3, category: object-modeling). Verify starter classes have sufficient entities (needs 10+: MusicService, Song, Album, Artist, Playlist, User, Player, Queue, Recommendation, SearchEngine). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Iterator for playlist traversal, Strategy for shuffle/repeat modes, Observer for playback state, State for player lifecycle (Playing, Paused, Stopped). Add interviewScript. Add complexityAnalysis. Add edge cases: shuffle without repeats, collaborative playlists, offline mode, queue management, crossfade.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Player, Queue, Recommendation, SearchEngine",
@@ -710,19 +942,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "music-streaming"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "music-streaming"
+    ]
   },
   {
     "id": "LLD-330",
     "epic": "LLD",
-    "title": "Enrich Food Delivery (Swiggy) problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Food Delivery (Swiggy) problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Food Delivery problem (id: prob-food-delivery, difficulty: 4, category: real-time). Verify starter classes have sufficient entities (needs 12+: DeliveryService, Restaurant, Menu, MenuItem, Order, DeliveryAgent, Customer, Cart, Payment, Rating, Location, OrderTracker). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: State for order lifecycle (Placed, Accepted, Preparing, OutForDelivery, Delivered), Strategy for delivery assignment and pricing, Observer for real-time tracking, Factory for payment. Add interviewScript. Add complexityAnalysis. Add edge cases: restaurant rejection, delivery agent unavailability, order modification, concurrent orders from same restaurant.",
     "acceptanceCriteria": [
       "Starter classes at 12+ entities covering restaurant, order, delivery, and payment flows",
@@ -734,19 +974,27 @@
     ],
     "priority": "P1",
     "effort": "XL",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "real-time", "enrichment", "food-delivery"]
+    "tags": [
+      "content",
+      "problem",
+      "real-time",
+      "enrichment",
+      "food-delivery"
+    ]
   },
   {
     "id": "LLD-331",
     "epic": "LLD",
-    "title": "Enrich Course Registration System problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Course Registration System problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Course Registration System problem (id: prob-course-registration, difficulty: 3, category: booking-system). Verify starter classes have sufficient entities (needs 10+: University, Department, Course, Section, Student, Professor, Enrollment, Schedule, Prerequisite, Waitlist). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: Observer for enrollment notifications, Strategy for waitlist processing, CoR for prerequisite validation, Iterator for course catalog. Add interviewScript. Add complexityAnalysis. Add edge cases: prerequisite chain validation, schedule conflict detection, waitlist priority, concurrent enrollment, credit limit.",
     "acceptanceCriteria": [
       "Starter classes at 10+ entities with Section, Enrollment, Schedule, Prerequisite, Waitlist",
@@ -758,19 +1006,27 @@
     ],
     "priority": "P1",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "booking-system", "enrichment", "course-registration"]
+    "tags": [
+      "content",
+      "problem",
+      "booking-system",
+      "enrichment",
+      "course-registration"
+    ]
   },
   {
     "id": "LLD-332",
     "epic": "LLD",
-    "title": "Enrich Coffee Vending Machine problem — reference solution, walkthrough, interview script",
+    "title": "Enrich Coffee Vending Machine problem \u2014 reference solution, walkthrough, interview script",
     "description": "Enrich the Coffee Vending Machine problem (id: prob-coffee-vending-machine, difficulty: 2, category: object-modeling). Verify starter classes have sufficient entities (needs 8+: CoffeeVendingMachine, Beverage, Espresso, Latte, Cappuccino, Ingredient, IngredientContainer, Recipe, PaymentProcessor). Verify relationships. Add referenceSolution with full Java code. Add designWalkthrough: State for machine states, Strategy for payment, Factory for beverage creation, Decorator for add-ons (extra shot, milk type). Add interviewScript. Add complexityAnalysis. Add edge cases: ingredient shortage, custom drink building, machine cleaning cycle, concurrent orders.",
     "acceptanceCriteria": [
       "Starter classes at 8+ entities with Ingredient, Recipe, PaymentProcessor",
@@ -782,13 +1038,21 @@
     ],
     "priority": "P1",
     "effort": "M",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
-    "files": ["src/lib/lld/problems.ts"],
+    "files": [
+      "src/lib/lld/problems.ts"
+    ],
     "dependencies": [],
     "blockedBy": [],
-    "tags": ["content", "problem", "object-modeling", "enrichment", "coffee-vending"]
+    "tags": [
+      "content",
+      "problem",
+      "object-modeling",
+      "enrichment",
+      "coffee-vending"
+    ]
   }
 ]

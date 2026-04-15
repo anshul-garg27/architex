@@ -14,7 +14,7 @@
     ],
     "priority": "P0",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "content",
