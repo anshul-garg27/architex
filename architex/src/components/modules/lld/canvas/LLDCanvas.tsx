@@ -522,15 +522,18 @@ const UMLClassBox = memo(function UMLClassBox({
           onSelect(cls.id);
         }
       }}
-      style={{
-        cursor: "grab",
-        outline: "none",
-        transition: "filter 0.15s ease",
-      }}
       filter={isSelected ? "url(#glow)" : isHovered ? "url(#class-hover-shadow)" : undefined}
       {...(reducedMotion
-        ? { style: { cursor: "grab", outline: "none", transition: "filter 0.15s ease", opacity: dimmed ? 0.35 : 1 } }
+        ? {
+            style: {
+              cursor: "grab",
+              outline: "none",
+              transition: "filter 0.15s ease, opacity 0.15s ease",
+              opacity: dimmed ? 0.35 : 1,
+            },
+          }
         : {
+            style: { cursor: "grab", outline: "none", transition: "filter 0.15s ease" },
             initial: { opacity: 0, scale: 0.85 },
             animate: { opacity: dimmed ? 0.35 : 1, scale: 1 },
             exit: { opacity: 0, scale: 0.8 },
