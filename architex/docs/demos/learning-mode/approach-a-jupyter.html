@@ -21,6 +21,8 @@
     --border:      rgba(255,255,255,0.10);
     --success:     hsl(152, 65%, 48%);
     --success-dim: hsla(152, 65%, 48%, 0.12);
+    --error:       hsl(0, 65%, 55%);
+    --error-dim:   hsla(0, 65%, 50%, 0.12);
     --code-bg:     hsl(225, 10%, 14%);
     --font:        'Geist Sans', system-ui, -apple-system, sans-serif;
     --mono:        'Geist Mono', ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
@@ -225,8 +227,32 @@
   }
 
   .canvas__diagram {
-    opacity: 0.40;
     transition: opacity 0.3s;
+  }
+
+  /* UML class groups on the canvas */
+  .uml-class-group {
+    opacity: 0.50;
+    transition: opacity 0.4s ease, filter 0.4s ease;
+    cursor: pointer;
+  }
+
+  .uml-class-group:hover {
+    opacity: 1;
+  }
+
+  .uml-class-group--active {
+    opacity: 1;
+    filter: drop-shadow(0 0 12px hsla(258, 78%, 64%, 0.35));
+  }
+
+  .uml-relationships {
+    opacity: 0.50;
+    transition: opacity 0.4s ease;
+  }
+
+  .uml-relationships--bright {
+    opacity: 0.85;
   }
 
   /* UML SVG styles */
@@ -238,8 +264,17 @@
     ry: 6;
   }
 
-  .uml-header {
+  .uml-class-group--active .uml-box {
+    stroke: var(--primary);
+    stroke-width: 2;
+  }
+
+  .uml-header-bar {
     fill: rgba(255,255,255,0.05);
+  }
+
+  .uml-class-group--active .uml-header-bar {
+    fill: hsla(258, 78%, 64%, 0.12);
   }
 
   .uml-title {
@@ -262,6 +297,16 @@
     fill: var(--text-subtle);
   }
 
+  .uml-divider {
+    stroke: rgba(255,255,255,0.06);
+    stroke-width: 1;
+  }
+
+  .uml-header-divider {
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 1;
+  }
+
   .uml-line {
     stroke: rgba(255,255,255,0.18);
     stroke-width: 1.5;
@@ -276,9 +321,39 @@
     stroke-dasharray: 6 4;
   }
 
+  /* Canvas tooltip */
+  .canvas__tooltip {
+    position: absolute;
+    pointer-events: none;
+    padding: 6px 12px;
+    background: hsl(225, 8%, 16%);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.15s, transform 0.15s;
+    z-index: 20;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+
+  .canvas__tooltip--visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .canvas__tooltip-label {
+    color: var(--text-muted);
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+
   /* ── Right Lesson Column ──────────────────────────────────────────── */
   .lesson {
-    width: 400px;
+    width: 420px;
     flex-shrink: 0;
     background: var(--surface);
     border-left: 1px solid var(--border);
@@ -333,8 +408,10 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 0 32px;
+    scroll-behavior: smooth;
     scrollbar-width: thin;
     scrollbar-color: hsl(225, 7%, 20%) transparent;
+    position: relative;
   }
 
   .lesson__scroll::-webkit-scrollbar {
@@ -352,15 +429,46 @@
 
   /* ── Cell Base ────────────────────────────────────────────────────── */
   .cell {
-    padding: 18px 20px;
+    padding: 18px 20px 18px 52px;
     border-bottom: 1px solid var(--border);
     position: relative;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+
+  .cell--visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Cell number gutter ──────────────────────────────────────────── */
+  .cell__number {
+    position: absolute;
+    left: 8px;
+    top: 18px;
+    width: 32px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: hsl(220, 5%, 28%);
+    letter-spacing: 0.02em;
+    text-align: center;
+    user-select: none;
+    line-height: 1;
+  }
+
+  .cell__number-num {
+    display: block;
+    margin-top: 3px;
+    font-size: 9px;
+    color: hsl(220, 5%, 22%);
   }
 
   .cell__tag {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -369,20 +477,31 @@
     margin-bottom: 10px;
   }
 
-  .cell__tag-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
+  .cell__tag-icon {
+    width: 14px;
+    height: 14px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cell__tag-icon svg {
+    width: 13px;
+    height: 13px;
   }
 
   /* ── Prose Cell ───────────────────────────────────────────────────── */
-  .cell--prose .cell__tag-dot { background: hsl(210, 60%, 55%); }
+  .cell--prose .cell__tag-icon { color: hsl(210, 60%, 55%); }
 
   .cell--prose p {
-    font-size: 13.5px;
-    line-height: 1.7;
+    font-size: 15px;
+    line-height: 1.65;
     color: var(--text-subtle);
+  }
+
+  .cell--prose p + p {
+    margin-top: 12px;
   }
 
   .cell--prose p strong {
@@ -392,15 +511,27 @@
 
   .cell--prose p code {
     font-family: var(--mono);
-    font-size: 12px;
-    padding: 1px 5px;
+    font-size: 12.5px;
+    padding: 2px 6px;
     background: var(--code-bg);
     border-radius: 3px;
     color: hsl(258, 60%, 72%);
   }
 
+  /* Interactive class name references in prose */
+  .class-ref {
+    cursor: pointer;
+    border-bottom: 1px dashed hsla(258, 78%, 64%, 0.35);
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .class-ref:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+
   /* ── Diagram Cell ─────────────────────────────────────────────────── */
-  .cell--diagram .cell__tag-dot { background: var(--primary); }
+  .cell--diagram .cell__tag-icon { color: var(--primary); }
 
   .cell__diagram-wrap {
     background: var(--bg);
@@ -421,10 +552,10 @@
     background: rgba(255,255,255,0.015);
   }
 
-  .cell--checkpoint .cell__tag-dot { background: hsl(38, 85%, 55%); }
+  .cell--checkpoint .cell__tag-icon { color: hsl(38, 85%, 55%); }
 
   .cell__question {
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text);
     margin-bottom: 12px;
@@ -443,11 +574,13 @@
     gap: 10px;
     padding: 10px 14px;
     background: var(--elevated);
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s;
     user-select: none;
+    position: relative;
+    overflow: hidden;
   }
 
   .cell__option:hover {
@@ -461,8 +594,23 @@
   }
 
   .cell__option--correct {
-    border-color: var(--success);
-    background: var(--success-dim);
+    border-color: var(--success) !important;
+    background: var(--success-dim) !important;
+  }
+
+  .cell__option--wrong {
+    border-color: var(--error) !important;
+    background: var(--error-dim) !important;
+    animation: shake 0.4s ease-in-out;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(-6px); }
+    30% { transform: translateX(5px); }
+    45% { transform: translateX(-4px); }
+    60% { transform: translateX(3px); }
+    75% { transform: translateX(-2px); }
   }
 
   .cell__option-letter {
@@ -477,7 +625,7 @@
     font-weight: 700;
     color: var(--text-muted);
     flex-shrink: 0;
-    transition: all 0.15s;
+    transition: all 0.2s;
   }
 
   .cell__option--selected .cell__option-letter {
@@ -490,11 +638,17 @@
     color: #fff;
   }
 
+  .cell__option--wrong .cell__option-letter {
+    background: var(--error);
+    color: #fff;
+  }
+
   .cell__option-text {
     font-family: var(--mono);
     font-size: 12.5px;
     color: var(--text-subtle);
     transition: color 0.15s;
+    flex: 1;
   }
 
   .cell__option--selected .cell__option-text,
@@ -502,17 +656,39 @@
     color: var(--text);
   }
 
+  /* Checkmark that slides into correct answer */
+  .cell__option-check {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    opacity: 0;
+    transform: translateX(10px) scale(0.5);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .cell__option--correct .cell__option-check {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    transition-delay: 0.15s;
+  }
+
   .cell__feedback {
-    margin-top: 10px;
-    padding: 8px 12px;
     border-radius: var(--radius-sm);
-    font-size: 12.5px;
-    line-height: 1.5;
-    display: none;
+    font-size: 13px;
+    line-height: 1.55;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.3s ease, margin-top 0.3s ease, padding 0.3s ease;
+    margin-top: 0;
+    padding: 0 14px;
   }
 
   .cell__feedback--visible {
-    display: block;
+    max-height: 120px;
+    opacity: 1;
+    margin-top: 10px;
+    padding: 10px 14px;
   }
 
   .cell__feedback--correct {
@@ -527,8 +703,38 @@
     border: 1px solid hsla(0, 65%, 50%, 0.15);
   }
 
+  .cell__feedback strong {
+    font-weight: 700;
+  }
+
+  .cell__feedback code {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: inherit;
+  }
+
+  .cell__feedback--correct code {
+    background: hsla(152, 65%, 48%, 0.15);
+  }
+
+  .cell__feedback--wrong code {
+    background: hsla(0, 65%, 50%, 0.15);
+  }
+
+  /* Checkpoint locked state after correct */
+  .cell--checkpoint--completed .cell__option {
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  .cell--checkpoint--completed .cell__option--correct {
+    opacity: 1;
+  }
+
   /* ── Code Cell ────────────────────────────────────────────────────── */
-  .cell--code .cell__tag-dot { background: hsl(170, 60%, 50%); }
+  .cell--code .cell__tag-icon { color: hsl(170, 60%, 50%); }
 
   .cell__code-wrap {
     background: var(--code-bg);
@@ -555,21 +761,40 @@
     letter-spacing: 0.06em;
   }
 
-  .cell__code-copy {
+  .cell__code-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .cell__code-btn {
     font-size: 10.5px;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 3px;
+    padding: 3px 8px;
+    border-radius: 4px;
     transition: all 0.15s;
     border: none;
     background: none;
     font-family: var(--font);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
 
-  .cell__code-copy:hover {
+  .cell__code-btn:hover {
     background: rgba(255,255,255,0.06);
     color: var(--text-subtle);
+  }
+
+  .cell__code-btn--run {
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  .cell__code-btn--run:hover {
+    background: hsla(152, 65%, 48%, 0.1);
+    color: var(--success);
   }
 
   .cell__code-block {
@@ -587,28 +812,59 @@
     white-space: pre;
   }
 
+  /* Code output area */
+  .cell__code-output {
+    border-top: 1px solid var(--border);
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+  }
+
+  .cell__code-output--visible {
+    padding: 10px 16px;
+    max-height: 120px;
+  }
+
+  .cell__code-output-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+
+  .cell__code-output-text {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--success);
+  }
+
   /* Syntax highlighting tokens */
-  .syn-kw  { color: hsl(258, 65%, 72%); }    /* keywords */
-  .syn-tp  { color: hsl(190, 65%, 62%); }    /* types */
-  .syn-fn  { color: hsl(210, 70%, 68%); }    /* functions */
-  .syn-str { color: hsl(152, 55%, 55%); }    /* strings */
-  .syn-cm  { color: hsl(220, 5%, 38%); font-style: italic; }  /* comments */
-  .syn-op  { color: hsl(220, 5%, 55%); }     /* operators */
-  .syn-nr  { color: hsl(38, 70%, 60%); }     /* numbers */
-  .syn-pr  { color: hsl(340, 60%, 65%); }    /* property */
-  .syn-pn  { color: var(--text-subtle); }     /* punctuation */
+  .syn-kw  { color: hsl(258, 65%, 72%); }
+  .syn-tp  { color: hsl(190, 65%, 62%); }
+  .syn-fn  { color: hsl(210, 70%, 68%); }
+  .syn-str { color: hsl(152, 55%, 55%); }
+  .syn-cm  { color: hsl(220, 5%, 38%); font-style: italic; }
+  .syn-op  { color: hsl(220, 5%, 55%); }
+  .syn-nr  { color: hsl(38, 70%, 60%); }
+  .syn-pr  { color: hsl(340, 60%, 65%); }
+  .syn-pn  { color: var(--text-subtle); }
 
   /* ── Summary Cell ─────────────────────────────────────────────────── */
   .cell--summary {
     border-left: 3px solid var(--success);
-    margin: 16px 20px;
+    margin: 16px 20px 16px 52px;
     padding: 14px 16px;
     background: var(--success-dim);
     border-radius: 0 var(--radius) var(--radius) 0;
     border-bottom: none;
   }
 
-  .cell--summary .cell__tag-dot { background: var(--success); }
+  .cell--summary .cell__tag-icon { color: var(--success); }
 
   .cell--summary .cell__summary-title {
     font-size: 12px;
@@ -620,9 +876,13 @@
   }
 
   .cell--summary p {
-    font-size: 13px;
+    font-size: 13.5px;
     line-height: 1.65;
     color: var(--text-subtle);
+  }
+
+  .cell--summary p + p {
+    margin-top: 8px;
   }
 
   .cell--summary p strong {
@@ -641,13 +901,13 @@
 
   .lesson__progress-bar {
     height: 100%;
-    width: 42%;
+    width: 14%;
     background: linear-gradient(90deg, var(--primary), hsl(258, 78%, 72%));
     border-radius: 2px;
     transition: width 0.4s ease;
   }
 
-  /* ── Inline SVG cell arrow marker ─────────────────────────────────── */
+  /* ── Mini UML styles for inline diagram cells ─────────────────────── */
   .mini-uml-box {
     fill: var(--elevated);
     stroke: rgba(255,255,255,0.15);
@@ -693,6 +953,51 @@
   .mini-uml-dashed {
     stroke-dasharray: 5 3;
   }
+
+  .mini-uml-divider {
+    stroke: rgba(255,255,255,0.06);
+    stroke-width: 1;
+  }
+
+  .mini-uml-header-divider {
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 1;
+  }
+
+  /* ── Scroll-to-top button ─────────────────────────────────────────── */
+  .scroll-top {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s, transform 0.25s, background 0.15s, color 0.15s;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  .scroll-top--visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .scroll-top:hover {
+    background: hsl(225, 7%, 18%);
+    color: var(--text);
+    border-color: rgba(255,255,255,0.18);
+  }
 </style>
 </head>
 <body>
@@ -712,7 +1017,7 @@
         <span class="header__pill-dot"></span>
         Observer Pattern
       </span>
-      <span class="header__pill">3 of 7 cells</span>
+      <span class="header__pill" id="cellCounter">1 of 7 cells</span>
     </span>
   </header>
 
@@ -730,8 +1035,8 @@
       <div class="sidebar__icon" title="Settings"><div class="sidebar__icon-circle"></div></div>
     </nav>
 
-    <!-- ── Center Canvas (full UML dimmed) ── -->
-    <main class="canvas">
+    <!-- ── Center Canvas (full UML diagram) ── -->
+    <main class="canvas" id="canvas">
       <div class="canvas__grid"></div>
       <div class="canvas__label">
         <svg class="canvas__label-icon" viewBox="0 0 14 14" fill="none">
@@ -742,76 +1047,90 @@
         Full diagram (passive reference)
       </div>
 
-      <svg class="canvas__diagram" width="680" height="480" viewBox="0 0 680 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Tooltip element -->
+      <div class="canvas__tooltip" id="canvasTooltip">
+        <div class="canvas__tooltip-label"></div>
+        <div class="canvas__tooltip-name"></div>
+      </div>
+
+      <svg class="canvas__diagram" width="760" height="480" viewBox="0 0 760 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- ═══ Relationship lines (behind the boxes) ═══ -->
+        <g class="uml-relationships" data-rel="all">
+          <!-- Subject ──> Observer (association) -->
+          <line class="uml-line" x1="250" y1="115" x2="370" y2="115"/>
+          <polygon class="uml-arrow" points="370,115 360,110 360,120"/>
+          <text x="290" y="108" style="font-family:var(--mono);font-size:10px;fill:hsl(220,5%,42%)">notifies</text>
+
+          <!-- ConcreteObserverA --|> Observer (implementation) -->
+          <line class="uml-line uml-dashed" x1="410" y1="310" x2="470" y2="160"/>
+          <polygon class="uml-arrow" points="470,160 463,170 477,170" style="fill:none;stroke:rgba(255,255,255,0.18);stroke-width:1.5"/>
+          <text x="410" y="240" style="font-family:var(--mono);font-size:9px;fill:hsl(220,5%,38%)">implements</text>
+
+          <!-- ConcreteObserverB --|> Observer (implementation) -->
+          <line class="uml-line uml-dashed" x1="620" y1="310" x2="510" y2="160"/>
+          <polygon class="uml-arrow" points="510,160 503,170 517,170" style="fill:none;stroke:rgba(255,255,255,0.18);stroke-width:1.5"/>
+          <text x="545" y="240" style="font-family:var(--mono);font-size:9px;fill:hsl(220,5%,38%)">implements</text>
+        </g>
+
         <!-- ═══ Subject ═══ -->
-        <rect class="uml-box" x="30" y="30" width="220" height="170"/>
-        <rect class="uml-header" x="30" y="30" width="220" height="38" rx="6" ry="6"/>
-        <!-- Clip bottom corners of header -->
-        <rect class="uml-header" x="30" y="50" width="220" height="18"/>
-        <line x1="30" y1="68" x2="250" y2="68" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-        <text class="uml-title" x="140" y="55" text-anchor="middle">Subject</text>
-        <text class="uml-member" x="44" y="88">- observers: Observer[]</text>
-        <line x1="30" y1="100" x2="250" y2="100" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-        <text class="uml-member" x="44" y="120">+ attach(o: Observer)</text>
-        <text class="uml-member" x="44" y="138">+ detach(o: Observer)</text>
-        <text class="uml-member" x="44" y="156">+ notify()</text>
-        <text class="uml-member" x="44" y="174">+ getState(): State</text>
-        <text class="uml-member" x="44" y="192">+ setState(s: State)</text>
+        <g class="uml-class-group" data-class="Subject">
+          <rect class="uml-box" x="30" y="30" width="220" height="170"/>
+          <rect class="uml-header-bar" x="30" y="30" width="220" height="38" rx="6" ry="6"/>
+          <rect class="uml-header-bar" x="30" y="50" width="220" height="18"/>
+          <line class="uml-header-divider" x1="30" y1="68" x2="250" y2="68"/>
+          <text class="uml-title" x="140" y="55" text-anchor="middle">Subject</text>
+          <text class="uml-member" x="44" y="88">- observers: Observer[]</text>
+          <line class="uml-divider" x1="30" y1="100" x2="250" y2="100"/>
+          <text class="uml-member" x="44" y="120">+ attach(o: Observer)</text>
+          <text class="uml-member" x="44" y="138">+ detach(o: Observer)</text>
+          <text class="uml-member" x="44" y="156">+ notify()</text>
+          <text class="uml-member" x="44" y="174">+ getState(): State</text>
+          <text class="uml-member" x="44" y="192">+ setState(s: State)</text>
+        </g>
 
         <!-- ═══ Observer (interface) ═══ -->
-        <rect class="uml-box" x="370" y="50" width="220" height="110"/>
-        <rect class="uml-header" x="370" y="50" width="220" height="44" rx="6" ry="6"/>
-        <rect class="uml-header" x="370" y="72" width="220" height="22"/>
-        <line x1="370" y1="94" x2="590" y2="94" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-        <text class="uml-stereo" x="480" y="70" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
-        <text class="uml-title" x="480" y="87" text-anchor="middle">Observer</text>
-        <text class="uml-member" x="384" y="118">+ update(subject: Subject)</text>
-        <text class="uml-member" x="384" y="136">+ getId(): string</text>
+        <g class="uml-class-group" data-class="Observer">
+          <rect class="uml-box" x="370" y="50" width="220" height="110"/>
+          <rect class="uml-header-bar" x="370" y="50" width="220" height="44" rx="6" ry="6"/>
+          <rect class="uml-header-bar" x="370" y="72" width="220" height="22"/>
+          <line class="uml-header-divider" x1="370" y1="94" x2="590" y2="94"/>
+          <text class="uml-stereo" x="480" y="70" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
+          <text class="uml-title" x="480" y="87" text-anchor="middle">Observer</text>
+          <text class="uml-member" x="384" y="118">+ update(subject: Subject)</text>
+          <text class="uml-member" x="384" y="136">+ getId(): string</text>
+        </g>
 
         <!-- ═══ ConcreteObserverA ═══ -->
-        <rect class="uml-box" x="310" y="310" width="200" height="120"/>
-        <rect class="uml-header" x="310" y="310" width="200" height="38" rx="6" ry="6"/>
-        <rect class="uml-header" x="310" y="330" width="200" height="18"/>
-        <line x1="310" y1="348" x2="510" y2="348" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-        <text class="uml-title" x="410" y="335" text-anchor="middle">ConcreteObserverA</text>
-        <text class="uml-member" x="324" y="370">- state: StateA</text>
-        <line x1="310" y1="380" x2="510" y2="380" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-        <text class="uml-member" x="324" y="400">+ update(s: Subject)</text>
-        <text class="uml-member" x="324" y="418">+ getId(): string</text>
+        <g class="uml-class-group" data-class="ConcreteObserverA">
+          <rect class="uml-box" x="310" y="310" width="200" height="120"/>
+          <rect class="uml-header-bar" x="310" y="310" width="200" height="38" rx="6" ry="6"/>
+          <rect class="uml-header-bar" x="310" y="330" width="200" height="18"/>
+          <line class="uml-header-divider" x1="310" y1="348" x2="510" y2="348"/>
+          <text class="uml-title" x="410" y="335" text-anchor="middle">ConcreteObserverA</text>
+          <text class="uml-member" x="324" y="370">- state: StateA</text>
+          <line class="uml-divider" x1="310" y1="380" x2="510" y2="380"/>
+          <text class="uml-member" x="324" y="400">+ update(s: Subject)</text>
+          <text class="uml-member" x="324" y="418">+ getId(): string</text>
+        </g>
 
         <!-- ═══ ConcreteObserverB ═══ -->
-        <rect class="uml-box" x="540" y="310" width="200" height="120"/>
-        <rect class="uml-header" x="540" y="310" width="200" height="38" rx="6" ry="6"/>
-        <rect class="uml-header" x="540" y="330" width="200" height="18"/>
-        <line x1="540" y1="348" x2="740" y2="348" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-        <text class="uml-title" x="640" y="335" text-anchor="middle">ConcreteObserverB</text>
-        <text class="uml-member" x="554" y="370">- state: StateB</text>
-        <line x1="540" y1="380" x2="740" y2="380" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-        <text class="uml-member" x="554" y="400">+ update(s: Subject)</text>
-        <text class="uml-member" x="554" y="418">+ getId(): string</text>
-
-        <!-- ═══ Relationships ═══ -->
-        <!-- Subject ──> Observer (association) -->
-        <line class="uml-line" x1="250" y1="115" x2="370" y2="115"/>
-        <polygon class="uml-arrow" points="370,115 360,110 360,120"/>
-
-        <!-- ConcreteObserverA --|> Observer (implementation) -->
-        <line class="uml-line uml-dashed" x1="410" y1="310" x2="470" y2="160"/>
-        <polygon class="uml-arrow" points="470,160 463,170 477,170" style="fill:none;stroke:rgba(255,255,255,0.18);stroke-width:1.5"/>
-
-        <!-- ConcreteObserverB --|> Observer (implementation) -->
-        <line class="uml-line uml-dashed" x1="620" y1="310" x2="510" y2="160"/>
-        <polygon class="uml-arrow" points="510,160 503,170 517,170" style="fill:none;stroke:rgba(255,255,255,0.18);stroke-width:1.5"/>
-
-        <!-- Relationship labels -->
-        <text x="305" y="108" style="font-family:var(--mono);font-size:10px;fill:hsl(220,5%,42%)">notifies</text>
-        <text x="396" y="240" style="font-family:var(--mono);font-size:9px;fill:hsl(220,5%,38%)">implements</text>
-        <text x="530" y="240" style="font-family:var(--mono);font-size:9px;fill:hsl(220,5%,38%)">implements</text>
+        <g class="uml-class-group" data-class="ConcreteObserverB">
+          <rect class="uml-box" x="540" y="310" width="200" height="120"/>
+          <rect class="uml-header-bar" x="540" y="310" width="200" height="38" rx="6" ry="6"/>
+          <rect class="uml-header-bar" x="540" y="330" width="200" height="18"/>
+          <line class="uml-header-divider" x1="540" y1="348" x2="740" y2="348"/>
+          <text class="uml-title" x="640" y="335" text-anchor="middle">ConcreteObserverB</text>
+          <text class="uml-member" x="554" y="370">- state: StateB</text>
+          <line class="uml-divider" x1="540" y1="380" x2="740" y2="380"/>
+          <text class="uml-member" x="554" y="400">+ update(s: Subject)</text>
+          <text class="uml-member" x="554" y="418">+ getId(): string</text>
+        </g>
       </svg>
     </main>
 
     <!-- ── Right Lesson Column ── -->
-    <aside class="lesson">
+    <aside class="lesson" style="position:relative;">
       <div class="lesson__head">
         <div class="lesson__kicker">Behavioral Pattern</div>
         <div class="lesson__heading">The Observer Pattern</div>
@@ -827,30 +1146,32 @@
           </span>
         </div>
         <div class="lesson__progress">
-          <div class="lesson__progress-bar"></div>
+          <div class="lesson__progress-bar" id="progressBar"></div>
         </div>
       </div>
 
-      <div class="lesson__scroll">
+      <div class="lesson__scroll" id="lessonScroll">
 
         <!-- ══════ Cell 1: Prose ══════ -->
-        <div class="cell cell--prose">
+        <div class="cell cell--prose" data-cell="1" data-highlights="Subject,Observer">
+          <div class="cell__number"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 8h12M2 13h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span class="cell__number-num">1</span></div>
           <div class="cell__tag">
-            <span class="cell__tag-dot"></span>
+            <span class="cell__tag-icon"><svg viewBox="0 0 16 16" fill="none"><path d="M3 2.5A1.5 1.5 0 014.5 1h7A1.5 1.5 0 0113 2.5v11a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" stroke-width="1.3"/><path d="M6 5h4M6 8h4M6 11h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span>
             Narrative
           </div>
           <p>
             Imagine you <strong>subscribe to a YouTube channel</strong>. Every time they upload a new video, you get notified automatically &mdash; you don't have to keep checking. That's the Observer pattern in a nutshell.
           </p>
-          <p style="margin-top:10px;">
-            The channel is the <strong>Subject</strong>. You (and every other subscriber) are <strong>Observers</strong>. The channel doesn't know or care <em>what</em> you do with the notification &mdash; it simply broadcasts. This decoupling is what makes the pattern so powerful in event-driven architectures.
+          <p>
+            The channel is the <strong class="class-ref" data-target="Subject">Subject</strong>. You (and every other subscriber) are <strong class="class-ref" data-target="Observer">Observers</strong>. The channel doesn't know or care <em>what</em> you do with the notification &mdash; it simply broadcasts. This decoupling is what makes the pattern so powerful in event-driven architectures.
           </p>
         </div>
 
         <!-- ══════ Cell 2: Diagram (Subject only) ══════ -->
-        <div class="cell cell--diagram">
+        <div class="cell cell--diagram" data-cell="2" data-highlights="Subject">
+          <div class="cell__number"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 8h12M2 13h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span class="cell__number-num">2</span></div>
           <div class="cell__tag">
-            <span class="cell__tag-dot"></span>
+            <span class="cell__tag-icon"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M7 4h2.5a1 1 0 011 1V9M4 7v2.5a1 1 0 001 1H9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span>
             Diagram &mdash; Subject
           </div>
           <div class="cell__diagram-wrap">
@@ -858,10 +1179,10 @@
               <rect class="mini-uml-box" x="10" y="10" width="200" height="140"/>
               <rect class="mini-uml-header" x="10" y="10" width="200" height="34" rx="4" ry="4"/>
               <rect class="mini-uml-header" x="10" y="30" width="200" height="14"/>
-              <line x1="10" y1="44" x2="210" y2="44" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+              <line class="mini-uml-header-divider" x1="10" y1="44" x2="210" y2="44"/>
               <text class="mini-uml-title" x="110" y="32" text-anchor="middle">Subject</text>
               <text class="mini-uml-member" x="22" y="62">- observers: Observer[]</text>
-              <line x1="10" y1="72" x2="210" y2="72" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+              <line class="mini-uml-divider" x1="10" y1="72" x2="210" y2="72"/>
               <text class="mini-uml-member" x="22" y="90">+ attach(o: Observer)</text>
               <text class="mini-uml-member" x="22" y="106">+ detach(o: Observer)</text>
               <text class="mini-uml-member" x="22" y="122">+ notify()</text>
@@ -871,23 +1192,25 @@
         </div>
 
         <!-- ══════ Cell 3: Prose ══════ -->
-        <div class="cell cell--prose">
+        <div class="cell cell--prose" data-cell="3" data-highlights="Subject,Observer">
+          <div class="cell__number"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 8h12M2 13h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span class="cell__number-num">3</span></div>
           <div class="cell__tag">
-            <span class="cell__tag-dot"></span>
+            <span class="cell__tag-icon"><svg viewBox="0 0 16 16" fill="none"><path d="M3 2.5A1.5 1.5 0 014.5 1h7A1.5 1.5 0 0113 2.5v11a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" stroke-width="1.3"/><path d="M6 5h4M6 8h4M6 11h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span>
             Explanation
           </div>
           <p>
-            The <strong>Subject</strong> maintains a list of observers and can <code>notify()</code> them all at once. It doesn't know their concrete types &mdash; only that they implement the <code>Observer</code> interface. This is the heart of <strong>loose coupling</strong>.
+            The <strong class="class-ref" data-target="Subject">Subject</strong> maintains a list of observers and can <code>notify()</code> them all at once. It doesn't know their concrete types &mdash; only that they implement the <strong class="class-ref" data-target="Observer">Observer</strong> interface. This is the heart of <strong>loose coupling</strong>.
           </p>
-          <p style="margin-top:10px;">
-            When state changes, the Subject iterates its observer list and calls <code>update()</code> on each one. Observers can <code>attach()</code> or <code>detach()</code> themselves at any time, making the relationship fully dynamic.
+          <p>
+            When state changes, the <strong class="class-ref" data-target="Subject">Subject</strong> iterates its observer list and calls <code>update()</code> on each one. Observers can <code>attach()</code> or <code>detach()</code> themselves at any time, making the relationship fully dynamic.
           </p>
         </div>
 
         <!-- ══════ Cell 4: Checkpoint ══════ -->
-        <div class="cell cell--checkpoint" id="checkpoint">
+        <div class="cell cell--checkpoint" id="checkpoint" data-cell="4" data-highlights="Subject">
+          <div class="cell__number"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 8h12M2 13h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span class="cell__number-num">4</span></div>
           <div class="cell__tag">
-            <span class="cell__tag-dot"></span>
+            <span class="cell__tag-icon"><svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.3"/><path d="M6 8.5l1.5 1.5L10.5 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             Checkpoint
           </div>
           <div class="cell__question">Which method is used to register a new observer with the Subject?</div>
@@ -895,32 +1218,37 @@
             <div class="cell__option" data-answer="correct" onclick="handleOption(this)">
               <span class="cell__option-letter">A</span>
               <span class="cell__option-text">attach(observer)</span>
+              <svg class="cell__option-check" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" fill="var(--success)"/><path d="M6 10.5l2.5 2.5L14 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="cell__option" data-answer="wrong" onclick="handleOption(this)">
               <span class="cell__option-letter">B</span>
               <span class="cell__option-text">detach(observer)</span>
+              <svg class="cell__option-check" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" fill="var(--success)"/><path d="M6 10.5l2.5 2.5L14 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="cell__option" data-answer="wrong" onclick="handleOption(this)">
               <span class="cell__option-letter">C</span>
               <span class="cell__option-text">notify()</span>
+              <svg class="cell__option-check" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" fill="var(--success)"/><path d="M6 10.5l2.5 2.5L14 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="cell__option" data-answer="wrong" onclick="handleOption(this)">
               <span class="cell__option-letter">D</span>
               <span class="cell__option-text">update(subject)</span>
+              <svg class="cell__option-check" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" fill="var(--success)"/><path d="M6 10.5l2.5 2.5L14 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
           </div>
           <div class="cell__feedback" id="feedback-correct">
-            Correct! <strong>attach()</strong> registers an observer so it receives future notifications.
+            <strong>Correct!</strong> The <code>attach()</code> method adds an observer to the Subject's internal list, ensuring it receives all future <code>notify()</code> broadcasts.
           </div>
           <div class="cell__feedback" id="feedback-wrong">
-            Not quite. <strong>detach</strong> removes, <strong>notify</strong> broadcasts, and <strong>update</strong> is called on the observer. Try again.
+            <strong>Not quite.</strong> <code>detach()</code> removes, <code>notify()</code> broadcasts, and <code>update()</code> is called <em>on</em> the observer. Try again!
           </div>
         </div>
 
         <!-- ══════ Cell 5: Diagram (Subject + Observer) ══════ -->
-        <div class="cell cell--diagram">
+        <div class="cell cell--diagram" data-cell="5" data-highlights="Subject,Observer">
+          <div class="cell__number"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 8h12M2 13h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span class="cell__number-num">5</span></div>
           <div class="cell__tag">
-            <span class="cell__tag-dot"></span>
+            <span class="cell__tag-icon"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M7 4h2.5a1 1 0 011 1V9M4 7v2.5a1 1 0 001 1H9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span>
             Diagram &mdash; Subject + Observer
           </div>
           <div class="cell__diagram-wrap">
@@ -929,10 +1257,10 @@
               <rect class="mini-uml-box" x="6" y="10" width="150" height="130"/>
               <rect class="mini-uml-header" x="6" y="10" width="150" height="32" rx="4" ry="4"/>
               <rect class="mini-uml-header" x="6" y="28" width="150" height="14"/>
-              <line x1="6" y1="42" x2="156" y2="42" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+              <line class="mini-uml-header-divider" x1="6" y1="42" x2="156" y2="42"/>
               <text class="mini-uml-title" x="81" y="30" text-anchor="middle">Subject</text>
               <text class="mini-uml-member" x="16" y="58">- observers[]</text>
-              <line x1="6" y1="66" x2="156" y2="66" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+              <line class="mini-uml-divider" x1="6" y1="66" x2="156" y2="66"/>
               <text class="mini-uml-member" x="16" y="82">+ attach()</text>
               <text class="mini-uml-member" x="16" y="96">+ detach()</text>
               <text class="mini-uml-member" x="16" y="110">+ notify()</text>
@@ -942,7 +1270,7 @@
               <rect class="mini-uml-box" x="190" y="20" width="144" height="100"/>
               <rect class="mini-uml-header" x="190" y="20" width="144" height="38" rx="4" ry="4"/>
               <rect class="mini-uml-header" x="190" y="40" width="144" height="18"/>
-              <line x1="190" y1="58" x2="334" y2="58" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+              <line class="mini-uml-header-divider" x1="190" y1="58" x2="334" y2="58"/>
               <text class="mini-uml-stereo" x="262" y="38" text-anchor="middle">&lt;&lt;interface&gt;&gt;</text>
               <text class="mini-uml-title" x="262" y="52" text-anchor="middle">Observer</text>
               <text class="mini-uml-member" x="200" y="78">+ update(subject)</text>
@@ -959,15 +1287,22 @@
         </div>
 
         <!-- ══════ Cell 6: Code ══════ -->
-        <div class="cell cell--code">
+        <div class="cell cell--code" data-cell="6" data-highlights="Subject,Observer" id="codeCell">
+          <div class="cell__number"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 8h12M2 13h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span class="cell__number-num">6</span></div>
           <div class="cell__tag">
-            <span class="cell__tag-dot"></span>
+            <span class="cell__tag-icon"><svg viewBox="0 0 16 16" fill="none"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             Implementation
           </div>
           <div class="cell__code-wrap">
             <div class="cell__code-toolbar">
               <span class="cell__code-lang">TypeScript</span>
-              <button class="cell__code-copy" onclick="this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
+              <div class="cell__code-actions">
+                <button class="cell__code-btn" id="copyBtn">Copy</button>
+                <button class="cell__code-btn cell__code-btn--run" id="runBtn">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
+                  Run
+                </button>
+              </div>
             </div>
             <div class="cell__code-block">
 <pre><span class="syn-kw">interface</span> <span class="syn-tp">Observer</span> <span class="syn-pn">{</span>
@@ -998,52 +1333,338 @@
   <span class="syn-pn">}</span>
 <span class="syn-pn">}</span></pre>
             </div>
+            <div class="cell__code-output" id="codeOutput">
+              <div class="cell__code-output-label">Output</div>
+              <div class="cell__code-output-text">
+Observer A received update: state = { temperature: 72 }<br/>
+Observer B received update: state = { temperature: 72 }<br/>
+<span style="color:var(--text-muted);">// Both observers notified successfully</span>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- ══════ Cell 7: Summary ══════ -->
-        <div class="cell cell--summary">
-          <div class="cell__summary-title">Key Takeaway</div>
+        <div class="cell cell--summary" data-cell="7" data-highlights="Subject,Observer,ConcreteObserverA,ConcreteObserverB">
+          <div class="cell__tag">
+            <span class="cell__tag-icon"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1l2 4.5 5 .7-3.6 3.5.85 5L8 12.3 3.75 14.7l.85-5L1 6.2l5-.7L8 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span>
+            Key Takeaway
+          </div>
+          <div class="cell__summary-title">Summary</div>
           <p>
-            The Observer pattern defines a <strong>one-to-many dependency</strong> between objects: when the Subject's state changes, all registered Observers are notified and updated automatically. This eliminates tight coupling and enables reactive, event-driven architectures.
+            The Observer pattern defines a <strong>one-to-many dependency</strong> between objects: when the <strong class="class-ref" data-target="Subject">Subject</strong>'s state changes, all registered <strong class="class-ref" data-target="Observer">Observers</strong> are notified and updated automatically. This eliminates tight coupling and enables reactive, event-driven architectures.
           </p>
-          <p style="margin-top:8px;">
+          <p>
             Use it when changes to one object must propagate to others <strong>without the sender knowing the receivers</strong>.
           </p>
         </div>
 
       </div><!-- /lesson__scroll -->
+
+      <!-- Scroll to top button -->
+      <button class="scroll-top" id="scrollTopBtn" aria-label="Scroll to top" title="Scroll to top">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4.5 7L8 3.5 11.5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </aside>
 
   </div><!-- /body -->
 </div><!-- /shell -->
 
 <script>
-  function handleOption(el) {
+(function () {
+  'use strict';
+
+  /* ────────────────────────────────────────────────────────────────────
+   * 1. CANVAS HIGHLIGHTING -- class groups react to scroll + hover
+   * ──────────────────────────────────────────────────────────────────── */
+  var classGroups = document.querySelectorAll('.uml-class-group');
+  var relGroup = document.querySelector('.uml-relationships');
+  var canvasEl = document.getElementById('canvas');
+  var tooltip = document.getElementById('canvasTooltip');
+  var tooltipLabel = tooltip.querySelector('.canvas__tooltip-label');
+  var tooltipName = tooltip.querySelector('.canvas__tooltip-name');
+
+  var CLASS_DESCRIPTIONS = {
+    'Subject': 'Maintains observers, broadcasts state changes',
+    'Observer': 'Interface that receives update notifications',
+    'ConcreteObserverA': 'Concrete implementation reacting to Subject',
+    'ConcreteObserverB': 'Concrete implementation reacting to Subject'
+  };
+
+  // Track which classes should be highlighted based on the current visible cell
+  var currentHighlights = [];
+
+  function highlightClasses(names) {
+    currentHighlights = names;
+    var hasAny = names.length > 0;
+
+    classGroups.forEach(function (g) {
+      var cls = g.getAttribute('data-class');
+      if (hasAny && names.indexOf(cls) !== -1) {
+        g.classList.add('uml-class-group--active');
+      } else {
+        g.classList.remove('uml-class-group--active');
+      }
+    });
+
+    if (relGroup) {
+      relGroup.classList.toggle('uml-relationships--bright', hasAny);
+    }
+  }
+
+  // Canvas hover tooltips
+  classGroups.forEach(function (g) {
+    g.addEventListener('mouseenter', function (e) {
+      var cls = g.getAttribute('data-class');
+      tooltipLabel.textContent = CLASS_DESCRIPTIONS[cls] || '';
+      tooltipName.textContent = cls;
+      tooltip.classList.add('canvas__tooltip--visible');
+      positionTooltip(e);
+
+      // On hover, temporarily highlight just this class
+      classGroups.forEach(function (other) {
+        if (other !== g) other.classList.remove('uml-class-group--active');
+      });
+      g.classList.add('uml-class-group--active');
+    });
+
+    g.addEventListener('mousemove', function (e) {
+      positionTooltip(e);
+    });
+
+    g.addEventListener('mouseleave', function () {
+      tooltip.classList.remove('canvas__tooltip--visible');
+      // Restore scroll-based highlights
+      highlightClasses(currentHighlights);
+    });
+  });
+
+  function positionTooltip(e) {
+    var rect = canvasEl.getBoundingClientRect();
+    var x = e.clientX - rect.left + 14;
+    var y = e.clientY - rect.top - 40;
+    // Keep within bounds
+    var tw = 240;
+    if (x + tw > rect.width) x = e.clientX - rect.left - tw - 10;
+    if (y < 8) y = 8;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  }
+
+  /* ────────────────────────────────────────────────────────────────────
+   * 2. CLASS-REF HOVER -- inline text spans highlight canvas classes
+   * ──────────────────────────────────────────────────────────────────── */
+  var classRefs = document.querySelectorAll('.class-ref');
+  classRefs.forEach(function (ref) {
+    ref.addEventListener('mouseenter', function () {
+      var target = ref.getAttribute('data-target');
+      if (target) {
+        highlightClasses([target]);
+      }
+    });
+    ref.addEventListener('mouseleave', function () {
+      // Restore the scroll-based highlights
+      highlightClasses(currentHighlights);
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────
+   * 3. INTERSECTION OBSERVER -- fade in cells + highlight canvas
+   * ──────────────────────────────────────────────────────────────────── */
+  var allCells = document.querySelectorAll('.cell[data-cell]');
+  var scrollContainer = document.getElementById('lessonScroll');
+  var progressBar = document.getElementById('progressBar');
+  var scrollTopBtn = document.getElementById('scrollTopBtn');
+  var cellCounterEl = document.getElementById('cellCounter');
+
+  // Track which cell is currently most visible
+  var visibleCells = {};
+  var maxVisibleCell = 0;
+  var currentBestCell = 0;
+
+  var cellObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var cell = entry.target;
+      var cellNum = parseInt(cell.getAttribute('data-cell'), 10);
+
+      // Fade in animation
+      if (entry.isIntersecting) {
+        cell.classList.add('cell--visible');
+        visibleCells[cellNum] = entry.intersectionRatio;
+      } else {
+        visibleCells[cellNum] = 0;
+      }
+    });
+
+    // Determine the most visible cell
+    var best = 0;
+    var bestRatio = 0;
+    for (var num in visibleCells) {
+      if (visibleCells[num] > bestRatio) {
+        bestRatio = visibleCells[num];
+        best = parseInt(num, 10);
+      }
+    }
+
+    currentBestCell = best;
+
+    // Track highest cell reached
+    if (best > maxVisibleCell) maxVisibleCell = best;
+
+    // Update canvas highlights based on cell data-highlights
+    if (best > 0) {
+      var activeCell = document.querySelector('.cell[data-cell="' + best + '"]');
+      if (activeCell) {
+        var highlights = activeCell.getAttribute('data-highlights');
+        highlightClasses(highlights ? highlights.split(',') : []);
+      }
+    }
+
+    // Update progress bar
+    var progress = Math.min(100, Math.round((maxVisibleCell / allCells.length) * 100));
+    progressBar.style.width = progress + '%';
+
+    // Update cell counter
+    cellCounterEl.textContent = best + ' of ' + allCells.length + ' cells';
+
+  }, {
+    root: scrollContainer,
+    threshold: [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+  });
+
+  allCells.forEach(function (cell) {
+    cellObserver.observe(cell);
+  });
+
+  /* ────────────────────────────────────────────────────────────────────
+   * 4. SCROLL-TO-TOP BUTTON -- show when scrolled past cell 3
+   * ──────────────────────────────────────────────────────────────────── */
+  var cell3 = document.querySelector('.cell[data-cell="3"]');
+
+  if (cell3) {
+    var scrollTopObserver = new IntersectionObserver(function (entries) {
+      // Show when cell 3 is above the viewport (scrolled past)
+      var entry = entries[0];
+      var isAbove = !entry.isIntersecting && entry.boundingClientRect.top < entry.rootBounds.top;
+      scrollTopBtn.classList.toggle('scroll-top--visible', isAbove);
+    }, {
+      root: scrollContainer,
+      threshold: 0
+    });
+    scrollTopObserver.observe(cell3);
+  }
+
+  scrollTopBtn.addEventListener('click', function () {
+    scrollContainer.scrollTo({ top: 0 });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────
+   * 5. CHECKPOINT INTERACTION -- correct/wrong with animations
+   * ──────────────────────────────────────────────────────────────────── */
+  window.handleOption = function (el) {
     var checkpoint = document.getElementById('checkpoint');
+
+    // If already completed, ignore clicks
+    if (checkpoint.classList.contains('cell--checkpoint--completed')) return;
+
     var options = checkpoint.querySelectorAll('.cell__option');
     var feedbackCorrect = document.getElementById('feedback-correct');
     var feedbackWrong = document.getElementById('feedback-wrong');
 
-    // Reset all
-    options.forEach(function(opt) {
-      opt.classList.remove('cell__option--selected', 'cell__option--correct');
-    });
-    feedbackCorrect.classList.remove('cell__feedback--visible');
-    feedbackCorrect.className = 'cell__feedback';
-    feedbackWrong.classList.remove('cell__feedback--visible');
-    feedbackWrong.className = 'cell__feedback';
-
     var isCorrect = el.getAttribute('data-answer') === 'correct';
 
     if (isCorrect) {
+      // Reset any wrong states first
+      options.forEach(function (opt) {
+        opt.classList.remove('cell__option--selected', 'cell__option--wrong');
+      });
+
       el.classList.add('cell__option--correct');
+
+      // Hide wrong feedback, show correct
+      feedbackWrong.classList.remove('cell__feedback--visible', 'cell__feedback--wrong');
       feedbackCorrect.classList.add('cell__feedback--visible', 'cell__feedback--correct');
+
+      // Lock the checkpoint
+      setTimeout(function () {
+        checkpoint.classList.add('cell--checkpoint--completed');
+      }, 600);
+
+      // Update progress
+      var prog = Math.min(100, Math.round(((maxVisibleCell + 0.5) / allCells.length) * 100));
+      progressBar.style.width = prog + '%';
+
     } else {
-      el.classList.add('cell__option--selected');
+      // Reset previous wrong state
+      options.forEach(function (opt) {
+        opt.classList.remove('cell__option--wrong');
+      });
+
+      // Force reflow so re-adding the class re-triggers animation
+      void el.offsetWidth;
+      el.classList.add('cell__option--wrong');
+
+      // Show wrong feedback
+      feedbackCorrect.classList.remove('cell__feedback--visible', 'cell__feedback--correct');
       feedbackWrong.classList.add('cell__feedback--visible', 'cell__feedback--wrong');
+
+      // Remove the wrong class after animation completes (allows re-shake)
+      setTimeout(function () {
+        el.classList.remove('cell__option--wrong');
+      }, 500);
     }
-  }
+  };
+
+  /* ────────────────────────────────────────────────────────────────────
+   * 6. CODE CELL -- copy + run buttons
+   * ──────────────────────────────────────────────────────────────────── */
+  var copyBtn = document.getElementById('copyBtn');
+  var runBtn = document.getElementById('runBtn');
+  var codeOutput = document.getElementById('codeOutput');
+
+  copyBtn.addEventListener('click', function () {
+    copyBtn.textContent = 'Copied!';
+    setTimeout(function () {
+      copyBtn.textContent = 'Copy';
+    }, 1500);
+  });
+
+  runBtn.addEventListener('click', function () {
+    // "Running" state -- swap text content only, no innerHTML
+    var svgIcon = runBtn.querySelector('svg');
+    var originalText = 'Run';
+    if (svgIcon) svgIcon.style.display = 'none';
+    runBtn.textContent = 'Running...';
+    runBtn.style.pointerEvents = 'none';
+
+    setTimeout(function () {
+      codeOutput.classList.add('cell__code-output--visible');
+      runBtn.textContent = '';
+      // Recreate the play icon with DOM methods
+      var ns = 'http://www.w3.org/2000/svg';
+      var newSvg = document.createElementNS(ns, 'svg');
+      newSvg.setAttribute('width', '10');
+      newSvg.setAttribute('height', '10');
+      newSvg.setAttribute('viewBox', '0 0 10 10');
+      newSvg.setAttribute('fill', 'currentColor');
+      var poly = document.createElementNS(ns, 'polygon');
+      poly.setAttribute('points', '2,1 9,5 2,9');
+      newSvg.appendChild(poly);
+      runBtn.appendChild(newSvg);
+      runBtn.appendChild(document.createTextNode(' Run'));
+      runBtn.style.pointerEvents = '';
+    }, 800);
+  });
+
+  /* ────────────────────────────────────────────────────────────────────
+   * 7. INITIAL STATE -- make first cell visible immediately
+   * ──────────────────────────────────────────────────────────────────── */
+  requestAnimationFrame(function () {
+    var first = document.querySelector('.cell[data-cell="1"]');
+    if (first) first.classList.add('cell--visible');
+  });
+
+})();
 </script>
 </body>
 </html>
