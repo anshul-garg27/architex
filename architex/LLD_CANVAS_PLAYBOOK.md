@@ -552,11 +552,123 @@ Status values must be: `backlog`, `ready`, `in-progress`, `done`, `blocked` (NOT
 
 ---
 
+## 21. Java Code Tab + Syntax Highlighting
+
+**Problem:** Code Sample section only had TypeScript and Python. Java was stored in a server-only seed file.
+
+**Solution:**
+- Extracted `JAVA_CODE` map (1812 lines, 36 patterns) to `src/lib/lld/java-code.ts` — client-safe module
+- `patterns.ts` imports and injects Java at runtime: `for (const p of DESIGN_PATTERNS) { const java = JAVA_CODE[p.id]; if (java) p.code.java = java; }`
+- `LLDProperties.tsx` adds conditional Java tab + `prism-react-renderer` Highlight component with `themes.nightOwl`
+- Seed file `java-code-gen.ts` re-exports from shared module, merges `code.java` into DB `module_content.content` JSONB
+
+**Key file:** `src/lib/lld/java-code.ts`
+
+**Gotcha:** Python f-strings inside JS template literals — `f"${amount:.2f}"` is parsed as a JS expression. Escape as `\${amount:.2f}`.
+
+---
+
+## 22. Dynamic Class Box Width (Content-Aware Sizing)
+
+**Problem:** Fixed `CLASS_BOX_WIDTH = 220px` caused text overflow for long method signatures like `attach(observer: Observer): void`.
+
+**Solution:** `classBoxWidth()` function in `constants.ts`:
+- Estimates text width: monospace 11px ≈ 6.6px per character
+- Computes max chars across class name, all attributes (`visibility name: type`), all methods (`visibility name(params): returnType`)
+- Returns `Math.max(CLASS_BOX_WIDTH, Math.ceil(maxChars * 6.6 + 24))`
+
+**Files updated:** Every file that used `CLASS_BOX_WIDTH` now calls `classBoxWidth(cls)`:
+- `LLDCanvas.tsx` — all rects, text anchors, handles, hit-tests, viewBox, connection drag
+- `Minimap.tsx` — bounds calculation, relationship line centers, class rect widths
+- `AlignmentToolbar.tsx` — align right, center horizontal, distribute horizontal
+- `PatternQuiz.tsx` — mini diagram viewBox and class boxes
+- `MermaidEditor.tsx` — preview class boxes and relationship lines
+
+---
+
+## 23. Design System v2 — Unified Color Palette
+
+**Research method:** 3 parallel agents analyzed Linear, Brilliant, LeetCode, Obsidian, Raycast, Excalidraw, BridgeMind with actual inspected CSS values.
+
+### Core Token Changes (`globals.css`)
+
+| Token | Before | After | Rationale |
+|-------|--------|-------|-----------|
+| Background hue/sat | 228° / 15% | **225° / 8%** | Near-neutral so 30+ viz colors render true |
+| Primary accent | 252° / 78% | **258° / 78%** | Pure violet, not "almost blue" |
+| `--primary-rgb` | **missing** | `120 62 232` | 62 glow shadows in 17 files were broken |
+| `--border` | `hsl(228 15% 16%)` | **`rgba(255,255,255, 0.10)`** | White-opacity adapts to all surface levels |
+| `--border-subtle/default/strong` | Fixed HSL | **`rgba` at 0.06/0.10/0.16** | Linear-tier polish |
+| Difficulty Easy | `hsl(152...)` green | **`hsl(172 80% 38%)` teal** | LeetCode recognition |
+| Canvas edges | 55% lightness | **32% lightness** | 3-tier visibility (Obsidian lesson) |
+| Gray scale saturation | 15% uniform | **8%→3% tapering** | Midrange grays most neutral |
+| Foreground text saturation | 10-14% | **5%** | Cleaner text, less blue cast |
+
+### New Tokens Added
+
+```css
+/* Warm amber for CTAs, progress, achievements (Brilliant-inspired) */
+--accent-warm: hsl(35 90% 55%);
+--accent-warm-hover: hsl(35 90% 48%);
+
+/* Learning state tokens for quiz/flashcard/walkthrough */
+--learn-correct / --learn-incorrect / --learn-hint / --learn-active / --learn-mastered
+/* Each with -bg and -border variants at correct opacity */
+```
+
+### Other Visual Fixes
+
+1. **Glassmorphism removed** from non-floating elements → solid `bg-elevated` in sidebar, properties, constants
+2. **Gradient text removed** from 34 section headers → solid `text-foreground-muted`
+3. **Canvas particles removed** — idle canvas = zero animation
+4. **SVG font** → `var(--font-geist-mono, monospace)` instead of bare `monospace`
+5. **Grid dots** → larger radius (1.0 vs 0.8), lighter source color at lower opacity
+6. **GLASS_* constants** updated in `constants.ts` to use solid backgrounds
+7. **Class box fill** → `--lld-class-fill` (distinct from canvas bg)
+
+### Design Principles Established
+
+- **Target personality:** "VS Code and Brilliant had a baby — technical but wants you to understand"
+- **Complexity level:** 6.5/10 (between Figma and Linear)
+- **3 text hierarchy levels only:** `--foreground`, `--foreground-subtle`, `--foreground-muted`
+- **Violet for interactive states**, warm amber for navigation CTAs
+- **Teal for Easy** difficulty (LeetCode alignment)
+- **3-tier edge visibility:** dim default → visible hover → bright selected
+
+---
+
+## 24. State Machine Simulator Layout Fix
+
+**Problem:** "AVAILABLE TRANSITIONS" panel at bottom was squeezed out — transition buttons invisible.
+
+**Root cause:** Flexbox chain without `min-h-0`. The canvas `flex-1` children have implicit `min-height: auto` which prevents shrinking. The sim panel at the bottom had zero visible height.
+
+**Fix in `useLLDModuleImpl.tsx`:**
+- Added `min-h-0` to THREE parent divs in the flex chain (lines 901, 905, 908)
+- Added `shrink-0` wrapper around SimTransitionPanel
+- Moved SimToast inside the canvas relative wrapper
+
+**Fix in `StateMachineCanvas.tsx`:**
+- Transition buttons: `bg-elevated border-border/30` → `bg-primary/10 border-primary/30` (visible purple tint)
+
+---
+
+## 25. Stale Closure Fix — Load Observer Button
+
+**Problem:** "Load Observer Pattern" CTA on empty canvas didn't work in API mode.
+
+**Root cause:** `handleLoadObserver` used `DESIGN_PATTERNS.find()` inside `useCallback` but `DESIGN_PATTERNS` wasn't in the dependency array. In API mode, the initial render captures an empty array (data still loading), and the callback never updates.
+
+**Fix:** Added `DESIGN_PATTERNS` to deps: `useCallback(() => { ... }, [DESIGN_PATTERNS, handleSelectPattern])`
+
+---
+
 ## Session Stats
 
-- **55+ commits** across two sessions
-- **Files created:** `dagre-layout.ts`, `astar-router.ts`, `pattern-enrichment.ts`, `problem-solutions.ts`, 3 task JSON files, `LLD_CANVAS_PLAYBOOK.md`
-- **Files modified:** `LLDCanvas.tsx`, `useLLDModuleImpl.tsx`, `LLDProperties.tsx`, `globals.css`, `constants.ts`, `Minimap.tsx`, `AlignmentToolbar.tsx`, `PatternQuiz.tsx`, `MermaidEditor.tsx`, `WalkthroughPlayer.tsx`, `AutoGrader.tsx`, `DailyChallenge.tsx`, `SOLIDViolationSpotter.tsx`, `InterviewPrepTab.tsx`, `ContextualBottomTabs.tsx`, `use-content.ts`, `seeds/lld.ts`, `patterns.ts`, `problems.ts`, `types.ts`, `index.ts`, `package.json`
-- **Libraries added:** `@dagrejs/dagre`, `prism-react-renderer` (Java grammar)
-- **Content added:** 28,377 lines of reference solutions + enrichment data
+- **60+ commits** across three sessions
+- **Files created:** `dagre-layout.ts`, `astar-router.ts`, `pattern-enrichment.ts`, `problem-solutions.ts`, `java-code.ts`, 3 task JSON files, `LLD_CANVAS_PLAYBOOK.md`
+- **Files modified:** `LLDCanvas.tsx`, `useLLDModuleImpl.tsx`, `LLDProperties.tsx`, `globals.css`, `constants.ts`, `Minimap.tsx`, `AlignmentToolbar.tsx`, `PatternQuiz.tsx`, `MermaidEditor.tsx`, `WalkthroughPlayer.tsx`, `AutoGrader.tsx`, `DailyChallenge.tsx`, `SOLIDViolationSpotter.tsx`, `InterviewPrepTab.tsx`, `ContextualBottomTabs.tsx`, `use-content.ts`, `seeds/lld.ts`, `seeds/java-code-gen.ts`, `patterns.ts`, `problems.ts`, `types.ts`, `index.ts`, `LLDSidebar.tsx`, `StateMachineCanvas.tsx`, `package.json`
+- **Libraries added:** `@dagrejs/dagre`, `prism-react-renderer`
+- **Content added:** 28,377 lines of reference solutions + 1,812 lines of Java code samples
 - **Diagrams upgraded:** 79 (36 patterns + 33 problems + 10 SOLID demos)
+- **Design system:** 3-agent research audit → unified palette with 50+ token changes, 15 new tokens
