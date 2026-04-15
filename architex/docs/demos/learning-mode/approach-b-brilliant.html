@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Approach B: Brilliant-Style Full Takeover</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
   /* ── Reset ── */
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -23,9 +21,12 @@
     --primary-bg2: hsla(258, 78%, 64%, 0.18);
     --border:      rgba(255,255,255,0.10);
     --border-light:rgba(255,255,255,0.06);
-    --success:     hsl(152, 60%, 48%);
-    --success-bg:  hsla(152, 60%, 48%, 0.12);
-    --font:        'Inter', 'Geist Sans', system-ui, -apple-system, sans-serif;
+    --success:     hsl(152, 65%, 48%);
+    --success-bg:  hsla(152, 65%, 48%, 0.12);
+    --error:       hsl(0, 65%, 58%);
+    --error-bg:    hsla(0, 65%, 58%, 0.12);
+    --font:        system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono:        'SF Mono', ui-monospace, 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
     --radius:      14px;
     --radius-sm:   10px;
     --radius-xs:   6px;
@@ -90,11 +91,11 @@
   }
   .progress-bar-fill {
     height: 100%;
-    width: 60%;
+    width: 33.3%;
     background: linear-gradient(90deg, var(--primary-dim), var(--primary));
     border-radius: 0 3px 3px 0;
     position: relative;
-    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .progress-bar-fill::after {
     content: '';
@@ -134,6 +135,11 @@
     letter-spacing: 0.5px;
     text-transform: uppercase;
   }
+  .lesson-step-counter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
   .lesson-step-badge {
     font-size: 11px;
     font-weight: 600;
@@ -142,6 +148,20 @@
     padding: 4px 12px;
     border-radius: 20px;
     letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+  }
+  .lesson-card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+    transition: opacity 0.3s ease;
+  }
+
+  /* ── Slide Container ── */
+  .slide-container {
+    position: relative;
+    overflow: hidden;
   }
 
   /* ── Card Body: Two-Column Layout ── */
@@ -150,7 +170,38 @@
     grid-template-columns: 1fr 1fr;
     gap: 0;
     padding: 24px 32px 20px;
-    min-height: 420px;
+    min-height: 440px;
+    transition: opacity 0.1s ease;
+  }
+
+  .card-body.slide-out-left {
+    animation: slideOutLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .card-body.slide-in-right {
+    animation: slideInRight 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .card-body.slide-out-right {
+    animation: slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .card-body.slide-in-left {
+    animation: slideInLeft 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes slideOutLeft {
+    from { transform: translateX(0); opacity: 1; }
+    to   { transform: translateX(-60px); opacity: 0; }
+  }
+  @keyframes slideInRight {
+    from { transform: translateX(60px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOutRight {
+    from { transform: translateX(0); opacity: 1; }
+    to   { transform: translateX(60px); opacity: 0; }
+  }
+  @keyframes slideInLeft {
+    from { transform: translateX(-60px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
   }
 
   /* ── Left: Diagram Area ── */
@@ -160,10 +211,25 @@
     justify-content: center;
     padding: 16px 24px 16px 0;
     border-right: 1px solid var(--border-light);
+    position: relative;
+  }
+  .diagram-area::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 45%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle, hsla(258, 78%, 64%, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+    border-radius: 50%;
   }
   .diagram-svg-wrap {
     width: 100%;
     max-width: 440px;
+    position: relative;
+    z-index: 1;
   }
 
   /* SVG styling */
@@ -181,24 +247,32 @@
     stroke: rgba(255,255,255,0.18);
   }
   .cls-concrete {
-    fill: hsla(152, 60%, 48%, 0.05);
-    stroke: hsla(152, 60%, 48%, 0.3);
+    fill: hsla(152, 65%, 48%, 0.05);
+    stroke: hsla(152, 65%, 48%, 0.3);
+  }
+  .cls-error-box {
+    fill: hsla(0, 65%, 58%, 0.06);
+    stroke: hsla(0, 65%, 58%, 0.35);
+  }
+  .cls-tangled {
+    fill: hsla(220, 5%, 90%, 0.03);
+    stroke: rgba(255,255,255,0.12);
   }
   .cls-name {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: system-ui, -apple-system, sans-serif;
     font-size: 13px;
     font-weight: 700;
     fill: var(--text);
   }
   .cls-stereotype {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: system-ui, -apple-system, sans-serif;
     font-size: 9.5px;
     font-weight: 500;
     fill: var(--text-muted);
     letter-spacing: 0.5px;
   }
   .cls-member {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-family: var(--mono);
     font-size: 10.5px;
     fill: var(--text-muted);
   }
@@ -243,6 +317,16 @@
     animation: glowPulse 2.5s ease-in-out infinite;
   }
 
+  /* SVG entrance stagger */
+  .svg-stagger { opacity: 0; }
+  .svg-stagger.animate-in {
+    animation: svgFadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  @keyframes svgFadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   /* ── Right: Prompt + Interactive ── */
   .prompt-area {
     padding: 16px 0 16px 32px;
@@ -259,18 +343,26 @@
   }
   .prompt-text {
     font-size: 14.5px;
-    line-height: 1.7;
+    line-height: 1.75;
     color: hsl(220, 5%, 72%);
     margin-bottom: 28px;
   }
   .prompt-text code {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-family: var(--mono);
     font-size: 13px;
     background: var(--primary-bg);
     color: var(--primary);
     padding: 2px 7px;
     border-radius: 5px;
     font-weight: 500;
+  }
+  .prompt-text .highlight-error {
+    color: var(--error);
+    font-weight: 600;
+  }
+  .prompt-text .highlight-success {
+    color: var(--success);
+    font-weight: 600;
   }
 
   /* ── Multiple Choice Cards ── */
@@ -298,12 +390,17 @@
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
+    user-select: none;
   }
-  .mc-option:hover {
+  .mc-option:hover:not(.correct):not(.wrong):not(.disabled) {
     border-color: rgba(255,255,255,0.18);
     background: hsl(225, 7%, 15%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  }
+  .mc-option:active:not(.correct):not(.wrong):not(.disabled) {
+    transform: translateY(0px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   }
   .mc-option.selected {
     border-color: var(--primary);
@@ -313,7 +410,23 @@
   .mc-option.correct {
     border-color: var(--success);
     background: var(--success-bg);
-    box-shadow: 0 0 0 1px var(--success);
+    box-shadow: 0 0 0 1px var(--success), 0 4px 20px hsla(152, 65%, 48%, 0.15);
+    cursor: default;
+  }
+  .mc-option.wrong {
+    border-color: var(--error);
+    background: var(--error-bg);
+    box-shadow: 0 0 0 1px var(--error);
+  }
+  .mc-option.wrong .mc-letter {
+    background: var(--error);
+    color: white;
+    border-color: var(--error);
+  }
+  .mc-option.disabled {
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
   }
   .mc-letter {
     width: 26px; height: 26px;
@@ -344,27 +457,93 @@
     color: var(--text);
     line-height: 1.4;
     font-weight: 500;
+    flex: 1;
   }
   .mc-option.correct .mc-option-text {
     color: var(--success);
   }
+  .mc-option.wrong .mc-option-text {
+    color: var(--error);
+  }
+  .mc-checkmark {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .mc-option.correct .mc-checkmark {
+    opacity: 1;
+  }
 
-  /* ── Correct banner ── */
-  .correct-banner {
-    display: none;
+  /* ── Feedback Banners ── */
+  .feedback-banner {
+    display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 14px;
-    padding: 10px 16px;
-    background: var(--success-bg);
-    border: 1px solid hsla(152, 60%, 48%, 0.2);
+    margin-top: 0;
+    padding: 0 16px;
     border-radius: var(--radius-xs);
     font-size: 13px;
     font-weight: 600;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+    max-height: 0;
+    overflow: hidden;
+  }
+  .feedback-banner.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    max-height: 60px;
+    margin-top: 14px;
+    padding: 10px 16px;
+  }
+  .feedback-banner.success-banner {
+    background: var(--success-bg);
+    border: 1px solid hsla(152, 65%, 48%, 0.25);
     color: var(--success);
   }
-  .correct-banner.show {
-    display: flex;
+  .feedback-banner.error-banner {
+    background: var(--error-bg);
+    border: 1px solid hsla(0, 65%, 58%, 0.25);
+    color: var(--error);
+  }
+
+  /* ── Shake animation ── */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(-5px); }
+    30% { transform: translateX(5px); }
+    45% { transform: translateX(-4px); }
+    60% { transform: translateX(4px); }
+    75% { transform: translateX(-2px); }
+    90% { transform: translateX(2px); }
+  }
+  .mc-option.shaking {
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  }
+
+  /* ── Green flash ── */
+  @keyframes greenFlash {
+    0% { box-shadow: 0 0 0 0 hsla(152, 65%, 48%, 0.4); }
+    50% { box-shadow: 0 0 0 8px hsla(152, 65%, 48%, 0); }
+    100% { box-shadow: 0 0 0 1px var(--success), 0 4px 20px hsla(152, 65%, 48%, 0.15); }
+  }
+  .mc-option.correct-flash {
+    animation: greenFlash 0.6s ease-out;
+  }
+
+  /* ── Red flash ── */
+  @keyframes redFlash {
+    0% { box-shadow: 0 0 0 0 hsla(0, 65%, 58%, 0.4); }
+    50% { box-shadow: 0 0 0 6px hsla(0, 65%, 58%, 0); }
+    100% { box-shadow: 0 0 0 1px var(--error); }
+  }
+  .mc-option.red-flash {
+    animation: redFlash 0.4s ease-out;
   }
 
   /* ── Bottom Bar: Dots + Nav Buttons ── */
@@ -390,18 +569,26 @@
     cursor: pointer;
     transition: all 0.2s ease;
     user-select: none;
+    outline: none;
   }
-  .nav-btn:hover {
+  .nav-btn:hover:not(:disabled) {
     border-color: rgba(255,255,255,0.2);
     color: var(--text);
     background: hsl(225, 7%, 15%);
+  }
+  .nav-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .nav-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
   .nav-btn.primary-btn {
     background: var(--primary);
     border-color: var(--primary);
     color: white;
   }
-  .nav-btn.primary-btn:hover {
+  .nav-btn.primary-btn:hover:not(:disabled) {
     background: hsl(258, 78%, 58%);
     border-color: hsl(258, 78%, 58%);
     box-shadow: 0 4px 20px hsla(258, 78%, 64%, 0.3);
@@ -421,8 +608,12 @@
     width: 8px; height: 8px;
     border-radius: 50%;
     background: rgba(255,255,255,0.08);
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     position: relative;
+    cursor: pointer;
+  }
+  .dot:hover {
+    background: rgba(255,255,255,0.15);
   }
   .dot.completed {
     background: var(--primary-dim);
@@ -437,7 +628,7 @@
   /* ── Filmstrip Thumbnails ── */
   .filmstrip {
     max-width: 1160px;
-    margin: 0 auto 48px;
+    margin: 0 auto 20px;
     padding: 0 24px;
   }
   .filmstrip-label {
@@ -454,30 +645,33 @@
     justify-content: center;
   }
   .thumb {
-    width: 120px;
-    height: 78px;
+    width: 160px;
+    height: 96px;
     border-radius: var(--radius-sm);
     background: var(--surface);
     border: 1.5px solid var(--border);
     overflow: hidden;
     position: relative;
     cursor: pointer;
-    transition: all 0.25s ease;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     flex-shrink: 0;
   }
-  .thumb:hover {
+  .thumb:hover:not(.active) {
     border-color: rgba(255,255,255,0.18);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(0,0,0,0.3);
   }
   .thumb.active {
     border-color: var(--primary);
-    box-shadow: 0 0 0 1px var(--primary), 0 6px 24px hsla(258, 78%, 64%, 0.15);
+    box-shadow:
+      0 0 0 1px var(--primary),
+      0 0 20px hsla(258, 78%, 64%, 0.2),
+      0 6px 24px hsla(258, 78%, 64%, 0.12);
   }
   .thumb-inner {
     width: 100%;
     height: 100%;
-    padding: 8px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -492,6 +686,7 @@
     height: 100%;
     border-radius: 1px;
     background: var(--primary-dim);
+    transition: width 0.5s ease;
   }
   .thumb-cols {
     display: grid;
@@ -505,6 +700,7 @@
     border: 1px solid rgba(255,255,255,0.04);
     position: relative;
     overflow: hidden;
+    transition: border-color 0.3s ease;
   }
   .thumb-col-line {
     height: 2px;
@@ -518,15 +714,41 @@
     margin: 5px auto 0;
     border-radius: 2px;
     border: 1px solid rgba(255,255,255,0.08);
+    transition: border-color 0.3s ease;
   }
-  .thumb-step {
-    font-size: 8px;
-    font-weight: 700;
+  .thumb-title {
+    font-size: 9px;
+    font-weight: 600;
     color: var(--text-muted);
     text-align: center;
     margin-top: auto;
     padding-top: 2px;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    transition: color 0.3s ease;
+  }
+  .thumb.active .thumb-title {
+    color: var(--primary);
+  }
+
+  /* Keyboard nav hint */
+  .keyboard-hint {
+    text-align: center;
+    padding: 0 24px 32px;
+    font-size: 11px;
+    color: var(--text-muted);
+    opacity: 0.5;
+    letter-spacing: 0.3px;
+  }
+  .keyboard-hint kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--font);
+    font-size: 10px;
+    font-weight: 600;
+    margin: 0 1px;
   }
 
   /* ── Responsive ── */
@@ -554,7 +776,7 @@
 
   @media (max-width: 560px) {
     .filmstrip-row { gap: 8px; }
-    .thumb { width: 100px; height: 66px; }
+    .thumb { width: 120px; height: 78px; }
   }
 </style>
 </head>
@@ -575,7 +797,7 @@
 
     <!-- Progress Bar -->
     <div class="progress-bar-track">
-      <div class="progress-bar-fill"></div>
+      <div class="progress-bar-fill" id="progressFill"></div>
     </div>
 
     <!-- Lesson Label -->
@@ -589,166 +811,28 @@
         </div>
         <span class="lesson-title-sm">Observer Pattern</span>
       </div>
-      <span class="lesson-step-badge">Step 5 of 10</span>
+      <div class="lesson-step-counter">
+        <span class="lesson-card-title" id="cardTitleLabel"></span>
+        <span class="lesson-step-badge" id="stepBadge"></span>
+      </div>
     </div>
 
-    <!-- Card Body -->
-    <div class="card-body">
-
-      <!-- LEFT: Diagram -->
-      <div class="diagram-area">
-        <div class="diagram-svg-wrap">
-          <svg viewBox="0 0 420 320" width="100%" height="100%">
-            <defs>
-              <!-- Glow filter for Subject -->
-              <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="6" result="blur"/>
-                <feFlood flood-color="hsl(258,78%,64%)" flood-opacity="0.25" result="color"/>
-                <feComposite in="color" in2="blur" operator="in" result="glow"/>
-                <feMerge>
-                  <feMergeNode in="glow"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-              <!-- Arrowhead (filled, violet) -->
-              <marker id="arrowViolet" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" class="arrow-head"/>
-              </marker>
-              <!-- Arrowhead (hollow, implementation) -->
-              <marker id="arrowHollow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-                <polygon points="0 0, 10 4, 0 8" class="arrow-head-hollow"/>
-              </marker>
-            </defs>
-
-            <!-- ══════ Subject Class ══════ -->
-            <g class="glow-pulse">
-              <rect x="20" y="20" width="170" height="140" class="cls-box cls-subject" rx="10" ry="10"/>
-            </g>
-            <!-- Header -->
-            <text x="105" y="48" text-anchor="middle" class="cls-stereotype">class</text>
-            <text x="105" y="66" text-anchor="middle" class="cls-name">Subject</text>
-            <line x1="30" y1="78" x2="180" y2="78" class="cls-divider"/>
-            <!-- Members -->
-            <text x="36" y="98" class="cls-member">- observers: List</text>
-            <line x1="30" y1="108" x2="180" y2="108" class="cls-divider"/>
-            <text x="36" y="128" class="cls-member">+ attach(o: Observer)</text>
-            <text x="36" y="144" class="cls-member">+ detach(o: Observer)</text>
-            <text x="36" y="156" class="cls-member" style="fill: var(--primary);">+ notify()</text>
-
-            <!-- ══════ Observer Interface ══════ -->
-            <rect x="230" y="20" width="170" height="100" class="cls-box cls-observer" rx="10" ry="10"/>
-            <text x="315" y="48" text-anchor="middle" class="cls-stereotype">&laquo;interface&raquo;</text>
-            <text x="315" y="66" text-anchor="middle" class="cls-name">Observer</text>
-            <line x1="240" y1="78" x2="390" y2="78" class="cls-divider"/>
-            <text x="246" y="98" class="cls-member">+ update(state: any)</text>
-            <text x="246" y="114" class="cls-member" style="fill: var(--text-muted); opacity: 0.5;">// called by notify()</text>
-
-            <!-- ══════ Animated relationship arrow: Subject -> Observer ══════ -->
-            <path d="M 190 65 L 222 65"
-                  class="arrow-line arrow-animated"
-                  marker-end="url(#arrowViolet)"/>
-            <!-- Label -->
-            <text x="206" y="56" text-anchor="middle"
-                  style="font-size:9px; fill:var(--primary); font-weight:600; font-family:'Inter',sans-serif;">notifies</text>
-
-            <!-- ══════ ConcreteObserverA ══════ -->
-            <rect x="230" y="168" width="170" height="90" class="cls-box cls-concrete" rx="10" ry="10"/>
-            <text x="315" y="196" text-anchor="middle" class="cls-stereotype">class</text>
-            <text x="315" y="212" text-anchor="middle" class="cls-name" style="fill:hsl(152,60%,70%);">ConcreteObserver</text>
-            <line x1="240" y1="222" x2="390" y2="222" class="cls-divider"/>
-            <text x="246" y="242" class="cls-member">+ update(state: any)</text>
-
-            <!-- Implementation arrow: ConcreteObserver -> Observer -->
-            <path d="M 315 168 L 315 128"
-                  class="arrow-solid"
-                  marker-end="url(#arrowHollow)"/>
-            <text x="328" y="150" style="font-size:9px; fill:var(--text-muted); font-family:'Inter',sans-serif; opacity:0.6;">implements</text>
-
-            <!-- ══════ State change "spark" decoration ══════ -->
-            <g opacity="0.5">
-              <circle cx="40" cy="185" r="2" fill="var(--primary)">
-                <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="56" cy="192" r="1.5" fill="var(--primary)">
-                <animate attributeName="opacity" values="0.5;1;0.5" dur="2.4s" repeatCount="indefinite"/>
-              </circle>
-              <circle cx="48" cy="200" r="1" fill="var(--primary)">
-                <animate attributeName="opacity" values="0.4;1;0.4" dur="1.8s" repeatCount="indefinite"/>
-              </circle>
-            </g>
-
-            <!-- ══════ Caption below Subject ══════ -->
-            <text x="105" y="186" text-anchor="middle"
-                  style="font-size:10px; fill:var(--text-muted); font-family:'Inter',sans-serif; font-weight:500;">
-              Maintains observer list
-            </text>
-            <text x="105" y="200" text-anchor="middle"
-                  style="font-size:10px; fill:var(--primary); font-family:'Inter',sans-serif; font-weight:600; opacity:0.7;">
-              calls notify() on change
-            </text>
-          </svg>
-        </div>
-      </div>
-
-      <!-- RIGHT: Prompt + Interactive -->
-      <div class="prompt-area">
-        <h2 class="prompt-heading">How Does the Subject Notify?</h2>
-        <p class="prompt-text">
-          The Subject maintains a list of observers. When its state changes, it calls
-          <code>notify()</code> which iterates through the list and calls
-          <code>update()</code> on each observer.
-        </p>
-
-        <div class="mc-label">Check your understanding</div>
-        <div class="mc-options">
-          <div class="mc-option" data-correct="false" onclick="selectOption(this)">
-            <span class="mc-letter">A</span>
-            <span class="mc-option-text">The Subject creates a new Observer instance</span>
-          </div>
-          <div class="mc-option" data-correct="true" onclick="selectOption(this)">
-            <span class="mc-letter">B</span>
-            <span class="mc-option-text">It gets added to the Subject's internal observers list</span>
-          </div>
-          <div class="mc-option" data-correct="false" onclick="selectOption(this)">
-            <span class="mc-letter">C</span>
-            <span class="mc-option-text">The Observer immediately receives all previous state changes</span>
-          </div>
-          <div class="mc-option" data-correct="false" onclick="selectOption(this)">
-            <span class="mc-letter">D</span>
-            <span class="mc-option-text">notify() is called automatically for the new Observer</span>
-          </div>
-        </div>
-
-        <div class="correct-banner" id="correctBanner">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="7" stroke="hsl(152,60%,48%)" stroke-width="1.5"/>
-            <path d="M5 8L7 10L11 6" stroke="hsl(152,60%,48%)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Correct! The observer is simply appended to the subject's list.</span>
-        </div>
-      </div>
+    <!-- Slide Container -->
+    <div class="slide-container" id="slideContainer">
+      <!-- Card content rendered by JS -->
     </div>
 
     <!-- Footer: Dots + Nav -->
     <div class="card-footer">
-      <button class="nav-btn" onclick="void(0)">
+      <button class="nav-btn" id="prevBtn" aria-label="Previous card">
         <span class="nav-arrow">&larr;</span> Previous
       </button>
 
-      <div class="progress-dots">
-        <div class="dot completed"></div>
-        <div class="dot completed"></div>
-        <div class="dot completed"></div>
-        <div class="dot completed"></div>
-        <div class="dot current"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
+      <div class="progress-dots" id="progressDots">
+        <!-- Dots rendered by JS -->
       </div>
 
-      <button class="nav-btn primary-btn" onclick="void(0)">
+      <button class="nav-btn primary-btn" id="nextBtn" aria-label="Next card">
         Next <span class="nav-arrow">&rarr;</span>
       </button>
     </div>
@@ -757,133 +841,715 @@
 
 <!-- Filmstrip Thumbnails -->
 <div class="filmstrip">
-  <div class="filmstrip-label">Lesson Steps</div>
-  <div class="filmstrip-row">
-
-    <!-- Step 3 -->
-    <div class="thumb" title="Step 3 - What is an Observer?">
-      <div class="thumb-inner">
-        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:30%"></div></div>
-        <div class="thumb-cols">
-          <div class="thumb-col">
-            <div class="thumb-col-box" style="border-color:rgba(255,255,255,0.08);"></div>
-          </div>
-          <div class="thumb-col">
-            <div class="thumb-col-line"></div>
-            <div class="thumb-col-line" style="width:60%"></div>
-          </div>
-        </div>
-        <div class="thumb-step">Step 3</div>
-      </div>
-    </div>
-
-    <!-- Step 4 -->
-    <div class="thumb" title="Step 4 - The Subject's Role">
-      <div class="thumb-inner">
-        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:40%"></div></div>
-        <div class="thumb-cols">
-          <div class="thumb-col">
-            <div class="thumb-col-box" style="border-color:hsla(258,78%,64%,0.3);"></div>
-          </div>
-          <div class="thumb-col">
-            <div class="thumb-col-line"></div>
-            <div class="thumb-col-line" style="width:50%"></div>
-            <div class="thumb-col-line" style="width:70%"></div>
-          </div>
-        </div>
-        <div class="thumb-step">Step 4</div>
-      </div>
-    </div>
-
-    <!-- Step 5 (Current) -->
-    <div class="thumb active" title="Step 5 - How Notify Works (current)">
-      <div class="thumb-inner">
-        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:60%"></div></div>
-        <div class="thumb-cols">
-          <div class="thumb-col" style="border-color:hsla(258,78%,64%,0.15);">
-            <div class="thumb-col-box" style="border-color:hsla(258,78%,64%,0.3);"></div>
-            <div class="thumb-col-box" style="border-color:rgba(255,255,255,0.1); width:50%; margin-top:3px;"></div>
-          </div>
-          <div class="thumb-col">
-            <div class="thumb-col-line"></div>
-            <div class="thumb-col-line" style="width:55%"></div>
-          </div>
-        </div>
-        <div class="thumb-step" style="color:var(--primary);">Step 5</div>
-      </div>
-    </div>
-
-    <!-- Step 6 -->
-    <div class="thumb" title="Step 6 - Concrete Observers">
-      <div class="thumb-inner">
-        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:0%"></div></div>
-        <div class="thumb-cols">
-          <div class="thumb-col">
-            <div class="thumb-col-box" style="border-color:rgba(255,255,255,0.06);"></div>
-            <div class="thumb-col-box" style="border-color:hsla(152,60%,48%,0.2); width:50%; margin-top:3px;"></div>
-          </div>
-          <div class="thumb-col">
-            <div class="thumb-col-line" style="opacity:0.4;"></div>
-            <div class="thumb-col-line" style="width:65%; opacity:0.4;"></div>
-          </div>
-        </div>
-        <div class="thumb-step">Step 6</div>
-      </div>
-    </div>
-
-    <!-- Step 7 -->
-    <div class="thumb" title="Step 7 - Detach and Cleanup">
-      <div class="thumb-inner">
-        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:0%"></div></div>
-        <div class="thumb-cols">
-          <div class="thumb-col">
-            <div class="thumb-col-box" style="border-color:rgba(255,255,255,0.05);"></div>
-          </div>
-          <div class="thumb-col">
-            <div class="thumb-col-line" style="opacity:0.3;"></div>
-          </div>
-        </div>
-        <div class="thumb-step">Step 7</div>
-      </div>
-    </div>
-
+  <div class="filmstrip-label">Lesson Cards</div>
+  <div class="filmstrip-row" id="filmstripRow">
+    <!-- Thumbnails rendered by JS -->
   </div>
 </div>
 
+<div class="keyboard-hint">
+  <kbd>&larr;</kbd> <kbd>&rarr;</kbd> to navigate
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TEMPLATES - hidden, cloned by JS (no innerHTML needed)
+     ═══════════════════════════════════════════════════════════ -->
+
+<!-- Card 1: The Problem -->
+<template id="tpl-card-0">
+  <div class="card-body" id="cardBody">
+    <div class="diagram-area">
+      <div class="diagram-svg-wrap">
+        <svg viewBox="0 0 420 340" width="100%" height="100%">
+          <defs>
+            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" result="blur"/>
+              <feFlood flood-color="hsl(258,78%,64%)" flood-opacity="0.25" result="color"/>
+              <feComposite in="color" in2="blur" operator="in" result="glow"/>
+              <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- DataStore (center sender) -->
+          <g class="svg-stagger" data-delay="0">
+            <rect x="130" y="12" width="160" height="70" class="cls-box cls-error-box" rx="10" ry="10"/>
+            <text x="210" y="38" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="210" y="56" text-anchor="middle" class="cls-name" style="fill:hsl(0,65%,72%);">DataStore</text>
+            <line x1="140" y1="62" x2="280" y2="62" class="cls-divider"/>
+            <text x="146" y="76" class="cls-member" style="fill:hsl(0,65%,60%);">// knows every consumer</text>
+          </g>
+
+          <!-- Direct dep arrows -->
+          <g class="svg-stagger" data-delay="300">
+            <line x1="160" y1="82" x2="62" y2="140" stroke="hsl(0,65%,50%)" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.7"/>
+            <line x1="210" y1="82" x2="210" y2="140" stroke="hsl(0,65%,50%)" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.7"/>
+            <line x1="260" y1="82" x2="358" y2="140" stroke="hsl(0,65%,50%)" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.7"/>
+          </g>
+
+          <!-- Dashboard -->
+          <g class="svg-stagger" data-delay="150">
+            <rect x="6" y="140" width="112" height="56" class="cls-box cls-tangled" rx="8" ry="8"/>
+            <text x="62" y="163" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="62" y="179" text-anchor="middle" class="cls-name" style="font-size:11.5px;">Dashboard</text>
+          </g>
+
+          <!-- Logger -->
+          <g class="svg-stagger" data-delay="250">
+            <rect x="154" y="140" width="112" height="56" class="cls-box cls-tangled" rx="8" ry="8"/>
+            <text x="210" y="163" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="210" y="179" text-anchor="middle" class="cls-name" style="font-size:11.5px;">Logger</text>
+          </g>
+
+          <!-- AlertService -->
+          <g class="svg-stagger" data-delay="350">
+            <rect x="302" y="140" width="112" height="56" class="cls-box cls-tangled" rx="8" ry="8"/>
+            <text x="358" y="163" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="358" y="179" text-anchor="middle" class="cls-name" style="font-size:11.5px;">AlertService</text>
+          </g>
+
+          <!-- NEW class with ? -->
+          <g class="svg-stagger" data-delay="500">
+            <rect x="88" y="230" width="104" height="52" class="cls-box" rx="8" ry="8"
+                  fill="hsla(0,65%,58%,0.04)" stroke="hsla(0,65%,58%,0.2)" stroke-dasharray="5,4"/>
+            <text x="140" y="262" text-anchor="middle" style="font-size:13px; fill:hsl(0,65%,65%); font-weight:700; font-family:system-ui;">???</text>
+          </g>
+
+          <!-- Dashed arrow to new class -->
+          <g class="svg-stagger" data-delay="550">
+            <line x1="175" y1="82" x2="140" y2="230" stroke="hsl(0,65%,50%)" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+            <text x="145" y="218" style="font-size:9.5px; fill:hsl(0,65%,60%); font-family:system-ui; font-weight:600;">edit DataStore?</text>
+          </g>
+
+          <!-- Big X -->
+          <g class="svg-stagger" data-delay="650">
+            <line x1="40" y1="100" x2="380" y2="200" stroke="hsl(0,65%,55%)" stroke-width="2.5" opacity="0.25"/>
+            <line x1="380" y1="100" x2="40" y2="200" stroke="hsl(0,65%,55%)" stroke-width="2.5" opacity="0.25"/>
+          </g>
+
+          <!-- Label -->
+          <g class="svg-stagger" data-delay="700">
+            <text x="295" y="260" text-anchor="middle" style="font-size:11px; fill:var(--text-muted); font-family:system-ui; font-weight:600;">Every new consumer =</text>
+            <text x="295" y="276" text-anchor="middle" style="font-size:11px; fill:hsl(0,65%,65%); font-family:system-ui; font-weight:700;">modify the sender</text>
+          </g>
+
+          <!-- Warning sparks -->
+          <circle cx="185" cy="110" r="2" fill="hsl(0,65%,58%)" opacity="0.5">
+            <animate attributeName="opacity" values="0.2;0.7;0.2" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="240" cy="115" r="1.5" fill="hsl(0,65%,58%)" opacity="0.5">
+            <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+      </div>
+    </div>
+
+    <div class="prompt-area">
+      <h2 class="prompt-heading">Tight Coupling is a Trap</h2>
+      <p class="prompt-text">
+        When one object needs to notify many others about state changes, naive
+        code creates <span class="highlight-error">direct dependencies</span> between them.
+        Every new listener means editing the sender class. Adding a
+        <code>Dashboard</code>? Edit the sender. Adding a <code>Logger</code>? Edit
+        the sender again. The sender knows too much about its consumers, and every
+        change risks breaking something else.
+      </p>
+    </div>
+  </div>
+</template>
+
+<!-- Card 2: The Insight -->
+<template id="tpl-card-1">
+  <div class="card-body" id="cardBody">
+    <div class="diagram-area">
+      <div class="diagram-svg-wrap">
+        <svg viewBox="0 0 420 340" width="100%" height="100%">
+          <defs>
+            <filter id="glow2" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" result="blur"/>
+              <feFlood flood-color="hsl(258,78%,64%)" flood-opacity="0.25" result="color"/>
+              <feComposite in="color" in2="blur" operator="in" result="glow"/>
+              <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <marker id="arrowV2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="var(--primary)"/>
+            </marker>
+            <marker id="arrowH2" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+              <polygon points="0 0, 10 4, 0 8" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+            </marker>
+          </defs>
+
+          <!-- Subject box -->
+          <g class="svg-stagger" data-delay="0">
+            <g class="glow-pulse">
+              <rect x="16" y="20" width="170" height="110" class="cls-box cls-subject" rx="10" ry="10" filter="url(#glow2)"/>
+            </g>
+            <text x="101" y="46" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="101" y="63" text-anchor="middle" class="cls-name">Subject</text>
+            <line x1="26" y1="72" x2="176" y2="72" class="cls-divider"/>
+            <text x="32" y="90" class="cls-member">- observers: List</text>
+            <line x1="26" y1="98" x2="176" y2="98" class="cls-divider"/>
+            <text x="32" y="116" class="cls-member" style="fill:var(--primary);">+ attach(o) / detach(o)</text>
+          </g>
+
+          <!-- Observer interface -->
+          <g class="svg-stagger" data-delay="200">
+            <rect x="234" y="20" width="170" height="82" class="cls-box cls-observer" rx="10" ry="10"/>
+            <text x="319" y="44" text-anchor="middle" class="cls-stereotype">&laquo;interface&raquo;</text>
+            <text x="319" y="62" text-anchor="middle" class="cls-name">Observer</text>
+            <line x1="244" y1="72" x2="394" y2="72" class="cls-divider"/>
+            <text x="250" y="92" class="cls-member">+ update(state)</text>
+          </g>
+
+          <!-- Animated notify arrow -->
+          <g class="svg-stagger" data-delay="400">
+            <path d="M 186 55 L 226 55" class="arrow-line arrow-animated" marker-end="url(#arrowV2)"/>
+            <text x="206" y="47" text-anchor="middle" style="font-size:9px; fill:var(--primary); font-weight:600; font-family:system-ui;">notifies</text>
+          </g>
+
+          <!-- Dashboard -->
+          <g class="svg-stagger" data-delay="500">
+            <rect x="195" y="152" width="120" height="52" class="cls-box cls-concrete" rx="8" ry="8"/>
+            <text x="255" y="175" text-anchor="middle" class="cls-name" style="font-size:11px; fill:hsl(152,65%,70%);">Dashboard</text>
+            <line x1="205" y1="181" x2="305" y2="181" class="cls-divider"/>
+            <text x="211" y="196" class="cls-member" style="font-size:9.5px;">+ update(state)</text>
+          </g>
+
+          <!-- Logger -->
+          <g class="svg-stagger" data-delay="600">
+            <rect x="195" y="218" width="120" height="52" class="cls-box cls-concrete" rx="8" ry="8"/>
+            <text x="255" y="241" text-anchor="middle" class="cls-name" style="font-size:11px; fill:hsl(152,65%,70%);">Logger</text>
+            <line x1="205" y1="247" x2="305" y2="247" class="cls-divider"/>
+            <text x="211" y="262" class="cls-member" style="font-size:9.5px;">+ update(state)</text>
+          </g>
+
+          <!-- Implementation arrows -->
+          <g class="svg-stagger" data-delay="700">
+            <path d="M 310 152 L 319 110" class="arrow-solid" marker-end="url(#arrowH2)"/>
+            <path d="M 310 218 L 319 110" class="arrow-solid" marker-end="url(#arrowH2)"/>
+            <text x="340" y="145" style="font-size:8.5px; fill:var(--text-muted); font-family:system-ui; opacity:0.6;">implements</text>
+          </g>
+
+          <!-- New class (no edit needed!) -->
+          <g class="svg-stagger" data-delay="850">
+            <rect x="195" y="284" width="120" height="44" class="cls-box" rx="8" ry="8"
+                  fill="hsla(152,65%,48%,0.06)" stroke="hsla(152,65%,48%,0.3)" stroke-dasharray="5,3"/>
+            <text x="255" y="310" text-anchor="middle" style="font-size:11px; fill:hsl(152,65%,60%); font-weight:700; font-family:system-ui;">+ NewListener</text>
+            <path d="M 310 284 L 319 110" class="arrow-solid" stroke-dasharray="4,3" opacity="0.4" marker-end="url(#arrowH2)"/>
+          </g>
+
+          <!-- Callout -->
+          <g class="svg-stagger" data-delay="900">
+            <text x="86" y="165" text-anchor="middle" style="font-size:10px; fill:var(--text-muted); font-family:system-ui; font-weight:500;">Subject never</text>
+            <text x="86" y="180" text-anchor="middle" style="font-size:10px; fill:var(--primary); font-family:system-ui; font-weight:600;">changes</text>
+          </g>
+
+          <!-- Sparkle dots -->
+          <circle cx="190" cy="60" r="1.5" fill="var(--primary)" opacity="0.4">
+            <animate attributeName="opacity" values="0.2;0.8;0.2" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="230" cy="52" r="1" fill="var(--primary)" opacity="0.3">
+            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2.5s" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+      </div>
+    </div>
+
+    <div class="prompt-area">
+      <h2 class="prompt-heading">Invert the Dependency</h2>
+      <p class="prompt-text">
+        Instead of the sender knowing its consumers, introduce an
+        <code>Observer</code> interface. The sender (now called
+        <span class="highlight-success">Subject</span>) only knows the interface,
+        never the concrete classes. Consumers <em>register themselves</em> by
+        calling <code>attach()</code>. When state changes, the Subject calls
+        <code>notify()</code> and each registered observer gets an
+        <code>update()</code> call. New listener? Just implement the interface
+        and attach. <span class="highlight-success">Zero edits to the Subject.</span>
+      </p>
+    </div>
+  </div>
+</template>
+
+<!-- Card 3: Check Understanding (Quiz) -->
+<template id="tpl-card-2">
+  <div class="card-body" id="cardBody">
+    <div class="diagram-area">
+      <div class="diagram-svg-wrap">
+        <svg viewBox="0 0 420 340" width="100%" height="100%">
+          <defs>
+            <filter id="glow3" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" result="blur"/>
+              <feFlood flood-color="hsl(258,78%,64%)" flood-opacity="0.25" result="color"/>
+              <feComposite in="color" in2="blur" operator="in" result="glow"/>
+              <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <marker id="arrowV3" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="var(--primary)"/>
+            </marker>
+            <marker id="arrowH3" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+              <polygon points="0 0, 10 4, 0 8" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
+            </marker>
+          </defs>
+
+          <!-- Subject -->
+          <g class="svg-stagger" data-delay="0">
+            <g class="glow-pulse">
+              <rect x="20" y="16" width="170" height="140" class="cls-box cls-subject" rx="10" ry="10" filter="url(#glow3)"/>
+            </g>
+            <text x="105" y="42" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="105" y="60" text-anchor="middle" class="cls-name">Subject</text>
+            <line x1="30" y1="70" x2="180" y2="70" class="cls-divider"/>
+            <text x="36" y="90" class="cls-member">- observers: List</text>
+            <line x1="30" y1="100" x2="180" y2="100" class="cls-divider"/>
+            <text x="36" y="118" class="cls-member">+ attach(o: Observer)</text>
+            <text x="36" y="134" class="cls-member">+ detach(o: Observer)</text>
+            <text x="36" y="150" class="cls-member" style="fill: var(--primary);">+ notify()</text>
+          </g>
+
+          <!-- Observer interface -->
+          <g class="svg-stagger" data-delay="200">
+            <rect x="234" y="16" width="170" height="100" class="cls-box cls-observer" rx="10" ry="10"/>
+            <text x="319" y="42" text-anchor="middle" class="cls-stereotype">&laquo;interface&raquo;</text>
+            <text x="319" y="60" text-anchor="middle" class="cls-name">Observer</text>
+            <line x1="244" y1="70" x2="394" y2="70" class="cls-divider"/>
+            <text x="250" y="90" class="cls-member">+ update(state: any)</text>
+            <text x="250" y="106" class="cls-member" style="fill: var(--text-muted); opacity: 0.5;">// called by notify()</text>
+          </g>
+
+          <!-- Animated arrow Subject -> Observer -->
+          <g class="svg-stagger" data-delay="350">
+            <path d="M 190 55 L 226 55" class="arrow-line arrow-animated" marker-end="url(#arrowV3)"/>
+            <text x="208" y="47" text-anchor="middle" style="font-size:9px; fill:var(--primary); font-weight:600; font-family:system-ui;">notifies</text>
+          </g>
+
+          <!-- ConcreteObserverA -->
+          <g class="svg-stagger" data-delay="450">
+            <rect x="234" y="160" width="170" height="72" class="cls-box cls-concrete" rx="10" ry="10"/>
+            <text x="319" y="184" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="319" y="200" text-anchor="middle" class="cls-name" style="fill:hsl(152,65%,70%);">ConcreteObserverA</text>
+            <line x1="244" y1="210" x2="394" y2="210" class="cls-divider"/>
+            <text x="250" y="226" class="cls-member">+ update(state: any)</text>
+          </g>
+
+          <!-- ConcreteObserverB -->
+          <g class="svg-stagger" data-delay="550">
+            <rect x="234" y="248" width="170" height="72" class="cls-box cls-concrete" rx="10" ry="10"/>
+            <text x="319" y="272" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="319" y="288" text-anchor="middle" class="cls-name" style="fill:hsl(152,65%,70%);">ConcreteObserverB</text>
+            <line x1="244" y1="298" x2="394" y2="298" class="cls-divider"/>
+            <text x="250" y="314" class="cls-member">+ update(state: any)</text>
+          </g>
+
+          <!-- Implementation arrows -->
+          <g class="svg-stagger" data-delay="650">
+            <path d="M 319 160 L 319 124" class="arrow-solid" marker-end="url(#arrowH3)"/>
+            <text x="340" y="145" style="font-size:8.5px; fill:var(--text-muted); font-family:system-ui; opacity:0.6;">implements</text>
+            <path d="M 319 248 L 319 124" class="arrow-solid" marker-end="url(#arrowH3)"/>
+          </g>
+
+          <!-- Captions -->
+          <g class="svg-stagger" data-delay="700">
+            <text x="105" y="182" text-anchor="middle" style="font-size:10px; fill:var(--text-muted); font-family:system-ui; font-weight:500;">Maintains observer list</text>
+            <text x="105" y="198" text-anchor="middle" style="font-size:10px; fill:var(--primary); font-family:system-ui; font-weight:600; opacity:0.8;">calls notify() on change</text>
+          </g>
+
+          <!-- Sparkle dots -->
+          <g opacity="0.5">
+            <circle cx="40" cy="180" r="2" fill="var(--primary)">
+              <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="56" cy="210" r="1.5" fill="var(--primary)">
+              <animate attributeName="opacity" values="0.5;1;0.5" dur="2.4s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="48" cy="224" r="1" fill="var(--primary)">
+              <animate attributeName="opacity" values="0.4;1;0.4" dur="1.8s" repeatCount="indefinite"/>
+            </circle>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="prompt-area">
+      <h2 class="prompt-heading">How Does the Subject Notify?</h2>
+      <p class="prompt-text">
+        The Subject maintains a list of observers. When its internal state changes,
+        it calls <code>notify()</code> which iterates through the list and calls
+        <code>update()</code> on each registered observer. The Subject never needs
+        to know what type each observer actually is.
+      </p>
+
+      <div class="mc-label">Check your understanding</div>
+      <div class="mc-options">
+        <div class="mc-option" data-correct="false" role="button" tabindex="0" aria-label="Option A">
+          <span class="mc-letter">A</span>
+          <span class="mc-option-text">The Subject directly calls methods on each concrete class</span>
+          <svg class="mc-checkmark" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="hsl(152,65%,48%)" stroke-width="1.5"/><path d="M6 10L9 13L14 7" stroke="hsl(152,65%,48%)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="mc-option" data-correct="true" role="button" tabindex="0" aria-label="Option B">
+          <span class="mc-letter">B</span>
+          <span class="mc-option-text">It iterates the observer list and calls update() on each</span>
+          <svg class="mc-checkmark" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="hsl(152,65%,48%)" stroke-width="1.5"/><path d="M6 10L9 13L14 7" stroke="hsl(152,65%,48%)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="mc-option" data-correct="false" role="button" tabindex="0" aria-label="Option C">
+          <span class="mc-letter">C</span>
+          <span class="mc-option-text">The Observer polls the Subject for changes on a timer</span>
+          <svg class="mc-checkmark" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="hsl(152,65%,48%)" stroke-width="1.5"/><path d="M6 10L9 13L14 7" stroke="hsl(152,65%,48%)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="mc-option" data-correct="false" role="button" tabindex="0" aria-label="Option D">
+          <span class="mc-letter">D</span>
+          <span class="mc-option-text">A mediator object routes messages between them</span>
+          <svg class="mc-checkmark" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="hsl(152,65%,48%)" stroke-width="1.5"/><path d="M6 10L9 13L14 7" stroke="hsl(152,65%,48%)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <div class="feedback-banner success-banner" id="successBanner">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="hsl(152,65%,48%)" stroke-width="1.5"/>
+          <path d="M5 8L7 10L11 6" stroke="hsl(152,65%,48%)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Correct! The Subject loops through its observer list and calls update() on each one.</span>
+      </div>
+      <div class="feedback-banner error-banner" id="errorBanner">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="hsl(0,65%,58%)" stroke-width="1.5"/>
+          <path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="hsl(0,65%,58%)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>Not quite. Think about what notify() actually does with the observer list.</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Filmstrip Thumbnail Template -->
+<template id="tpl-thumb">
+  <div class="thumb">
+    <div class="thumb-inner">
+      <div class="thumb-bar"><div class="thumb-bar-fill"></div></div>
+      <div class="thumb-cols">
+        <div class="thumb-col">
+          <div class="thumb-col-box"></div>
+        </div>
+        <div class="thumb-col">
+          <div class="thumb-col-line"></div>
+          <div class="thumb-col-line" style="width:60%"></div>
+        </div>
+      </div>
+      <div class="thumb-title"></div>
+    </div>
+  </div>
+</template>
+
 <script>
-  function selectOption(el) {
-    // Clear previous selections
-    document.querySelectorAll('.mc-option').forEach(opt => {
-      opt.classList.remove('selected', 'correct');
-    });
+(function() {
+  'use strict';
 
-    const isCorrect = el.getAttribute('data-correct') === 'true';
+  /* ================================================================
+   *  Card metadata (titles, progress, thumb info)
+   * ================================================================ */
+  var CARDS = [
+    { title: 'The Problem',         stepLabel: '1 of 3', progress: 33.3, thumbLabel: 'The Problem',  thumbAccent: 'hsl(0,65%,58%)'   },
+    { title: 'The Insight',         stepLabel: '2 of 3', progress: 66.6, thumbLabel: 'The Insight',  thumbAccent: 'var(--primary)'    },
+    { title: 'Check Understanding', stepLabel: '3 of 3', progress: 100,  thumbLabel: 'Quiz',         thumbAccent: 'hsl(152,65%,48%)' }
+  ];
 
-    if (isCorrect) {
-      el.classList.add('correct');
-      document.getElementById('correctBanner').classList.add('show');
+  var TOTAL = CARDS.length;
+
+  /* ── State ── */
+  var currentCard = 0;
+  var isTransitioning = false;
+  var quizAnswered = false;
+  var autoAdvanceTimer = null;
+
+  /* ── DOM refs ── */
+  var slideContainer = document.getElementById('slideContainer');
+  var progressFill   = document.getElementById('progressFill');
+  var stepBadge      = document.getElementById('stepBadge');
+  var cardTitleLabel = document.getElementById('cardTitleLabel');
+  var progressDots   = document.getElementById('progressDots');
+  var filmstripRow   = document.getElementById('filmstripRow');
+  var prevBtn        = document.getElementById('prevBtn');
+  var nextBtn        = document.getElementById('nextBtn');
+
+  /* ================================================================
+   *  Render card from <template> (safe DOM cloning, no innerHTML)
+   * ================================================================ */
+  function renderCard(index, direction) {
+    var card = CARDS[index];
+
+    // Update header
+    stepBadge.textContent = card.stepLabel;
+    cardTitleLabel.textContent = card.title;
+
+    // Update progress bar
+    progressFill.style.width = card.progress + '%';
+
+    // Update dots
+    renderDots(index);
+
+    // Update filmstrip
+    updateFilmstrip(index);
+
+    // Update nav buttons
+    prevBtn.disabled = (index === 0);
+    if (index === TOTAL - 1) {
+      nextBtn.textContent = '';
+      var finishText = document.createTextNode('Finish ');
+      var finishArrow = document.createElement('span');
+      finishArrow.className = 'nav-arrow';
+      finishArrow.textContent = '\u2713';
+      nextBtn.appendChild(finishText);
+      nextBtn.appendChild(finishArrow);
     } else {
-      el.classList.add('selected');
-      document.getElementById('correctBanner').classList.remove('show');
+      nextBtn.textContent = '';
+      var nextText = document.createTextNode('Next ');
+      var nextArrow = document.createElement('span');
+      nextArrow.className = 'nav-arrow';
+      nextArrow.textContent = '\u2192';
+      nextBtn.appendChild(nextText);
+      nextBtn.appendChild(nextArrow);
+    }
 
-      // Shake animation for wrong answer
-      el.style.animation = 'shake 0.4s ease';
-      setTimeout(() => { el.style.animation = ''; }, 400);
+    // Clone from template
+    var tpl = document.getElementById('tpl-card-' + index);
+    var newContent = tpl.content.cloneNode(true);
+    var newBody = newContent.querySelector('.card-body');
+
+    if (direction === 'none') {
+      // Clear and insert
+      while (slideContainer.firstChild) slideContainer.removeChild(slideContainer.firstChild);
+      slideContainer.appendChild(newContent);
+      bindQuizEvents();
+      animateSVGEntrance();
+      isTransitioning = false;
+      return;
+    }
+
+    var oldBody = document.getElementById('cardBody');
+    if (oldBody) {
+      var outClass = direction === 'next' ? 'slide-out-left' : 'slide-out-right';
+      oldBody.classList.add(outClass);
+
+      oldBody.addEventListener('animationend', function handler() {
+        oldBody.removeEventListener('animationend', handler);
+        // Remove old
+        while (slideContainer.firstChild) slideContainer.removeChild(slideContainer.firstChild);
+        // Insert new with entrance animation
+        var inClass = direction === 'next' ? 'slide-in-right' : 'slide-in-left';
+        slideContainer.appendChild(newContent);
+        var insertedBody = document.getElementById('cardBody');
+        insertedBody.classList.add(inClass);
+        insertedBody.addEventListener('animationend', function h2() {
+          insertedBody.removeEventListener('animationend', h2);
+          insertedBody.classList.remove(inClass);
+          isTransitioning = false;
+        });
+        bindQuizEvents();
+        animateSVGEntrance();
+      });
+    } else {
+      while (slideContainer.firstChild) slideContainer.removeChild(slideContainer.firstChild);
+      slideContainer.appendChild(newContent);
+      bindQuizEvents();
+      animateSVGEntrance();
+      isTransitioning = false;
     }
   }
 
-  // Inject shake keyframes
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20% { transform: translateX(-4px); }
-      40% { transform: translateX(4px); }
-      60% { transform: translateX(-3px); }
-      80% { transform: translateX(2px); }
+  /* ================================================================
+   *  Progress dots
+   * ================================================================ */
+  function renderDots(index) {
+    while (progressDots.firstChild) progressDots.removeChild(progressDots.firstChild);
+    for (var i = 0; i < TOTAL; i++) {
+      var dot = document.createElement('div');
+      dot.className = 'dot';
+      if (i < index) dot.classList.add('completed');
+      if (i === index) dot.classList.add('current');
+      dot.setAttribute('role', 'button');
+      dot.setAttribute('aria-label', 'Go to card ' + (i + 1));
+      dot.setAttribute('tabindex', '0');
+      (function(idx) {
+        dot.addEventListener('click', function() { goToCard(idx); });
+      })(i);
+      progressDots.appendChild(dot);
     }
-  `;
-  document.head.appendChild(style);
+  }
+
+  /* ================================================================
+   *  Filmstrip
+   * ================================================================ */
+  function buildFilmstrip() {
+    var tpl = document.getElementById('tpl-thumb');
+    for (var i = 0; i < TOTAL; i++) {
+      var clone = tpl.content.cloneNode(true);
+      var thumb = clone.querySelector('.thumb');
+      thumb.setAttribute('data-index', i);
+      thumb.setAttribute('title', CARDS[i].title);
+      thumb.setAttribute('role', 'button');
+      thumb.setAttribute('aria-label', 'Go to: ' + CARDS[i].title);
+
+      // Set progress bar fill
+      var fill = thumb.querySelector('.thumb-bar-fill');
+      fill.style.width = CARDS[i].progress + '%';
+
+      // Set accent color on box
+      var box = thumb.querySelector('.thumb-col-box');
+      box.style.borderColor = CARDS[i].thumbAccent;
+
+      // Set title
+      var title = thumb.querySelector('.thumb-title');
+      title.textContent = CARDS[i].thumbLabel;
+
+      // Click handler
+      (function(idx) {
+        thumb.addEventListener('click', function() { goToCard(idx); });
+      })(i);
+
+      filmstripRow.appendChild(clone);
+    }
+    updateFilmstrip(0);
+  }
+
+  function updateFilmstrip(index) {
+    var thumbs = filmstripRow.querySelectorAll('.thumb');
+    for (var i = 0; i < thumbs.length; i++) {
+      if (i === index) {
+        thumbs[i].classList.add('active');
+      } else {
+        thumbs[i].classList.remove('active');
+      }
+    }
+  }
+
+  /* ================================================================
+   *  SVG entrance stagger
+   * ================================================================ */
+  function animateSVGEntrance() {
+    var elements = document.querySelectorAll('.svg-stagger');
+    for (var i = 0; i < elements.length; i++) {
+      (function(el) {
+        var delay = parseInt(el.getAttribute('data-delay') || '0', 10);
+        setTimeout(function() {
+          el.classList.add('animate-in');
+        }, delay);
+      })(elements[i]);
+    }
+  }
+
+  /* ================================================================
+   *  Quiz interaction
+   * ================================================================ */
+  function bindQuizEvents() {
+    quizAnswered = false;
+    var options = document.querySelectorAll('.mc-option');
+    for (var i = 0; i < options.length; i++) {
+      options[i].addEventListener('click', handleOptionClick);
+      options[i].addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleOptionClick.call(this, e);
+        }
+      });
+    }
+  }
+
+  function handleOptionClick() {
+    var el = this.closest ? this.closest('.mc-option') : this;
+    if (!el || !el.classList) return;
+    if (quizAnswered || isTransitioning) return;
+
+    var isCorrect = el.getAttribute('data-correct') === 'true';
+    var successBanner = document.getElementById('successBanner');
+    var errorBanner = document.getElementById('errorBanner');
+
+    // Clear previous wrong states
+    var allOpts = document.querySelectorAll('.mc-option');
+    for (var i = 0; i < allOpts.length; i++) {
+      allOpts[i].classList.remove('wrong', 'shaking', 'red-flash', 'selected');
+    }
+    if (errorBanner) errorBanner.classList.remove('show');
+
+    if (isCorrect) {
+      quizAnswered = true;
+      el.classList.add('correct', 'correct-flash');
+      if (successBanner) successBanner.classList.add('show');
+      if (errorBanner) errorBanner.classList.remove('show');
+
+      // Disable other options
+      for (var j = 0; j < allOpts.length; j++) {
+        if (!allOpts[j].classList.contains('correct')) {
+          allOpts[j].classList.add('disabled');
+        }
+      }
+
+      // Auto-advance if not last card
+      if (currentCard < TOTAL - 1) {
+        autoAdvanceTimer = setTimeout(function() {
+          goNext();
+        }, 1500);
+      }
+    } else {
+      el.classList.add('wrong', 'shaking', 'red-flash');
+      if (errorBanner) errorBanner.classList.add('show');
+      if (successBanner) successBanner.classList.remove('show');
+
+      // Remove shake after animation
+      setTimeout(function() {
+        el.classList.remove('shaking');
+      }, 500);
+      // Remove wrong highlight so they can retry
+      setTimeout(function() {
+        el.classList.remove('wrong', 'red-flash');
+        if (errorBanner) errorBanner.classList.remove('show');
+      }, 1800);
+    }
+  }
+
+  /* ================================================================
+   *  Navigation
+   * ================================================================ */
+  function goNext() {
+    if (isTransitioning || currentCard >= TOTAL - 1) return;
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+    isTransitioning = true;
+    currentCard++;
+    renderCard(currentCard, 'next');
+  }
+
+  function goPrev() {
+    if (isTransitioning || currentCard <= 0) return;
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+    isTransitioning = true;
+    currentCard--;
+    renderCard(currentCard, 'prev');
+  }
+
+  function goToCard(index) {
+    if (isTransitioning || index === currentCard) return;
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+    isTransitioning = true;
+    var direction = index > currentCard ? 'next' : 'prev';
+    currentCard = index;
+    renderCard(currentCard, direction);
+  }
+
+  // Button handlers
+  nextBtn.addEventListener('click', goNext);
+  prevBtn.addEventListener('click', goPrev);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight') goNext();
+    if (e.key === 'ArrowLeft') goPrev();
+  });
+
+  /* ================================================================
+   *  Init
+   * ================================================================ */
+  buildFilmstrip();
+  renderCard(0, 'none');
+
+})();
 </script>
 
 </body>
