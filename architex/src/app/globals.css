@@ -7,50 +7,55 @@
 
 :root,
 .dark {
-  /* Background layers (4-layer system) — 4-5% lightness steps for visual distinction */
-  --background: hsl(228 15% 7%);
-  --surface: hsl(228 15% 11%);
-  --surface-elevated: hsl(228 15% 16%);
-  --elevated: hsl(228 15% 13%);
-  --overlay: hsl(228 15% 19%);
+  /* Background layers (4-layer system) — 8% saturation, 225° hue
+     Near-neutral with barely perceptible blue warmth (Linear-inspired) */
+  --background: hsl(225 8% 7%);
+  --surface: hsl(225 8% 11%);
+  --surface-elevated: hsl(225 6% 16%);
+  --elevated: hsl(225 7% 13%);
+  --overlay: hsl(225 5% 19%);
 
-  /* Foreground */
-  --foreground: hsl(220 14% 90%);
-  --foreground-muted: hsl(220 10% 50%);
-  --foreground-subtle: hsl(220 10% 62%);
+  /* Foreground — 3 clear hierarchy levels */
+  --foreground: hsl(220 5% 90%);
+  --foreground-muted: hsl(220 5% 55%);
+  --foreground-subtle: hsl(220 5% 62%);
 
   /* Card / Popover */
-  --card: hsl(228 15% 10%);
-  --card-foreground: hsl(220 14% 90%);
-  --popover: hsl(228 15% 12%);
-  --popover-foreground: hsl(220 14% 90%);
+  --card: hsl(225 8% 10%);
+  --card-foreground: hsl(220 5% 90%);
+  --popover: hsl(225 8% 12%);
+  --popover-foreground: hsl(220 5% 90%);
 
-  /* Primary — Violet accent (Linear-inspired) */
-  --primary: hsl(252 78% 64%);
+  /* Primary — Violet accent at 258° (pure violet, not blue-violet) */
+  --primary: hsl(258 78% 64%);
   --primary-foreground: hsl(0 0% 100%);
-  --primary-hover: hsl(252 78% 57%);
-  --primary-rgb: 118 66 230;
+  --primary-hover: hsl(258 78% 57%);
+  --primary-rgb: 120 62 232;
 
   /* Secondary */
-  --secondary: hsl(228 15% 15%);
-  --secondary-foreground: hsl(220 14% 90%);
+  --secondary: hsl(225 8% 15%);
+  --secondary-foreground: hsl(220 5% 90%);
+
+  /* Warm accent — amber for CTAs, progress, achievements (Brilliant-inspired) */
+  --accent-warm: hsl(35 90% 55%);
+  --accent-warm-hover: hsl(35 90% 48%);
 
   /* Muted */
-  --muted: hsl(228 15% 18%);
+  --muted: hsl(225 8% 18%);
   --muted-foreground: var(--foreground-muted);
 
   /* Accent */
-  --accent: hsl(228 15% 15%);
-  --accent-foreground: hsl(220 14% 90%);
+  --accent: hsl(225 8% 15%);
+  --accent-foreground: hsl(220 5% 90%);
 
   /* Destructive */
   --destructive: hsl(0 72% 51%);
   --destructive-foreground: hsl(0 0% 100%);
 
-  /* Border & Ring */
-  --border: hsl(228 15% 16%);
-  --input: hsl(228 15% 16%);
-  --ring: hsl(252 78% 64%);
+  /* Border & Ring — white-opacity hybrid (Linear-inspired) */
+  --border: rgba(255, 255, 255, 0.10);
+  --input: rgba(255, 255, 255, 0.10);
+  --ring: hsl(258 78% 64%);
 
   /* Radius */
   --radius: 0.5rem;
@@ -108,10 +113,10 @@
   --severity-low: var(--state-success);
   --severity-info: var(--state-active);
 
-  /* ── Difficulty Tokens ── */
-  --difficulty-easy: var(--state-success);
+  /* ── Difficulty Tokens — teal→amber→orange→red ── */
+  --difficulty-easy: hsl(172 80% 38%);
   --difficulty-medium: var(--state-warning);
-  --difficulty-hard: hsl(25 95% 53%);
+  --difficulty-hard: hsl(25 90% 55%);
   --difficulty-expert: var(--state-error);
 
   /* ── Visualization Charts (dark theme) ── */
@@ -130,40 +135,40 @@
   --viz-error-threshold: hsl(38 92% 55%);
   --viz-grid: hsla(220 14% 90% / 0.08);
   --viz-axis-text: hsla(220 14% 90% / 0.4);
-  --viz-tooltip-bg: hsl(228 15% 14%);
-  --viz-tooltip-text: hsl(220 14% 90%);
-  --viz-tooltip-border: hsl(228 15% 22%);
+  --viz-tooltip-bg: hsl(225 8% 14%);
+  --viz-tooltip-text: hsl(220 5% 90%);
+  --viz-tooltip-border: rgba(255, 255, 255, 0.12);
   --viz-anomaly: hsl(38 92% 55%);
   --viz-cache-hit: hsl(142 71% 50%);
   --viz-cache-miss: hsl(220 9% 35%);
 
   /* ── Sidebar / Panel ── */
-  --sidebar: hsl(228 15% 8%);
-  --sidebar-foreground: hsl(220 14% 90%);
-  --sidebar-border: hsl(228 15% 14%);
-  --sidebar-accent: hsl(228 15% 13%);
+  --sidebar: hsl(225 10% 8%);
+  --sidebar-foreground: hsl(220 5% 90%);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-accent: hsl(225 8% 13%);
 
   /* ── Canvas ── */
-  --canvas-bg: hsl(228 15% 6%);
-  --canvas-dot: hsl(228 15% 14%);
-  --canvas-selection: hsla(252 87% 67% / 0.15);
+  --canvas-bg: hsl(225 10% 6%);
+  --canvas-dot: hsl(225 8% 14%);
+  --canvas-selection: hsla(258 80% 65% / 0.15);
 
-  /* ── LLD Canvas (UML diagrams) — rebuilt on 228-degree HSL family ── */
-  --lld-canvas-bg: hsl(228 12% 17%);
-  --lld-canvas-bg-deep: hsl(228 15% 8%);
-  --lld-class-fill: hsl(228 12% 21%);
-  --lld-class-fill-hover: hsl(228 12% 24%);
-  --lld-canvas-text: hsl(220 14% 88%);
-  --lld-canvas-text-muted: hsl(220 10% 62%);
-  --lld-canvas-text-subtle: hsl(220 10% 48%);
-  --lld-canvas-border: hsl(220 10% 38%);
-  --lld-canvas-edge: hsl(220 10% 55%);
-  --lld-rel-stroke: hsl(220 10% 55%);
-  --lld-rel-highlight: hsl(217 90% 65%);
+  /* ── LLD Canvas (UML diagrams) — 225° HSL family, 3-tier edge visibility ── */
+  --lld-canvas-bg: hsl(225 10% 14%);
+  --lld-canvas-bg-deep: hsl(225 10% 7%);
+  --lld-class-fill: hsl(225 10% 18%);
+  --lld-class-fill-hover: hsl(225 10% 21%);
+  --lld-canvas-text: hsl(220 5% 88%);
+  --lld-canvas-text-muted: hsl(220 5% 62%);
+  --lld-canvas-text-subtle: hsl(220 5% 48%);
+  --lld-canvas-border: hsl(220 8% 38%);
+  --lld-canvas-edge: hsl(220 8% 32%);           /* dim by default (Obsidian lesson) */
+  --lld-rel-stroke: hsl(220 8% 32%);             /* dim by default */
+  --lld-rel-highlight: hsl(217 90% 65%);         /* bright on hover/select */
   --lld-canvas-selected: hsl(217 90% 65%);
   --lld-canvas-abstract: hsl(260 80% 82%);
-  --lld-canvas-lifeline: hsl(220 10% 32%);
-  --lld-canvas-activation: hsl(220 14% 20%);
+  --lld-canvas-lifeline: hsl(220 8% 32%);
+  --lld-canvas-activation: hsl(225 10% 20%);
   --lld-canvas-actor-bg: hsl(217 50% 24%);
 
   /* ── LLD Stereotype Colors — harmonized saturation ── */
@@ -179,50 +184,64 @@
   --lld-solid-isp: hsl(272 68% 64%);
   --lld-solid-dip: hsl(0 72% 51%);
 
-  /* ── LLD Difficulty Colors — clear perceptual steps ── */
-  --lld-diff-easy: hsl(152 65% 45%);
+  /* ── LLD Difficulty Colors — teal→amber→orange→red (LeetCode-aligned) ── */
+  --lld-diff-easy: hsl(172 80% 38%);
   --lld-diff-medium: hsl(42 90% 52%);
   --lld-diff-hard: hsl(25 90% 55%);
   --lld-diff-expert: hsl(0 75% 52%);
 
   /* ── LLD Sequence Message Colors ── */
-  --lld-seq-sync: #60a5fa;
-  --lld-seq-async: #34d399;
-  --lld-seq-return: #9ca3af;
-  --lld-seq-self: #f59e0b;
+  --lld-seq-sync: hsl(217 92% 68%);
+  --lld-seq-async: hsl(160 60% 52%);
+  --lld-seq-return: hsl(220 8% 62%);
+  --lld-seq-self: hsl(38 92% 50%);
 
   /* ── Status Bar ── */
-  --statusbar: hsl(228 15% 8%);
-  --statusbar-foreground: hsl(220 10% 50%);
+  --statusbar: hsl(225 10% 8%);
+  --statusbar-foreground: hsl(220 5% 50%);
 
-  /* ── Gray Scale (Radix-style 12-step) ── */
+  /* ── Gray Scale (Radix-style 12-step) — 225° base, saturation tapers in midrange ── */
   /* 1=background, 2=subtle bg, 3-5=component, 6-8=border, 9-10=solid, 11-12=text */
-  --gray-1: hsl(228 15% 7%);
-  --gray-2: hsl(228 15% 9%);
-  --gray-3: hsl(228 15% 11%);
-  --gray-4: hsl(228 15% 13%);
-  --gray-5: hsl(228 15% 15%);
-  --gray-6: hsl(228 14% 18%);
-  --gray-7: hsl(228 13% 22%);
-  --gray-8: hsl(228 12% 28%);
-  --gray-9: hsl(220 10% 40%);
-  --gray-10: hsl(220 10% 46%);
-  --gray-11: hsl(220 10% 63%);
-  --gray-12: hsl(220 14% 90%);
+  --gray-1: hsl(225 8% 7%);
+  --gray-2: hsl(225 8% 9%);
+  --gray-3: hsl(225 7% 11%);
+  --gray-4: hsl(225 7% 13%);
+  --gray-5: hsl(225 6% 15%);
+  --gray-6: hsl(224 5% 18%);
+  --gray-7: hsl(224 4% 22%);
+  --gray-8: hsl(223 4% 28%);
+  --gray-9: hsl(220 3% 40%);
+  --gray-10: hsl(220 3% 46%);
+  --gray-11: hsl(220 4% 63%);
+  --gray-12: hsl(220 5% 90%);
 
-  /* ── Violet Accent Scale (12-step) ── */
-  --violet-1: hsl(252 40% 8%);
-  --violet-2: hsl(252 50% 11%);
-  --violet-3: hsl(252 55% 15%);
-  --violet-4: hsl(252 60% 19%);
-  --violet-5: hsl(252 65% 24%);
-  --violet-6: hsl(252 70% 30%);
-  --violet-7: hsl(252 75% 38%);
-  --violet-8: hsl(252 80% 48%);
-  --violet-9: hsl(252 87% 67%);
-  --violet-10: hsl(252 87% 60%);
-  --violet-11: hsl(252 90% 76%);
-  --violet-12: hsl(252 95% 92%);
+  /* ── Violet Accent Scale (12-step) — 258° pure violet ── */
+  --violet-1: hsl(258 40% 8%);
+  --violet-2: hsl(258 50% 11%);
+  --violet-3: hsl(258 55% 15%);
+  --violet-4: hsl(258 60% 19%);
+  --violet-5: hsl(258 65% 24%);
+  --violet-6: hsl(258 70% 30%);
+  --violet-7: hsl(258 75% 38%);
+  --violet-8: hsl(258 80% 48%);
+  --violet-9: hsl(258 85% 67%);
+  --violet-10: hsl(258 85% 60%);
+  --violet-11: hsl(258 88% 76%);
+  --violet-12: hsl(258 92% 92%);
+
+  /* ── Learning State Tokens (quiz, flashcard, walkthrough feedback) ── */
+  --learn-correct: hsl(152 65% 48%);
+  --learn-correct-bg: hsl(152 65% 48% / 0.10);
+  --learn-correct-border: hsl(152 65% 48% / 0.30);
+  --learn-incorrect: hsl(0 65% 58%);
+  --learn-incorrect-bg: hsl(0 65% 58% / 0.08);
+  --learn-incorrect-border: hsl(0 65% 58% / 0.25);
+  --learn-hint: hsl(35 90% 55%);
+  --learn-hint-bg: hsl(35 90% 55% / 0.10);
+  --learn-active: hsl(258 78% 64%);
+  --learn-active-bg: hsl(258 78% 64% / 0.10);
+  --learn-mastered: hsl(152 65% 48%);
+  --learn-mastered-bg: hsl(152 40% 20%);
 
   /* ── Semantic State Tokens ── */
   --success-bg: hsl(142 40% 12%);
@@ -241,11 +260,11 @@
   --info-text: hsl(217 91% 70%);
   --info-border: hsl(217 55% 28%);
 
-  /* ── Border Variants ── */
-  --border-subtle: hsl(228 15% 12%);
-  --border-default: hsl(228 15% 16%);
-  --border-strong: hsl(228 14% 24%);
-  --border-focus: hsl(252 87% 67%);
+  /* ── Border Variants — white-opacity hybrid (Linear-inspired) ── */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-focus: hsl(258 85% 68%);
 
   /* ── Shadow System ── */
   --shadow-sm: 0 1px 2px 0 hsla(0 0% 0% / 0.3);
