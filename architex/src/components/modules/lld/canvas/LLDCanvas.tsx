@@ -17,7 +17,7 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import type { UMLClass, UMLRelationship, UMLRelationshipType, UMLMethodParam } from "@/lib/lld";
 import { formatMethodParams } from "@/lib/lld";
 import { routeEdgeAStar } from "@/lib/lld/astar-router";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   CLASS_HEADER_HEIGHT,
   ROW_HEIGHT,
@@ -377,6 +377,13 @@ export const RelationshipDefs = memo(function RelationshipDefs() {
         markerWidth="11" markerHeight="11" orient="auto-start-reverse">
         <path d="M 0 1 L 11 6 L 0 11" fill="none" stroke={REL_STROKE} strokeWidth="2" strokeLinecap="round" />
       </marker>
+
+      {/* ── Bundle gradient: subtle direction hint for tightly-grouped edges (LLD-401) ── */}
+      <linearGradient id="lld-bundle-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="var(--lld-rel-stroke)" stopOpacity="0.55" />
+        <stop offset="50%" stopColor="var(--lld-rel-stroke)" stopOpacity="0.85" />
+        <stop offset="100%" stopColor="var(--lld-rel-stroke)" stopOpacity="0.55" />
+      </linearGradient>
     </defs>
   );
 });
@@ -518,20 +525,20 @@ const UMLClassBox = memo(function UMLClassBox({
       style={{
         cursor: "grab",
         outline: "none",
-        transition: "filter 0.15s ease, opacity 0.15s ease",
-        opacity: dimmed ? 0.35 : 1,
+        transition: "filter 0.15s ease",
       }}
       filter={isSelected ? "url(#glow)" : isHovered ? "url(#class-hover-shadow)" : undefined}
       {...(reducedMotion
-        ? {}
+        ? { style: { cursor: "grab", outline: "none", transition: "filter 0.15s ease", opacity: dimmed ? 0.35 : 1 } }
         : {
             initial: { opacity: 0, scale: 0.85 },
-            animate: { opacity: 1, scale: 1 },
+            animate: { opacity: dimmed ? 0.35 : 1, scale: 1 },
+            exit: { opacity: 0, scale: 0.8 },
             transition: {
               delay: index * 0.08,
               type: "spring" as const,
               damping: 20,
-              stiffness: 300,
+              stiffness: 200,
             },
           })}
     >
@@ -852,6 +859,8 @@ interface UMLEdgeProps {
   dimmed?: boolean;
   /** How many edges share the same source port group (for visual bundling). */
   siblingCount?: number;
+  /** True when this edge is part of a bundle (3+ edges from same port group). */
+  bundled?: boolean;
 }
 
 /** Relationship type to human-readable verb for aria-labels (LLD-408). */
@@ -864,7 +873,7 @@ const EDGE_ARIA_VERB: Record<UMLRelationshipType, string> = {
   dependency: "depends on",
 };
 
-const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0, highlighted = false, dimmed = false, siblingCount = 1 }: UMLEdgeProps) {
+const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, reducedMotion, routePoints, srcPortOffset = 0, tgtPortOffset = 0, highlighted = false, dimmed = false, siblingCount = 1, bundled = false }: UMLEdgeProps) {
   const srcCls = classById.get(rel.source);
   const tgtCls = classById.get(rel.target);
   if (!srcCls || !tgtCls) return null;
@@ -957,12 +966,12 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
     <motion.g
       role="img"
       aria-label={edgeAriaLabel}
-      style={{ opacity: dimmed ? 0.2 : 1, transition: "opacity 0.15s ease" }}
       {...(reducedMotion
-        ? {}
+        ? { style: { opacity: dimmed ? 0.2 : 1, transition: "opacity 0.15s ease" } }
         : {
             initial: { opacity: 0 },
             animate: { opacity: dimmed ? 0.2 : 1 },
+            exit: { opacity: 0 },
             transition: { delay: edgeDelay, duration: 0.2 },
           })}
     >
@@ -971,20 +980,20 @@ const UMLEdge = memo(function UMLEdge({ rel, classById, allClasses, edgeDelay, r
         d={pathD}
         fill="none"
         stroke="var(--lld-canvas-edge)"
-        strokeWidth={siblingCount > 1 ? 2 : 3}
+        strokeWidth={bundled ? 1.5 : siblingCount > 1 ? 2 : 3}
         strokeDasharray={isDashed ? "10 6" : undefined}
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity={siblingCount > 1 ? 0.04 : 0.12}
-        style={{ filter: siblingCount > 1 ? "blur(1px)" : "blur(2px)" }}
+        opacity={bundled ? 0.02 : siblingCount > 1 ? 0.04 : 0.12}
+        style={{ filter: bundled ? "blur(0.5px)" : siblingCount > 1 ? "blur(1px)" : "blur(2px)" }}
       />
       {/* Main edge path — with draw animation on load */}
       <path
         ref={pathRef}
         d={pathD}
         fill="none"
-        stroke={highlighted ? "var(--lld-rel-highlight)" : REL_STROKE}
-        strokeWidth={highlighted ? 2 : 1.2}
+        stroke={highlighted ? "var(--lld-rel-highlight)" : bundled ? "url(#lld-bundle-gradient)" : REL_STROKE}
+        strokeWidth={highlighted ? 2 : bundled ? 0.9 : 1.2}
         strokeLinecap="round"
         strokeLinejoin="round"
         markerEnd={markerMap[rel.type] || undefined}
@@ -1529,16 +1538,20 @@ export const LLDCanvas = memo(function LLDCanvas({
       groups.get(tKey)!.push(rel.id);
     }
 
-    // For groups with >1 edge, spread them with PORT_SPREAD gap
+    // For groups with >1 edge, spread them with PORT_SPREAD gap.
+    // When a group has 3+ edges, use tighter BUNDLE_SPREAD so they
+    // appear as a clean "cable" instead of widely fanned-out lines.
     const PORT_SPREAD = 28;
+    const BUNDLE_SPREAD = 5;
     for (const [key, relIds] of groups) {
       if (relIds.length <= 1) {
         offsets.set(`${key}:${relIds[0]}`, 0);
         continue;
       }
       const total = relIds.length;
+      const spread = total >= 3 ? BUNDLE_SPREAD : PORT_SPREAD;
       for (let i = 0; i < total; i++) {
-        const off = (i - (total - 1) / 2) * PORT_SPREAD;
+        const off = (i - (total - 1) / 2) * spread;
         offsets.set(`${key}:${relIds[i]}`, off);
       }
       // Track max sibling count per edge (take the larger of src/tgt group)
@@ -1839,22 +1852,26 @@ export const LLDCanvas = memo(function LLDCanvas({
           />
 
           <g transform={zoomTransform} style={{ transformOrigin: "0 0" }}>
-            {relationships.map((rel) => {
-              const srcCls = classById.get(rel.source);
-              const tgtCls = classById.get(rel.target);
-              if (!srcCls || !tgtCls) return null;
-              const sc = classCenter(srcCls);
-              const tc = classCenter(tgtCls);
-              const rs = borderPoint(srcCls, tc.cx, tc.cy);
-              const rt = borderPoint(tgtCls, sc.cx, sc.cy);
-              const sSide = exitSide(srcCls, rs);
-              const tSide = exitSide(tgtCls, rt);
-              const sOff = portOffsets.get(`${rel.source}:${sSide}:src:${rel.id}`) ?? 0;
-              const tOff = portOffsets.get(`${rel.target}:${tSide}:tgt:${rel.id}`) ?? 0;
-              const isHighlighted = hoveredClassId != null && (rel.source === hoveredClassId || rel.target === hoveredClassId);
-              const isDimmedEdge = hoveredClassId != null && !isHighlighted;
-              return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} highlighted={isHighlighted} dimmed={isDimmedEdge} siblingCount={siblingCounts.get(rel.id) ?? 1} />;
-            })}
+            {/* LLD-402: AnimatePresence enables exit animations on edges when pattern changes */}
+            <AnimatePresence>
+              {relationships.map((rel) => {
+                const srcCls = classById.get(rel.source);
+                const tgtCls = classById.get(rel.target);
+                if (!srcCls || !tgtCls) return null;
+                const sc = classCenter(srcCls);
+                const tc = classCenter(tgtCls);
+                const rs = borderPoint(srcCls, tc.cx, tc.cy);
+                const rt = borderPoint(tgtCls, sc.cx, sc.cy);
+                const sSide = exitSide(srcCls, rs);
+                const tSide = exitSide(tgtCls, rt);
+                const sOff = portOffsets.get(`${rel.source}:${sSide}:src:${rel.id}`) ?? 0;
+                const tOff = portOffsets.get(`${rel.target}:${tSide}:tgt:${rel.id}`) ?? 0;
+                const isHighlighted = hoveredClassId != null && (rel.source === hoveredClassId || rel.target === hoveredClassId);
+                const isDimmedEdge = hoveredClassId != null && !isHighlighted;
+                const sc2 = siblingCounts.get(rel.id) ?? 1;
+                return <UMLEdge key={rel.id} rel={rel} classById={classById} allClasses={classes} edgeDelay={edgeDelay} reducedMotion={reducedMotion} routePoints={edgePoints?.[rel.id]} srcPortOffset={sOff} tgtPortOffset={tOff} highlighted={isHighlighted} dimmed={isDimmedEdge} siblingCount={sc2} bundled={sc2 >= 3} />;
+              })}
+            </AnimatePresence>
 
             {connectionDrag && previewLineStart && (
               <line
@@ -1870,26 +1887,29 @@ export const LLDCanvas = memo(function LLDCanvas({
               />
             )}
 
-            {classes.map((cls, i) => (
-              <UMLClassBox
-                key={cls.id}
-                cls={cls}
-                isSelected={selectedClassId === cls.id}
-                onSelect={onSelectClass}
-                onDrag={handleZoomAwareDrag}
-                editingNameId={editingNameId}
-                editingNameValue={editingNameValue}
-                onStartEditName={onStartEditName}
-                onChangeEditName={onChangeEditName}
-                onCommitEditName={onCommitEditName}
-                isHovered={hoveredClassId === cls.id}
-                onHover={onHoverClass}
-                onConnectionDragStart={handleConnectionDragStart}
-                index={i}
-                reducedMotion={reducedMotion}
-                dimmed={connectedIds != null && !connectedIds.has(cls.id)}
-              />
-            ))}
+            {/* LLD-402: AnimatePresence enables exit animations on class boxes when pattern changes */}
+            <AnimatePresence>
+              {classes.map((cls, i) => (
+                <UMLClassBox
+                  key={cls.id}
+                  cls={cls}
+                  isSelected={selectedClassId === cls.id}
+                  onSelect={onSelectClass}
+                  onDrag={handleZoomAwareDrag}
+                  editingNameId={editingNameId}
+                  editingNameValue={editingNameValue}
+                  onStartEditName={onStartEditName}
+                  onChangeEditName={onChangeEditName}
+                  onCommitEditName={onCommitEditName}
+                  isHovered={hoveredClassId === cls.id}
+                  onHover={onHoverClass}
+                  onConnectionDragStart={handleConnectionDragStart}
+                  index={i}
+                  reducedMotion={reducedMotion}
+                  dimmed={connectedIds != null && !connectedIds.has(cls.id)}
+                />
+              ))}
+            </AnimatePresence>
           </g>
         </svg>
 

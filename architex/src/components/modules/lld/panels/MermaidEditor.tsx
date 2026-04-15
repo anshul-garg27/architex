@@ -367,6 +367,7 @@ export const MermaidEditor = memo(function MermaidEditor({
   const [previewRelationships, setPreviewRelationships] = useState<UMLRelationship[]>(relationships);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"synced" | "editing" | "error">("synced");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -382,6 +383,7 @@ export const MermaidEditor = memo(function MermaidEditor({
       setPreviewClasses(classes);
       setPreviewRelationships(relationships);
       setParseErrors([]);
+      setSyncStatus("synced");
     }
   }, [classesKey, classes, relationships]);
 
@@ -390,6 +392,7 @@ export const MermaidEditor = memo(function MermaidEditor({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newCode = e.target.value;
       setCode(newCode);
+      setSyncStatus("editing");
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
@@ -400,6 +403,9 @@ export const MermaidEditor = memo(function MermaidEditor({
 
         if (result.errors.length === 0 && result.classes.length > 0) {
           onDiagramUpdate(result.classes, result.relationships);
+          setSyncStatus("synced");
+        } else {
+          setSyncStatus("error");
         }
       }, 500);
     },
@@ -429,6 +435,11 @@ export const MermaidEditor = memo(function MermaidEditor({
     setPreviewClasses(classes);
     setPreviewRelationships(relationships);
     setParseErrors([]);
+    setSyncStatus("synced");
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
   }, [classes, relationships]);
 
   // Highlighted lines for overlay
@@ -441,9 +452,32 @@ export const MermaidEditor = memo(function MermaidEditor({
       <div className="flex w-1/2 flex-col border-r border-border/30">
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b border-border/20 px-3 py-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
-            Mermaid classDiagram
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
+              Mermaid classDiagram
+            </span>
+            {/* Sync indicator */}
+            <span
+              className={cn(
+                "flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold",
+                syncStatus === "synced" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                syncStatus === "editing" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                syncStatus === "error" && "bg-red-500/10 text-red-600 dark:text-red-400",
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-1.5 w-1.5 rounded-full",
+                  syncStatus === "synced" && "bg-emerald-500",
+                  syncStatus === "editing" && "bg-amber-500 animate-pulse",
+                  syncStatus === "error" && "bg-red-500",
+                )}
+              />
+              {syncStatus === "synced" && "Synced"}
+              {syncStatus === "editing" && "Editing\u2026"}
+              {syncStatus === "error" && "Error"}
+            </span>
+          </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleCopy}
