@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Approach E: Progressive Canvas + Side Lesson</title>
+<style>
+  /* ── Reset ───────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Design Tokens ───────────────────────────────────── */
+  :root {
+    --bg:              hsl(225, 8%, 7%);
+    --surface:         hsl(225, 8%, 11%);
+    --elevated:        hsl(225, 7%, 13%);
+    --surface-elevated:hsl(225, 6%, 16%);
+    --text:            hsl(220, 5%, 90%);
+    --text-muted:      hsl(220, 5%, 55%);
+    --text-subtle:     hsl(220, 5%, 62%);
+    --primary:         hsl(258, 78%, 64%);
+    --primary-glow:    hsla(258, 78%, 64%, 0.15);
+    --primary-glow-strong: hsla(258, 78%, 64%, 0.30);
+    --border:          rgba(255,255,255,0.10);
+    --border-subtle:   rgba(255,255,255,0.06);
+    --success:         hsl(152, 65%, 48%);
+    --amber:           hsl(35, 90%, 55%);
+    --code-bg:         hsl(225, 10%, 14%);
+    --class-fill:      hsl(225, 10%, 18%);
+    --canvas-bg:       hsl(225, 10%, 14%);
+    --font:            'Inter', system-ui, -apple-system, sans-serif;
+    --mono:            'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --radius:          8px;
+    --radius-lg:       12px;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+  }
+
+  /* ── Approach Header ─────────────────────────────────── */
+  .approach-header {
+    background: linear-gradient(135deg, hsla(258,78%,64%,0.08), hsla(258,78%,64%,0.015));
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .approach-header .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: linear-gradient(135deg, hsla(258,78%,64%,0.22), hsla(258,78%,64%,0.10));
+    border: 1px solid hsla(258,78%,64%,0.35);
+    color: hsl(258,80%,78%);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .approach-header-text h1 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 3px;
+    letter-spacing: -0.01em;
+  }
+  .approach-header-text h1 .star { color: hsl(45,90%,60%); margin-left: 3px; }
+  .approach-header-text p {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.55;
+    max-width: 820px;
+  }
+  .approach-header-text p strong { color: var(--text-subtle); font-weight: 600; }
+
+  /* ── Layout Shell ────────────────────────────────────── */
+  .shell {
+    display: flex;
+    height: calc(100vh - 54px - 6px); /* header + progress */
+    position: relative;
+  }
+
+  /* ── Icon Sidebar (48px) ─────────────────────────────── */
+  .sidebar {
+    width: 48px;
+    min-width: 48px;
+    background: var(--surface);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 10px;
+    gap: 2px;
+    z-index: 10;
+  }
+  .sidebar-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    color: var(--text-muted);
+    position: relative;
+  }
+  .sidebar-icon:hover { background: var(--elevated); color: var(--text); }
+  .sidebar-icon.active {
+    background: var(--primary-glow);
+    color: var(--primary);
+  }
+  .sidebar-icon.active::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 18px;
+    background: var(--primary);
+    border-radius: 0 3px 3px 0;
+  }
+  .sidebar-icon svg { width: 18px; height: 18px; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-divider {
+    width: 24px;
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
+  }
+
+  /* ── Center: Canvas Region ───────────────────────────── */
+  .center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    height: 46px;
+    min-height: 46px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    z-index: 5;
+  }
+  .toolbar-pattern {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .toolbar-pattern .icon-wrap {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-glow);
+    border: 1px solid hsla(258,78%,64%,0.20);
+    border-radius: 6px;
+  }
+  .toolbar-pattern .icon-wrap svg { width: 14px; height: 14px; color: var(--primary); }
+  .toolbar-sep {
+    width: 1px;
+    height: 22px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  /* Mode Toggle */
+  .mode-toggle {
+    display: inline-flex;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px;
+    gap: 2px;
+  }
+  .mode-btn {
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+  }
+  .mode-btn.active {
+    background: linear-gradient(180deg, hsl(258,78%,66%) 0%, hsl(258,78%,58%) 100%);
+    color: #fff;
+    box-shadow: 0 1px 8px hsla(258,78%,64%,0.35), inset 0 1px 0 hsla(0,0%,100%,0.15);
+  }
+  .mode-btn:not(.active) {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .mode-btn:not(.active):hover { color: var(--text); background: hsla(0,0%,100%,0.04); }
+
+  .step-indicator {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .step-indicator .current-step { color: var(--primary); font-weight: 700; }
+
+  /* ── Canvas ──────────────────────────────────────────── */
+  .canvas {
+    flex: 1;
+    position: relative;
+    background: var(--canvas-bg);
+    overflow: hidden;
+  }
+  /* Grid dots */
+  .canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, hsla(220,5%,90%,0.055) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  /* ── Canvas inner (centered content area) ────────────── */
+  .canvas-inner {
+    position: absolute;
+    inset: 50px 40px 60px 40px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+  }
+
+  /* ── UML Class Boxes ─────────────────────────────────── */
+  .uml-class {
+    background: var(--class-fill);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    width: 225px;
+    box-shadow: 0 2px 16px hsla(0,0%,0%,0.30);
+    font-size: 12.5px;
+    transition: transform 0.3s, box-shadow 0.3s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .uml-class:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px hsla(0,0%,0%,0.40);
+  }
+  .uml-header {
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    text-align: center;
+  }
+  .uml-header .stereotype {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-style: italic;
+    letter-spacing: 0.2px;
+    margin-bottom: 2px;
+  }
+  .uml-header .name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .uml-section {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .uml-section:last-child { border-bottom: none; }
+  .uml-row {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-subtle);
+    line-height: 1.7;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .uml-row .vis {
+    color: var(--text-muted);
+    font-weight: 700;
+    width: 12px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 13px;
+  }
+
+  /* Subject — normal, was revealed earlier */
+  .class-subject {
+    animation: fadeSlideIn 0.6s ease both;
+    margin-top: 40px;
+  }
+
+  /* Observer — JUST revealed, glowing violet */
+  .class-observer {
+    border-color: var(--primary);
+    box-shadow:
+      0 0 0 1px var(--primary),
+      0 0 24px var(--primary-glow-strong),
+      0 0 60px var(--primary-glow),
+      0 4px 20px hsla(0,0%,0%,0.30);
+    animation: glowPulse 2.8s ease-in-out infinite, fadeSlideIn 0.8s ease both;
+    margin-top: 40px;
+  }
+  .class-observer .uml-header {
+    background: linear-gradient(180deg, hsla(258,78%,64%,0.08) 0%, transparent 100%);
+  }
+  .class-observer .name { color: hsl(258,78%,80%); }
+
+  /* "NEW" badge */
+  .new-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: linear-gradient(135deg, hsl(258,78%,66%), hsl(258,78%,56%));
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px hsla(258,78%,64%,0.45);
+    animation: badgeBounce 0.5s ease 0.8s both;
+    z-index: 3;
+  }
+
+  /* ── Arrow connector zone ────────────────────────────── */
+  .arrow-zone {
+    flex: 1;
+    min-width: 60px;
+    max-width: 220px;
+    align-self: stretch;
+    position: relative;
+    margin-top: 40px;
+  }
+  .arrow-zone svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    overflow: visible;
+  }
+  .arrow-path-bg {
+    stroke: hsla(258,78%,64%,0.07);
+    stroke-width: 8;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .arrow-path-draw {
+    stroke: var(--primary);
+    stroke-width: 1.8;
+    fill: none;
+    stroke-dasharray: 600;
+    stroke-dashoffset: 600;
+    animation: drawIn 1.4s ease 0.4s forwards;
+    opacity: 0.7;
+  }
+  .arrow-path-dashes {
+    stroke: var(--primary);
+    stroke-width: 1.8;
+    stroke-dasharray: 8 5;
+    fill: none;
+    opacity: 0;
+    animation: fadeInSlow 0.4s ease 1.8s forwards, dashDraw 25s linear 1.8s infinite;
+  }
+  .arrow-head-shape {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    animation: fadeInSlow 0.3s ease 1.6s forwards;
+  }
+  .arrow-label-rect {
+    fill: var(--canvas-bg);
+    rx: 5;
+    opacity: 0;
+    animation: fadeInSlow 0.3s ease 1.4s forwards;
+  }
+  .arrow-label {
+    font-family: var(--font);
+    font-size: 10.5px;
+    font-weight: 600;
+    fill: var(--primary);
+    text-anchor: middle;
+    dominant-baseline: central;
+    letter-spacing: 0.4px;
+    opacity: 0;
+    animation: fadeInSlow 0.3s ease 1.5s forwards;
+  }
+
+  /* ── Ghost zones (future classes) ────────────────────── */
+  .ghost-row {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 60px;
+  }
+  .ghost-zone {
+    width: 190px;
+    height: 110px;
+    border: 1.5px dashed hsla(220,5%,90%,0.055);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: hsla(220,5%,90%,0.10);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .ghost-zone svg { width: 18px; height: 18px; opacity: 0.3; color: var(--text-muted); }
+  .ghost-label { opacity: 0.35; color: var(--text-muted); font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  /* Canvas overlays */
+  .canvas-step-chip {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: hsla(258,78%,64%,0.10);
+    border: 1px solid hsla(258,78%,64%,0.18);
+    color: hsl(258,78%,78%);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 20px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .canvas-step-chip .pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--primary);
+    animation: glowDot 2s ease-in-out infinite;
+  }
+
+  .canvas-info {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: hsla(0,0%,0%,0.50);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 7px 13px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-subtle);
+    font-size: 11px;
+    color: var(--text-muted);
+    z-index: 3;
+  }
+  .canvas-info .info-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 8px var(--primary-glow-strong);
+    animation: glowDot 2s ease-in-out infinite;
+  }
+
+  .canvas-zoom {
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+    display: flex;
+    gap: 1px;
+    background: var(--border-subtle);
+    border-radius: var(--radius);
+    overflow: hidden;
+    z-index: 3;
+    border: 1px solid var(--border);
+  }
+  .zoom-btn {
+    width: 30px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: background 0.15s, color 0.15s;
+  }
+  .zoom-btn:hover { background: var(--elevated); color: var(--text); }
+  .zoom-btn svg { width: 13px; height: 13px; }
+  .zoom-pct {
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    font-size: 10.5px;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Right Lesson Column ─────────────────────────────── */
+  .lesson-col {
+    width: 400px;
+    min-width: 400px;
+    background: var(--surface);
+    border-left: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    z-index: 5;
+  }
+  .lesson-header {
+    height: 46px;
+    min-height: 46px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .lesson-header svg { width: 15px; height: 15px; color: var(--primary); flex-shrink: 0; }
+  .lesson-header-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .lesson-header-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+    font-weight: 500;
+  }
+  .lesson-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 0;
+    scrollbar-width: thin;
+    scrollbar-color: hsla(0,0%,100%,0.08) transparent;
+  }
+  .lesson-scroll::-webkit-scrollbar { width: 5px; }
+  .lesson-scroll::-webkit-scrollbar-track { background: transparent; }
+  .lesson-scroll::-webkit-scrollbar-thumb { background: hsla(0,0%,100%,0.08); border-radius: 10px; }
+
+  /* ── Lesson Cells ────────────────────────────────────── */
+  .cell {
+    margin: 0 14px 8px;
+    padding: 14px 16px;
+    border-radius: var(--radius-lg);
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  /* Past — completed */
+  .cell.past {
+    background: hsla(0,0%,100%,0.015);
+    border: 1px solid var(--border-subtle);
+  }
+  .cell.past .cell-head { opacity: 0.55; }
+  .cell.past .cell-body { opacity: 0.50; }
+
+  .cell-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .cell-step {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .cell.past .cell-step {
+    background: hsla(152,65%,48%,0.14);
+    color: var(--success);
+  }
+  .cell.past .cell-step svg { width: 12px; height: 12px; }
+  .cell-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+  }
+  .cell-body {
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text-muted);
+  }
+  .cell-body strong { color: var(--text-subtle); font-weight: 600; }
+  .cell-body em { font-style: italic; color: var(--text-subtle); }
+
+  /* Checkpoint past */
+  .cell.past.checkpoint {
+    background: hsla(152,65%,48%,0.025);
+    border: 1px solid hsla(152,65%,48%,0.10);
+  }
+  .cell.past.checkpoint .answer {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: hsla(152,65%,48%,0.10);
+    color: var(--success);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--mono);
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-top: 8px;
+  }
+  .cell.past.checkpoint .answer svg { width: 12px; height: 12px; }
+
+  /* Current — active, violet left border */
+  .cell.current {
+    background: linear-gradient(135deg, hsla(258,78%,64%,0.055), hsla(258,78%,64%,0.015));
+    border: 1px solid hsla(258,78%,64%,0.18);
+    border-left: 3px solid var(--primary);
+    box-shadow: 0 2px 20px hsla(258,78%,64%,0.06);
+  }
+  .cell.current .cell-step {
+    background: linear-gradient(135deg, hsl(258,78%,66%), hsl(258,78%,56%));
+    color: #fff;
+    box-shadow: 0 0 14px hsla(258,78%,64%,0.35);
+  }
+  .cell.current .cell-title { color: hsl(258,78%,78%); }
+  .cell.current .cell-body { color: var(--text-subtle); }
+  .cell.current .cell-body code {
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: hsl(258,78%,80%);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* Interaction hint */
+  .hint-box {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: hsla(35,90%,55%,0.05);
+    border: 1px solid hsla(35,90%,55%,0.14);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .hint-box:hover {
+    background: hsla(35,90%,55%,0.09);
+    border-color: hsla(35,90%,55%,0.25);
+  }
+  .hint-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: hsla(35,90%,55%,0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .hint-icon svg { width: 14px; height: 14px; color: var(--amber); }
+  .hint-text {
+    font-size: 12px;
+    color: var(--amber);
+    font-weight: 500;
+    line-height: 1.45;
+  }
+  .hint-text strong { font-weight: 700; }
+  .hint-arrow {
+    margin-left: auto;
+    color: var(--amber);
+    opacity: 0.5;
+    flex-shrink: 0;
+    animation: nudgeRight 1.5s ease-in-out infinite;
+  }
+
+  /* Future — locked */
+  .cell.future {
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    opacity: 0.42;
+  }
+  .cell.future .cell-step {
+    background: var(--elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .cell.future .cell-title { color: var(--text-muted); }
+  .cell.future .cell-body { color: var(--text-muted); font-size: 12px; }
+  .cell.future.locked .cell-body {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cell.future.locked .cell-body svg { width: 12px; height: 12px; opacity: 0.5; flex-shrink: 0; }
+
+  /* Mini class inline */
+  .mini-class {
+    display: flex;
+    flex-direction: column;
+    background: var(--class-fill);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 10px;
+    font-size: 11px;
+    overflow: hidden;
+  }
+  .mini-class-header {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--text-subtle);
+    text-align: center;
+    background: hsla(0,0%,100%,0.015);
+  }
+  .mini-class-row {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    padding: 3px 10px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .mini-class-row:last-child { padding-bottom: 5px; }
+
+  /* Inline code in past cells */
+  .cell.past code {
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-subtle);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* ── Progress Bar ────────────────────────────────────── */
+  .progress-bar {
+    height: 6px;
+    background: var(--elevated);
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(90deg, hsl(258,78%,58%), hsl(258,78%,66%), hsl(268,78%,68%));
+    border-radius: 0 3px 3px 0;
+    position: relative;
+    transition: width 0.6s ease;
+  }
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -4px;
+    bottom: -4px;
+    width: 24px;
+    background: linear-gradient(90deg, transparent, hsla(258,78%,64%,0.30));
+    border-radius: 0 4px 4px 0;
+    animation: progressGlow 2.2s ease-in-out infinite;
+  }
+
+  /* ── Animations ──────────────────────────────────────── */
+  @keyframes glowPulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 1px var(--primary),
+        0 0 24px var(--primary-glow-strong),
+        0 0 60px var(--primary-glow),
+        0 4px 20px hsla(0,0%,0%,0.30);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px hsl(258,78%,68%),
+        0 0 35px hsla(258,78%,64%,0.35),
+        0 0 80px hsla(258,78%,64%,0.12),
+        0 4px 20px hsla(0,0%,0%,0.30);
+    }
+  }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes badgeBounce {
+    0%   { opacity: 0; transform: scale(0.4) translateY(4px); }
+    60%  { opacity: 1; transform: scale(1.12) translateY(-1px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  @keyframes dashDraw {
+    from { stroke-dashoffset: 0; }
+    to   { stroke-dashoffset: -130; }
+  }
+
+  @keyframes drawIn {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @keyframes fadeInSlow {
+    from { opacity: 0; }
+    to   { opacity: 0.7; }
+  }
+
+  @keyframes nudgeRight {
+    0%, 100% { transform: translateX(0); }
+    50%      { transform: translateX(4px); }
+  }
+
+  @keyframes progressGlow {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+  }
+
+  @keyframes glowDot {
+    0%, 100% { box-shadow: 0 0 6px var(--primary-glow-strong); }
+    50%      { box-shadow: 0 0 14px var(--primary-glow-strong); }
+  }
+
+  /* Dashed vertical connector lines from Observer to ghost zones */
+  .future-connectors {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .future-connector {
+    position: absolute;
+    width: 1.5px;
+    background: repeating-linear-gradient(
+      180deg,
+      hsla(220,5%,90%,0.04) 0px,
+      hsla(220,5%,90%,0.04) 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════
+     APPROACH HEADER
+     ════════════════════════════════════════════════════════ -->
+<div class="approach-header">
+  <div class="badge">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polygon points="8,1.5 10,5.8 14.7,6.4 11.3,9.6 12.1,14.2 8,12 3.9,14.2 4.7,9.6 1.3,6.4 6,5.8"/></svg>
+    RECOMMENDED
+  </div>
+  <div class="approach-header-text">
+    <h1>APPROACH E: Progressive Canvas + Side Lesson<span class="star"> &#9733;</span></h1>
+    <p>The canvas <strong>builds up step-by-step</strong> in sync with the lesson. Only classes revealed so far are visible &mdash; future elements remain hidden, creating a guided reveal that mirrors how real understanding forms. The lesson column scrolls through cells (concept, checkpoint, code) while the diagram grows beside it. <strong>This is the approach we want to build.</strong></p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MAIN SHELL
+     ════════════════════════════════════════════════════════ -->
+<div class="shell">
+
+  <!-- ── Icon Sidebar ──────────────────────────────────── -->
+  <nav class="sidebar" aria-label="Main navigation">
+    <div class="sidebar-icon" title="Home" style="margin-bottom:6px;">
+      <svg viewBox="0 0 18 18" fill="none"><path d="M9 2L2 6v6l7 4 7-4V6L9 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2 6l7 4m0 0l7-4m-7 4v8" stroke="currentColor" stroke-width="1.1" opacity="0.4"/></svg>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-icon active" title="Patterns">
+      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="11" y="2" width="5" height="5" rx="1"/><rect x="6.5" y="11" width="5" height="5" rx="1"/><line x1="4.5" y1="7" x2="4.5" y2="11" opacity="0.35"/><line x1="13.5" y1="7" x2="13.5" y2="11" opacity="0.35"/></svg>
+    </div>
+    <div class="sidebar-icon" title="Canvas">
+      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="14" height="14" rx="2"/><line x1="2" y1="6" x2="16" y2="6"/><line x1="6" y1="6" x2="6" y2="16"/></svg>
+    </div>
+    <div class="sidebar-icon" title="Code">
+      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,5 2,9 6,13"/><polyline points="12,5 16,9 12,13"/><line x1="10" y1="3" x2="8" y2="15"/></svg>
+    </div>
+    <div class="sidebar-icon" title="Checkpoints">
+      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="7"/><path d="M6.5 8.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 1-0.7 1.8-1.6 2.1-.3.1-.9.4-.9.9"/><circle cx="9" cy="13.5" r="0.5" fill="currentColor"/></svg>
+    </div>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-icon" title="Settings" style="margin-bottom:10px;">
+      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.5v2m0 11v2M1.5 9h2m11 0h2M3.3 3.3l1.4 1.4m8.6 8.6l1.4 1.4M14.7 3.3l-1.4 1.4M4.7 13.3l-1.4 1.4"/></svg>
+    </div>
+  </nav>
+
+  <!-- ── Center (Canvas) ───────────────────────────────── -->
+  <div class="center">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-pattern">
+        <div class="icon-wrap">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v2m0 10v2M1 8h2m10 0h2"/></svg>
+        </div>
+        Observer Pattern
+      </div>
+      <div class="toolbar-sep"></div>
+
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active">
+          Learn
+          <svg viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg>
+        </button>
+        <button class="mode-btn">Build</button>
+      </div>
+
+      <div class="step-indicator">
+        Step&nbsp;<span class="current-step">4</span>&nbsp;/&nbsp;<span>8</span>
+      </div>
+    </div>
+
+    <!-- Canvas area -->
+    <div class="canvas">
+
+      <!-- Step chip -->
+      <div class="canvas-step-chip">
+        <div class="pulse-dot"></div>
+        Step 4 &mdash; The Contract
+      </div>
+
+      <!-- Class boxes + arrow in a flex row -->
+      <div class="canvas-inner">
+
+        <!-- Subject class -->
+        <div class="uml-class class-subject">
+          <div class="uml-header">
+            <div class="name">Subject</div>
+          </div>
+          <div class="uml-section">
+            <div class="uml-row"><span class="vis">&minus;</span> observers: Observer[]</div>
+            <div class="uml-row"><span class="vis">&minus;</span> state: any</div>
+          </div>
+          <div class="uml-section">
+            <div class="uml-row"><span class="vis">+</span> attach(o: Observer)</div>
+            <div class="uml-row"><span class="vis">+</span> detach(o: Observer)</div>
+            <div class="uml-row"><span class="vis">+</span> notify()</div>
+            <div class="uml-row"><span class="vis">+</span> getState(): any</div>
+          </div>
+        </div>
+
+        <!-- Arrow connector -->
+        <div class="arrow-zone">
+          <svg viewBox="0 0 200 80" preserveAspectRatio="xMidYMid meet">
+            <!-- Glow bg -->
+            <path class="arrow-path-bg" d="M 0 40 L 200 40" />
+            <!-- Draw-in solid -->
+            <path class="arrow-path-draw" d="M 0 40 L 185 40" />
+            <!-- Dashed animated -->
+            <path class="arrow-path-dashes" d="M 0 40 L 185 40" />
+            <!-- Arrow head (open) -->
+            <polyline class="arrow-head-shape" points="178,33 192,40 178,47" />
+            <!-- Label background -->
+            <rect class="arrow-label-rect" x="72" y="17" width="56" height="20" />
+            <!-- Label -->
+            <text class="arrow-label" x="100" y="27">notifies</text>
+          </svg>
+        </div>
+
+        <!-- Observer class (glowing) -->
+        <div class="uml-class class-observer">
+          <div class="new-badge">NEW</div>
+          <div class="uml-header">
+            <div class="stereotype">&laquo;interface&raquo;</div>
+            <div class="name">Observer</div>
+          </div>
+          <div class="uml-section">
+            <div class="uml-row"><span class="vis">+</span> update(subject: Subject)</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Ghost zones for future ConcreteObservers -->
+      <div class="ghost-row">
+        <div class="ghost-zone">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+          <span class="ghost-label">Step 5</span>
+        </div>
+        <div class="ghost-zone">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+          <span class="ghost-label">Step 5</span>
+        </div>
+      </div>
+
+      <!-- Canvas bottom info -->
+      <div class="canvas-info">
+        <div class="info-dot"></div>
+        Progressive reveal &mdash; 2 of 5 classes visible
+      </div>
+
+      <!-- Zoom controls -->
+      <div class="canvas-zoom">
+        <button class="zoom-btn">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="3" y1="7" x2="11" y2="7"/></svg>
+        </button>
+        <div class="zoom-pct">85%</div>
+        <button class="zoom-btn">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="11"/><line x1="3" y1="7" x2="11" y2="7"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right Lesson Column ───────────────────────────── -->
+  <div class="lesson-col">
+    <div class="lesson-header">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"/><path d="M2 7h12"/><path d="M5.5 2v3m5-3v3"/></svg>
+      <span class="lesson-header-text">Observer Pattern</span>
+      <span class="lesson-header-sub">~12 min</span>
+    </div>
+
+    <div class="lesson-scroll">
+
+      <!-- Cell 1: Past -->
+      <div class="cell past">
+        <div class="cell-head">
+          <div class="cell-step">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,6 5,8.5 9.5,3.5"/></svg>
+          </div>
+          <div class="cell-title">The Problem</div>
+        </div>
+        <div class="cell-body">
+          Imagine you subscribe to a YouTube channel. You don't check every hour for new videos &mdash; you get <strong>notified</strong>. That's the Observer pattern: let interested parties know when something changes, instead of having them poll.
+        </div>
+      </div>
+
+      <!-- Cell 2: Past -->
+      <div class="cell past">
+        <div class="cell-head">
+          <div class="cell-step">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,6 5,8.5 9.5,3.5"/></svg>
+          </div>
+          <div class="cell-title">Meet the Subject</div>
+        </div>
+        <div class="cell-body">
+          The <strong>Subject</strong> keeps a list of everyone who cares about its state. It can <code>attach()</code>, <code>detach()</code>, and <code>notify()</code> observers.
+          <div class="mini-class">
+            <div class="mini-class-header">Subject</div>
+            <div class="mini-class-row">+ attach(o: Observer)</div>
+            <div class="mini-class-row">+ detach(o: Observer)</div>
+            <div class="mini-class-row">+ notify()</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cell 3: Past Checkpoint -->
+      <div class="cell past checkpoint">
+        <div class="cell-head">
+          <div class="cell-step">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,6 5,8.5 9.5,3.5"/></svg>
+          </div>
+          <div class="cell-title">Checkpoint</div>
+        </div>
+        <div class="cell-body">
+          Which method removes an observer?
+          <div class="answer">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,6 5,8.5 9.5,3.5"/></svg>
+            detach()
+          </div>
+        </div>
+      </div>
+
+      <!-- Cell 4: Current -->
+      <div class="cell current">
+        <div class="cell-head">
+          <div class="cell-step">4</div>
+          <div class="cell-title">The Contract</div>
+        </div>
+        <div class="cell-body">
+          The <strong>Observer interface</strong> defines the contract: any class that implements <code>update()</code> can subscribe to the Subject.<br><br>
+          This decoupling is the pattern's superpower &mdash; the Subject doesn't need to know <em>what</em> its observers are, only that they implement <code>update()</code>.
+        </div>
+        <!-- Interaction hint -->
+        <div class="hint-box">
+          <div class="hint-icon">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10l4-4 2 2 4-4"/><polyline points="9,4 12,4 12,7"/></svg>
+          </div>
+          <div class="hint-text">Click the <strong>Observer</strong> class on the canvas to see its method</div>
+          <svg class="hint-arrow" viewBox="0 0 12 12" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="6" x2="10" y2="6"/><polyline points="7,3 10,6 7,9"/></svg>
+        </div>
+      </div>
+
+      <!-- Cell 5: Future -->
+      <div class="cell future">
+        <div class="cell-head">
+          <div class="cell-step">5</div>
+          <div class="cell-title">Concrete Observers</div>
+        </div>
+        <div class="cell-body">
+          Now let's add real implementations...
+        </div>
+      </div>
+
+      <!-- Cell 6: Future Locked -->
+      <div class="cell future locked">
+        <div class="cell-head">
+          <div class="cell-step">6</div>
+          <div class="cell-title">Checkpoint</div>
+        </div>
+        <div class="cell-body">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5.5" width="8" height="5.5" rx="1"/><path d="M3.5 5.5V4a2.5 2.5 0 015 0v1.5"/></svg>
+          Complete step 5 to unlock
+        </div>
+      </div>
+
+      <!-- Cell 7: Future Locked -->
+      <div class="cell future locked">
+        <div class="cell-head">
+          <div class="cell-step">7</div>
+          <div class="cell-title">The Code</div>
+        </div>
+        <div class="cell-body">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5.5" width="8" height="5.5" rx="1"/><path d="M3.5 5.5V4a2.5 2.5 0 015 0v1.5"/></svg>
+          Complete step 6 to unlock
+        </div>
+      </div>
+
+      <!-- Cell 8: Future Locked -->
+      <div class="cell future locked">
+        <div class="cell-head">
+          <div class="cell-step">8</div>
+          <div class="cell-title">Key Takeaway</div>
+        </div>
+        <div class="cell-body">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5.5" width="8" height="5.5" rx="1"/><path d="M3.5 5.5V4a2.5 2.5 0 015 0v1.5"/></svg>
+          Complete step 7 to unlock
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Progress Bar ────────────────────────────────────── -->
+<div class="progress-bar">
+  <div class="progress-fill"></div>
+</div>
+
+</body>
+</html>

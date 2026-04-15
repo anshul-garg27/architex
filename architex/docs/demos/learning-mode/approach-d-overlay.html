@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Approach D: Overlay Walkthrough (Figma Learn)</title>
+<style>
+  /* ── Reset ─────────────────────────────────────────────── */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ── Design Tokens ─────────────────────────────────────── */
+  :root {
+    --bg:           hsl(225, 8%, 7%);
+    --surface:      hsl(225, 8%, 11%);
+    --elevated:     hsl(225, 7%, 13%);
+    --text:         hsl(220, 5%, 90%);
+    --text-muted:   hsl(220, 5%, 55%);
+    --primary:      hsl(258, 78%, 64%);
+    --primary-glow: hsla(258, 78%, 64%, 0.35);
+    --border:       rgba(255,255,255,0.10);
+    --overlay:      rgba(0,0,0,0.65);
+    --font:         'Geist Sans', system-ui, -apple-system, sans-serif;
+    --radius-sm:    6px;
+    --radius-md:    12px;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Page Header ───────────────────────────────────────── */
+  .page-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 9999;
+    background: linear-gradient(180deg, var(--bg) 60%, transparent);
+    padding: 20px 32px 32px;
+    pointer-events: none;
+  }
+  .page-header h1 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  .page-header p {
+    font-size: 12px;
+    color: var(--text-muted);
+    max-width: 520px;
+    line-height: 1.5;
+  }
+
+  /* ── 4-Panel Layout (dimmed) ───────────────────────────── */
+  .app-shell {
+    display: grid;
+    grid-template-columns: 48px 1fr 260px;
+    grid-template-rows: 1fr 38px;
+    height: 100vh;
+    width: 100vw;
+    opacity: 0.4;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    grid-row: 1 / -1;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 12px;
+    gap: 4px;
+  }
+  .sidebar-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .sidebar-icon:hover { background: var(--elevated); }
+  .sidebar-icon.active {
+    background: hsla(258, 78%, 64%, 0.15);
+    color: var(--primary);
+  }
+  .sidebar-icon svg { width: 18px; height: 18px; }
+  .sidebar-divider {
+    width: 24px;
+    height: 1px;
+    background: var(--border);
+    margin: 6px 0;
+  }
+
+  /* Canvas */
+  .canvas {
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .canvas-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, hsla(220,5%,55%,0.12) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* UML Diagram Container */
+  .uml-diagram {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 60px;
+    padding: 30px;
+  }
+  .uml-top-row {
+    display: flex;
+    gap: 100px;
+    align-items: flex-start;
+  }
+  .uml-bottom-row {
+    display: flex;
+    gap: 80px;
+    align-items: flex-start;
+  }
+
+  /* UML Class Boxes */
+  .uml-class {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    min-width: 200px;
+    font-size: 12px;
+    overflow: hidden;
+  }
+  .uml-class-header {
+    background: var(--elevated);
+    padding: 10px 14px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.02em;
+  }
+  .uml-class-header .stereotype {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 400;
+    font-style: italic;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .uml-class-section {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.7;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 11px;
+  }
+  .uml-class-section:last-child { border-bottom: none; }
+  .uml-class-section .method { color: hsl(200, 60%, 65%); }
+  .uml-class-section .field { color: hsl(35, 60%, 65%); }
+  .uml-class-section .type { color: var(--text-muted); }
+
+  /* Relationship lines (SVG) */
+  .uml-lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .uml-lines line, .uml-lines path {
+    stroke: var(--text-muted);
+    stroke-width: 1.2;
+    fill: none;
+  }
+  .uml-lines .arrow-head {
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 1.2;
+  }
+  .uml-lines .dashed {
+    stroke-dasharray: 6, 4;
+  }
+  .uml-lines text {
+    font-family: var(--font);
+    font-size: 10px;
+    fill: var(--text-muted);
+  }
+
+  /* Properties Panel */
+  .properties {
+    grid-row: 1 / 2;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+  }
+  .prop-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+  .prop-group { margin-bottom: 18px; }
+  .prop-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .prop-value {
+    font-size: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: var(--text);
+  }
+  .prop-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .prop-row > div { flex: 1; }
+  .prop-chip {
+    display: inline-block;
+    font-size: 10px;
+    background: hsla(258, 78%, 64%, 0.12);
+    color: var(--primary);
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+
+  /* Bottom Tab Bar */
+  .bottom-tabs {
+    grid-column: 2 / -1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 2px;
+  }
+  .tab {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s;
+  }
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--primary);
+  }
+  .tab-spacer { flex: 1; }
+  .tab-status {
+    font-size: 10px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab-status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: hsl(145, 60%, 48%);
+  }
+
+  /* ──────────────────────────────────────────────────────── */
+  /* OVERLAY LAYER                                           */
+  /* ──────────────────────────────────────────────────────── */
+
+  /*
+    The overlay uses an SVG mask approach:
+    A full-screen dark layer with a "cutout" rectangle
+    positioned over the Subject class.
+  */
+  .overlay-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .overlay-layer svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Spotlight cutout border (pulsing violet) */
+  .spotlight-ring {
+    position: fixed;
+    z-index: 101;
+    border: 2px solid var(--primary);
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+    box-shadow:
+      0 0 0 3px var(--primary-glow),
+      0 0 20px var(--primary-glow),
+      inset 0 0 20px hsla(258, 78%, 64%, 0.08);
+    animation: spotlight-pulse 2.2s ease-in-out infinite;
+  }
+
+  @keyframes spotlight-pulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 3px hsla(258, 78%, 64%, 0.30),
+        0 0 20px hsla(258, 78%, 64%, 0.15),
+        inset 0 0 20px hsla(258, 78%, 64%, 0.05);
+      border-color: hsl(258, 78%, 64%);
+    }
+    50% {
+      box-shadow:
+        0 0 0 6px hsla(258, 78%, 64%, 0.18),
+        0 0 40px hsla(258, 78%, 64%, 0.25),
+        inset 0 0 30px hsla(258, 78%, 64%, 0.10);
+      border-color: hsl(258, 78%, 72%);
+    }
+  }
+
+  /* ──────────────────────────────────────────────────────── */
+  /* FLOATING LESSON CARD                                    */
+  /* ──────────────────────────────────────────────────────── */
+  .lesson-card {
+    position: fixed;
+    z-index: 200;
+    width: 360px;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow:
+      0 4px 24px rgba(0,0,0,0.5),
+      0 1px 4px rgba(0,0,0,0.3),
+      0 0 0 1px rgba(255,255,255,0.04);
+    overflow: hidden;
+    pointer-events: auto;
+    animation: card-enter 0.4s ease-out both;
+  }
+  @keyframes card-enter {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Connector line from card to spotlight */
+  .lesson-connector {
+    position: fixed;
+    z-index: 150;
+    pointer-events: none;
+  }
+  .lesson-connector line {
+    stroke: var(--primary);
+    stroke-width: 1.5;
+    stroke-dasharray: 4, 4;
+    opacity: 0.5;
+  }
+  .lesson-connector circle {
+    fill: var(--primary);
+    opacity: 0.7;
+  }
+
+  .card-progress {
+    padding: 20px 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-step {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .card-dots {
+    display: flex;
+    gap: 5px;
+  }
+  .card-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: hsla(220, 5%, 55%, 0.3);
+    transition: background 0.2s;
+  }
+  .card-dot.done {
+    background: var(--primary);
+  }
+  .card-dot.active {
+    background: var(--primary);
+    box-shadow: 0 0 6px var(--primary-glow);
+  }
+
+  .card-body {
+    padding: 16px 24px 0;
+  }
+  .card-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .card-text {
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text-muted);
+  }
+  .card-text code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: hsl(200, 60%, 65%);
+  }
+
+  .card-actions {
+    padding: 20px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 9px 22px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    font-family: var(--font);
+    letter-spacing: 0.01em;
+  }
+  .btn-primary:hover {
+    background: hsl(258, 78%, 70%);
+    box-shadow: 0 0 16px var(--primary-glow);
+  }
+  .btn-primary .arrow {
+    margin-left: 6px;
+    display: inline-block;
+    transition: transform 0.15s;
+  }
+  .btn-primary:hover .arrow {
+    transform: translateX(2px);
+  }
+
+  .skip-link {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s;
+    border: none;
+    background: none;
+    font-family: var(--font);
+  }
+  .skip-link:hover {
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- PAGE HEADER (always on top)                             -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="page-header">
+  <h1>Approach D: Overlay Walkthrough (Figma Learn)</h1>
+  <p>A guided overlay dims the full IDE, spotlights one element at a time, and anchors a floating lesson card beside it. The user progresses step-by-step through the pattern.</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- DIMMED 4-PANEL APP SHELL                                -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="app-shell">
+
+  <!-- ── Sidebar ──────────────────────────────────────── -->
+  <nav class="sidebar" aria-label="Tool sidebar">
+    <div class="sidebar-icon active" title="Pointer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+    </div>
+    <div class="sidebar-icon" title="Class tool">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+    </div>
+    <div class="sidebar-icon" title="Relationship">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="15 8 19 12 15 16"/></svg>
+    </div>
+    <div class="sidebar-icon" title="Text">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-icon" title="Zoom in">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </div>
+    <div class="sidebar-icon" title="Zoom out">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-icon" title="Learn mode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    </div>
+  </nav>
+
+  <!-- ── Canvas ───────────────────────────────────────── -->
+  <main class="canvas">
+    <div class="canvas-grid"></div>
+
+    <!-- SVG relationship lines -->
+    <svg class="uml-lines" viewBox="0 0 900 520" preserveAspectRatio="xMidYMid meet" style="position:absolute; width:900px; height:520px;">
+      <!-- Subject to Observer: association -->
+      <line x1="235" y1="120" x2="580" y2="120" class="dashed"/>
+      <polygon points="575,116 585,120 575,124" class="arrow-head" style="fill:none;"/>
+      <text x="390" y="110">notifies</text>
+      <text x="230" y="110" text-anchor="end" style="font-size:9px;">1</text>
+      <text x="575" y="110" style="font-size:9px;">*</text>
+
+      <!-- Observer to ConcreteObserverA -->
+      <line x1="650" y1="200" x2="530" y2="310" class="dashed"/>
+      <polygon points="535,306 528,315 540,312" class="arrow-head" style="fill:none;"/>
+
+      <!-- Observer to ConcreteObserverB -->
+      <line x1="700" y1="200" x2="780" y2="310" class="dashed"/>
+      <polygon points="775,306 783,315 772,312" class="arrow-head" style="fill:none;"/>
+    </svg>
+
+    <div class="uml-diagram">
+      <div class="uml-top-row">
+        <!-- Subject class (this is the spotlight target) -->
+        <div class="uml-class" id="subject-class" style="position:relative;">
+          <div class="uml-class-header">
+            Subject
+          </div>
+          <div class="uml-class-section">
+            <span class="field">- observers</span><span class="type">: Observer[]</span><br/>
+            <span class="field">- state</span><span class="type">: any</span>
+          </div>
+          <div class="uml-class-section">
+            <span class="method">+ attach</span><span class="type">(o: Observer): void</span><br/>
+            <span class="method">+ detach</span><span class="type">(o: Observer): void</span><br/>
+            <span class="method">+ notify</span><span class="type">(): void</span><br/>
+            <span class="method">+ getState</span><span class="type">(): any</span><br/>
+            <span class="method">+ setState</span><span class="type">(s: any): void</span>
+          </div>
+        </div>
+
+        <!-- Observer interface -->
+        <div class="uml-class">
+          <div class="uml-class-header">
+            <span class="stereotype">&laquo;interface&raquo;</span>
+            Observer
+          </div>
+          <div class="uml-class-section" style="min-height:20px;"></div>
+          <div class="uml-class-section">
+            <span class="method">+ update</span><span class="type">(state: any): void</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="uml-bottom-row">
+        <!-- ConcreteObserverA -->
+        <div class="uml-class">
+          <div class="uml-class-header">
+            ConcreteObserverA
+          </div>
+          <div class="uml-class-section">
+            <span class="field">- internalState</span><span class="type">: any</span>
+          </div>
+          <div class="uml-class-section">
+            <span class="method">+ update</span><span class="type">(state: any): void</span><br/>
+            <span class="method">+ render</span><span class="type">(): void</span>
+          </div>
+        </div>
+
+        <!-- ConcreteObserverB -->
+        <div class="uml-class">
+          <div class="uml-class-header">
+            ConcreteObserverB
+          </div>
+          <div class="uml-class-section">
+            <span class="field">- log</span><span class="type">: string[]</span>
+          </div>
+          <div class="uml-class-section">
+            <span class="method">+ update</span><span class="type">(state: any): void</span><br/>
+            <span class="method">+ getLog</span><span class="type">(): string[]</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Properties Panel ─────────────────────────────── -->
+  <aside class="properties">
+    <div class="prop-title">Properties</div>
+
+    <div class="prop-group">
+      <div class="prop-label">Class Name</div>
+      <div class="prop-value">Subject</div>
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Pattern Role</div>
+      <div class="prop-value" style="display:flex;align-items:center;gap:6px;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--primary);"></span>
+        Publisher / Observable
+      </div>
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Position</div>
+      <div class="prop-row">
+        <div>
+          <div class="prop-label" style="font-size:10px;">X</div>
+          <div class="prop-value">124</div>
+        </div>
+        <div>
+          <div class="prop-label" style="font-size:10px;">Y</div>
+          <div class="prop-value">68</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Dimensions</div>
+      <div class="prop-row">
+        <div>
+          <div class="prop-label" style="font-size:10px;">W</div>
+          <div class="prop-value">200</div>
+        </div>
+        <div>
+          <div class="prop-label" style="font-size:10px;">H</div>
+          <div class="prop-value">186</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Relationships</div>
+      <div>
+        <span class="prop-chip">Observer (1..*)</span>
+      </div>
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Tags</div>
+      <div>
+        <span class="prop-chip">Behavioral</span>
+        <span class="prop-chip">GoF</span>
+        <span class="prop-chip">Pub-Sub</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Bottom Tab Bar ───────────────────────────────── -->
+  <div class="bottom-tabs">
+    <div class="tab active">Console</div>
+    <div class="tab">Problems</div>
+    <div class="tab">Output</div>
+    <div class="tab">Learn</div>
+    <div class="tab-spacer"></div>
+    <div class="tab-status">
+      <span class="tab-status-dot"></span>
+      Observer pattern loaded
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- OVERLAY (SVG with mask cutout)                          -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="overlay-layer" id="overlay-layer">
+  <svg xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <mask id="spotlight-mask">
+        <!-- White = visible overlay (dark) -->
+        <rect width="100%" height="100%" fill="white"/>
+        <!-- Black = cutout (transparent hole) -->
+        <rect id="mask-cutout" fill="black" rx="6"/>
+      </mask>
+    </defs>
+    <rect width="100%" height="100%" fill="rgba(0,0,0,0.65)" mask="url(#spotlight-mask)"/>
+  </svg>
+</div>
+
+<!-- ── Spotlight pulsing border ring ──────────────────── -->
+<div class="spotlight-ring" id="spotlight-ring"></div>
+
+<!-- ── Connector line from spotlight to lesson card ───── -->
+<svg class="lesson-connector" id="lesson-connector">
+  <line id="connector-line"/>
+  <circle id="connector-dot-start" r="3"/>
+  <circle id="connector-dot-end" r="3"/>
+</svg>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- FLOATING LESSON CARD                                    -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="lesson-card" id="lesson-card">
+  <div class="card-progress">
+    <span class="card-step">Step 2 of 8</span>
+    <div class="card-dots">
+      <span class="card-dot done"></span>
+      <span class="card-dot active"></span>
+      <span class="card-dot"></span>
+      <span class="card-dot"></span>
+      <span class="card-dot"></span>
+      <span class="card-dot"></span>
+      <span class="card-dot"></span>
+      <span class="card-dot"></span>
+    </div>
+  </div>
+  <div class="card-body">
+    <h2 class="card-title">The Subject</h2>
+    <p class="card-text">
+      The Subject class is the heart of the pattern. It maintains a list of observers and provides methods to manage subscriptions. When its state changes, it calls <code>notify()</code>.
+    </p>
+  </div>
+  <div class="card-actions">
+    <button class="btn-primary">Got it <span class="arrow">&rarr;</span></button>
+    <button class="skip-link">Skip tour</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- Positioning script (runs once to align overlay)         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  const subjectEl    = document.getElementById('subject-class');
+  const maskCutout   = document.getElementById('mask-cutout');
+  const spotlightRing = document.getElementById('spotlight-ring');
+  const lessonCard   = document.getElementById('lesson-card');
+  const connector    = document.getElementById('lesson-connector');
+  const connLine     = document.getElementById('connector-line');
+  const connDotStart = document.getElementById('connector-dot-start');
+  const connDotEnd   = document.getElementById('connector-dot-end');
+
+  function position() {
+    const rect = subjectEl.getBoundingClientRect();
+    const pad  = 10; // padding around the cutout
+
+    // Cutout in SVG mask
+    maskCutout.setAttribute('x', rect.left - pad);
+    maskCutout.setAttribute('y', rect.top  - pad);
+    maskCutout.setAttribute('width',  rect.width  + pad * 2);
+    maskCutout.setAttribute('height', rect.height + pad * 2);
+
+    // Pulsing ring
+    spotlightRing.style.left   = (rect.left - pad) + 'px';
+    spotlightRing.style.top    = (rect.top  - pad) + 'px';
+    spotlightRing.style.width  = (rect.width  + pad * 2) + 'px';
+    spotlightRing.style.height = (rect.height + pad * 2) + 'px';
+
+    // Lesson card: to the right of the Subject, vertically centered
+    const cardW = 360;
+    const gap   = 48;
+    const cardX = rect.right + gap;
+    const cardY = rect.top + (rect.height / 2) - 150; // 150 ~ half of 300px card height
+
+    lessonCard.style.left = cardX + 'px';
+    lessonCard.style.top  = Math.max(80, cardY) + 'px';
+
+    // Connector
+    const cStartX = rect.right + pad;
+    const cStartY = rect.top + rect.height / 2;
+    const cEndX   = cardX;
+    const cEndY   = Math.max(80, cardY) + 60;
+
+    connector.style.left   = '0px';
+    connector.style.top    = '0px';
+    connector.style.width  = '100vw';
+    connector.style.height = '100vh';
+
+    connLine.setAttribute('x1', cStartX);
+    connLine.setAttribute('y1', cStartY);
+    connLine.setAttribute('x2', cEndX);
+    connLine.setAttribute('y2', cEndY);
+
+    connDotStart.setAttribute('cx', cStartX);
+    connDotStart.setAttribute('cy', cStartY);
+    connDotEnd.setAttribute('cx', cEndX);
+    connDotEnd.setAttribute('cy', cEndY);
+  }
+
+  position();
+  window.addEventListener('resize', position);
+})();
+</script>
+</body>
+</html>

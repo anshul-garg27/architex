@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Approach B: Brilliant-Style Full Takeover</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  /* ── Reset ── */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ── Design Tokens ── */
+  :root {
+    --bg:          hsl(225, 8%, 7%);
+    --surface:     hsl(225, 8%, 11%);
+    --elevated:    hsl(225, 7%, 13%);
+    --text:        hsl(220, 5%, 90%);
+    --text-muted:  hsl(220, 5%, 55%);
+    --primary:     hsl(258, 78%, 64%);
+    --primary-dim: hsl(258, 60%, 48%);
+    --primary-bg:  hsla(258, 78%, 64%, 0.10);
+    --primary-bg2: hsla(258, 78%, 64%, 0.18);
+    --border:      rgba(255,255,255,0.10);
+    --border-light:rgba(255,255,255,0.06);
+    --success:     hsl(152, 60%, 48%);
+    --success-bg:  hsla(152, 60%, 48%, 0.12);
+    --font:        'Inter', 'Geist Sans', system-ui, -apple-system, sans-serif;
+    --radius:      14px;
+    --radius-sm:   10px;
+    --radius-xs:   6px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── Page Header (demo label) ── */
+  .demo-header {
+    padding: 28px 40px 22px;
+    text-align: center;
+  }
+  .demo-header h1 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 8px;
+  }
+  .demo-header p {
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ── Lesson Viewport Container ── */
+  .lesson-viewport {
+    max-width: 1160px;
+    margin: 0 auto 32px;
+    padding: 0 24px;
+  }
+
+  /* ── Takeover Card ── */
+  .takeover-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.03),
+      0 8px 40px rgba(0,0,0,0.45),
+      0 2px 12px rgba(0,0,0,0.3);
+    position: relative;
+  }
+
+  /* ── Progress Bar ── */
+  .progress-bar-track {
+    height: 3px;
+    background: rgba(255,255,255,0.04);
+    position: relative;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    width: 60%;
+    background: linear-gradient(90deg, var(--primary-dim), var(--primary));
+    border-radius: 0 3px 3px 0;
+    position: relative;
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .progress-bar-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: -1px;
+    width: 24px; height: 5px;
+    background: var(--primary);
+    filter: blur(6px);
+    border-radius: 50%;
+  }
+
+  /* ── Lesson Label ── */
+  .lesson-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px 0;
+  }
+  .lesson-label-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .lesson-icon {
+    width: 28px; height: 28px;
+    background: var(--primary-bg);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lesson-icon svg { width: 14px; height: 14px; }
+  .lesson-title-sm {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .lesson-step-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--primary-bg);
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Card Body: Two-Column Layout ── */
+  .card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 24px 32px 20px;
+    min-height: 420px;
+  }
+
+  /* ── Left: Diagram Area ── */
+  .diagram-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 24px 16px 0;
+    border-right: 1px solid var(--border-light);
+  }
+  .diagram-svg-wrap {
+    width: 100%;
+    max-width: 440px;
+  }
+
+  /* SVG styling */
+  .cls-box {
+    rx: 10; ry: 10;
+    stroke-width: 1.5;
+  }
+  .cls-subject {
+    fill: hsla(258, 78%, 64%, 0.06);
+    stroke: var(--primary);
+    filter: url(#glow);
+  }
+  .cls-observer {
+    fill: hsla(220, 5%, 90%, 0.04);
+    stroke: rgba(255,255,255,0.18);
+  }
+  .cls-concrete {
+    fill: hsla(152, 60%, 48%, 0.05);
+    stroke: hsla(152, 60%, 48%, 0.3);
+  }
+  .cls-name {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    fill: var(--text);
+  }
+  .cls-stereotype {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 9.5px;
+    font-weight: 500;
+    fill: var(--text-muted);
+    letter-spacing: 0.5px;
+  }
+  .cls-member {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 10.5px;
+    fill: var(--text-muted);
+  }
+  .cls-divider {
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 1;
+  }
+  .arrow-line {
+    stroke: var(--primary);
+    stroke-width: 1.5;
+    stroke-dasharray: 6, 4;
+    fill: none;
+  }
+  .arrow-solid {
+    stroke: rgba(255,255,255,0.2);
+    stroke-width: 1.2;
+    fill: none;
+  }
+  .arrow-head {
+    fill: var(--primary);
+  }
+  .arrow-head-hollow {
+    fill: none;
+    stroke: rgba(255,255,255,0.2);
+    stroke-width: 1.2;
+  }
+
+  /* Animated dashes */
+  @keyframes dashFlow {
+    to { stroke-dashoffset: -20; }
+  }
+  .arrow-animated {
+    animation: dashFlow 1.2s linear infinite;
+  }
+
+  /* Glow pulse on Subject box */
+  @keyframes glowPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  .glow-pulse {
+    animation: glowPulse 2.5s ease-in-out infinite;
+  }
+
+  /* ── Right: Prompt + Interactive ── */
+  .prompt-area {
+    padding: 16px 0 16px 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .prompt-heading {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 14px;
+    line-height: 1.35;
+  }
+  .prompt-text {
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: hsl(220, 5%, 72%);
+    margin-bottom: 28px;
+  }
+  .prompt-text code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    background: var(--primary-bg);
+    color: var(--primary);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-weight: 500;
+  }
+
+  /* ── Multiple Choice Cards ── */
+  .mc-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .mc-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mc-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--elevated);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .mc-option:hover {
+    border-color: rgba(255,255,255,0.18);
+    background: hsl(225, 7%, 15%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .mc-option.selected {
+    border-color: var(--primary);
+    background: var(--primary-bg);
+    box-shadow: 0 0 0 1px var(--primary), 0 4px 20px hsla(258, 78%, 64%, 0.12);
+  }
+  .mc-option.correct {
+    border-color: var(--success);
+    background: var(--success-bg);
+    box-shadow: 0 0 0 1px var(--success);
+  }
+  .mc-letter {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+  }
+  .mc-option.selected .mc-letter {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+  .mc-option.correct .mc-letter {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+  }
+  .mc-option-text {
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.4;
+    font-weight: 500;
+  }
+  .mc-option.correct .mc-option-text {
+    color: var(--success);
+  }
+
+  /* ── Correct banner ── */
+  .correct-banner {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 10px 16px;
+    background: var(--success-bg);
+    border: 1px solid hsla(152, 60%, 48%, 0.2);
+    border-radius: var(--radius-xs);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--success);
+  }
+  .correct-banner.show {
+    display: flex;
+  }
+
+  /* ── Bottom Bar: Dots + Nav Buttons ── */
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px 22px;
+    border-top: 1px solid var(--border-light);
+  }
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--elevated);
+    color: var(--text-muted);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+  .nav-btn:hover {
+    border-color: rgba(255,255,255,0.2);
+    color: var(--text);
+    background: hsl(225, 7%, 15%);
+  }
+  .nav-btn.primary-btn {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+  .nav-btn.primary-btn:hover {
+    background: hsl(258, 78%, 58%);
+    border-color: hsl(258, 78%, 58%);
+    box-shadow: 0 4px 20px hsla(258, 78%, 64%, 0.3);
+  }
+  .nav-arrow {
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  /* ── Progress Dots ── */
+  .progress-dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    transition: all 0.3s ease;
+    position: relative;
+  }
+  .dot.completed {
+    background: var(--primary-dim);
+  }
+  .dot.current {
+    background: var(--primary);
+    box-shadow: 0 0 8px hsla(258, 78%, 64%, 0.5);
+    width: 22px;
+    border-radius: 5px;
+  }
+
+  /* ── Filmstrip Thumbnails ── */
+  .filmstrip {
+    max-width: 1160px;
+    margin: 0 auto 48px;
+    padding: 0 24px;
+  }
+  .filmstrip-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .filmstrip-row {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+  }
+  .thumb {
+    width: 120px;
+    height: 78px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    flex-shrink: 0;
+  }
+  .thumb:hover {
+    border-color: rgba(255,255,255,0.18);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  }
+  .thumb.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px var(--primary), 0 6px 24px hsla(258, 78%, 64%, 0.15);
+  }
+  .thumb-inner {
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .thumb-bar {
+    height: 2px;
+    border-radius: 1px;
+    background: rgba(255,255,255,0.06);
+    position: relative;
+  }
+  .thumb-bar-fill {
+    height: 100%;
+    border-radius: 1px;
+    background: var(--primary-dim);
+  }
+  .thumb-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    flex: 1;
+  }
+  .thumb-col {
+    border-radius: 3px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .thumb-col-line {
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 1px;
+    margin: 6px 5px 0;
+  }
+  .thumb-col-box {
+    width: 60%;
+    height: 10px;
+    margin: 5px auto 0;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .thumb-step {
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: auto;
+    padding-top: 2px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 820px) {
+    .card-body {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+    .diagram-area {
+      border-right: none;
+      border-bottom: 1px solid var(--border-light);
+      padding: 16px 0 24px;
+    }
+    .prompt-area {
+      padding: 24px 0 16px;
+    }
+    .card-body {
+      padding: 24px 24px 16px;
+    }
+    .lesson-label, .card-footer {
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .filmstrip-row { gap: 8px; }
+    .thumb { width: 100px; height: 66px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Demo Header -->
+<div class="demo-header">
+  <h1>Approach B: Brilliant-Style Full Takeover</h1>
+  <p>
+    The entire viewport becomes one lesson card. No sidebar, no panels, no tabs.
+    Each step is a focused, interactive micro-lesson with a diagram and a prompt.
+  </p>
+</div>
+
+<!-- Lesson Viewport -->
+<div class="lesson-viewport">
+  <div class="takeover-card">
+
+    <!-- Progress Bar -->
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill"></div>
+    </div>
+
+    <!-- Lesson Label -->
+    <div class="lesson-label">
+      <div class="lesson-label-left">
+        <div class="lesson-icon">
+          <svg viewBox="0 0 16 16" fill="none">
+            <path d="M8 1L2 4.5V11.5L8 15L14 11.5V4.5L8 1Z" stroke="hsl(258,78%,64%)" stroke-width="1.3" fill="hsla(258,78%,64%,0.15)"/>
+            <circle cx="8" cy="8" r="2" fill="hsl(258,78%,64%)"/>
+          </svg>
+        </div>
+        <span class="lesson-title-sm">Observer Pattern</span>
+      </div>
+      <span class="lesson-step-badge">Step 5 of 10</span>
+    </div>
+
+    <!-- Card Body -->
+    <div class="card-body">
+
+      <!-- LEFT: Diagram -->
+      <div class="diagram-area">
+        <div class="diagram-svg-wrap">
+          <svg viewBox="0 0 420 320" width="100%" height="100%">
+            <defs>
+              <!-- Glow filter for Subject -->
+              <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="6" result="blur"/>
+                <feFlood flood-color="hsl(258,78%,64%)" flood-opacity="0.25" result="color"/>
+                <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                <feMerge>
+                  <feMergeNode in="glow"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+              <!-- Arrowhead (filled, violet) -->
+              <marker id="arrowViolet" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" class="arrow-head"/>
+              </marker>
+              <!-- Arrowhead (hollow, implementation) -->
+              <marker id="arrowHollow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+                <polygon points="0 0, 10 4, 0 8" class="arrow-head-hollow"/>
+              </marker>
+            </defs>
+
+            <!-- ══════ Subject Class ══════ -->
+            <g class="glow-pulse">
+              <rect x="20" y="20" width="170" height="140" class="cls-box cls-subject" rx="10" ry="10"/>
+            </g>
+            <!-- Header -->
+            <text x="105" y="48" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="105" y="66" text-anchor="middle" class="cls-name">Subject</text>
+            <line x1="30" y1="78" x2="180" y2="78" class="cls-divider"/>
+            <!-- Members -->
+            <text x="36" y="98" class="cls-member">- observers: List</text>
+            <line x1="30" y1="108" x2="180" y2="108" class="cls-divider"/>
+            <text x="36" y="128" class="cls-member">+ attach(o: Observer)</text>
+            <text x="36" y="144" class="cls-member">+ detach(o: Observer)</text>
+            <text x="36" y="156" class="cls-member" style="fill: var(--primary);">+ notify()</text>
+
+            <!-- ══════ Observer Interface ══════ -->
+            <rect x="230" y="20" width="170" height="100" class="cls-box cls-observer" rx="10" ry="10"/>
+            <text x="315" y="48" text-anchor="middle" class="cls-stereotype">&laquo;interface&raquo;</text>
+            <text x="315" y="66" text-anchor="middle" class="cls-name">Observer</text>
+            <line x1="240" y1="78" x2="390" y2="78" class="cls-divider"/>
+            <text x="246" y="98" class="cls-member">+ update(state: any)</text>
+            <text x="246" y="114" class="cls-member" style="fill: var(--text-muted); opacity: 0.5;">// called by notify()</text>
+
+            <!-- ══════ Animated relationship arrow: Subject -> Observer ══════ -->
+            <path d="M 190 65 L 222 65"
+                  class="arrow-line arrow-animated"
+                  marker-end="url(#arrowViolet)"/>
+            <!-- Label -->
+            <text x="206" y="56" text-anchor="middle"
+                  style="font-size:9px; fill:var(--primary); font-weight:600; font-family:'Inter',sans-serif;">notifies</text>
+
+            <!-- ══════ ConcreteObserverA ══════ -->
+            <rect x="230" y="168" width="170" height="90" class="cls-box cls-concrete" rx="10" ry="10"/>
+            <text x="315" y="196" text-anchor="middle" class="cls-stereotype">class</text>
+            <text x="315" y="212" text-anchor="middle" class="cls-name" style="fill:hsl(152,60%,70%);">ConcreteObserver</text>
+            <line x1="240" y1="222" x2="390" y2="222" class="cls-divider"/>
+            <text x="246" y="242" class="cls-member">+ update(state: any)</text>
+
+            <!-- Implementation arrow: ConcreteObserver -> Observer -->
+            <path d="M 315 168 L 315 128"
+                  class="arrow-solid"
+                  marker-end="url(#arrowHollow)"/>
+            <text x="328" y="150" style="font-size:9px; fill:var(--text-muted); font-family:'Inter',sans-serif; opacity:0.6;">implements</text>
+
+            <!-- ══════ State change "spark" decoration ══════ -->
+            <g opacity="0.5">
+              <circle cx="40" cy="185" r="2" fill="var(--primary)">
+                <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="56" cy="192" r="1.5" fill="var(--primary)">
+                <animate attributeName="opacity" values="0.5;1;0.5" dur="2.4s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="48" cy="200" r="1" fill="var(--primary)">
+                <animate attributeName="opacity" values="0.4;1;0.4" dur="1.8s" repeatCount="indefinite"/>
+              </circle>
+            </g>
+
+            <!-- ══════ Caption below Subject ══════ -->
+            <text x="105" y="186" text-anchor="middle"
+                  style="font-size:10px; fill:var(--text-muted); font-family:'Inter',sans-serif; font-weight:500;">
+              Maintains observer list
+            </text>
+            <text x="105" y="200" text-anchor="middle"
+                  style="font-size:10px; fill:var(--primary); font-family:'Inter',sans-serif; font-weight:600; opacity:0.7;">
+              calls notify() on change
+            </text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- RIGHT: Prompt + Interactive -->
+      <div class="prompt-area">
+        <h2 class="prompt-heading">How Does the Subject Notify?</h2>
+        <p class="prompt-text">
+          The Subject maintains a list of observers. When its state changes, it calls
+          <code>notify()</code> which iterates through the list and calls
+          <code>update()</code> on each observer.
+        </p>
+
+        <div class="mc-label">Check your understanding</div>
+        <div class="mc-options">
+          <div class="mc-option" data-correct="false" onclick="selectOption(this)">
+            <span class="mc-letter">A</span>
+            <span class="mc-option-text">The Subject creates a new Observer instance</span>
+          </div>
+          <div class="mc-option" data-correct="true" onclick="selectOption(this)">
+            <span class="mc-letter">B</span>
+            <span class="mc-option-text">It gets added to the Subject's internal observers list</span>
+          </div>
+          <div class="mc-option" data-correct="false" onclick="selectOption(this)">
+            <span class="mc-letter">C</span>
+            <span class="mc-option-text">The Observer immediately receives all previous state changes</span>
+          </div>
+          <div class="mc-option" data-correct="false" onclick="selectOption(this)">
+            <span class="mc-letter">D</span>
+            <span class="mc-option-text">notify() is called automatically for the new Observer</span>
+          </div>
+        </div>
+
+        <div class="correct-banner" id="correctBanner">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke="hsl(152,60%,48%)" stroke-width="1.5"/>
+            <path d="M5 8L7 10L11 6" stroke="hsl(152,60%,48%)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Correct! The observer is simply appended to the subject's list.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer: Dots + Nav -->
+    <div class="card-footer">
+      <button class="nav-btn" onclick="void(0)">
+        <span class="nav-arrow">&larr;</span> Previous
+      </button>
+
+      <div class="progress-dots">
+        <div class="dot completed"></div>
+        <div class="dot completed"></div>
+        <div class="dot completed"></div>
+        <div class="dot completed"></div>
+        <div class="dot current"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+
+      <button class="nav-btn primary-btn" onclick="void(0)">
+        Next <span class="nav-arrow">&rarr;</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Filmstrip Thumbnails -->
+<div class="filmstrip">
+  <div class="filmstrip-label">Lesson Steps</div>
+  <div class="filmstrip-row">
+
+    <!-- Step 3 -->
+    <div class="thumb" title="Step 3 - What is an Observer?">
+      <div class="thumb-inner">
+        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:30%"></div></div>
+        <div class="thumb-cols">
+          <div class="thumb-col">
+            <div class="thumb-col-box" style="border-color:rgba(255,255,255,0.08);"></div>
+          </div>
+          <div class="thumb-col">
+            <div class="thumb-col-line"></div>
+            <div class="thumb-col-line" style="width:60%"></div>
+          </div>
+        </div>
+        <div class="thumb-step">Step 3</div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="thumb" title="Step 4 - The Subject's Role">
+      <div class="thumb-inner">
+        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:40%"></div></div>
+        <div class="thumb-cols">
+          <div class="thumb-col">
+            <div class="thumb-col-box" style="border-color:hsla(258,78%,64%,0.3);"></div>
+          </div>
+          <div class="thumb-col">
+            <div class="thumb-col-line"></div>
+            <div class="thumb-col-line" style="width:50%"></div>
+            <div class="thumb-col-line" style="width:70%"></div>
+          </div>
+        </div>
+        <div class="thumb-step">Step 4</div>
+      </div>
+    </div>
+
+    <!-- Step 5 (Current) -->
+    <div class="thumb active" title="Step 5 - How Notify Works (current)">
+      <div class="thumb-inner">
+        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:60%"></div></div>
+        <div class="thumb-cols">
+          <div class="thumb-col" style="border-color:hsla(258,78%,64%,0.15);">
+            <div class="thumb-col-box" style="border-color:hsla(258,78%,64%,0.3);"></div>
+            <div class="thumb-col-box" style="border-color:rgba(255,255,255,0.1); width:50%; margin-top:3px;"></div>
+          </div>
+          <div class="thumb-col">
+            <div class="thumb-col-line"></div>
+            <div class="thumb-col-line" style="width:55%"></div>
+          </div>
+        </div>
+        <div class="thumb-step" style="color:var(--primary);">Step 5</div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="thumb" title="Step 6 - Concrete Observers">
+      <div class="thumb-inner">
+        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:0%"></div></div>
+        <div class="thumb-cols">
+          <div class="thumb-col">
+            <div class="thumb-col-box" style="border-color:rgba(255,255,255,0.06);"></div>
+            <div class="thumb-col-box" style="border-color:hsla(152,60%,48%,0.2); width:50%; margin-top:3px;"></div>
+          </div>
+          <div class="thumb-col">
+            <div class="thumb-col-line" style="opacity:0.4;"></div>
+            <div class="thumb-col-line" style="width:65%; opacity:0.4;"></div>
+          </div>
+        </div>
+        <div class="thumb-step">Step 6</div>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="thumb" title="Step 7 - Detach and Cleanup">
+      <div class="thumb-inner">
+        <div class="thumb-bar"><div class="thumb-bar-fill" style="width:0%"></div></div>
+        <div class="thumb-cols">
+          <div class="thumb-col">
+            <div class="thumb-col-box" style="border-color:rgba(255,255,255,0.05);"></div>
+          </div>
+          <div class="thumb-col">
+            <div class="thumb-col-line" style="opacity:0.3;"></div>
+          </div>
+        </div>
+        <div class="thumb-step">Step 7</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function selectOption(el) {
+    // Clear previous selections
+    document.querySelectorAll('.mc-option').forEach(opt => {
+      opt.classList.remove('selected', 'correct');
+    });
+
+    const isCorrect = el.getAttribute('data-correct') === 'true';
+
+    if (isCorrect) {
+      el.classList.add('correct');
+      document.getElementById('correctBanner').classList.add('show');
+    } else {
+      el.classList.add('selected');
+      document.getElementById('correctBanner').classList.remove('show');
+
+      // Shake animation for wrong answer
+      el.style.animation = 'shake 0.4s ease';
+      setTimeout(() => { el.style.animation = ''; }, 400);
+    }
+  }
+
+  // Inject shake keyframes
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-4px); }
+      40% { transform: translateX(4px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(2px); }
+    }
+  `;
+  document.head.appendChild(style);
+</script>
+
+</body>
+</html>
