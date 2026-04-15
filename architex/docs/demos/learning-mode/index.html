@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1440">
+  <title>Architex Learning Mode — 5 Approach Demos</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Geist Sans', system-ui, -apple-system, sans-serif;
+      background: hsl(225, 8%, 7%);
+      color: hsl(220, 5%, 90%);
+      min-height: 100vh;
+      padding: 40px;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: hsl(220, 5%, 55%);
+      font-size: 1rem;
+      margin-bottom: 48px;
+      max-width: 700px;
+      line-height: 1.6;
+    }
+    .accent { color: hsl(258, 78%, 64%); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 24px;
+      max-width: 1360px;
+    }
+    .card {
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 16px;
+      background: hsl(225, 8%, 11%);
+      overflow: hidden;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .card:hover {
+      border-color: hsl(258, 78%, 64%, 0.4);
+      box-shadow: 0 0 30px hsl(258, 78%, 64%, 0.08);
+      transform: translateY(-2px);
+    }
+    .card.recommended {
+      border-color: hsl(258, 78%, 64%, 0.3);
+      background: hsl(258, 78%, 64%, 0.05);
+    }
+    .card-header {
+      padding: 24px 24px 16px;
+    }
+    .card-label {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: hsl(258, 78%, 64%);
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: hsl(258, 78%, 64%, 0.12);
+      margin-bottom: 12px;
+    }
+    .card-label.rec {
+      background: hsl(152, 65%, 48%, 0.12);
+      color: hsl(152, 65%, 48%);
+    }
+    .card h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: hsl(220, 5%, 55%);
+    }
+    .card-preview {
+      height: 200px;
+      background: hsl(225, 8%, 7%);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-preview svg { width: 100%; height: 100%; }
+    .card-footer {
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .tag-science { background: hsl(217, 80%, 62%, 0.12); color: hsl(217, 80%, 62%); }
+    .tag-impl { background: hsl(35, 90%, 55%, 0.12); color: hsl(35, 90%, 55%); }
+    .tag-rec { background: hsl(152, 65%, 48%, 0.12); color: hsl(152, 65%, 48%); }
+    .arrow { color: hsl(220, 5%, 55%); font-size: 14px; }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 48px 0 32px;
+      max-width: 1360px;
+    }
+    .note {
+      color: hsl(220, 5%, 45%);
+      font-size: 13px;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <h1>Learning Mode <span class="accent">Demos</span></h1>
+  <p class="subtitle">
+    5 different approaches for adding a structured learning experience to Architex's LLD module.
+    Each demo shows the Observer pattern. Click any card to see the full mockup.
+  </p>
+
+  <div class="grid">
+    <!-- Approach A -->
+    <a href="approach-a-jupyter.html" class="card">
+      <div class="card-header">
+        <div class="card-label">Approach A</div>
+        <h2>Jupyter-Style Vertical Lesson</h2>
+        <p>Right panel becomes a scrollable lesson column with interleaved prose, diagrams, code, and checkpoints. Canvas shows full diagram as passive reference (dimmed).</p>
+      </div>
+      <div class="card-footer">
+        <div class="badges">
+          <span class="tag tag-science">Contiguity</span>
+          <span class="tag tag-impl">Medium impl</span>
+        </div>
+        <span class="arrow">&rarr;</span>
+      </div>
+    </a>
+
+    <!-- Approach B -->
+    <a href="approach-b-brilliant.html" class="card">
+      <div class="card-header">
+        <div class="card-label">Approach B</div>
+        <h2>Brilliant-Style Full Takeover</h2>
+        <p>Entire viewport becomes a single lesson card. Left: interactive diagram. Right: short prompt + quiz. No chrome. Maximum focus, zero distraction.</p>
+      </div>
+      <div class="card-footer">
+        <div class="badges">
+          <span class="tag tag-science">Segmenting</span>
+          <span class="tag tag-impl">High impl</span>
+        </div>
+        <span class="arrow">&rarr;</span>
+      </div>
+    </a>
+
+    <!-- Approach C -->
+    <a href="approach-c-codecademy.html" class="card">
+      <div class="card-header">
+        <div class="card-label">Approach C</div>
+        <h2>Codecademy Split (Build with Guidance)</h2>
+        <p>Left panel has step-by-step instructions. User actually builds the diagram on the canvas following the steps. Validation feedback at bottom.</p>
+      </div>
+      <div class="card-footer">
+        <div class="badges">
+          <span class="tag tag-science">Transfer</span>
+          <span class="tag tag-impl">High impl</span>
+        </div>
+        <span class="arrow">&rarr;</span>
+      </div>
+    </a>
+
+    <!-- Approach D -->
+    <a href="approach-d-overlay.html" class="card">
+      <div class="card-header">
+        <div class="card-label">Approach D</div>
+        <h2>Overlay Walkthrough (Figma Learn)</h2>
+        <p>Full Build mode stays visible but dimmed. A spotlight highlights one element at a time. Floating lesson card explains each part.</p>
+      </div>
+      <div class="card-footer">
+        <div class="badges">
+          <span class="tag tag-science">Dual Coding</span>
+          <span class="tag tag-impl">Low impl</span>
+        </div>
+        <span class="arrow">&rarr;</span>
+      </div>
+    </a>
+
+    <!-- Approach E (Recommended) -->
+    <a href="approach-e-progressive.html" class="card recommended">
+      <div class="card-header">
+        <div class="card-label rec">Recommended</div>
+        <h2>Progressive Canvas + Side Lesson</h2>
+        <p>Canvas builds up step-by-step synchronized with a scrollable lesson column. Each scroll reveals new classes on the canvas. The diagram IS the lesson.</p>
+      </div>
+      <div class="card-footer">
+        <div class="badges">
+          <span class="tag tag-rec">Best science</span>
+          <span class="tag tag-rec">Best transfer</span>
+          <span class="tag tag-impl">Med-High impl</span>
+        </div>
+        <span class="arrow">&rarr;</span>
+      </div>
+    </a>
+  </div>
+
+  <div class="divider"></div>
+  <p class="note">
+    All demos use the Architex Design System v2 tokens (225deg hue, 8% sat, 258deg violet accent).
+    Based on research from Mayer, Sweller, Bjork, Paivio across 14 published studies.
+    Open each HTML file in a browser at 1440x900 for best results.
+  </p>
+</body>
+</html>
