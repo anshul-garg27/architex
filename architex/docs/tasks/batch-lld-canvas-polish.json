@@ -62,11 +62,11 @@
     ],
     "priority": "P2",
     "effort": "L",
-    "status": "backlog",
+    "status": "done",
     "phase": 5,
     "module": "lld-studio",
     "category": "frontend",
-    "files": ["src/components/modules/lld/UMLCanvasRenderer.tsx", "src/components/modules/LLDModule.tsx"],
+    "files": ["src/components/modules/lld/canvas/LLDCanvas.tsx"],
     "dependencies": [],
     "blockedBy": [],
     "tags": ["canvas", "animation", "FLIP", "UX", "polish"]
