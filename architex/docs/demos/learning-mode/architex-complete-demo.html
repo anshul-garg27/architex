@@ -1,0 +1,2840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architex -- Complete Product Demo | Observer Pattern</title>
+<style>
+/* ================================================================
+   ARCHITEX COMPLETE PRODUCT DEMO
+   All 7 modes for the Observer pattern in one page.
+   Design tokens from the Architex design system v2.
+   ================================================================ */
+
+/* ── Reset ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Design Tokens ───────────────────────────────────────────── */
+:root {
+  --bg:          hsl(225, 8%, 7%);
+  --surface:     hsl(225, 8%, 11%);
+  --elevated:    hsl(225, 7%, 13%);
+  --surface-elevated: hsl(225, 6%, 16%);
+  --text:        hsl(220, 5%, 90%);
+  --text-muted:  hsl(220, 5%, 55%);
+  --text-subtle: hsl(220, 5%, 62%);
+  --border:      rgba(255, 255, 255, 0.10);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --code-bg:     hsl(225, 10%, 14%);
+  --class-fill:  hsl(225, 10%, 18%);
+  --canvas-bg:   hsl(225, 10%, 9%);
+  --font:        system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono:        'SF Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
+  --radius:      8px;
+  --radius-lg:   12px;
+
+  /* Mode colors */
+  --mode-learn:      hsl(210, 70%, 62%);
+  --mode-simulate:   hsl(152, 60%, 52%);
+  --mode-practice:   hsl(35, 85%, 58%);
+  --mode-quiz:       hsl(280, 65%, 65%);
+  --mode-assessment: hsl(340, 68%, 62%);
+  --mode-review:     hsl(190, 65%, 52%);
+  --mode-ai:         hsl(258, 78%, 64%);
+
+  /* Glow variants */
+  --mode-learn-glow:      hsla(210, 70%, 62%, 0.15);
+  --mode-simulate-glow:   hsla(152, 60%, 52%, 0.15);
+  --mode-practice-glow:   hsla(35, 85%, 58%, 0.15);
+  --mode-quiz-glow:       hsla(280, 65%, 65%, 0.15);
+  --mode-assessment-glow: hsla(340, 68%, 62%, 0.15);
+  --mode-review-glow:     hsla(190, 65%, 52%, 0.15);
+  --mode-ai-glow:         hsla(258, 78%, 64%, 0.15);
+
+  /* Active mode (changes via JS) */
+  --active-color: var(--mode-learn);
+  --active-glow:  var(--mode-learn-glow);
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+/* ── App Shell ───────────────────────────────────────────────── */
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ================================================================
+   ACTIVITY BAR (Left 52px sidebar)
+   ================================================================ */
+.activity-bar {
+  width: 52px;
+  min-width: 52px;
+  background: var(--surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 2px;
+  z-index: 10;
+}
+
+.ab-logo {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.ab-logo svg {
+  width: 22px;
+  height: 22px;
+  color: var(--mode-ai);
+}
+
+.ab-icon {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  color: var(--text-muted);
+  position: relative;
+}
+.ab-icon:hover { background: var(--elevated); color: var(--text); }
+.ab-icon.active {
+  color: var(--active-color);
+  background: var(--active-glow);
+}
+.ab-icon.active::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: var(--active-color);
+  border-radius: 0 3px 3px 0;
+}
+.ab-icon svg { width: 18px; height: 18px; }
+
+.ab-spacer { flex: 1; }
+.ab-divider {
+  width: 24px;
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.ab-icon .tooltip {
+  position: absolute;
+  left: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: hsl(225, 10%, 20%);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.ab-icon:hover .tooltip { opacity: 1; }
+
+/* ================================================================
+   MAIN AREA (everything right of activity bar)
+   ================================================================ */
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+/* ================================================================
+   MODE BAR (top segmented control)
+   ================================================================ */
+.mode-bar-wrapper {
+  height: 52px;
+  min-height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  z-index: 20;
+}
+
+.mode-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.mode-bar-label .pattern-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--active-glow);
+  border: 1px solid color-mix(in srgb, var(--active-color) 25%, transparent);
+  border-radius: 7px;
+  transition: background 0.4s, border-color 0.4s;
+}
+.mode-bar-label .pattern-icon svg {
+  width: 15px;
+  height: 15px;
+  color: var(--active-color);
+  transition: color 0.4s;
+}
+.mode-bar-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Segmented control */
+.mode-switcher {
+  display: inline-flex;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+  position: relative;
+}
+
+.mode-pill {
+  position: absolute;
+  top: 3px;
+  height: calc(100% - 6px);
+  border-radius: 8px;
+  transition: left 0.35s cubic-bezier(0.4, 0, 0.15, 1),
+              width 0.35s cubic-bezier(0.4, 0, 0.15, 1),
+              background 0.45s ease,
+              box-shadow 0.45s ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.mode-tab {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.01em;
+}
+.mode-tab.active { color: #fff; }
+.mode-tab:not(.active) { color: var(--text-muted); }
+.mode-tab:not(.active):hover { color: var(--text); }
+
+.mode-tab svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.mode-tab .badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--mode-review);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+.mode-tab:not(.active) .badge {
+  background: var(--text-muted);
+  opacity: 0.6;
+}
+
+.mode-bar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.mode-bar-right .step-label .num {
+  color: var(--active-color);
+  font-weight: 700;
+  transition: color 0.4s;
+}
+
+/* ================================================================
+   CONTENT AREA
+   ================================================================ */
+.content-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-panel {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+  display: flex;
+}
+.mode-panel.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ================================================================
+   SHARED: Canvas + Grid dots
+   ================================================================ */
+.canvas {
+  flex: 1;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+.canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, hsla(220,5%,90%,0.055) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+/* ================================================================
+   UML CLASS BOX (shared)
+   ================================================================ */
+.uml-box {
+  position: absolute;
+  background: var(--class-fill);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 16px hsla(0,0%,0%,0.30);
+  font-size: 12px;
+  z-index: 3;
+  min-width: 200px;
+}
+.uml-box.highlighted {
+  border-color: var(--active-color);
+  box-shadow: 0 0 0 1px var(--active-color), 0 2px 24px color-mix(in srgb, var(--active-color) 25%, transparent);
+}
+.uml-box.error-highlight {
+  border-color: hsl(0, 72%, 56%);
+  box-shadow: 0 0 0 1px hsl(0, 72%, 56%), 0 2px 24px hsla(0, 72%, 56%, 0.2);
+}
+.uml-box.dimmed { opacity: 0.35; }
+.uml-header {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.uml-header .stereotype {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.uml-header .name {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+}
+.uml-section {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.uml-section:last-child { border-bottom: none; }
+.uml-section .item {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-subtle);
+  padding: 2px 0;
+  line-height: 1.55;
+}
+.uml-section .item .kw { color: hsl(280, 65%, 72%); }
+.uml-section .item .ty { color: hsl(190, 65%, 65%); }
+.uml-section .item .fn { color: hsl(45, 80%, 70%); }
+.uml-section .item .strike { text-decoration: line-through; opacity: 0.4; }
+.uml-section .item .missing { color: hsl(0, 72%, 62%); font-style: italic; }
+
+/* ================================================================
+   STATUS BAR (bottom)
+   ================================================================ */
+.status-bar {
+  height: 28px;
+  min-height: 28px;
+  background: var(--surface);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  z-index: 20;
+}
+.status-bar .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--active-color);
+  transition: background 0.4s;
+}
+.status-bar .sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+}
+.status-bar .right { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+.status-bar strong { color: var(--text-subtle); font-weight: 600; }
+
+/* ================================================================
+   MODE 1: LEARN
+   ================================================================ */
+#mode-learn .learn-canvas {
+  flex: 1;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+#mode-learn .learn-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, hsla(220,5%,90%,0.055) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.lesson-col {
+  width: 420px;
+  min-width: 420px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.lesson-header {
+  height: 46px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.lesson-header .progress-ring {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.lesson-header .progress-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.lesson-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+.lesson-scroll::-webkit-scrollbar { width: 4px; }
+.lesson-scroll::-webkit-scrollbar-track { background: transparent; }
+.lesson-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Lesson Cells */
+.lesson-cell {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+  transition: background 0.2s;
+}
+.lesson-cell.completed { opacity: 0.7; }
+.lesson-cell.current {
+  border-left: 3px solid var(--mode-learn);
+  background: hsla(210, 70%, 62%, 0.04);
+}
+.lesson-cell.locked {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.lesson-cell .cell-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.lesson-cell .cell-badge.done {
+  background: hsla(152, 60%, 48%, 0.12);
+  color: hsl(152, 65%, 55%);
+}
+.lesson-cell .cell-badge.active {
+  background: hsla(210, 70%, 62%, 0.12);
+  color: var(--mode-learn);
+}
+.lesson-cell .cell-badge.lock {
+  background: hsla(220, 5%, 55%, 0.1);
+  color: var(--text-muted);
+}
+.lesson-cell .cell-badge svg { width: 11px; height: 11px; }
+.lesson-cell h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.lesson-cell p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.lesson-cell .code-answer {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 8px;
+  margin-top: 6px;
+  color: hsl(152, 65%, 55%);
+}
+.lesson-cell .analogy {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--elevated);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  font-size: 12.5px;
+  color: var(--text-subtle);
+  line-height: 1.6;
+}
+
+/* ================================================================
+   MODE 2: SIMULATE
+   ================================================================ */
+#mode-simulate .sim-canvas {
+  flex: 1;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+#mode-simulate .sim-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, hsla(220,5%,90%,0.055) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.metrics-panel {
+  width: 420px;
+  min-width: 420px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.metrics-header {
+  height: 46px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  gap: 8px;
+}
+.metrics-header .live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mode-simulate);
+  animation: pulse-sim 1.5s ease-in-out infinite;
+}
+@keyframes pulse-sim {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 hsla(152, 60%, 52%, 0.5); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 6px hsla(152, 60%, 52%, 0); }
+}
+
+.metrics-body {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.metric-card {
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+}
+.metric-card .metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.metric-card .metric-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.metric-card .metric-unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+.metric-card .metric-sparkline {
+  height: 32px;
+  margin-top: 10px;
+  position: relative;
+}
+.metric-card .metric-sparkline svg {
+  width: 100%;
+  height: 100%;
+}
+
+.sim-controls {
+  padding: 20px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sim-btn {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.1s, box-shadow 0.2s, filter 0.2s;
+}
+.sim-btn:active { transform: scale(0.97); }
+.sim-btn svg { width: 16px; height: 16px; }
+.sim-btn.primary {
+  background: linear-gradient(180deg, hsl(152, 60%, 55%) 0%, hsl(152, 60%, 45%) 100%);
+  color: #fff;
+  box-shadow: 0 2px 10px hsla(152, 60%, 52%, 0.3);
+}
+.sim-btn.primary:hover { filter: brightness(1.1); }
+.sim-btn.danger {
+  background: var(--elevated);
+  border: 1px solid hsla(0, 72%, 56%, 0.3);
+  color: hsl(0, 72%, 62%);
+}
+.sim-btn.danger:hover { background: hsla(0, 72%, 56%, 0.1); }
+
+.observer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.observer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  transition: border-color 0.3s, background 0.3s;
+}
+.observer-item .obs-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.observer-item .obs-name { font-weight: 600; color: var(--text); flex: 1; }
+.observer-item .obs-status { font-size: 11px; color: var(--text-muted); }
+.observer-item.dead {
+  border-color: hsla(0, 72%, 56%, 0.3);
+  background: hsla(0, 72%, 56%, 0.06);
+}
+.observer-item.dead .obs-dot { background: hsl(0, 72%, 56%) !important; }
+.observer-item.dead .obs-status { color: hsl(0, 72%, 62%); }
+
+/* Particles */
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ================================================================
+   MODE 3: PRACTICE
+   ================================================================ */
+#mode-practice .practice-canvas {
+  flex: 1;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+#mode-practice .practice-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, hsla(220,5%,90%,0.055) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.practice-panel {
+  width: 420px;
+  min-width: 420px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.practice-header {
+  height: 46px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.practice-timer {
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--mode-practice);
+  font-family: var(--mono);
+}
+.practice-timer.warning { color: hsl(0, 72%, 56%); }
+.practice-difficulty {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: hsla(35, 85%, 58%, 0.12);
+  color: var(--mode-practice);
+}
+
+.checklist {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.checklist-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+.check-item:hover { background: var(--elevated); }
+.check-item .check-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.check-item .check-icon.done {
+  background: hsl(152, 60%, 48%);
+}
+.check-item .check-icon.done svg { color: #fff; width: 12px; height: 12px; }
+.check-item .check-icon.current {
+  background: transparent;
+  border: 2px solid var(--mode-practice);
+  position: relative;
+}
+.check-item .check-icon.current::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mode-practice);
+  animation: check-pulse 1.5s ease-in-out infinite;
+}
+@keyframes check-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+}
+.check-item .check-icon.pending {
+  background: transparent;
+  border: 2px solid var(--border);
+}
+.check-item .check-text {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.check-item.is-done .check-text {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+.check-item.is-current .check-text { color: var(--mode-practice); font-weight: 600; }
+
+.practice-prompt {
+  padding: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+.practice-prompt-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  padding: 12px 16px;
+  background: var(--elevated);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--mode-practice);
+}
+.practice-prompt-text strong { color: var(--mode-practice); }
+
+/* Ghost box on canvas */
+.ghost-box {
+  position: absolute;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  cursor: pointer;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+.ghost-box:hover { opacity: 0.7; border-color: var(--mode-practice); }
+.ghost-box svg { width: 20px; height: 20px; margin-right: 8px; opacity: 0.5; }
+
+/* ================================================================
+   MODE 4: QUIZ
+   ================================================================ */
+#mode-quiz {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.quiz-container {
+  width: 640px;
+  max-width: 90%;
+}
+.quiz-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.quiz-progress .qp-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.quiz-progress .qp-text .cur { color: var(--mode-quiz); }
+.quiz-progress .qp-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--elevated);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.quiz-progress .qp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--mode-quiz), hsl(300, 70%, 65%));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.quiz-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 40px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+}
+.quiz-card .q-category {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mode-quiz);
+  margin-bottom: 12px;
+}
+.quiz-card .q-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--elevated);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  text-align: left;
+  width: 100%;
+}
+.quiz-option:hover {
+  border-color: var(--mode-quiz);
+  background: hsla(280, 65%, 65%, 0.06);
+}
+.quiz-option .opt-letter {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.quiz-option:hover .opt-letter {
+  border-color: var(--mode-quiz);
+  color: var(--mode-quiz);
+}
+
+/* Correct / Wrong states */
+.quiz-option.correct {
+  border-color: hsl(152, 65%, 48%);
+  background: hsla(152, 65%, 48%, 0.08);
+}
+.quiz-option.correct .opt-letter {
+  background: hsl(152, 65%, 48%);
+  border-color: hsl(152, 65%, 48%);
+  color: #fff;
+}
+.quiz-option.wrong {
+  border-color: hsl(0, 72%, 56%);
+  background: hsla(0, 72%, 56%, 0.08);
+  animation: shake 0.5s ease;
+}
+.quiz-option.wrong .opt-letter {
+  background: hsl(0, 72%, 56%);
+  border-color: hsl(0, 72%, 56%);
+  color: #fff;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.quiz-feedback {
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  line-height: 1.6;
+  display: none;
+}
+.quiz-feedback.show { display: block; }
+.quiz-feedback.correct-fb {
+  background: hsla(152, 65%, 48%, 0.08);
+  border: 1px solid hsla(152, 65%, 48%, 0.25);
+  color: hsl(152, 65%, 65%);
+}
+.quiz-feedback.wrong-fb {
+  background: hsla(0, 72%, 56%, 0.08);
+  border: 1px solid hsla(0, 72%, 56%, 0.25);
+  color: hsl(0, 72%, 70%);
+}
+
+/* ================================================================
+   MODE 5: ASSESSMENT
+   ================================================================ */
+#mode-assessment .assess-canvas {
+  flex: 1;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+#mode-assessment .assess-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, hsla(220,5%,90%,0.055) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.rubric-panel {
+  width: 50%;
+  min-width: 380px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rubric-header {
+  height: 46px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rubric-body {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.overall-score {
+  text-align: center;
+  padding: 24px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.overall-score .score-ring {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 12px;
+  position: relative;
+}
+.overall-score .score-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.overall-score .score-ring .ring-bg {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 6;
+}
+.overall-score .score-ring .ring-fill {
+  fill: none;
+  stroke: var(--mode-assessment);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.overall-score .score-number {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+.overall-score .score-number small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.overall-score .score-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.dimension-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.dim-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.dim-row .dim-label {
+  width: 120px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-align: right;
+  flex-shrink: 0;
+}
+.dim-row .dim-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--elevated);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.dim-row .dim-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 0;
+}
+.dim-row .dim-score {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.assess-feedback {
+  padding: 16px 18px;
+  background: var(--elevated);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--mode-assessment);
+}
+.assess-feedback .fb-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--mode-assessment);
+  margin-bottom: 8px;
+}
+.assess-feedback .fb-text {
+  font-size: 13px;
+  color: var(--text-subtle);
+  line-height: 1.6;
+}
+.assess-feedback .fb-text code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: hsl(0, 72%, 62%);
+}
+
+/* ================================================================
+   MODE 6: REVIEW (Flashcards)
+   ================================================================ */
+#mode-review {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  gap: 24px;
+}
+
+.review-stats {
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.review-stats .rs-item { display: flex; align-items: center; gap: 6px; }
+.review-stats .rs-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.flashcard-stack {
+  position: relative;
+  width: 560px;
+  height: 320px;
+  perspective: 1200px;
+}
+.flashcard-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.flashcard-bg:nth-child(1) { transform: translateY(8px) scale(0.96); opacity: 0.4; }
+.flashcard-bg:nth-child(2) { transform: translateY(4px) scale(0.98); opacity: 0.6; }
+
+.flashcard {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.15, 1);
+  transform-style: preserve-3d;
+}
+.flashcard.flipped { transform: rotateY(180deg); }
+
+.flashcard-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 44px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+}
+.flashcard-front .fc-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mode-review);
+  margin-bottom: 16px;
+}
+.flashcard-front .fc-question {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.5;
+}
+.flashcard-front .fc-hint {
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flashcard-back {
+  transform: rotateY(180deg);
+}
+.flashcard-back .fc-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: hsl(152, 65%, 55%);
+  margin-bottom: 16px;
+}
+.flashcard-back .fc-answer {
+  font-size: 15px;
+  color: var(--text-subtle);
+  text-align: center;
+  line-height: 1.7;
+}
+.flashcard-back .fc-answer strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.review-buttons {
+  display: flex;
+  gap: 10px;
+}
+.review-btn {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.2s, color 0.2s, background 0.2s;
+}
+.review-btn:hover { border-color: var(--text-muted); color: var(--text); }
+.review-btn:active { transform: scale(0.96); }
+.review-btn.again { border-color: hsla(0, 72%, 56%, 0.3); color: hsl(0, 72%, 62%); }
+.review-btn.again:hover { background: hsla(0, 72%, 56%, 0.08); }
+.review-btn.easy { border-color: hsla(152, 65%, 48%, 0.3); color: hsl(152, 65%, 55%); }
+.review-btn.easy:hover { background: hsla(152, 65%, 48%, 0.08); }
+
+/* ================================================================
+   MODE 7: AI
+   ================================================================ */
+#mode-ai .ai-canvas {
+  flex: 1;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+#mode-ai .ai-canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, hsla(220,5%,90%,0.055) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.ai-panel {
+  width: 45%;
+  min-width: 380px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.ai-header {
+  height: 46px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ai-header .ai-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, hsla(258, 78%, 64%, 0.2), hsla(280, 65%, 65%, 0.2));
+  border: 1px solid hsla(258, 78%, 64%, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ai-header .ai-icon svg { width: 14px; height: 14px; color: var(--mode-ai); }
+.ai-header .ai-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.ai-header .ai-model {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--elevated);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ai-messages::-webkit-scrollbar { width: 4px; }
+.ai-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.ai-msg {
+  display: flex;
+  gap: 12px;
+  max-width: 95%;
+}
+.ai-msg.assistant { align-self: flex-start; }
+.ai-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+.ai-msg .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ai-msg.assistant .avatar {
+  background: linear-gradient(135deg, hsla(258, 78%, 64%, 0.2), hsla(280, 65%, 65%, 0.2));
+  border: 1px solid hsla(258, 78%, 64%, 0.2);
+}
+.ai-msg.assistant .avatar svg { width: 14px; height: 14px; color: var(--mode-ai); }
+.ai-msg.user .avatar {
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.ai-msg .bubble {
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.ai-msg.assistant .bubble {
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  color: var(--text-subtle);
+  border-top-left-radius: 4px;
+}
+.ai-msg.user .bubble {
+  background: hsla(258, 78%, 64%, 0.12);
+  border: 1px solid hsla(258, 78%, 64%, 0.2);
+  color: var(--text);
+  border-top-right-radius: 4px;
+}
+.ai-msg .bubble code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: hsl(190, 65%, 70%);
+}
+.ai-msg .bubble strong { color: var(--text); font-weight: 600; }
+
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  border-top-left-radius: 4px;
+  align-self: flex-start;
+  margin-left: 40px;
+}
+.typing-indicator .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: typing-bounce 1.4s ease-in-out infinite;
+}
+.typing-indicator .dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-indicator .dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+.ai-chips {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ai-chip {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid hsla(258, 78%, 64%, 0.25);
+  background: hsla(258, 78%, 64%, 0.06);
+  color: hsl(258, 70%, 76%);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ai-chip:hover {
+  background: hsla(258, 78%, 64%, 0.12);
+  border-color: hsla(258, 78%, 64%, 0.4);
+}
+
+.ai-input-bar {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.ai-input {
+  flex: 1;
+  height: 40px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 14px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.ai-input::placeholder { color: var(--text-muted); }
+.ai-input:focus { border-color: var(--mode-ai); }
+.ai-send {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--mode-ai), hsl(280, 65%, 55%));
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.15s;
+}
+.ai-send:hover { filter: brightness(1.15); }
+.ai-send:active { transform: scale(0.93); }
+.ai-send svg { width: 16px; height: 16px; color: #fff; }
+
+/* ================================================================
+   CANVAS SVG ARROWS
+   ================================================================ */
+.canvas-arrows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ================================================================
+   GLOBAL ANIMATIONS
+   ================================================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive tweak for slightly smaller screens */
+@media (max-width: 1400px) {
+  .lesson-col, .metrics-panel, .practice-panel { width: 360px; min-width: 360px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- ── Activity Bar ─────────────────────────────────────── -->
+  <aside class="activity-bar">
+    <div class="ab-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
+        <line x1="12" y1="22" x2="12" y2="15.5"/>
+        <polyline points="22 8.5 12 15.5 2 8.5"/>
+      </svg>
+    </div>
+
+    <div class="ab-icon" title="System Design">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="tooltip">System Design</span>
+    </div>
+    <div class="ab-icon" title="Algorithms">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span class="tooltip">Algorithms</span>
+    </div>
+    <div class="ab-icon" title="Data Structures">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span class="tooltip">Data Structures</span>
+    </div>
+    <div class="ab-icon active" title="LLD / Patterns">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      <span class="tooltip">LLD / Patterns</span>
+    </div>
+    <div class="ab-icon" title="Databases">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      <span class="tooltip">Databases</span>
+    </div>
+    <div class="ab-icon" title="OS / Networking">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <span class="tooltip">OS / Networking</span>
+    </div>
+
+    <div class="ab-spacer"></div>
+    <div class="ab-divider"></div>
+
+    <div class="ab-icon" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      <span class="tooltip">Settings</span>
+    </div>
+  </aside>
+
+  <!-- ── Main Area ────────────────────────────────────────── -->
+  <main class="main-area">
+
+    <!-- ── Mode Bar ─────────────────────────────────────── -->
+    <header class="mode-bar-wrapper">
+      <div class="mode-bar-label">
+        <div class="pattern-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        Observer Pattern
+      </div>
+      <div class="mode-bar-sep"></div>
+
+      <div class="mode-switcher" id="modeSwitcher">
+        <div class="mode-pill" id="modePill"></div>
+
+        <button class="mode-tab active" data-mode="learn" data-color="var(--mode-learn)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Learn
+        </button>
+
+        <button class="mode-tab" data-mode="simulate" data-color="var(--mode-simulate)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Simulate
+        </button>
+
+        <button class="mode-tab" data-mode="practice" data-color="var(--mode-practice)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Practice
+        </button>
+
+        <button class="mode-tab" data-mode="quiz" data-color="var(--mode-quiz)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Quiz
+        </button>
+
+        <button class="mode-tab" data-mode="assessment" data-color="var(--mode-assessment)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Assessment
+        </button>
+
+        <button class="mode-tab" data-mode="review" data-color="var(--mode-review)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h0M2 9.5h20"/></svg>
+          Review
+          <span class="badge">5</span>
+        </button>
+
+        <button class="mode-tab" data-mode="ai" data-color="var(--mode-ai)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-2 3-2 8h-4c0-5-2-6.05-2-8a4 4 0 0 1 4-4z"/><line x1="10" y1="14" x2="10" y2="17"/><line x1="14" y1="14" x2="14" y2="17"/><path d="M10 17a2 2 0 0 0 4 0"/></svg>
+          AI
+        </button>
+      </div>
+
+      <div class="mode-bar-right">
+        <span class="step-label" id="stepLabel">Step <span class="num">4</span>/8</span>
+      </div>
+    </header>
+
+    <!-- ── Content Area ─────────────────────────────────── -->
+    <section class="content-area">
+
+      <!-- MODE 1: LEARN -->
+      <div class="mode-panel active" id="mode-learn">
+        <div class="learn-canvas" id="learnCanvas">
+          <svg class="canvas-arrows" id="learnArrows">
+            <defs>
+              <marker id="arrowTriangleLearn" markerWidth="12" markerHeight="8" refX="12" refY="4" orient="auto">
+                <path d="M0 0 L12 4 L0 8 Z" fill="hsl(220,5%,40%)" stroke="none"/>
+              </marker>
+            </defs>
+          </svg>
+
+          <div class="uml-box highlighted" style="left: 80px; top: 60px; width: 240px;" id="learnSubject">
+            <div class="uml-header"><span class="name">Subject</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="kw">-</span> observers: <span class="ty">Observer[]</span></div>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ attach</span>(o: <span class="ty">Observer</span>): <span class="ty">void</span></div>
+              <div class="item"><span class="fn">+ detach</span>(o: <span class="ty">Observer</span>): <span class="ty">void</span></div>
+              <div class="item"><span class="fn">+ notify</span>(): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box highlighted" style="right: 100px; top: 60px; width: 230px;" id="learnObserver">
+            <div class="uml-header">
+              <span class="stereotype">&laquo;interface&raquo;</span>
+              <span class="name">Observer</span>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(data: <span class="ty">any</span>): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box dimmed" style="left: 80px; top: 280px; width: 240px;" id="learnConcreteSubject">
+            <div class="uml-header"><span class="name">ConcreteSubject</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="kw">-</span> state: <span class="ty">any</span></div>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ getState</span>(): <span class="ty">any</span></div>
+              <div class="item"><span class="fn">+ setState</span>(s): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box dimmed" style="right: 150px; top: 280px; width: 220px;" id="learnConcreteObs">
+            <div class="uml-header"><span class="name">ConcreteObserverA</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(data): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div style="position: absolute; bottom: 16px; left: 16px; font-size: 11px; color: var(--text-muted); opacity: 0.6; display: flex; align-items: center; gap: 6px; z-index: 5;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Zoom: 100% | Step 4 of 8
+          </div>
+        </div>
+
+        <div class="lesson-col">
+          <div class="lesson-header">
+            <svg class="progress-ring" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border)" stroke-width="3"/>
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--mode-learn)" stroke-width="3" stroke-linecap="round"
+                      stroke-dasharray="97.4" stroke-dashoffset="48.7" transform="rotate(-90 18 18)"/>
+            </svg>
+            Observer Pattern
+            <span class="progress-text">4 / 8 steps</span>
+          </div>
+          <div class="lesson-scroll">
+            <div class="lesson-cell completed">
+              <div class="cell-badge done">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Step 1 Complete
+              </div>
+              <h3>THE PROBLEM</h3>
+              <p>Imagine subscribing to a YouTube channel. You don't refresh the page every minute -- you get notified when there's a new video. That's the Observer pattern.</p>
+              <div class="analogy">
+                <strong style="color: var(--mode-learn);">Real-world analogy:</strong> A newspaper delivers to all subscribers when a new edition is published. Subscribers don't poll the printing press.
+              </div>
+            </div>
+
+            <div class="lesson-cell completed">
+              <div class="cell-badge done">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Step 2 Complete
+              </div>
+              <h3>MEET THE SUBJECT</h3>
+              <p>The Subject holds state and a list of observers. When something changes, it iterates through its observers and calls their <code style="font-family: var(--mono); font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px;">update()</code> method.</p>
+              <p style="margin-top: 8px;">It has three key methods: <code style="font-family: var(--mono); font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px;">attach()</code>, <code style="font-family: var(--mono); font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px;">detach()</code>, and <code style="font-family: var(--mono); font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px;">notify()</code>.</p>
+            </div>
+
+            <div class="lesson-cell completed">
+              <div class="cell-badge done">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Checkpoint Passed
+              </div>
+              <h3>CHECKPOINT</h3>
+              <p style="margin-bottom: 8px;">Which method lets an observer unsubscribe from the Subject?</p>
+              <div class="code-answer">detach()</div>
+            </div>
+
+            <div class="lesson-cell current">
+              <div class="cell-badge active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Step 4 - Current
+              </div>
+              <h3>THE CONTRACT</h3>
+              <p>The Observer interface is the contract. Any class that implements it can subscribe to a Subject. This is the key to loose coupling -- the Subject doesn't know (or care) what concrete type its observers are.</p>
+              <div style="margin-top: 12px; padding: 12px 14px; background: var(--code-bg); border-radius: var(--radius); border: 1px solid var(--border-subtle); font-family: var(--mono); font-size: 12px; line-height: 1.7;">
+                <div><span style="color: hsl(280,65%,72%);">interface</span> <span style="color: hsl(190,65%,65%);">Observer</span> {</div>
+                <div style="padding-left: 20px;"><span style="color: hsl(45,80%,70%);">update</span>(data: <span style="color: hsl(190,65%,65%);">any</span>): <span style="color: hsl(190,65%,65%);">void</span>;</div>
+                <div>}</div>
+              </div>
+              <p style="margin-top: 10px; font-size: 12px; color: var(--text-muted);">On the canvas, the Observer interface is now highlighted. Notice how Subject references Observer -- not any concrete class.</p>
+            </div>
+
+            <div class="lesson-cell locked">
+              <div class="cell-badge lock">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Step 5 - Locked
+              </div>
+              <h3>CONCRETE OBSERVERS</h3>
+              <p>Next: how concrete observers implement the interface...</p>
+            </div>
+
+            <div class="lesson-cell locked">
+              <div class="cell-badge lock">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Step 6 - Locked
+              </div>
+              <h3>THE NOTIFICATION FLOW</h3>
+              <p>How notify() iterates and triggers updates...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODE 2: SIMULATE -->
+      <div class="mode-panel" id="mode-simulate">
+        <div class="sim-canvas" id="simCanvas">
+          <svg class="canvas-arrows" id="simArrows">
+            <defs>
+              <marker id="arrowSim" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <path d="M0 0 L8 3 L0 6" fill="none" stroke="hsl(152,60%,52%)" stroke-width="1.2"/>
+              </marker>
+            </defs>
+          </svg>
+
+          <div class="uml-box" style="left: 60px; top: 140px; width: 230px;" id="simSubject">
+            <div class="uml-header">
+              <span class="name">NewsAgency</span>
+              <span class="stereotype" style="margin-left: auto; font-size: 10px;">(Subject)</span>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="kw">-</span> observers: <span class="ty">Observer[3]</span></div>
+              <div class="item"><span class="kw">-</span> latestNews: <span class="ty">string</span></div>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ notify</span>(): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="right: 50px; top: 40px; width: 210px;" id="simObsA">
+            <div class="uml-header"><span class="name" style="color: hsl(210, 70%, 70%);">MobileApp</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(news): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="right: 50px; top: 170px; width: 210px;" id="simObsB">
+            <div class="uml-header"><span class="name" style="color: hsl(152, 60%, 65%);">EmailService</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(news): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="right: 50px; top: 300px; width: 210px;" id="simObsC">
+            <div class="uml-header"><span class="name" style="color: hsl(35, 85%, 70%);">Dashboard</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(news): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div id="particleContainer" style="position: absolute; inset: 0; pointer-events: none; z-index: 10;"></div>
+
+          <div style="position: absolute; bottom: 16px; left: 16px; font-size: 11px; color: var(--text-muted); opacity: 0.6; z-index: 5;">
+            Click "Notify All" to trigger the notification flow
+          </div>
+        </div>
+
+        <div class="metrics-panel">
+          <div class="metrics-header">
+            <div class="live-dot"></div>
+            Live Simulation
+          </div>
+          <div class="metrics-body">
+            <div class="metric-card">
+              <div class="metric-label">Notifications / sec</div>
+              <div class="metric-value"><span id="metricNps">45</span><span class="metric-unit">/s</span></div>
+              <div class="metric-sparkline">
+                <svg viewBox="0 0 200 30" preserveAspectRatio="none">
+                  <polyline id="sparkNps" fill="none" stroke="hsl(152,60%,52%)" stroke-width="2"
+                            points="0,20 15,18 30,22 45,15 60,10 75,18 90,12 105,8 120,14 135,10 150,16 165,12 180,8 195,14 200,10"/>
+                </svg>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Active Observers</div>
+              <div class="metric-value"><span id="metricObs">3</span></div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Avg Latency</div>
+              <div class="metric-value"><span id="metricLatency">2.3</span><span class="metric-unit">ms</span></div>
+            </div>
+
+            <div style="margin-top: 4px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.06em;">Observer Status</div>
+              <div class="observer-list" id="observerList">
+                <div class="observer-item" data-obs="A">
+                  <div class="obs-dot" style="background: hsl(210, 70%, 62%);"></div>
+                  <span class="obs-name">MobileApp</span>
+                  <span class="obs-status">Active</span>
+                </div>
+                <div class="observer-item" data-obs="B">
+                  <div class="obs-dot" style="background: hsl(152, 60%, 52%);"></div>
+                  <span class="obs-name">EmailService</span>
+                  <span class="obs-status" id="obsBStatus">Active</span>
+                </div>
+                <div class="observer-item" data-obs="C">
+                  <div class="obs-dot" style="background: hsl(35, 85%, 58%);"></div>
+                  <span class="obs-name">Dashboard</span>
+                  <span class="obs-status">Active</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sim-controls">
+            <button class="sim-btn primary" id="btnNotify" onclick="triggerNotify()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Notify All Observers
+            </button>
+            <button class="sim-btn danger" id="btnKill" onclick="killObserverB()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Kill EmailService
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODE 3: PRACTICE -->
+      <div class="mode-panel" id="mode-practice">
+        <div class="practice-canvas">
+          <div class="ghost-box" style="left: 60px; top: 50px; width: 220px; height: 120px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Drop Subject here
+          </div>
+          <div class="ghost-box" style="left: 60px; top: 220px; width: 220px; height: 100px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Observer interface
+          </div>
+          <div class="ghost-box" style="right: 80px; top: 50px; width: 200px; height: 90px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            ConcreteObserverA
+          </div>
+          <div class="ghost-box" style="right: 80px; top: 190px; width: 200px; height: 90px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            ConcreteObserverB
+          </div>
+
+          <div class="uml-box" style="left: 60px; top: 50px; width: 220px; opacity: 0.8;">
+            <div class="uml-header"><span class="name">Subject</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="kw">-</span> observers: <span class="ty">Observer[]</span></div>
+            </div>
+            <div class="uml-section" style="opacity: 0.3;">
+              <div class="item" style="color: var(--mode-practice); font-style: italic;">+ attach() -- add here</div>
+              <div class="item" style="color: var(--mode-practice); font-style: italic;">+ detach() -- add here</div>
+            </div>
+          </div>
+
+          <div style="position: absolute; bottom: 16px; left: 16px; font-size: 11px; color: var(--text-muted); opacity: 0.6; z-index: 5;">
+            Build the Observer pattern from scratch. Drag classes from the toolbox.
+          </div>
+        </div>
+
+        <div class="practice-panel">
+          <div class="practice-header">
+            <div class="practice-timer" id="practiceTimer">28:45</div>
+            <div class="practice-difficulty">MEDIUM</div>
+          </div>
+          <div class="checklist">
+            <div class="checklist-title">Requirements Checklist</div>
+            <div class="check-item is-done">
+              <div class="check-icon done">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="check-text">Create Subject class with observers list</span>
+            </div>
+            <div class="check-item is-done">
+              <div class="check-icon done">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span class="check-text">Add observers array field to Subject</span>
+            </div>
+            <div class="check-item is-current">
+              <div class="check-icon current"></div>
+              <span class="check-text">Add attach() and detach() methods</span>
+            </div>
+            <div class="check-item">
+              <div class="check-icon pending"></div>
+              <span class="check-text">Create Observer interface with update()</span>
+            </div>
+            <div class="check-item">
+              <div class="check-icon pending"></div>
+              <span class="check-text">Create ConcreteObserverA</span>
+            </div>
+            <div class="check-item">
+              <div class="check-icon pending"></div>
+              <span class="check-text">Draw dependency relationships</span>
+            </div>
+            <div class="check-item">
+              <div class="check-icon pending"></div>
+              <span class="check-text">Implement notify() to call update() on all observers</span>
+            </div>
+          </div>
+          <div class="practice-prompt">
+            <div class="practice-prompt-text">
+              <strong>Hint:</strong> The <code style="font-family: var(--mono); font-size: 12px;">attach()</code> method should accept an Observer and push it to the array. The <code style="font-family: var(--mono); font-size: 12px;">detach()</code> method should find and remove it.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODE 4: QUIZ -->
+      <div class="mode-panel" id="mode-quiz">
+        <div class="quiz-container">
+          <div class="quiz-progress">
+            <span class="qp-text">Question <span class="cur">4</span> of 10</span>
+            <div class="qp-bar">
+              <div class="qp-fill" style="width: 40%;"></div>
+            </div>
+          </div>
+          <div class="quiz-card">
+            <div class="q-category">Open/Closed Principle</div>
+            <div class="q-text">If you add a 6th observer to a Subject that already has 5 observers, how many existing classes need to change?</div>
+            <div class="quiz-options" id="quizOptions">
+              <button class="quiz-option" data-correct="true" onclick="handleQuizClick(this, true)">
+                <span class="opt-letter">A</span>
+                <span>0 -- no existing classes change</span>
+              </button>
+              <button class="quiz-option" onclick="handleQuizClick(this, false)">
+                <span class="opt-letter">B</span>
+                <span>1 -- only the Subject class</span>
+              </button>
+              <button class="quiz-option" onclick="handleQuizClick(this, false)">
+                <span class="opt-letter">C</span>
+                <span>2 -- the Subject and the new Observer</span>
+              </button>
+              <button class="quiz-option" onclick="handleQuizClick(this, false)">
+                <span class="opt-letter">D</span>
+                <span>All of them -- every observer must be updated</span>
+              </button>
+            </div>
+            <div class="quiz-feedback" id="quizFeedbackCorrect">
+              <strong style="color: hsl(152, 65%, 65%);">Correct!</strong> Zero existing classes need to change. The new observer simply implements the Observer interface and calls <code style="font-family: var(--mono); font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px;">subject.attach(this)</code>. That's the power of the Observer pattern -- it's open for extension, closed for modification.
+            </div>
+            <div class="quiz-feedback" id="quizFeedbackWrong">
+              <strong style="color: hsl(0, 72%, 70%);">Not quite.</strong> Think about the Open/Closed Principle. The Subject uses the Observer interface, not concrete types. Adding a new observer means creating a new class that implements Observer -- no existing code changes at all.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODE 5: ASSESSMENT -->
+      <div class="mode-panel" id="mode-assessment">
+        <div class="assess-canvas">
+          <svg class="canvas-arrows" id="assessArrows"></svg>
+
+          <div class="uml-box error-highlight" style="left: 60px; top: 60px; width: 240px;" id="assessSubject">
+            <div class="uml-header"><span class="name">Subject</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="kw">-</span> observers: <span class="ty">Observer[]</span></div>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ attach</span>(o: <span class="ty">Observer</span>): <span class="ty">void</span></div>
+              <div class="item"><span class="missing">// detach() is missing!</span></div>
+              <div class="item"><span class="fn">+ notify</span>(): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="right: 80px; top: 60px; width: 220px;">
+            <div class="uml-header">
+              <span class="stereotype">&laquo;interface&raquo;</span>
+              <span class="name">Observer</span>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(data: <span class="ty">any</span>): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="left: 60px; top: 260px; width: 240px;">
+            <div class="uml-header"><span class="name">WeatherStation</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="kw">-</span> temperature: <span class="ty">number</span></div>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ setTemperature</span>(t): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="right: 40px; top: 220px; width: 200px;">
+            <div class="uml-header"><span class="name">PhoneDisplay</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(data): <span class="ty">void</span></div>
+            </div>
+          </div>
+          <div class="uml-box" style="right: 40px; top: 330px; width: 200px;">
+            <div class="uml-header"><span class="name">WebDashboard</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(data): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div style="position: absolute; left: 310px; top: 130px; z-index: 10;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: hsla(0,72%,56%,0.12); border: 1px solid hsla(0,72%,56%,0.3); border-radius: 6px; font-size: 11px; font-weight: 600; color: hsl(0,72%,65%);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              Missing detach() method
+            </div>
+          </div>
+        </div>
+
+        <div class="rubric-panel">
+          <div class="rubric-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mode-assessment)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Assessment Rubric
+          </div>
+          <div class="rubric-body" id="rubricBody">
+            <div class="overall-score">
+              <div class="score-ring">
+                <svg viewBox="0 0 36 36">
+                  <circle class="ring-bg" cx="18" cy="18" r="15.5"/>
+                  <circle class="ring-fill" id="scoreRing" cx="18" cy="18" r="15.5"
+                          stroke-dasharray="97.4" stroke-dashoffset="97.4"/>
+                </svg>
+                <div class="score-number">
+                  <span id="scoreNum">0</span>
+                  <small>/100</small>
+                </div>
+              </div>
+              <div class="score-label">Overall Score</div>
+            </div>
+            <div class="dimension-scores">
+              <div class="dim-row">
+                <span class="dim-label">Class Design</span>
+                <div class="dim-bar"><div class="dim-fill" data-width="80" style="background: var(--mode-assessment);"></div></div>
+                <span class="dim-score" data-target="8">0/10</span>
+              </div>
+              <div class="dim-row">
+                <span class="dim-label">Relationships</span>
+                <div class="dim-bar"><div class="dim-fill" data-width="70" style="background: hsl(35, 85%, 58%);"></div></div>
+                <span class="dim-score" data-target="7">0/10</span>
+              </div>
+              <div class="dim-row">
+                <span class="dim-label">Pattern Usage</span>
+                <div class="dim-bar"><div class="dim-fill" data-width="90" style="background: hsl(152, 60%, 52%);"></div></div>
+                <span class="dim-score" data-target="9">0/10</span>
+              </div>
+              <div class="dim-row">
+                <span class="dim-label">Completeness</span>
+                <div class="dim-bar"><div class="dim-fill" data-width="60" style="background: hsl(210, 70%, 62%);"></div></div>
+                <span class="dim-score" data-target="6">0/10</span>
+              </div>
+            </div>
+            <div class="assess-feedback">
+              <div class="fb-title">Primary Feedback</div>
+              <div class="fb-text">
+                Missing <code>detach()</code> method on the Subject class. Without it, observers can never unsubscribe, leading to potential memory leaks and unwanted notifications. This also violates the principle of symmetric operations -- if you can <code>attach()</code>, you should be able to <code>detach()</code>.
+              </div>
+            </div>
+            <div class="assess-feedback" style="border-left-color: hsl(35, 85%, 58%);">
+              <div class="fb-title" style="color: hsl(35, 85%, 58%);">Suggestion</div>
+              <div class="fb-text">
+                Consider adding error handling in <code>notify()</code> -- if one observer throws, the rest still need to be notified. A try/catch inside the iteration loop would make this more robust.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODE 6: REVIEW -->
+      <div class="mode-panel" id="mode-review">
+        <div class="review-stats">
+          <div class="rs-item">
+            <div class="rs-dot" style="background: hsl(0, 72%, 56%);"></div>
+            Due today: <strong style="color: var(--text); margin-left: 2px;">5</strong>
+          </div>
+          <div class="rs-item">
+            <div class="rs-dot" style="background: hsl(210, 70%, 62%);"></div>
+            New: <strong style="color: var(--text); margin-left: 2px;">2</strong>
+          </div>
+          <div class="rs-item">
+            <div class="rs-dot" style="background: hsl(152, 60%, 52%);"></div>
+            Review: <strong style="color: var(--text); margin-left: 2px;">3</strong>
+          </div>
+        </div>
+
+        <div class="flashcard-stack">
+          <div class="flashcard-bg"></div>
+          <div class="flashcard-bg"></div>
+          <div class="flashcard" id="flashcard" onclick="flipCard()">
+            <div class="flashcard-face flashcard-front">
+              <div class="fc-label">Observer Pattern -- Card 3 of 5</div>
+              <div class="fc-question">What is the key difference between Observer and Pub/Sub?</div>
+              <div class="fc-hint">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 15l-2 5L9 9l11 4-5 2z"/></svg>
+                Click to reveal answer
+              </div>
+            </div>
+            <div class="flashcard-face flashcard-back">
+              <div class="fc-label">Answer</div>
+              <div class="fc-answer">
+                <strong>Observer:</strong> The Subject directly notifies its observers. They have a direct reference -- the Subject knows its observers exist.<br><br>
+                <strong>Pub/Sub:</strong> A message broker (event bus) mediates. The publisher and subscriber have zero knowledge of each other. This adds a level of decoupling but also complexity.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-buttons" id="reviewButtons">
+          <button class="review-btn again">Again</button>
+          <button class="review-btn">Hard</button>
+          <button class="review-btn">Good</button>
+          <button class="review-btn easy">Easy</button>
+        </div>
+      </div>
+
+      <!-- MODE 7: AI -->
+      <div class="mode-panel" id="mode-ai">
+        <div class="ai-canvas">
+          <svg class="canvas-arrows" id="aiArrows"></svg>
+
+          <div class="uml-box" style="left: 50px; top: 50px; width: 230px;">
+            <div class="uml-header"><span class="name">Subject</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="kw">-</span> observers: <span class="ty" style="color: hsl(0,72%,62%);">ConcreteObserver[]</span></div>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ attach</span>(o: <span class="ty">Observer</span>): <span class="ty">void</span></div>
+              <div class="item"><span class="fn">+ notify</span>(): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="left: 50px; top: 250px; width: 210px;">
+            <div class="uml-header">
+              <span class="stereotype">&laquo;interface&raquo;</span>
+              <span class="name">Observer</span>
+            </div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="right: 50px; top: 80px; width: 200px;">
+            <div class="uml-header"><span class="name">ConcreteObserverA</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div class="uml-box" style="right: 50px; top: 230px; width: 200px;">
+            <div class="uml-header"><span class="name">ConcreteObserverB</span></div>
+            <div class="uml-section">
+              <div class="item"><span class="fn">+ update</span>(): <span class="ty">void</span></div>
+            </div>
+          </div>
+
+          <div style="position: absolute; left: 50px; top: 172px; z-index: 10;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: hsla(258,78%,64%,0.12); border: 1px solid hsla(258,78%,64%,0.3); border-radius: 6px; font-size: 11px; font-weight: 600; color: hsl(258,70%,76%);">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Tight coupling detected
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-panel">
+          <div class="ai-header">
+            <div class="ai-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-2 3-2 8h-4c0-5-2-6.05-2-8a4 4 0 0 1 4-4z"/><path d="M10 17a2 2 0 0 0 4 0"/></svg>
+            </div>
+            <span class="ai-title">Architex AI</span>
+            <span class="ai-model">Claude</span>
+          </div>
+          <div class="ai-messages" id="aiMessages">
+            <div class="ai-msg assistant">
+              <div class="avatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-2 3-2 8h-4c0-5-2-6.05-2-8a4 4 0 0 1 4-4z"/><path d="M10 17a2 2 0 0 0 4 0"/></svg>
+              </div>
+              <div class="bubble">
+                I see your Observer pattern diagram. <strong>Good structure overall!</strong> But I notice your Subject's <code>observers</code> field is typed as <code>ConcreteObserver[]</code> instead of the interface. This creates tight coupling -- the Subject now depends on a concrete class rather than an abstraction.
+              </div>
+            </div>
+            <div class="ai-msg user">
+              <div class="avatar">AG</div>
+              <div class="bubble">How should I fix it?</div>
+            </div>
+            <div class="ai-msg assistant">
+              <div class="avatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-2 3-2 8h-4c0-5-2-6.05-2-8a4 4 0 0 1 4-4z"/><path d="M10 17a2 2 0 0 0 4 0"/></svg>
+              </div>
+              <div class="bubble">
+                Change the observers list type from <code>ConcreteObserver[]</code> to <code>Observer[]</code>. This way, <strong>any class implementing the Observer interface can subscribe</strong> -- you're programming to an interface, not an implementation. This is the Dependency Inversion Principle in action.
+              </div>
+            </div>
+            <div class="typing-indicator" id="typingIndicator">
+              <div class="dot"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+          </div>
+          <div class="ai-chips">
+            <button class="ai-chip">Show me the code</button>
+            <button class="ai-chip">What about Pub/Sub?</button>
+            <button class="ai-chip">Review my design</button>
+          </div>
+          <div class="ai-input-bar">
+            <input class="ai-input" type="text" placeholder="Ask about your design...">
+            <button class="ai-send">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── Status Bar ───────────────────────────────────── -->
+    <footer class="status-bar">
+      <div class="dot"></div>
+      <strong>LLD</strong>
+      <span class="sep"></span>
+      <span id="statusMode">Learn Mode</span>
+      <span class="sep"></span>
+      <span>Observer Pattern</span>
+      <div class="right">
+        <span id="statusStep">Step 4/8</span>
+        <span class="sep"></span>
+        <span>1440 x 900</span>
+      </div>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+/* ================================================================
+   ARCHITEX COMPLETE DEMO -- INTERACTIVE BEHAVIOR
+   ================================================================ */
+
+// ── Mode definitions ──────────────────────────────────────────
+var MODES = {
+  learn:      { label: 'Learn Mode',      step: 'Step 4/8',       color: 'var(--mode-learn)',      colorRaw: 'hsl(210, 70%, 62%)' },
+  simulate:   { label: 'Simulate Mode',   step: 'Running',        color: 'var(--mode-simulate)',   colorRaw: 'hsl(152, 60%, 52%)' },
+  practice:   { label: 'Practice Mode',   step: '2/7 complete',   color: 'var(--mode-practice)',   colorRaw: 'hsl(35, 85%, 58%)'  },
+  quiz:       { label: 'Quiz Mode',       step: 'Q4/10',          color: 'var(--mode-quiz)',       colorRaw: 'hsl(280, 65%, 65%)' },
+  assessment: { label: 'Assessment Mode', step: 'Grading...',     color: 'var(--mode-assessment)', colorRaw: 'hsl(340, 68%, 62%)' },
+  review:     { label: 'Review Mode',     step: '5 due today',    color: 'var(--mode-review)',     colorRaw: 'hsl(190, 65%, 52%)' },
+  ai:         { label: 'AI Assistant',    step: '3 messages',     color: 'var(--mode-ai)',         colorRaw: 'hsl(258, 78%, 64%)' }
+};
+
+var modeGlows = {
+  learn:      'var(--mode-learn-glow)',
+  simulate:   'var(--mode-simulate-glow)',
+  practice:   'var(--mode-practice-glow)',
+  quiz:       'var(--mode-quiz-glow)',
+  assessment: 'var(--mode-assessment-glow)',
+  review:     'var(--mode-review-glow)',
+  ai:         'var(--mode-ai-glow)'
+};
+
+var currentMode = 'learn';
+var practiceTimerInterval = null;
+var practiceSeconds = 28 * 60 + 45;
+var observerBDead = false;
+var assessmentAnimated = false;
+var quizAnswered = false;
+
+// ── Mode switching ───────────────────────────────────────────
+var tabs    = document.querySelectorAll('.mode-tab');
+var panels  = document.querySelectorAll('.mode-panel');
+var pill    = document.getElementById('modePill');
+
+function adjustBrightness(hsl, amount) {
+  var match = hsl.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+  if (!match) return hsl;
+  var l = Math.max(0, Math.min(100, parseInt(match[3]) + amount));
+  return 'hsl(' + match[1] + ', ' + match[2] + '%, ' + l + '%)';
+}
+
+function updatePill(mode) {
+  var activeTab = document.querySelector('.mode-tab[data-mode="' + mode + '"]');
+  if (!activeTab) return;
+  var switcher = document.getElementById('modeSwitcher');
+  var sRect = switcher.getBoundingClientRect();
+  var tRect = activeTab.getBoundingClientRect();
+
+  var left = tRect.left - sRect.left;
+  pill.style.left = left + 'px';
+  pill.style.width = tRect.width + 'px';
+
+  var conf = MODES[mode];
+  pill.style.background = 'linear-gradient(180deg, ' + conf.colorRaw + ', ' + adjustBrightness(conf.colorRaw, -8) + ')';
+  pill.style.boxShadow = '0 1px 10px ' + conf.colorRaw.replace(')', ', 0.35)') + ', inset 0 1px 0 hsla(0,0%,100%,0.15)';
+}
+
+function switchMode(mode) {
+  if (mode === currentMode) return;
+  currentMode = mode;
+  var conf = MODES[mode];
+
+  document.documentElement.style.setProperty('--active-color', conf.color);
+  document.documentElement.style.setProperty('--active-glow', modeGlows[mode]);
+
+  tabs.forEach(function(t) { t.classList.toggle('active', t.dataset.mode === mode); });
+  panels.forEach(function(p) { p.classList.toggle('active', p.id === 'mode-' + mode); });
+
+  updatePill(mode);
+
+  document.getElementById('statusMode').textContent = conf.label;
+  document.getElementById('statusStep').textContent = conf.step;
+
+  var stepLabel = document.getElementById('stepLabel');
+  if (conf.step.indexOf('/') !== -1) {
+    var parts = conf.step.split('/');
+    stepLabel.textContent = '';
+    var pre = document.createTextNode('Step ');
+    var numSpan = document.createElement('span');
+    numSpan.className = 'num';
+    numSpan.textContent = parts[0].replace('Step ', '').replace('Q', '');
+    var post = document.createTextNode('/' + parts[1]);
+    stepLabel.appendChild(pre);
+    stepLabel.appendChild(numSpan);
+    stepLabel.appendChild(post);
+  } else {
+    stepLabel.textContent = '';
+    var numSpan2 = document.createElement('span');
+    numSpan2.className = 'num';
+    numSpan2.textContent = conf.step;
+    stepLabel.appendChild(numSpan2);
+  }
+
+  if (mode === 'practice') startPracticeTimer();
+  else stopPracticeTimer();
+
+  if (mode === 'assessment' && !assessmentAnimated) animateAssessment();
+  if (mode === 'simulate') startSparklineAnim();
+  if (mode === 'ai') scrollAiToBottom();
+}
+
+requestAnimationFrame(function() { updatePill('learn'); });
+window.addEventListener('resize', function() { updatePill(currentMode); drawLearnArrows(); drawSimArrows(); });
+
+tabs.forEach(function(tab) {
+  tab.addEventListener('click', function() { switchMode(tab.dataset.mode); });
+});
+
+
+// ── Practice timer ──────────────────────────────────────────
+function startPracticeTimer() {
+  if (practiceTimerInterval) return;
+  practiceTimerInterval = setInterval(function() {
+    practiceSeconds--;
+    if (practiceSeconds < 0) practiceSeconds = 0;
+    var m = Math.floor(practiceSeconds / 60);
+    var s = practiceSeconds % 60;
+    var el = document.getElementById('practiceTimer');
+    el.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    if (practiceSeconds < 300) el.classList.add('warning');
+    else el.classList.remove('warning');
+  }, 1000);
+}
+function stopPracticeTimer() {
+  if (practiceTimerInterval) {
+    clearInterval(practiceTimerInterval);
+    practiceTimerInterval = null;
+  }
+}
+
+
+// ── Simulate: Notify particles ──────────────────────────────
+function triggerNotify() {
+  var container = document.getElementById('particleContainer');
+  var canvas = document.getElementById('simCanvas');
+  var subject = document.getElementById('simSubject');
+  var targets = [
+    document.getElementById('simObsA'),
+    document.getElementById('simObsB'),
+    document.getElementById('simObsC')
+  ];
+
+  if (!subject || !canvas) return;
+
+  var canvasRect = canvas.getBoundingClientRect();
+  var sRect = subject.getBoundingClientRect();
+  var startX = sRect.right - canvasRect.left;
+  var startY = sRect.top + sRect.height / 2 - canvasRect.top;
+
+  var colors = ['hsl(210, 70%, 62%)', 'hsl(152, 60%, 52%)', 'hsl(35, 85%, 58%)'];
+
+  targets.forEach(function(target, i) {
+    if (i === 1 && observerBDead) return;
+    var tRect = target.getBoundingClientRect();
+    var endX = tRect.left - canvasRect.left;
+    var endY = tRect.top + tRect.height / 2 - canvasRect.top;
+
+    for (var p = 0; p < 5; p++) {
+      (function(pp, ii) {
+        setTimeout(function() {
+          var particle = document.createElement('div');
+          particle.className = 'particle';
+          var size = 4 + Math.random() * 4;
+          particle.style.width = size + 'px';
+          particle.style.height = size + 'px';
+          particle.style.background = colors[ii];
+          particle.style.boxShadow = '0 0 8px ' + colors[ii];
+          particle.style.left = startX + 'px';
+          particle.style.top = (startY + (Math.random() - 0.5) * 20) + 'px';
+          particle.style.opacity = '1';
+          particle.style.transition = 'left 0.6s cubic-bezier(0.4,0,0.2,1), top 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease 0.45s';
+          container.appendChild(particle);
+
+          requestAnimationFrame(function() {
+            particle.style.left = endX + 'px';
+            particle.style.top = (endY + (Math.random() - 0.5) * 16) + 'px';
+            particle.style.opacity = '0';
+          });
+
+          setTimeout(function() { particle.remove(); }, 800);
+        }, pp * 60 + ii * 100);
+      })(p, i);
+    }
+
+    (function(tgt, col, idx) {
+      setTimeout(function() {
+        tgt.style.borderColor = col;
+        tgt.style.boxShadow = '0 0 0 1px ' + col + ', 0 2px 20px ' + col.replace(')', ', 0.25)');
+        setTimeout(function() {
+          tgt.style.borderColor = '';
+          tgt.style.boxShadow = '';
+        }, 600);
+      }, 500 + idx * 100);
+    })(target, colors[i], i);
+  });
+
+  document.getElementById('metricNps').textContent = Math.floor(40 + Math.random() * 20);
+  document.getElementById('metricLatency').textContent = (1.5 + Math.random() * 2).toFixed(1);
+
+  var btn = document.getElementById('btnNotify');
+  btn.style.transform = 'scale(0.95)';
+  setTimeout(function() { btn.style.transform = ''; }, 150);
+}
+
+function killObserverB() {
+  if (observerBDead) return;
+  observerBDead = true;
+
+  var obsB = document.querySelector('.observer-item[data-obs="B"]');
+  obsB.classList.add('dead');
+  document.getElementById('obsBStatus').textContent = 'Disconnected';
+
+  var simObsB = document.getElementById('simObsB');
+  simObsB.style.opacity = '0.35';
+  simObsB.style.borderColor = 'hsl(0, 72%, 56%)';
+
+  document.getElementById('metricObs').textContent = '2';
+
+  var btn = document.getElementById('btnKill');
+  btn.disabled = true;
+  btn.style.opacity = '0.4';
+  btn.style.cursor = 'not-allowed';
+}
+
+
+// ── Sparkline animation ─────────────────────────────────────
+var sparkInterval = null;
+function startSparklineAnim() {
+  if (sparkInterval) return;
+  var sparkEl = document.getElementById('sparkNps');
+  sparkInterval = setInterval(function() {
+    if (currentMode !== 'simulate') {
+      clearInterval(sparkInterval);
+      sparkInterval = null;
+      return;
+    }
+    var points = '';
+    for (var x = 0; x <= 200; x += 15) {
+      var y = 5 + Math.random() * 20;
+      points += x + ',' + y.toFixed(1) + ' ';
+    }
+    sparkEl.setAttribute('points', points.trim());
+  }, 1200);
+}
+
+
+// ── Quiz interaction ────────────────────────────────────────
+function handleQuizClick(el, isCorrect) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+
+  var options = document.querySelectorAll('.quiz-option');
+  options.forEach(function(o) { o.style.pointerEvents = 'none'; });
+
+  if (isCorrect) {
+    el.classList.add('correct');
+    var fb = document.getElementById('quizFeedbackCorrect');
+    fb.classList.add('show', 'correct-fb');
+  } else {
+    el.classList.add('wrong');
+    document.querySelector('.quiz-option[data-correct="true"]').classList.add('correct');
+    var fb2 = document.getElementById('quizFeedbackWrong');
+    fb2.classList.add('show', 'wrong-fb');
+  }
+}
+
+
+// ── Assessment score animation ──────────────────────────────
+function animateAssessment() {
+  assessmentAnimated = true;
+  var ring = document.getElementById('scoreRing');
+  var numEl = document.getElementById('scoreNum');
+  var circumference = 97.4;
+  var targetScore = 75;
+
+  setTimeout(function() {
+    var offset = circumference - (circumference * targetScore / 100);
+    ring.style.strokeDashoffset = offset;
+  }, 200);
+
+  var startTime = performance.now();
+  function animateNum(now) {
+    var elapsed = now - startTime;
+    var progress = Math.min(elapsed / 1500, 1);
+    var eased = 1 - Math.pow(1 - progress, 3);
+    numEl.textContent = Math.round(targetScore * eased);
+    if (progress < 1) requestAnimationFrame(animateNum);
+  }
+  setTimeout(function() { requestAnimationFrame(animateNum); }, 200);
+
+  var fills = document.querySelectorAll('.dim-fill');
+  var scores = document.querySelectorAll('.dim-score');
+  fills.forEach(function(fill, i) {
+    var width = fill.dataset.width;
+    setTimeout(function() { fill.style.width = width + '%'; }, 400 + i * 150);
+  });
+  scores.forEach(function(score, i) {
+    var target = parseInt(score.dataset.target);
+    setTimeout(function() {
+      var c = 0;
+      var si = setInterval(function() {
+        c++;
+        score.textContent = c + '/10';
+        if (c >= target) clearInterval(si);
+      }, 80);
+    }, 400 + i * 150);
+  });
+}
+
+
+// ── Review flashcard flip ───────────────────────────────────
+function flipCard() {
+  document.getElementById('flashcard').classList.toggle('flipped');
+}
+
+
+// ── AI scroll ───────────────────────────────────────────────
+function scrollAiToBottom() {
+  var msgs = document.getElementById('aiMessages');
+  if (msgs) {
+    setTimeout(function() { msgs.scrollTop = msgs.scrollHeight; }, 100);
+  }
+}
+
+
+// ── Draw SVG arrows (safe DOM approach) ─────────────────────
+function createSvgElement(tag) {
+  return document.createElementNS('http://www.w3.org/2000/svg', tag);
+}
+
+function drawLearnArrows() {
+  var canvas = document.getElementById('learnCanvas');
+  var svg = document.getElementById('learnArrows');
+  if (!canvas || !svg) return;
+
+  // Remove old lines/paths but keep defs
+  var existing = svg.querySelectorAll('line, path:not(defs path)');
+  existing.forEach(function(el) { if (el.parentNode === svg) el.remove(); });
+
+  var cRect = canvas.getBoundingClientRect();
+  var subject = document.getElementById('learnSubject');
+  var observer = document.getElementById('learnObserver');
+  var concSubj = document.getElementById('learnConcreteSubject');
+  var concObs = document.getElementById('learnConcreteObs');
+
+  if (!subject || !observer) return;
+
+  var sRect = subject.getBoundingClientRect();
+  var oRect = observer.getBoundingClientRect();
+
+  // Subject -> Observer dashed dependency
+  var line1 = createSvgElement('line');
+  line1.setAttribute('x1', sRect.right - cRect.left);
+  line1.setAttribute('y1', sRect.top + sRect.height / 2 - cRect.top);
+  line1.setAttribute('x2', oRect.left - cRect.left);
+  line1.setAttribute('y2', oRect.top + oRect.height / 2 - cRect.top);
+  line1.setAttribute('stroke', 'hsl(210,70%,62%)');
+  line1.setAttribute('stroke-width', '1.5');
+  line1.setAttribute('stroke-dasharray', '8,4');
+  line1.setAttribute('opacity', '0.6');
+  line1.setAttribute('marker-end', 'url(#arrowTriangleLearn)');
+  svg.appendChild(line1);
+
+  // ConcreteSubject -> Subject inheritance
+  if (concSubj) {
+    var csRect = concSubj.getBoundingClientRect();
+    var line2 = createSvgElement('line');
+    line2.setAttribute('x1', csRect.left + csRect.width / 2 - cRect.left);
+    line2.setAttribute('y1', csRect.top - cRect.top);
+    line2.setAttribute('x2', sRect.left + sRect.width / 2 - cRect.left);
+    line2.setAttribute('y2', sRect.top + sRect.height - cRect.top);
+    line2.setAttribute('stroke', 'hsl(220,5%,30%)');
+    line2.setAttribute('stroke-width', '1.5');
+    line2.setAttribute('opacity', '0.25');
+    line2.setAttribute('marker-end', 'url(#arrowTriangleLearn)');
+    svg.appendChild(line2);
+  }
+
+  // ConcreteObs -> Observer implements
+  if (concObs) {
+    var coRect = concObs.getBoundingClientRect();
+    var line3 = createSvgElement('line');
+    line3.setAttribute('x1', coRect.left + coRect.width / 2 - cRect.left);
+    line3.setAttribute('y1', coRect.top - cRect.top);
+    line3.setAttribute('x2', oRect.left + oRect.width / 2 - cRect.left);
+    line3.setAttribute('y2', oRect.top + oRect.height - cRect.top);
+    line3.setAttribute('stroke', 'hsl(220,5%,30%)');
+    line3.setAttribute('stroke-width', '1.5');
+    line3.setAttribute('stroke-dasharray', '6,4');
+    line3.setAttribute('opacity', '0.25');
+    line3.setAttribute('marker-end', 'url(#arrowTriangleLearn)');
+    svg.appendChild(line3);
+  }
+}
+
+function drawSimArrows() {
+  var canvas = document.getElementById('simCanvas');
+  var svg = document.getElementById('simArrows');
+  if (!canvas || !svg) return;
+
+  var existing = svg.querySelectorAll('path:not(defs path)');
+  existing.forEach(function(el) { if (el.parentNode === svg) el.remove(); });
+
+  var cRect = canvas.getBoundingClientRect();
+  var subject = document.getElementById('simSubject');
+  var targets = ['simObsA', 'simObsB', 'simObsC'];
+
+  if (!subject) return;
+  var sRect = subject.getBoundingClientRect();
+
+  targets.forEach(function(id) {
+    var t = document.getElementById(id);
+    if (!t) return;
+    var tRect = t.getBoundingClientRect();
+
+    var x1 = sRect.right - cRect.left;
+    var y1 = sRect.top + sRect.height / 2 - cRect.top;
+    var x2 = tRect.left - cRect.left;
+    var y2 = tRect.top + tRect.height / 2 - cRect.top;
+    var mx = (x1 + x2) / 2;
+
+    var path = createSvgElement('path');
+    path.setAttribute('d', 'M' + x1 + ',' + y1 + ' C' + mx + ',' + y1 + ' ' + mx + ',' + y2 + ' ' + x2 + ',' + y2);
+    path.setAttribute('stroke', 'hsl(220,5%,30%)');
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-dasharray', '6,4');
+    path.setAttribute('marker-end', 'url(#arrowSim)');
+    svg.appendChild(path);
+  });
+}
+
+setTimeout(function() { drawLearnArrows(); drawSimArrows(); }, 150);
+
+
+// ── Simulate: periodic metric jitter ────────────────────────
+setInterval(function() {
+  if (currentMode !== 'simulate') return;
+  var base = observerBDead ? 28 : 42;
+  document.getElementById('metricNps').textContent = Math.floor(base + Math.random() * 10);
+  document.getElementById('metricLatency').textContent = (1.8 + Math.random() * 1.5).toFixed(1);
+}, 2000);
+
+
+// ── AI: typing indicator toggle ─────────────────────────────
+var typingVisible = true;
+setInterval(function() {
+  if (currentMode !== 'ai') return;
+  var indicator = document.getElementById('typingIndicator');
+  if (typingVisible) {
+    indicator.style.display = 'none';
+    typingVisible = false;
+    setTimeout(function() {
+      if (currentMode !== 'ai') return;
+      indicator.style.display = 'flex';
+      typingVisible = true;
+    }, 3000);
+  }
+}, 5000);
+
+
+// ── Keyboard navigation: 1-7 ────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  var modeKeys = { '1': 'learn', '2': 'simulate', '3': 'practice', '4': 'quiz', '5': 'assessment', '6': 'review', '7': 'ai' };
+  if (modeKeys[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    var active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+    switchMode(modeKeys[e.key]);
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Time Machine — Evolutionary Refactoring | Architex</title>
+<style>
+  /* ── Reset ─────────────────────────────────────────────── */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ── Design Tokens ─────────────────────────────────────── */
+  :root {
+    --bg:           hsl(225, 8%, 7%);
+    --surface:      hsl(225, 8%, 11%);
+    --elevated:     hsl(225, 7%, 13%);
+    --text:         hsl(220, 5%, 90%);
+    --text-muted:   hsl(220, 5%, 55%);
+    --primary:      hsl(258, 78%, 64%);
+    --primary-glow: hsla(258, 78%, 64%, 0.35);
+    --border:       rgba(255,255,255,0.10);
+    --font:         'Geist Sans', system-ui, -apple-system, sans-serif;
+    --mono:         'Geist Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --radius-sm:    6px;
+    --radius-md:    12px;
+    --radius-lg:    16px;
+
+    --red:          hsl(0, 72%, 56%);
+    --red-bg:       hsla(0, 72%, 56%, 0.12);
+    --red-border:   hsla(0, 72%, 56%, 0.30);
+    --yellow:       hsl(42, 90%, 58%);
+    --yellow-bg:    hsla(42, 90%, 58%, 0.12);
+    --yellow-border:hsla(42, 90%, 58%, 0.30);
+    --green:        hsl(152, 60%, 48%);
+    --green-bg:     hsla(152, 60%, 48%, 0.12);
+    --green-border: hsla(152, 60%, 48%, 0.30);
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    min-height: 52px;
+  }
+  .header-brand {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .header-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+  }
+  .header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .header-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px 3px 7px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: all 0.5s ease;
+    margin-left: 12px;
+  }
+  .badge--red    { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red-border); }
+  .badge--yellow { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+  .badge--green  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
+  .badge-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .badge--red .badge-dot    { background: var(--red); }
+  .badge--yellow .badge-dot { background: var(--yellow); }
+  .badge--green .badge-dot  { background: var(--green); }
+
+  /* ── Main Content ──────────────────────────────────────── */
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    grid-template-rows: 1fr;
+    min-height: 0;
+  }
+
+  /* ── SVG Canvas ────────────────────────────────────────── */
+  .canvas-panel {
+    position: relative;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .canvas-panel svg {
+    width: 100%;
+    height: 100%;
+  }
+  /* Subtle grid background */
+  .canvas-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  /* ── Code Panel ────────────────────────────────────────── */
+  .code-panel {
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .code-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .code-header-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.4;
+  }
+  .code-header-dot:nth-child(1) { background: #ff5f57; opacity: 0.7; }
+  .code-header-dot:nth-child(2) { background: #febc2e; opacity: 0.7; }
+  .code-header-dot:nth-child(3) { background: #28c840; opacity: 0.7; }
+  .code-header-file {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: 8px;
+  }
+  .code-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    min-height: 0;
+  }
+  .code-body pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    white-space: pre;
+    tab-size: 2;
+    color: var(--text);
+    transition: opacity 0.3s ease;
+  }
+  /* Syntax highlighting classes */
+  .kw  { color: hsl(280, 68%, 70%); }
+  .tp  { color: hsl(190, 70%, 62%); }
+  .fn  { color: hsl(210, 80%, 70%); }
+  .st  { color: hsl(90, 55%, 62%); }
+  .cm  { color: hsl(220, 10%, 42%); font-style: italic; }
+  .op  { color: hsl(42, 80%, 65%); }
+  .nu  { color: hsl(20, 75%, 65%); }
+  .ann { color: var(--red); font-weight: 600; }
+
+  /* ── Fork Button ───────────────────────────────────────── */
+  .fork-btn {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+    padding: 10px 20px;
+    background: linear-gradient(135deg, var(--primary), hsl(280, 68%, 55%));
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 20px var(--primary-glow);
+    transition: all 0.4s ease;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 10;
+  }
+  .fork-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .fork-btn:hover {
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 6px 28px var(--primary-glow);
+  }
+
+  /* ── Fork Modal ────────────────────────────────────────── */
+  .fork-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .fork-modal-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .fork-modal {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 480px;
+    width: 90%;
+    text-align: center;
+    transform: scale(0.92);
+    transition: transform 0.3s ease;
+  }
+  .fork-modal-overlay.visible .fork-modal {
+    transform: scale(1);
+  }
+  .fork-modal h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--primary);
+  }
+  .fork-modal p {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+  .fork-modal button {
+    padding: 8px 24px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .fork-modal button:hover {
+    border-color: var(--primary);
+  }
+
+  /* ── Timeline ──────────────────────────────────────────── */
+  .timeline {
+    flex-shrink: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 14px 32px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .timeline-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .play-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--elevated);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .play-btn:hover {
+    border-color: var(--primary);
+    background: var(--primary-glow);
+  }
+  .play-btn svg { width: 14px; height: 14px; fill: currentColor; }
+  .timeline-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.3s;
+  }
+  .timeline-label em {
+    font-style: normal;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* Track */
+  .timeline-track-wrap {
+    position: relative;
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
+  .timeline-track {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    overflow: visible;
+  }
+  .timeline-track-bg {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    background: linear-gradient(90deg,
+      var(--red) 0%,
+      var(--red) 20%,
+      var(--yellow) 45%,
+      var(--yellow) 55%,
+      var(--green) 80%,
+      var(--green) 100%
+    );
+    opacity: 0.18;
+  }
+  .timeline-track-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    border-radius: 3px;
+    background: linear-gradient(90deg,
+      var(--red) 0%,
+      var(--red) 20%,
+      var(--yellow) 45%,
+      var(--yellow) 55%,
+      var(--green) 80%,
+      var(--green) 100%
+    );
+    transition: width 0.15s ease;
+    pointer-events: none;
+  }
+  .timeline-thumb {
+    position: absolute;
+    top: 50%;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--primary);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 12px var(--primary-glow);
+    transition: left 0.15s ease;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Waypoints */
+  .timeline-waypoints {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    padding: 0 6px;
+  }
+  .waypoint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    opacity: 0.5;
+    min-width: 0;
+  }
+  .waypoint.active { opacity: 1; }
+  .waypoint:hover { opacity: 0.8; }
+  .waypoint-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    border: 2px solid var(--text-muted);
+    background: var(--bg);
+    transition: all 0.3s;
+  }
+  .waypoint.active .waypoint-dot {
+    border-color: var(--primary);
+    background: var(--primary);
+    box-shadow: 0 0 8px var(--primary-glow);
+  }
+  .waypoint-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .waypoint.active .waypoint-label {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* ── SVG transitions ───────────────────────────────────── */
+  #diagramContent {
+    transition: opacity 0.35s ease;
+  }
+
+  /* Pulse for annotations */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+
+  /* Scrollbar */
+  .code-body::-webkit-scrollbar { width: 6px; }
+  .code-body::-webkit-scrollbar-track { background: transparent; }
+  .code-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <span class="header-brand">Architex</span>
+  <span class="header-sep"></span>
+  <span class="header-title">The Time Machine -- Observer Pattern Evolution</span>
+  <span id="statusBadge" class="badge badge--red">
+    <span class="badge-dot"></span>
+    <span id="badgeText">Rigid</span>
+  </span>
+  <span class="header-subtitle" id="headerDesc">Drag the timeline or press Space to play</span>
+</div>
+
+<!-- Main Content -->
+<div class="main">
+  <!-- SVG Canvas -->
+  <div class="canvas-panel" id="canvasPanel">
+    <svg id="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 520" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="arrowHead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="rgba(255,255,255,0.35)" />
+        </marker>
+        <marker id="arrowHeadRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="hsla(0, 72%, 56%, 0.6)" />
+        </marker>
+        <marker id="arrowOpen" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+          <polyline points="0 0, 10 4, 0 8" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" />
+        </marker>
+        <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="hsla(152, 60%, 48%, 0.6)" />
+        </marker>
+        <filter id="glowGreen">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <g id="diagramContent"></g>
+    </svg>
+    <button class="fork-btn" id="forkBtn">Fork Here -- Try Your Own Refactoring</button>
+  </div>
+
+  <!-- Code Panel -->
+  <div class="code-panel">
+    <div class="code-header">
+      <span class="code-header-dot"></span>
+      <span class="code-header-dot"></span>
+      <span class="code-header-dot"></span>
+      <span class="code-header-file" id="codeFilename">WeatherStation.ts</span>
+    </div>
+    <div class="code-body">
+      <pre id="codeContent"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Timeline -->
+<div class="timeline">
+  <div class="timeline-top">
+    <button class="play-btn" id="playBtn" aria-label="Play timeline">
+      <svg id="playIcon" viewBox="0 0 16 16"><polygon points="3,1 14,8 3,15" /></svg>
+      <svg id="pauseIcon" viewBox="0 0 16 16" style="display:none">
+        <rect x="2" y="1" width="4" height="14" rx="1" />
+        <rect x="10" y="1" width="4" height="14" rx="1" />
+      </svg>
+    </button>
+    <span class="timeline-label" id="timelineLabel"></span>
+  </div>
+  <div class="timeline-track-wrap">
+    <div class="timeline-track" id="timelineTrack">
+      <div class="timeline-track-bg"></div>
+      <div class="timeline-track-fill" id="trackFill" style="width:0%"></div>
+      <div class="timeline-thumb" id="trackThumb" style="left:0%"></div>
+    </div>
+  </div>
+  <div class="timeline-waypoints">
+    <div class="waypoint active" data-pos="0">
+      <div class="waypoint-dot"></div>
+      <span class="waypoint-label">Naive</span>
+    </div>
+    <div class="waypoint" data-pos="25">
+      <div class="waypoint-dot"></div>
+      <span class="waypoint-label">First Pain</span>
+    </div>
+    <div class="waypoint" data-pos="50">
+      <div class="waypoint-dot"></div>
+      <span class="waypoint-label">Interface</span>
+    </div>
+    <div class="waypoint" data-pos="75">
+      <div class="waypoint-dot"></div>
+      <span class="waypoint-label">Pattern</span>
+    </div>
+    <div class="waypoint" data-pos="100">
+      <div class="waypoint-dot"></div>
+      <span class="waypoint-label">Extensible</span>
+    </div>
+  </div>
+</div>
+
+<!-- Fork Modal -->
+<div class="fork-modal-overlay" id="forkModal">
+  <div class="fork-modal">
+    <h3>Fork the Timeline</h3>
+    <p>
+      In the full product, you would enter <strong>Build mode</strong> here to try your own
+      refactoring approach, then compare it with the canonical Observer pattern evolution.
+      <br/><br/>
+      Your design would be evaluated on coupling, cohesion, and the Open-Closed Principle.
+    </p>
+    <button id="closeForkModal">Got it</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── State ────────────────────────────────────────────────
+  var currentPos = 0;
+  var playing = false;
+  var playTimer = null;
+  var PLAY_SPEED = 2200;
+
+  // ── Element refs ─────────────────────────────────────────
+  var diagramG = document.getElementById('diagramContent');
+  var codeEl = document.getElementById('codeContent');
+  var codeFilenameEl = document.getElementById('codeFilename');
+  var trackFill = document.getElementById('trackFill');
+  var trackThumb = document.getElementById('trackThumb');
+  var timelineTrack = document.getElementById('timelineTrack');
+  var timelineLabelEl = document.getElementById('timelineLabel');
+  var statusBadge = document.getElementById('statusBadge');
+  var badgeTextEl = document.getElementById('badgeText');
+  var playBtn = document.getElementById('playBtn');
+  var playIconEl = document.getElementById('playIcon');
+  var pauseIconEl = document.getElementById('pauseIcon');
+  var forkBtnEl = document.getElementById('forkBtn');
+  var forkModalEl = document.getElementById('forkModal');
+  var waypoints = document.querySelectorAll('.waypoint');
+
+  // ── SVG Builder Helpers ──────────────────────────────────
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function buildClassBox(id, x, y, w, title, stereotype, attrs, methods, opts) {
+    opts = opts || {};
+    var lineH = 16;
+    var headerH = stereotype ? 40 : 28;
+    var attrH = Math.max(attrs.length * lineH + 8, 8);
+    var methH = Math.max(methods.length * lineH + 8, 8);
+    var h = headerH + attrH + methH;
+    var fill = opts.fill || 'rgba(255,255,255,0.04)';
+    var stroke = opts.stroke || 'rgba(255,255,255,0.12)';
+    var titleColor = opts.titleColor || '#e4e4e7';
+    var opacity = opts.opacity !== undefined ? opts.opacity : 1;
+
+    var parts = [];
+    parts.push('<g class="uml-node" id="' + id + '" transform="translate(' + x + ',' + y + ')" opacity="' + opacity + '">');
+    parts.push('<rect width="' + w + '" height="' + h + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.2" />');
+
+    var ty = 0;
+    if (stereotype) {
+      ty += 15;
+      var sc = opts.stereoColor || 'rgba(255,255,255,0.35)';
+      parts.push('<text x="' + (w/2) + '" y="' + ty + '" text-anchor="middle" font-size="9" fill="' + sc + '" font-style="italic" font-family="system-ui,sans-serif">\u00ab' + stereotype + '\u00bb</text>');
+    }
+    ty += 17;
+    parts.push('<text x="' + (w/2) + '" y="' + ty + '" text-anchor="middle" font-size="12" fill="' + titleColor + '" font-weight="700" font-family="system-ui,sans-serif">' + esc(title) + '</text>');
+
+    parts.push('<line x1="0" y1="' + headerH + '" x2="' + w + '" y2="' + headerH + '" stroke="' + stroke + '" stroke-width="0.8" />');
+
+    var ay = headerH + 13;
+    for (var i = 0; i < attrs.length; i++) {
+      parts.push('<text x="8" y="' + ay + '" font-size="10" fill="rgba(255,255,255,0.4)" font-family="monospace">' + esc(attrs[i]) + '</text>');
+      ay += lineH;
+    }
+    parts.push('<line x1="0" y1="' + (headerH + attrH) + '" x2="' + w + '" y2="' + (headerH + attrH) + '" stroke="' + stroke + '" stroke-width="0.8" />');
+
+    var my = headerH + attrH + 13;
+    for (var j = 0; j < methods.length; j++) {
+      var m = methods[j];
+      var mText = typeof m === 'string' ? m : m.text;
+      var mColor = 'rgba(255,255,255,0.5)';
+      if (typeof m === 'object' && m.highlight === 'red') mColor = 'hsl(0,72%,65%)';
+      if (typeof m === 'object' && m.highlight === 'green') mColor = 'hsl(152,60%,55%)';
+      parts.push('<text x="8" y="' + my + '" font-size="10" fill="' + mColor + '" font-family="monospace">' + esc(mText) + '</text>');
+      my += lineH;
+    }
+
+    parts.push('</g>');
+    return { svg: parts.join(''), x: x, y: y, w: w, h: h };
+  }
+
+  function buildInterfaceBox(id, x, y, w, title, methods, opts) {
+    opts = opts || {};
+    return buildClassBox(id, x, y, w, title, 'interface', [], methods, {
+      fill: opts.fill || 'rgba(120, 80, 255, 0.06)',
+      stroke: opts.stroke || 'rgba(120, 80, 255, 0.25)',
+      titleColor: opts.titleColor || 'hsl(258,78%,72%)',
+      stereoColor: 'hsl(258,60%,55%)',
+      opacity: opts.opacity
+    });
+  }
+
+  function buildArrow(x1, y1, x2, y2, opts) {
+    opts = opts || {};
+    var marker = opts.marker || 'arrowHead';
+    var stroke = opts.stroke || 'rgba(255,255,255,0.2)';
+    var dash = opts.dash ? ' stroke-dasharray="' + opts.dash + '"' : '';
+    var opacity = opts.opacity !== undefined ? opts.opacity : 1;
+    return '<line class="uml-edge" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + stroke + '" stroke-width="1.2" marker-end="url(#' + marker + ')"' + dash + ' opacity="' + opacity + '" />';
+  }
+
+  function buildDashedArrow(x1, y1, x2, y2, opts) {
+    opts = opts || {};
+    opts.dash = '4 3';
+    opts.marker = opts.marker || 'arrowOpen';
+    return buildArrow(x1, y1, x2, y2, opts);
+  }
+
+  function buildAnnotation(x, y, text, color, opts) {
+    opts = opts || {};
+    var bg, fg;
+    if (color === 'red') { bg = 'hsla(0,72%,56%,0.12)'; fg = 'hsl(0,72%,65%)'; }
+    else if (color === 'yellow') { bg = 'hsla(42,90%,58%,0.12)'; fg = 'hsl(42,90%,68%)'; }
+    else { bg = 'hsla(152,60%,48%,0.12)'; fg = 'hsl(152,60%,58%)'; }
+    var opacity = opts.opacity !== undefined ? opts.opacity : 1;
+    var cls = opts.pulse ? 'uml-annotation pulse' : 'uml-annotation';
+    var w = text.length * 6.2 + 16;
+    return '<g class="' + cls + '" opacity="' + opacity + '">' +
+      '<rect x="' + (x - w/2) + '" y="' + (y - 11) + '" width="' + w + '" height="20" rx="10" fill="' + bg + '" stroke="' + fg + '" stroke-width="0.8" />' +
+      '<text x="' + x + '" y="' + (y + 3) + '" text-anchor="middle" font-size="9.5" fill="' + fg + '" font-weight="600" font-family="system-ui,sans-serif">' + esc(text) + '</text>' +
+      '</g>';
+  }
+
+  function buildParticle(x1, y1, x2, y2, delay, color) {
+    var dx = x2 - x1, dy = y2 - y1;
+    color = color || 'hsl(152,60%,50%)';
+    return '<circle r="3" fill="' + color + '" opacity="0" filter="url(#glowGreen)">' +
+      '<animateMotion dur="2s" begin="' + delay + 's" repeatCount="indefinite" path="M0,0 L' + dx + ',' + dy + '" />' +
+      '<animate attributeName="opacity" values="0;0.9;0.9;0" dur="2s" begin="' + delay + 's" repeatCount="indefinite" />' +
+      '</circle>';
+  }
+
+  // ── Keyframe Definitions ─────────────────────────────────
+
+  var keyframeData = {};
+
+  // Position 0 — Naive
+  keyframeData[0] = {
+    badgeCls: 'badge--red',
+    badgeLabel: 'Rigid',
+    label: '<em>Naive</em> \u2014 Monolithic: all displays hardcoded',
+    filename: 'WeatherStation.ts',
+    buildSvg: function() {
+      var parts = [];
+      var ws = buildClassBox('ws', 200, 30, 360, 'WeatherStation', null,
+        ['- temperature: number', '- humidity: number', '- pressure: number',
+         '- tempDisplay: TempDisplay', '- humidDisplay: HumidDisplay', '- pressDisplay: PressDisplay'],
+        [
+          '+ getTemperature(): number',
+          '+ getHumidity(): number',
+          '+ getPressure(): number',
+          '+ setTemperature(v): void',
+          '+ setHumidity(v): void',
+          '+ setPressure(v): void',
+          { text: '+ updateAll(): void', highlight: 'red' },
+          '+ start(): void',
+          '+ stop(): void',
+          '+ calibrate(): void',
+          '+ getHistory(): Data[]',
+          '+ export(): string'
+        ],
+        { stroke: 'hsla(0,72%,56%,0.3)', fill: 'hsla(0,72%,56%,0.04)' }
+      );
+      parts.push(ws.svg);
+
+      var td = buildClassBox('td', 60, 380, 160, 'TempDisplay', null,
+        ['- station: WeatherStation'], ['+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var hd = buildClassBox('hd', 250, 380, 170, 'HumidDisplay', null,
+        ['- station: WeatherStation'], ['+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var pd = buildClassBox('pd', 450, 380, 180, 'PressDisplay', null,
+        ['- station: WeatherStation'], ['+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      parts.push(td.svg, hd.svg, pd.svg);
+
+      parts.push(buildArrow(300, ws.h + 30, 140, 380, { stroke: 'hsla(0,72%,56%,0.35)', marker: 'arrowHeadRed' }));
+      parts.push(buildArrow(380, ws.h + 30, 335, 380, { stroke: 'hsla(0,72%,56%,0.35)', marker: 'arrowHeadRed' }));
+      parts.push(buildArrow(460, ws.h + 30, 540, 380, { stroke: 'hsla(0,72%,56%,0.35)', marker: 'arrowHeadRed' }));
+
+      parts.push(buildAnnotation(380, ws.h + 60, '12 methods in one class', 'red', { pulse: true }));
+
+      return parts.join('');
+    },
+    code: '<span class="cm">// WeatherStation.ts \u2014 Monolithic approach</span>\n' +
+      '<span class="kw">class</span> <span class="tp">WeatherStation</span> {\n' +
+      '  <span class="kw">private</span> temperature: <span class="tp">number</span> = <span class="nu">0</span>;\n' +
+      '  <span class="kw">private</span> humidity: <span class="tp">number</span> = <span class="nu">0</span>;\n' +
+      '  <span class="kw">private</span> pressure: <span class="tp">number</span> = <span class="nu">0</span>;\n' +
+      '\n' +
+      '  <span class="cm">// Hardcoded references to every display</span>\n' +
+      '  <span class="kw">private</span> tempDisplay: <span class="tp">TempDisplay</span>;\n' +
+      '  <span class="kw">private</span> humidDisplay: <span class="tp">HumidDisplay</span>;\n' +
+      '  <span class="kw">private</span> pressDisplay: <span class="tp">PressDisplay</span>;\n' +
+      '\n' +
+      '  <span class="kw">constructor</span>() {\n' +
+      '    <span class="kw">this</span>.tempDisplay = <span class="kw">new</span> <span class="tp">TempDisplay</span>(<span class="kw">this</span>);\n' +
+      '    <span class="kw">this</span>.humidDisplay = <span class="kw">new</span> <span class="tp">HumidDisplay</span>(<span class="kw">this</span>);\n' +
+      '    <span class="kw">this</span>.pressDisplay = <span class="kw">new</span> <span class="tp">PressDisplay</span>(<span class="kw">this</span>);\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="ann">// Every new display = modify this method</span>\n' +
+      '  <span class="fn">updateAll</span>() {\n' +
+      '    <span class="kw">this</span>.tempDisplay.<span class="fn">render</span>();\n' +
+      '    <span class="kw">this</span>.humidDisplay.<span class="fn">render</span>();\n' +
+      '    <span class="kw">this</span>.pressDisplay.<span class="fn">render</span>();\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="fn">setTemperature</span>(v: <span class="tp">number</span>) {\n' +
+      '    <span class="kw">this</span>.temperature = v;\n' +
+      '    <span class="kw">this</span>.<span class="fn">updateAll</span>();  <span class="cm">// tightly coupled</span>\n' +
+      '  }\n' +
+      '  <span class="cm">// ... 9 more methods ...</span>\n' +
+      '}'
+  };
+
+  // Position 25 — First Pain
+  keyframeData[25] = {
+    badgeCls: 'badge--red',
+    badgeLabel: 'Fragile',
+    label: '<em>First Pain</em> \u2014 Adding features means modifying existing code',
+    filename: 'WeatherStation.ts (modified)',
+    buildSvg: function() {
+      var parts = [];
+      var ws = buildClassBox('ws', 190, 20, 380, 'WeatherStation', null,
+        ['- temperature: number', '- humidity: number', '- pressure: number',
+         '- tempDisplay: TempDisplay', '- humidDisplay: HumidDisplay',
+         '- pressDisplay: PressDisplay',
+         '- forecastDisplay: ForecastDisplay'],
+        [
+          '+ getTemperature(): number',
+          '+ getHumidity(): number',
+          '+ getPressure(): number',
+          '+ setTemperature(v): void',
+          '+ setHumidity(v): void',
+          '+ setPressure(v): void',
+          { text: '+ updateAll(): void', highlight: 'red' },
+          '+ start(): void',
+          '+ stop(): void',
+          '+ calibrate(): void',
+          '+ getHistory(): Data[]',
+          '+ export(): string',
+          { text: '+ getForecast(): string', highlight: 'red' }
+        ],
+        { stroke: 'hsla(0,72%,56%,0.4)', fill: 'hsla(0,72%,56%,0.06)' }
+      );
+      parts.push(ws.svg);
+
+      var baseY = 395;
+      var td = buildClassBox('td', 20, baseY, 150, 'TempDisplay', null,
+        ['- station: ref'], ['+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var hd = buildClassBox('hd', 185, baseY, 150, 'HumidDisplay', null,
+        ['- station: ref'], ['+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var pd = buildClassBox('pd', 350, baseY, 150, 'PressDisplay', null,
+        ['- station: ref'], ['+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var fd = buildClassBox('fd', 515, baseY, 170, 'ForecastDisplay', null,
+        ['- station: ref'], ['+ render(): void'],
+        { fill: 'hsla(0,72%,56%,0.06)', stroke: 'hsla(0,72%,56%,0.35)' });
+      parts.push(td.svg, hd.svg, pd.svg, fd.svg);
+
+      parts.push(buildArrow(290, ws.h + 20, 95, baseY, { stroke: 'hsla(0,72%,56%,0.3)', marker: 'arrowHeadRed' }));
+      parts.push(buildArrow(340, ws.h + 20, 260, baseY, { stroke: 'hsla(0,72%,56%,0.3)', marker: 'arrowHeadRed' }));
+      parts.push(buildArrow(420, ws.h + 20, 425, baseY, { stroke: 'hsla(0,72%,56%,0.3)', marker: 'arrowHeadRed' }));
+      parts.push(buildArrow(490, ws.h + 20, 600, baseY, { stroke: 'hsla(0,72%,56%,0.5)', marker: 'arrowHeadRed' }));
+
+      parts.push(buildAnnotation(380, ws.h + 52, 'Open-Closed Principle violated', 'red', { pulse: true }));
+      parts.push(buildAnnotation(600, baseY - 16, 'Shotgun Surgery', 'red', { pulse: true }));
+      parts.push(buildAnnotation(150, baseY - 16, 'Every new display = modify 3+ places', 'yellow'));
+
+      return parts.join('');
+    },
+    code: '<span class="cm">// WeatherStation.ts \u2014 After adding ForecastDisplay</span>\n' +
+      '<span class="kw">class</span> <span class="tp">WeatherStation</span> {\n' +
+      '  <span class="kw">private</span> tempDisplay: <span class="tp">TempDisplay</span>;\n' +
+      '  <span class="kw">private</span> humidDisplay: <span class="tp">HumidDisplay</span>;\n' +
+      '  <span class="kw">private</span> pressDisplay: <span class="tp">PressDisplay</span>;\n' +
+      '  <span class="ann">private forecastDisplay: ForecastDisplay; // NEW</span>\n' +
+      '\n' +
+      '  <span class="kw">constructor</span>() {\n' +
+      '    <span class="kw">this</span>.tempDisplay = <span class="kw">new</span> <span class="tp">TempDisplay</span>(<span class="kw">this</span>);\n' +
+      '    <span class="kw">this</span>.humidDisplay = <span class="kw">new</span> <span class="tp">HumidDisplay</span>(<span class="kw">this</span>);\n' +
+      '    <span class="kw">this</span>.pressDisplay = <span class="kw">new</span> <span class="tp">PressDisplay</span>(<span class="kw">this</span>);\n' +
+      '    <span class="ann">this.forecastDisplay = new ForecastDisplay(this); // NEW</span>\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="cm">// Modified AGAIN for every new display</span>\n' +
+      '  <span class="ann">// Open-Closed Principle: VIOLATED</span>\n' +
+      '  <span class="fn">updateAll</span>() {\n' +
+      '    <span class="kw">this</span>.tempDisplay.<span class="fn">render</span>();\n' +
+      '    <span class="kw">this</span>.humidDisplay.<span class="fn">render</span>();\n' +
+      '    <span class="kw">this</span>.pressDisplay.<span class="fn">render</span>();\n' +
+      '    <span class="ann">this.forecastDisplay.render(); // MODIFIED</span>\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="cm">// Shotgun Surgery: had to touch constructor,</span>\n' +
+      '  <span class="cm">// updateAll, and add new field \u2014 3 changes</span>\n' +
+      '  <span class="cm">// for 1 feature. This will only get worse.</span>\n' +
+      '}'
+  };
+
+  // Position 50 — Interface Extracted
+  keyframeData[50] = {
+    badgeCls: 'badge--yellow',
+    badgeLabel: 'Improving',
+    label: '<em>Interface Extracted</em> \u2014 A common contract emerges',
+    filename: 'DisplayObserver.ts',
+    buildSvg: function() {
+      var parts = [];
+      var ws = buildClassBox('ws', 240, 20, 280, 'WeatherStation', null,
+        ['- observers: DisplayObserver[]', '- temperature: number', '- humidity: number', '- pressure: number'],
+        [
+          '+ addObserver(o): void',
+          '+ removeObserver(o): void',
+          { text: '+ notifyAll(): void', highlight: 'green' },
+          '+ setTemperature(v): void'
+        ],
+        { fill: 'rgba(255,255,255,0.04)', stroke: 'rgba(255,255,255,0.15)' }
+      );
+      parts.push(ws.svg);
+
+      var iface = buildInterfaceBox('iface', 270, 210, 220, 'DisplayObserver',
+        ['+ update(data: WeatherData): void'], {});
+      parts.push(iface.svg);
+
+      var baseY = 370;
+      var td = buildClassBox('td', 30, baseY, 150, 'TempDisplay', null,
+        [], ['+ update(data): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var hd = buildClassBox('hd', 200, baseY, 155, 'HumidDisplay', null,
+        [], ['+ update(data): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var pd = buildClassBox('pd', 375, baseY, 155, 'PressDisplay', null,
+        [], ['+ update(data): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var fd = buildClassBox('fd', 550, baseY, 170, 'ForecastDisplay', null,
+        [], ['+ update(data): void'], { fill: 'rgba(255,255,255,0.03)' });
+      parts.push(td.svg, hd.svg, pd.svg, fd.svg);
+
+      parts.push(buildArrow(380, ws.h + 20, 380, 210, { stroke: 'rgba(255,255,255,0.3)', marker: 'arrowHead' }));
+
+      parts.push(buildDashedArrow(105, baseY, 340, 210 + iface.h, { stroke: 'hsla(258,78%,64%,0.35)' }));
+      parts.push(buildDashedArrow(278, baseY, 360, 210 + iface.h, { stroke: 'hsla(258,78%,64%,0.35)' }));
+      parts.push(buildDashedArrow(453, baseY, 400, 210 + iface.h, { stroke: 'hsla(258,78%,64%,0.35)' }));
+      parts.push(buildDashedArrow(635, baseY, 420, 210 + iface.h, { stroke: 'hsla(258,78%,64%,0.35)' }));
+
+      parts.push(buildAnnotation(380, 190, 'Depends on abstraction, not concretions', 'yellow'));
+
+      return parts.join('');
+    },
+    code: '<span class="cm">// DisplayObserver.ts \u2014 The abstraction layer</span>\n' +
+      '<span class="kw">interface</span> <span class="tp">WeatherData</span> {\n' +
+      '  temperature: <span class="tp">number</span>;\n' +
+      '  humidity: <span class="tp">number</span>;\n' +
+      '  pressure: <span class="tp">number</span>;\n' +
+      '}\n' +
+      '\n' +
+      '<span class="cm">// The common contract all displays must follow</span>\n' +
+      '<span class="kw">interface</span> <span class="tp">DisplayObserver</span> {\n' +
+      '  <span class="fn">update</span>(data: <span class="tp">WeatherData</span>): <span class="kw">void</span>;\n' +
+      '}\n' +
+      '\n' +
+      '<span class="cm">// WeatherStation no longer knows concrete displays</span>\n' +
+      '<span class="kw">class</span> <span class="tp">WeatherStation</span> {\n' +
+      '  <span class="kw">private</span> observers: <span class="tp">DisplayObserver</span>[] = [];\n' +
+      '\n' +
+      '  <span class="fn">addObserver</span>(o: <span class="tp">DisplayObserver</span>) {\n' +
+      '    <span class="kw">this</span>.observers.<span class="fn">push</span>(o);\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="fn">removeObserver</span>(o: <span class="tp">DisplayObserver</span>) {\n' +
+      '    <span class="kw">this</span>.observers = <span class="kw">this</span>.observers\n' +
+      '      .<span class="fn">filter</span>(obs <span class="op">=&gt;</span> obs <span class="op">!==</span> o);\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="cm">// Notify ALL observers \u2014 no hardcoded refs!</span>\n' +
+      '  <span class="fn">notifyAll</span>() {\n' +
+      '    <span class="kw">const</span> data = <span class="kw">this</span>.<span class="fn">getData</span>();\n' +
+      '    <span class="kw">this</span>.observers.<span class="fn">forEach</span>(o <span class="op">=&gt;</span> o.<span class="fn">update</span>(data));\n' +
+      '  }\n' +
+      '}'
+  };
+
+  // Position 75 — Pattern Complete
+  keyframeData[75] = {
+    badgeCls: 'badge--green',
+    badgeLabel: 'Clean',
+    label: '<em>Pattern Complete</em> \u2014 Full Observer with clean data flow',
+    filename: 'observer-pattern.ts',
+    buildSvg: function() {
+      var parts = [];
+      var ws = buildClassBox('ws', 250, 15, 260, 'WeatherStation', 'Subject',
+        ['- observers: Observer[]', '- state: WeatherData'],
+        [
+          '+ subscribe(o): void',
+          '+ unsubscribe(o): void',
+          { text: '+ notify(): void', highlight: 'green' },
+          '+ setState(d): void'
+        ],
+        { fill: 'hsla(152,60%,48%,0.04)', stroke: 'hsla(152,60%,48%,0.25)' }
+      );
+      parts.push(ws.svg);
+
+      var iface = buildInterfaceBox('iface', 285, 200, 190, 'DisplayObserver',
+        ['+ update(data): void'], {});
+      parts.push(iface.svg);
+
+      var baseY = 370;
+      var td = buildClassBox('td', 20, baseY, 145, 'TempDisplay', null,
+        [], ['+ update(d): void', '+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var hd = buildClassBox('hd', 182, baseY, 150, 'HumidDisplay', null,
+        [], ['+ update(d): void', '+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var pd = buildClassBox('pd', 349, baseY, 155, 'PressDisplay', null,
+        [], ['+ update(d): void', '+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var fd = buildClassBox('fd', 521, baseY, 165, 'ForecastDisplay', null,
+        [], ['+ update(d): void', '+ render(): void'], { fill: 'rgba(255,255,255,0.03)' });
+      parts.push(td.svg, hd.svg, pd.svg, fd.svg);
+
+      parts.push(buildArrow(380, ws.h + 15, 380, 200, { stroke: 'hsla(152,60%,48%,0.4)', marker: 'arrowGreen' }));
+
+      parts.push(buildDashedArrow(93, baseY, 345, 200 + iface.h, { stroke: 'hsla(258,78%,64%,0.35)' }));
+      parts.push(buildDashedArrow(257, baseY, 360, 200 + iface.h, { stroke: 'hsla(258,78%,64%,0.35)' }));
+      parts.push(buildDashedArrow(427, baseY, 400, 200 + iface.h, { stroke: 'hsla(258,78%,64%,0.35)' }));
+      parts.push(buildDashedArrow(604, baseY, 420, 200 + iface.h, { stroke: 'hsla(258,78%,64%,0.35)' }));
+
+      // Animated particles flowing from WS to each display
+      parts.push(buildParticle(380, ws.h + 15, 93, baseY, 0));
+      parts.push(buildParticle(380, ws.h + 15, 257, baseY, 0.5));
+      parts.push(buildParticle(380, ws.h + 15, 427, baseY, 1.0));
+      parts.push(buildParticle(380, ws.h + 15, 604, baseY, 1.5));
+
+      parts.push(buildAnnotation(380, ws.h + 45, 'Loose coupling via abstraction', 'green'));
+
+      return parts.join('');
+    },
+    code: '<span class="cm">// observer-pattern.ts \u2014 Complete implementation</span>\n' +
+      '<span class="kw">interface</span> <span class="tp">WeatherData</span> {\n' +
+      '  temperature: <span class="tp">number</span>;\n' +
+      '  humidity: <span class="tp">number</span>;\n' +
+      '  pressure: <span class="tp">number</span>;\n' +
+      '}\n' +
+      '\n' +
+      '<span class="kw">interface</span> <span class="tp">DisplayObserver</span> {\n' +
+      '  <span class="fn">update</span>(data: <span class="tp">WeatherData</span>): <span class="kw">void</span>;\n' +
+      '}\n' +
+      '\n' +
+      '<span class="kw">class</span> <span class="tp">WeatherStation</span> {\n' +
+      '  <span class="kw">private</span> observers: <span class="tp">Set</span>&lt;<span class="tp">DisplayObserver</span>&gt; = <span class="kw">new</span> <span class="tp">Set</span>();\n' +
+      '  <span class="kw">private</span> state: <span class="tp">WeatherData</span>;\n' +
+      '\n' +
+      '  <span class="fn">subscribe</span>(o: <span class="tp">DisplayObserver</span>)   { <span class="kw">this</span>.observers.<span class="fn">add</span>(o); }\n' +
+      '  <span class="fn">unsubscribe</span>(o: <span class="tp">DisplayObserver</span>) { <span class="kw">this</span>.observers.<span class="fn">delete</span>(o); }\n' +
+      '\n' +
+      '  <span class="fn">notify</span>() {\n' +
+      '    <span class="kw">this</span>.observers.<span class="fn">forEach</span>(o <span class="op">=&gt;</span> o.<span class="fn">update</span>(<span class="kw">this</span>.state));\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="fn">setState</span>(data: <span class="tp">Partial</span>&lt;<span class="tp">WeatherData</span>&gt;) {\n' +
+      '    <span class="kw">this</span>.state = { ...<span class="kw">this</span>.state, ...data };\n' +
+      '    <span class="kw">this</span>.<span class="fn">notify</span>();  <span class="cm">// auto-broadcast</span>\n' +
+      '  }\n' +
+      '}\n' +
+      '\n' +
+      '<span class="cm">// Each display is self-contained</span>\n' +
+      '<span class="kw">class</span> <span class="tp">TempDisplay</span> <span class="kw">implements</span> <span class="tp">DisplayObserver</span> {\n' +
+      '  <span class="fn">update</span>(data: <span class="tp">WeatherData</span>) {\n' +
+      '    <span class="kw">this</span>.<span class="fn">render</span>(data.temperature);\n' +
+      '  }\n' +
+      '  <span class="kw">private</span> <span class="fn">render</span>(temp: <span class="tp">number</span>) { <span class="cm">/* ... */</span> }\n' +
+      '}\n' +
+      '<span class="cm">// HumidDisplay, PressDisplay, ForecastDisplay \u2014 same shape</span>'
+  };
+
+  // Position 100 — New Feature Test
+  keyframeData[100] = {
+    badgeCls: 'badge--green',
+    badgeLabel: 'Extensible',
+    label: '<em>New Feature Test</em> \u2014 Add a 5th observer: zero changes elsewhere',
+    filename: 'StatisticsDisplay.ts (NEW)',
+    buildSvg: function() {
+      var parts = [];
+      var ws = buildClassBox('ws', 250, 15, 260, 'WeatherStation', 'Subject',
+        ['- observers: Observer[]', '- state: WeatherData'],
+        [
+          '+ subscribe(o): void',
+          '+ unsubscribe(o): void',
+          '+ notify(): void',
+          '+ setState(d): void'
+        ],
+        { fill: 'hsla(152,60%,48%,0.04)', stroke: 'hsla(152,60%,48%,0.25)' }
+      );
+      parts.push(ws.svg);
+
+      var iface = buildInterfaceBox('iface', 285, 190, 190, 'DisplayObserver',
+        ['+ update(data): void'], {});
+      parts.push(iface.svg);
+
+      var baseY = 360;
+      var td = buildClassBox('td', 5, baseY, 130, 'TempDisplay', null,
+        [], ['+ update(d): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var hd = buildClassBox('hd', 148, baseY, 130, 'HumidDisplay', null,
+        [], ['+ update(d): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var pd = buildClassBox('pd', 291, baseY, 135, 'PressDisplay', null,
+        [], ['+ update(d): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var fd = buildClassBox('fd', 439, baseY, 148, 'ForecastDisplay', null,
+        [], ['+ update(d): void'], { fill: 'rgba(255,255,255,0.03)' });
+      var sd = buildClassBox('sd', 600, baseY, 155, 'StatisticsDisplay', null,
+        ['- history: number[]'],
+        [{ text: '+ update(d): void', highlight: 'green' }, '+ getAverage(): number'],
+        { fill: 'hsla(152,60%,48%,0.06)', stroke: 'hsla(152,60%,48%,0.4)' }
+      );
+      parts.push(td.svg, hd.svg, pd.svg, fd.svg, sd.svg);
+
+      parts.push(buildArrow(380, ws.h + 15, 380, 190, { stroke: 'hsla(152,60%,48%,0.4)', marker: 'arrowGreen' }));
+
+      parts.push(buildDashedArrow(70, baseY, 340, 190 + iface.h, { stroke: 'hsla(258,78%,64%,0.3)' }));
+      parts.push(buildDashedArrow(213, baseY, 355, 190 + iface.h, { stroke: 'hsla(258,78%,64%,0.3)' }));
+      parts.push(buildDashedArrow(359, baseY, 380, 190 + iface.h, { stroke: 'hsla(258,78%,64%,0.3)' }));
+      parts.push(buildDashedArrow(513, baseY, 410, 190 + iface.h, { stroke: 'hsla(258,78%,64%,0.3)' }));
+      parts.push(buildDashedArrow(678, baseY, 430, 190 + iface.h, { stroke: 'hsla(152,60%,48%,0.5)' }));
+
+      // Particles
+      parts.push(buildParticle(380, ws.h + 15, 70, baseY, 0));
+      parts.push(buildParticle(380, ws.h + 15, 213, baseY, 0.4));
+      parts.push(buildParticle(380, ws.h + 15, 359, baseY, 0.8));
+      parts.push(buildParticle(380, ws.h + 15, 513, baseY, 1.2));
+      parts.push(buildParticle(380, ws.h + 15, 678, baseY, 1.6));
+
+      parts.push(buildAnnotation(678, baseY - 16, 'NEW \u2014 1 class, 0 changes elsewhere', 'green', { pulse: true }));
+      parts.push(buildAnnotation(380, ws.h + 45, 'Open for extension, closed for modification', 'green'));
+
+      return parts.join('');
+    },
+    code: '<span class="cm">// StatisticsDisplay.ts \u2014 NEW file, nothing else touched</span>\n' +
+      '<span class="kw">import</span> { <span class="tp">DisplayObserver</span>, <span class="tp">WeatherData</span> } <span class="kw">from</span> <span class="st">\'./types\'</span>;\n' +
+      '\n' +
+      '<span class="cm">// Adding this feature required:</span>\n' +
+      '<span class="cm">//   1 new file    (this one)</span>\n' +
+      '<span class="cm">//   0 modifications to WeatherStation</span>\n' +
+      '<span class="cm">//   0 modifications to other displays</span>\n' +
+      '\n' +
+      '<span class="kw">class</span> <span class="tp">StatisticsDisplay</span> <span class="kw">implements</span> <span class="tp">DisplayObserver</span> {\n' +
+      '  <span class="kw">private</span> history: <span class="tp">number</span>[] = [];\n' +
+      '\n' +
+      '  <span class="fn">update</span>(data: <span class="tp">WeatherData</span>) {\n' +
+      '    <span class="kw">this</span>.history.<span class="fn">push</span>(data.temperature);\n' +
+      '    <span class="kw">this</span>.<span class="fn">render</span>();\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="fn">getAverage</span>(): <span class="tp">number</span> {\n' +
+      '    <span class="kw">const</span> sum = <span class="kw">this</span>.history\n' +
+      '      .<span class="fn">reduce</span>((a, b) <span class="op">=&gt;</span> a + b, <span class="nu">0</span>);\n' +
+      '    <span class="kw">return</span> sum / <span class="kw">this</span>.history.length;\n' +
+      '  }\n' +
+      '\n' +
+      '  <span class="kw">private</span> <span class="fn">render</span>() {\n' +
+      '    console.<span class="fn">log</span>(\n' +
+      '      <span class="st">`Avg temp: ${this.getAverage().toFixed(1)}`</span>\n' +
+      '    );\n' +
+      '  }\n' +
+      '}\n' +
+      '\n' +
+      '<span class="cm">// Usage \u2014 just one line to wire it up:</span>\n' +
+      '<span class="kw">const</span> station = <span class="kw">new</span> <span class="tp">WeatherStation</span>();\n' +
+      'station.<span class="fn">subscribe</span>(<span class="kw">new</span> <span class="tp">StatisticsDisplay</span>());\n' +
+      '<span class="cm">// That\'s it. WeatherStation didn\'t change at all.</span>'
+  };
+
+  // ── Nearest keyframe helper ──────────────────────────────
+  function nearestKeyframe(pos) {
+    var keys = [0, 25, 50, 75, 100];
+    var best = keys[0];
+    for (var i = 1; i < keys.length; i++) {
+      if (Math.abs(pos - keys[i]) < Math.abs(pos - best)) best = keys[i];
+    }
+    return best;
+  }
+
+  // ── Render at position ───────────────────────────────────
+  function renderPosition(pos) {
+    var kf = nearestKeyframe(pos);
+    var data = keyframeData[kf];
+    if (!data) return;
+
+    currentPos = pos;
+
+    // Timeline track
+    trackFill.style.width = pos + '%';
+    trackThumb.style.left = pos + '%';
+
+    // Waypoints
+    for (var i = 0; i < waypoints.length; i++) {
+      var wpPos = parseInt(waypoints[i].getAttribute('data-pos'), 10);
+      if (wpPos === kf) {
+        waypoints[i].classList.add('active');
+      } else {
+        waypoints[i].classList.remove('active');
+      }
+    }
+
+    // Label
+    timelineLabelEl.innerHTML = data.label;
+
+    // Badge
+    statusBadge.className = 'badge ' + data.badgeCls;
+    badgeTextEl.textContent = data.badgeLabel;
+
+    // Code
+    codeEl.innerHTML = data.code;
+    codeFilenameEl.textContent = data.filename;
+
+    // Diagram crossfade
+    diagramG.style.opacity = '0';
+    setTimeout(function() {
+      diagramG.innerHTML = data.buildSvg();
+      diagramG.style.transition = 'opacity 0.4s ease';
+      diagramG.style.opacity = '1';
+    }, 150);
+
+    // Fork button
+    if (kf === 25) {
+      forkBtnEl.classList.add('visible');
+    } else {
+      forkBtnEl.classList.remove('visible');
+    }
+  }
+
+  // ── Timeline drag interaction ────────────────────────────
+  var dragging = false;
+
+  function posFromEvent(e) {
+    var rect = timelineTrack.getBoundingClientRect();
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var x = clientX - rect.left;
+    return Math.max(0, Math.min(100, (x / rect.width) * 100));
+  }
+
+  timelineTrack.addEventListener('mousedown', function(e) {
+    dragging = true;
+    stopPlaying();
+    renderPosition(nearestKeyframe(posFromEvent(e)));
+  });
+  timelineTrack.addEventListener('touchstart', function(e) {
+    dragging = true;
+    stopPlaying();
+    renderPosition(nearestKeyframe(posFromEvent(e)));
+  }, { passive: true });
+
+  window.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    renderPosition(nearestKeyframe(posFromEvent(e)));
+  });
+  window.addEventListener('touchmove', function(e) {
+    if (!dragging) return;
+    renderPosition(nearestKeyframe(posFromEvent(e)));
+  }, { passive: true });
+
+  window.addEventListener('mouseup', function() { dragging = false; });
+  window.addEventListener('touchend', function() { dragging = false; });
+
+  // Waypoint clicks
+  for (var w = 0; w < waypoints.length; w++) {
+    (function(wp) {
+      wp.addEventListener('click', function() {
+        stopPlaying();
+        renderPosition(parseInt(wp.getAttribute('data-pos'), 10));
+      });
+    })(waypoints[w]);
+  }
+
+  // ── Play / Pause ─────────────────────────────────────────
+  function stopPlaying() {
+    playing = false;
+    if (playTimer) clearInterval(playTimer);
+    playTimer = null;
+    playIconEl.style.display = '';
+    pauseIconEl.style.display = 'none';
+  }
+
+  function startPlaying() {
+    playing = true;
+    playIconEl.style.display = 'none';
+    pauseIconEl.style.display = '';
+
+    var keys = [0, 25, 50, 75, 100];
+    var idx = keys.indexOf(nearestKeyframe(currentPos));
+    if (idx >= keys.length - 1) idx = -1;
+
+    function advance() {
+      idx++;
+      if (idx >= keys.length) {
+        stopPlaying();
+        return;
+      }
+      renderPosition(keys[idx]);
+    }
+
+    advance();
+    playTimer = setInterval(advance, PLAY_SPEED);
+  }
+
+  playBtn.addEventListener('click', function() {
+    if (playing) stopPlaying(); else startPlaying();
+  });
+
+  // ── Fork modal ───────────────────────────────────────────
+  forkBtnEl.addEventListener('click', function() {
+    forkModalEl.classList.add('visible');
+  });
+  forkModalEl.addEventListener('click', function(e) {
+    if (e.target === forkModalEl) forkModalEl.classList.remove('visible');
+  });
+  document.getElementById('closeForkModal').addEventListener('click', function() {
+    forkModalEl.classList.remove('visible');
+  });
+
+  // ── Keyboard navigation ──────────────────────────────────
+  document.addEventListener('keydown', function(e) {
+    var keys = [0, 25, 50, 75, 100];
+    var idx = keys.indexOf(nearestKeyframe(currentPos));
+
+    if (e.key === 'ArrowRight' && idx < keys.length - 1) {
+      stopPlaying();
+      renderPosition(keys[idx + 1]);
+    } else if (e.key === 'ArrowLeft' && idx > 0) {
+      stopPlaying();
+      renderPosition(keys[idx - 1]);
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      if (playing) stopPlaying(); else startPlaying();
+    } else if (e.key === 'Escape') {
+      forkModalEl.classList.remove('visible');
+    }
+  });
+
+  // ── Initialize ───────────────────────────────────────────
+  renderPosition(0);
+
+})();
+</script>
+</body>
+</html>

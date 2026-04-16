@@ -1,0 +1,2853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observer Pattern - Complete Learning Journey | Architex</title>
+<style>
+/* ── Reset ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Design Tokens ──────────────────────────────────────── */
+:root {
+  --bg: hsl(225, 8%, 7%);
+  --surface: hsl(225, 8%, 11%);
+  --elevated: hsl(225, 7%, 13%);
+  --text: hsl(220, 5%, 90%);
+  --text-muted: hsl(220, 5%, 55%);
+  --text-subtle: hsl(220, 5%, 62%);
+  --primary: hsl(258, 78%, 64%);
+  --primary-glow: hsla(258, 78%, 64%, 0.15);
+  --primary-strong: hsla(258, 78%, 64%, 0.35);
+  --success: hsl(152, 65%, 48%);
+  --success-glow: hsla(152, 65%, 48%, 0.15);
+  --error: hsl(0, 65%, 58%);
+  --error-glow: hsla(0, 65%, 58%, 0.15);
+  --warning: hsl(35, 90%, 55%);
+  --border: rgba(255, 255, 255, 0.10);
+  --code-bg: hsl(225, 10%, 12%);
+  --class-fill: hsl(225, 10%, 18%);
+  --class-stroke: rgba(255, 255, 255, 0.15);
+  --canvas-bg: hsl(225, 10%, 9%);
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* ── Layout Shell ───────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+}
+
+/* ── Top Bar ────────────────────────────────────────────── */
+#top-bar {
+  height: 48px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateY(-48px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  z-index: 100;
+}
+#top-bar.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+#top-bar .left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#top-bar .left .icon {
+  width: 20px;
+  height: 20px;
+  background: var(--primary);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#top-bar .left .icon svg { width: 12px; height: 12px; }
+#top-bar .label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+#top-bar .center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.phase-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  transition: all 0.4s ease;
+  position: relative;
+}
+.phase-dot.completed {
+  background: var(--primary);
+}
+.phase-dot.current {
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow), 0 0 12px var(--primary-glow);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--primary-glow), 0 0 12px var(--primary-glow); }
+  50% { box-shadow: 0 0 0 5px var(--primary-glow), 0 0 20px var(--primary-glow); }
+}
+#top-bar .right {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#top-bar .right .phase-name {
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+#top-bar .right .time-est {
+  color: var(--text-muted);
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ── Canvas Area ────────────────────────────────────────── */
+#canvas-area {
+  flex: 1;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#canvas-area.with-code {
+  width: 55%;
+}
+#canvas-svg {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Grid background */
+#canvas-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── SVG Classes (UML Boxes) ────────────────────────────── */
+.uml-class {
+  cursor: pointer;
+  transition: filter 0.3s ease;
+}
+.uml-class:hover .class-bg {
+  stroke: rgba(255,255,255,0.25);
+}
+.class-bg {
+  fill: var(--class-fill);
+  stroke: var(--class-stroke);
+  stroke-width: 1.5;
+  rx: 8;
+  ry: 8;
+  transition: stroke 0.2s ease, filter 0.3s ease;
+}
+.class-header-bg {
+  fill: rgba(255,255,255,0.04);
+}
+.class-title {
+  fill: var(--text);
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.class-stereotype {
+  fill: var(--primary);
+  font-family: system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.class-member {
+  fill: var(--text-subtle);
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 10.5px;
+}
+.class-divider {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+/* ── Relationship Lines ─────────────────────────────────── */
+.relationship-line {
+  stroke: var(--class-stroke);
+  stroke-width: 1.5;
+  fill: none;
+}
+.relationship-line.coupling {
+  stroke: var(--error);
+  stroke-width: 2;
+}
+.coupling-label {
+  fill: var(--error);
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+}
+.relationship-line.composition {
+  stroke: var(--primary);
+  stroke-width: 1.5;
+}
+.relationship-line.implements {
+  stroke: var(--class-stroke);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+.arrow-head {
+  fill: none;
+  stroke: inherit;
+  stroke-width: 1.5;
+}
+
+/* Line drawing animation */
+.line-draw {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawLine 0.8s ease forwards;
+}
+@keyframes drawLine {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ── Code Panel ─────────────────────────────────────────── */
+#code-panel {
+  position: fixed;
+  top: 48px;
+  right: 0;
+  width: 45%;
+  bottom: 156px;
+  background: var(--code-bg);
+  border-left: 1px solid var(--border);
+  z-index: 50;
+  transform: translateX(100%);
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#code-panel.visible {
+  transform: translateX(0);
+}
+#code-panel .panel-header {
+  height: 40px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+#code-panel .panel-header .tab {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#code-panel .panel-header .tab.active {
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+#code-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-subtle);
+  white-space: pre;
+  tab-size: 2;
+}
+#code-content::-webkit-scrollbar { width: 6px; }
+#code-content::-webkit-scrollbar-track { background: transparent; }
+#code-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+/* Code syntax colors */
+.hl-keyword { color: hsl(280, 68%, 72%); }
+.hl-type { color: hsl(180, 60%, 65%); }
+.hl-string { color: hsl(85, 55%, 62%); }
+.hl-comment { color: hsl(220, 5%, 40%); font-style: italic; }
+.hl-method { color: hsl(45, 70%, 68%); }
+.hl-prop { color: hsl(210, 60%, 70%); }
+.hl-bracket { color: hsl(220, 5%, 55%); }
+.hl-decorator { color: hsl(35, 80%, 60%); }
+
+.code-highlight {
+  background: hsla(258, 78%, 64%, 0.08);
+  border-left: 3px solid var(--primary);
+  margin: 0 -20px;
+  padding: 0 17px;
+  display: block;
+  transition: background 0.3s ease;
+}
+
+/* ── Sidebar (Phase 6) ──────────────────────────────────── */
+#sidebar {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  width: 220px;
+  bottom: 156px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  z-index: 50;
+  transform: translateX(-100%);
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 16px;
+}
+#sidebar.visible {
+  transform: translateX(0);
+}
+#sidebar h3 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  cursor: grab;
+  transition: all 0.2s;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+.palette-item:hover {
+  border-color: var(--primary-strong);
+  background: rgba(255,255,255,0.04);
+}
+.palette-icon {
+  width: 28px;
+  height: 20px;
+  border-radius: 3px;
+  border: 1.5px solid var(--class-stroke);
+  background: var(--class-fill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.palette-icon.interface {
+  border-style: dashed;
+  border-color: var(--primary);
+}
+
+/* ── Bottom Narrative Bar ───────────────────────────────── */
+#narrative-bar {
+  height: 156px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  flex-shrink: 0;
+  z-index: 80;
+}
+#narrative-content {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  padding: 20px 28px;
+  gap: 28px;
+  overflow: hidden;
+}
+#narrative-text {
+  flex: 1;
+  min-width: 0;
+}
+#narrative-text .text-line {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text);
+  min-height: 24px;
+  margin-bottom: 4px;
+}
+#narrative-text .text-line .cursor-blink {
+  display: inline-block;
+  width: 2px;
+  height: 17px;
+  background: var(--primary);
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: blink 0.8s step-end infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+#skip-btn {
+  position: absolute;
+  top: 12px;
+  right: 20px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+}
+#skip-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+#skip-btn:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-subtle);
+}
+
+#interaction-area {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 280px;
+  max-width: 380px;
+}
+
+/* ── Progress Bar ───────────────────────────────────────── */
+#progress-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.04);
+  flex-shrink: 0;
+}
+#progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), hsl(280, 70%, 68%));
+  width: 0%;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 2px 2px 0;
+  position: relative;
+}
+#progress-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -2px;
+  width: 8px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--primary);
+  opacity: 0.8;
+}
+
+/* ── Multiple Choice ────────────────────────────────────── */
+.mc-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mc-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.mc-option:hover {
+  border-color: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.04);
+}
+.mc-option .mc-letter {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: all 0.25s;
+}
+.mc-option:hover .mc-letter {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.mc-option.correct {
+  border-color: var(--success);
+  background: var(--success-glow);
+}
+.mc-option.correct .mc-letter {
+  border-color: var(--success);
+  background: var(--success);
+  color: #fff;
+}
+.mc-option.wrong {
+  border-color: var(--error);
+  background: var(--error-glow);
+  animation: shake 0.4s ease;
+}
+.mc-option.wrong .mc-letter {
+  border-color: var(--error);
+  color: var(--error);
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.mc-feedback {
+  font-size: 12px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  line-height: 1.4;
+  animation: fadeSlideUp 0.3s ease;
+}
+.mc-feedback.error {
+  color: var(--error);
+  background: var(--error-glow);
+}
+.mc-feedback.success {
+  color: var(--success);
+  background: var(--success-glow);
+}
+
+/* ── Continue Button ────────────────────────────────────── */
+.continue-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+  font-family: system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+.continue-btn:hover {
+  background: hsl(258, 78%, 70%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px hsla(258, 78%, 64%, 0.3);
+}
+.continue-btn:active {
+  transform: translateY(0);
+}
+.continue-btn.secondary {
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.continue-btn.secondary:hover {
+  background: rgba(255,255,255,0.06);
+  box-shadow: none;
+}
+
+/* ── Key Insight Callout ────────────────────────────────── */
+.insight-callout {
+  background: hsla(258, 78%, 64%, 0.06);
+  border-left: 3px solid var(--primary);
+  padding: 14px 18px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 8px 0;
+  animation: fadeSlideUp 0.5s ease;
+}
+.insight-callout .insight-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+.insight-callout .insight-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+/* ── Step Counter ───────────────────────────────────────── */
+.step-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.step-counter .step-badge {
+  background: var(--primary-glow);
+  color: var(--primary);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* ── Fill-in-the-blank ──────────────────────────────────── */
+.fill-blank-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-subtle);
+  line-height: 2;
+}
+.fill-input {
+  width: 110px;
+  padding: 4px 10px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'SF Mono', monospace;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.fill-input:focus {
+  border-color: var(--primary);
+}
+.fill-input.correct {
+  border-color: var(--success);
+  background: var(--success-glow);
+}
+.fill-input.wrong {
+  border-color: var(--error);
+  animation: shake 0.3s ease;
+}
+.fill-check-btn {
+  padding: 4px 14px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: all 0.2s;
+}
+.fill-check-btn:hover { background: hsl(258, 78%, 70%); }
+
+/* ── Drag Reorder ───────────────────────────────────────── */
+.drag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.drag-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: grab;
+  user-select: none;
+  transition: all 0.15s ease;
+  line-height: 1.3;
+}
+.drag-item:active { cursor: grabbing; }
+.drag-item.dragging {
+  opacity: 0.5;
+  border-color: var(--primary);
+}
+.drag-item.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+.drag-item .drag-handle {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+.drag-item .drag-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.drag-item.correct-order {
+  border-color: var(--success);
+  background: var(--success-glow);
+}
+.drag-item.correct-order .drag-num {
+  background: var(--success);
+  color: #fff;
+}
+
+/* ── Checklist (Phase 6) ────────────────────────────────── */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-subtle);
+  transition: all 0.3s ease;
+  padding: 3px 0;
+}
+.check-item .check-box {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+.check-item.done {
+  color: var(--success);
+}
+.check-item.done .check-box {
+  background: var(--success);
+  border-color: var(--success);
+}
+.check-item.done .check-box::after {
+  content: '';
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+/* ── Expandable "Why?" ──────────────────────────────────── */
+.expandable {
+  margin-top: 8px;
+}
+.expandable summary {
+  font-size: 12px;
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+.expandable summary::before {
+  content: '+';
+  font-size: 14px;
+  font-weight: 700;
+  width: 16px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+.expandable[open] summary::before {
+  content: '-';
+}
+.expandable .why-content {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding: 8px 0 0 20px;
+}
+
+/* ── Particle Animation (Phase 5) ───────────────────────── */
+.particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--primary), 0 0 16px hsla(258, 78%, 64%, 0.3);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 4px hsla(258, 78%, 64%, 0.3)); }
+  50% { filter: drop-shadow(0 0 12px hsla(258, 78%, 64%, 0.6)); }
+}
+@keyframes flashRed {
+  0% { filter: drop-shadow(0 0 0px transparent); }
+  30% { filter: drop-shadow(0 0 15px hsla(0, 65%, 58%, 0.6)); }
+  100% { filter: drop-shadow(0 0 0px transparent); }
+}
+@keyframes flashGreen {
+  0% { filter: drop-shadow(0 0 0px transparent); }
+  30% { filter: drop-shadow(0 0 15px hsla(152, 65%, 48%, 0.6)); }
+  100% { filter: drop-shadow(0 0 0px transparent); }
+}
+@keyframes priceTick {
+  0% { color: var(--text); }
+  30% { color: var(--success); }
+  100% { color: var(--text); }
+}
+@keyframes nodeAppear {
+  from { opacity: 0; transform: scale(0.85) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.node-appear { animation: nodeAppear 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* ── CTA Buttons (Phase 6 final) ────────────────────────── */
+.cta-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* ── Annotation badges ──────────────────────────────────── */
+.annotation-badge {
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--warning);
+  animation: fadeIn 0.3s ease;
+}
+
+/* ── Price counter display ──────────────────────────────── */
+.price-display {
+  font-family: 'SF Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--success);
+}
+
+/* ── Celebration ────────────────────────────────────────── */
+.confetti {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 999;
+  animation: confettiFall 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+@keyframes confettiFall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <div class="left">
+      <div class="icon">
+        <svg viewBox="0 0 12 12" fill="none">
+          <path d="M2 3h8M2 6h8M2 9h5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="label">Observer Pattern</span>
+    </div>
+    <div class="center" id="phase-dots"></div>
+    <div class="right">
+      <span class="phase-name" id="phase-label">Phase 1: The Hook</span>
+      <span class="time-est" id="time-est">~10 min</span>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div id="canvas-area">
+    <svg id="canvas-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <!-- Code Panel (Phase 4) -->
+  <div id="code-panel">
+    <div class="panel-header">
+      <div class="tab active" id="code-tab-ts">observer.ts</div>
+    </div>
+    <div id="code-content"></div>
+  </div>
+
+  <!-- Sidebar (Phase 6) -->
+  <div id="sidebar">
+    <h3>Components</h3>
+    <div class="palette-item">
+      <div class="palette-icon">C</div>
+      <span>Class</span>
+    </div>
+    <div class="palette-item">
+      <div class="palette-icon interface">I</div>
+      <span>Interface</span>
+    </div>
+  </div>
+
+  <!-- Bottom Narrative Bar -->
+  <div id="narrative-bar">
+    <button id="skip-btn">Skip</button>
+    <div id="narrative-content">
+      <div id="narrative-text"></div>
+      <div id="interaction-area"></div>
+    </div>
+    <div id="progress-bar">
+      <div id="progress-fill"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// OBSERVER PATTERN - COMPLETE LEARNING JOURNEY
+// 6 Phases, ~10 minutes, fully interactive
+// ════════════════════════════════════════════════════════════
+
+(function() {
+  'use strict';
+
+  var $ = function(id) { return document.getElementById(id); };
+  var svgCanvas = $('canvas-svg');
+  var narrativeText = $('narrative-text');
+  var interactionArea = $('interaction-area');
+  var topBar = $('top-bar');
+  var progressFill = $('progress-fill');
+  var skipBtn = $('skip-btn');
+  var codePanel = $('code-panel');
+  var codeContent = $('code-content');
+  var canvasArea = $('canvas-area');
+  var sidebarEl = $('sidebar');
+
+  // ── State ────────────────────────────────────────────────
+  var currentPhase = 0;
+  var typewriterTimeout = null;
+  var isTyping = false;
+  var priceInterval = null;
+  var currentPrice = 187.42;
+
+  var phaseNames = [
+    'The Hook', 'Feel the Pain', 'Build the Structure',
+    'See the Code', 'Test Understanding', 'Now You Build It'
+  ];
+  var phaseMinutes = ['~10 min', '~9 min', '~7 min', '~5 min', '~3 min', '~1 min'];
+
+  // ── Phase Dots ───────────────────────────────────────────
+  function renderPhaseDots() {
+    var container = $('phase-dots');
+    container.textContent = '';
+    for (var i = 0; i < 6; i++) {
+      var dot = document.createElement('div');
+      dot.className = 'phase-dot' +
+        (i < currentPhase ? ' completed' : '') +
+        (i === currentPhase ? ' current' : '');
+      container.appendChild(dot);
+    }
+  }
+
+  function updateTopBar() {
+    $('phase-label').textContent = 'Phase ' + (currentPhase + 1) + ': ' + phaseNames[currentPhase];
+    $('time-est').textContent = phaseMinutes[currentPhase];
+    renderPhaseDots();
+  }
+
+  function setProgress(pct) {
+    progressFill.style.width = pct + '%';
+  }
+
+  // ── Typewriter ───────────────────────────────────────────
+  function typewrite(text, container, speed) {
+    if (!speed) speed = 28;
+    return new Promise(function(resolve) {
+      isTyping = true;
+      skipBtn.classList.add('visible');
+
+      var line = document.createElement('div');
+      line.className = 'text-line';
+      container.appendChild(line);
+
+      var i = 0;
+      var cursor = document.createElement('span');
+      cursor.className = 'cursor-blink';
+
+      function tick() {
+        if (i < text.length) {
+          if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+          line.textContent = text.slice(0, i + 1);
+          line.appendChild(cursor);
+          i++;
+          typewriterTimeout = setTimeout(tick, speed);
+        } else {
+          if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+          isTyping = false;
+          skipBtn.classList.remove('visible');
+          resolve();
+        }
+      }
+
+      var skipHandler = function() {
+        if (!isTyping) return;
+        clearTimeout(typewriterTimeout);
+        if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+        line.textContent = text;
+        isTyping = false;
+        skipBtn.classList.remove('visible');
+        resolve();
+      };
+      skipBtn.onclick = skipHandler;
+
+      tick();
+    });
+  }
+
+  function clearNarrative() {
+    narrativeText.textContent = '';
+    interactionArea.textContent = '';
+  }
+
+  // ── SVG Helpers ──────────────────────────────────────────
+  function svgEl(tag, attrs) {
+    if (!attrs) attrs = {};
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    var keys = Object.keys(attrs);
+    for (var i = 0; i < keys.length; i++) {
+      el.setAttribute(keys[i], attrs[keys[i]]);
+    }
+    return el;
+  }
+
+  function createUMLClass(opts) {
+    var id = opts.id;
+    var x = opts.x;
+    var y = opts.y;
+    var w = opts.w || 200;
+    var title = opts.title;
+    var stereotype = opts.stereotype;
+    var attributes = opts.attributes || [];
+    var methods = opts.methods || [];
+    var className = opts.className || '';
+    var opacity = opts.opacity !== undefined ? opts.opacity : 0;
+
+    var headerH = stereotype ? 40 : 32;
+    var lineH = 20;
+    var attrSection = attributes.length ? attributes.length * lineH + 8 : 0;
+    var methSection = methods.length ? methods.length * lineH + 8 : 0;
+    var h = headerH + (attrSection ? attrSection + 1 : 0) + (methSection ? methSection + 1 : 0) + 8;
+
+    var g = svgEl('g', {
+      id: id,
+      transform: 'translate(' + x + ', ' + y + ')',
+      class: 'uml-class ' + className,
+      style: 'opacity: ' + opacity
+    });
+
+    var bg = svgEl('rect', {
+      class: 'class-bg', x: 0, y: 0, width: w, height: h
+    });
+    g.appendChild(bg);
+
+    var hdrBg = svgEl('rect', {
+      class: 'class-header-bg', x: 1, y: 1,
+      width: w - 2, height: headerH - 1,
+      rx: 7, ry: 7
+    });
+    g.appendChild(hdrBg);
+
+    var titleY = headerH / 2 + 4;
+    if (stereotype) {
+      var stereo = svgEl('text', {
+        class: 'class-stereotype',
+        x: w / 2, y: 16,
+        'text-anchor': 'middle'
+      });
+      stereo.textContent = '\u00AB' + stereotype + '\u00BB';
+      g.appendChild(stereo);
+      titleY = 32;
+    }
+
+    var t = svgEl('text', {
+      class: 'class-title',
+      x: w / 2, y: titleY,
+      'text-anchor': 'middle'
+    });
+    t.textContent = title;
+    g.appendChild(t);
+
+    var curY = headerH;
+
+    if (attributes.length) {
+      var div1 = svgEl('line', {
+        class: 'class-divider',
+        x1: 1, y1: curY, x2: w - 1, y2: curY
+      });
+      g.appendChild(div1);
+      curY += 4;
+      for (var ai = 0; ai < attributes.length; ai++) {
+        curY += lineH;
+        var atxt = svgEl('text', {
+          class: 'class-member',
+          x: 12, y: curY - 4
+        });
+        atxt.textContent = attributes[ai];
+        g.appendChild(atxt);
+      }
+      curY += 4;
+    }
+
+    if (methods.length) {
+      var div2 = svgEl('line', {
+        class: 'class-divider',
+        x1: 1, y1: curY, x2: w - 1, y2: curY
+      });
+      g.appendChild(div2);
+      curY += 4;
+      for (var mi = 0; mi < methods.length; mi++) {
+        curY += lineH;
+        var mtxt = svgEl('text', {
+          class: 'class-member',
+          x: 12, y: curY - 4
+        });
+        mtxt.textContent = methods[mi];
+        g.appendChild(mtxt);
+      }
+    }
+
+    g._boxW = w;
+    g._boxH = h;
+    g._cx = x + w / 2;
+    g._cy = y + h / 2;
+    return g;
+  }
+
+  function animateNodeIn(node, delay) {
+    if (!delay) delay = 0;
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        node.style.opacity = '0';
+        node.style.transition = 'none';
+        node.getBoundingClientRect();
+        node.style.transition = 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)';
+        node.style.opacity = '1';
+        setTimeout(resolve, 500);
+      }, delay);
+    });
+  }
+
+  function fadeOutNode(node, duration) {
+    if (!duration) duration = 400;
+    return new Promise(function(resolve) {
+      node.style.transition = 'opacity ' + duration + 'ms ease';
+      node.style.opacity = '0';
+      setTimeout(function() {
+        if (node.parentNode) node.parentNode.removeChild(node);
+        resolve();
+      }, duration);
+    });
+  }
+
+  function drawLine(x1, y1, x2, y2, opts) {
+    if (!opts) opts = {};
+    var id = opts.id;
+    var className = opts.className || '';
+    var color = opts.color;
+    var width = opts.width || 1.5;
+    var dasharray = opts.dasharray;
+    var animDuration = opts.animDuration || 800;
+    var delay = opts.delay || 0;
+
+    var line = svgEl('line', {
+      x1: x1, y1: y1, x2: x2, y2: y2,
+      class: 'relationship-line ' + className,
+      'stroke-width': width
+    });
+    if (id) line.id = id;
+    if (color) line.style.stroke = color;
+    if (dasharray) line.setAttribute('stroke-dasharray', dasharray);
+
+    var len = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    line.style.strokeDasharray = len;
+    line.style.strokeDashoffset = len;
+    line.style.opacity = '0';
+
+    svgCanvas.appendChild(line);
+
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        line.style.transition = 'stroke-dashoffset ' + animDuration + 'ms ease, opacity 0.2s ease';
+        line.style.opacity = '1';
+        line.style.strokeDashoffset = '0';
+        setTimeout(resolve, animDuration);
+      }, delay);
+    });
+  }
+
+  function drawPath(d, opts) {
+    if (!opts) opts = {};
+    var id = opts.id;
+    var className = opts.className || '';
+    var color = opts.color;
+    var width = opts.width || 1.5;
+    var dasharray = opts.dasharray;
+    var animDuration = opts.animDuration || 800;
+    var delay = opts.delay || 0;
+    var markerEnd = opts.markerEnd;
+
+    var path = svgEl('path', {
+      d: d,
+      class: 'relationship-line ' + className,
+      'stroke-width': width,
+      fill: 'none'
+    });
+    if (id) path.id = id;
+    if (color) path.style.stroke = color;
+    if (dasharray) path.setAttribute('stroke-dasharray', dasharray);
+    if (markerEnd) path.setAttribute('marker-end', markerEnd);
+
+    svgCanvas.appendChild(path);
+    var pathLen = path.getTotalLength();
+
+    path.style.strokeDasharray = pathLen;
+    path.style.strokeDashoffset = pathLen;
+    path.style.opacity = '0';
+
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        path.style.transition = 'stroke-dashoffset ' + animDuration + 'ms ease, opacity 0.2s ease';
+        path.style.opacity = '1';
+        path.style.strokeDashoffset = '0';
+        setTimeout(resolve, animDuration);
+      }, delay);
+    });
+  }
+
+  function clearSVG() {
+    svgCanvas.textContent = '';
+    setupDefs();
+  }
+
+  function setupDefs() {
+    var defs = svgEl('defs');
+
+    // Arrowhead
+    var marker = svgEl('marker', {
+      id: 'arrowhead', markerWidth: 10, markerHeight: 7,
+      refX: 10, refY: 3.5, orient: 'auto', markerUnits: 'strokeWidth'
+    });
+    var arrowPath = svgEl('polygon', { points: '0 0, 10 3.5, 0 7', fill: 'rgba(255,255,255,0.15)' });
+    marker.appendChild(arrowPath);
+    defs.appendChild(marker);
+
+    // Open arrowhead
+    var marker2 = svgEl('marker', {
+      id: 'arrowopen', markerWidth: 12, markerHeight: 8,
+      refX: 12, refY: 4, orient: 'auto', markerUnits: 'strokeWidth'
+    });
+    var arrowPath2 = svgEl('polyline', {
+      points: '0 0, 12 4, 0 8',
+      fill: 'none', stroke: 'rgba(255,255,255,0.15)', 'stroke-width': 1.5
+    });
+    marker2.appendChild(arrowPath2);
+    defs.appendChild(marker2);
+
+    // Composition diamond
+    var marker3 = svgEl('marker', {
+      id: 'diamond', markerWidth: 12, markerHeight: 8,
+      refX: 0, refY: 4, orient: 'auto', markerUnits: 'strokeWidth'
+    });
+    var diamond = svgEl('polygon', {
+      points: '0 4, 6 0, 12 4, 6 8',
+      fill: 'hsl(258, 78%, 64%)', stroke: 'hsl(258, 78%, 64%)', 'stroke-width': 0.5
+    });
+    marker3.appendChild(diamond);
+    defs.appendChild(marker3);
+
+    // Purple arrowhead
+    var marker4 = svgEl('marker', {
+      id: 'arrowpurple', markerWidth: 10, markerHeight: 7,
+      refX: 10, refY: 3.5, orient: 'auto', markerUnits: 'strokeWidth'
+    });
+    var arrowPath4 = svgEl('polygon', { points: '0 0, 10 3.5, 0 7', fill: 'hsl(258, 78%, 64%)' });
+    marker4.appendChild(arrowPath4);
+    defs.appendChild(marker4);
+
+    svgCanvas.appendChild(defs);
+  }
+
+  function addSVGText(text, x, y, opts) {
+    if (!opts) opts = {};
+    var t = svgEl('text', {
+      x: x, y: y, 'text-anchor': opts.anchor || 'middle',
+      'font-family': 'system-ui, sans-serif',
+      'font-size': opts.fontSize || 10,
+      'font-weight': opts.fontWeight || 400,
+      fill: opts.fill || 'var(--text-muted)',
+      style: 'opacity: 0; transition: opacity 0.4s ease;'
+    });
+    if (opts.id) t.id = opts.id;
+    t.textContent = text;
+    svgCanvas.appendChild(t);
+    requestAnimationFrame(function() { t.style.opacity = '1'; });
+    return t;
+  }
+
+  function wait(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+  // Helper to create DOM with text content safely
+  function makeEl(tag, className, textContent) {
+    var el = document.createElement(tag);
+    if (className) el.className = className;
+    if (textContent) el.textContent = textContent;
+    return el;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 1: THE HOOK
+  // ════════════════════════════════════════════════════════
+  function phase1() {
+    currentPhase = 0;
+    renderPhaseDots();
+    setProgress(0);
+    clearSVG();
+    clearNarrative();
+    topBar.classList.remove('visible');
+    codePanel.classList.remove('visible');
+    sidebarEl.classList.remove('visible');
+    canvasArea.style.width = '100%';
+    canvasArea.style.marginLeft = '0';
+
+    var svgW = canvasArea.offsetWidth;
+    var svgH = canvasArea.offsetHeight;
+    var cx = svgW / 2;
+    var cy = svgH / 2 - 20;
+
+    var stockNode = createUMLClass({
+      id: 'stock-price',
+      x: cx - 100, y: cy - 40,
+      w: 200,
+      title: 'StockPrice',
+      attributes: ['- symbol: string = "AAPL"'],
+      methods: ['+ getPrice(): number'],
+      opacity: 0
+    });
+    svgCanvas.appendChild(stockNode);
+
+    var priceText = svgEl('text', {
+      id: 'price-display',
+      class: 'price-display',
+      x: cx, y: cy + 50,
+      'text-anchor': 'middle',
+      'font-family': "'SF Mono', monospace",
+      'font-size': 18,
+      'font-weight': 700,
+      fill: 'hsl(152, 65%, 48%)',
+      style: 'opacity: 0;'
+    });
+    priceText.textContent = '$187.42';
+    svgCanvas.appendChild(priceText);
+
+    return wait(400).then(function() {
+      return animateNodeIn(stockNode);
+    }).then(function() {
+      priceText.style.transition = 'opacity 0.5s ease';
+      priceText.style.opacity = '1';
+
+      currentPrice = 187.42;
+      priceInterval = setInterval(function() {
+        currentPrice += (Math.random() - 0.35) * 0.8;
+        currentPrice = Math.round(currentPrice * 100) / 100;
+        var display = document.getElementById('price-display');
+        if (display) {
+          display.textContent = '$' + currentPrice.toFixed(2);
+          display.setAttribute('fill', currentPrice > 187 ? 'hsl(152, 65%, 48%)' : 'hsl(0, 65%, 58%)');
+        }
+      }, 1200);
+
+      return wait(1500);
+    }).then(function() {
+      return typewrite(
+        'You\'re building a stock trading app. The price of AAPL just changed to $' + currentPrice.toFixed(2) + '.',
+        narrativeText
+      );
+    }).then(function() {
+      return wait(800);
+    }).then(function() {
+      var observers = [
+        { id: 'price-chart', title: 'PriceChart', x: cx - 320, y: cy - 80 },
+        { id: 'alert-engine', title: 'AlertEngine', x: cx + 220, y: cy - 80 },
+        { id: 'portfolio-view', title: 'PortfolioView', x: cx - 50, y: cy + 100 },
+      ];
+
+      observers.forEach(function(obs, i) {
+        var node = createUMLClass({
+          id: obs.id,
+          x: obs.x, y: obs.y,
+          w: 160,
+          title: obs.title,
+          methods: ['+ render(): void'],
+          opacity: 0,
+          className: 'grayed'
+        });
+        node.style.filter = 'brightness(0.6)';
+        svgCanvas.appendChild(node);
+        animateNodeIn(node, i * 200);
+      });
+
+      return wait(1000);
+    }).then(function() {
+      return typewrite(
+        'Three components need to update when the price changes. How do you connect them?',
+        narrativeText
+      );
+    }).then(function() {
+      setProgress(3);
+
+      return new Promise(function(resolve) {
+        var mc = makeEl('div', 'mc-options');
+        mc.style.animation = 'fadeSlideIn 0.4s ease';
+
+        var options = [
+          { letter: 'A', text: 'Have StockPrice call each component directly', correct: false },
+          { letter: 'B', text: 'Have each component poll StockPrice every 100ms', correct: false },
+          { letter: 'C', text: 'Have StockPrice notify a list of subscribers', correct: true },
+        ];
+
+        var answered = false;
+
+        options.forEach(function(opt) {
+          var btn = makeEl('div', 'mc-option');
+          var letterSpan = makeEl('span', 'mc-letter', opt.letter);
+          var textSpan = makeEl('span', null, opt.text);
+          btn.appendChild(letterSpan);
+          btn.appendChild(textSpan);
+
+          btn.onclick = function() {
+            if (answered && opt.correct) return;
+
+            if (!opt.correct) {
+              btn.classList.add('wrong');
+              var existingFb = mc.querySelector('.mc-feedback');
+              if (existingFb) existingFb.remove();
+              var feedback = makeEl('div', 'mc-feedback error');
+              feedback.textContent = opt.letter === 'A'
+                ? 'Tight coupling: StockPrice would need to know about every component.'
+                : 'Polling wastes resources and misses real-time updates.';
+              mc.appendChild(feedback);
+              setTimeout(function() { btn.classList.remove('wrong'); }, 600);
+            } else {
+              answered = true;
+              btn.classList.add('correct');
+              var allOptions = mc.querySelectorAll('.mc-option');
+              for (var k = 0; k < allOptions.length; k++) {
+                if (allOptions[k] !== btn) allOptions[k].style.opacity = '0.4';
+              }
+              var existingFb2 = mc.querySelector('.mc-feedback');
+              if (existingFb2) existingFb2.remove();
+              var feedback2 = makeEl('div', 'mc-feedback success');
+              feedback2.textContent = "Exactly. That's the Observer pattern. But first, let's see why the other approaches fail...";
+              mc.appendChild(feedback2);
+              setProgress(8);
+              setTimeout(function() { resolve(); }, 2200);
+            }
+          };
+          mc.appendChild(btn);
+        });
+
+        interactionArea.appendChild(mc);
+      });
+    });
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 2: FEEL THE PAIN
+  // ════════════════════════════════════════════════════════
+  function phase2() {
+    currentPhase = 1;
+    updateTopBar();
+    topBar.classList.add('visible');
+    setProgress(12);
+    clearNarrative();
+
+    var svgW = canvasArea.offsetWidth;
+    var svgH = canvasArea.offsetHeight;
+    var cx = svgW / 2;
+    var cy = svgH / 2 - 20;
+
+    var stockBox = document.getElementById('stock-price');
+    var stockCX = cx;
+    var stockCY = cy - 10;
+
+    var targets = [
+      { id: 'price-chart', cx: cx - 240, cy: cy - 50 },
+      { id: 'alert-engine', cx: cx + 300, cy: cy - 50 },
+      { id: 'portfolio-view', cx: cx + 30, cy: cy + 140 },
+    ];
+
+    targets.forEach(function(tgt) {
+      var node = document.getElementById(tgt.id);
+      if (node) node.style.filter = 'none';
+    });
+
+    return wait(400).then(function() {
+      var linePromises = targets.map(function(tgt, i) {
+        return drawLine(stockCX, stockCY, tgt.cx, tgt.cy, {
+          id: 'coupling-' + i,
+          className: 'coupling',
+          color: 'hsl(0, 65%, 58%)',
+          width: 2,
+          animDuration: 600,
+          delay: i * 300
+        });
+      });
+      return Promise.all(linePromises);
+    }).then(function() {
+      var labels = ['direct call', 'tight coupling', 'hard dependency'];
+      targets.forEach(function(tgt, i) {
+        var mx = (stockCX + tgt.cx) / 2;
+        var my = (stockCY + tgt.cy) / 2;
+        addSVGText(labels[i], mx, my - 10, {
+          fontSize: 10, fill: 'hsl(0, 65%, 58%)', id: 'coupling-label-' + i
+        });
+      });
+
+      return typewrite(
+        'Direct coupling. StockPrice now imports 3 specific classes. Adding or removing any component requires modifying StockPrice.',
+        narrativeText
+      );
+    }).then(function() {
+      return wait(1000);
+    }).then(function() {
+      var socialNode = createUMLClass({
+        id: 'social-share',
+        x: cx - 310, y: cy + 80,
+        w: 160,
+        title: 'SocialShare',
+        methods: ['+ share(): void'],
+        opacity: 0
+      });
+
+      var badgeBg = svgEl('circle', {
+        cx: cx - 310 + 140, cy: cy + 80 - 6, r: 12,
+        fill: 'hsla(35, 90%, 55%, 0.15)',
+        stroke: 'hsl(35, 90%, 55%)', 'stroke-width': 1.5
+      });
+      var badge = svgEl('text', {
+        x: cx - 310 + 140, y: cy + 80 - 2,
+        'font-size': 16, fill: 'hsl(35, 90%, 55%)',
+        'font-weight': 700, 'text-anchor': 'middle'
+      });
+      badge.textContent = '?';
+
+      svgCanvas.appendChild(badgeBg);
+      svgCanvas.appendChild(badge);
+      svgCanvas.appendChild(socialNode);
+
+      badgeBg.style.opacity = '0';
+      badgeBg.style.transition = 'opacity 0.4s ease';
+      badge.style.opacity = '0';
+      badge.style.transition = 'opacity 0.4s ease';
+
+      return animateNodeIn(socialNode).then(function() {
+        return wait(100);
+      }).then(function() {
+        badgeBg.style.opacity = '1';
+        badge.style.opacity = '1';
+      });
+    }).then(function() {
+      return typewrite(
+        'The marketing team wants social sharing. Click the class that needs to change.',
+        narrativeText
+      );
+    }).then(function() {
+      setProgress(18);
+
+      return new Promise(function(resolve) {
+        var hint = svgEl('text', {
+          x: canvasArea.offsetWidth / 2, y: canvasArea.offsetHeight / 2 - 90,
+          'text-anchor': 'middle',
+          'font-family': 'system-ui, sans-serif',
+          'font-size': 10,
+          fill: 'hsl(258, 78%, 64%)',
+          style: 'opacity: 0; transition: opacity 0.4s ease;'
+        });
+        hint.textContent = 'Click on the canvas...';
+        svgCanvas.appendChild(hint);
+        setTimeout(function() { hint.style.opacity = '0.6'; }, 200);
+
+        var clickHandler = function(e) {
+          var target = e.target.closest('.uml-class');
+          if (!target) return;
+
+          if (target.id === 'stock-price') {
+            svgCanvas.removeEventListener('click', clickHandler);
+            hint.style.opacity = '0';
+
+            var stockEl = document.getElementById('stock-price');
+            stockEl.style.transition = 'filter 0.3s ease';
+            stockEl.style.filter = 'drop-shadow(0 0 15px hsla(0, 65%, 58%, 0.7))';
+
+            var ann = svgEl('text', {
+              x: canvasArea.offsetWidth / 2, y: canvasArea.offsetHeight / 2 - 75,
+              'text-anchor': 'middle',
+              'font-family': 'system-ui, sans-serif',
+              'font-size': 12,
+              'font-weight': 700,
+              fill: 'hsl(35, 90%, 55%)',
+              class: 'annotation-badge'
+            });
+            ann.textContent = 'Modified AGAIN';
+            svgCanvas.appendChild(ann);
+
+            setProgress(22);
+
+            setTimeout(function() {
+              for (var i = 0; i < 4; i++) {
+                var lineEl = document.getElementById('coupling-' + i);
+                var labelEl = document.getElementById('coupling-label-' + i);
+                if (lineEl) fadeOutNode(lineEl, 500);
+                if (labelEl) fadeOutNode(labelEl, 500);
+              }
+              stockEl.style.filter = 'none';
+              ann.style.transition = 'opacity 0.5s ease';
+              ann.style.opacity = '0';
+
+              wait(800).then(function() {
+                clearNarrative();
+                return wait(300);
+              }).then(function() {
+                var insightDiv = makeEl('div', 'insight-callout');
+                var insightLabel = makeEl('div', 'insight-label', 'Key Insight');
+                var insightText = makeEl('div', 'insight-text', "Don't call them. Let them subscribe.");
+                insightDiv.appendChild(insightLabel);
+                insightDiv.appendChild(insightText);
+                narrativeText.appendChild(insightDiv);
+
+                setProgress(28);
+
+                var continueBtn = makeEl('button', 'continue-btn');
+                continueBtn.textContent = 'Continue ';
+                var arrow = makeEl('span');
+                arrow.style.fontSize = '15px';
+                arrow.textContent = '\u2192';
+                continueBtn.appendChild(arrow);
+                continueBtn.style.animation = 'fadeSlideUp 0.4s ease';
+                continueBtn.onclick = function() { resolve(); };
+                interactionArea.appendChild(continueBtn);
+              });
+            }, 1500);
+          } else {
+            target.style.transition = 'filter 0.3s ease';
+            target.style.filter = 'drop-shadow(0 0 12px hsla(0, 65%, 58%, 0.5))';
+            setTimeout(function() { target.style.filter = 'none'; }, 500);
+          }
+        };
+
+        svgCanvas.addEventListener('click', clickHandler);
+      });
+    });
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 3: BUILD THE STRUCTURE
+  // ════════════════════════════════════════════════════════
+  function phase3() {
+    currentPhase = 2;
+    updateTopBar();
+    setProgress(30);
+    clearNarrative();
+    clearSVG();
+    if (priceInterval) { clearInterval(priceInterval); priceInterval = null; }
+
+    var svgW = canvasArea.offsetWidth;
+    var svgH = canvasArea.offsetHeight;
+
+    // Step 3.1: Observer Interface
+    var stepCounter = makeEl('div', 'step-counter');
+    var stepBadge = makeEl('span', 'step-badge', 'Step 1 of 3');
+    stepCounter.appendChild(stepBadge);
+    stepCounter.appendChild(document.createTextNode(' Building Observer'));
+    narrativeText.appendChild(stepCounter);
+
+    return typewrite(
+      'First, the contract. Any subscriber must implement one method: update().',
+      narrativeText
+    ).then(function() {
+      var obsNode = createUMLClass({
+        id: 'observer-iface',
+        x: svgW * 0.6, y: svgH * 0.3,
+        w: 220,
+        title: 'Observer',
+        stereotype: 'interface',
+        methods: ['+ update(subject: Subject): void'],
+        opacity: 0
+      });
+      svgCanvas.appendChild(obsNode);
+      return animateNodeIn(obsNode);
+    }).then(function() {
+      var obsNode = document.getElementById('observer-iface');
+      obsNode.style.animation = 'pulseGlow 2s ease-in-out 3';
+
+      var whyDetails = document.createElement('details');
+      whyDetails.className = 'expandable';
+      var summary = document.createElement('summary');
+      summary.textContent = 'Why an interface?';
+      var whyContent = makeEl('div', 'why-content',
+        "The interface decouples Subject from its observers. Subject doesn't need to know what they are -- just that they have an update() method. This is the essence of programming to an interface."
+      );
+      whyDetails.appendChild(summary);
+      whyDetails.appendChild(whyContent);
+      narrativeText.appendChild(whyDetails);
+
+      setProgress(35);
+
+      return new Promise(function(resolve) {
+        var btn = makeEl('button', 'continue-btn');
+        btn.textContent = 'Next ';
+        var arrow = makeEl('span');
+        arrow.style.fontSize = '15px';
+        arrow.textContent = '\u2192';
+        btn.appendChild(arrow);
+        btn.style.animation = 'fadeSlideUp 0.3s ease';
+        btn.onclick = function() { resolve(); };
+        interactionArea.appendChild(btn);
+      });
+    }).then(function() {
+      // Step 3.2: Subject Class
+      clearNarrative();
+      var stepCounter2 = makeEl('div', 'step-counter');
+      var stepBadge2 = makeEl('span', 'step-badge', 'Step 2 of 3');
+      stepCounter2.appendChild(stepBadge2);
+      stepCounter2.appendChild(document.createTextNode(' Building Observer'));
+      narrativeText.appendChild(stepCounter2);
+
+      return typewrite(
+        'Now the broadcaster. Subject keeps a list and provides 3 methods.',
+        narrativeText
+      );
+    }).then(function() {
+      var svgW2 = canvasArea.offsetWidth;
+      var svgH2 = canvasArea.offsetHeight;
+
+      var subjNode = createUMLClass({
+        id: 'subject-class',
+        x: svgW2 * 0.12, y: svgH2 * 0.25,
+        w: 240,
+        title: 'Subject',
+        attributes: ['- observers: Observer[]'],
+        methods: [
+          '+ attach(o: Observer): void',
+          '+ detach(o: Observer): void',
+          '+ notify(): void'
+        ],
+        opacity: 0
+      });
+      svgCanvas.appendChild(subjNode);
+      return animateNodeIn(subjNode);
+    }).then(function() {
+      var svgW2 = canvasArea.offsetWidth;
+      var svgH2 = canvasArea.offsetHeight;
+
+      setProgress(40);
+
+      var sx = svgW2 * 0.12 + 240;
+      var sy = svgH2 * 0.25 + 35;
+      var ex = svgW2 * 0.6;
+      var ey = svgH2 * 0.3 + 25;
+
+      return drawPath(
+        'M ' + sx + ' ' + sy + ' C ' + (sx + 80) + ' ' + sy + ', ' + (ex - 80) + ' ' + ey + ', ' + ex + ' ' + ey,
+        {
+          id: 'subj-obs-line',
+          className: 'composition',
+          color: 'hsl(258, 78%, 64%)',
+          width: 1.5,
+          animDuration: 700,
+          markerEnd: 'url(#arrowpurple)'
+        }
+      ).then(function() {
+        addSVGText('1..*', (sx + ex) / 2, Math.min(sy, ey) - 12, {
+          fontSize: 11, fill: 'hsl(258, 78%, 64%)', fontWeight: 600
+        });
+        return wait(500);
+      });
+    }).then(function() {
+      // Fill-in-the-blank checkpoint
+      return new Promise(function(resolve) {
+        interactionArea.textContent = '';
+        var fillDiv = makeEl('div');
+        fillDiv.style.animation = 'fadeSlideIn 0.4s ease';
+
+        var label = makeEl('div', null, 'Fill in the blanks:');
+        label.style.cssText = 'font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;';
+        fillDiv.appendChild(label);
+
+        var row = makeEl('div', 'fill-blank-row');
+        row.appendChild(document.createTextNode('notify() iterates over '));
+
+        var fill1 = document.createElement('input');
+        fill1.className = 'fill-input';
+        fill1.id = 'fill1';
+        fill1.placeholder = '...';
+        fill1.autocomplete = 'off';
+        fill1.spellcheck = false;
+        row.appendChild(fill1);
+
+        row.appendChild(document.createTextNode(' and calls '));
+
+        var fill2 = document.createElement('input');
+        fill2.className = 'fill-input';
+        fill2.id = 'fill2';
+        fill2.placeholder = '...';
+        fill2.autocomplete = 'off';
+        fill2.spellcheck = false;
+        row.appendChild(fill2);
+
+        row.appendChild(document.createTextNode(' on each.'));
+
+        var checkBtnFill = makeEl('button', 'fill-check-btn', 'Check');
+        checkBtnFill.id = 'fill-check';
+        row.appendChild(checkBtnFill);
+
+        fillDiv.appendChild(row);
+
+        var feedbackDiv = makeEl('div');
+        feedbackDiv.id = 'fill-feedback';
+        feedbackDiv.style.cssText = 'min-height: 24px; margin-top: 6px;';
+        fillDiv.appendChild(feedbackDiv);
+
+        interactionArea.appendChild(fillDiv);
+
+        checkBtnFill.onclick = function() {
+          var v1 = fill1.value.trim().toLowerCase();
+          var v2 = fill2.value.trim().toLowerCase().replace(/[()]/g, '');
+
+          var ok1 = v1 === 'observers' || v1 === 'this.observers' || v1 === 'observer list';
+          var ok2 = v2 === 'update' || v2 === '.update' || v2 === 'update()';
+
+          if (ok1 && ok2) {
+            fill1.classList.add('correct');
+            fill2.classList.add('correct');
+            var fb = makeEl('div', 'mc-feedback success', 'Exactly! notify() loops through observers and calls update() on each.');
+            feedbackDiv.textContent = '';
+            feedbackDiv.appendChild(fb);
+            setProgress(48);
+            setTimeout(function() { phase3step3(resolve); }, 1500);
+          } else {
+            if (!ok1) { fill1.classList.add('wrong'); setTimeout(function() { fill1.classList.remove('wrong'); }, 500); }
+            if (!ok2) { fill2.classList.add('wrong'); setTimeout(function() { fill2.classList.remove('wrong'); }, 500); }
+            var fb2 = makeEl('div', 'mc-feedback error', 'Hint: Think about the list name and the interface method.');
+            feedbackDiv.textContent = '';
+            feedbackDiv.appendChild(fb2);
+          }
+        };
+
+        fill1.addEventListener('keydown', function(e) { if (e.key === 'Enter') checkBtnFill.click(); });
+        fill2.addEventListener('keydown', function(e) { if (e.key === 'Enter') checkBtnFill.click(); });
+      });
+    });
+  }
+
+  function phase3step3(resolve) {
+    clearNarrative();
+    var svgW = canvasArea.offsetWidth;
+    var svgH = canvasArea.offsetHeight;
+
+    var stepCounter = makeEl('div', 'step-counter');
+    var stepBadge = makeEl('span', 'step-badge', 'Step 3 of 3');
+    stepCounter.appendChild(stepBadge);
+    stepCounter.appendChild(document.createTextNode(' Building Observer'));
+    narrativeText.appendChild(stepCounter);
+
+    typewrite(
+      'Finally, concrete implementations. They define WHAT happens when notified.',
+      narrativeText
+    ).then(function() {
+      var obsX = svgW * 0.6;
+      var obsY = svgH * 0.3;
+
+      var concreteA = createUMLClass({
+        id: 'concrete-a',
+        x: obsX - 80, y: obsY + 130,
+        w: 180,
+        title: 'ConcreteObserverA',
+        methods: ['+ update(s: Subject): void'],
+        opacity: 0
+      });
+
+      var concreteB = createUMLClass({
+        id: 'concrete-b',
+        x: obsX + 130, y: obsY + 130,
+        w: 180,
+        title: 'ConcreteObserverB',
+        methods: ['+ update(s: Subject): void'],
+        opacity: 0
+      });
+
+      svgCanvas.appendChild(concreteA);
+      svgCanvas.appendChild(concreteB);
+
+      return animateNodeIn(concreteA, 0).then(function() {
+        return animateNodeIn(concreteB, 200);
+      }).then(function() {
+        return Promise.all([
+          drawPath(
+            'M ' + (obsX - 80 + 90) + ' ' + (obsY + 130) + ' L ' + (obsX + 110) + ' ' + (obsY + 65),
+            { className: 'implements', dasharray: '6 4', animDuration: 500, markerEnd: 'url(#arrowopen)' }
+          ),
+          drawPath(
+            'M ' + (obsX + 130 + 90) + ' ' + (obsY + 130) + ' L ' + (obsX + 110) + ' ' + (obsY + 65),
+            { className: 'implements', dasharray: '6 4', animDuration: 500, delay: 200, markerEnd: 'url(#arrowopen)' }
+          )
+        ]);
+      });
+    }).then(function() {
+      return wait(500);
+    }).then(function() {
+      return typewrite(
+        'These could be anything -- a chart, a logger, an alert system. They all just implement update().',
+        narrativeText
+      );
+    }).then(function() {
+      setProgress(52);
+
+      var obsX = svgW * 0.6;
+      var obsY = svgH * 0.3;
+      var labels = ['PriceChart', 'AlertEngine', 'PortfolioView'];
+      labels.forEach(function(label, i) {
+        var lx = obsX - 80 + (i * 110);
+        var ly = obsY + 225;
+        addSVGText(label, lx + 60, ly, {
+          fontSize: 10, fill: 'var(--text-muted)', fontWeight: 500
+        });
+      });
+
+      var btn = makeEl('button', 'continue-btn');
+      btn.textContent = 'Next ';
+      var arrow = makeEl('span');
+      arrow.style.fontSize = '15px';
+      arrow.textContent = '\u2192';
+      btn.appendChild(arrow);
+      btn.style.animation = 'fadeSlideUp 0.3s ease';
+      btn.onclick = function() { resolve(); };
+      interactionArea.textContent = '';
+      interactionArea.appendChild(btn);
+    });
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 4: SEE THE CODE
+  // ════════════════════════════════════════════════════════
+  function phase4() {
+    currentPhase = 3;
+    updateTopBar();
+    setProgress(55);
+    clearNarrative();
+
+    canvasArea.style.width = '55%';
+    codePanel.classList.add('visible');
+
+    var codeLines = buildFullCode();
+    renderCode(codeLines);
+
+    var svgClickHandler;
+
+    return wait(600).then(function() {
+      return typewrite(
+        'Click any class on the canvas to see its code. Notice: Subject never imports any concrete observer.',
+        narrativeText
+      );
+    }).then(function() {
+      setProgress(60);
+
+      svgClickHandler = function(e) {
+        var target = e.target.closest('.uml-class');
+        if (!target) return;
+        highlightCodeSection(target.id);
+        var allClasses = document.querySelectorAll('.uml-class');
+        for (var k = 0; k < allClasses.length; k++) allClasses[k].style.filter = '';
+        target.style.filter = 'drop-shadow(0 0 10px hsla(258, 78%, 64%, 0.4))';
+      };
+      svgCanvas.addEventListener('click', svgClickHandler);
+
+      return wait(1500);
+    }).then(function() {
+      // Prediction checkpoint
+      return new Promise(function(resolve) {
+        interactionArea.textContent = '';
+
+        var qDiv = makeEl('div');
+        qDiv.style.animation = 'fadeSlideIn 0.4s ease';
+
+        var qLabel = makeEl('div', null, 'Quick check:');
+        qLabel.style.cssText = 'font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;';
+        qDiv.appendChild(qLabel);
+
+        var qText = makeEl('div', null, 'Adding a 6th observer to a Subject with 5 -- how many existing classes change?');
+        qText.style.cssText = 'font-size: 13px; color: var(--text); margin-bottom: 10px; line-height: 1.5;';
+        qDiv.appendChild(qText);
+
+        var mc = makeEl('div', 'mc-options');
+        mc.style.flexDirection = 'row';
+        mc.style.flexWrap = 'wrap';
+        mc.style.gap = '6px';
+
+        var choiceLabels = ['0', '1', '2', 'All'];
+        choiceLabels.forEach(function(optText, i) {
+          var btn = makeEl('div', 'mc-option');
+          btn.style.flex = '0 0 auto';
+          btn.style.padding = '6px 16px';
+          btn.appendChild(makeEl('span', null, optText));
+
+          btn.onclick = function() {
+            if (i === 0) {
+              btn.classList.add('correct');
+              var allOpts = mc.querySelectorAll('.mc-option');
+              for (var k = 0; k < allOpts.length; k++) {
+                if (allOpts[k] !== btn) allOpts[k].style.opacity = '0.3';
+                allOpts[k].style.pointerEvents = 'none';
+              }
+              var fb = makeEl('div', 'mc-feedback success',
+                'Zero. Just call subject.attach(newObserver). Open for extension, closed for modification.'
+              );
+              qDiv.appendChild(fb);
+              setProgress(68);
+
+              setTimeout(function() {
+                svgCanvas.removeEventListener('click', svgClickHandler);
+                resolve();
+              }, 2200);
+            } else {
+              btn.classList.add('wrong');
+              setTimeout(function() { btn.classList.remove('wrong'); }, 500);
+            }
+          };
+          mc.appendChild(btn);
+        });
+
+        qDiv.appendChild(mc);
+        interactionArea.appendChild(qDiv);
+      });
+    });
+  }
+
+  function buildFullCode() {
+    return [
+      { html: '<span class="hl-comment">// Observer interface -- the subscription contract</span>', section: 'observer-iface' },
+      { html: '<span class="hl-keyword">interface</span> <span class="hl-type">Observer</span> {', section: 'observer-iface' },
+      { html: '  <span class="hl-method">update</span>(subject: <span class="hl-type">Subject</span>): <span class="hl-keyword">void</span>;', section: 'observer-iface' },
+      { html: '}', section: 'observer-iface' },
+      { html: '', section: null },
+      { html: '<span class="hl-comment">// Subject -- the broadcaster</span>', section: 'subject-class' },
+      { html: '<span class="hl-keyword">class</span> <span class="hl-type">Subject</span> {', section: 'subject-class' },
+      { html: '  <span class="hl-keyword">private</span> <span class="hl-prop">observers</span>: <span class="hl-type">Observer</span>[] = [];', section: 'subject-class' },
+      { html: '  <span class="hl-keyword">private</span> <span class="hl-prop">state</span>: <span class="hl-keyword">any</span>;', section: 'subject-class' },
+      { html: '', section: 'subject-class' },
+      { html: '  <span class="hl-method">attach</span>(observer: <span class="hl-type">Observer</span>): <span class="hl-keyword">void</span> {', section: 'subject-class' },
+      { html: '    <span class="hl-keyword">this</span>.<span class="hl-prop">observers</span>.<span class="hl-method">push</span>(observer);', section: 'subject-class' },
+      { html: '  }', section: 'subject-class' },
+      { html: '', section: 'subject-class' },
+      { html: '  <span class="hl-method">detach</span>(observer: <span class="hl-type">Observer</span>): <span class="hl-keyword">void</span> {', section: 'subject-class' },
+      { html: '    <span class="hl-keyword">const</span> idx = <span class="hl-keyword">this</span>.<span class="hl-prop">observers</span>.<span class="hl-method">indexOf</span>(observer);', section: 'subject-class' },
+      { html: '    <span class="hl-keyword">if</span> (idx !== -<span class="hl-string">1</span>) <span class="hl-keyword">this</span>.<span class="hl-prop">observers</span>.<span class="hl-method">splice</span>(idx, <span class="hl-string">1</span>);', section: 'subject-class' },
+      { html: '  }', section: 'subject-class' },
+      { html: '', section: 'subject-class' },
+      { html: '  <span class="hl-method">notify</span>(): <span class="hl-keyword">void</span> {', section: 'subject-class' },
+      { html: '    <span class="hl-keyword">for</span> (<span class="hl-keyword">const</span> observer <span class="hl-keyword">of</span> <span class="hl-keyword">this</span>.<span class="hl-prop">observers</span>) {', section: 'subject-class' },
+      { html: '      observer.<span class="hl-method">update</span>(<span class="hl-keyword">this</span>);', section: 'subject-class' },
+      { html: '    }', section: 'subject-class' },
+      { html: '  }', section: 'subject-class' },
+      { html: '', section: 'subject-class' },
+      { html: '  <span class="hl-method">setState</span>(state: <span class="hl-keyword">any</span>): <span class="hl-keyword">void</span> {', section: 'subject-class' },
+      { html: '    <span class="hl-keyword">this</span>.<span class="hl-prop">state</span> = state;', section: 'subject-class' },
+      { html: '    <span class="hl-keyword">this</span>.<span class="hl-method">notify</span>();  <span class="hl-comment">// auto-notify on state change</span>', section: 'subject-class' },
+      { html: '  }', section: 'subject-class' },
+      { html: '}', section: 'subject-class' },
+      { html: '', section: null },
+      { html: '<span class="hl-comment">// Concrete Observer A -- reacts to changes</span>', section: 'concrete-a' },
+      { html: '<span class="hl-keyword">class</span> <span class="hl-type">PriceChart</span> <span class="hl-keyword">implements</span> <span class="hl-type">Observer</span> {', section: 'concrete-a' },
+      { html: '  <span class="hl-method">update</span>(subject: <span class="hl-type">Subject</span>): <span class="hl-keyword">void</span> {', section: 'concrete-a' },
+      { html: '    <span class="hl-comment">// Re-render chart with new price data</span>', section: 'concrete-a' },
+      { html: '    console.<span class="hl-method">log</span>(<span class="hl-string">"Chart updated"</span>);', section: 'concrete-a' },
+      { html: '  }', section: 'concrete-a' },
+      { html: '}', section: 'concrete-a' },
+      { html: '', section: null },
+      { html: '<span class="hl-comment">// Concrete Observer B -- independent reaction</span>', section: 'concrete-b' },
+      { html: '<span class="hl-keyword">class</span> <span class="hl-type">AlertEngine</span> <span class="hl-keyword">implements</span> <span class="hl-type">Observer</span> {', section: 'concrete-b' },
+      { html: '  <span class="hl-method">update</span>(subject: <span class="hl-type">Subject</span>): <span class="hl-keyword">void</span> {', section: 'concrete-b' },
+      { html: '    <span class="hl-comment">// Check if price crosses threshold</span>', section: 'concrete-b' },
+      { html: '    console.<span class="hl-method">log</span>(<span class="hl-string">"Alert checked"</span>);', section: 'concrete-b' },
+      { html: '  }', section: 'concrete-b' },
+      { html: '}', section: 'concrete-b' },
+    ];
+  }
+
+  function renderCode(codeLines) {
+    // Build code DOM safely
+    codeContent.textContent = '';
+    codeLines.forEach(function(cl, i) {
+      var lineEl = document.createElement('span');
+      lineEl.className = 'code-line';
+      lineEl.setAttribute('data-line', i + 1);
+      if (cl.section) lineEl.setAttribute('data-section', cl.section);
+
+      var numSpan = document.createElement('span');
+      numSpan.style.cssText = 'color: var(--text-muted); opacity: 0.4; margin-right: 16px; user-select: none;';
+      numSpan.textContent = String(i + 1).padStart(2, ' ');
+      lineEl.appendChild(numSpan);
+
+      // For syntax-highlighted code, we use a fragment with the HTML
+      var codeSpan = document.createElement('span');
+      codeSpan.innerHTML = cl.html;
+      lineEl.appendChild(codeSpan);
+      lineEl.appendChild(document.createTextNode('\n'));
+
+      codeContent.appendChild(lineEl);
+    });
+  }
+
+  function highlightCodeSection(sectionId) {
+    var lines = document.querySelectorAll('.code-line');
+    for (var k = 0; k < lines.length; k++) {
+      lines[k].classList.remove('code-highlight');
+      if (lines[k].getAttribute('data-section') === sectionId) {
+        lines[k].classList.add('code-highlight');
+      }
+    }
+    var firstHL = document.querySelector('.code-line.code-highlight');
+    if (firstHL) {
+      firstHL.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 5: TEST YOUR UNDERSTANDING
+  // ════════════════════════════════════════════════════════
+  function phase5() {
+    currentPhase = 4;
+    updateTopBar();
+    setProgress(70);
+    clearNarrative();
+
+    codePanel.classList.remove('visible');
+    canvasArea.style.width = '100%';
+
+    return wait(400).then(function() {
+      clearSVG();
+      var svgW = canvasArea.offsetWidth;
+      var svgH = canvasArea.offsetHeight;
+
+      var subjNode = createUMLClass({
+        id: 'p5-subject',
+        x: svgW * 0.08, y: svgH * 0.32,
+        w: 200,
+        title: 'Subject',
+        methods: ['+ setState()', '+ notify()'],
+        opacity: 0
+      });
+      svgCanvas.appendChild(subjNode);
+
+      var obsNode = createUMLClass({
+        id: 'p5-observer',
+        x: svgW * 0.38, y: svgH * 0.32,
+        w: 180,
+        title: 'Observer',
+        stereotype: 'interface',
+        methods: ['+ update()'],
+        opacity: 0
+      });
+      svgCanvas.appendChild(obsNode);
+
+      var concretes = [
+        { id: 'p5-ca', title: 'PriceChart', y: svgH * 0.15 },
+        { id: 'p5-cb', title: 'AlertEngine', y: svgH * 0.38 },
+        { id: 'p5-cc', title: 'PortfolioView', y: svgH * 0.61 },
+      ];
+
+      return animateNodeIn(subjNode).then(function() {
+        return animateNodeIn(obsNode, 150);
+      }).then(function() {
+        var chain = Promise.resolve();
+        concretes.forEach(function(c, i) {
+          chain = chain.then(function() {
+            var node = createUMLClass({
+              id: c.id,
+              x: svgW * 0.68, y: c.y,
+              w: 170,
+              title: c.title,
+              methods: ['+ update()'],
+              opacity: 0
+            });
+            svgCanvas.appendChild(node);
+            return animateNodeIn(node, i * 100);
+          });
+        });
+        return chain;
+      }).then(function() {
+        return drawPath(
+          'M ' + (svgW * 0.08 + 200) + ' ' + (svgH * 0.32 + 30) + ' L ' + (svgW * 0.38) + ' ' + (svgH * 0.32 + 30),
+          { color: 'hsl(258, 78%, 64%)', width: 1.5, animDuration: 500, markerEnd: 'url(#arrowpurple)' }
+        );
+      }).then(function() {
+        var chain = Promise.resolve();
+        concretes.forEach(function(c) {
+          chain = chain.then(function() {
+            return drawPath(
+              'M ' + (svgW * 0.68) + ' ' + (c.y + 25) + ' L ' + (svgW * 0.38 + 180) + ' ' + (svgH * 0.32 + 30),
+              { dasharray: '6 4', animDuration: 400, markerEnd: 'url(#arrowopen)' }
+            );
+          });
+        });
+        return chain;
+      }).then(function() {
+        return typewrite(
+          'Watch the notification flow. When setState() is called on the Subject...',
+          narrativeText
+        );
+      }).then(function() {
+        setProgress(73);
+        return runParticleAnimation(svgW, svgH, concretes);
+      }).then(function() {
+        return wait(800);
+      }).then(function() {
+        clearNarrative();
+        return typewrite(
+          'Arrange the notification steps in the correct order:',
+          narrativeText
+        );
+      }).then(function() {
+        setProgress(78);
+        return doDragReorder();
+      });
+    });
+  }
+
+  function runParticleAnimation(svgW, svgH, concretes) {
+    return new Promise(function(resolve) {
+      var canvasRect = canvasArea.getBoundingClientRect();
+      var subjCenter = { x: svgW * 0.08 + 100, y: svgH * 0.32 + 30 };
+      var obsCenter = { x: svgW * 0.38 + 90, y: svgH * 0.32 + 30 };
+
+      var concreteTargets = concretes.map(function(c) {
+        return { x: svgW * 0.68 + 85, y: c.y + 25 };
+      });
+
+      var completedWaves = 0;
+      var totalExpected = 9;
+
+      function launchParticle(from, to, delay, onDone) {
+        var particle = document.createElement('div');
+        particle.className = 'particle';
+        document.body.appendChild(particle);
+
+        var startTime = performance.now() + delay;
+        var duration = 600;
+
+        function animate(now) {
+          var elapsed = now - startTime;
+          if (elapsed < 0) {
+            particle.style.left = (canvasRect.left + from.x) + 'px';
+            particle.style.top = (canvasRect.top + from.y) + 'px';
+            particle.style.opacity = '0';
+            requestAnimationFrame(animate);
+            return;
+          }
+
+          var t = Math.min(elapsed / duration, 1);
+          var ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+          var x = from.x + (to.x - from.x) * ease;
+          var y = from.y + (to.y - from.y) * ease;
+
+          particle.style.left = (canvasRect.left + x) + 'px';
+          particle.style.top = (canvasRect.top + y) + 'px';
+          particle.style.opacity = t < 0.1 ? String(t * 10) : t > 0.85 ? String((1 - t) * 6.67) : '1';
+
+          if (t < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            particle.remove();
+            if (onDone) onDone();
+          }
+        }
+        requestAnimationFrame(animate);
+      }
+
+      for (var i = 0; i < 3; i++) {
+        (function(idx) {
+          launchParticle(subjCenter, obsCenter, idx * 150, function() {
+            concreteTargets.forEach(function(target) {
+              launchParticle(obsCenter, target, 0, function() {
+                completedWaves++;
+                if (completedWaves >= totalExpected) {
+                  setTimeout(resolve, 300);
+                }
+              });
+            });
+          });
+        })(i);
+      }
+    });
+  }
+
+  function doDragReorder() {
+    var correctOrder = [
+      'setState() called on Subject',
+      'Subject stores new state',
+      'Subject iterates observers list',
+      "Each observer's update() fires",
+      'Observers read new state'
+    ];
+
+    var shuffled = correctOrder.slice();
+    for (var i = shuffled.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = tmp;
+    }
+
+    return new Promise(function(resolve) {
+      var listDiv = makeEl('div', 'drag-list');
+      listDiv.style.animation = 'fadeSlideIn 0.4s ease';
+      listDiv.id = 'drag-list';
+
+      function updateDragNumbers() {
+        var items = listDiv.children;
+        for (var k = 0; k < items.length; k++) {
+          items[k].querySelector('.drag-num').textContent = String(k + 1);
+        }
+      }
+
+      shuffled.forEach(function(text, idx) {
+        var item = makeEl('div', 'drag-item');
+        item.draggable = true;
+        item.setAttribute('data-text', text);
+
+        var handle = makeEl('span', 'drag-handle', '::');
+        var num = makeEl('span', 'drag-num', String(idx + 1));
+        var label = makeEl('span', null, text);
+        item.appendChild(handle);
+        item.appendChild(num);
+        item.appendChild(label);
+
+        item.addEventListener('dragstart', function() {
+          item.classList.add('dragging');
+        });
+        item.addEventListener('dragend', function() {
+          item.classList.remove('dragging');
+          updateDragNumbers();
+        });
+        item.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          item.classList.add('drag-over');
+        });
+        item.addEventListener('dragleave', function() {
+          item.classList.remove('drag-over');
+        });
+        item.addEventListener('drop', function(e) {
+          e.preventDefault();
+          item.classList.remove('drag-over');
+          var dragging = listDiv.querySelector('.dragging');
+          if (dragging && dragging !== item) {
+            var items = Array.from(listDiv.children);
+            var fromIdx = items.indexOf(dragging);
+            var toIdx = items.indexOf(item);
+            if (fromIdx < toIdx) {
+              listDiv.insertBefore(dragging, item.nextSibling);
+            } else {
+              listDiv.insertBefore(dragging, item);
+            }
+          }
+          updateDragNumbers();
+        });
+
+        listDiv.appendChild(item);
+      });
+
+      var checkBtn = makeEl('button', 'fill-check-btn', 'Check Order');
+      checkBtn.style.marginTop = '8px';
+      checkBtn.style.padding = '6px 18px';
+
+      checkBtn.onclick = function() {
+        var currentOrderItems = Array.from(listDiv.children);
+        var currentOrderTexts = currentOrderItems.map(function(el) { return el.getAttribute('data-text'); });
+        var isCorrect = currentOrderTexts.every(function(t, idx2) { return t === correctOrder[idx2]; });
+
+        if (isCorrect) {
+          var allItems = listDiv.querySelectorAll('.drag-item');
+          for (var k = 0; k < allItems.length; k++) allItems[k].classList.add('correct-order');
+          checkBtn.remove();
+          var fb = makeEl('div', 'mc-feedback success', 'Perfect! You understand the entire notification lifecycle.');
+          fb.style.marginTop = '8px';
+          interactionArea.appendChild(fb);
+          setProgress(82);
+
+          setTimeout(function() {
+            clearNarrative();
+            doComparisonQuestion(resolve);
+          }, 1800);
+        } else {
+          currentOrderTexts.forEach(function(t, idx2) {
+            if (t !== correctOrder[idx2]) {
+              var el = listDiv.children[idx2];
+              el.style.borderColor = 'hsl(0, 65%, 58%)';
+              setTimeout(function() { el.style.borderColor = ''; }, 600);
+            }
+          });
+        }
+      };
+
+      interactionArea.textContent = '';
+      interactionArea.appendChild(listDiv);
+      interactionArea.appendChild(checkBtn);
+    });
+  }
+
+  function doComparisonQuestion(resolve) {
+    typewrite(
+      'A coworker suggests the Mediator pattern instead. How is Observer different?',
+      narrativeText
+    ).then(function() {
+      var mc = makeEl('div', 'mc-options');
+      mc.style.animation = 'fadeSlideIn 0.4s ease';
+
+      var opts = [
+        { letter: 'A', text: 'Observer is 1-to-many; Mediator centralizes many-to-many', correct: true },
+        { letter: 'B', text: "They're the same pattern", correct: false },
+        { letter: 'C', text: 'Mediator is faster', correct: false },
+        { letter: 'D', text: 'Observer only works with interfaces', correct: false },
+      ];
+
+      opts.forEach(function(opt) {
+        var btn = makeEl('div', 'mc-option');
+        var letterSpan = makeEl('span', 'mc-letter', opt.letter);
+        var textSpan = makeEl('span', null, opt.text);
+        btn.appendChild(letterSpan);
+        btn.appendChild(textSpan);
+
+        btn.onclick = function() {
+          if (opt.correct) {
+            btn.classList.add('correct');
+            var allOpts = mc.querySelectorAll('.mc-option');
+            for (var k = 0; k < allOpts.length; k++) {
+              if (allOpts[k] !== btn) allOpts[k].style.opacity = '0.3';
+              allOpts[k].style.pointerEvents = 'none';
+            }
+            var fb = makeEl('div', 'mc-feedback success',
+              'Right. Observer handles 1-to-many broadcasts. Mediator is a hub for complex many-to-many interactions.'
+            );
+            mc.appendChild(fb);
+            setProgress(88);
+            setTimeout(function() { resolve(); }, 2200);
+          } else {
+            btn.classList.add('wrong');
+            setTimeout(function() { btn.classList.remove('wrong'); }, 500);
+          }
+        };
+        mc.appendChild(btn);
+      });
+
+      interactionArea.textContent = '';
+      interactionArea.appendChild(mc);
+    });
+  }
+
+  // ════════════════════════════════════════════════════════
+  // PHASE 6: NOW YOU BUILD IT
+  // ════════════════════════════════════════════════════════
+  function phase6() {
+    currentPhase = 5;
+    updateTopBar();
+    setProgress(90);
+    clearNarrative();
+    clearSVG();
+
+    sidebarEl.classList.add('visible');
+    canvasArea.style.marginLeft = '220px';
+    canvasArea.style.width = 'calc(100% - 220px)';
+
+    return wait(500).then(function() {
+      return typewrite(
+        'You understand Observer. Now prove it. Build the pattern for a notification system.',
+        narrativeText
+      );
+    }).then(function() {
+      var challengeDesc = makeEl('div', null,
+        'EmailNotifier, SMSNotifier, and PushNotifier should all react when NotificationService emits an event.'
+      );
+      challengeDesc.style.cssText = 'font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.5;';
+      narrativeText.appendChild(challengeDesc);
+
+      var checklistItems = [
+        'Create NotificationService class (Subject)',
+        'Create NotificationObserver interface',
+        'Create EmailNotifier implementing observer',
+        'Create SMSNotifier implementing observer',
+        'Create PushNotifier implementing observer',
+        'Add attach() and notify() methods',
+      ];
+
+      var checklist = makeEl('div', 'checklist');
+      checklist.style.animation = 'fadeSlideIn 0.4s ease';
+      checklist.id = 'build-checklist';
+
+      checklistItems.forEach(function(text, i) {
+        var item = makeEl('div', 'check-item');
+        item.id = 'check-' + i;
+        var box = makeEl('div', 'check-box');
+        var span = makeEl('span', null, text);
+        item.appendChild(box);
+        item.appendChild(span);
+        checklist.appendChild(item);
+      });
+
+      interactionArea.textContent = '';
+      interactionArea.appendChild(checklist);
+
+      var autoBtn = makeEl('button', 'continue-btn');
+      autoBtn.textContent = 'Auto-complete challenge ';
+      var arrow = makeEl('span');
+      arrow.style.fontSize = '15px';
+      arrow.textContent = '\u2192';
+      autoBtn.appendChild(arrow);
+      autoBtn.style.marginTop = '12px';
+      autoBtn.style.animation = 'fadeSlideUp 0.4s ease 0.6s both';
+
+      autoBtn.onclick = function() {
+        autoBtn.disabled = true;
+        autoBtn.style.opacity = '0.5';
+        runAutoComplete();
+      };
+
+      interactionArea.appendChild(autoBtn);
+    });
+  }
+
+  function completeCheckItem(idx) {
+    var item = document.getElementById('check-' + idx);
+    if (item) {
+      item.classList.add('done');
+      item.style.animation = 'fadeSlideUp 0.3s ease';
+    }
+  }
+
+  function launchParticleGlobal(canvasRect, from, to, delay, onDone) {
+    var particle = document.createElement('div');
+    particle.className = 'particle';
+    document.body.appendChild(particle);
+
+    var startTime = performance.now() + delay;
+    var duration = 450;
+
+    function animate(now) {
+      var elapsed = now - startTime;
+      if (elapsed < 0) {
+        particle.style.left = (canvasRect.left + from.x) + 'px';
+        particle.style.top = (canvasRect.top + from.y) + 'px';
+        particle.style.opacity = '0';
+        requestAnimationFrame(animate);
+        return;
+      }
+
+      var t = Math.min(elapsed / duration, 1);
+      var ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+      particle.style.left = (canvasRect.left + from.x + (to.x - from.x) * ease) + 'px';
+      particle.style.top = (canvasRect.top + from.y + (to.y - from.y) * ease) + 'px';
+      particle.style.opacity = t < 0.1 ? String(t * 10) : t > 0.85 ? String((1 - t) * 6.67) : '1';
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        particle.remove();
+        if (onDone) onDone();
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  function runAutoComplete() {
+    var svgW = canvasArea.offsetWidth;
+    var svgH = canvasArea.offsetHeight;
+
+    // Step 1: NotificationService
+    completeCheckItem(0);
+    var notifService = createUMLClass({
+      id: 'notif-service',
+      x: svgW * 0.08, y: svgH * 0.3,
+      w: 220,
+      title: 'NotificationService',
+      attributes: ['- observers: Observer[]'],
+      methods: ['+ attach()', '+ detach()', '+ notify()', '+ emit(event)'],
+      opacity: 0
+    });
+    svgCanvas.appendChild(notifService);
+
+    animateNodeIn(notifService).then(function() {
+      return wait(500);
+    }).then(function() {
+      // Step 2: NotificationObserver interface
+      completeCheckItem(1);
+      var notifObs = createUMLClass({
+        id: 'notif-observer',
+        x: svgW * 0.5, y: svgH * 0.15,
+        w: 210,
+        title: 'NotificationObserver',
+        stereotype: 'interface',
+        methods: ['+ onNotify(event): void'],
+        opacity: 0
+      });
+      svgCanvas.appendChild(notifObs);
+      return animateNodeIn(notifObs);
+    }).then(function() {
+      return wait(400);
+    }).then(function() {
+      return drawPath(
+        'M ' + (svgW * 0.08 + 220) + ' ' + (svgH * 0.3 + 30) + ' L ' + (svgW * 0.5) + ' ' + (svgH * 0.15 + 30),
+        { color: 'hsl(258, 78%, 64%)', width: 1.5, animDuration: 500, markerEnd: 'url(#arrowpurple)' }
+      );
+    }).then(function() {
+      // Step 3-5: Concrete notifiers
+      var notifiers = [
+        { id: 'email-notif', title: 'EmailNotifier', checkIdx: 2, y: svgH * 0.48 },
+        { id: 'sms-notif', title: 'SMSNotifier', checkIdx: 3, y: svgH * 0.48 + 80 },
+        { id: 'push-notif', title: 'PushNotifier', checkIdx: 4, y: svgH * 0.48 + 160 },
+      ];
+
+      var chain = Promise.resolve();
+      notifiers.forEach(function(n) {
+        chain = chain.then(function() {
+          completeCheckItem(n.checkIdx);
+          var node = createUMLClass({
+            id: n.id,
+            x: svgW * 0.5, y: n.y,
+            w: 190,
+            title: n.title,
+            methods: ['+ onNotify(event): void'],
+            opacity: 0
+          });
+          svgCanvas.appendChild(node);
+          return animateNodeIn(node);
+        }).then(function() {
+          return drawPath(
+            'M ' + (svgW * 0.5 + 95) + ' ' + n.y + ' L ' + (svgW * 0.5 + 105) + ' ' + (svgH * 0.15 + 55),
+            { dasharray: '6 4', animDuration: 400, markerEnd: 'url(#arrowopen)' }
+          );
+        }).then(function() {
+          return wait(300);
+        });
+      });
+
+      return chain.then(function() {
+        completeCheckItem(5);
+        setProgress(98);
+        return wait(600);
+      }).then(function() {
+        // Run particle flow
+        var canvasRect = canvasArea.getBoundingClientRect();
+        var serviceCenter = { x: svgW * 0.08 + 110, y: svgH * 0.3 + 40 };
+        var obsCenterPt = { x: svgW * 0.5 + 105, y: svgH * 0.15 + 30 };
+
+        function doWave() {
+          return new Promise(function(waveResolve) {
+            var done = 0;
+            notifiers.forEach(function(n) {
+              var target = { x: svgW * 0.5 + 95, y: n.y + 20 };
+              launchParticleGlobal(canvasRect, serviceCenter, obsCenterPt, 0, function() {
+                launchParticleGlobal(canvasRect, obsCenterPt, target, 0, function() {
+                  done++;
+                  if (done === notifiers.length) waveResolve();
+                });
+              });
+            });
+          });
+        }
+
+        return doWave().then(function() { return wait(300); }).then(doWave);
+      });
+    }).then(function() {
+      setProgress(100);
+      return wait(500);
+    }).then(function() {
+      launchConfetti();
+      clearNarrative();
+
+      var celebration = makeEl('div');
+      celebration.style.animation = 'fadeSlideUp 0.5s ease';
+
+      var headline = makeEl('div', null, 'You built Observer from scratch in a new domain.');
+      headline.style.cssText = 'font-size: 22px; margin-bottom: 4px; font-weight: 600;';
+      celebration.appendChild(headline);
+
+      var subtitle = makeEl('div', null, "You didn't just memorize it -- you understand it.");
+      subtitle.style.cssText = 'font-size: 14px; color: var(--text-muted);';
+      celebration.appendChild(subtitle);
+
+      narrativeText.appendChild(celebration);
+
+      var ctaGroup = makeEl('div', 'cta-group');
+      ctaGroup.style.animation = 'fadeSlideUp 0.5s ease 0.3s both';
+
+      var nextBtn = makeEl('button', 'continue-btn');
+      nextBtn.textContent = 'Next Pattern: Strategy ';
+      var arrowN = makeEl('span');
+      arrowN.style.fontSize = '15px';
+      arrowN.textContent = '\u2192';
+      nextBtn.appendChild(arrowN);
+      nextBtn.onclick = function() {
+        clearNarrative();
+        var msg = makeEl('div', 'text-line', 'Strategy pattern coming soon. You completed the Observer journey!');
+        narrativeText.appendChild(msg);
+      };
+
+      var freeBtn = makeEl('button', 'continue-btn secondary', 'Free Build Mode');
+      freeBtn.onclick = function() {
+        clearNarrative();
+        var msg = makeEl('div', 'text-line', 'Free build mode would open the full Architex canvas. Demo complete!');
+        narrativeText.appendChild(msg);
+      };
+
+      ctaGroup.appendChild(nextBtn);
+      ctaGroup.appendChild(freeBtn);
+      interactionArea.textContent = '';
+      interactionArea.appendChild(ctaGroup);
+    });
+  }
+
+  function launchConfetti() {
+    var colors = [
+      'hsl(258, 78%, 64%)', 'hsl(152, 65%, 48%)',
+      'hsl(35, 90%, 55%)', 'hsl(280, 70%, 68%)',
+      'hsl(180, 60%, 65%)', 'hsl(45, 70%, 68%)'
+    ];
+
+    for (var i = 0; i < 60; i++) {
+      var confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = (Math.random() * 100) + 'vw';
+      confetti.style.top = '-10px';
+      confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.width = (4 + Math.random() * 6) + 'px';
+      confetti.style.height = (4 + Math.random() * 6) + 'px';
+      confetti.style.animationDelay = (Math.random() * 0.8) + 's';
+      confetti.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      document.body.appendChild(confetti);
+      (function(el) {
+        setTimeout(function() { el.remove(); }, 4000);
+      })(confetti);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // JOURNEY ORCHESTRATOR
+  // ════════════════════════════════════════════════════════
+  function startJourney() {
+    setupDefs();
+    phase1()
+      .then(phase2)
+      .then(phase3)
+      .then(phase4)
+      .then(phase5)
+      .then(phase6);
+  }
+
+  // ── Launch ───────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', function() {
+    renderPhaseDots();
+    startJourney();
+  });
+
+  window.addEventListener('beforeunload', function() {
+    if (priceInterval) clearInterval(priceInterval);
+  });
+
+})();
+</script>
+</body>
+</html>

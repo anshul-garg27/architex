@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Saboteur — Fault Injection Pedagogy | Architex Learning Mode</title>
+<style>
+  /* ── Reset ──────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Design Tokens ─────────────────────────────────────────────── */
+  :root {
+    --bg:          hsl(225, 8%, 7%);
+    --surface:     hsl(225, 8%, 11%);
+    --elevated:    hsl(225, 7%, 13%);
+    --text:        hsl(220, 5%, 90%);
+    --text-muted:  hsl(220, 5%, 55%);
+    --text-subtle: hsl(220, 5%, 62%);
+    --primary:     hsl(258, 78%, 64%);
+    --primary-dim: hsla(258, 78%, 64%, 0.15);
+    --border:      rgba(255,255,255,0.10);
+    --success:     hsl(152, 65%, 48%);
+    --success-dim: hsla(152, 65%, 48%, 0.12);
+    --warning:     hsl(36, 95%, 55%);
+    --warning-dim: hsla(36, 95%, 55%, 0.12);
+    --danger:      hsl(0, 72%, 56%);
+    --danger-dim:  hsla(0, 72%, 56%, 0.12);
+    --font:        'Geist Sans', system-ui, -apple-system, sans-serif;
+    --mono:        'Geist Mono', ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+    --radius:      8px;
+    --radius-lg:   12px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Shell Layout ──────────────────────────────────────────────── */
+  .shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* ── Header ────────────────────────────────────────────────────── */
+  .header {
+    flex-shrink: 0;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    z-index: 20;
+  }
+  .header__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: var(--danger-dim);
+    color: var(--danger);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .header__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .header__sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .header__desc {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .header__status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: color 0.5s;
+  }
+  .header__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: background 0.5s, box-shadow 0.5s;
+  }
+  .header__status[data-state="healthy"] { color: var(--success); }
+  .header__status[data-state="healthy"] .header__dot {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+  }
+  .header__status[data-state="degraded"] { color: var(--danger); }
+  .header__status[data-state="degraded"] .header__dot {
+    background: var(--danger);
+    box-shadow: 0 0 8px var(--danger);
+    animation: pulse-dot 1s ease infinite;
+  }
+  .header__status[data-state="restored"] { color: var(--success); }
+  .header__status[data-state="restored"] .header__dot {
+    background: var(--success);
+    box-shadow: 0 0 12px var(--success);
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── Main Content ──────────────────────────────────────────────── */
+  .main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Canvas Area ───────────────────────────────────────────────── */
+  .canvas-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* ── Sabotage Button Bar ───────────────────────────────────────── */
+  .action-bar {
+    flex-shrink: 0;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .btn-sabotage {
+    position: relative;
+    padding: 12px 28px;
+    border: 2px solid var(--danger);
+    border-radius: var(--radius);
+    background: var(--danger-dim);
+    color: var(--danger);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.2s;
+    overflow: hidden;
+  }
+  .btn-sabotage:hover:not(:disabled) {
+    background: hsla(0, 72%, 56%, 0.25);
+    box-shadow: 0 0 24px hsla(0, 72%, 56%, 0.2);
+    transform: translateY(-1px);
+  }
+  .btn-sabotage:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  .btn-sabotage:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .btn-sabotage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, hsla(0,72%,56%,0.1), transparent);
+    animation: shimmer 2s ease infinite;
+  }
+  .btn-sabotage:disabled::before { display: none; }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .btn-reset {
+    padding: 10px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--elevated);
+    color: var(--text-muted);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { border-color: var(--text-muted); color: var(--text); }
+  .btn-reset:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ── SVG Canvas ────────────────────────────────────────────────── */
+  .diagram-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  .diagram-wrap svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Screen shake ──────────────────────────────────────────────── */
+  .shake {
+    animation: screen-shake 0.6s ease;
+  }
+  @keyframes screen-shake {
+    0%   { transform: translate(0, 0); }
+    10%  { transform: translate(-6px, 3px); }
+    20%  { transform: translate(5px, -4px); }
+    30%  { transform: translate(-4px, 5px); }
+    40%  { transform: translate(6px, -2px); }
+    50%  { transform: translate(-3px, 4px); }
+    60%  { transform: translate(4px, -3px); }
+    70%  { transform: translate(-5px, 2px); }
+    80%  { transform: translate(3px, -4px); }
+    90%  { transform: translate(-2px, 3px); }
+    100% { transform: translate(0, 0); }
+  }
+
+  /* ── Red flash overlay ─────────────────────────────────────────── */
+  .flash-overlay {
+    position: absolute;
+    inset: 0;
+    background: hsla(0, 72%, 40%, 0.15);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 10;
+  }
+  .flash-overlay.active {
+    animation: red-flash 0.8s ease;
+  }
+  @keyframes red-flash {
+    0% { opacity: 0; }
+    15% { opacity: 1; }
+    40% { opacity: 0.6; }
+    100% { opacity: 0; }
+  }
+
+  /* ── SVG Node Styles ───────────────────────────────────────────── */
+  .node-rect {
+    rx: 6;
+    ry: 6;
+    stroke-width: 1.5;
+    transition: all 0.5s ease;
+  }
+  .node-rect.interface {
+    stroke: var(--primary);
+    fill: hsla(258, 78%, 64%, 0.08);
+    stroke-dasharray: 6 3;
+  }
+  .node-rect.class {
+    stroke: hsla(220, 5%, 90%, 0.2);
+    fill: var(--elevated);
+  }
+  .node-rect.subject {
+    stroke: hsl(200, 70%, 55%);
+    fill: hsla(200, 70%, 55%, 0.08);
+  }
+
+  .node-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    fill: var(--text);
+    text-anchor: middle;
+  }
+  .node-stereotype {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+  }
+  .node-method {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    fill: var(--text-subtle);
+    text-anchor: start;
+  }
+
+  /* status indicator on nodes */
+  .node-status {
+    transition: fill 0.5s, opacity 0.5s;
+  }
+
+  /* ── Relationship arrows ───────────────────────────────────────── */
+  .rel-line {
+    stroke: hsla(220, 5%, 90%, 0.18);
+    stroke-width: 1.5;
+    fill: none;
+    transition: stroke 0.5s, opacity 0.5s, d 0.8s ease;
+  }
+  .rel-line.interface-dep {
+    stroke-dasharray: 6 3;
+    stroke: hsla(258, 78%, 64%, 0.35);
+  }
+  .rel-line.direct-coupling {
+    stroke: hsla(0, 72%, 56%, 0.5);
+    stroke-dasharray: none;
+  }
+  .arrowhead {
+    fill: hsla(220, 5%, 90%, 0.3);
+    transition: fill 0.5s;
+  }
+  .arrowhead.degraded {
+    fill: hsla(0, 72%, 56%, 0.6);
+  }
+
+  /* ── Particles ─────────────────────────────────────────────────── */
+  .particle {
+    offset-rotate: 0deg;
+    animation: flowParticle var(--dur, 2.5s) linear infinite;
+    animation-delay: var(--delay, 0s);
+    transition: fill 0.4s, r 0.4s;
+  }
+  @keyframes flowParticle {
+    0%   { offset-distance: 0%; opacity: 0; }
+    5%   { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { offset-distance: 100%; opacity: 0; }
+  }
+
+  .particle.stalled {
+    animation: stalledParticle 1.5s ease infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  @keyframes stalledParticle {
+    0%   { offset-distance: var(--stall-pos, 40%); opacity: 0.8; }
+    30%  { offset-distance: calc(var(--stall-pos, 40%) + 3%); opacity: 1; }
+    60%  { offset-distance: calc(var(--stall-pos, 40%) - 1%); opacity: 0.7; }
+    100% { offset-distance: var(--stall-pos, 40%); opacity: 0.8; }
+  }
+
+  .particle.flash-red {
+    animation: flashRed 0.5s ease infinite alternate;
+  }
+  @keyframes flashRed {
+    0%   { fill: var(--warning); r: 3; }
+    100% { fill: var(--danger); r: 5; }
+  }
+
+  /* ── Warning Annotations ───────────────────────────────────────── */
+  .warning-annotation {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+  }
+  .warning-annotation.visible {
+    opacity: 1;
+  }
+  .warning-bg {
+    fill: hsla(0, 72%, 56%, 0.12);
+    rx: 4;
+  }
+  .warning-text {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    fill: var(--danger);
+  }
+
+  /* ── Dissolve animation ────────────────────────────────────────── */
+  .observer-group {
+    transition: opacity 0.8s ease, transform 0.8s ease;
+    transform-origin: center;
+  }
+  .observer-group.dissolved {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+
+  /* ── Logging observer ──────────────────────────────────────────── */
+  .logging-group {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease 0.2s, transform 0.6s ease 0.2s;
+  }
+  .logging-group.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Side Panel: Sabotage Log ──────────────────────────────────── */
+  .side-panel {
+    flex-shrink: 0;
+    width: 320px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .side-panel__header {
+    flex-shrink: 0;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .side-panel__icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: var(--danger-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+  .side-panel__title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+  .log-entries {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .log-entry {
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    animation: logSlideIn 0.3s ease;
+    border-left: 3px solid transparent;
+  }
+  .log-entry.danger {
+    background: var(--danger-dim);
+    color: hsl(0, 72%, 72%);
+    border-left-color: var(--danger);
+  }
+  .log-entry.warning {
+    background: var(--warning-dim);
+    color: hsl(36, 95%, 72%);
+    border-left-color: var(--warning);
+  }
+  .log-entry.success {
+    background: var(--success-dim);
+    color: hsl(152, 65%, 68%);
+    border-left-color: var(--success);
+  }
+  .log-entry.info {
+    background: var(--primary-dim);
+    color: hsl(258, 78%, 78%);
+    border-left-color: var(--primary);
+  }
+  .log-entry__time {
+    font-family: var(--mono);
+    font-size: 10px;
+    opacity: 0.6;
+    display: block;
+    margin-bottom: 3px;
+  }
+  .log-entry__text {
+    font-weight: 500;
+  }
+  @keyframes logSlideIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-empty {
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 40px 20px;
+    font-style: italic;
+  }
+
+  /* ── Challenge Panel (below canvas) ────────────────────────────── */
+  .challenge-panel {
+    flex-shrink: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.6s ease, padding 0.3s ease;
+  }
+  .challenge-panel.open {
+    max-height: 400px;
+    padding: 20px 32px 24px;
+  }
+
+  .challenge-prompt {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .challenge-prompt span {
+    color: var(--primary);
+  }
+
+  .options {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .option-card {
+    flex: 1;
+    min-width: 220px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: var(--elevated);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+  }
+  .option-card:hover {
+    border-color: var(--text-muted);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .option-card.selected {
+    pointer-events: none;
+  }
+  .option-card.selected.correct {
+    border-color: var(--success);
+    background: var(--success-dim);
+    box-shadow: 0 0 20px hsla(152, 65%, 48%, 0.15);
+  }
+  .option-card.selected.wrong {
+    border-color: var(--danger);
+    background: var(--danger-dim);
+  }
+  .option-card.selected.hacky {
+    border-color: var(--warning);
+    background: var(--warning-dim);
+  }
+  .option-card.revealed { pointer-events: none; opacity: 0.5; }
+  .option-card.revealed.correct { opacity: 1; }
+
+  .option-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .option-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .option-verdict {
+    display: none;
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .option-card.selected .option-verdict,
+  .option-card.revealed .option-verdict { display: block; }
+  .option-card.correct .option-verdict  { color: var(--success); }
+  .option-card.wrong .option-verdict    { color: var(--danger); }
+  .option-card.hacky .option-verdict    { color: var(--warning); }
+
+  /* ── Diff panel ────────────────────────────────────────────────── */
+  .diff-panel {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    background: hsla(225, 10%, 14%, 0.8);
+    border: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.7;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.5s ease;
+    max-height: 0;
+    overflow: hidden;
+  }
+  .diff-panel.visible {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 300px;
+  }
+  .diff-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-family: var(--font);
+  }
+  .diff-line { white-space: pre; }
+  .diff-line.removed { color: hsl(0, 72%, 65%); }
+  .diff-line.added   { color: hsl(152, 65%, 60%); }
+  .diff-line.context { color: var(--text-muted); }
+
+  /* ── Restored banner ───────────────────────────────────────────── */
+  .restored-banner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    padding: 16px 32px;
+    border-radius: var(--radius-lg);
+    background: hsla(152, 65%, 48%, 0.12);
+    border: 2px solid var(--success);
+    color: var(--success);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    opacity: 0;
+    transition: all 0.5s ease;
+    z-index: 15;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .restored-banner.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header__badge">Saboteur</div>
+    <span class="header__title">Fault Injection Pedagogy</span>
+    <div class="header__sep"></div>
+    <span class="header__desc">Break a working design pattern. Watch it degrade. Diagnose and fix.</span>
+    <div class="header__status" id="systemStatus" data-state="healthy">
+      <span class="header__dot"></span>
+      <span id="statusLabel">System Healthy</span>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- ── Canvas Area ─────────────────────────────────────────────── -->
+    <div class="canvas-area">
+
+      <!-- ── Action Bar ──────────────────────────────────────────── -->
+      <div class="action-bar">
+        <button class="btn-sabotage" id="btnSabotage" aria-label="Apply sabotage: remove Observer interface">
+          Apply Colleague's Refactoring: Remove Observer Interface
+        </button>
+        <button class="btn-reset" id="btnReset" disabled aria-label="Reset demo to initial state">Reset Demo</button>
+      </div>
+
+      <!-- ── Diagram ─────────────────────────────────────────────── -->
+      <div class="diagram-wrap" id="diagramWrap">
+        <div class="flash-overlay" id="flashOverlay"></div>
+        <div class="restored-banner" id="restoredBanner">System Restored</div>
+
+        <svg id="mainSvg" viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Arrowhead markers -->
+            <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" class="arrowhead" id="arrowNormal"/>
+            </marker>
+            <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" class="arrowhead degraded"/>
+            </marker>
+            <marker id="arrowInterface" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+              <path d="M0,0 L10,4 L0,8 Z" fill="none" stroke="hsla(258,78%,64%,0.5)" stroke-width="1.5"/>
+            </marker>
+
+            <!-- Flow paths: Subject -> Observer interface -->
+            <path id="pathSubjectToObserver" d="M 280,210 C 350,210 370,210 420,210" fill="none"/>
+            <!-- Flow paths: Observer -> ConcreteA -->
+            <path id="pathObserverToA" d="M 580,190 C 640,170 670,140 720,130" fill="none"/>
+            <!-- Flow paths: Observer -> ConcreteB -->
+            <path id="pathObserverToB" d="M 580,230 C 640,250 670,280 720,290" fill="none"/>
+
+            <!-- Direct coupling paths (hidden by default) -->
+            <path id="pathDirectToA" d="M 280,185 C 400,140 580,110 720,130" fill="none"/>
+            <path id="pathDirectToB" d="M 280,235 C 400,280 580,310 720,290" fill="none"/>
+
+            <!-- Restored paths (after fix) -->
+            <path id="pathObserverToLogging" d="M 580,210 C 640,330 680,370 720,410" fill="none"/>
+          </defs>
+
+          <!-- ── Relationship Lines ────────────────────────────── -->
+          <g id="relLines">
+            <!-- Subject -> Observer (implements dependency) -->
+            <line id="lineSubjectToObs" x1="280" y1="210" x2="420" y2="210"
+                  class="rel-line interface-dep" marker-end="url(#arrowInterface)"/>
+
+            <!-- Observer -> ConcreteA (implements) -->
+            <path id="lineObsToA" d="M 580,190 C 620,170 680,145 720,138"
+                  class="rel-line interface-dep" marker-end="url(#arrowInterface)"/>
+
+            <!-- Observer -> ConcreteB (implements) -->
+            <path id="lineObsToB" d="M 580,230 C 620,250 680,275 720,282"
+                  class="rel-line interface-dep" marker-end="url(#arrowInterface)"/>
+
+            <!-- Direct coupling lines (hidden) -->
+            <path id="lineDirectA" d="M 280,185 C 400,140 580,115 718,130"
+                  class="rel-line direct-coupling" style="opacity:0" marker-end="url(#arrowRed)"/>
+            <path id="lineDirectB" d="M 280,235 C 400,280 580,305 718,285"
+                  class="rel-line direct-coupling" style="opacity:0" marker-end="url(#arrowRed)"/>
+
+            <!-- Observer -> Logging (hidden until fix) -->
+            <path id="lineObsToLogging" d="M 580,230 C 620,320 680,380 720,400"
+                  class="rel-line interface-dep" style="opacity:0" marker-end="url(#arrowInterface)"/>
+          </g>
+
+          <!-- ── Subject Node ──────────────────────────────────── -->
+          <g id="subjectNode" transform="translate(115, 140)">
+            <rect class="node-rect subject" width="165" height="140"/>
+            <text class="node-stereotype" x="82" y="22">class</text>
+            <text class="node-title" x="82" y="42">Subject</text>
+            <line x1="10" y1="52" x2="155" y2="52" stroke="hsla(200,70%,55%,0.2)" stroke-width="1"/>
+            <text class="node-method" x="14" y="70">- observers: List</text>
+            <line x1="10" y1="80" x2="155" y2="80" stroke="hsla(200,70%,55%,0.2)" stroke-width="1"/>
+            <text class="node-method" x="14" y="98">+ attach(obs)</text>
+            <text class="node-method" x="14" y="114">+ detach(obs)</text>
+            <text class="node-method" x="14" y="130">+ notify()</text>
+            <!-- Status indicator -->
+            <circle class="node-status" cx="150" cy="14" r="5" fill="var(--success)" id="subjectStatus"/>
+          </g>
+
+          <!-- ── Observer Interface Node ───────────────────────── -->
+          <g id="observerNode" class="observer-group" transform="translate(420, 155)">
+            <rect class="node-rect interface" width="160" height="110"/>
+            <text class="node-stereotype" x="80" y="22">&lt;&lt;interface&gt;&gt;</text>
+            <text class="node-title" x="80" y="42">Observer</text>
+            <line x1="10" y1="52" x2="150" y2="52" stroke="hsla(258,78%,64%,0.2)" stroke-width="1"/>
+            <text class="node-method" x="14" y="70">+ update(data)</text>
+            <text class="node-method" x="14" y="86" fill="var(--text-muted)" font-style="italic">// contract only</text>
+            <!-- Status indicator -->
+            <circle class="node-status" cx="145" cy="14" r="5" fill="var(--success)" id="observerStatus"/>
+          </g>
+
+          <!-- ── ConcreteObserverA Node ────────────────────────── -->
+          <g id="concreteANode" transform="translate(720, 72)">
+            <rect class="node-rect class" width="160" height="120"/>
+            <text class="node-stereotype" x="80" y="22">class</text>
+            <text class="node-title" x="80" y="42" font-size="12">ConcreteObserverA</text>
+            <line x1="10" y1="52" x2="150" y2="52" stroke="hsla(220,5%,90%,0.1)" stroke-width="1"/>
+            <text class="node-method" x="14" y="70">- state: any</text>
+            <line x1="10" y1="80" x2="150" y2="80" stroke="hsla(220,5%,90%,0.1)" stroke-width="1"/>
+            <text class="node-method" x="14" y="98">+ update(data)</text>
+            <text class="node-method" x="14" y="114">+ render()</text>
+            <circle class="node-status" cx="145" cy="14" r="5" fill="var(--success)" id="concreteAStatus"/>
+          </g>
+
+          <!-- ── ConcreteObserverB Node ────────────────────────── -->
+          <g id="concreteBNode" transform="translate(720, 228)">
+            <rect class="node-rect class" width="160" height="120"/>
+            <text class="node-stereotype" x="80" y="22">class</text>
+            <text class="node-title" x="80" y="42" font-size="12">ConcreteObserverB</text>
+            <line x1="10" y1="52" x2="150" y2="52" stroke="hsla(220,5%,90%,0.1)" stroke-width="1"/>
+            <text class="node-method" x="14" y="70">- state: any</text>
+            <line x1="10" y1="80" x2="150" y2="80" stroke="hsla(220,5%,90%,0.1)" stroke-width="1"/>
+            <text class="node-method" x="14" y="98">+ update(data)</text>
+            <text class="node-method" x="14" y="114">+ process()</text>
+            <circle class="node-status" cx="145" cy="14" r="5" fill="var(--success)" id="concreteBStatus"/>
+          </g>
+
+          <!-- ── LoggingObserver (hidden until fix) ────────────── -->
+          <g id="loggingNode" class="logging-group" transform="translate(720, 385)">
+            <rect class="node-rect class" width="160" height="110" stroke="var(--success)" style="stroke-width:2"/>
+            <text class="node-stereotype" x="80" y="22" fill="var(--success)">class (new!)</text>
+            <text class="node-title" x="80" y="42" font-size="12">LoggingObserver</text>
+            <line x1="10" y1="52" x2="150" y2="52" stroke="hsla(152,65%,48%,0.2)" stroke-width="1"/>
+            <text class="node-method" x="14" y="70">- logFile: File</text>
+            <line x1="10" y1="80" x2="150" y2="80" stroke="hsla(152,65%,48%,0.2)" stroke-width="1"/>
+            <text class="node-method" x="14" y="98">+ update(data)</text>
+            <circle class="node-status" cx="145" cy="14" r="5" fill="var(--success)"/>
+          </g>
+
+          <!-- ── Warning annotations (hidden) ──────────────────── -->
+          <g id="warnTightCoupling" class="warning-annotation" transform="translate(115, 295)">
+            <rect class="warning-bg" width="142" height="24" x="0" y="0"/>
+            <text class="warning-text" x="10" y="16">Tight coupling</text>
+          </g>
+          <g id="warnOCP" class="warning-annotation" transform="translate(115, 325)">
+            <rect class="warning-bg" width="174" height="24" x="0" y="0"/>
+            <text class="warning-text" x="10" y="16">Open-Closed violated</text>
+          </g>
+
+          <!-- ── Particles (placed via JS) ─────────────────────── -->
+          <g id="particleLayer"></g>
+        </svg>
+      </div>
+
+      <!-- ── Challenge Panel ───────────────────────────────────── -->
+      <div class="challenge-panel" id="challengePanel">
+        <div class="challenge-prompt">
+          A new requirement arrives: <span>Add a LoggingObserver</span>. What do you need to change?
+        </div>
+        <div class="options" id="optionsContainer">
+          <div class="option-card" data-option="A" tabindex="0" role="button" aria-label="Option A">
+            <div class="option-label">Option A</div>
+            <div class="option-text">Add LoggingObserver + modify Subject class to know about it</div>
+            <div class="option-verdict">Requires touching existing code</div>
+          </div>
+          <div class="option-card" data-option="B" tabindex="0" role="button" aria-label="Option B">
+            <div class="option-label">Option B</div>
+            <div class="option-text">Add LoggingObserver + restore the Observer interface</div>
+            <div class="option-verdict">Correct! Obeys Open-Closed Principle</div>
+          </div>
+          <div class="option-card" data-option="C" tabindex="0" role="button" aria-label="Option C">
+            <div class="option-label">Option C</div>
+            <div class="option-text">Just inherit from ConcreteObserverA and override its methods</div>
+            <div class="option-verdict">Hacky workaround -- fragile inheritance</div>
+          </div>
+        </div>
+        <div class="diff-panel" id="diffPanel">
+          <div class="diff-title">Before / After</div>
+          <div class="diff-line removed">- Subject knows ConcreteObserverA, ConcreteObserverB</div>
+          <div class="diff-line removed">- Adding observer = modifying Subject</div>
+          <div class="diff-line context">  ...</div>
+          <div class="diff-line added">+ Subject depends only on Observer interface</div>
+          <div class="diff-line added">+ LoggingObserver implements Observer</div>
+          <div class="diff-line added">+ Subject unchanged -- Open-Closed preserved</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Side Panel ──────────────────────────────────────────────── -->
+    <div class="side-panel">
+      <div class="side-panel__header">
+        <div class="side-panel__icon">!</div>
+        <div class="side-panel__title">Sabotage Log</div>
+      </div>
+      <div class="log-entries" id="logEntries">
+        <div class="log-empty" id="logEmpty">No events yet. Apply the sabotage to begin.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── State ────────────────────────────────────────────────────────
+  var state = 'healthy'; // healthy | degraded | challenge | restored
+  var particles = [];
+  var logCount = 0;
+
+  // ── DOM refs ─────────────────────────────────────────────────────
+  var btnSabotage      = document.getElementById('btnSabotage');
+  var btnReset          = document.getElementById('btnReset');
+  var systemStatus      = document.getElementById('systemStatus');
+  var statusLabel       = document.getElementById('statusLabel');
+  var diagramWrap       = document.getElementById('diagramWrap');
+  var flashOverlay      = document.getElementById('flashOverlay');
+  var restoredBanner    = document.getElementById('restoredBanner');
+  var observerNode      = document.getElementById('observerNode');
+  var loggingNode       = document.getElementById('loggingNode');
+  var particleLayer     = document.getElementById('particleLayer');
+  var challengePanel    = document.getElementById('challengePanel');
+  var optionsContainer  = document.getElementById('optionsContainer');
+  var diffPanel         = document.getElementById('diffPanel');
+  var logEntries        = document.getElementById('logEntries');
+  var logEmpty          = document.getElementById('logEmpty');
+
+  // Lines
+  var lineSubjectToObs = document.getElementById('lineSubjectToObs');
+  var lineObsToA       = document.getElementById('lineObsToA');
+  var lineObsToB       = document.getElementById('lineObsToB');
+  var lineDirectA      = document.getElementById('lineDirectA');
+  var lineDirectB      = document.getElementById('lineDirectB');
+  var lineObsToLogging = document.getElementById('lineObsToLogging');
+
+  // Warnings
+  var warnTightCoupling = document.getElementById('warnTightCoupling');
+  var warnOCP           = document.getElementById('warnOCP');
+
+  // Statuses
+  var subjectStatus   = document.getElementById('subjectStatus');
+  var observerStatus  = document.getElementById('observerStatus');
+  var concreteAStatus = document.getElementById('concreteAStatus');
+  var concreteBStatus = document.getElementById('concreteBStatus');
+
+  // ── Particle System ──────────────────────────────────────────────
+  function createParticle(pathId, color, delay, dur) {
+    var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('r', '3');
+    circle.setAttribute('fill', color);
+    circle.classList.add('particle');
+    circle.style.setProperty('--delay', delay + 's');
+    circle.style.setProperty('--dur', dur + 's');
+    circle.style.offsetPath = 'url(#' + pathId + ')';
+    particleLayer.appendChild(circle);
+    return circle;
+  }
+
+  function spawnHealthyParticles() {
+    clearParticles();
+    var green = 'hsl(152, 65%, 48%)';
+    var violet = 'hsl(258, 78%, 64%)';
+
+    // Subject -> Observer: 4 particles
+    for (var i = 0; i < 4; i++) {
+      particles.push(createParticle('pathSubjectToObserver', violet, i * 0.6, 2.0));
+    }
+    // Observer -> ConcreteA: 3 particles
+    for (var i = 0; i < 3; i++) {
+      particles.push(createParticle('pathObserverToA', green, i * 0.7, 2.2));
+    }
+    // Observer -> ConcreteB: 3 particles
+    for (var i = 0; i < 3; i++) {
+      particles.push(createParticle('pathObserverToB', green, i * 0.7 + 0.2, 2.2));
+    }
+  }
+
+  function stalledParticles() {
+    clearParticles();
+    var orange = 'hsl(36, 95%, 55%)';
+
+    // Stalled on direct A path
+    for (var i = 0; i < 5; i++) {
+      var c = createParticle('pathDirectToA', orange, i * 0.25, 2.5);
+      c.classList.add('stalled');
+      c.style.setProperty('--stall-pos', (30 + i * 8) + '%');
+      if (i % 3 === 0) {
+        c.classList.add('flash-red');
+      }
+      particles.push(c);
+    }
+    // Stalled on direct B path
+    for (var i = 0; i < 5; i++) {
+      var c = createParticle('pathDirectToB', orange, i * 0.3, 2.5);
+      c.classList.add('stalled');
+      c.style.setProperty('--stall-pos', (25 + i * 10) + '%');
+      if (i % 2 === 0) {
+        c.classList.add('flash-red');
+      }
+      particles.push(c);
+    }
+  }
+
+  function restoredParticles() {
+    clearParticles();
+    var green = 'hsl(152, 65%, 48%)';
+    var violet = 'hsl(258, 78%, 64%)';
+
+    // Subject -> Observer
+    for (var i = 0; i < 4; i++) {
+      particles.push(createParticle('pathSubjectToObserver', violet, i * 0.6, 2.0));
+    }
+    // Observer -> A
+    for (var i = 0; i < 3; i++) {
+      particles.push(createParticle('pathObserverToA', green, i * 0.7, 2.2));
+    }
+    // Observer -> B
+    for (var i = 0; i < 3; i++) {
+      particles.push(createParticle('pathObserverToB', green, i * 0.7 + 0.2, 2.2));
+    }
+    // Observer -> Logging
+    for (var i = 0; i < 3; i++) {
+      particles.push(createParticle('pathObserverToLogging', green, i * 0.6 + 0.1, 2.5));
+    }
+  }
+
+  function clearParticles() {
+    for (var i = 0; i < particles.length; i++) {
+      particles[i].remove();
+    }
+    particles = [];
+  }
+
+  // ── Log System ───────────────────────────────────────────────────
+  function addLog(text, type) {
+    logEmpty.style.display = 'none';
+    logCount++;
+    var now = new Date();
+    var h = String(now.getHours()).padStart(2, '0');
+    var m = String(now.getMinutes()).padStart(2, '0');
+    var s = String(now.getSeconds()).padStart(2, '0');
+    var timestamp = h + ':' + m + ':' + s;
+
+    var entry = document.createElement('div');
+    entry.className = 'log-entry ' + type;
+
+    var timeEl = document.createElement('span');
+    timeEl.className = 'log-entry__time';
+    timeEl.textContent = timestamp + ' [' + String(logCount).padStart(3, '0') + ']';
+
+    var textEl = document.createElement('span');
+    textEl.className = 'log-entry__text';
+    textEl.textContent = text;
+
+    entry.appendChild(timeEl);
+    entry.appendChild(textEl);
+    logEntries.insertBefore(entry, logEntries.firstChild);
+  }
+
+  // ── Sabotage Action ──────────────────────────────────────────────
+  btnSabotage.addEventListener('click', function() {
+    if (state !== 'healthy') return;
+    state = 'degraded';
+    btnSabotage.disabled = true;
+
+    // 1) Dramatic red flash + screen shake
+    flashOverlay.classList.add('active');
+    diagramWrap.classList.add('shake');
+    setTimeout(function() {
+      flashOverlay.classList.remove('active');
+      diagramWrap.classList.remove('shake');
+    }, 800);
+
+    // 2) Log the sabotage
+    addLog('Initiating "refactoring" -- removing Observer interface...', 'danger');
+
+    // 3) Dissolve observer interface node
+    setTimeout(function() {
+      observerNode.classList.add('dissolved');
+      addLog('Observer interface removed', 'danger');
+    }, 400);
+
+    // 4) Fade out original relationship lines
+    setTimeout(function() {
+      lineSubjectToObs.style.opacity = '0';
+      lineObsToA.style.opacity = '0';
+      lineObsToB.style.opacity = '0';
+    }, 600);
+
+    // 5) Show direct coupling lines
+    setTimeout(function() {
+      lineDirectA.style.opacity = '1';
+      lineDirectA.style.transition = 'opacity 0.5s ease';
+      lineDirectB.style.opacity = '1';
+      lineDirectB.style.transition = 'opacity 0.5s ease';
+      addLog('Direct coupling: Subject -> ConcreteObserverA', 'warning');
+      addLog('Direct coupling: Subject -> ConcreteObserverB', 'warning');
+    }, 900);
+
+    // 6) Stall particles
+    setTimeout(function() {
+      stalledParticles();
+      addLog('Message delivery stalled -- particles backing up', 'warning');
+    }, 1100);
+
+    // 7) Show warnings
+    setTimeout(function() {
+      warnTightCoupling.classList.add('visible');
+      addLog('Tight coupling detected on Subject', 'danger');
+    }, 1400);
+    setTimeout(function() {
+      warnOCP.classList.add('visible');
+      addLog('Open-Closed Principle violation detected', 'danger');
+    }, 1700);
+
+    // 8) Update status
+    setTimeout(function() {
+      systemStatus.dataset.state = 'degraded';
+      statusLabel.textContent = 'System Degraded';
+      subjectStatus.setAttribute('fill', 'var(--danger)');
+      concreteAStatus.setAttribute('fill', 'var(--warning)');
+      concreteBStatus.setAttribute('fill', 'var(--warning)');
+    }, 1200);
+
+    // 9) Show challenge
+    setTimeout(function() {
+      state = 'challenge';
+      challengePanel.classList.add('open');
+      addLog('Challenge: how do you add a LoggingObserver now?', 'info');
+      btnReset.disabled = false;
+    }, 2200);
+  });
+
+  // ── Option Selection ─────────────────────────────────────────────
+  optionsContainer.addEventListener('click', function(e) {
+    var card = e.target.closest('.option-card');
+    if (!card || state === 'restored') return;
+    var option = card.dataset.option;
+
+    // Mark all cards
+    var allCards = document.querySelectorAll('.option-card');
+    for (var i = 0; i < allCards.length; i++) {
+      allCards[i].classList.add('revealed');
+      if (allCards[i].dataset.option === 'B') allCards[i].classList.add('correct');
+    }
+    card.classList.add('selected');
+
+    if (option === 'A') {
+      card.classList.add('wrong');
+      addLog('Option A selected -- requires modifying Subject (bad!)', 'danger');
+      addLog('Hint: restore the interface to obey Open-Closed Principle', 'info');
+      // Allow re-attempt by clicking B
+      var correctCard = document.querySelector('[data-option="B"]');
+      correctCard.classList.remove('revealed');
+      correctCard.style.cursor = 'pointer';
+      correctCard.style.pointerEvents = 'auto';
+    } else if (option === 'C') {
+      card.classList.add('hacky');
+      addLog('Option C selected -- fragile inheritance hack', 'warning');
+      addLog('Hint: restore the interface to obey Open-Closed Principle', 'info');
+      var correctCard = document.querySelector('[data-option="B"]');
+      correctCard.classList.remove('revealed');
+      correctCard.style.cursor = 'pointer';
+      correctCard.style.pointerEvents = 'auto';
+    } else if (option === 'B') {
+      card.classList.add('correct');
+      addLog('Correct! Restoring Observer interface...', 'success');
+      applyFix();
+    }
+  });
+
+  // Keyboard support for options
+  optionsContainer.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.target.click();
+    }
+  });
+
+  // ── Apply Fix ────────────────────────────────────────────────────
+  function applyFix() {
+    state = 'restored';
+
+    // 1) Hide direct coupling lines
+    setTimeout(function() {
+      lineDirectA.style.opacity = '0';
+      lineDirectB.style.opacity = '0';
+    }, 300);
+
+    // 2) Bring back observer interface
+    setTimeout(function() {
+      observerNode.classList.remove('dissolved');
+      addLog('Observer interface restored', 'success');
+    }, 500);
+
+    // 3) Restore original relationship lines
+    setTimeout(function() {
+      lineSubjectToObs.style.opacity = '1';
+      lineSubjectToObs.style.transition = 'opacity 0.5s ease';
+      lineObsToA.style.opacity = '1';
+      lineObsToA.style.transition = 'opacity 0.5s ease';
+      lineObsToB.style.opacity = '1';
+      lineObsToB.style.transition = 'opacity 0.5s ease';
+    }, 700);
+
+    // 4) Show logging observer + line
+    setTimeout(function() {
+      loggingNode.classList.add('visible');
+      lineObsToLogging.style.opacity = '1';
+      lineObsToLogging.style.transition = 'opacity 0.5s ease';
+      addLog('LoggingObserver added -- no changes to Subject!', 'success');
+    }, 1000);
+
+    // 5) Restore particles
+    setTimeout(function() {
+      restoredParticles();
+    }, 1200);
+
+    // 6) Remove warnings
+    setTimeout(function() {
+      warnTightCoupling.classList.remove('visible');
+      warnOCP.classList.remove('visible');
+    }, 800);
+
+    // 7) Restore statuses
+    setTimeout(function() {
+      systemStatus.dataset.state = 'restored';
+      statusLabel.textContent = 'System Restored';
+      subjectStatus.setAttribute('fill', 'var(--success)');
+      observerStatus.setAttribute('fill', 'var(--success)');
+      concreteAStatus.setAttribute('fill', 'var(--success)');
+      concreteBStatus.setAttribute('fill', 'var(--success)');
+    }, 1300);
+
+    // 8) Show restored banner briefly
+    setTimeout(function() {
+      restoredBanner.classList.add('visible');
+      addLog('System fully restored -- Open-Closed Principle preserved', 'success');
+    }, 1500);
+    setTimeout(function() {
+      restoredBanner.classList.remove('visible');
+    }, 3500);
+
+    // 9) Show diff
+    setTimeout(function() {
+      diffPanel.classList.add('visible');
+    }, 2000);
+  }
+
+  // ── Reset ────────────────────────────────────────────────────────
+  btnReset.addEventListener('click', function() {
+    state = 'healthy';
+    btnSabotage.disabled = false;
+    btnReset.disabled = true;
+
+    // Reset statuses
+    systemStatus.dataset.state = 'healthy';
+    statusLabel.textContent = 'System Healthy';
+    subjectStatus.setAttribute('fill', 'var(--success)');
+    concreteAStatus.setAttribute('fill', 'var(--success)');
+    concreteBStatus.setAttribute('fill', 'var(--success)');
+
+    // Reset observer node
+    observerNode.classList.remove('dissolved');
+
+    // Reset lines
+    lineSubjectToObs.style.opacity = '1';
+    lineObsToA.style.opacity = '1';
+    lineObsToB.style.opacity = '1';
+    lineDirectA.style.opacity = '0';
+    lineDirectB.style.opacity = '0';
+    lineObsToLogging.style.opacity = '0';
+
+    // Reset warnings
+    warnTightCoupling.classList.remove('visible');
+    warnOCP.classList.remove('visible');
+
+    // Hide logging observer
+    loggingNode.classList.remove('visible');
+
+    // Hide challenge panel
+    challengePanel.classList.remove('open');
+
+    // Reset options
+    var allCards = document.querySelectorAll('.option-card');
+    for (var i = 0; i < allCards.length; i++) {
+      allCards[i].classList.remove('selected', 'revealed', 'correct', 'wrong', 'hacky');
+      allCards[i].style.cursor = '';
+      allCards[i].style.pointerEvents = '';
+    }
+
+    // Hide diff
+    diffPanel.classList.remove('visible');
+
+    // Hide banner
+    restoredBanner.classList.remove('visible');
+
+    // Reset particles
+    spawnHealthyParticles();
+
+    // Reset log
+    while (logEntries.firstChild) {
+      logEntries.removeChild(logEntries.firstChild);
+    }
+    logEntries.appendChild(logEmpty);
+    logEmpty.style.display = '';
+    logCount = 0;
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────
+  spawnHealthyParticles();
+})();
+</script>
+</body>
+</html>

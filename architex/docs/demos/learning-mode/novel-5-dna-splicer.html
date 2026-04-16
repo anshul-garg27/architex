@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The DNA Splicer — Pattern Genome</title>
+<style>
+  /* ── Reset ────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Design Tokens ────────────────────────────────────────────────── */
+  :root {
+    --bg:          hsl(225, 8%, 7%);
+    --surface:     hsl(225, 8%, 11%);
+    --elevated:    hsl(225, 7%, 13%);
+    --text:        hsl(220, 5%, 90%);
+    --text-muted:  hsl(220, 5%, 55%);
+    --text-subtle: hsl(220, 5%, 62%);
+    --primary:     hsl(258, 78%, 64%);
+    --primary-dim: hsla(258, 78%, 64%, 0.15);
+    --border:      rgba(255,255,255,0.10);
+    --font:        'Geist Sans', system-ui, -apple-system, sans-serif;
+    --mono:        'Geist Mono', ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+    --radius:      8px;
+
+    /* Gene colors — bright, saturated, pop on dark */
+    --gene-interface:     hsl(217, 80%, 62%);
+    --gene-registration:  hsl(152, 65%, 48%);
+    --gene-broadcast:     hsl(25, 90%, 55%);
+    --gene-delegation:    hsl(272, 68%, 64%);
+    --gene-swap:          hsl(48, 90%, 55%);
+    --gene-encapsulation: hsl(0, 72%, 55%);
+    --gene-wrapping:      hsl(330, 70%, 60%);
+    --gene-queuing:       hsl(30, 60%, 45%);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Shell ────────────────────────────────────────────────────────── */
+  .shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+  }
+
+  /* ── Header ───────────────────────────────────────────────────────── */
+  .header {
+    flex-shrink: 0;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+  }
+  .header__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: var(--primary-dim);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .header__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .header__sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  /* ── Three-panel layout ───────────────────────────────────────────── */
+  .panels {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* ── GENOME BROWSER (top 20%) ─────────────────────────────────────── */
+  .genome-browser {
+    flex: 0 0 20%;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .genome-browser__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .genome-browser__label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .genome-browser__helix {
+    width: 18px;
+    height: 18px;
+    opacity: 0.5;
+  }
+
+  /* Individual genome strip */
+  .genome-strip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: calc((100% - 36px) / 4);
+    min-height: 28px;
+  }
+  .genome-strip__name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-subtle);
+    width: 80px;
+    text-align: right;
+    flex-shrink: 0;
+    font-family: var(--mono);
+  }
+  .genome-strip__bar {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    gap: 2px;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+  }
+
+  /* Gene segment inside a bar */
+  .gene-segment {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(0,0,0,0.85);
+    letter-spacing: 0.02em;
+    position: relative;
+    transition: filter 0.2s, transform 0.15s, box-shadow 0.2s;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .gene-segment::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .gene-segment::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(0,0,0,0.15);
+    pointer-events: none;
+  }
+
+  /* Glow on hover / highlight */
+  .gene-segment.glow {
+    filter: brightness(1.25);
+    box-shadow: 0 0 16px 4px currentColor;
+    transform: scaleY(1.12);
+    z-index: 2;
+  }
+  .gene-segment.dim {
+    filter: brightness(0.5) saturate(0.3);
+  }
+
+  /* Pulse animation for shared gene */
+  @keyframes genePulse {
+    0%, 100% { box-shadow: 0 0 8px 2px currentColor; }
+    50% { box-shadow: 0 0 22px 6px currentColor; }
+  }
+  .gene-segment.pulse {
+    animation: genePulse 1.2s ease-in-out infinite;
+    filter: brightness(1.3);
+    transform: scaleY(1.12);
+    z-index: 2;
+  }
+
+  /* Gene tooltip */
+  .gene-tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    background: hsl(225, 10%, 16%);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    max-width: 260px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .gene-tooltip.visible { opacity: 1; }
+  .gene-tooltip__name {
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+  }
+  .gene-tooltip__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .gene-tooltip__desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+  .gene-tooltip__shared {
+    font-size: 10px;
+    color: var(--gene-interface);
+    margin-top: 4px;
+    font-weight: 600;
+  }
+
+  /* ── CANVAS (middle 55%) ──────────────────────────────────────────── */
+  .canvas-panel {
+    flex: 0 0 55%;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .canvas-panel svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Canvas legend */
+  .canvas-legend {
+    position: absolute;
+    top: 14px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: hsla(225, 10%, 10%, 0.92);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    backdrop-filter: blur(8px);
+    z-index: 5;
+  }
+  .canvas-legend__title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+  .canvas-legend__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-subtle);
+    cursor: pointer;
+    padding: 2px 0;
+    transition: color 0.15s;
+  }
+  .canvas-legend__item:hover {
+    color: var(--text);
+  }
+  .canvas-legend__swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .canvas-legend__item.active .canvas-legend__swatch {
+    box-shadow: 0 0 8px 2px currentColor;
+  }
+
+  /* Canvas title */
+  .canvas-title {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    text-align: right;
+    z-index: 5;
+  }
+  .canvas-title__main {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .canvas-title__sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* UML class boxes */
+  .uml-class {
+    transition: filter 0.25s, opacity 0.25s;
+  }
+  .uml-class.dim {
+    filter: brightness(0.35) saturate(0.2);
+    opacity: 0.4;
+  }
+  .uml-class.glow rect {
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  .uml-arrow {
+    transition: opacity 0.25s;
+  }
+  .uml-arrow.dim {
+    opacity: 0.15;
+  }
+  .uml-arrow.glow {
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+
+  /* ── SPLICE BENCH (bottom 25%) ────────────────────────────────────── */
+  .splice-bench {
+    flex: 0 0 25%;
+    background: var(--elevated);
+    display: flex;
+    align-items: stretch;
+    padding: 14px 24px;
+    gap: 20px;
+    overflow: hidden;
+  }
+
+  .splice-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .splice-section--genes {
+    flex: 0 0 180px;
+  }
+  .splice-section--zone {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .splice-section--result {
+    flex: 0 0 340px;
+  }
+
+  .splice-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* Gene chips (draggable) */
+  .gene-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-content: flex-start;
+  }
+  .gene-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: grab;
+    user-select: none;
+    transition: transform 0.15s, box-shadow 0.2s;
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+  }
+  .gene-chip:active { cursor: grabbing; }
+  .gene-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .gene-chip.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+  .gene-chip__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  /* Recombinant zone */
+  .recomb-zone {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .recomb-slots {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+  }
+  .recomb-slot {
+    width: 150px;
+    height: 42px;
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .recomb-slot.drag-over {
+    border-color: var(--primary);
+    background: var(--primary-dim);
+    box-shadow: 0 0 12px hsla(258, 78%, 64%, 0.2);
+  }
+  .recomb-slot.filled {
+    border-style: solid;
+    border-color: rgba(255,255,255,0.2);
+    background: hsla(225, 8%, 16%, 0.8);
+  }
+  .recomb-slot .gene-chip {
+    cursor: default;
+    margin: 0;
+  }
+  .recomb-plus {
+    font-size: 20px;
+    font-weight: 300;
+    color: var(--text-muted);
+  }
+  .recomb-arrow {
+    font-size: 16px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .recomb-arrow svg {
+    width: 20px;
+    height: 20px;
+    color: var(--primary);
+  }
+
+  /* Result panel */
+  .result-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .result-card {
+    flex: 1;
+    background: hsla(225, 10%, 10%, 0.6);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .result-card__title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .result-card__desc {
+    font-size: 11px;
+    color: var(--text-subtle);
+    line-height: 1.5;
+  }
+  .result-card__reveal {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: auto;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+  }
+  .result-card__mini-uml {
+    flex: 1;
+    min-height: 0;
+  }
+  .result-card__mini-uml svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Empty result state */
+  .result-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  /* ── Keyboard focus ───────────────────────────────────────────────── */
+  .gene-segment:focus-visible,
+  .gene-chip:focus-visible,
+  .canvas-legend__item:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* ── Scrollbar ────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <header class="header">
+    <span class="header__badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v20M12 2c-2 4-6 6-6 10a6 6 0 0012 0c0-4-4-6-6-10z"/></svg>
+      Novel 5
+    </span>
+    <span class="header__title">The DNA Splicer &mdash; Pattern Genome</span>
+    <span class="header__sub">Every pattern is decomposed into atomic "genes" that can be recognized and recombined</span>
+  </header>
+
+  <div class="panels">
+    <!-- ── GENOME BROWSER (top 20%) ────────────────────────────── -->
+    <section class="genome-browser" aria-label="Genome Browser">
+      <div class="genome-browser__header">
+        <svg class="genome-browser__helix" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 4c0 4 16 4 16 8s-16 4-16 8" stroke-dasharray="2 3"/>
+          <path d="M20 4c0 4-16 4-16 8s16 4 16 8" stroke-dasharray="2 3"/>
+          <line x1="8" y1="6" x2="16" y2="6" opacity="0.4"/>
+          <line x1="6" y1="10" x2="18" y2="10" opacity="0.4"/>
+          <line x1="6" y1="14" x2="18" y2="14" opacity="0.4"/>
+          <line x1="8" y1="18" x2="16" y2="18" opacity="0.4"/>
+        </svg>
+        <span class="genome-browser__label">Pattern Genome Browser</span>
+      </div>
+      <div id="genomeStrips"></div>
+    </section>
+
+    <!-- ── CANVAS (middle 55%) ─────────────────────────────────── -->
+    <section class="canvas-panel" aria-label="Pattern UML Canvas">
+      <div class="canvas-legend" id="canvasLegend"></div>
+      <div class="canvas-title">
+        <div class="canvas-title__main">Observer Pattern</div>
+        <div class="canvas-title__sub">Gene-coded UML diagram</div>
+      </div>
+      <svg id="canvasSvg" viewBox="0 0 900 480" preserveAspectRatio="xMidYMid meet"></svg>
+    </section>
+
+    <!-- ── SPLICE BENCH (bottom 25%) ───────────────────────────── -->
+    <section class="splice-bench" aria-label="Splice Bench">
+      <!-- Available Genes -->
+      <div class="splice-section splice-section--genes">
+        <span class="splice-label">Available Genes</span>
+        <div class="gene-chips" id="availableGenes"></div>
+      </div>
+
+      <!-- Recombinant Zone -->
+      <div class="splice-section splice-section--zone">
+        <span class="splice-label">Recombinant Zone</span>
+        <div class="recomb-zone">
+          <div class="recomb-slots">
+            <div class="recomb-slot" id="slot1" data-slot="1">Drop gene here</div>
+            <span class="recomb-plus">+</span>
+            <div class="recomb-slot" id="slot2" data-slot="2">Drop gene here</div>
+          </div>
+          <div class="recomb-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            <span style="font-size:11px;">Splice result</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div class="splice-section splice-section--result">
+        <span class="splice-label">Splice Result</span>
+        <div class="result-panel" id="resultPanel">
+          <div class="result-empty">Drag two genes to the slots to splice them</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="gene-tooltip" id="geneTooltip">
+  <div class="gene-tooltip__name">
+    <span class="gene-tooltip__dot"></span>
+    <span class="gene-tooltip__label"></span>
+  </div>
+  <div class="gene-tooltip__desc"></div>
+  <div class="gene-tooltip__shared"></div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── DATA ──────────────────────────────────────────────────────────
+  var GENES = {
+    interface:     { name: 'Interface Extraction', color: 'hsl(217, 80%, 62%)',  desc: 'Creating an abstraction layer that decouples components from their concrete implementations' },
+    registration:  { name: 'Registration',         color: 'hsl(152, 65%, 48%)',  desc: 'Allowing components to dynamically register/unregister interest in events or services' },
+    broadcast:     { name: 'Broadcast',            color: 'hsl(25, 90%, 55%)',   desc: 'Pushing notifications or data to all registered recipients simultaneously' },
+    delegation:    { name: 'Delegation',           color: 'hsl(272, 68%, 64%)',  desc: 'Forwarding responsibility to another object that handles the actual work' },
+    swap:          { name: 'Runtime Swap',         color: 'hsl(48, 90%, 55%)',   desc: 'Ability to change behavior or algorithms at runtime without modifying the client' },
+    encapsulation: { name: 'Encapsulation',        color: 'hsl(0, 72%, 55%)',    desc: 'Wrapping a request or action as a self-contained object with all needed context' },
+    wrapping:      { name: 'Wrapping',             color: 'hsl(330, 70%, 60%)',  desc: 'Adding behavior by wrapping one object inside another with the same interface' },
+    queuing:       { name: 'Queuing',              color: 'hsl(30, 60%, 45%)',   desc: 'Storing commands/requests in a sequence for ordered execution, undo, or replay' }
+  };
+
+  var PATTERNS = [
+    { name: 'Observer',  genes: ['interface', 'registration', 'broadcast'] },
+    { name: 'Strategy',  genes: ['interface', 'delegation', 'swap'] },
+    { name: 'Command',   genes: ['interface', 'encapsulation', 'queuing'] },
+    { name: 'Decorator', genes: ['interface', 'wrapping', 'delegation'] }
+  ];
+
+  var SPLICE_COMBOS = [
+    { keys: ['broadcast','swap'],           title: 'Broadcast + Runtime Swap',        desc: 'A system where notification handlers can be swapped at runtime AND multiple handlers can listen simultaneously.',             reveal: 'This is actually the Chain of Responsibility pattern!', uml: 'chain' },
+    { keys: ['registration','delegation'],  title: 'Registration + Delegation',       desc: 'Components register themselves as handlers, and work is delegated to whichever handler is registered.',                       reveal: 'This is the Service Locator pattern!',                  uml: 'serviceLocator' },
+    { keys: ['encapsulation','swap'],       title: 'Encapsulation + Runtime Swap',    desc: 'Actions are encapsulated as objects that can be swapped, composed, and replaced at runtime.',                                  reveal: 'This is the core of Plugin Architectures!',             uml: 'plugin' },
+    { keys: ['wrapping','broadcast'],       title: 'Wrapping + Broadcast',            desc: 'Decorators wrap a subject, intercepting and augmenting notifications before they reach observers.',                            reveal: 'This is Middleware / Interceptor pattern!',             uml: 'middleware' },
+    { keys: ['encapsulation','broadcast'],  title: 'Encapsulation + Broadcast',       desc: 'Commands are packaged as objects and broadcast to all listeners for distributed execution.',                                   reveal: 'This is the Event Bus / Message Queue pattern!',        uml: 'eventBus' },
+    { keys: ['queuing','swap'],             title: 'Queuing + Runtime Swap',          desc: 'A queue of commands where the execution strategy can be changed on the fly -- priority queue, LIFO, etc.',                     reveal: 'This is a Scheduler / Task Queue!',                     uml: 'scheduler' },
+    { keys: ['wrapping','encapsulation'],   title: 'Wrapping + Encapsulation',        desc: 'Each wrapper adds a layer of behavior around an encapsulated command -- logging, auth, retry.',                                reveal: 'This is the classic Middleware Stack!',                 uml: 'middleware' },
+    { keys: ['registration','broadcast'],   title: 'Registration + Broadcast',        desc: 'Components register interest and receive broadcasts -- the core mechanic of publish-subscribe.',                               reveal: 'This IS the Observer pattern -- you re-discovered it!', uml: 'chain' },
+    { keys: ['delegation','swap'],          title: 'Delegation + Runtime Swap',       desc: 'Work is delegated to a handler that can be replaced at runtime -- the essence of polymorphic dispatch.',                       reveal: 'This IS the Strategy pattern -- you re-discovered it!', uml: 'plugin' },
+    { keys: ['wrapping','delegation'],      title: 'Wrapping + Delegation',           desc: 'An object wraps another with the same interface and delegates augmented calls -- layered behavior.',                            reveal: 'This IS the Decorator pattern -- you re-discovered it!',uml: 'middleware' },
+    { keys: ['queuing','broadcast'],        title: 'Queuing + Broadcast',             desc: 'Messages are queued and then broadcast to all subscribers -- ordered, reliable event delivery.',                                reveal: 'This is a Message Broker / Event Store!',              uml: 'eventBus' },
+    { keys: ['registration','encapsulation'],title:'Registration + Encapsulation',    desc: 'Handlers register themselves and each handles encapsulated request objects.',                                                   reveal: 'This is the Handler Registry pattern!',                uml: 'serviceLocator' },
+    { keys: ['registration','swap'],        title: 'Registration + Runtime Swap',     desc: 'Components register/unregister dynamically and the active handler can be swapped at runtime.',                                 reveal: 'This is the Plugin Registry pattern!',                 uml: 'plugin' },
+    { keys: ['registration','wrapping'],    title: 'Registration + Wrapping',         desc: 'Decorators register to wrap core objects, adding layered behavior to registered components.',                                  reveal: 'This is Aspect-Oriented Programming (AOP)!',           uml: 'middleware' },
+    { keys: ['registration','queuing'],     title: 'Registration + Queuing',          desc: 'Handlers register for specific message types and messages are queued for dispatch.',                                            reveal: 'This is a Message Queue with Topic Routing!',          uml: 'eventBus' },
+    { keys: ['delegation','encapsulation'], title: 'Delegation + Encapsulation',      desc: 'Work is delegated by passing fully encapsulated command objects to handlers.',                                                  reveal: 'This is the Command + Invoker pattern!',               uml: 'chain' },
+    { keys: ['delegation','queuing'],       title: 'Delegation + Queuing',            desc: 'Requests are queued and delegated to the appropriate handler in order.',                                                        reveal: 'This is a Work Queue / Job Dispatcher!',               uml: 'scheduler' },
+    { keys: ['delegation','broadcast'],     title: 'Delegation + Broadcast',          desc: 'A delegator broadcasts to multiple delegates, each handling part of the work.',                                                 reveal: 'This is the Multicast Delegate pattern!',              uml: 'eventBus' },
+    { keys: ['wrapping','swap'],            title: 'Wrapping + Runtime Swap',         desc: 'Decorators can be dynamically added/removed at runtime, changing behavior on the fly.',                                         reveal: 'This is Dynamic Proxy / Hot-swappable Middleware!',    uml: 'middleware' },
+    { keys: ['wrapping','queuing'],         title: 'Wrapping + Queuing',              desc: 'Each queued command is progressively wrapped with additional behavior before execution.',                                       reveal: 'This is a Pipeline / Filter Chain!',                   uml: 'scheduler' },
+    { keys: ['encapsulation','queuing'],    title: 'Encapsulation + Queuing',         desc: 'Requests are encapsulated as command objects and queued for sequential processing.',                                             reveal: 'This IS the Command pattern -- you re-discovered it!', uml: 'chain' }
+  ];
+
+  // Build lookup for splice results (both orderings)
+  var SPLICE_RESULTS = {};
+  SPLICE_COMBOS.forEach(function(combo) {
+    var k1 = combo.keys[0] + '+' + combo.keys[1];
+    var k2 = combo.keys[1] + '+' + combo.keys[0];
+    SPLICE_RESULTS[k1] = combo;
+    SPLICE_RESULTS[k2] = combo;
+  });
+
+  // ── DOM REFS ────────────────────────────────────────────────────
+  var stripsContainer = document.getElementById('genomeStrips');
+  var tooltip = document.getElementById('geneTooltip');
+  var canvasSvg = document.getElementById('canvasSvg');
+  var legendContainer = document.getElementById('canvasLegend');
+  var availableGenesContainer = document.getElementById('availableGenes');
+  var slot1El = document.getElementById('slot1');
+  var slot2El = document.getElementById('slot2');
+  var resultPanel = document.getElementById('resultPanel');
+
+  var activeGene = null;
+  var hoverTimeout = null;
+
+  // ── HELPERS ─────────────────────────────────────────────────────
+  function geneColor(geneKey) {
+    return GENES[geneKey] ? GENES[geneKey].color : '#888';
+  }
+
+  function dimColor(color, alpha) {
+    return color.replace('hsl(', 'hsla(').replace(')', ', ' + alpha + ')');
+  }
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function(k) { el.setAttribute(k, attrs[k]); });
+    }
+    return el;
+  }
+
+  function escapeHtml(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.textContent;
+  }
+
+  // ── GENOME BROWSER ──────────────────────────────────────────────
+  function buildGenomeStrips() {
+    while (stripsContainer.firstChild) stripsContainer.removeChild(stripsContainer.firstChild);
+
+    PATTERNS.forEach(function(pattern) {
+      var strip = document.createElement('div');
+      strip.className = 'genome-strip';
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'genome-strip__name';
+      nameEl.textContent = pattern.name;
+      strip.appendChild(nameEl);
+
+      var bar = document.createElement('div');
+      bar.className = 'genome-strip__bar';
+
+      pattern.genes.forEach(function(geneKey) {
+        var gene = GENES[geneKey];
+        var seg = document.createElement('div');
+        seg.className = 'gene-segment';
+        seg.dataset.gene = geneKey;
+        seg.dataset.pattern = pattern.name;
+        seg.style.backgroundColor = gene.color;
+        seg.style.color = gene.color;
+        seg.setAttribute('tabindex', '0');
+        seg.setAttribute('role', 'button');
+        seg.setAttribute('aria-label', gene.name + ' gene in ' + pattern.name + ' pattern');
+        seg.textContent = gene.name;
+        bar.appendChild(seg);
+      });
+
+      strip.appendChild(bar);
+      stripsContainer.appendChild(strip);
+    });
+  }
+  buildGenomeStrips();
+
+  // ── GENE HOVER / CLICK INTERACTIONS ─────────────────────────────
+  function highlightGene(geneKey, source) {
+    var allSegs = document.querySelectorAll('.gene-segment');
+    allSegs.forEach(function(s) {
+      s.classList.remove('glow', 'pulse', 'dim');
+      if (s.dataset.gene === geneKey) {
+        s.classList.add(s === source ? 'glow' : 'pulse');
+      } else {
+        s.classList.add('dim');
+      }
+    });
+    highlightCanvasGene(geneKey);
+  }
+
+  function clearHighlight() {
+    document.querySelectorAll('.gene-segment').forEach(function(s) {
+      s.classList.remove('glow', 'pulse', 'dim');
+    });
+    clearCanvasHighlight();
+  }
+
+  function showTooltip(e, geneKey) {
+    var gene = GENES[geneKey];
+    tooltip.querySelector('.gene-tooltip__dot').style.backgroundColor = gene.color;
+    tooltip.querySelector('.gene-tooltip__label').textContent = gene.name;
+    tooltip.querySelector('.gene-tooltip__desc').textContent = gene.desc;
+
+    var sharedPatterns = PATTERNS.filter(function(p) { return p.genes.indexOf(geneKey) !== -1; }).map(function(p) { return p.name; });
+    var sharedEl = tooltip.querySelector('.gene-tooltip__shared');
+    if (sharedPatterns.length > 1) {
+      sharedEl.textContent = 'Shared across: ' + sharedPatterns.join(', ');
+      sharedEl.style.display = 'block';
+    } else {
+      sharedEl.style.display = 'none';
+    }
+
+    var rect = e.target.getBoundingClientRect();
+    tooltip.style.left = Math.max(8, rect.left + rect.width / 2 - 130) + 'px';
+    tooltip.style.top = (rect.bottom + 8) + 'px';
+    tooltip.classList.add('visible');
+  }
+
+  function hideTooltip() {
+    tooltip.classList.remove('visible');
+  }
+
+  stripsContainer.addEventListener('mouseenter', function(e) {
+    var seg = e.target.closest('.gene-segment');
+    if (!seg) return;
+    clearTimeout(hoverTimeout);
+    highlightGene(seg.dataset.gene, seg);
+    showTooltip(e, seg.dataset.gene);
+  }, true);
+
+  stripsContainer.addEventListener('mouseleave', function(e) {
+    var seg = e.target.closest('.gene-segment');
+    if (!seg) return;
+    hoverTimeout = setTimeout(function() {
+      if (!activeGene) { clearHighlight(); hideTooltip(); }
+    }, 80);
+  }, true);
+
+  stripsContainer.addEventListener('click', function(e) {
+    var seg = e.target.closest('.gene-segment');
+    if (!seg) return;
+    var geneKey = seg.dataset.gene;
+    if (activeGene === geneKey) {
+      activeGene = null;
+      clearHighlight();
+      hideTooltip();
+    } else {
+      activeGene = geneKey;
+      highlightGene(geneKey, seg);
+      showTooltip(e, geneKey);
+    }
+  });
+
+  stripsContainer.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      var seg = e.target.closest('.gene-segment');
+      if (seg) { e.preventDefault(); seg.click(); }
+    }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      activeGene = null;
+      clearHighlight();
+      hideTooltip();
+      legendContainer.querySelectorAll('.canvas-legend__item').forEach(function(i) { i.classList.remove('active'); });
+    }
+  });
+
+  // ── CANVAS: Observer UML ────────────────────────────────────────
+  var UML_CLASSES = [
+    {
+      id: 'subject', gene: 'registration',
+      x: 120, y: 60, w: 200, h: 165,
+      title: 'Subject', stereotype: null,
+      attrs: ['- observers: Observer[]'],
+      methods: ['+ attach(o: Observer)', '+ detach(o: Observer)', '+ notify()']
+    },
+    {
+      id: 'observer-iface', gene: 'interface',
+      x: 500, y: 60, w: 200, h: 100,
+      title: 'Observer', stereotype: 'interface',
+      attrs: [],
+      methods: ['+ update(data)']
+    },
+    {
+      id: 'concrete-obs-a', gene: 'broadcast',
+      x: 400, y: 310, w: 180, h: 110,
+      title: 'ConcreteObserverA', stereotype: null,
+      attrs: ['- state'],
+      methods: ['+ update(data)']
+    },
+    {
+      id: 'concrete-obs-b', gene: 'broadcast',
+      x: 630, y: 310, w: 180, h: 110,
+      title: 'ConcreteObserverB', stereotype: null,
+      attrs: ['- state'],
+      methods: ['+ update(data)']
+    }
+  ];
+
+  var UML_ARROWS = [
+    { from: 'subject', to: 'observer-iface', gene: 'registration', type: 'aggregation', label: 'observes *' },
+    { from: 'observer-iface', to: 'concrete-obs-a', gene: 'broadcast', type: 'realization', label: '' },
+    { from: 'observer-iface', to: 'concrete-obs-b', gene: 'broadcast', type: 'realization', label: '' },
+    { from: 'subject', to: 'concrete-obs-a', gene: 'broadcast', type: 'notify', label: 'notify()' },
+    { from: 'subject', to: 'concrete-obs-b', gene: 'broadcast', type: 'notify', label: 'notify()' }
+  ];
+
+  function classById(id) {
+    for (var i = 0; i < UML_CLASSES.length; i++) { if (UML_CLASSES[i].id === id) return UML_CLASSES[i]; }
+    return null;
+  }
+
+  function drawUmlClass(cls) {
+    var g = svgEl('g');
+    g.classList.add('uml-class');
+    g.dataset.gene = cls.gene;
+    g.setAttribute('role', 'img');
+    g.setAttribute('aria-label', cls.title + ' class, ' + GENES[cls.gene].name + ' gene');
+
+    var color = geneColor(cls.gene);
+
+    // Shadow
+    g.appendChild(svgEl('rect', { x: cls.x + 3, y: cls.y + 3, width: cls.w, height: cls.h, rx: 6, fill: 'rgba(0,0,0,0.3)' }));
+
+    // Main rect
+    g.appendChild(svgEl('rect', { x: cls.x, y: cls.y, width: cls.w, height: cls.h, rx: 6, fill: dimColor(color, 0.12), stroke: color, 'stroke-width': 1.5 }));
+
+    // Title bar
+    var titleBarH = cls.stereotype === 'interface' ? 50 : 36;
+    g.appendChild(svgEl('rect', { x: cls.x, y: cls.y, width: cls.w, height: titleBarH, rx: 6, fill: dimColor(color, 0.25) }));
+    // Fill bottom corners of title bar
+    g.appendChild(svgEl('rect', { x: cls.x, y: cls.y + titleBarH - 6, width: cls.w, height: 6, fill: dimColor(color, 0.25) }));
+
+    // Title text
+    if (cls.stereotype === 'interface') {
+      var st = svgEl('text', { x: cls.x + cls.w / 2, y: cls.y + 18, 'text-anchor': 'middle', fill: color, 'font-size': 10, 'font-style': 'italic', 'font-family': 'system-ui, sans-serif' });
+      st.textContent = '\u00ABinterface\u00BB';
+      g.appendChild(st);
+      var t = svgEl('text', { x: cls.x + cls.w / 2, y: cls.y + 35, 'text-anchor': 'middle', fill: '#fff', 'font-size': 13, 'font-weight': 700, 'font-family': 'system-ui, sans-serif' });
+      t.textContent = cls.title;
+      g.appendChild(t);
+    } else {
+      var t2 = svgEl('text', { x: cls.x + cls.w / 2, y: cls.y + 24, 'text-anchor': 'middle', fill: '#fff', 'font-size': 13, 'font-weight': 700, 'font-family': 'system-ui, sans-serif' });
+      t2.textContent = cls.title;
+      g.appendChild(t2);
+    }
+
+    // Divider
+    g.appendChild(svgEl('line', { x1: cls.x, y1: cls.y + titleBarH, x2: cls.x + cls.w, y2: cls.y + titleBarH, stroke: color, 'stroke-opacity': 0.3 }));
+
+    // Attributes
+    var ty = cls.y + titleBarH + 16;
+    cls.attrs.forEach(function(a) {
+      var at = svgEl('text', { x: cls.x + 12, y: ty, fill: 'rgba(255,255,255,0.65)', 'font-size': 11, 'font-family': "'SF Mono', 'Cascadia Code', monospace" });
+      at.textContent = a;
+      g.appendChild(at);
+      ty += 16;
+    });
+
+    // Divider before methods
+    if (cls.methods.length > 0 && cls.attrs.length > 0) {
+      g.appendChild(svgEl('line', { x1: cls.x, y1: ty - 2, x2: cls.x + cls.w, y2: ty - 2, stroke: color, 'stroke-opacity': 0.2 }));
+      ty += 8;
+    } else if (cls.attrs.length === 0) {
+      ty += 4;
+    }
+
+    // Methods
+    cls.methods.forEach(function(m) {
+      var methodGene = cls.gene;
+      var methodColor = 'rgba(255,255,255,0.75)';
+      if (m.indexOf('attach') !== -1 || m.indexOf('detach') !== -1) { methodColor = GENES.registration.color; methodGene = 'registration'; }
+      else if (m.indexOf('notify') !== -1) { methodColor = GENES.broadcast.color; methodGene = 'broadcast'; }
+      else if (m.indexOf('update') !== -1) { methodColor = geneColor(cls.gene); }
+
+      var mt = svgEl('text', { x: cls.x + 12, y: ty, fill: methodColor, 'font-size': 11, 'font-weight': 600, 'font-family': "'SF Mono', 'Cascadia Code', monospace" });
+      mt.textContent = m;
+      mt.dataset.gene = methodGene;
+      g.appendChild(mt);
+      ty += 16;
+    });
+
+    // Gene indicator bar
+    g.appendChild(svgEl('rect', { x: cls.x - 5, y: cls.y, width: 5, height: cls.h, rx: 2.5, fill: color, opacity: 0.6 }));
+
+    return g;
+  }
+
+  function drawArrow(arrow) {
+    var from = classById(arrow.from);
+    var to = classById(arrow.to);
+    if (!from || !to) return null;
+
+    var g = svgEl('g');
+    g.classList.add('uml-arrow');
+    g.dataset.gene = arrow.gene;
+
+    var color = geneColor(arrow.gene);
+    var x1, y1, x2, y2;
+
+    if (arrow.type === 'aggregation') {
+      x1 = from.x + from.w; y1 = from.y + from.h / 2;
+      x2 = to.x; y2 = to.y + to.h / 2;
+      g.appendChild(svgEl('path', { d: 'M' + x1 + ',' + y1 + ' L' + x2 + ',' + y2, stroke: color, 'stroke-width': 1.5, fill: 'none', 'stroke-dasharray': '6 3' }));
+      var ds = 7;
+      g.appendChild(svgEl('polygon', { points: x1+','+y1+' '+(x1+ds)+','+(y1-ds/1.5)+' '+(x1+ds*2)+','+y1+' '+(x1+ds)+','+(y1+ds/1.5), fill: 'none', stroke: color, 'stroke-width': 1.5 }));
+      if (arrow.label) {
+        var midX = (x1 + x2) / 2;
+        var lt = svgEl('text', { x: midX, y: y1 - 10, 'text-anchor': 'middle', fill: color, 'font-size': 10, 'font-style': 'italic', 'font-family': 'system-ui, sans-serif' });
+        lt.textContent = arrow.label;
+        g.appendChild(lt);
+      }
+    } else if (arrow.type === 'realization') {
+      x2 = to.x + to.w / 2; y2 = to.y;
+      x1 = from.x + from.w / 2; y1 = from.y + from.h;
+      g.appendChild(svgEl('path', { d: 'M' + x2 + ',' + y2 + ' L' + x1 + ',' + y1, stroke: color, 'stroke-width': 1.5, 'stroke-dasharray': '5 3', fill: 'none' }));
+      var as = 8;
+      g.appendChild(svgEl('polygon', { points: x1+','+y1+' '+(x1-as)+','+(y1+as*1.2)+' '+(x1+as)+','+(y1+as*1.2), fill: 'none', stroke: color, 'stroke-width': 1.5 }));
+    } else if (arrow.type === 'notify') {
+      x1 = from.x + from.w / 2; y1 = from.y + from.h;
+      x2 = to.x + to.w / 2; y2 = to.y;
+      var midY = (y1 + y2) / 2;
+      var cx1 = x1 - 60;
+      g.appendChild(svgEl('path', { d: 'M'+x1+','+y1+' C'+cx1+','+(midY+40)+' '+x2+','+(midY-20)+' '+x2+','+y2, stroke: color, 'stroke-width': 1.2, 'stroke-dasharray': '4 3', fill: 'none', opacity: 0.7 }));
+      var as2 = 6;
+      g.appendChild(svgEl('polygon', { points: x2+','+y2+' '+(x2-as2)+','+(y2-as2*1.2)+' '+(x2+as2)+','+(y2-as2*1.2), fill: color, opacity: 0.7 }));
+      if (arrow.label) {
+        var lt2 = svgEl('text', { x: cx1 + 10, y: midY + 30, fill: color, 'font-size': 9, 'font-style': 'italic', 'font-family': "'SF Mono', monospace", opacity: 0.8 });
+        lt2.textContent = arrow.label;
+        g.appendChild(lt2);
+      }
+    }
+
+    return g;
+  }
+
+  function buildCanvas() {
+    while (canvasSvg.firstChild) canvasSvg.removeChild(canvasSvg.firstChild);
+
+    // Defs for grid pattern
+    var defs = svgEl('defs');
+    var pat = svgEl('pattern', { id: 'grid', width: 30, height: 30, patternUnits: 'userSpaceOnUse' });
+    pat.appendChild(svgEl('circle', { cx: 15, cy: 15, r: 0.7, fill: 'rgba(255,255,255,0.06)' }));
+    defs.appendChild(pat);
+    canvasSvg.appendChild(defs);
+
+    // Grid
+    canvasSvg.appendChild(svgEl('rect', { width: '100%', height: '100%', fill: 'url(#grid)' }));
+
+    // Arrows
+    UML_ARROWS.forEach(function(arrow) {
+      var el = drawArrow(arrow);
+      if (el) canvasSvg.appendChild(el);
+    });
+
+    // Classes
+    UML_CLASSES.forEach(function(cls) { canvasSvg.appendChild(drawUmlClass(cls)); });
+
+    // Annotations
+    var annotations = [
+      { gene: 'broadcast', x: 118, y: 250, text: 'Broadcast Gene' },
+      { gene: 'registration', x: 340, y: 40, text: 'Registration Gene' },
+      { gene: 'interface', x: 720, y: 90, text: 'Interface Extraction Gene' }
+    ];
+
+    annotations.forEach(function(a) {
+      var ag = svgEl('g');
+      ag.classList.add('uml-class');
+      ag.dataset.gene = a.gene;
+      var at = svgEl('text', { x: a.x, y: a.y, fill: geneColor(a.gene), 'font-size': 10, 'font-style': 'italic', opacity: 0.7, 'font-family': 'system-ui, sans-serif' });
+      at.textContent = a.text;
+      ag.appendChild(at);
+      canvasSvg.appendChild(ag);
+    });
+  }
+  buildCanvas();
+
+  // Canvas highlighting
+  function highlightCanvasGene(geneKey) {
+    canvasSvg.querySelectorAll('.uml-class').forEach(function(el) {
+      el.classList.toggle('dim', el.dataset.gene !== geneKey);
+      el.classList.toggle('glow', el.dataset.gene === geneKey);
+    });
+    canvasSvg.querySelectorAll('.uml-arrow').forEach(function(el) {
+      el.classList.toggle('dim', el.dataset.gene !== geneKey);
+      el.classList.toggle('glow', el.dataset.gene === geneKey);
+    });
+  }
+
+  function clearCanvasHighlight() {
+    canvasSvg.querySelectorAll('.uml-class, .uml-arrow').forEach(function(el) {
+      el.classList.remove('dim', 'glow');
+    });
+  }
+
+  // Legend
+  function buildLegend() {
+    while (legendContainer.firstChild) legendContainer.removeChild(legendContainer.firstChild);
+    var title = document.createElement('div');
+    title.className = 'canvas-legend__title';
+    title.textContent = 'Gene Map';
+    legendContainer.appendChild(title);
+
+    ['interface', 'registration', 'broadcast'].forEach(function(geneKey) {
+      var gene = GENES[geneKey];
+      var item = document.createElement('div');
+      item.className = 'canvas-legend__item';
+      item.dataset.gene = geneKey;
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('role', 'button');
+      item.setAttribute('aria-label', 'Highlight ' + gene.name + ' gene');
+
+      var swatch = document.createElement('span');
+      swatch.className = 'canvas-legend__swatch';
+      swatch.style.background = gene.color;
+      swatch.style.color = gene.color;
+      item.appendChild(swatch);
+      item.appendChild(document.createTextNode(gene.name));
+
+      item.addEventListener('click', function() {
+        if (activeGene === geneKey) {
+          activeGene = null;
+          clearHighlight();
+          legendContainer.querySelectorAll('.canvas-legend__item').forEach(function(i) { i.classList.remove('active'); });
+        } else {
+          activeGene = geneKey;
+          highlightGene(geneKey, null);
+          legendContainer.querySelectorAll('.canvas-legend__item').forEach(function(i) { i.classList.toggle('active', i.dataset.gene === geneKey); });
+        }
+      });
+      item.addEventListener('mouseenter', function() {
+        highlightGene(geneKey, null);
+        legendContainer.querySelectorAll('.canvas-legend__item').forEach(function(i) { i.classList.toggle('active', i.dataset.gene === geneKey); });
+      });
+      item.addEventListener('mouseleave', function() {
+        if (!activeGene) {
+          clearHighlight();
+          legendContainer.querySelectorAll('.canvas-legend__item').forEach(function(i) { i.classList.remove('active'); });
+        }
+      });
+      legendContainer.appendChild(item);
+    });
+  }
+  buildLegend();
+
+  // ── SPLICE BENCH ────────────────────────────────────────────────
+  var AVAILABLE_GENES = ['broadcast', 'swap', 'registration', 'delegation', 'encapsulation', 'wrapping', 'queuing'];
+  var slotData = { 1: null, 2: null };
+
+  function createChip(geneKey, removable) {
+    var gene = GENES[geneKey];
+    var chip = document.createElement('div');
+    chip.className = 'gene-chip';
+    chip.style.backgroundColor = dimColor(gene.color, 0.18);
+    chip.style.color = gene.color;
+    chip.style.borderColor = dimColor(gene.color, 0.35);
+    chip.dataset.gene = geneKey;
+    chip.draggable = !removable;
+    chip.setAttribute('tabindex', '0');
+    chip.setAttribute('role', removable ? 'status' : 'button');
+    chip.setAttribute('aria-label', gene.name + ' gene' + (removable ? ' (click to remove)' : ' (drag to splice zone)'));
+
+    var dot = document.createElement('span');
+    dot.className = 'gene-chip__dot';
+    dot.style.background = gene.color;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(gene.name));
+
+    if (!removable) {
+      chip.addEventListener('dragstart', function(e) {
+        chip.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', geneKey);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+      chip.addEventListener('dragend', function() {
+        chip.classList.remove('dragging');
+      });
+    } else {
+      chip.style.cursor = 'pointer';
+      chip.title = 'Click to remove';
+    }
+
+    return chip;
+  }
+
+  function buildAvailableGenes() {
+    while (availableGenesContainer.firstChild) availableGenesContainer.removeChild(availableGenesContainer.firstChild);
+    AVAILABLE_GENES.forEach(function(geneKey) {
+      availableGenesContainer.appendChild(createChip(geneKey, false));
+    });
+  }
+  buildAvailableGenes();
+
+  // Drop zones
+  [slot1El, slot2El].forEach(function(slot) {
+    slot.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      slot.classList.add('drag-over');
+    });
+    slot.addEventListener('dragleave', function() { slot.classList.remove('drag-over'); });
+    slot.addEventListener('drop', function(e) {
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      var geneKey = e.dataTransfer.getData('text/plain');
+      if (!geneKey || !GENES[geneKey]) return;
+      var slotNum = parseInt(slot.dataset.slot, 10);
+      slotData[slotNum] = geneKey;
+      renderSlot(slot, geneKey);
+      evaluateSplice();
+    });
+  });
+
+  function renderSlot(slotEl, geneKey) {
+    while (slotEl.firstChild) slotEl.removeChild(slotEl.firstChild);
+    if (geneKey) {
+      slotEl.classList.add('filled');
+      var chip = createChip(geneKey, true);
+      chip.addEventListener('click', function() {
+        var slotNum = parseInt(slotEl.dataset.slot, 10);
+        slotData[slotNum] = null;
+        while (slotEl.firstChild) slotEl.removeChild(slotEl.firstChild);
+        slotEl.textContent = 'Drop gene here';
+        slotEl.classList.remove('filled');
+        evaluateSplice();
+      });
+      slotEl.appendChild(chip);
+    } else {
+      slotEl.classList.remove('filled');
+      slotEl.textContent = 'Drop gene here';
+    }
+  }
+
+  function buildMiniUmlSvg(type, c1, c2) {
+    var vb = '0 0 300 80';
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', vb);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+    // Each type builds its SVG structure with DOM methods
+    if (type === 'chain') {
+      var items = [
+        { x: 10, label: 'Handler', color: c1, opacity: 1 },
+        { x: 105, label: 'Handler', color: c2, opacity: 1 },
+        { x: 200, label: 'next...', color: null, opacity: 0.3 }
+      ];
+      items.forEach(function(item, i) {
+        var r = svgEl('rect', { x: item.x, y: 20, width: 60, height: 40, rx: 4, fill: item.color ? dimColor(item.color, 0.15) : 'rgba(255,255,255,0.06)', stroke: item.color || 'rgba(255,255,255,0.15)', 'stroke-width': 1 });
+        if (!item.color) r.setAttribute('stroke-dasharray', '3 2');
+        svg.appendChild(r);
+        var t = svgEl('text', { x: item.x + 30, y: 44, 'text-anchor': 'middle', fill: item.color || 'rgba(255,255,255,0.3)', 'font-size': 9, 'font-family': 'system-ui' });
+        t.textContent = item.label;
+        svg.appendChild(t);
+        if (i < 2) {
+          svg.appendChild(svgEl('line', { x1: item.x + 60, y1: 40, x2: item.x + 95, y2: 40, stroke: 'rgba(255,255,255,0.3)', 'stroke-width': 1, 'stroke-dasharray': '3 2' }));
+          svg.appendChild(svgEl('polygon', { points: (item.x+92)+',36 '+(item.x+99)+',40 '+(item.x+92)+',44', fill: 'rgba(255,255,255,0.3)' }));
+        }
+      });
+    } else if (type === 'serviceLocator') {
+      svg.appendChild(svgEl('rect', { x: 100, y: 5, width: 80, height: 30, rx: 4, fill: dimColor(c1, 0.15), stroke: c1, 'stroke-width': 1 }));
+      var rt = svgEl('text', { x: 140, y: 24, 'text-anchor': 'middle', fill: c1, 'font-size': 9, 'font-family': 'system-ui' }); rt.textContent = 'Registry'; svg.appendChild(rt);
+      var svcs = [{ x: 10, l: 'Svc A' }, { x: 110, l: 'Svc B' }, { x: 210, l: 'Svc C' }];
+      svcs.forEach(function(s) {
+        svg.appendChild(svgEl('rect', { x: s.x, y: 50, width: 60, height: 25, rx: 3, fill: dimColor(c2, 0.12), stroke: c2, 'stroke-width': 0.8 }));
+        var st = svgEl('text', { x: s.x + 30, y: 66, 'text-anchor': 'middle', fill: c2, 'font-size': 8, 'font-family': 'system-ui' }); st.textContent = s.l; svg.appendChild(st);
+      });
+      svg.appendChild(svgEl('line', { x1: 120, y1: 35, x2: 40, y2: 50, stroke: 'rgba(255,255,255,0.2)', 'stroke-width': 0.8 }));
+      svg.appendChild(svgEl('line', { x1: 140, y1: 35, x2: 140, y2: 50, stroke: 'rgba(255,255,255,0.2)', 'stroke-width': 0.8 }));
+      svg.appendChild(svgEl('line', { x1: 160, y1: 35, x2: 240, y2: 50, stroke: 'rgba(255,255,255,0.2)', 'stroke-width': 0.8 }));
+    } else if (type === 'plugin') {
+      svg.appendChild(svgEl('rect', { x: 100, y: 15, width: 80, height: 30, rx: 4, fill: 'rgba(255,255,255,0.06)', stroke: 'rgba(255,255,255,0.15)', 'stroke-width': 1 }));
+      var ct = svgEl('text', { x: 140, y: 34, 'text-anchor': 'middle', fill: 'rgba(255,255,255,0.5)', 'font-size': 9, 'font-family': 'system-ui' }); ct.textContent = 'Context'; svg.appendChild(ct);
+      svg.appendChild(svgEl('rect', { x: 10, y: 52, width: 70, height: 22, rx: 3, fill: dimColor(c1, 0.15), stroke: c1, 'stroke-width': 0.8 }));
+      var sa = svgEl('text', { x: 45, y: 66, 'text-anchor': 'middle', fill: c1, 'font-size': 8, 'font-family': 'system-ui' }); sa.textContent = 'Strategy A'; svg.appendChild(sa);
+      svg.appendChild(svgEl('rect', { x: 200, y: 52, width: 70, height: 22, rx: 3, fill: dimColor(c2, 0.15), stroke: c2, 'stroke-width': 0.8 }));
+      var sb = svgEl('text', { x: 235, y: 66, 'text-anchor': 'middle', fill: c2, 'font-size': 8, 'font-family': 'system-ui' }); sb.textContent = 'Strategy B'; svg.appendChild(sb);
+      svg.appendChild(svgEl('line', { x1: 120, y1: 45, x2: 55, y2: 52, stroke: c1, 'stroke-width': 0.8, 'stroke-dasharray': '3 2' }));
+      svg.appendChild(svgEl('line', { x1: 160, y1: 45, x2: 225, y2: 52, stroke: c2, 'stroke-width': 0.8, 'stroke-dasharray': '3 2' }));
+      svg.appendChild(svgEl('path', { d: 'M85 63 Q140 72 195 63', stroke: c2, 'stroke-width': 0.8, fill: 'none', 'stroke-dasharray': '2 2', opacity: 0.5 }));
+      var swp = svgEl('text', { x: 140, y: 78, 'text-anchor': 'middle', fill: c2, 'font-size': 7, 'font-family': 'system-ui', opacity: 0.6 }); swp.textContent = 'swap'; svg.appendChild(swp);
+    } else if (type === 'middleware') {
+      svg.appendChild(svgEl('rect', { x: 20, y: 22, width: 240, height: 36, rx: 18, fill: 'none', stroke: 'rgba(255,255,255,0.08)', 'stroke-width': 1 }));
+      var layers = [{ x: 35, l: 'Layer 1', c: c1 }, { x: 114, l: 'Layer 2', c: c2 }, { x: 193, l: 'Core', c: null }];
+      layers.forEach(function(ly, i) {
+        svg.appendChild(svgEl('rect', { x: ly.x, y: 28, width: 52, height: 24, rx: 12, fill: ly.c ? dimColor(ly.c, 0.15) : 'rgba(255,255,255,0.06)', stroke: ly.c || 'rgba(255,255,255,0.15)', 'stroke-width': 0.8 }));
+        var lt = svgEl('text', { x: ly.x + 26, y: 44, 'text-anchor': 'middle', fill: ly.c || 'rgba(255,255,255,0.35)', 'font-size': 8, 'font-family': 'system-ui' }); lt.textContent = ly.l; svg.appendChild(lt);
+        if (i < 2) {
+          svg.appendChild(svgEl('line', { x1: ly.x + 52, y1: 40, x2: ly.x + 79, y2: 40, stroke: 'rgba(255,255,255,0.2)', 'stroke-width': 0.8 }));
+          svg.appendChild(svgEl('polygon', { points: (ly.x+76)+',37 '+(ly.x+82)+',40 '+(ly.x+76)+',43', fill: 'rgba(255,255,255,0.2)' }));
+        }
+      });
+    } else if (type === 'eventBus') {
+      svg.appendChild(svgEl('rect', { x: 80, y: 28, width: 120, height: 24, rx: 4, fill: dimColor(c1, 0.1), stroke: c1, 'stroke-width': 1 }));
+      var ebt = svgEl('text', { x: 140, y: 44, 'text-anchor': 'middle', fill: c1, 'font-size': 9, 'font-family': 'system-ui' }); ebt.textContent = 'Event Bus'; svg.appendChild(ebt);
+      svg.appendChild(svgEl('rect', { x: 10, y: 5, width: 40, height: 18, rx: 3, fill: dimColor(c2, 0.12), stroke: c2, 'stroke-width': 0.7 }));
+      var pub = svgEl('text', { x: 30, y: 17, 'text-anchor': 'middle', fill: c2, 'font-size': 7, 'font-family': 'system-ui' }); pub.textContent = 'Pub'; svg.appendChild(pub);
+      svg.appendChild(svgEl('line', { x1: 50, y1: 14, x2: 80, y2: 35, stroke: c2, 'stroke-width': 0.7, 'stroke-dasharray': '2 2' }));
+      var subs = [{ x: 10, l: 'Sub A' }, { x: 120, l: 'Sub B' }, { x: 230, l: 'Sub C' }];
+      subs.forEach(function(s) {
+        svg.appendChild(svgEl('rect', { x: s.x, y: 58, width: 40, height: 18, rx: 3, fill: dimColor(c2, 0.12), stroke: c2, 'stroke-width': 0.7 }));
+        var st = svgEl('text', { x: s.x + 20, y: 70, 'text-anchor': 'middle', fill: c2, 'font-size': 7, 'font-family': 'system-ui' }); st.textContent = s.l; svg.appendChild(st);
+      });
+      svg.appendChild(svgEl('line', { x1: 100, y1: 52, x2: 30, y2: 58, stroke: 'rgba(255,255,255,0.2)', 'stroke-width': 0.7 }));
+      svg.appendChild(svgEl('line', { x1: 140, y1: 52, x2: 140, y2: 58, stroke: 'rgba(255,255,255,0.2)', 'stroke-width': 0.7 }));
+      svg.appendChild(svgEl('line', { x1: 180, y1: 52, x2: 250, y2: 58, stroke: 'rgba(255,255,255,0.2)', 'stroke-width': 0.7 }));
+    } else if (type === 'scheduler') {
+      var cmds = [{ x: 20, o: 1 }, { x: 60, o: 0.7 }, { x: 100, o: 0.4 }];
+      cmds.forEach(function(cmd) {
+        svg.appendChild(svgEl('rect', { x: cmd.x, y: 25, width: 35, height: 30, rx: 3, fill: dimColor(c1, 0.15 * cmd.o), stroke: c1, 'stroke-width': 0.8 * cmd.o }));
+        var ct = svgEl('text', { x: cmd.x + 17, y: 44, 'text-anchor': 'middle', fill: c1, 'font-size': 8, 'font-family': 'system-ui', opacity: cmd.o }); ct.textContent = 'Cmd'; svg.appendChild(ct);
+      });
+      svg.appendChild(svgEl('line', { x1: 140, y1: 40, x2: 170, y2: 40, stroke: 'rgba(255,255,255,0.2)', 'stroke-width': 0.8 }));
+      svg.appendChild(svgEl('polygon', { points: '167,37 173,40 167,43', fill: 'rgba(255,255,255,0.2)' }));
+      svg.appendChild(svgEl('rect', { x: 175, y: 20, width: 90, height: 40, rx: 4, fill: dimColor(c2, 0.12), stroke: c2, 'stroke-width': 1 }));
+      var sct = svgEl('text', { x: 220, y: 38, 'text-anchor': 'middle', fill: c2, 'font-size': 8, 'font-family': 'system-ui' }); sct.textContent = 'Scheduler'; svg.appendChild(sct);
+      var scs = svgEl('text', { x: 220, y: 50, 'text-anchor': 'middle', fill: c2, 'font-size': 7, 'font-family': 'system-ui', opacity: 0.6 }); scs.textContent = '(swappable)'; svg.appendChild(scs);
+    } else {
+      var ft = svgEl('text', { x: 150, y: 44, 'text-anchor': 'middle', fill: 'rgba(255,255,255,0.3)', 'font-size': 10, 'font-family': 'system-ui' }); ft.textContent = 'Splice result preview'; svg.appendChild(ft);
+    }
+
+    return svg;
+  }
+
+  function evaluateSplice() {
+    while (resultPanel.firstChild) resultPanel.removeChild(resultPanel.firstChild);
+
+    if (!slotData[1] || !slotData[2]) {
+      var empty = document.createElement('div');
+      empty.className = 'result-empty';
+      empty.textContent = 'Drag two genes to the slots to splice them';
+      resultPanel.appendChild(empty);
+      return;
+    }
+
+    if (slotData[1] === slotData[2]) {
+      var card = document.createElement('div');
+      card.className = 'result-card';
+      var title = document.createElement('div');
+      title.className = 'result-card__title';
+      title.textContent = 'Homozygous splice';
+      var desc = document.createElement('div');
+      desc.className = 'result-card__desc';
+      desc.textContent = 'Both slots have the same gene. Try combining different genes for interesting results!';
+      card.appendChild(title);
+      card.appendChild(desc);
+      resultPanel.appendChild(card);
+      return;
+    }
+
+    var key = slotData[1] + '+' + slotData[2];
+    var result = SPLICE_RESULTS[key];
+
+    if (result) {
+      var card2 = document.createElement('div');
+      card2.className = 'result-card';
+
+      var titleRow = document.createElement('div');
+      titleRow.className = 'result-card__title';
+      var dot1 = document.createElement('span');
+      dot1.className = 'gene-chip__dot';
+      dot1.style.background = GENES[slotData[1]].color;
+      var dot2 = document.createElement('span');
+      dot2.className = 'gene-chip__dot';
+      dot2.style.background = GENES[slotData[2]].color;
+      titleRow.appendChild(dot1);
+      titleRow.appendChild(dot2);
+      titleRow.appendChild(document.createTextNode(' ' + result.title));
+      card2.appendChild(titleRow);
+
+      var descEl = document.createElement('div');
+      descEl.className = 'result-card__desc';
+      descEl.textContent = result.desc;
+      card2.appendChild(descEl);
+
+      var revealEl = document.createElement('div');
+      revealEl.className = 'result-card__reveal';
+      revealEl.textContent = result.reveal;
+      card2.appendChild(revealEl);
+
+      var miniUmlWrap = document.createElement('div');
+      miniUmlWrap.className = 'result-card__mini-uml';
+      miniUmlWrap.appendChild(buildMiniUmlSvg(result.uml, GENES[slotData[1]].color, GENES[slotData[2]].color));
+      card2.appendChild(miniUmlWrap);
+
+      resultPanel.appendChild(card2);
+    } else {
+      var card3 = document.createElement('div');
+      card3.className = 'result-card';
+      var t3 = document.createElement('div');
+      t3.className = 'result-card__title';
+      t3.textContent = 'Unknown splice';
+      var d3 = document.createElement('div');
+      d3.className = 'result-card__desc';
+      d3.textContent = "This combination doesn't map to a known pattern -- but that doesn't mean it's not useful!";
+      card3.appendChild(t3);
+      card3.appendChild(d3);
+      resultPanel.appendChild(card3);
+    }
+  }
+
+  // Pre-fill example with delay
+  setTimeout(function() {
+    slotData[1] = 'broadcast';
+    slotData[2] = 'swap';
+    renderSlot(slot1El, 'broadcast');
+    renderSlot(slot2El, 'swap');
+    evaluateSplice();
+  }, 600);
+
+})();
+</script>
+</body>
+</html>

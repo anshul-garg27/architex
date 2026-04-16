@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Inquisitor — Adversarial Socratic Discovery</title>
+<style>
+  /* ── Reset ───────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Design Tokens ──────────────────────────────────────── */
+  :root {
+    --bg:              hsl(225, 8%, 7%);
+    --surface:         hsl(225, 8%, 11%);
+    --elevated:        hsl(225, 7%, 13%);
+    --surface-elevated:hsl(225, 6%, 16%);
+    --text:            hsl(220, 5%, 90%);
+    --text-muted:      hsl(220, 5%, 55%);
+    --text-subtle:     hsl(220, 5%, 62%);
+    --primary:         hsl(258, 78%, 64%);
+    --primary-dim:     hsl(258, 60%, 48%);
+    --primary-glow:    hsla(258, 78%, 64%, 0.15);
+    --primary-glow-strong: hsla(258, 78%, 64%, 0.30);
+    --border:          rgba(255,255,255,0.10);
+    --border-subtle:   rgba(255,255,255,0.06);
+    --success:         hsl(152, 65%, 48%);
+    --success-glow:    hsla(152, 65%, 48%, 0.15);
+    --danger:          hsl(0, 72%, 58%);
+    --danger-glow:     hsla(0, 72%, 58%, 0.15);
+    --amber:           hsl(35, 90%, 55%);
+    --amber-glow:      hsla(35, 90%, 55%, 0.12);
+    --canvas-bg:       hsl(225, 10%, 9%);
+    --class-fill:      hsl(225, 10%, 14%);
+    --class-stroke:    hsla(258, 78%, 64%, 0.25);
+    --ghost-stroke:    hsla(258, 78%, 64%, 0.30);
+    --ghost-fill:      hsla(258, 78%, 64%, 0.04);
+    --inquisitor:      hsl(270, 80%, 65%);
+    --inquisitor-bg:   hsla(270, 80%, 65%, 0.08);
+    --inquisitor-border: hsla(270, 80%, 65%, 0.20);
+    --user-green:      hsl(152, 60%, 52%);
+    --user-green-bg:   hsla(152, 60%, 52%, 0.08);
+    --user-green-border: hsla(152, 60%, 52%, 0.20);
+    --font:            'Inter', system-ui, -apple-system, sans-serif;
+    --mono:            'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --radius:          8px;
+    --radius-lg:       12px;
+    --radius-xl:       16px;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+  }
+
+  /* ── Header Bar ─────────────────────────────────────────── */
+  .header {
+    height: 48px;
+    background: linear-gradient(135deg, hsla(270,80%,65%,0.06), hsla(270,80%,65%,0.01));
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 14px;
+  }
+  .header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: linear-gradient(135deg, hsla(270,80%,65%,0.22), hsla(270,80%,65%,0.08));
+    border: 1px solid hsla(270,80%,65%,0.35);
+    color: hsl(270,80%,78%);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .header h1 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .header h1 span { color: var(--inquisitor); }
+  .header-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+  .header-sub strong { color: var(--text-subtle); font-weight: 600; }
+
+  /* ── Main Layout ────────────────────────────────────────── */
+  .main-layout {
+    display: flex;
+    height: calc(100vh - 48px - 48px);
+  }
+
+  /* ── Canvas (Left 65%) ──────────────────────────────────── */
+  .canvas-area {
+    flex: 0 0 65%;
+    background: var(--canvas-bg);
+    position: relative;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+  }
+
+  /* Canvas dot grid */
+  .canvas-area::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, hsla(220,5%,55%,0.12) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  .canvas-svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+  }
+
+  /* ── Scenario Card (pinned top of canvas) ───────────────── */
+  .scenario-card {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 18px;
+    z-index: 5;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .scenario-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .scenario-text {
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text-subtle);
+  }
+  .scenario-text strong { color: var(--text); font-weight: 600; }
+
+  /* ── SVG Class Nodes ────────────────────────────────────── */
+  .node-rect {
+    fill: var(--class-fill);
+    stroke: var(--class-stroke);
+    stroke-width: 1.5;
+    rx: 8;
+  }
+  .node-rect-header {
+    fill: hsla(258, 78%, 64%, 0.06);
+  }
+  .node-title {
+    fill: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .node-method {
+    fill: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 10.5px;
+  }
+  .node-divider {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  /* Ghost node */
+  .ghost-rect {
+    fill: var(--ghost-fill);
+    stroke: var(--ghost-stroke);
+    stroke-width: 1.5;
+    stroke-dasharray: 6 4;
+    rx: 8;
+    animation: ghostPulse 2.5s ease-in-out infinite;
+  }
+  .ghost-label {
+    fill: hsla(258, 78%, 64%, 0.55);
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .ghost-hint {
+    fill: hsla(258, 78%, 64%, 0.40);
+    font-family: var(--font);
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  @keyframes ghostPulse {
+    0%, 100% { opacity: 0.3; stroke: hsla(258, 78%, 64%, 0.25); }
+    50% { opacity: 0.6; stroke: hsla(258, 78%, 64%, 0.45); }
+  }
+
+  /* Coupling lines */
+  .coupling-line {
+    stroke: hsla(0, 72%, 58%, 0.35);
+    stroke-width: 2;
+    stroke-dasharray: 6 3;
+    fill: none;
+  }
+  .coupling-line.glow {
+    filter: url(#redGlow);
+    animation: couplingPulse 2s ease-in-out infinite;
+  }
+  @keyframes couplingPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* Callout bubble on canvas */
+  .callout-group { cursor: default; }
+  .callout-bg {
+    fill: hsl(0, 35%, 12%);
+    stroke: hsla(0, 72%, 58%, 0.40);
+    stroke-width: 1.5;
+    rx: 10;
+    filter: url(#calloutShadow);
+  }
+  .callout-text {
+    fill: hsl(0, 72%, 72%);
+    font-family: var(--font);
+    font-size: 10.5px;
+    font-weight: 500;
+  }
+  .callout-icon {
+    fill: hsl(0, 72%, 62%);
+    font-size: 14px;
+  }
+  .callout-arrow-line {
+    stroke: hsla(0, 72%, 58%, 0.50);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+    fill: none;
+  }
+
+  /* Solid final nodes (post-reveal) */
+  .final-rect {
+    fill: var(--class-fill);
+    stroke: var(--success);
+    stroke-width: 1.5;
+    rx: 8;
+  }
+  .final-rect-header {
+    fill: hsla(152, 65%, 48%, 0.06);
+  }
+  .final-title {
+    fill: var(--success);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* ── Chat Panel (Right 35%) ─────────────────────────────── */
+  .chat-panel {
+    flex: 0 0 35%;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  /* Chat Header */
+  .chat-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .inquisitor-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, hsl(270,80%,55%), hsl(290,70%,45%));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 0 12px hsla(270,80%,65%,0.30);
+  }
+  .chat-header-info h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chat-header-info h2 .online {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+  }
+  .chat-header-info p {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+
+  /* Phase Indicator */
+  .phase-indicator {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .phase-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--elevated);
+    border: 1.5px solid var(--border);
+    transition: all 0.3s;
+    position: relative;
+  }
+  .phase-dot.completed {
+    background: var(--primary-dim);
+    border-color: var(--primary);
+    box-shadow: 0 0 6px hsla(258,78%,64%,0.30);
+  }
+  .phase-dot.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 0 10px hsla(258,78%,64%,0.50);
+    animation: phasePulse 2s ease-in-out infinite;
+  }
+  .phase-dot::after {
+    content: attr(data-label);
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .phase-dot.active::after { color: var(--primary); }
+  .phase-dot.completed::after { color: var(--primary-dim); }
+  .phase-connector {
+    width: 16px;
+    height: 1.5px;
+    background: var(--border);
+  }
+  .phase-connector.filled {
+    background: var(--primary-dim);
+  }
+
+  @keyframes phasePulse {
+    0%, 100% { box-shadow: 0 0 8px hsla(258,78%,64%,0.30); }
+    50% { box-shadow: 0 0 16px hsla(258,78%,64%,0.60); }
+  }
+
+  /* Chat Messages */
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    scroll-behavior: smooth;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: hsla(220,5%,50%,0.3); border-radius: 2px; }
+
+  /* Message */
+  .msg {
+    display: flex;
+    gap: 10px;
+    max-width: 100%;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: msgIn 0.5s ease forwards;
+  }
+  .msg.from-user { flex-direction: row-reverse; }
+
+  .msg-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    margin-top: 2px;
+  }
+  .msg-avatar.inquisitor {
+    background: linear-gradient(135deg, hsl(270,80%,55%), hsl(290,70%,45%));
+    box-shadow: 0 0 8px hsla(270,80%,65%,0.25);
+  }
+  .msg-avatar.user {
+    background: linear-gradient(135deg, hsl(152,60%,42%), hsl(170,55%,38%));
+    box-shadow: 0 0 8px hsla(152,60%,52%,0.25);
+  }
+
+  .msg-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .msg-sender {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 4px;
+  }
+  .msg-sender.inquisitor-name { color: var(--inquisitor); }
+  .msg-sender.user-name { color: var(--user-green); text-align: right; }
+
+  .msg-bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 12.5px;
+    line-height: 1.65;
+    position: relative;
+  }
+  .msg-bubble.inquisitor-bubble {
+    background: var(--inquisitor-bg);
+    border: 1px solid var(--inquisitor-border);
+    border-bottom-left-radius: 4px;
+    color: var(--text);
+  }
+  .msg-bubble.user-bubble {
+    background: var(--user-green-bg);
+    border: 1px solid var(--user-green-border);
+    border-bottom-right-radius: 4px;
+    color: var(--text);
+  }
+  .msg-bubble em {
+    font-style: italic;
+    color: var(--text-muted);
+  }
+  .msg-bubble strong { color: var(--text); font-weight: 600; }
+  .msg-bubble code {
+    background: hsla(225,10%,20%,0.8);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: hsl(258, 78%, 78%);
+  }
+
+  /* Canvas action message */
+  .msg-canvas-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: hsla(225, 10%, 14%, 0.6);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 4px 0;
+  }
+  .msg-canvas-action .canvas-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    background: var(--primary-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .msg-canvas-action .canvas-icon svg {
+    width: 12px;
+    height: 12px;
+    color: var(--primary);
+  }
+
+  /* Phase Separator */
+  .phase-sep {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .phase-sep-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .phase-sep-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--primary);
+    padding: 3px 10px;
+    background: var(--primary-glow);
+    border-radius: 20px;
+    border: 1px solid hsla(258,78%,64%,0.18);
+    white-space: nowrap;
+  }
+
+  /* Typing indicator */
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px;
+    align-items: center;
+  }
+  .typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--inquisitor);
+    opacity: 0.4;
+    animation: typingBounce 1.4s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+    30% { transform: translateY(-4px); opacity: 0.8; }
+  }
+
+  /* Discovery Banner */
+  .discovery-banner {
+    margin: 8px 0;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, hsla(152,65%,48%,0.08), hsla(258,78%,64%,0.06));
+    border: 1px solid hsla(152,65%,48%,0.25);
+    border-radius: 12px;
+    text-align: center;
+  }
+  .discovery-banner .discovery-emoji { font-size: 24px; margin-bottom: 6px; }
+  .discovery-banner .discovery-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--success);
+    margin-bottom: 2px;
+  }
+  .discovery-banner .discovery-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ── Bottom Bar (Hint Slider) ───────────────────────────── */
+  .bottom-bar {
+    height: 48px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+  }
+  .hint-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hint-label svg { width: 14px; height: 14px; color: var(--primary); }
+
+  .hint-slider-container {
+    flex: 1;
+    max-width: 440px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .hint-track {
+    flex: 1;
+    height: 6px;
+    background: var(--elevated);
+    border-radius: 3px;
+    position: relative;
+    overflow: visible;
+    cursor: pointer;
+  }
+  .hint-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 30%;
+    background: linear-gradient(90deg, var(--primary-dim), var(--primary));
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+  .hint-thumb {
+    position: absolute;
+    top: 50%;
+    left: 30%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    background: var(--primary);
+    border: 2px solid hsl(258,80%,78%);
+    border-radius: 50%;
+    box-shadow: 0 0 10px hsla(258,78%,64%,0.40);
+    transition: left 0.3s;
+    cursor: grab;
+  }
+  .hint-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+    min-width: 28px;
+    text-align: center;
+    font-family: var(--mono);
+  }
+  .hint-bar-ascii {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+  }
+  .hint-bar-filled { color: var(--primary); }
+
+  .bottom-bar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .pattern-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .btn-play {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dim));
+    border: 1px solid hsla(258,78%,64%,0.40);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-play:hover {
+    box-shadow: 0 0 20px hsla(258,78%,64%,0.30);
+    transform: translateY(-1px);
+  }
+  .btn-play svg { width: 12px; height: 12px; }
+
+  /* ── Message animation ──────────────────────────────────── */
+  @keyframes msgIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Confetti ───────────────────────────────────────────── */
+  .confetti-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1000;
+    overflow: hidden;
+  }
+  .confetti-piece {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    animation: confettiFall 3s ease-in forwards;
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(-20px) rotate(0deg) scale(1); opacity: 1; }
+    70% { opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg) scale(0.5); opacity: 0; }
+  }
+
+  /* ── Canvas overlay for "aha" moment glow ───────────────── */
+  .aha-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, hsla(152,65%,48%,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+  .aha-glow.active { opacity: 1; }
+
+  /* Connection arrows */
+  .dependency-arrow {
+    stroke: var(--class-stroke);
+    stroke-width: 1.5;
+    fill: none;
+    marker-end: url(#arrowHead);
+  }
+  .dependency-arrow-final {
+    stroke: var(--success);
+    stroke-width: 1.5;
+    fill: none;
+    marker-end: url(#arrowHeadGreen);
+  }
+
+  /* ── Responsive ─────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .main-layout { flex-direction: column; }
+    .canvas-area { flex: 0 0 50%; }
+    .chat-panel { flex: 0 0 50%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================================================================ -->
+<!-- HEADER                                                          -->
+<!-- ================================================================ -->
+<div class="header">
+  <div class="header-badge">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Novel 4
+  </div>
+  <h1>The <span>Inquisitor</span> -- Adversarial Socratic Discovery</h1>
+  <span class="header-sub">Learning Mode &middot; <strong>Observer Pattern</strong></span>
+</div>
+
+<!-- ================================================================ -->
+<!-- MAIN LAYOUT                                                     -->
+<!-- ================================================================ -->
+<div class="main-layout">
+
+  <!-- === Canvas Area ============================================= -->
+  <div class="canvas-area" id="canvasArea">
+    <div class="aha-glow" id="ahaGlow"></div>
+
+    <!-- Scenario Card -->
+    <div class="scenario-card">
+      <div class="scenario-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Scenario
+      </div>
+      <div class="scenario-text">
+        <strong>You're building Slack's notification system.</strong> When someone posts in a channel, all members must be notified. There are 3 types: push, email, in-app.
+      </div>
+    </div>
+
+    <!-- Main SVG Canvas -->
+    <svg class="canvas-svg" id="canvasSvg" viewBox="0 0 900 580">
+      <defs>
+        <!-- Red glow filter for coupling lines -->
+        <filter id="redGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <!-- Shadow for callout -->
+        <filter id="calloutShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.5)"/>
+        </filter>
+        <!-- Arrow marker -->
+        <marker id="arrowHead" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,4 L0,8 Z" fill="hsla(258,78%,64%,0.4)"/>
+        </marker>
+        <marker id="arrowHeadGreen" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,4 L0,8 Z" fill="hsl(152,65%,48%)"/>
+        </marker>
+        <marker id="arrowHeadRed" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,4 L0,8 Z" fill="hsla(0,72%,58%,0.5)"/>
+        </marker>
+        <!-- Violet glow -->
+        <filter id="violetGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <!-- Success glow -->
+        <filter id="successGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- === PHASE 1: Channel class only === -->
+      <g id="phase1-nodes" style="opacity:0">
+        <g id="channelNode" transform="translate(120, 160)">
+          <rect class="node-rect" width="200" height="130" />
+          <rect class="node-rect-header" width="200" height="32" rx="8" />
+          <line x1="0" y1="32" x2="200" y2="32" class="node-divider"/>
+          <text class="node-title" x="100" y="22" text-anchor="middle">Channel</text>
+          <text class="node-method" x="14" y="52">- name: String</text>
+          <text class="node-method" x="14" y="68">- members: List</text>
+          <line x1="0" y1="80" x2="200" y2="80" class="node-divider"/>
+          <text class="node-method" x="14" y="98">+ post(msg): void</text>
+          <text class="node-method" x="14" y="114">+ notifyAll(): void</text>
+        </g>
+      </g>
+
+      <!-- === PHASE 2: Notifier classes + coupling lines === -->
+      <g id="phase2-nodes" style="opacity:0">
+        <!-- PushNotifier -->
+        <g id="pushNode" transform="translate(530, 100)">
+          <rect class="node-rect" width="190" height="80" />
+          <rect class="node-rect-header" width="190" height="32" rx="8" />
+          <line x1="0" y1="32" x2="190" y2="32" class="node-divider"/>
+          <text class="node-title" x="95" y="22" text-anchor="middle">PushNotifier</text>
+          <text class="node-method" x="14" y="56">+ send(msg): void</text>
+        </g>
+
+        <!-- EmailNotifier -->
+        <g id="emailNode" transform="translate(530, 220)">
+          <rect class="node-rect" width="190" height="80" />
+          <rect class="node-rect-header" width="190" height="32" rx="8" />
+          <line x1="0" y1="32" x2="190" y2="32" class="node-divider"/>
+          <text class="node-title" x="95" y="22" text-anchor="middle">EmailNotifier</text>
+          <text class="node-method" x="14" y="56">+ send(msg): void</text>
+        </g>
+
+        <!-- InAppNotifier -->
+        <g id="inappNode" transform="translate(530, 340)">
+          <rect class="node-rect" width="190" height="80" />
+          <rect class="node-rect-header" width="190" height="32" rx="8" />
+          <line x1="0" y1="32" x2="190" y2="32" class="node-divider"/>
+          <text class="node-title" x="95" y="22" text-anchor="middle">InAppNotifier</text>
+          <text class="node-method" x="14" y="56">+ send(msg): void</text>
+        </g>
+
+        <!-- Direct coupling lines (the BAD ones) -->
+        <g id="couplingLines">
+          <path class="coupling-line glow" d="M320,210 C420,210 420,140 530,140" marker-end="url(#arrowHeadRed)"/>
+          <path class="coupling-line glow" d="M320,230 C420,230 420,260 530,260" marker-end="url(#arrowHeadRed)"/>
+          <path class="coupling-line glow" d="M320,250 C420,250 420,380 530,380" marker-end="url(#arrowHeadRed)"/>
+        </g>
+      </g>
+
+      <!-- === PHASE 3: Callout bubble on canvas === -->
+      <g id="phase3-callout" style="opacity:0">
+        <g class="callout-group" transform="translate(80, 330)">
+          <!-- Arrow from callout to Channel node -->
+          <path class="callout-arrow-line" d="M200,0 C200,-30 160,-50 160,-60" marker-end="url(#arrowHeadRed)"/>
+          <!-- Callout box -->
+          <rect class="callout-bg" x="0" y="0" width="380" height="72" rx="10"/>
+          <text class="callout-icon" x="16" y="22">&#9889;</text>
+          <text class="callout-text" x="36" y="20">I just hired a contractor who built WebhookNotifier.</text>
+          <text class="callout-text" x="36" y="36">They need to modify YOUR Channel class to integrate.</text>
+          <text class="callout-text" x="36" y="56" style="fill: hsl(0,72%,62%); font-weight:700;">Is that realistic in a team of 50 engineers?</text>
+        </g>
+      </g>
+
+      <!-- === PHASE 4: Ghost interface node === -->
+      <g id="phase4-ghost" style="opacity:0">
+        <g id="ghostInterfaceNode" transform="translate(365, 200)">
+          <rect class="ghost-rect" width="160" height="80" />
+          <text class="ghost-label" x="80" y="46" text-anchor="middle">?</text>
+          <text class="ghost-hint" x="80" y="70" text-anchor="middle">interface hint</text>
+        </g>
+      </g>
+
+      <!-- === PHASE 5: Final Observer pattern === -->
+      <g id="phase5-final" style="opacity:0">
+        <!-- Subject (Channel) revised -->
+        <g transform="translate(70, 170)">
+          <rect class="final-rect" width="210" height="140" />
+          <rect class="final-rect-header" width="210" height="32" rx="8" />
+          <line x1="0" y1="32" x2="210" y2="32" class="node-divider" style="stroke:hsla(152,65%,48%,0.2)"/>
+          <text class="final-title" x="105" y="22" text-anchor="middle">Channel (Subject)</text>
+          <text class="node-method" x="14" y="52">- observers: List&lt;Observer&gt;</text>
+          <line x1="0" y1="66" x2="210" y2="66" class="node-divider" style="stroke:hsla(152,65%,48%,0.2)"/>
+          <text class="node-method" x="14" y="84">+ subscribe(o): void</text>
+          <text class="node-method" x="14" y="100">+ unsubscribe(o): void</text>
+          <text class="node-method" x="14" y="116">+ notifyAll(): void</text>
+          <text class="node-method" x="14" y="132">+ post(msg): void</text>
+        </g>
+
+        <!-- Observer Interface center -->
+        <g transform="translate(370, 210)">
+          <rect width="170" height="70" rx="8" fill="var(--class-fill)" stroke="var(--success)" stroke-width="2" stroke-dasharray="0"/>
+          <rect width="170" height="30" rx="8" fill="hsla(152,65%,48%,0.06)"/>
+          <line x1="0" y1="30" x2="170" y2="30" stroke="hsla(152,65%,48%,0.2)" stroke-width="1"/>
+          <text x="85" y="20" text-anchor="middle" fill="hsl(152,65%,58%)" font-family="var(--mono)" font-size="11" font-weight="700">&lt;&lt;interface&gt;&gt;</text>
+          <text x="85" y="52" text-anchor="middle" fill="var(--success)" font-family="var(--mono)" font-size="12" font-weight="700">Observer</text>
+          <text x="85" y="66" text-anchor="middle" fill="var(--text-muted)" font-family="var(--mono)" font-size="9.5">+ update(msg): void</text>
+        </g>
+
+        <!-- Concrete Observers -->
+        <g transform="translate(610, 120)">
+          <rect class="final-rect" width="190" height="70" />
+          <rect class="final-rect-header" width="190" height="28" rx="8" />
+          <line x1="0" y1="28" x2="190" y2="28" class="node-divider" style="stroke:hsla(152,65%,48%,0.2)"/>
+          <text class="final-title" x="95" y="19" text-anchor="middle">PushNotifier</text>
+          <text class="node-method" x="14" y="50">+ update(msg): void</text>
+        </g>
+        <g transform="translate(610, 220)">
+          <rect class="final-rect" width="190" height="70" />
+          <rect class="final-rect-header" width="190" height="28" rx="8" />
+          <line x1="0" y1="28" x2="190" y2="28" class="node-divider" style="stroke:hsla(152,65%,48%,0.2)"/>
+          <text class="final-title" x="95" y="19" text-anchor="middle">EmailNotifier</text>
+          <text class="node-method" x="14" y="50">+ update(msg): void</text>
+        </g>
+        <g transform="translate(610, 320)">
+          <rect class="final-rect" width="190" height="70" />
+          <rect class="final-rect-header" width="190" height="28" rx="8" />
+          <line x1="0" y1="28" x2="190" y2="28" class="node-divider" style="stroke:hsla(152,65%,48%,0.2)"/>
+          <text class="final-title" x="95" y="19" text-anchor="middle">InAppNotifier</text>
+          <text class="node-method" x="14" y="50">+ update(msg): void</text>
+        </g>
+
+        <!-- Connections -->
+        <path class="dependency-arrow-final" d="M280,240 L370,245"/>
+        <!-- Realization arrows to Observer -->
+        <line x1="540" y1="245" x2="610" y2="155" stroke="var(--success)" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arrowHeadGreen)"/>
+        <line x1="540" y1="245" x2="610" y2="255" stroke="var(--success)" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arrowHeadGreen)"/>
+        <line x1="540" y1="245" x2="610" y2="355" stroke="var(--success)" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arrowHeadGreen)"/>
+
+        <!-- WebhookNotifier (extensibility demo) -->
+        <g transform="translate(610, 420)">
+          <rect width="190" height="70" rx="8" fill="var(--class-fill)" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="4 2"/>
+          <rect width="190" height="28" rx="8" fill="hsla(35,90%,55%,0.06)"/>
+          <line x1="0" y1="28" x2="190" y2="28" stroke="hsla(35,90%,55%,0.2)" stroke-width="1"/>
+          <text x="95" y="19" text-anchor="middle" fill="var(--amber)" font-family="var(--mono)" font-size="12" font-weight="700">WebhookNotifier</text>
+          <text x="14" y="50" fill="var(--text-muted)" font-family="var(--mono)" font-size="10.5">+ update(msg): void</text>
+          <text x="190" y="-6" text-anchor="end" fill="var(--amber)" font-family="var(--font)" font-size="9" font-weight="600">NEW -- no Channel changes!</text>
+        </g>
+        <line x1="540" y1="260" x2="610" y2="440" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arrowHeadGreen)"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- === Chat Panel ============================================== -->
+  <div class="chat-panel">
+    <!-- Chat Header -->
+    <div class="chat-header">
+      <div class="inquisitor-avatar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div class="chat-header-info">
+        <h2>The Inquisitor <span class="online"></span></h2>
+        <p>Adversarial Socratic Guide</p>
+      </div>
+      <div class="phase-indicator" id="phaseIndicator">
+        <div class="phase-dot completed" data-label="Explore" id="phase-explore"></div>
+        <div class="phase-connector filled"></div>
+        <div class="phase-dot active" data-label="Challenge" id="phase-challenge"></div>
+        <div class="phase-connector"></div>
+        <div class="phase-dot" data-label="Discover" id="phase-discover"></div>
+        <div class="phase-connector"></div>
+        <div class="phase-dot" data-label="Apply" id="phase-apply"></div>
+      </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="chat-messages" id="chatMessages">
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- BOTTOM BAR                                                      -->
+<!-- ================================================================ -->
+<div class="bottom-bar">
+  <div class="hint-label">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>
+    Hint Intensity
+  </div>
+  <div class="hint-slider-container">
+    <div class="hint-track" id="hintTrack">
+      <div class="hint-fill" id="hintFill"></div>
+      <div class="hint-thumb" id="hintThumb"></div>
+    </div>
+    <div class="hint-value" id="hintValue">3</div>
+  </div>
+  <div class="hint-bar-ascii" id="hintBarAscii"></div>
+  <div class="bottom-bar-right">
+    <div class="pattern-label">Observer Pattern</div>
+    <button class="btn-play" id="btnPlay">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Replay
+    </button>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- CONFETTI CONTAINER                                               -->
+<!-- ================================================================ -->
+<div class="confetti-container" id="confettiContainer"></div>
+
+<!-- ================================================================ -->
+<!-- SCRIPT                                                          -->
+<!-- ================================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  /* ── DOM refs ──────────────────────────────────────────── */
+  var chatEl       = document.getElementById('chatMessages');
+  var hintTrack    = document.getElementById('hintTrack');
+  var hintFill     = document.getElementById('hintFill');
+  var hintThumb    = document.getElementById('hintThumb');
+  var hintValueEl  = document.getElementById('hintValue');
+  var hintBarEl    = document.getElementById('hintBarAscii');
+  var btnPlay      = document.getElementById('btnPlay');
+  var hintLevel    = 3;
+
+  /* ── Hint slider ───────────────────────────────────────── */
+  function updateHintBar(val) {
+    hintLevel = val;
+    var pct = (val / 10) * 100;
+    hintFill.style.width = pct + '%';
+    hintThumb.style.left = pct + '%';
+    hintValueEl.textContent = val + '/10';
+
+    /* Build the ASCII bar safely with DOM methods */
+    while (hintBarEl.firstChild) hintBarEl.removeChild(hintBarEl.firstChild);
+    for (var i = 0; i < 10; i++) {
+      var span = document.createElement('span');
+      if (i < val) {
+        span.className = 'hint-bar-filled';
+        span.textContent = '\u2593';
+      } else {
+        span.textContent = '\u2591';
+      }
+      hintBarEl.appendChild(span);
+    }
+  }
+  updateHintBar(3);
+
+  /* Make slider interactive */
+  var dragging = false;
+  function setHintFromEvent(e) {
+    var rect = hintTrack.getBoundingClientRect();
+    var pct = (e.clientX - rect.left) / rect.width;
+    pct = Math.max(0, Math.min(1, pct));
+    var val = Math.round(pct * 10);
+    updateHintBar(val);
+  }
+  hintTrack.addEventListener('mousedown', function(e) { dragging = true; setHintFromEvent(e); });
+  hintThumb.addEventListener('mousedown', function(e) { dragging = true; e.preventDefault(); });
+  document.addEventListener('mousemove', function(e) { if (dragging) setHintFromEvent(e); });
+  document.addEventListener('mouseup', function() { dragging = false; });
+
+  /* ── Safe DOM builder helpers ──────────────────────────── */
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function(k) {
+        if (k === 'className') node.className = attrs[k];
+        else if (k === 'textContent') node.textContent = attrs[k];
+        else node.setAttribute(k, attrs[k]);
+      });
+    }
+    if (children) {
+      children.forEach(function(c) {
+        if (typeof c === 'string') node.appendChild(document.createTextNode(c));
+        else if (c) node.appendChild(c);
+      });
+    }
+    return node;
+  }
+
+  /*
+   * buildRichText -- converts a restricted markup subset to DOM nodes.
+   * Supports: <strong>, <em>, <code>, <br/>, <span style="...">.
+   * All content is pre-defined static strings in this file -- no user input.
+   * This is intentionally kept simple; it is not a general-purpose sanitizer.
+   */
+  function buildRichText(htmlStr) {
+    var container = document.createElement('span');
+    /* Use a temporary template to parse only our own static markup */
+    var tpl = document.createElement('template');
+    tpl.innerHTML = htmlStr;
+    var frag = tpl.content.cloneNode(true);
+    container.appendChild(frag);
+    return container;
+  }
+
+  /* ── SVG icon factories ────────────────────────────────── */
+  function inquisitorIconSvg() {
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('width', '13');
+    svg.setAttribute('height', '13');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'white');
+    svg.setAttribute('stroke-width', '2.5');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    var circle = document.createElementNS(ns, 'circle');
+    circle.setAttribute('cx','12'); circle.setAttribute('cy','12'); circle.setAttribute('r','10');
+    var path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3');
+    var line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1','12'); line.setAttribute('y1','17'); line.setAttribute('x2','12.01'); line.setAttribute('y2','17');
+    svg.appendChild(circle); svg.appendChild(path); svg.appendChild(line);
+    return svg;
+  }
+
+  function userIconSvg() {
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('width', '13');
+    svg.setAttribute('height', '13');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'white');
+    svg.setAttribute('stroke-width', '2.5');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    var path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2');
+    var circle = document.createElementNS(ns, 'circle');
+    circle.setAttribute('cx','12'); circle.setAttribute('cy','7'); circle.setAttribute('r','4');
+    svg.appendChild(path); svg.appendChild(circle);
+    return svg;
+  }
+
+  function canvasActionIconSvg() {
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    var rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x','3'); rect.setAttribute('y','3'); rect.setAttribute('width','18'); rect.setAttribute('height','18'); rect.setAttribute('rx','2');
+    var l1 = document.createElementNS(ns, 'line');
+    l1.setAttribute('x1','12'); l1.setAttribute('y1','8'); l1.setAttribute('x2','12'); l1.setAttribute('y2','16');
+    var l2 = document.createElementNS(ns, 'line');
+    l2.setAttribute('x1','8'); l2.setAttribute('y1','12'); l2.setAttribute('x2','16'); l2.setAttribute('y2','12');
+    svg.appendChild(rect); svg.appendChild(l1); svg.appendChild(l2);
+    return svg;
+  }
+
+  /* ── Message definitions ───────────────────────────────── */
+  var messages = [
+    /* Phase 1: Explore */
+    {
+      type: 'phase-sep',
+      label: 'Phase 1: Explore',
+      delay: 300,
+      phase: 'explore',
+      canvas: function() { animateIn('phase1-nodes', 400); }
+    },
+    {
+      type: 'inquisitor',
+      text: 'Let\'s start from the scenario. You need a <strong>notification system</strong> for Slack channels. Begin by designing the core class \u2014 what entity manages the channel\'s members and triggers notifications?',
+      delay: 800
+    },
+    {
+      type: 'canvas-action',
+      text: 'User placed a Channel class on the canvas',
+      delay: 2200
+    },
+    {
+      type: 'inquisitor',
+      text: 'Good. Now give <code>Channel</code> a way to notify everyone. How would you implement <code>notifyAll()</code>?',
+      delay: 3000
+    },
+    {
+      type: 'user',
+      text: 'I\'ll call each notifier directly \u2014 <code>PushNotifier.send()</code>, <code>EmailNotifier.send()</code>, and <code>InAppNotifier.send()</code> inside the method.',
+      delay: 4200
+    },
+    {
+      type: 'inquisitor',
+      text: 'Alright, I see <code>Channel.notifyAll()</code> now directly calls three concrete notifier classes. Let me take a closer look at those dependencies...',
+      delay: 5200,
+      canvas: function() { animateIn('phase2-nodes', 500); }
+    },
+
+    /* Phase 2: Challenge */
+    {
+      type: 'phase-sep',
+      label: 'Phase 2: Challenge',
+      delay: 7200,
+      phase: 'challenge'
+    },
+    {
+      type: 'inquisitor',
+      text: 'I see those red dependency arrows. <strong>Three hard-coded calls</strong> inside one class. Let me challenge that design...',
+      delay: 8000
+    },
+    {
+      type: 'inquisitor',
+      text: '<span style="color:hsl(0,72%,72%);">\u26A1 I just hired a contractor who built <code>WebhookNotifier</code>. They need to modify YOUR <code>Channel</code> class to integrate it.</span><br/><br/><strong style="color:hsl(0,72%,62%);">Is that realistic in a team of 50 engineers?</strong>',
+      delay: 9600,
+      canvas: function() { animateIn('phase3-callout', 500); }
+    },
+    {
+      type: 'user',
+      text: 'No... they shouldn\'t need to touch Channel. Every new notification type would force a change to Channel. That violates Open/Closed.',
+      delay: 11600
+    },
+    {
+      type: 'inquisitor',
+      text: '<em>Exactly.</em> So how would you <strong>decouple</strong> <code>Channel</code> from the specific notifier implementations? Think about what they all have in common...',
+      delay: 12800
+    },
+
+    /* Phase 3: Discover */
+    {
+      type: 'phase-sep',
+      label: 'Phase 3: Discover',
+      delay: 14200,
+      phase: 'discover',
+      canvas: function() {
+        /* Fade coupling lines */
+        var cl = document.getElementById('couplingLines');
+        if (cl) { cl.style.transition = 'opacity 1s ease'; cl.style.opacity = '0.15'; }
+        /* Fade callout */
+        var co = document.getElementById('phase3-callout');
+        if (co) { co.style.transition = 'opacity 0.8s ease'; co.style.opacity = '0.3'; }
+        /* Show ghost */
+        setTimeout(function() { animateIn('phase4-ghost', 600); }, 400);
+      }
+    },
+    {
+      type: 'user',
+      text: 'They all implement a <code>send()</code> method. I could define an interface they all share...',
+      delay: 15400
+    },
+    {
+      type: 'inquisitor',
+      text: 'I see you\'re thinking about an interface. <em>There\'s a ghost outline forming on your canvas...</em> What contract should it define? What single method would every notifier guarantee?',
+      delay: 16600
+    },
+    {
+      type: 'user',
+      text: 'An <code>Observer</code> interface with an <code>update(msg)</code> method. Channel keeps a list of observers and just calls <code>update()</code> on each one.',
+      delay: 18200
+    },
+    {
+      type: 'inquisitor',
+      text: 'And the contractor\'s <code>WebhookNotifier</code>?',
+      delay: 19200
+    },
+    {
+      type: 'user',
+      text: 'They just implement the Observer interface. <strong>Zero changes to Channel.</strong>',
+      delay: 20000
+    },
+
+    /* Phase 4: Apply / Aha moment */
+    {
+      type: 'phase-sep',
+      label: 'Phase 4: Apply',
+      delay: 21400,
+      phase: 'apply',
+      canvas: function() {
+        /* Hide earlier phases */
+        ['phase1-nodes','phase2-nodes','phase3-callout','phase4-ghost'].forEach(function(id) {
+          var node = document.getElementById(id);
+          if (node) { node.style.transition = 'opacity 0.8s ease'; node.style.opacity = '0'; }
+        });
+        /* Show final pattern */
+        setTimeout(function() {
+          animateIn('phase5-final', 800);
+          document.getElementById('ahaGlow').classList.add('active');
+        }, 900);
+      }
+    },
+    {
+      type: 'inquisitor',
+      text: 'Congratulations. You just independently discovered the <strong>Observer pattern</strong>. Look at the canvas \u2014 here\'s the canonical form, including the contractor\'s <code>WebhookNotifier</code> fitting in seamlessly.',
+      delay: 23000
+    },
+    {
+      type: 'discovery',
+      delay: 25000,
+      canvas: function() { launchConfetti(); }
+    },
+    {
+      type: 'inquisitor',
+      text: 'The Subject (<code>Channel</code>) knows nothing about concrete observers. You can add 100 new notification types without touching a single line in Channel. <em>That\'s the power of programming to an interface.</em>',
+      delay: 27000
+    }
+  ];
+
+  /* ── Phase management ──────────────────────────────────── */
+  function setPhase(phaseName) {
+    var phases = ['explore','challenge','discover','apply'];
+    var idx = phases.indexOf(phaseName);
+    var connectors = document.querySelectorAll('.phase-connector');
+    phases.forEach(function(p, i) {
+      var dot = document.getElementById('phase-' + p);
+      if (!dot) return;
+      if (i < idx) {
+        dot.className = 'phase-dot completed';
+        if (connectors[i]) connectors[i].classList.add('filled');
+      } else if (i === idx) {
+        dot.className = 'phase-dot active';
+      } else {
+        dot.className = 'phase-dot';
+        if (connectors[i]) connectors[i].classList.remove('filled');
+      }
+    });
+  }
+
+  /* ── Canvas animation helper ───────────────────────────── */
+  function animateIn(id, duration) {
+    var node = document.getElementById(id);
+    if (!node) return;
+    node.style.transition = 'opacity ' + duration + 'ms ease, transform ' + duration + 'ms ease';
+    node.style.opacity = '1';
+  }
+
+  /* ── Render message to chat ────────────────────────────── */
+  function renderMessage(msg) {
+    if (msg.type === 'phase-sep') {
+      var sep = el('div', { className: 'phase-sep msg' }, [
+        el('div', { className: 'phase-sep-line' }),
+        el('div', { className: 'phase-sep-label', textContent: msg.label }),
+        el('div', { className: 'phase-sep-line' })
+      ]);
+      chatEl.appendChild(sep);
+      if (msg.phase) setPhase(msg.phase);
+      if (msg.canvas) msg.canvas();
+      scrollChat();
+      return;
+    }
+
+    if (msg.type === 'canvas-action') {
+      var iconWrap = el('div', { className: 'canvas-icon' });
+      iconWrap.appendChild(canvasActionIconSvg());
+      var action = el('div', { className: 'msg-canvas-action msg' }, [
+        iconWrap,
+        el('span', { textContent: msg.text })
+      ]);
+      chatEl.appendChild(action);
+      scrollChat();
+      return;
+    }
+
+    if (msg.type === 'discovery') {
+      var banner = el('div', { className: 'discovery-banner msg' }, [
+        el('div', { className: 'discovery-emoji', textContent: '\uD83C\uDF89' }),
+        el('div', { className: 'discovery-title', textContent: 'Pattern Discovered: Observer' }),
+        el('div', { className: 'discovery-sub', textContent: 'You derived it from first principles through Socratic dialogue' })
+      ]);
+      chatEl.appendChild(banner);
+      if (msg.canvas) msg.canvas();
+      scrollChat();
+      return;
+    }
+
+    var isUser = msg.type === 'user';
+
+    /* Avatar */
+    var avatar = el('div', { className: 'msg-avatar ' + (isUser ? 'user' : 'inquisitor') });
+    avatar.appendChild(isUser ? userIconSvg() : inquisitorIconSvg());
+
+    /* Sender label */
+    var sender = el('div', {
+      className: 'msg-sender ' + (isUser ? 'user-name' : 'inquisitor-name'),
+      textContent: isUser ? 'You' : 'The Inquisitor'
+    });
+
+    /* Bubble -- uses buildRichText for static trusted markup */
+    var bubble = el('div', { className: 'msg-bubble ' + (isUser ? 'user-bubble' : 'inquisitor-bubble') });
+    bubble.appendChild(buildRichText(msg.text));
+
+    /* Content wrapper */
+    var content = el('div', { className: 'msg-content' }, [sender, bubble]);
+
+    /* Message row */
+    var wrapper = el('div', { className: 'msg' + (isUser ? ' from-user' : '') });
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(content);
+    chatEl.appendChild(wrapper);
+
+    if (msg.canvas) msg.canvas();
+    scrollChat();
+  }
+
+  function scrollChat() {
+    requestAnimationFrame(function() {
+      chatEl.scrollTop = chatEl.scrollHeight;
+    });
+  }
+
+  /* ── Typing indicator ──────────────────────────────────── */
+  function showTyping() {
+    var dots = el('div', { className: 'typing-indicator' }, [
+      el('div', { className: 'typing-dot' }),
+      el('div', { className: 'typing-dot' }),
+      el('div', { className: 'typing-dot' })
+    ]);
+    var typingBubble = el('div', { className: 'msg-bubble inquisitor-bubble' }, [dots]);
+    var typingContent = el('div', { className: 'msg-content' }, [
+      el('div', { className: 'msg-sender inquisitor-name', textContent: 'The Inquisitor' }),
+      typingBubble
+    ]);
+    var typingAvatar = el('div', { className: 'msg-avatar inquisitor' });
+    typingAvatar.appendChild(inquisitorIconSvg());
+    var typingRow = el('div', { className: 'msg', id: 'typingIndicator' }, [typingAvatar, typingContent]);
+    chatEl.appendChild(typingRow);
+    scrollChat();
+  }
+
+  function hideTyping() {
+    var node = document.getElementById('typingIndicator');
+    if (node) node.parentNode.removeChild(node);
+  }
+
+  /* ── Confetti ──────────────────────────────────────────── */
+  function launchConfetti() {
+    var container = document.getElementById('confettiContainer');
+    var colors = [
+      'hsl(152,65%,48%)', 'hsl(258,78%,64%)', 'hsl(35,90%,55%)',
+      'hsl(200,80%,60%)', 'hsl(340,80%,60%)', 'hsl(45,90%,60%)'
+    ];
+    for (var i = 0; i < 80; i++) {
+      var piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.style.left = (Math.random() * 100) + '%';
+      piece.style.top = '-10px';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+      piece.style.animationDelay = (Math.random() * 1) + 's';
+      piece.style.width = (5 + Math.random() * 6) + 'px';
+      piece.style.height = (5 + Math.random() * 6) + 'px';
+      piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      piece.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+      container.appendChild(piece);
+    }
+    /* Clean up after animation */
+    setTimeout(function() {
+      while (container.firstChild) container.removeChild(container.firstChild);
+    }, 5000);
+  }
+
+  /* ── Playback engine ───────────────────────────────────── */
+  var timeouts = [];
+
+  function playConversation() {
+    /* Reset everything */
+    while (chatEl.firstChild) chatEl.removeChild(chatEl.firstChild);
+    var confettiEl = document.getElementById('confettiContainer');
+    while (confettiEl.firstChild) confettiEl.removeChild(confettiEl.firstChild);
+    document.getElementById('ahaGlow').classList.remove('active');
+
+    ['phase1-nodes','phase2-nodes','phase3-callout','phase4-ghost','phase5-final'].forEach(function(id) {
+      var node = document.getElementById(id);
+      if (node) { node.style.transition = 'none'; node.style.opacity = '0'; }
+    });
+    var cl = document.getElementById('couplingLines');
+    if (cl) { cl.style.transition = 'none'; cl.style.opacity = '1'; }
+
+    /* Reset phase connectors */
+    var connectors = document.querySelectorAll('.phase-connector');
+    connectors.forEach(function(c) { c.classList.remove('filled'); });
+    setPhase('explore');
+
+    /* Clear previous timeouts */
+    timeouts.forEach(function(t) { clearTimeout(t); });
+    timeouts = [];
+
+    /* Queue messages */
+    messages.forEach(function(msg) {
+      var t = setTimeout(function() {
+        if (msg.type === 'inquisitor') {
+          showTyping();
+          var t2 = setTimeout(function() {
+            hideTyping();
+            renderMessage(msg);
+          }, 600 + Math.random() * 400);
+          timeouts.push(t2);
+        } else {
+          renderMessage(msg);
+        }
+      }, msg.delay);
+      timeouts.push(t);
+    });
+  }
+
+  /* ── Replay button ─────────────────────────────────────── */
+  btnPlay.addEventListener('click', function() {
+    playConversation();
+  });
+
+  /* ── Initial play ──────────────────────────────────────── */
+  playConversation();
+})();
+</script>
+</body>
+</html>
