@@ -417,4 +417,663 @@ Each task commits 1-4 times. Group B (engine adapters) is the densest — Task 5
 
 ---
 
-*Task details follow, starting with Task 1 in the next commit.*
+## Group A · DB schema + migrations (Tasks 1-4)
+
+---
+
+## Task 1: Extend `sd_simulation_runs` schema with HDR blob, replay keyframes, event-log pointer, chaos-mode
+
+**Files:**
+- Modify: `architex/src/db/schema/sd-simulation-runs.ts`
+
+Phase 1 created the base `sd_simulation_runs` table with `id`, `userId`, `designId`, `startedAt`, `completedAt`, `durationSimMs`, `activityKind` (from a smaller set — "validate" only in Phase 1), `loadModel` (varchar; Phase 1 only "uniform"), `slosPassed` (boolean), `metricsSummary` (JSONB light snapshot). Phase 3 adds six new columns. Most are nullable for rows created before Phase 3 ships; newly-created rows populate them.
+
+- [ ] **Step 1: Open the existing schema file and note the shape**
+
+Open `architex/src/db/schema/sd-simulation-runs.ts`. Confirm the Phase 1 column set matches the description above. Note that the table has `one_active_run_per_user` partial unique index on `userId` where `completedAt IS NULL`. Phase 3 preserves this index.
+
+- [ ] **Step 2: Extend the table definition**
+
+Replace the `pgTable` body so it includes the new columns. The file becomes:
+
+```typescript
+/**
+ * DB-024: SD simulation runs — stores active and completed simulate-mode runs.
+ *
+ * Phase 3 additions:
+ *   - activity_kind       — expanded enum: "validate" | "stress" | "chaos-drill"
+ *                            | "compare-ab" | "forecast" | "archaeology"
+ *   - chaos_control_mode  — "scenario" | "dice" | "manual" | "budget"
+ *                            | "auto-escalation" | "red-team" | null
+ *   - load_model          — expanded enum: "uniform" | "poisson" | "diurnal" | "burst"
+ *   - rng_seed            — deterministic replay anchor (Mulberry32 seed)
+ *   - event_log_size      — denormalized count of rows in sd_chaos_event_log for this run
+ *   - keyframes           — 30s-interval SimState snapshots (JSONB · array)
+ *   - hdr_snapshot        — serialized HDR histograms per node (JSONB · dict)
+ *   - narrative_stream    — margin-card stream (JSONB · array of rendered cards)
+ *   - post_run_summary    — Sonnet-authored results-card narrative + triple-loop recs
+ *   - scale_slider        — DAU preset at run start: "10k" | "1M" | "10M" | "100M" | "1B"
+ *   - provider            — "aws" | "gcp" | "azure" | "abstract" | "bare-metal"
+ *   - share_slug          — opaque token for replay-share URL; null until user opts in
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  integer,
+  bigint,
+  jsonb,
+  boolean,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+import { sdDesigns } from "./sd-designs";
+
+export const sdSimulationRuns = pgTable(
+  "sd_simulation_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    designId: uuid("design_id")
+      .notNull()
+      .references(() => sdDesigns.id, { onDelete: "cascade" }),
+
+    // Activity + control-mode framing (§8.3, §8.4)
+    activityKind: varchar("activity_kind", { length: 24 })
+      .notNull()
+      .default("validate"),
+    chaosControlMode: varchar("chaos_control_mode", { length: 24 }),
+
+    // Load model (§29.3) · Phase 3 ships 4 of 8
+    loadModel: varchar("load_model", { length: 24 })
+      .notNull()
+      .default("uniform"),
+
+    // Deterministic replay anchor (§29.8)
+    rngSeed: bigint("rng_seed", { mode: "number" }).notNull(),
+
+    // Lifecycle timestamps
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+
+    // Sim-time duration (dilation-aware; see dual-clock §29.1)
+    durationSimMs: integer("duration_sim_ms").notNull().default(0),
+    durationRealMs: integer("duration_real_ms").notNull().default(0),
+    dilationFactor: integer("dilation_factor").notNull().default(1),
+
+    // SLO attainment snapshot
+    slosPassed: boolean("slos_passed"),
+    metricsSummary: jsonb("metrics_summary"),
+
+    // Phase 3 · replay + HDR
+    eventLogSize: integer("event_log_size").notNull().default(0),
+    keyframes: jsonb("keyframes").notNull().default(sql`'[]'::jsonb`),
+    hdrSnapshot: jsonb("hdr_snapshot"),
+
+    // Phase 3 · narrative + post-run
+    narrativeStream: jsonb("narrative_stream")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    postRunSummary: jsonb("post_run_summary"),
+
+    // Phase 3 · scale + provider + share
+    scaleSlider: varchar("scale_slider", { length: 8 })
+      .notNull()
+      .default("1M"),
+    provider: varchar("provider", { length: 16 })
+      .notNull()
+      .default("aws"),
+    shareSlug: varchar("share_slug", { length: 32 }),
+  },
+  (t) => [
+    uniqueIndex("one_active_run_per_user")
+      .on(t.userId)
+      .where(sql`${t.completedAt} IS NULL`),
+    index("run_history_idx").on(t.userId, t.completedAt),
+    index("run_design_idx").on(t.designId, t.completedAt),
+    index("run_share_idx").on(t.shareSlug),
+    index("run_activity_idx").on(t.userId, t.activityKind),
+  ],
+);
+
+export type SDSimulationRun = typeof sdSimulationRuns.$inferSelect;
+export type NewSDSimulationRun = typeof sdSimulationRuns.$inferInsert;
+
+// Phase 3 · shared enums re-exported
+export type SDActivityKind =
+  | "validate"
+  | "stress"
+  | "chaos-drill"
+  | "compare-ab"
+  | "forecast"
+  | "archaeology";
+
+export type SDChaosControlMode =
+  | "scenario"
+  | "dice"
+  | "manual"
+  | "budget"
+  | "auto-escalation"
+  | "red-team";
+
+export type SDLoadModel = "uniform" | "poisson" | "diurnal" | "burst";
+
+export type SDScaleSlider = "10k" | "1M" | "10M" | "100M" | "1B";
+
+export type SDProvider =
+  | "aws"
+  | "gcp"
+  | "azure"
+  | "abstract"
+  | "bare-metal";
+```
+
+- [ ] **Step 3: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors. If `sdDesigns` import fails, confirm the schema index is re-exporting it (Phase 1).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/db/schema/sd-simulation-runs.ts
+git commit -m "$(cat <<'EOF'
+feat(db): extend sd_simulation_runs with HDR blob + replay keyframes + chaos mode
+
+Adds activity_kind (expanded 6-value enum), chaos_control_mode,
+load_model (expanded 4-value enum · Phase 3 scope), rng_seed,
+event_log_size, keyframes JSONB, hdr_snapshot JSONB, narrative_stream,
+post_run_summary, scale_slider, provider, share_slug. Phase 1 columns
+untouched. New indexes on (user_id, activity_kind) for activity-mix
+queries and on share_slug for share-link lookup.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 2: Create `sd_chaos_event_log` table (per-run event log, append-only)
+
+**Files:**
+- Create: `architex/src/db/schema/sd-chaos-event-log.ts`
+
+The HDR snapshot (Task 1) captures metric state at run-end. The event log captures the *sequence* that produced it: every request arrival, every chaos event, every user action (pause, scrub, fork). Size: ~4.5 MB raw per 30-minute run, ~300 KB compressed (§29.8). This ships as an append-only table — one row per event. Replay (§29.8) hydrates the table's rows into a `TimestampedEvent[]` stream.
+
+**Why a separate table vs. a JSONB column on `sd_simulation_runs`?** Three reasons. (1) **Append-only write pattern** — events stream in mid-run at up to 50/sec; a JSONB column would require read-modify-write. (2) **Queryable** — we want to filter "all chaos events fired across all runs this user has ever done" without loading the full run blob. (3) **Scale** — a 30-minute run can produce 90k events; 90k-element JSONB arrays are slow to serialize.
+
+- [ ] **Step 1: Create the schema file**
+
+Create `architex/src/db/schema/sd-chaos-event-log.ts`:
+
+```typescript
+/**
+ * DB-025: SD chaos event log — per-run append-only event stream.
+ *
+ * One row per event. Events include: request arrivals (sampled at 1%),
+ * chaos events (fully captured), user actions (pause, scrub, fork),
+ * stage transitions (drill mode), and system-derived events (circuit
+ * breaker flips, node failures, recoveries).
+ *
+ * Replay (§29.8) rehydrates rows into a TimestampedEvent[] keyed by run.
+ * Keyframes in sd_simulation_runs.keyframes are 30s snapshots; between
+ * keyframes, events drive state forward.
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  integer,
+  bigint,
+  jsonb,
+  index,
+} from "drizzle-orm/pg-core";
+import { sdSimulationRuns } from "./sd-simulation-runs";
+
+export const sdChaosEventLog = pgTable(
+  "sd_chaos_event_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => sdSimulationRuns.id, { onDelete: "cascade" }),
+
+    // Ordering within the run (sim-time, not real-time)
+    simTimeMs: bigint("sim_time_ms", { mode: "number" }).notNull(),
+    sequenceNumber: integer("sequence_number").notNull(),
+
+    // Event taxonomy
+    kind: varchar("kind", { length: 24 }).notNull(),
+    subkind: varchar("subkind", { length: 48 }),
+    severity: varchar("severity", { length: 16 }),
+
+    // Targeted node / edge, if any
+    nodeId: varchar("node_id", { length: 64 }),
+    edgeId: varchar("edge_id", { length: 64 }),
+
+    // Full payload (arrival request, chaos-event specifics, user action details)
+    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+
+    // When this row was written (real-time; not load-bearing for replay)
+    recordedAt: timestamp("recorded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("event_log_run_seq_idx").on(t.runId, t.sequenceNumber),
+    index("event_log_run_time_idx").on(t.runId, t.simTimeMs),
+    index("event_log_kind_idx").on(t.kind, t.recordedAt),
+  ],
+);
+
+export type SDChaosEvent = typeof sdChaosEventLog.$inferSelect;
+export type NewSDChaosEvent = typeof sdChaosEventLog.$inferInsert;
+
+// Shared enums
+export type SDChaosEventKind =
+  | "request-arrival"
+  | "request-complete"
+  | "chaos-event"
+  | "circuit-breaker-flip"
+  | "node-failure"
+  | "node-recovery"
+  | "edge-failure"
+  | "edge-recovery"
+  | "user-pause"
+  | "user-resume"
+  | "user-scrub"
+  | "user-fork"
+  | "user-manual-inject"
+  | "stage-transition"
+  | "slo-breach"
+  | "slo-recovery";
+
+export type SDChaosEventSeverity =
+  | "debug"
+  | "info"
+  | "warn"
+  | "error"
+  | "critical";
+```
+
+- [ ] **Step 2: Register in `src/db/schema/index.ts`**
+
+Append the export. Open `architex/src/db/schema/index.ts` and add:
+
+```typescript
+export * from "./sd-chaos-event-log";
+```
+
+- [ ] **Step 3: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/db/schema/sd-chaos-event-log.ts architex/src/db/schema/index.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_chaos_event_log table (per-run append-only event stream)
+
+One row per event · indexed on (run_id, sequence_number) for ordered
+replay and (run_id, sim_time_ms) for keyframe-relative hydration.
+Enumerates 16 event kinds including request lifecycle, chaos events,
+circuit-breaker flips, node/edge failures, user actions, stage
+transitions, and SLO breaches/recoveries.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+- [ ] **Step 5: Generate and apply migration for Tasks 1 + 2**
+
+```bash
+cd architex
+pnpm db:generate
+```
+Expected: a new SQL file in `architex/drizzle/` containing ALTERs for `sd_simulation_runs` + CREATE for `sd_chaos_event_log` + four new indexes. Review the SQL to confirm both tables are covered.
+
+```bash
+pnpm db:push
+```
+Expected: migration applies cleanly. Existing rows in `sd_simulation_runs` get defaults on new NOT NULL columns.
+
+- [ ] **Step 6: Verify via Drizzle Studio**
+
+```bash
+pnpm db:studio
+```
+Open `sd_simulation_runs` and `sd_chaos_event_log`. Confirm both tables render with their columns and indexes. Close the studio.
+
+- [ ] **Step 7: Commit the migration**
+
+```bash
+git add architex/drizzle/
+git commit -m "$(cat <<'EOF'
+feat(db): generate + apply Phase 3 migrations (runs extend + event log)
+
+Two migrations bundled: extends sd_simulation_runs with 12 new columns
+and 3 new indexes; creates sd_chaos_event_log with 3 indexes. Existing
+Phase 1/2 rows get sensible defaults on NOT NULL columns.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 3: Extend `sd_drill_attempts` schema with stages, persona, variant, rubric, postmortem, hint log
+
+**Files:**
+- Modify: `architex/src/db/schema/sd-drill-attempts.ts`
+
+Phase 1 created the base `sd_drill_attempts` with `id`, `userId`, `problemId`, `startedAt`, `pausedAt`, `lastActivityAt`, `submittedAt`, `abandonedAt`, `elapsedBeforePauseMs`, `durationLimitMs` (default 45 minutes in milliseconds), `canvasState`, `hintsUsed`, `gradeScore`, `gradeBreakdown`. Phase 3 adds seven new columns mirroring LLD Phase 4's shape but tailored to SD's 5-stage clock and 8 personas.
+
+- [ ] **Step 1: Extend the table definition**
+
+Replace the `pgTable` body:
+
+```typescript
+/**
+ * DB-026: SD drill attempts — stores active and completed drill-mode attempts.
+ *
+ * Phase 3 additions:
+ *   - variant              — "study" | "timed-mock" | "exam" | "pair-ai"
+ *                             | "full-stack-loop" | "verbal" | "review"
+ *   - persona              — "staff" | "bar-raiser" | "coach" | "skeptic"
+ *                             | "principal" | "industry-specialist"
+ *                             | "company-preset" | "silent-watcher"
+ *   - company_preset       — "google" | "meta" | "amazon" | "stripe"
+ *                             | "netflix" | "uber" | "airbnb" | "generic-faang"
+ *                             | null (only set if persona = "company-preset")
+ *   - current_stage        — "clarify" | "estimate" | "design" | "deep-dive" | "qna"
+ *   - started_stage_at     — timestamp of current stage entry
+ *   - stages               — per-stage progress, timing, transcript pointer (JSONB)
+ *   - hint_log             — tiered hint consumption + credit ledger (JSONB)
+ *   - hint_credits_remaining — starts at 15 for timed-mock/pair-ai/study; 0 for exam
+ *   - rubric_breakdown     — 6-axis grade output (JSONB)
+ *   - postmortem           — AI-authored post-drill essay (JSONB)
+ *   - timing_heatmap       — per-stage duration + outlier flags (JSONB)
+ *   - follow_up_recs       — 3 AI-generated next-step recommendations (JSONB)
+ *   - verbal_transcript    — Whisper-transcribed narration, verbal variant only
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  integer,
+  jsonb,
+  real,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export const sdDrillAttempts = pgTable(
+  "sd_drill_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    problemId: varchar("problem_id", { length: 100 }).notNull(),
+
+    // Phase 3 · session variant + persona
+    variant: varchar("variant", { length: 24 })
+      .notNull()
+      .default("timed-mock"),
+    persona: varchar("persona", { length: 24 })
+      .notNull()
+      .default("staff"),
+    companyPreset: varchar("company_preset", { length: 24 }),
+
+    // Lifecycle (Phase 1 untouched)
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+    elapsedBeforePauseMs: integer("elapsed_before_pause_ms")
+      .notNull()
+      .default(0),
+    durationLimitMs: integer("duration_limit_ms")
+      .notNull()
+      .default(45 * 60 * 1000),
+
+    // Phase 3 · stage tracking (§9.3 · 5-stage clock)
+    currentStage: varchar("current_stage", { length: 16 })
+      .notNull()
+      .default("clarify"),
+    startedStageAt: timestamp("started_stage_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    stages: jsonb("stages").notNull().default(sql`'{}'::jsonb`),
+
+    // Canvas + hint-history
+    canvasState: jsonb("canvas_state"),
+    hintsUsed: jsonb("hints_used").notNull().default(sql`'[]'::jsonb`),
+
+    // Phase 3 · rich hint log (tier + credit + penalty)
+    hintLog: jsonb("hint_log").notNull().default(sql`'[]'::jsonb`),
+    hintCreditsRemaining: integer("hint_credits_remaining")
+      .notNull()
+      .default(15),
+
+    // Phase 3 · grade + postmortem + timing + follow-up
+    gradeScore: real("grade_score"),
+    gradeBreakdown: jsonb("grade_breakdown"),
+    rubricBreakdown: jsonb("rubric_breakdown"),
+    postmortem: jsonb("postmortem"),
+    timingHeatmap: jsonb("timing_heatmap"),
+    followUpRecs: jsonb("follow_up_recs"),
+
+    // Phase 3 · verbal variant only
+    verbalTranscript: jsonb("verbal_transcript"),
+  },
+  (t) => [
+    uniqueIndex("one_active_sd_drill_per_user")
+      .on(t.userId)
+      .where(sql`${t.submittedAt} IS NULL AND ${t.abandonedAt} IS NULL`),
+    index("sd_drill_history_idx").on(t.userId, t.submittedAt),
+    index("sd_drill_stage_idx").on(t.userId, t.currentStage),
+    index("sd_drill_persona_idx").on(t.userId, t.persona),
+  ],
+);
+
+export type SDDrillAttempt = typeof sdDrillAttempts.$inferSelect;
+export type NewSDDrillAttempt = typeof sdDrillAttempts.$inferInsert;
+
+// Shared enums
+export type SDDrillStage =
+  | "clarify"
+  | "estimate"
+  | "design"
+  | "deep-dive"
+  | "qna";
+
+export type SDDrillVariant =
+  | "study"
+  | "timed-mock"
+  | "exam"
+  | "pair-ai"
+  | "full-stack-loop"
+  | "verbal"
+  | "review";
+
+export type SDPersona =
+  | "staff"
+  | "bar-raiser"
+  | "coach"
+  | "skeptic"
+  | "principal"
+  | "industry-specialist"
+  | "company-preset"
+  | "silent-watcher";
+
+export type SDCompanyPreset =
+  | "google"
+  | "meta"
+  | "amazon"
+  | "stripe"
+  | "netflix"
+  | "uber"
+  | "airbnb"
+  | "generic-faang";
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/db/schema/sd-drill-attempts.ts
+git commit -m "$(cat <<'EOF'
+feat(db): extend sd_drill_attempts with stages + persona + rubric + postmortem
+
+Adds variant, persona, company_preset, current_stage, started_stage_at,
+stages JSONB, hint_log JSONB, hint_credits_remaining (default 15),
+rubric_breakdown, postmortem, timing_heatmap, follow_up_recs,
+verbal_transcript. Preserves Phase 1 active-drill unique index.
+New composite indexes on (user_id, current_stage) and (user_id, persona).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 4: Create `sd_drill_interviewer_turns` table (streaming chat log)
+
+**Files:**
+- Create: `architex/src/db/schema/sd-drill-interviewer-turns.ts`
+
+One row per turn in the drill's interviewer chat. Streamed SSE tokens are aggregated into a `content` field on `role = "assistant"` rows as chunks arrive (see Task 16 for the SSE handler). Deduplication happens at the SSE layer; the DB stores final text.
+
+- [ ] **Step 1: Create the schema file**
+
+Create `architex/src/db/schema/sd-drill-interviewer-turns.ts`:
+
+```typescript
+/**
+ * DB-027: SD drill interviewer turns — streamed chat log per drill attempt.
+ *
+ * Append-only. One row per message (user-ask or interviewer-response).
+ * Rows are created at turn-start; the `content` field is populated as
+ * SSE tokens stream in and finalized at turn-end. Intermediate rows are
+ * never read by the client; the client reads from the SSE stream and
+ * uses the DB rows only for resume flows (§9.8 abandon/resume).
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  integer,
+  jsonb,
+  text,
+  index,
+} from "drizzle-orm/pg-core";
+import { sdDrillAttempts } from "./sd-drill-attempts";
+
+export const sdDrillInterviewerTurns = pgTable(
+  "sd_drill_interviewer_turns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => sdDrillAttempts.id, { onDelete: "cascade" }),
+    stage: varchar("stage", { length: 16 }).notNull(),
+    role: varchar("role", { length: 12 }).notNull(), // "user" | "assistant"
+    sequenceNumber: integer("sequence_number").notNull(),
+    content: text("content").notNull().default(""),
+    tokenCount: integer("token_count").notNull().default(0),
+    meta: jsonb("meta").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    finalizedAt: timestamp("finalized_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("turn_attempt_seq_idx").on(t.attemptId, t.sequenceNumber),
+    index("turn_attempt_stage_idx").on(t.attemptId, t.stage),
+  ],
+);
+
+export type SDDrillInterviewerTurn =
+  typeof sdDrillInterviewerTurns.$inferSelect;
+export type NewSDDrillInterviewerTurn =
+  typeof sdDrillInterviewerTurns.$inferInsert;
+```
+
+- [ ] **Step 2: Register in the schema index**
+
+```typescript
+// architex/src/db/schema/index.ts (append)
+export * from "./sd-drill-interviewer-turns";
+```
+
+- [ ] **Step 3: Verify typecheck + generate + apply migration**
+
+```bash
+cd architex
+pnpm typecheck
+pnpm db:generate
+pnpm db:push
+```
+Expected: zero typecheck errors; migration file created; migration applies cleanly.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/db/schema/sd-drill-interviewer-turns.ts architex/src/db/schema/index.ts architex/drizzle/
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_drill_interviewer_turns (streamed chat log per attempt)
+
+One row per turn · indexed on (attempt_id, sequence_number) for ordered
+replay and (attempt_id, stage) for stage-scoped transcripts. Content
+field populated incrementally by SSE stream (see Task 16); finalized_at
+set at stream end.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
