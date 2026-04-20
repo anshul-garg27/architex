@@ -109,6 +109,21 @@ export interface HintUsageSummary {
   breakdown: Array<{ level: number; pointsCost: number }>;
 }
 
+// ── LLD Drill slice (Phase 1) ───────────────────────────────
+
+export type DrillMode = "interview" | "guided" | "speed";
+export type HintTier = "nudge" | "guided" | "full";
+
+export interface ActiveDrill {
+  problemId: string;
+  drillMode: DrillMode;
+  startedAt: number; // epoch ms
+  pausedAt: number | null; // null = running
+  elapsedBeforePauseMs: number;
+  durationLimitMs: number;
+  hintsUsed: Array<{ tier: HintTier; usedAt: number }>;
+}
+
 interface InterviewState {
   // Challenge
   activeChallenge: Challenge | null;
@@ -132,11 +147,15 @@ interface InterviewState {
   // Score
   evaluation: EvaluationScore | null;
 
+  // LLD drill (Phase 1) — NOT persisted to localStorage (server is source of truth)
+  activeDrill: ActiveDrill | null;
+
   // Actions
   startChallenge: (challenge: Challenge) => void;
   submitChallenge: () => void;
   setEvaluation: (evaluation: EvaluationScore) => void;
-  useHint: () => void;
+  /** Optional tier: when provided AND a drill is active, appends to activeDrill.hintsUsed; otherwise increments legacy counter. */
+  useHint: (tier?: HintTier) => void;
   revealHint: (level: 1 | 2 | 3 | 4, pointsCost: number) => void;
   isHintRevealed: (level: number) => boolean;
   setAiHint: (text: string | null, error?: string | null) => void;
@@ -144,6 +163,17 @@ interface InterviewState {
   getHintUsageSummary: () => HintUsageSummary;
   toggleTimer: () => void;
   resetInterview: () => void;
+
+  // Drill lifecycle actions
+  startDrill: (
+    problemId: string,
+    drillMode: DrillMode,
+    durationLimitMs: number,
+  ) => void;
+  pauseDrill: () => void;
+  resumeDrill: () => void;
+  submitDrill: () => void;
+  abandonDrill: () => void;
 }
 
 export const useInterviewStore = create<InterviewState>()(subscribeWithSelector((set, get) => ({
@@ -159,6 +189,7 @@ export const useInterviewStore = create<InterviewState>()(subscribeWithSelector(
   aiHintLoading: false,
   aiHintError: null,
   evaluation: null,
+  activeDrill: null,
 
   startChallenge: (challenge) =>
     set({
@@ -180,10 +211,23 @@ export const useInterviewStore = create<InterviewState>()(subscribeWithSelector(
   setEvaluation: (evaluation) =>
     set({ evaluation, challengeStatus: "evaluated" }),
 
-  useHint: () =>
-    set((s) => ({
-      hintsUsed: Math.min(s.hintsUsed + 1, s.maxHints),
-    })),
+  useHint: (tier) =>
+    set((s) => {
+      // If a drill is active AND a tier was supplied, record on the drill
+      if (tier && s.activeDrill) {
+        return {
+          activeDrill: {
+            ...s.activeDrill,
+            hintsUsed: [
+              ...s.activeDrill.hintsUsed,
+              { tier, usedAt: Date.now() },
+            ],
+          },
+        };
+      }
+      // Otherwise legacy behavior: increment counter
+      return { hintsUsed: Math.min(s.hintsUsed + 1, s.maxHints) };
+    }),
 
   revealHint: (level, pointsCost) =>
     set((s) => {
@@ -236,6 +280,51 @@ export const useInterviewStore = create<InterviewState>()(subscribeWithSelector(
       aiHintError: null,
       evaluation: null,
     }),
+
+  // ── LLD drill lifecycle ─────────────────────────────────
+
+  startDrill: (problemId, drillMode, durationLimitMs) => {
+    set({
+      activeDrill: {
+        problemId,
+        drillMode,
+        startedAt: Date.now(),
+        pausedAt: null,
+        elapsedBeforePauseMs: 0,
+        durationLimitMs,
+        hintsUsed: [],
+      },
+    });
+  },
+
+  pauseDrill: () => {
+    const current = get().activeDrill;
+    if (!current || current.pausedAt !== null) return;
+    const now = Date.now();
+    set({
+      activeDrill: {
+        ...current,
+        pausedAt: now,
+        elapsedBeforePauseMs:
+          current.elapsedBeforePauseMs + (now - current.startedAt),
+      },
+    });
+  },
+
+  resumeDrill: () => {
+    const current = get().activeDrill;
+    if (!current || current.pausedAt === null) return;
+    set({
+      activeDrill: {
+        ...current,
+        pausedAt: null,
+        startedAt: Date.now(), // reset the running clock
+      },
+    });
+  },
+
+  submitDrill: () => set({ activeDrill: null }),
+  abandonDrill: () => set({ activeDrill: null }),
 })));
 
 // ── Warm-resume: hydrate from IndexedDB on startup ──────────
