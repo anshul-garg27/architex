@@ -193,7 +193,7 @@ export function cdnRowBackground(action: CDNStep['action']): string | undefined 
       return '#22c55e';
     case 'cache-miss':
     case 'shield-miss':
-      return '#f59e0b';
+      return '#ef4444';
     case 'origin-fetch':
       return '#f59e0b';
     case 'cache-store':

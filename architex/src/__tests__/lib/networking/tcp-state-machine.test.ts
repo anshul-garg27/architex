@@ -17,11 +17,13 @@ describe('TCPConnection', () => {
     expect(events[2].serverState).toBe('ESTABLISHED');
   });
 
-  it('close() produces 4 teardown events', () => {
+  it('close() produces 5 teardown events (4 segments + TIME_WAIT timer expiry)', () => {
     const conn = new TCPConnection();
     conn.connect();
     const events = conn.close('client');
-    expect(events).toHaveLength(4);
+    // 4 segment events (FIN / ACK / FIN / ACK) + 1 TIME_WAIT -> CLOSED
+    // pedagogical timer-expiry event explaining 2*MSL.
+    expect(events).toHaveLength(5);
   });
 
   it('close() transitions both sides to CLOSED', () => {
