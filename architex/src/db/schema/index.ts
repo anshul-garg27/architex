@@ -49,6 +49,11 @@ export {
   type NewDiagramTemplate,
 } from "./diagram-templates";
 export {
+  lldConceptReads,
+  type LLDConceptRead,
+  type NewLLDConceptRead,
+} from "./lld-concept-reads";
+export {
   lldDrillAttempts,
   type LLDDrillAttempt,
   type NewLLDDrillAttempt,
@@ -77,6 +82,7 @@ export {
   gallerySubmissionsRelations,
   galleryUpvotesRelations,
   aiUsageRelations,
+  lldConceptReadsRelations,
   lldDrillAttemptsRelations,
   lldLearnProgressRelations,
   userPreferencesRelations,
