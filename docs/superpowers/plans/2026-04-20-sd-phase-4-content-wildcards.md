@@ -2086,7 +2086,7 @@ EOF
   - B · SFU (Selective Forwarding Unit): server relays, client mixes — scales horizontally.
   - C · Hybrid MCU/SFU with cascading SFUs (Principal): multi-region SFU tree for global meetings; fallback to MCU for low-bandwidth clients.
 
-- [ ] **Step 1-5**.
+- [ ] **Step 1-5** (for B27).
 
 ---
 
@@ -2106,5 +2106,534 @@ EOF
   - C · Hybrid with dual-output: WebRTC for subscribers who want low latency; HLS for mass audience.
 
 - [ ] **Step 1-5**.
+
+---
+
+## Task B29: Domain 3 · `design-dropbox`
+
+- **Slug:** `design-dropbox`
+- **Title:** `Design Dropbox (File Sync)`
+- **Domain:** 3 · Storage & Sync · Order 1/4
+- **Difficulty:** Intermediate
+- **Prerequisite concepts:** `change-data-capture` · `replication` · `caching-strategies` · `delivery-semantics` · `cdn-fundamentals`
+- **Uses patterns:** `memento-pattern` · `observer-pattern` · `command-pattern`
+- **Chaos bridges:** `file-chunk-upload-retry-storm` · `metadata-service-split-brain` · `cross-device-sync-cycle` · `trash-retention-replication-lag` · `quota-race-condition`
+- **Scale band:** 700M users, 1B files synced/day, 1EB total storage, 300TB/day egress
+- **3 canonical solutions:**
+  - A · Block-level chunking + content-hash (the classic): Rabin chunking, content-addressable dedup, metadata service, block store.
+  - B · CRDT-based (the research answer): operation-based replication, eventual convergence, no central coord.
+  - C · Hybrid with per-folder leadership (Principal): per-folder leader elects via Raft; followers replicate; conflicts fall back to CRDT.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B30: Domain 3 · `design-google-drive`
+
+- **Slug:** `design-google-drive`
+- **Title:** `Design Google Drive (Collaborative Editing)`
+- **Domain:** 3 · Order 2/4
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `distributed-clocks` · `event-sourcing-cqrs` · `consistency-models` · `replication` · `stream-processing`
+- **Uses patterns:** `command-pattern` · `memento-pattern` · `observer-pattern`
+- **Chaos bridges:** `ot-transform-conflict` · `presence-service-disconnect` · `history-compaction-corruption` · `embed-image-cdn-miss` · `permission-cache-stale`
+- **Scale band:** 3B users, 1B docs edited/day, 500k concurrent editing sessions peak
+- **3 canonical solutions:**
+  - A · Operational Transform (OT): centralized server serializes ops; client applies with transform.
+  - B · CRDT: client-side merge, no central coord, richer offline.
+  - C · Hybrid with per-doc leadership: OT in steady state; CRDT fallback for partition.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B31: Domain 3 · `design-whatsapp-sync`
+
+- **Slug:** `design-whatsapp-sync`
+- **Title:** `Design WhatsApp Multi-Device Sync`
+- **Domain:** 3 · Order 3/4
+- **Difficulty:** Intermediate
+- **Prerequisite concepts:** `message-queues-vs-event-streams` · `delivery-semantics` · `consistency-models` · `event-sourcing-cqrs`
+- **Uses patterns:** `observer-pattern` · `mediator-pattern` · `state-pattern`
+- **Chaos bridges:** `e2ee-key-rotation-cascade` · `device-reregister-storm` · `read-receipt-ordering-conflict` · `offline-replay-queue-overflow` · `group-chat-fan-out`
+- **Scale band:** 3B MAU, 100B messages/day, 2B devices, ~4 devices/user avg
+- **3 canonical solutions:**
+  - A · Primary device + secondary replicas: primary holds ledger, secondaries pull on demand.
+  - B · Event-sourced per-user ledger: every device consumes the user's event log; client-side merge.
+  - C · Hybrid with hot-path cache + cold-path ledger: latest N messages in cache across all devices; older messages pulled on demand from ledger.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B32: Domain 3 · `design-onenote-sync`
+
+- **Slug:** `design-onenote-sync`
+- **Title:** `Design OneNote-like Offline-First Note Sync`
+- **Domain:** 3 · Order 4/4
+- **Difficulty:** Intermediate
+- **Prerequisite concepts:** `event-sourcing-cqrs` · `change-data-capture` · `consistency-models` · `replication`
+- **Uses patterns:** `command-pattern` · `memento-pattern` · `composite-pattern`
+- **Chaos bridges:** `offline-edit-merge-conflict` · `attachment-upload-timeout` · `sync-cycle-oscillation` · `large-note-chunk-boundary` · `section-lock-race`
+- **Scale band:** 200M MAU, 10B notes total, 500M sync ops/day
+- **3 canonical solutions:**
+  - A · Section-level locking: simple but blocks cross-device edits.
+  - B · Per-paragraph CRDT: richer offline, higher merge cost.
+  - C · Hybrid with page-granularity versioning + paragraph CRDT.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B33: Domain 4 · `design-amazon-checkout`
+
+- **Slug:** `design-amazon-checkout`
+- **Title:** `Design Amazon Checkout + Product Catalog`
+- **Domain:** 4 · Commerce & Payments · Order 1/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `idempotency` · `caching-strategies` · `replication` · `distributed-transactions` · `quorum-reads-writes`
+- **Uses patterns:** `saga-pattern` · `observer-pattern` · `decorator-pattern`
+- **Chaos bridges:** `inventory-oversell-race` · `cart-service-outage` · `pricing-engine-stale` · `payment-gateway-timeout` · `address-verification-cascade`
+- **Scale band:** 300M AM customers, 1B cart-adds/day peak, 50k checkouts/sec on Prime Day
+- **3 canonical solutions:**
+  - A · 2-phase commit across cart + inventory + payment (rarely done but a teaching point).
+  - B · Saga pattern (the real answer): cart reservation → payment auth → inventory decrement → order fulfillment, with compensating transactions.
+  - C · Hybrid with saga + outbox: saga for orchestration; outbox pattern for event durability.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B34: Domain 4 · `design-stripe-payments`
+
+- **Slug:** `design-stripe-payments`
+- **Title:** `Design Stripe (Payment Processing at Idempotency Grade)`
+- **Domain:** 4 · Order 2/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `idempotency` · `replication` · `consensus-raft-paxos` · `distributed-transactions` · `circuit-breakers`
+- **Uses patterns:** `idempotency-key` · `saga-pattern` · `state-pattern` · `chain-of-responsibility`
+- **Chaos bridges:** `idempotency-key-collision` · `bank-network-timeout` · `webhook-retry-storm` · `ledger-double-write` · `fx-rate-snapshot-stale`
+- **Scale band:** 4M merchants, 1B payments/year, 5k payments/sec peak, p99 ≤500ms end-to-end
+- **3 canonical solutions:**
+  - A · Per-merchant idempotency + async settlement: idempotency scoped by (merchant, key, 24h).
+  - B · Double-entry ledger with event sourcing: every money movement is a debit+credit event; ledger is auditable.
+  - C · Hybrid with synchronous authorization + async capture: sub-second auth response; capture settles over minutes.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B35: Domain 4 · `design-paypal`
+
+- **Slug:** `design-paypal`
+- **Title:** `Design PayPal (Peer-to-Peer Money Transfer)`
+- **Domain:** 4 · Order 3/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `distributed-transactions` · `idempotency` · `replication` · `consensus-raft-paxos` · `sli-slo-sla`
+- **Uses patterns:** `saga-pattern` · `observer-pattern` · `mediator-pattern`
+- **Chaos bridges:** `transfer-saga-abort` · `fraud-model-false-positive-surge` · `fx-settlement-delay` · `account-lock-cascade` · `notification-service-overload`
+- **Scale band:** 400M users, 20B transactions/year, 10k P2P transfers/sec peak
+- **3 canonical solutions:**
+  - A · Synchronous 2-account debit/credit with 2PC (the textbook answer).
+  - B · Saga pattern with compensating transactions (the real answer).
+  - C · Hybrid with ledger + saga orchestrator: ledger is source of truth; saga orchestrates the money movement steps.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B36: Domain 4 · `design-shopify-storefront`
+
+- **Slug:** `design-shopify-storefront`
+- **Title:** `Design Shopify Storefront + Checkout`
+- **Domain:** 4 · Order 4/5
+- **Difficulty:** Intermediate
+- **Prerequisite concepts:** `cdn-fundamentals` · `caching-strategies` · `edge-compute-stateless-at-edge` · `idempotency` · `graceful-degradation`
+- **Uses patterns:** `decorator-pattern` · `strategy-pattern` · `template-method`
+- **Chaos bridges:** `flash-sale-queue-overflow` · `inventory-cache-stale` · `cdn-purge-storm` · `checkout-webhook-retry-loop` · `app-extension-cascade`
+- **Scale band:** 2M merchants, 100M buyers, 30k orders/min during BFCM peak
+- **3 canonical solutions:**
+  - A · Server-rendered with aggressive CDN caching.
+  - B · Edge-rendered with Cloudflare Workers / Fastly.
+  - C · Hybrid: server for checkout, edge for product browse.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B37: Domain 4 · `design-square-terminal`
+
+- **Slug:** `design-square-terminal`
+- **Title:** `Design Square-like Point-of-Sale Terminal`
+- **Domain:** 4 · Order 5/5
+- **Difficulty:** Intermediate
+- **Prerequisite concepts:** `graceful-degradation` · `idempotency` · `retries-with-jitter` · `event-sourcing-cqrs` · `consistency-models`
+- **Uses patterns:** `state-pattern` · `command-pattern` · `memento-pattern`
+- **Chaos bridges:** `pos-offline-queue-overflow` · `payment-network-partition` · `receipt-printer-timeout` · `tipping-calculation-race` · `end-of-day-reconciliation-miss`
+- **Scale band:** 4M merchants, 200M daily transactions across terminals, p99 auth ≤2s
+- **3 canonical solutions:**
+  - A · Online-first with cached merchant config.
+  - B · Offline-first with local queue + sync-on-reconnect.
+  - C · Hybrid with per-terminal budget: online when possible; fallback to offline with per-merchant risk cap.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B38: Domain 5 · `design-google-search`
+
+- **Slug:** `design-google-search`
+- **Title:** `Design Google Search (Crawler → Index → Ranker)`
+- **Domain:** 5 · Search & Discovery · Order 1/3
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `stream-processing` · `caching-strategies` · `sharding` · `vector-search-rag` · `load-balancing`
+- **Uses patterns:** `pipeline-pattern` · `strategy-pattern` · `decorator-pattern`
+- **Chaos bridges:** `crawler-robots-txt-misread` · `index-shard-uneven-load` · `ranker-model-drift` · `query-expansion-blowup` · `typeahead-cache-eviction`
+- **Scale band:** 8B searches/day, 50k searches/sec peak, 100PB index, p99 ≤100ms
+- **3 canonical solutions:**
+  - A · Inverted index with posting lists + TF-IDF ranker (the textbook foundation).
+  - B · Vector-index + neural ranker (the modern).
+  - C · Hybrid retrieval (BM25 + dense-vector) with a learned rank-combiner.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B39: Domain 5 · `design-youtube-recommendations`
+
+- **Slug:** `design-youtube-recommendations`
+- **Title:** `Design YouTube Recommendations`
+- **Domain:** 5 · Order 2/3
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `vector-search-rag` · `stream-processing` · `caching-strategies` · `ai-as-system-component` · `gossip-protocols`
+- **Uses patterns:** `pipeline-pattern` · `strategy-pattern` · `observer-pattern`
+- **Chaos bridges:** `embedding-drift-on-model-update` · `cold-start-user-cascade` · `watch-history-write-burst` · `ranker-feature-cache-stale` · `recall-stage-timeout`
+- **Scale band:** 2.7B MAU, 1B hours watched/day, 100k recs/sec peak
+- **3 canonical solutions:**
+  - A · Collaborative filtering + content-based hybrid (the classic).
+  - B · Two-tower neural ranker (the modern).
+  - C · Hybrid with candidate generator (two-tower) + ranker (DNN) + policy learner (bandit exploration).
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B40: Domain 5 · `design-spotify-discovery`
+
+- **Slug:** `design-spotify-discovery`
+- **Title:** `Design Spotify Discovery Weekly`
+- **Domain:** 5 · Order 3/3
+- **Difficulty:** Intermediate
+- **Prerequisite concepts:** `vector-search-rag` · `stream-processing` · `caching-strategies` · `event-sourcing-cqrs`
+- **Uses patterns:** `strategy-pattern` · `pipeline-pattern` · `observer-pattern`
+- **Chaos bridges:** `weekly-batch-job-stall` · `user-profile-embedding-staleness` · `playlist-permalink-cache-miss` · `editorial-override-write-conflict` · `model-retrain-silent-drift`
+- **Scale band:** 600M MAU, 100M paid, weekly Discover Weekly playlist for every user = 100M playlists/week
+- **3 canonical solutions:**
+  - A · Batch nightly with collaborative filtering (classic).
+  - B · Incremental streaming with user-embedding-per-session.
+  - C · Hybrid: nightly batch for base playlist + real-time re-rank based on session signals.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B41: Domain 6 · `design-tinyurl`
+
+- **Slug:** `design-tinyurl`
+- **Title:** `Design TinyURL (URL Shortener Warm-up)`
+- **Domain:** 6 · Infrastructure · Order 1/5
+- **Difficulty:** Warmup
+- **Prerequisite concepts:** `caching-strategies` · `load-balancing` · `consistent-hashing` · `idempotency`
+- **Uses patterns:** `factory-pattern` · `strategy-pattern` (for hash vs counter) · `proxy-pattern`
+- **Chaos bridges:** `hash-collision-on-short-ids` · `cache-stampede-on-hot-url` · `counter-service-leader-election-storm` · `redirect-cache-poisoning` · `abuse-spam-short-url-generation`
+- **Scale band:** 1B URLs created, 10B redirects/day, 100k redirects/sec peak
+- **3 canonical solutions:**
+  - A · Hash-based (MD5 + base62) with collision retry.
+  - B · Counter-based with centralized ID generator (Snowflake-style).
+  - C · Hybrid with zookeeper-coordinated counter ranges per shard.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B42: Domain 6 · `design-pastebin`
+
+- **Slug:** `design-pastebin`
+- **Title:** `Design Pastebin`
+- **Domain:** 6 · Order 2/5
+- **Difficulty:** Warmup
+- **Prerequisite concepts:** `caching-strategies` · `cdn-fundamentals` · `object-storage` · `idempotency`
+- **Uses patterns:** `factory-pattern` · `decorator-pattern` · `strategy-pattern`
+- **Chaos bridges:** `expiration-job-lag` · `cdn-large-paste-miss` · `syntax-highlight-cpu-spike` · `delete-soft-vs-hard-conflict` · `anonymous-abuse-flood`
+- **Scale band:** 200M pastes stored, 50M pastes/day created, 500M views/day
+- **3 canonical solutions:**
+  - A · DB + CDN (classic).
+  - B · Object store + signed URLs.
+  - C · Hybrid with hot-paste cache + cold object store.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B43: Domain 6 · `design-distributed-cron`
+
+- **Slug:** `design-distributed-cron`
+- **Title:** `Design a Distributed Cron (Scheduled Job Platform)`
+- **Domain:** 6 · Order 3/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `leader-election` · `consensus-raft-paxos` · `delivery-semantics` · `bulkheads-pool-isolation` · `idempotency`
+- **Uses patterns:** `command-pattern` · `template-method` · `observer-pattern`
+- **Chaos bridges:** `cron-dual-fire-on-failover` · `job-runner-pool-exhaustion` · `time-zone-dst-skew` · `dependency-chain-retry-storm` · `job-metadata-corruption`
+- **Scale band:** 10M jobs registered, 1B executions/day, median job duration 5s, 95% run at predictable minutes (xx:00, xx:05)
+- **3 canonical solutions:**
+  - A · Single-leader scheduler + worker pool (the simple one).
+  - B · Sharded scheduler with per-shard leaders (the scale-out).
+  - C · Hybrid with dispatcher-worker separation + durable queue for at-least-once fire.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B44: Domain 6 · `design-metrics-system`
+
+- **Slug:** `design-metrics-system`
+- **Title:** `Design a Metrics System (Datadog-shape)`
+- **Domain:** 6 · Order 4/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `stream-processing` · `observability-metrics-logs-traces` · `caching-strategies` · `replication` · `distributed-clocks`
+- **Uses patterns:** `pipeline-pattern` · `observer-pattern` · `strategy-pattern`
+- **Chaos bridges:** `metric-ingest-backpressure` · `cardinality-explosion` · `downsample-job-stall` · `alert-query-p99-spike` · `retention-policy-mismatch`
+- **Scale band:** 10PB ingestion/day, 100M DP/sec peak, 1M active dashboards
+- **3 canonical solutions:**
+  - A · Prometheus-style pull with federation (self-hosted scale).
+  - B · Push with OpenTelemetry → Kafka → columnar store (Datadog-style).
+  - C · Hybrid with real-time + downsample tiered storage (1m hot / 1h warm / 1d cold).
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B45: Domain 6 · `design-feature-flags`
+
+- **Slug:** `design-feature-flags`
+- **Title:** `Design a Feature Flag Platform (LaunchDarkly-shape)`
+- **Domain:** 6 · Order 5/5
+- **Difficulty:** Intermediate
+- **Prerequisite concepts:** `caching-strategies` · `edge-compute-stateless-at-edge` · `deployment-patterns` · `event-sourcing-cqrs`
+- **Uses patterns:** `strategy-pattern` · `observer-pattern` · `chain-of-responsibility`
+- **Chaos bridges:** `flag-config-replication-lag` · `edge-config-push-bug` · `flag-evaluation-cache-miss` · `percentage-rollout-bucket-skew` · `kill-switch-activation-storm`
+- **Scale band:** 10k orgs, 100M DAU served, 10B flag evaluations/sec peak
+- **3 canonical solutions:**
+  - A · Client polls central API every 30-60s (simple).
+  - B · SSE push with edge-cached rules (low latency).
+  - C · Hybrid with rule bundling + per-org client SDK cache + websocket invalidation.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B46: Chaos Batch 1 · Compute & Network (20 scenarios)
+
+*Batch 1 covers compute and network failure modes. Author 20 scenarios following the `sd-chaos-prompt.md` template. The sim engine can already fire the 13 events seeded in Phase 3; Batch 1 adds 20 more specific scenarios derived from real incidents or common production pitfalls.*
+
+- [ ] **Scenarios to author (one MDX per slug):**
+
+1. `cpu-starvation-on-compactor` — background job consumes 90% CPU, foreground queries stall
+2. `nvme-degraded-write-p99` — disk firmware bug causes 10x write latency spike
+3. `lb-health-check-flapping` — health check too strict, LB oscillates
+4. `tcp-retransmit-storm` — packet loss ≥5%, retransmits flood the link
+5. `bgp-route-leak` — upstream leaks routes, traffic blackholed
+6. `dns-ttl-overflow` — 32-bit TTL wraps after 68 years, resolver returns 0 TTL
+7. `ipv6-fallback-miss` — dual-stack client times out on IPv6 without v4 fallback
+8. `mtu-mismatch-cascade` — PMTU discovery blocked, jumbo frames fragment
+9. `ssl-handshake-timeout` — cert validation service slow, handshakes pile up
+10. `cpu-throttle-on-burst` — cloud VM credit exhaustion, throttles to 10% for 30m
+11. `noisy-neighbor-cpu-steal` — tenant on same hypervisor hogs CPU
+12. `network-jitter-cascade` — p99 inter-AZ latency jumps 10ms → 100ms
+13. `packet-loss-degradation` — sustained 2% loss, TCP throughput drops 10x
+14. `bandwidth-starvation` — flash sale, egress hits NAT gateway cap
+15. `region-failover-disconnect` — DNS failover in progress, clients see half-states
+16. `sfu-overload-cascade` — SFU hits CPU cap, dropped participants
+17. `edge-config-push-bug` — bad CDN config pushed, purge loop kicks in
+18. `cdn-edge-eviction-storm` — cache eviction on unrelated tenant sweeps hot content
+19. `transcoding-pipeline-stall` — encoder GPU firmware crash, queue backs up
+20. `viewer-spike-origin-overload` — viral stream hits origin before CDN warms
+
+- [ ] **Step 1-5** per scenario (authoring loop).
+
+---
+
+## Task B47: Chaos Batch 1 seed
+
+- [ ] **Step 1**: Run `pnpm validate:content` on `content/sd/chaos-scenarios/batch-1-compute-network/**`. All 20 pass.
+- [ ] **Step 2**: Run `pnpm db:seed:sd`. Verify 20 rows inserted with `contentType='chaos-scenario'`.
+- [ ] **Step 3**: Commit the batch (one commit per 5 scenarios is acceptable).
+
+```bash
+git commit -m "$(cat <<'EOF'
+feat(sd-content): chaos batch 1 — compute & network (20 scenarios)
+
+20 YAML-driven scenarios covering CPU/disk/LB/DNS/BGP/MTU/SSL/CDN/SFU/
+edge failure modes. Each has 3 narrative variants + postmortem hook.
+Sim engine triggers parsed and validated.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task B48: Chaos Batch 2 · Data & State (20 scenarios)
+
+*Batch 2 covers data-layer failure modes.*
+
+- [ ] **Scenarios to author:**
+
+1. `replication-lag-read-stale` — read from lagging replica, stale by 30s
+2. `split-brain-on-network-partition` — multi-leader accepts divergent writes
+3. `dual-leader-write-conflict` — election flaps, two leaders momentarily
+4. `wal-corruption-truncation` — crash during fsync, WAL truncated mid-record
+5. `fsync-disabled-data-loss` — perf tuning turns off fsync, crash loses last 10s
+6. `long-transaction-autovacuum-block` — 1h txn prevents vacuum, bloat explodes
+7. `hot-shard-meltdown` — 90% of writes to 1 shard, others idle
+8. `shard-rebalance-gridlock` — rebalance holds read lock, queries stall
+9. `index-bloat-query-degradation` — dead tuples in index, seq-scan fallback
+10. `kafka-consumer-lag-blackout` — consumer group lags 24h, retention drops messages
+11. `offset-commit-race` — fast consumer commits before processing, data loss
+12. `ot-transform-conflict` — operational transform diverges on concurrent edits
+13. `crdt-merge-oscillation` — ill-formed CRDT causes infinite merge cycle
+14. `cdc-replication-slot-backup` — unused slot prevents WAL cleanup, disk fills
+15. `silent-log-gap` — CDC stream misses a transaction, downstream inconsistent
+16. `slow-replica-tail-latency` — quorum waits on slowest replica, p99 suffers
+17. `gossip-blackhole-split` — gossip partition, cluster convergence breaks
+18. `clock-drift-cascade` — NTP failure, TTL-based expirations miss
+19. `duplicate-delivery-storm` — at-least-once duplicates flood downstream
+20. `windowing-late-event-storm` — late events cause reprocessing storm
+
+- [ ] **Step 1-5** per scenario.
+
+---
+
+## Task B49: Chaos Batch 2 seed
+
+- [ ] Same as B47 for batch-2.
+
+---
+
+## Task B50: Chaos Batch 3 · Traffic & Dependency (20 scenarios)
+
+*Batch 3 covers traffic patterns and cross-service dependency failures.*
+
+- [ ] **Scenarios to author:**
+
+1. `thundering-herd-on-recovery` — simultaneous cache refill overwhelms origin
+2. `cache-stampede-on-hot-key` — single hot key bypass, concurrent misses hit DB
+3. `celebrity-fan-out-cascade` — 10M-follower account posts, queue explodes
+4. `flash-sale-queue-overflow` — queue backpressure never catches up
+5. `push-notification-storm` — ambiguous event triggers N push per user
+6. `webhook-retry-storm` — downstream dead, retries escalate
+7. `saturation-cliff` — utilization crosses 85%, latency doubles
+8. `dependency-brownout` — dependency slow but not down, callers time out
+9. `dependency-timeout-cascade` — chained timeouts compound
+10. `noisy-neighbor-pool-exhaustion` — one tenant exhausts a pooled resource
+11. `llm-hallucination-retry-loop` — malformed JSON triggers infinite parse-retry
+12. `projection-replay-storm` — event store replay floods downstream
+13. `alert-storm-on-deploy` — deploy changes metrics, alerts misfire
+14. `slo-burn-alert` — alert fires on burn rate with no actionable cause
+15. `surge-compute-saturation` — demand spike exhausts autoscaler headroom
+16. `chat-flood-backpressure` — chat messages back up during live event
+17. `monetization-ad-pod-miss` — ad-pod fetch times out, user sees placeholder
+18. `dispatch-queue-backpressure` — ride-dispatch queue saturates
+19. `embedding-drift-on-model-update` — upgraded model shifts vector space
+20. `driver-pool-location-desync` — driver location writes lag, dispatches stale
+
+- [ ] **Step 1-5** per scenario.
+
+---
+
+## Task B51: Chaos Batch 3 seed
+
+- [ ] Same as B47 for batch-3.
+
+---
+
+## Tasks B52-B60: Parallel authoring — remaining pieces in compressed form
+
+*After B1-B51, we still have the following pieces to land. These tasks are intentionally compact — they mirror the B1-B45 format but delegate to the same 5-step authoring loop. They exist in the plan so the content-ops dashboard can count them; content lead may merge them in any order.*
+
+- [ ] **B52** · Author `content/sd/concepts/wave-1-foundations/three-metrics-that-matter.mdx` if not already shipped in Phase 2 (fallback).
+- [ ] **B53** · Author any wave-4-8 concept that failed editor pass and needs a second draft.
+- [ ] **B54** · Author any domain-2-6 problem that failed editor pass.
+- [ ] **B55** · Author any chaos scenario that failed the `validate:chaos-yaml` check.
+- [ ] **B56** · Generate ELI5 + ELI-Senior voice variants for all Phase 2-3 content that pre-dates the three-variant requirement.
+- [ ] **B57** · Re-audit all Phase 4 content for banned-word violations introduced mid-edit.
+- [ ] **B58** · Re-audit all bridges-out arrays for orphaned slugs (target: 0 orphans at launch).
+- [ ] **B59** · Prune any chaos scenario whose YAML trigger the sim engine cannot execute (file bug upstream, block scenario until engine fixed).
+- [ ] **B60** · Final editorial read-through — every concept/problem/scenario reads aloud cleanly.
+
+---
+
+## Task B61: Post-authoring verification — all 100 pieces seed cleanly
+
+- [ ] **Step 1: Fresh seed run**
+
+```bash
+cd architex && pnpm db:seed:sd 2>&1 | tee /tmp/seed-log.txt
+```
+
+Expected: `upserted 100 rows` (or higher if Phase 2-3 content is re-seeded).
+
+- [ ] **Step 2: Sanity query**
+
+```bash
+cd architex && pnpm tsx -e "
+import { db } from './src/db/client';
+import { moduleContent } from './src/db/schema';
+import { and, eq, sql } from 'drizzle-orm';
+const counts = await db.select({
+  contentType: moduleContent.contentType,
+  count: sql<number>\`count(*)::int\`,
+}).from(moduleContent).where(eq(moduleContent.moduleId, 'sd')).groupBy(moduleContent.contentType);
+console.log(counts);
+"
+```
+
+Expected counts:
+```
+[
+  { contentType: 'concept', count: 40 },
+  { contentType: 'problem', count: 30 },
+  { contentType: 'incident', count: 10 },
+  { contentType: 'chaos-scenario', count: 60 }
+]
+```
+
+Total: **140** rows (40 + 30 + 10 + 60). (Earlier Phase 2-3 seeded 17 + 13 + 10 + 13 = 53 rows; Phase 4 adds 23 + 17 + 0 + 47 = 87. Net 140.)
+
+- [ ] **Step 3: Orphan bridge check**
+
+```bash
+cd architex && pnpm tsx scripts/validate-sd-content.ts --check-orphans
+```
+
+Add to `validate-sd-content.ts` a `--check-orphans` flag that walks every `bridgesOut[].slug` and fails if the slug does not exist in the seeded content table.
+
+Expected: `0 orphaned bridges`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "$(cat <<'EOF'
+feat(sd-content): verify 100-piece content target shipped clean
+
+All 23 concepts (Waves 4-8) + 17 problems (Domains 2-6) + 60 chaos
+scenarios seeded. Total SD module row count: 140 across concept /
+problem / incident / chaos-scenario. Zero orphaned bridges.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
 
 ---
