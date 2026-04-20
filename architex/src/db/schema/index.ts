@@ -53,6 +53,11 @@ export {
   type LLDDrillAttempt,
   type NewLLDDrillAttempt,
 } from "./lld-drill-attempts";
+export {
+  userPreferences,
+  type UserPreferences,
+  type NewUserPreferences,
+} from "./user-preferences";
 
 // Relations (defined in a single file to avoid circular imports)
 export {
@@ -65,4 +70,5 @@ export {
   galleryUpvotesRelations,
   aiUsageRelations,
   lldDrillAttemptsRelations,
+  userPreferencesRelations,
 } from "./relations";

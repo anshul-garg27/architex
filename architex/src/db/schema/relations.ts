@@ -14,10 +14,11 @@ import { templates } from "./templates";
 import { gallerySubmissions, galleryUpvotes } from "./gallery";
 import { aiUsage } from "./ai-usage";
 import { lldDrillAttempts } from "./lld-drill-attempts";
+import { userPreferences } from "./user-preferences";
 
 // ── Users ──────────────────────────────────────────────────────
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   diagrams: many(diagrams),
   simulationRuns: many(simulationRuns),
   progress: many(progress),
@@ -25,6 +26,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   gallerySubmissions: many(gallerySubmissions),
   aiUsage: many(aiUsage),
   lldDrillAttempts: many(lldDrillAttempts),
+  preferences: one(userPreferences, {
+    fields: [users.id],
+    references: [userPreferences.userId],
+  }),
 }));
 
 // ── Diagrams ───────────────────────────────────────────────────
@@ -116,6 +121,18 @@ export const lldDrillAttemptsRelations = relations(
   ({ one }) => ({
     user: one(users, {
       fields: [lldDrillAttempts.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── User Preferences ──────────────────────────────────────────
+
+export const userPreferencesRelations = relations(
+  userPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userPreferences.userId],
       references: [users.id],
     }),
   }),
