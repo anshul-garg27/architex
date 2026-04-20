@@ -210,3 +210,519 @@ architex/
 - Execution Handoff
 
 ---
+
+## Task 1: Create `sd_concepts` DB schema
+
+**Files:**
+- Create: `architex/src/db/schema/sd-concepts.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/db/schema/__tests__/sd-concepts.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdConcepts } from "@/db/schema/sd-concepts";
+
+describe("sdConcepts schema", () => {
+  it("exports a pgTable with the expected columns", () => {
+    const cols = Object.keys(sdConcepts);
+    // Drizzle exposes columns as enumerable keys of the symbolized object
+    expect(cols).toContain("id");
+    expect(cols).toContain("slug");
+    expect(cols).toContain("wave");
+    expect(cols).toContain("waveOrder");
+    expect(cols).toContain("title");
+    expect(cols).toContain("bodyMdx");
+    expect(cols).toContain("voiceVariant");
+  });
+
+  it("declares primary key and unique slug", () => {
+    // Drizzle's internal symbol keys carry constraint metadata
+    const table = sdConcepts as unknown as {
+      _: { columns: Record<string, { primary?: boolean; isUnique?: boolean }> };
+    };
+    expect(table._.columns.id.primary).toBe(true);
+    expect(table._.columns.slug.isUnique).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd architex
+pnpm test:run -- sd-concepts.schema
+```
+
+Expected: FAIL with `Cannot find module '@/db/schema/sd-concepts'`.
+
+- [ ] **Step 3: Write the schema file**
+
+Create `architex/src/db/schema/sd-concepts.ts`:
+
+```typescript
+/**
+ * DB-SD-01: sd_concepts — 40 concept records (the atoms).
+ *
+ * Each concept is an 8-section MDX body authored by Opus (see spec §5.4).
+ * Indexed by wave + wave_order for deterministic curriculum ordering.
+ *
+ * voice_variant: one of 'eli5' | 'standard' | 'eli-senior' — allows the
+ * same concept to ship with multiple voices behind a feature flag.
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  text,
+  timestamp,
+  index,
+} from "drizzle-orm/pg-core";
+
+export const sdConcepts = pgTable(
+  "sd_concepts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: varchar("slug", { length: 100 }).notNull().unique(),
+    wave: integer("wave").notNull(), // 1..8
+    waveOrder: integer("wave_order").notNull(), // position within wave
+    title: varchar("title", { length: 200 }).notNull(),
+    shortDescription: text("short_description").notNull(),
+    bodyMdx: text("body_mdx").notNull(),
+    wordCount: integer("word_count"),
+    readingTimeMin: integer("reading_time_min"),
+    voiceVariant: varchar("voice_variant", { length: 20 })
+      .notNull()
+      .default("standard"),
+    contentQuality: varchar("content_quality", { length: 20 })
+      .notNull()
+      .default("polished"),
+    generatedBy: varchar("generated_by", { length: 20 })
+      .notNull()
+      .default("hybrid"),
+    sourceYear: integer("source_year"),
+    lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("sd_concepts_wave_idx").on(t.wave, t.waveOrder)],
+);
+
+export type SDConcept = typeof sdConcepts.$inferSelect;
+export type NewSDConcept = typeof sdConcepts.$inferInsert;
+```
+
+- [ ] **Step 4: Re-export from schema index**
+
+Open `architex/src/db/schema/index.ts` and append next to the other SD exports (alphabetical within the SD group, placed below the existing LLD block):
+
+```typescript
+export {
+  sdConcepts,
+  type SDConcept,
+  type NewSDConcept,
+} from "./sd-concepts";
+```
+
+- [ ] **Step 5: Verify typecheck passes**
+
+```bash
+cd architex
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 6: Run schema test**
+
+```bash
+pnpm test:run -- sd-concepts.schema
+```
+
+Expected: PASS · all 2 assertions.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add architex/src/db/schema/sd-concepts.ts \
+        architex/src/db/schema/__tests__/sd-concepts.schema.test.ts \
+        architex/src/db/schema/index.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_concepts schema
+
+40-row table for SD concept pages (8-section MDX). Unique slug, composite
+wave index. voice_variant column allows eli5/standard/eli-senior behind
+a flag per spec §5.4.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 2: Create `sd_problems` DB schema
+
+**Files:**
+- Create: `architex/src/db/schema/sd-problems.ts`
+- Modify: `architex/src/db/schema/index.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/db/schema/__tests__/sd-problems.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdProblems } from "@/db/schema/sd-problems";
+
+describe("sdProblems schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdProblems);
+    for (const c of [
+      "id",
+      "slug",
+      "domain",
+      "difficulty",
+      "title",
+      "bodyMdx",
+      "canonicalSolutions",
+      "rubric",
+      "recommendedChaos",
+      "linkedConcepts",
+      "linkedLldPatterns",
+      "companiesAsking",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- sd-problems.schema
+```
+
+Expected: FAIL · module missing.
+
+- [ ] **Step 3: Write the schema file**
+
+Create `architex/src/db/schema/sd-problems.ts`:
+
+```typescript
+/**
+ * DB-SD-02: sd_problems — 30 problem records (the molecules).
+ *
+ * Each problem is a 6-pane MDX page with canonical solutions, a 6-axis
+ * rubric, recommended chaos events, linked concepts/LLD patterns, and
+ * the companies known to ask it. Spec §5.5.
+ *
+ * Filtered by domain, difficulty, company in the Drill and Learn libraries.
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  jsonb,
+  timestamp,
+  index,
+} from "drizzle-orm/pg-core";
+
+export const sdProblems = pgTable(
+  "sd_problems",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: varchar("slug", { length: 100 }).notNull().unique(),
+    domain: varchar("domain", { length: 50 }).notNull(),
+    difficulty: varchar("difficulty", { length: 20 }).notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    bodyMdx: text("body_mdx").notNull(),
+    canonicalSolutions: jsonb("canonical_solutions").notNull(),
+    rubric: jsonb("rubric").notNull(),
+    recommendedChaos: jsonb("recommended_chaos").notNull(),
+    linkedConcepts: jsonb("linked_concepts"),
+    linkedLldPatterns: jsonb("linked_lld_patterns"),
+    companiesAsking: jsonb("companies_asking"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("sd_problems_domain_idx").on(t.domain),
+    index("sd_problems_difficulty_idx").on(t.difficulty),
+  ],
+);
+
+export type SDProblem = typeof sdProblems.$inferSelect;
+export type NewSDProblem = typeof sdProblems.$inferInsert;
+```
+
+- [ ] **Step 4: Re-export from schema index**
+
+```typescript
+export {
+  sdProblems,
+  type SDProblem,
+  type NewSDProblem,
+} from "./sd-problems";
+```
+
+- [ ] **Step 5: Verify typecheck + test**
+
+```bash
+pnpm typecheck
+pnpm test:run -- sd-problems.schema
+```
+
+Expected: both PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/db/schema/sd-problems.ts \
+        architex/src/db/schema/__tests__/sd-problems.schema.test.ts \
+        architex/src/db/schema/index.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_problems schema
+
+30-row table for SD problem pages (6-pane MDX). Domain + difficulty
+indexes back the faceted filter bar from spec §4.3. JSONB columns carry
+canonical solutions, 6-axis rubric, recommended chaos, linked concepts.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 3: Create `sd_concept_reads` + `sd_concept_bookmarks` schemas
+
+**Files:**
+- Create: `architex/src/db/schema/sd-concept-reads.ts`
+- Create: `architex/src/db/schema/sd-concept-bookmarks.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+Per-user tracking tables. `sd_concept_reads` logs every scroll-to-bottom event (used to compute wave-completion progress). `sd_concept_bookmarks` is the user's "save for later" list, surfaced on the dashboard and in the Review queue.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `architex/src/db/schema/__tests__/sd-concept-reads.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdConceptReads } from "@/db/schema/sd-concept-reads";
+
+describe("sdConceptReads schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdConceptReads);
+    for (const c of [
+      "id",
+      "userId",
+      "conceptId",
+      "startedAt",
+      "completedAt",
+      "scrollDepthPct",
+      "checkpointsPassed",
+      "checkpointsAttempted",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+Create `architex/src/db/schema/__tests__/sd-concept-bookmarks.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdConceptBookmarks } from "@/db/schema/sd-concept-bookmarks";
+
+describe("sdConceptBookmarks schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdConceptBookmarks);
+    for (const c of ["id", "userId", "conceptId", "note", "createdAt"]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+```bash
+pnpm test:run -- sd-concept-reads.schema sd-concept-bookmarks.schema
+```
+
+Expected: both FAIL · modules missing.
+
+- [ ] **Step 3: Write the schema files**
+
+Create `architex/src/db/schema/sd-concept-reads.ts`:
+
+```typescript
+/**
+ * DB-SD-03: sd_concept_reads — one row per user read session of a concept.
+ *
+ * Inserted on concept page mount; updated on scroll milestones and
+ * checkpoint submissions; finalized when user scrolls ≥ 95% or closes
+ * the page. Used to compute Wave completion progress and the FSRS
+ * initial-due date for that concept's generated cards.
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  timestamp,
+  integer,
+  real,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+import { sdConcepts } from "./sd-concepts";
+
+export const sdConceptReads = pgTable(
+  "sd_concept_reads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    conceptId: uuid("concept_id")
+      .notNull()
+      .references(() => sdConcepts.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    scrollDepthPct: real("scroll_depth_pct").notNull().default(0),
+    checkpointsPassed: integer("checkpoints_passed").notNull().default(0),
+    checkpointsAttempted: integer("checkpoints_attempted").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("sd_concept_reads_user_concept_idx").on(t.userId, t.conceptId),
+    index("sd_concept_reads_started_idx").on(t.userId, t.startedAt),
+  ],
+);
+
+export type SDConceptRead = typeof sdConceptReads.$inferSelect;
+export type NewSDConceptRead = typeof sdConceptReads.$inferInsert;
+```
+
+Create `architex/src/db/schema/sd-concept-bookmarks.ts`:
+
+```typescript
+/**
+ * DB-SD-04: sd_concept_bookmarks — user's "save for later" bookmarks.
+ *
+ * Unique (user_id, concept_id) prevents duplicate bookmarks. Optional
+ * note field lets the user attach context ("revisit when building rate
+ * limiter"). Surfaced on the dashboard and in the Review queue.
+ */
+
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+import { sdConcepts } from "./sd-concepts";
+
+export const sdConceptBookmarks = pgTable(
+  "sd_concept_bookmarks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    conceptId: uuid("concept_id")
+      .notNull()
+      .references(() => sdConcepts.id, { onDelete: "cascade" }),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sd_concept_bookmarks_user_concept_uq").on(
+      t.userId,
+      t.conceptId,
+    ),
+  ],
+);
+
+export type SDConceptBookmark = typeof sdConceptBookmarks.$inferSelect;
+export type NewSDConceptBookmark = typeof sdConceptBookmarks.$inferInsert;
+```
+
+- [ ] **Step 4: Re-export both from schema index**
+
+```typescript
+export {
+  sdConceptReads,
+  type SDConceptRead,
+  type NewSDConceptRead,
+} from "./sd-concept-reads";
+export {
+  sdConceptBookmarks,
+  type SDConceptBookmark,
+  type NewSDConceptBookmark,
+} from "./sd-concept-bookmarks";
+```
+
+- [ ] **Step 5: Verify typecheck + tests**
+
+```bash
+pnpm typecheck
+pnpm test:run -- sd-concept-reads.schema sd-concept-bookmarks.schema
+```
+
+Expected: all PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/db/schema/sd-concept-reads.ts \
+        architex/src/db/schema/sd-concept-bookmarks.ts \
+        architex/src/db/schema/__tests__/sd-concept-reads.schema.test.ts \
+        architex/src/db/schema/__tests__/sd-concept-bookmarks.schema.test.ts \
+        architex/src/db/schema/index.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_concept_reads + sd_concept_bookmarks schemas
+
+- sd_concept_reads: one row per user read session; tracks scroll depth
+  and checkpoint counts. Powers Wave completion progress and FSRS
+  initial-due date computation.
+- sd_concept_bookmarks: save-for-later with optional note. Unique
+  (user, concept) prevents duplicates.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
