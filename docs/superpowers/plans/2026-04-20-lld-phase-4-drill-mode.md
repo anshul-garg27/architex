@@ -3846,6 +3846,639 @@ EOF
 
 ---
 
+## Task 17: `useDrillInterviewer` hook — streaming chat consumer
+
+**Files:**
+- Create: `architex/src/hooks/useDrillInterviewer.ts`
+- Test: `architex/src/hooks/__tests__/useDrillInterviewer.test.tsx`
+
+Opens an SSE connection to the server streaming endpoint (Task 25), pipes incoming tokens into a local `pending` buffer, and flushes a completed turn into `drill-store` when the stream closes. Manages reconnect on transient network errors. Never calls Claude directly — server-only.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useDrillInterviewer.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { useDrillInterviewer } from "@/hooks/useDrillInterviewer";
+import { useDrillStore } from "@/stores/drill-store";
+
+// Minimal fake EventSource
+class FakeEventSource {
+  static instances: FakeEventSource[] = [];
+  url: string;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onerror: ((e: Event) => void) | null = null;
+  onopen: (() => void) | null = null;
+  readyState = 0;
+  constructor(url: string) {
+    this.url = url;
+    FakeEventSource.instances.push(this);
+    setTimeout(() => {
+      this.readyState = 1;
+      this.onopen?.();
+    }, 0);
+  }
+  close() {
+    this.readyState = 2;
+  }
+  emit(data: string) {
+    this.onmessage?.({ data });
+  }
+}
+
+describe("useDrillInterviewer", () => {
+  beforeEach(() => {
+    FakeEventSource.instances.length = 0;
+    // @ts-expect-error test stub
+    global.EventSource = FakeEventSource;
+    useDrillStore.getState().reset();
+    useDrillStore.getState().beginAttempt({
+      attemptId: "a1",
+      variant: "study",
+      persona: "generic",
+    });
+  });
+
+  afterEach(() => {
+    // @ts-expect-error cleanup
+    delete global.EventSource;
+  });
+
+  it("opens an SSE stream when sendMessage is called", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, seq: 0 }),
+    }) as typeof fetch;
+
+    const { result } = renderHook(() => useDrillInterviewer("a1"));
+    await act(async () => {
+      await result.current.sendMessage("How many levels in the lot?");
+    });
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(FakeEventSource.instances[0]?.url).toMatch(/\/api\/lld\/drill-interviewer\/a1\/stream/);
+  });
+
+  it("appends user turn immediately (optimistic)", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    }) as typeof fetch;
+
+    const { result } = renderHook(() => useDrillInterviewer("a1"));
+    await act(async () => {
+      await result.current.sendMessage("Clarify scope?");
+    });
+    const turns = useDrillStore.getState().interviewerTurns;
+    expect(turns).toHaveLength(1);
+    expect(turns[0]?.role).toBe("user");
+    expect(turns[0]?.content).toBe("Clarify scope?");
+  });
+
+  it("accumulates streamed tokens and commits a completed turn", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    }) as typeof fetch;
+
+    const { result } = renderHook(() => useDrillInterviewer("a1"));
+    await act(async () => {
+      await result.current.sendMessage("Clarify scope?");
+    });
+
+    await waitFor(() => expect(FakeEventSource.instances.length).toBe(1));
+
+    const source = FakeEventSource.instances[0]!;
+    act(() => {
+      source.emit(JSON.stringify({ type: "delta", text: "Sure, " }));
+      source.emit(JSON.stringify({ type: "delta", text: "how many levels?" }));
+      source.emit(JSON.stringify({ type: "done" }));
+    });
+
+    const turns = useDrillStore.getState().interviewerTurns;
+    expect(turns).toHaveLength(2);
+    expect(turns[1]?.role).toBe("interviewer");
+    expect(turns[1]?.content).toBe("Sure, how many levels?");
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useDrillInterviewer
+```
+Expected: FAIL.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useDrillInterviewer.ts`:
+
+```typescript
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useDrillStore } from "@/stores/drill-store";
+
+interface ChatStreamMessage {
+  type: "delta" | "done" | "error";
+  text?: string;
+  error?: string;
+}
+
+export interface UseDrillInterviewerResult {
+  pending: string; // streaming partial turn
+  isStreaming: boolean;
+  error: string | null;
+  sendMessage: (content: string) => Promise<void>;
+}
+
+export function useDrillInterviewer(
+  attemptId: string | null,
+): UseDrillInterviewerResult {
+  const [pending, setPending] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const sourceRef = useRef<EventSource | null>(null);
+  const appendInterviewerTurn = useDrillStore((s) => s.appendInterviewerTurn);
+  const currentStage = useDrillStore((s) => s.currentStage);
+
+  const closeStream = useCallback(() => {
+    if (sourceRef.current) {
+      sourceRef.current.close();
+      sourceRef.current = null;
+    }
+    setIsStreaming(false);
+  }, []);
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!attemptId) return;
+      setError(null);
+
+      // Optimistic user turn.
+      appendInterviewerTurn({
+        role: "user",
+        stage: currentStage,
+        content,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Post the user turn to the server so the chat history is durable.
+      try {
+        const res = await fetch(
+          `/api/lld/drill-interviewer/${attemptId}/stream`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content, stage: currentStage }),
+          },
+        );
+        if (!res.ok) {
+          setError(`Failed to start stream: ${res.status}`);
+          return;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown network error");
+        return;
+      }
+
+      // Open the SSE stream.
+      closeStream();
+      setPending("");
+      setIsStreaming(true);
+
+      const source = new EventSource(
+        `/api/lld/drill-interviewer/${attemptId}/stream`,
+      );
+      sourceRef.current = source;
+
+      let accumulated = "";
+
+      source.onmessage = (evt) => {
+        let msg: ChatStreamMessage;
+        try {
+          msg = JSON.parse(evt.data) as ChatStreamMessage;
+        } catch {
+          return;
+        }
+        if (msg.type === "delta" && typeof msg.text === "string") {
+          accumulated += msg.text;
+          setPending(accumulated);
+        } else if (msg.type === "done") {
+          // Commit the final turn into the store.
+          appendInterviewerTurn({
+            role: "interviewer",
+            stage: currentStage,
+            content: accumulated,
+            createdAt: new Date().toISOString(),
+          });
+          setPending("");
+          closeStream();
+        } else if (msg.type === "error") {
+          setError(msg.error ?? "Stream error");
+          closeStream();
+        }
+      };
+
+      source.onerror = () => {
+        setError("Stream connection lost");
+        closeStream();
+      };
+    },
+    [attemptId, appendInterviewerTurn, currentStage, closeStream],
+  );
+
+  useEffect(() => {
+    return () => closeStream();
+  }, [closeStream]);
+
+  return { pending, isStreaming, error, sendMessage };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useDrillInterviewer
+```
+Expected: PASS · 3 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useDrillInterviewer.ts architex/src/hooks/__tests__/useDrillInterviewer.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): useDrillInterviewer — streaming chat consumer
+
+Optimistic user-turn push, then POST to server to register it, then
+EventSource SSE stream for the interviewer reply. Accumulates deltas
+into local 'pending' state; commits finalized turn into drill-store
+on 'done'. Closes the stream on unmount.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 18: `useDrillHintLadder` hook — 3-tier penalty tracker
+
+**Files:**
+- Create: `architex/src/hooks/useDrillHintLadder.ts`
+- Test: `architex/src/hooks/__tests__/useDrillHintLadder.test.tsx`
+
+Wraps the existing `hint-system.ts` 3-tier engine + the drill variant config. Enforces three rules:
+
+1. **Variant-gated**: `exam` blocks all hints. `study` allows unlimited hints with zero penalty. `timed-mock` allows hints with per-tier penalty deduction.
+2. **Tier ladder**: user must consume `nudge` before `hint`, and `hint` before `reveal` for the same stage. Cannot skip.
+3. **Penalty budget cap**: in `timed-mock`, accumulated penalty cannot exceed `variantConfig.maxHintPenalty`. Additional requests return "budget exhausted" until submit.
+
+Hint penalties: `nudge=3`, `hint=10`, `reveal=20`.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useDrillHintLadder.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useDrillHintLadder } from "@/hooks/useDrillHintLadder";
+import { useDrillStore } from "@/stores/drill-store";
+
+describe("useDrillHintLadder · exam variant", () => {
+  beforeEach(() => {
+    useDrillStore.getState().reset();
+    useDrillStore.getState().beginAttempt({
+      attemptId: "a1",
+      variant: "exam",
+      persona: "amazon",
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ content: "ok" }),
+    }) as typeof fetch;
+  });
+
+  it("blocks all hints in exam variant", async () => {
+    const { result } = renderHook(() => useDrillHintLadder("a1"));
+    expect(result.current.canRequestTier("nudge")).toBe(false);
+    expect(result.current.canRequestTier("hint")).toBe(false);
+    expect(result.current.canRequestTier("reveal")).toBe(false);
+  });
+});
+
+describe("useDrillHintLadder · timed-mock variant", () => {
+  beforeEach(() => {
+    useDrillStore.getState().reset();
+    useDrillStore.getState().beginAttempt({
+      attemptId: "a1",
+      variant: "timed-mock",
+      persona: "generic",
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ content: "the hint text" }),
+    }) as typeof fetch;
+  });
+
+  it("allows nudge initially", () => {
+    const { result } = renderHook(() => useDrillHintLadder("a1"));
+    expect(result.current.canRequestTier("nudge")).toBe(true);
+  });
+
+  it("blocks hint + reveal until nudge consumed", () => {
+    const { result } = renderHook(() => useDrillHintLadder("a1"));
+    expect(result.current.canRequestTier("hint")).toBe(false);
+    expect(result.current.canRequestTier("reveal")).toBe(false);
+  });
+
+  it("allows hint after nudge consumed", async () => {
+    const { result } = renderHook(() => useDrillHintLadder("a1"));
+    await act(async () => {
+      await result.current.requestTier("nudge");
+    });
+    expect(result.current.canRequestTier("hint")).toBe(true);
+  });
+
+  it("deducts correct penalty per tier", async () => {
+    const { result } = renderHook(() => useDrillHintLadder("a1"));
+    await act(async () => {
+      await result.current.requestTier("nudge");
+    });
+    expect(useDrillStore.getState().hintPenaltyTotal).toBe(3);
+    await act(async () => {
+      await result.current.requestTier("hint");
+    });
+    expect(useDrillStore.getState().hintPenaltyTotal).toBe(13);
+  });
+});
+
+describe("useDrillHintLadder · study variant", () => {
+  beforeEach(() => {
+    useDrillStore.getState().reset();
+    useDrillStore.getState().beginAttempt({
+      attemptId: "a1",
+      variant: "study",
+      persona: "generic",
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ content: "hint" }),
+    }) as typeof fetch;
+  });
+
+  it("allows any tier with zero penalty in study mode", async () => {
+    const { result } = renderHook(() => useDrillHintLadder("a1"));
+    await act(async () => {
+      await result.current.requestTier("nudge");
+    });
+    expect(useDrillStore.getState().hintPenaltyTotal).toBe(0);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useDrillHintLadder
+```
+Expected: FAIL.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useDrillHintLadder.ts`:
+
+```typescript
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+import { useDrillStore } from "@/stores/drill-store";
+import { variantConfigFor } from "@/lib/lld/drill-variants";
+import type { HintTier } from "@/lib/ai/hint-system";
+
+// Phase 4 penalty schedule (study = 0 regardless of tier).
+const TIER_PENALTY: Record<HintTier, number> = {
+  nudge: 3,
+  guided: 10,
+  "full-explanation": 20,
+};
+
+// Alias the Phase 4 UI tier names → existing HintTier.
+export type UITier = "nudge" | "hint" | "reveal";
+const UI_TO_ENGINE: Record<UITier, HintTier> = {
+  nudge: "nudge",
+  hint: "guided",
+  reveal: "full-explanation",
+};
+const TIER_ORDER: UITier[] = ["nudge", "hint", "reveal"];
+
+export interface UseDrillHintLadderResult {
+  remainingBudget: number | null; // null = unlimited (study)
+  consumedTiers: UITier[];
+  canRequestTier: (tier: UITier) => boolean;
+  requestTier: (tier: UITier) => Promise<string | null>;
+  lastHintContent: string | null;
+  isLoading: boolean;
+}
+
+export function useDrillHintLadder(
+  attemptId: string | null,
+): UseDrillHintLadderResult {
+  const variant = useDrillStore((s) => s.variant);
+  const hintLog = useDrillStore((s) => s.hintLog);
+  const hintPenaltyTotal = useDrillStore((s) => s.hintPenaltyTotal);
+  const currentStage = useDrillStore((s) => s.currentStage);
+  const recordHintPenalty = useDrillStore((s) => s.recordHintPenalty);
+  const [lastHintContent, setLastHintContent] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const cfg = variantConfigFor(variant);
+
+  const consumedTiers = useMemo<UITier[]>(
+    () =>
+      hintLog
+        .filter((h) => h.stage === currentStage)
+        .map((h) => {
+          const entry = (Object.entries(UI_TO_ENGINE) as [UITier, HintTier][])
+            .find(([, engineTier]) => engineTier === h.tier);
+          return entry?.[0] ?? "nudge";
+        }),
+    [hintLog, currentStage],
+  );
+
+  const highestConsumedIdx = useMemo(() => {
+    if (consumedTiers.length === 0) return -1;
+    return consumedTiers.reduce(
+      (max, t) => Math.max(max, TIER_ORDER.indexOf(t)),
+      -1,
+    );
+  }, [consumedTiers]);
+
+  const remainingBudget =
+    cfg.maxHintPenalty === null
+      ? null
+      : Math.max(0, cfg.maxHintPenalty - hintPenaltyTotal);
+
+  const canRequestTier = useCallback(
+    (tier: UITier): boolean => {
+      if (!cfg.hintsAllowed) return false;
+      const tierIdx = TIER_ORDER.indexOf(tier);
+      // Must be the next tier in the ladder.
+      if (tierIdx !== highestConsumedIdx + 1) return false;
+      // Budget check (timed-mock only).
+      if (remainingBudget !== null) {
+        const cost = variant === "study" ? 0 : TIER_PENALTY[UI_TO_ENGINE[tier]];
+        if (cost > remainingBudget) return false;
+      }
+      return true;
+    },
+    [cfg.hintsAllowed, highestConsumedIdx, remainingBudget, variant],
+  );
+
+  const requestTier = useCallback(
+    async (tier: UITier): Promise<string | null> => {
+      if (!attemptId) return null;
+      if (!canRequestTier(tier)) return null;
+
+      const engineTier = UI_TO_ENGINE[tier];
+      const penalty = variant === "study" ? 0 : TIER_PENALTY[engineTier];
+
+      setIsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/lld/drill-attempts/${attemptId}/hint`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tier: engineTier,
+              stage: currentStage,
+            }),
+          },
+        );
+        if (!res.ok) return null;
+        const json = (await res.json()) as { content?: string };
+        const content = json.content ?? null;
+        recordHintPenalty(penalty, {
+          tier: engineTier,
+          stage: currentStage,
+          content: content ?? undefined,
+        });
+        setLastHintContent(content);
+        return content;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [attemptId, canRequestTier, variant, currentStage, recordHintPenalty],
+  );
+
+  return {
+    remainingBudget,
+    consumedTiers,
+    canRequestTier,
+    requestTier,
+    lastHintContent,
+    isLoading,
+  };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useDrillHintLadder
+```
+Expected: PASS · all assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useDrillHintLadder.ts architex/src/hooks/__tests__/useDrillHintLadder.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): useDrillHintLadder — 3-tier penalty tracker
+
+Variant-gated (exam = zero hints, study = free, timed-mock = penalized).
+Enforces ladder order: nudge → hint → reveal; cannot skip. Penalty
+budget enforced in timed-mock. Records each consumption in drill-store
+hintLog for the post-drill rubric-breakdown display.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 19: `useDrillTimingHeatmap` hook — per-stage duration surface
+
+**Files:**
+- Create: `architex/src/hooks/useDrillTimingHeatmap.ts`
+
+Reads `drill-store.stageDurationsMs` and the session's total budget, delegates to `drill-timing.buildTimingHeatmap`, returns the heatmap. Pure derived hook — no effects, no fetches.
+
+- [ ] **Step 1: Create the hook**
+
+Create `architex/src/hooks/useDrillTimingHeatmap.ts`:
+
+```typescript
+"use client";
+
+import { useMemo } from "react";
+import { useDrillStore } from "@/stores/drill-store";
+import { useInterviewStore } from "@/stores/interview-store";
+import { STAGE_ORDER, type DrillStage } from "@/lib/lld/drill-stages";
+import { buildTimingHeatmap, type TimingHeatmap } from "@/lib/lld/drill-timing";
+
+export function useDrillTimingHeatmap(): TimingHeatmap | null {
+  const stageDurationsMs = useDrillStore((s) => s.stageDurationsMs);
+  const activeDrill = useInterviewStore((s) => s.activeDrill);
+  const totalBudgetMs = activeDrill?.durationLimitMs ?? 0;
+
+  return useMemo(() => {
+    if (totalBudgetMs === 0) return null;
+    const actual = STAGE_ORDER.reduce(
+      (acc, stage) => {
+        acc[stage] = stageDurationsMs[stage] ?? 0;
+        return acc;
+      },
+      {} as Record<DrillStage, number>,
+    );
+    return buildTimingHeatmap(actual, totalBudgetMs);
+  }, [stageDurationsMs, totalBudgetMs]);
+}
+```
+
+- [ ] **Step 2: Verify typecheck passes**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors. This hook is purely derived; behavior is covered by `drill-timing.test.ts` already.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/hooks/useDrillTimingHeatmap.ts
+git commit -m "$(cat <<'EOF'
+feat(hooks): useDrillTimingHeatmap — derived per-stage heatmap
+
+Reads drill-store stageDurationsMs + interview-store durationLimitMs,
+returns TimingHeatmap or null. Pure memoized selector — no effects.
+Used by the post-drill DrillTimingHeatmap component.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+
 
 
 
