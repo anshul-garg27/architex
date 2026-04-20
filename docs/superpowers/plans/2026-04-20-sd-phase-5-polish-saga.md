@@ -2403,3 +2403,839 @@ git commit -m "plan(sd-phase-5-task10): saga narrative engine (MDX loader + type
 
 ---
 
+## Task 11: Chapter 1 content scaffolding — *Day 1 at MockFlix*
+
+**Files:**
+- Create: `architex/content/sd/saga/chapter-01-day-1-at-mockflix/intro.mdx`
+- Create: `architex/content/sd/saga/chapter-01-day-1-at-mockflix/scenes/01-arrival.mdx`
+- Create: `architex/content/sd/saga/chapter-01-day-1-at-mockflix/scenes/02-first-brief.mdx`
+- Create: `architex/content/sd/saga/chapter-01-day-1-at-mockflix/scenes/03-first-sketch.mdx`
+- Create: `architex/content/sd/saga/chapter-01-day-1-at-mockflix/scenes/04-first-review.mdx`
+- Create: `architex/content/sd/saga/chapter-01-day-1-at-mockflix/consequences.mdx`
+- Create: `architex/content/sd/saga/chapter-01-day-1-at-mockflix/manifest.ts`
+
+**Design intent (§20.3, task scope):** Chapter 1 is *Day 1 at MockFlix* — the user arrives at a fictional streaming startup as its first infrastructure architect. Four scenes pair a cutscene with a practice activity:
+
+1. **Arrival** (cutscene, 3 min) — cinematic open; user meets the team, sees the broken-MVP diagram on the whiteboard.
+2. **First brief** (Learn, 25 min) — concept page: *video streaming fundamentals* (CDN, transcoding, manifest formats). Uses existing Wave 1 concept content with a saga-specific narrative wrapper.
+3. **First sketch** (Build, 45 min) — user drafts the first iteration of the MockFlix streaming architecture on a pre-seeded template (CDN + transcoder + S3 + API service).
+4. **First review** (Simulate, 25 min) — the team "reviews" the sketch: a Validate-at-Scale run with 1k DAU target traffic. User sees the first green dashboard.
+
+Each scene has ~200 words of Opus narrative wrapper; the activities themselves are the existing platform content re-framed.
+
+**Token budget:** ~5k Opus tokens for ~900 words of chapter intro + ~4 × 200 word scene intros + ~600 word consequences.
+
+- [ ] **Step 1: Author `intro.mdx`**
+
+Opus task prompt (to run before plan execution; the `.mdx` file checked in is the shipping output):
+
+> Write an 800-word cinematic chapter opener for *Day 1 at MockFlix*. The year is 2015. The reader-protagonist has just been hired as the first infrastructure architect at MockFlix, a video streaming startup. First-person past-tense. Use IBM Plex Serif cadence: short paragraphs, image-driven, occasional terminal-command interruption. End on the sentence "Someone handed me a whiteboard marker." Do not advertise the platform; this is narrative, not marketing.
+
+Manifest frontmatter:
+```yaml
+---
+title: "Day 1 at MockFlix"
+year: 2015
+durationMinutes: 180
+bgGradient: "linear-gradient(140deg, #0B1020 0%, #1A2B52 50%, #2563EB 100%)"
+dramaRating: "soft"
+---
+```
+
+The body of `intro.mdx` is Opus-authored prose. The plan commits a placeholder with the frontmatter and a structural outline; the authored content is landed in a follow-up content-commit before Chapter 1 ships (same pattern as Phase 2 content drops).
+
+Placeholder body (ships before content):
+```mdx
+# Day 1 at MockFlix
+
+<!-- OPUS: 800-word cinematic chapter opener per token budget in plan §11 Step 1 -->
+
+> "Someone handed me a whiteboard marker." — closing line, non-negotiable.
+
+<!-- structural outline (Opus replaces each heading with ~100 words of prose) -->
+
+## I. The walk in
+<!-- first-person arrival; the lobby; the smell of the building. -->
+
+## II. The team
+<!-- eight people; the CEO's pitch was ten minutes long; the whiteboard was a mess. -->
+
+## III. The brief
+<!-- "Users. Videos. Not yet broken at scale. Ship something that does not fall over when we go on Hacker News." -->
+
+## IV. The silence
+<!-- the room went quiet when they handed me the marker. -->
+```
+
+- [ ] **Step 2: Author `scenes/01-arrival.mdx`**
+
+~200-word cutscene wrapper. Frontmatter:
+```yaml
+---
+title: "Arrival"
+kind: "cutscene"
+durationMinutes: 3
+bgGradient: "linear-gradient(180deg, #0B1020, #13263D)"
+dramaRating: "soft"
+---
+```
+
+Structural outline:
+```mdx
+# Arrival
+
+<!-- OPUS: 200-word cinematic arrival. The reader walks into MockFlix HQ. -->
+
+<!-- Closing image: the whiteboard shows a broken-looking MVP architecture. -->
+```
+
+- [ ] **Step 3: Author `scenes/02-first-brief.mdx`**
+
+~200-word narrative wrapper + a `<SceneContent conceptId="sd.concept.cdn-basics"/>` embed that drives the Learn mode with the wave-1 CDN concept page, but under a saga-specific context frame.
+
+```mdx
+---
+title: "The First Brief"
+kind: "learn"
+durationMinutes: 25
+conceptId: "sd.concept.cdn-basics"
+---
+
+# The First Brief
+
+<!-- OPUS: 200-word wrapper. The team tells the protagonist what MockFlix's users actually do. -->
+
+<SceneContent conceptId="sd.concept.cdn-basics" />
+
+<!-- Closing line: "I was going to need to know more than that." -->
+```
+
+- [ ] **Step 4: Author `scenes/03-first-sketch.mdx`**
+
+Drives Build mode with a pre-seeded template. Frontmatter embeds the seed diagram ID.
+
+```mdx
+---
+title: "The First Sketch"
+kind: "build"
+durationMinutes: 45
+templateDiagramId: "sd.saga.ch01.first-sketch-template"
+---
+
+# The First Sketch
+
+<!-- OPUS: 200-word wrapper. The protagonist drafts on a whiteboard. -->
+
+<SceneContent buildTemplateId="sd.saga.ch01.first-sketch-template" />
+
+<!-- Closing line: "This was not the last version." -->
+```
+
+- [ ] **Step 5: Author `scenes/04-first-review.mdx`**
+
+Drives Simulate with a scene-specific Validate-at-Scale activity at 1k DAU.
+
+```mdx
+---
+title: "The First Review"
+kind: "simulate"
+durationMinutes: 25
+activityId: "sd.saga.ch01.validate-1k-dau"
+chaosEventIds: []
+---
+
+# The First Review
+
+<!-- OPUS: 200-word wrapper. The team gathers; someone said "let's see it." -->
+
+<SceneContent simulateActivityId="sd.saga.ch01.validate-1k-dau" />
+```
+
+- [ ] **Step 6: Author `consequences.mdx`**
+
+~600-word reflection at chapter end. Persists decisions into `sd_saga_chapter_state.sceneStates` for Chapter 2 / 3 callbacks.
+
+```mdx
+---
+title: "Consequences"
+durationMinutes: 10
+bgGradient: "linear-gradient(180deg, #13263D, #0B1020)"
+dramaRating: "medium"
+---
+
+# Consequences
+
+<!-- OPUS: 600-word reflection. What the user built; what the team thinks. -->
+
+<!-- Sets flags on sd_saga_chapter_state.sceneStates that Chapters 2/3 read. -->
+```
+
+- [ ] **Step 7: Write the chapter manifest**
+
+```typescript
+// architex/content/sd/saga/chapter-01-day-1-at-mockflix/manifest.ts
+import type { SagaChapter } from "@/types/saga";
+
+export const CHAPTER_01: SagaChapter = {
+  id: "chapter-01-day-1-at-mockflix",
+  title: "Day 1 at MockFlix",
+  year: 2015,
+  estimatedDurationMinutes: 180,
+  introMdxPath: "/content/sd/saga/chapter-01-day-1-at-mockflix/intro.mdx",
+  scenes: [
+    {
+      id: "scene-01-arrival",
+      kind: "cutscene",
+      title: "Arrival",
+      durationEstimateMinutes: 3,
+      payload: {
+        kind: "cutscene",
+        mdxPath: "/content/sd/saga/chapter-01-day-1-at-mockflix/scenes/01-arrival.mdx",
+        bgGradient: "linear-gradient(180deg, #0B1020, #13263D)",
+      },
+    },
+    {
+      id: "scene-02-first-brief",
+      kind: "learn",
+      title: "The First Brief",
+      durationEstimateMinutes: 25,
+      payload: { kind: "learn", conceptId: "sd.concept.cdn-basics" },
+    },
+    {
+      id: "scene-03-first-sketch",
+      kind: "build",
+      title: "The First Sketch",
+      durationEstimateMinutes: 45,
+      payload: { kind: "build", templateDiagramId: "sd.saga.ch01.first-sketch-template" },
+    },
+    {
+      id: "scene-04-first-review",
+      kind: "simulate",
+      title: "The First Review",
+      durationEstimateMinutes: 25,
+      payload: { kind: "simulate", activityId: "sd.saga.ch01.validate-1k-dau", chaosEventIds: [] },
+    },
+  ],
+  consequencesMdxPath: "/content/sd/saga/chapter-01-day-1-at-mockflix/consequences.mdx",
+  prerequisiteChapterId: null,
+};
+```
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add architex/content/sd/saga/chapter-01-day-1-at-mockflix
+git commit -m "plan(sd-phase-5-task11): Chapter 1 scaffolding — Day 1 at MockFlix (4 scenes + manifest)"
+```
+
+The Opus content drop replaces the scaffolding placeholders in a follow-up commit tagged `content(sd-phase-5-task11): Chapter 1 prose landed`.
+
+---
+
+## Task 12: Chapter 2 content scaffolding — *The First Scale Wave*
+
+**Files:**
+- Create: `architex/content/sd/saga/chapter-02-first-scale-wave/intro.mdx`
+- Create: `architex/content/sd/saga/chapter-02-first-scale-wave/scenes/01-the-spike.mdx`
+- Create: `architex/content/sd/saga/chapter-02-first-scale-wave/scenes/02-the-retrospective.mdx`
+- Create: `architex/content/sd/saga/chapter-02-first-scale-wave/scenes/03-the-redesign.mdx`
+- Create: `architex/content/sd/saga/chapter-02-first-scale-wave/scenes/04-the-validate.mdx`
+- Create: `architex/content/sd/saga/chapter-02-first-scale-wave/consequences.mdx`
+- Create: `architex/content/sd/saga/chapter-02-first-scale-wave/manifest.ts`
+
+**Design intent:** Chapter 2 is *The First Scale Wave* — MockFlix goes from 1k DAU to 1M DAU overnight after a viral moment. The architecture the user drafted in Chapter 1 breaks visibly. User redesigns under pressure. Four scenes: **the spike** (cutscene — the outage happens on-screen), **the retrospective** (Learn, reading postmortems from real incidents), **the redesign** (Build, user redesigns with hot-path caching + fan-out + CDN-as-origin), **the validate** (Simulate with diurnal load + burst chaos at 1M DAU). The tone is *"you thought you knew, and you were wrong in a specific way"*.
+
+Narrative hooks:
+- Chapter 1 consequences feed Chapter 2: if the user's Ch1 design had no CDN, Ch2 opens with *"the CDN gap was the first thing to saturate."*
+- If the user's Ch1 design used shared Postgres, Ch2 opens with *"the database pool exhausted in 11 minutes."*
+- The consequence flags from `sd_saga_chapter_state` drive which intro variant loads.
+
+Token budget: ~6k Opus tokens (longer because Ch2 has to react to up to ~3 different Ch1 consequence-flag combinations).
+
+- [ ] **Step 1: Author `intro.mdx`** with frontmatter `dramaRating: "intense"` and `bgGradient: "linear-gradient(140deg, #1A0B0B 0%, #3D1A1A 50%, #E85A5A 100%)"` (red-tinted — this is the panic chapter).
+
+Placeholder body ships with structural outline; Opus drop follows. Opening image: *"at 2:47am, pingtone."* Closing line: *"we had four hours to hold the line."*
+
+- [ ] **Step 2-5: Author four scene `.mdx` files**
+
+Same shape as Chapter 1: each scene is ~200 words of narrative wrapper + an embedded `<SceneContent>` that drives the existing platform content.
+
+- [ ] **Step 6: Author `consequences.mdx`**
+
+~600 words. Writes flags to `sd_saga_chapter_state.sceneStates` for Chapter 3 (e.g. `ch2.redesign.chose_cdn_origin`, `ch2.validate.passed_at_1m_dau`).
+
+- [ ] **Step 7: Write `manifest.ts`**
+
+```typescript
+// architex/content/sd/saga/chapter-02-first-scale-wave/manifest.ts
+import type { SagaChapter } from "@/types/saga";
+
+export const CHAPTER_02: SagaChapter = {
+  id: "chapter-02-first-scale-wave",
+  title: "The First Scale Wave",
+  year: 2016,
+  estimatedDurationMinutes: 210,
+  introMdxPath: "/content/sd/saga/chapter-02-first-scale-wave/intro.mdx",
+  scenes: [
+    { id: "scene-01-spike", kind: "cutscene", title: "The Spike", durationEstimateMinutes: 4,
+      payload: { kind: "cutscene", mdxPath: "/content/sd/saga/chapter-02-first-scale-wave/scenes/01-the-spike.mdx", bgGradient: "linear-gradient(180deg, #1A0B0B, #3D1A1A)" } },
+    { id: "scene-02-retrospective", kind: "learn", title: "The Retrospective", durationEstimateMinutes: 30,
+      payload: { kind: "learn", conceptId: "sd.concept.scaling-fundamentals" } },
+    { id: "scene-03-redesign", kind: "build", title: "The Redesign", durationEstimateMinutes: 60,
+      payload: { kind: "build", templateDiagramId: "sd.saga.ch02.redesign-template" } },
+    { id: "scene-04-validate", kind: "simulate", title: "The Validate", durationEstimateMinutes: 30,
+      payload: { kind: "simulate", activityId: "sd.saga.ch02.validate-1m-dau-burst", chaosEventIds: ["sd.chaos.cache-stampede"] } },
+  ],
+  consequencesMdxPath: "/content/sd/saga/chapter-02-first-scale-wave/consequences.mdx",
+  prerequisiteChapterId: "chapter-01-day-1-at-mockflix",
+};
+```
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add architex/content/sd/saga/chapter-02-first-scale-wave
+git commit -m "plan(sd-phase-5-task12): Chapter 2 scaffolding — The First Scale Wave (4 scenes + manifest)"
+```
+
+---
+
+## Task 13: Chapter 3 content scaffolding — *The 2AM Page*
+
+**Files:**
+- Create: `architex/content/sd/saga/chapter-03-2am-page/intro.mdx`
+- Create: `architex/content/sd/saga/chapter-03-2am-page/scenes/01-the-page.mdx`
+- Create: `architex/content/sd/saga/chapter-03-2am-page/scenes/02-the-investigation.mdx`
+- Create: `architex/content/sd/saga/chapter-03-2am-page/scenes/03-the-fix.mdx`
+- Create: `architex/content/sd/saga/chapter-03-2am-page/scenes/04-the-postmortem.mdx`
+- Create: `architex/content/sd/saga/chapter-03-2am-page/consequences.mdx`
+- Create: `architex/content/sd/saga/chapter-03-2am-page/manifest.ts`
+
+**Design intent:** Chapter 3 is *The 2AM Page* — a chaos-drill scenario disguised as a saga beat. The user is on-call. At 2:47am they get paged. The redesigned Chapter-2 architecture has a subtle failure mode that emerges only under a specific chaos event (retry amplification during a partial DB failover). The reader plays **through** the incident: they see the alerts, they read the dashboards, they find the cause, they push the fix, they write the postmortem.
+
+Four scenes: **the page** (cutscene — phone vibrates on nightstand), **the investigation** (Simulate in Archaeology mode — user reads traces + logs), **the fix** (Build — patch the architecture), **the postmortem** (Drill — 20-minute mock interview style: explain what happened, what you did, what you'd do differently).
+
+This is the chapter that proves the saga is a *real learning arc*, not marketing — at the end of it the user has practiced an actual on-call flow inside a narrative frame.
+
+Token budget: ~7k Opus tokens. Ch3 has the most prose because the postmortem scene includes a ~1000-word "what you'd say in an interview" model answer.
+
+- [ ] **Step 1: Author `intro.mdx`** with `dramaRating: "intense"` and `bgGradient: "linear-gradient(140deg, #0B0B1A 0%, #13133D 50%, #2A2A8A 100%)"` (deep navy — it is the middle of the night).
+
+Opening image: *"the phone was not pretending."* Closing line: *"I put on glasses."*
+
+- [ ] **Step 2: Author `scenes/01-the-page.mdx`**
+
+Cutscene. ~250 words. Includes a `<PagerOverlay severity="sev-1"/>` visual stub that renders a mock pager UI inside the cutscene.
+
+- [ ] **Step 3: Author `scenes/02-the-investigation.mdx`**
+
+Drives Simulate in Archaeology mode on a pre-recorded trace. The user reads graphs + traces to find the root cause (retry amplification under partial DB failover).
+
+```mdx
+---
+title: "The Investigation"
+kind: "simulate"
+durationMinutes: 40
+activityId: "sd.saga.ch03.archaeology-retry-amp"
+chaosEventIds: ["sd.chaos.db-failover-partial", "sd.chaos.retry-amplification"]
+---
+```
+
+- [ ] **Step 4: Author `scenes/03-the-fix.mdx`**
+
+Drives Build. The user adds circuit-breakers + jittered retry + exponential backoff. The template diagram is the Ch2-redesign diagram as-broken.
+
+- [ ] **Step 5: Author `scenes/04-the-postmortem.mdx`**
+
+Drives Drill in "postmortem" mock mode (new for Chapter 3 — extend Drill's 7 mock modes to 8 with a "postmortem" variant that grades explanation quality against a published model answer).
+
+```mdx
+---
+title: "The Postmortem"
+kind: "drill"
+durationMinutes: 20
+problemId: "sd.saga.ch03.postmortem-drill"
+---
+```
+
+- [ ] **Step 6: Author `consequences.mdx`**
+
+~800-word reflection. The user sees their own performance (drill grade + what they missed). Writes flags for future chapters: `ch3.found_root_cause`, `ch3.fix_held`, `ch3.postmortem_grade_tier`.
+
+- [ ] **Step 7: Write `manifest.ts`**
+
+```typescript
+// architex/content/sd/saga/chapter-03-2am-page/manifest.ts
+import type { SagaChapter } from "@/types/saga";
+
+export const CHAPTER_03: SagaChapter = {
+  id: "chapter-03-2am-page",
+  title: "The 2AM Page",
+  year: 2017,
+  estimatedDurationMinutes: 200,
+  introMdxPath: "/content/sd/saga/chapter-03-2am-page/intro.mdx",
+  scenes: [
+    { id: "scene-01-page", kind: "cutscene", title: "The Page", durationEstimateMinutes: 5,
+      payload: { kind: "cutscene", mdxPath: "/content/sd/saga/chapter-03-2am-page/scenes/01-the-page.mdx", bgGradient: "linear-gradient(180deg, #0B0B1A, #13133D)" } },
+    { id: "scene-02-investigation", kind: "simulate", title: "The Investigation", durationEstimateMinutes: 40,
+      payload: { kind: "simulate", activityId: "sd.saga.ch03.archaeology-retry-amp", chaosEventIds: ["sd.chaos.db-failover-partial", "sd.chaos.retry-amplification"] } },
+    { id: "scene-03-fix", kind: "build", title: "The Fix", durationEstimateMinutes: 45,
+      payload: { kind: "build", templateDiagramId: "sd.saga.ch03.broken-redesign-template" } },
+    { id: "scene-04-postmortem", kind: "drill", title: "The Postmortem", durationEstimateMinutes: 20,
+      payload: { kind: "drill", problemId: "sd.saga.ch03.postmortem-drill" } },
+  ],
+  consequencesMdxPath: "/content/sd/saga/chapter-03-2am-page/consequences.mdx",
+  prerequisiteChapterId: "chapter-02-first-scale-wave",
+};
+```
+
+- [ ] **Step 8: Register the three chapters in the saga runtime**
+
+```typescript
+// architex/src/lib/saga/chapters.ts
+import { CHAPTER_01 } from "@/../content/sd/saga/chapter-01-day-1-at-mockflix/manifest";
+import { CHAPTER_02 } from "@/../content/sd/saga/chapter-02-first-scale-wave/manifest";
+import { CHAPTER_03 } from "@/../content/sd/saga/chapter-03-2am-page/manifest";
+import type { SagaChapter, SagaChapterId } from "@/types/saga";
+
+export const CHAPTERS: Record<SagaChapterId, SagaChapter> = {
+  "chapter-01-day-1-at-mockflix": CHAPTER_01,
+  "chapter-02-first-scale-wave": CHAPTER_02,
+  "chapter-03-2am-page": CHAPTER_03,
+};
+
+export const CHAPTER_ORDER: readonly SagaChapterId[] = [
+  "chapter-01-day-1-at-mockflix",
+  "chapter-02-first-scale-wave",
+  "chapter-03-2am-page",
+];
+```
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add architex/content/sd/saga/chapter-03-2am-page architex/src/lib/saga/chapters.ts
+git commit -m "plan(sd-phase-5-task13): Chapter 3 scaffolding — The 2AM Page (4 scenes + chapter registry)"
+```
+
+---
+
+## Task 14: Saga dashboard card + settings toggle + opt-out flow
+
+**Files:**
+- Create: `architex/src/components/sd/SagaDashboardCard.tsx`
+- Create: `architex/src/components/sd/__tests__/SagaDashboardCard.test.tsx`
+- Create: `architex/src/app/(dashboard)/sd/saga/page.tsx`
+- Create: `architex/src/app/(dashboard)/sd/saga/[chapter]/page.tsx`
+- Modify: `architex/src/app/(dashboard)/sd/settings/polish/page.tsx` (add saga opt-out control)
+- Modify: `architex/src/features/flags/registry.ts` (add `sd.saga.enabled`)
+
+**Design intent:** The saga is discoverable via **one dashboard card** and **one settings toggle**. If the user never clicks, the saga is invisible. The dashboard card is small (340×180px), lives on the SD dashboard, shows the current chapter title + estimated hours remaining + a cobalt "Continue the Saga" CTA. Opting in starts Chapter 1; opting out sets `sd_saga_progress.opted_out = true` and removes the card.
+
+- [ ] **Step 1: Write `SagaDashboardCard.tsx`**
+
+```tsx
+// architex/src/components/sd/SagaDashboardCard.tsx
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import type { SagaProgress } from "@/types/saga";
+import { CHAPTERS, CHAPTER_ORDER } from "@/lib/saga/chapters";
+import { nextLockedChapter } from "@/lib/saga/unlocks";
+
+interface Props { userId: string; }
+
+export function SagaDashboardCard({ userId }: Props) {
+  const flagEnabled = useFeatureFlag("sd.saga.enabled");
+  const [progress, setProgress] = useState<SagaProgress | null>(null);
+
+  useEffect(() => {
+    if (!flagEnabled) return;
+    fetch("/api/sd/saga")
+      .then((r) => r.json())
+      .then((d) => setProgress(d.progress))
+      .catch(() => setProgress(null));
+  }, [flagEnabled]);
+
+  if (!flagEnabled) return null;
+  if (progress?.optedOut) return null;
+
+  const nextChapter = nextLockedChapter(progress);
+  if (!nextChapter) return <CompletedCard />;
+
+  const chapter = CHAPTERS[nextChapter];
+  const chapterIndex = CHAPTER_ORDER.indexOf(nextChapter);
+  const chaptersDone = progress?.completedChapters.length ?? 0;
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="relative w-[340px] overflow-hidden rounded-xl border border-cobalt-500/20 bg-gradient-to-br from-[#0B1020] via-[#13263D] to-[#2563EB]/30 p-5"
+      aria-labelledby="saga-card-title"
+    >
+      <p className="font-mono text-xs uppercase tracking-wider text-cobalt-300">Decade Saga · Chapter {chapterIndex + 1} / {CHAPTER_ORDER.length}</p>
+      <h3 id="saga-card-title" className="mt-2 font-serif text-xl text-white">{chapter.title}</h3>
+      <p className="mt-1 text-sm text-white/70">{chapter.year} · ~{chapter.estimatedDurationMinutes} min</p>
+      <div className="mt-3 h-1 w-full rounded bg-white/10">
+        <div
+          className="h-1 rounded bg-cobalt-400"
+          style={{ width: `${(chaptersDone / CHAPTER_ORDER.length) * 100}%` }}
+          aria-label={`Saga progress: ${chaptersDone} of ${CHAPTER_ORDER.length} chapters complete`}
+        />
+      </div>
+      <Link
+        href={`/sd/saga/${nextChapter}`}
+        className="mt-4 inline-flex items-center rounded-md bg-cobalt-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-cobalt-400"
+      >
+        Continue the Saga →
+      </Link>
+    </motion.article>
+  );
+}
+
+function CompletedCard() {
+  return (
+    <article className="w-[340px] rounded-xl border border-emerald-500/20 bg-gradient-to-br from-[#0B2010] to-[#13523D] p-5">
+      <p className="font-mono text-xs uppercase tracking-wider text-emerald-300">Decade Saga · Complete</p>
+      <h3 className="mt-2 font-serif text-xl text-white">Chapters 1-3 finished.</h3>
+      <p className="mt-1 text-sm text-white/70">Chapters 4-10 are in Phase 6 ecosystem.</p>
+    </article>
+  );
+}
+```
+
+- [ ] **Step 2: Write `saga/page.tsx`** (index page — lists chapters)
+
+```tsx
+// architex/src/app/(dashboard)/sd/saga/page.tsx
+import { auth } from "@/lib/auth";
+import { CHAPTERS, CHAPTER_ORDER } from "@/lib/saga/chapters";
+import { loadSagaProgress } from "@/lib/saga/progress";
+import { isChapterUnlocked } from "@/lib/saga/unlocks";
+import Link from "next/link";
+import type { SagaProgress } from "@/types/saga";
+
+export default async function SagaIndexPage() {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  const data = await loadSagaProgress(session.user.id);
+  const progress: SagaProgress | null = data.progress
+    ? ({
+        userId: data.progress.userId,
+        currentChapterId: data.progress.currentChapterId as SagaProgress["currentChapterId"],
+        completedChapters: data.chapters.filter((c) => c.completedAt).map((c) => c.chapterId) as SagaProgress["completedChapters"],
+        sceneStates: Object.fromEntries(data.chapters.map((c) => [c.chapterId, c.sceneStates])) as SagaProgress["sceneStates"],
+        lastActivityAt: data.progress.lastActivityAt,
+        optedOut: data.progress.optedOut,
+      })
+    : null;
+
+  return (
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      <header className="mb-8">
+        <h1 className="font-serif text-4xl text-white">The Decade Saga</h1>
+        <p className="mt-2 text-white/70">Ten years. Three chapters shipped. MockFlix — from 1 engineer to 1 billion streams.</p>
+      </header>
+      <ol className="space-y-4">
+        {CHAPTER_ORDER.map((id, i) => {
+          const chapter = CHAPTERS[id];
+          const unlocked = isChapterUnlocked(id, progress);
+          return (
+            <li key={id}>
+              <Link
+                href={unlocked ? `/sd/saga/${id}` : "#"}
+                aria-disabled={!unlocked}
+                className={`block rounded-lg border p-5 transition ${
+                  unlocked ? "border-cobalt-500/30 bg-white/5 hover:bg-white/10" : "border-white/5 bg-white/[.02] opacity-60"
+                }`}
+              >
+                <p className="font-mono text-xs text-cobalt-300">Chapter {i + 1} · {chapter.year}</p>
+                <h2 className="mt-1 font-serif text-2xl text-white">{chapter.title}</h2>
+                <p className="mt-1 text-sm text-white/60">~{chapter.estimatedDurationMinutes} minutes · {chapter.scenes.length} scenes</p>
+                {!unlocked && <p className="mt-2 text-xs text-white/40">Locked — finish Chapter {i} first.</p>}
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
+    </main>
+  );
+}
+```
+
+- [ ] **Step 3: Write `saga/[chapter]/page.tsx`**
+
+```tsx
+// architex/src/app/(dashboard)/sd/saga/[chapter]/page.tsx
+import { notFound } from "next/navigation";
+import { CHAPTERS } from "@/lib/saga/chapters";
+import { SagaChapterClient } from "./SagaChapterClient";
+import type { SagaChapterId } from "@/types/saga";
+
+interface PageProps { params: Promise<{ chapter: string }>; }
+
+export default async function SagaChapterPage({ params }: PageProps) {
+  const { chapter } = await params;
+  const chapterDef = CHAPTERS[chapter as SagaChapterId];
+  if (!chapterDef) notFound();
+  return <SagaChapterClient chapter={chapterDef} />;
+}
+```
+
+`SagaChapterClient` wraps the chapter runner, cutscene player, and scene-kind-specific loaders. Body elided here (full implementation lives in `SagaChapterClient.tsx` alongside the page.tsx file).
+
+- [ ] **Step 4: Add opt-out control to settings**
+
+```tsx
+// architex/src/app/(dashboard)/sd/settings/polish/page.tsx (extension)
+// inside the existing page component, add a saga section:
+<section>
+  <h2 className="text-lg font-medium">Decade Saga</h2>
+  <p className="text-muted-foreground text-sm">
+    An optional 10-hour narrative campaign. Chapters 1-3 shipped; the remaining chapters arrive in Phase 6.
+  </p>
+  <label className="flex items-center gap-2 mt-3">
+    <input
+      type="checkbox"
+      checked={sagaOptedOut}
+      onChange={async (e) => {
+        if (e.target.checked && !confirm("Opt out of the Decade Saga? Your progress will be saved if you opt back in later.")) return;
+        await fetch("/api/sd/saga", { method: "POST", body: JSON.stringify({ action: "opt_out" }) });
+        setSagaOptedOut(e.target.checked);
+      }}
+    />
+    Opt out of the saga
+  </label>
+</section>
+```
+
+- [ ] **Step 5: Tests**
+
+```tsx
+// architex/src/components/sd/__tests__/SagaDashboardCard.test.tsx
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { SagaDashboardCard } from "../SagaDashboardCard";
+
+vi.mock("@/hooks/useFeatureFlag", () => ({ useFeatureFlag: () => true }));
+
+beforeEach(() => {
+  global.fetch = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ progress: null, chapters: [] })))) as any;
+});
+
+describe("SagaDashboardCard", () => {
+  it("renders Chapter 1 CTA for a new user", async () => {
+    render(<SagaDashboardCard userId="u1" />);
+    await waitFor(() => expect(screen.getByText(/Day 1 at MockFlix/)).toBeInTheDocument());
+    expect(screen.getByText(/Continue the Saga/)).toBeInTheDocument();
+  });
+
+  it("hides itself when opted out", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ progress: { optedOut: true, completedChapters: [] }, chapters: [] })))
+    ) as any;
+    const { container } = render(<SagaDashboardCard userId="u1" />);
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+  });
+});
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/components/sd/SagaDashboardCard.tsx \
+  architex/src/components/sd/__tests__/SagaDashboardCard.test.tsx \
+  architex/src/app/\(dashboard\)/sd/saga \
+  architex/src/app/\(dashboard\)/sd/settings/polish/page.tsx \
+  architex/src/features/flags/registry.ts
+git commit -m "plan(sd-phase-5-task14): saga dashboard card + chapter index page + opt-out"
+```
+
+---
+
+## Task 15: Reference components library expansion (20 → 50)
+
+**Files:**
+- Modify: `architex/src/lib/sd/reference-components/registry.ts`
+- Create: 30 new component files under `architex/src/lib/sd/reference-components/` (one per component)
+- Create: `architex/src/lib/sd/reference-components/__tests__/registry.test.ts`
+
+**Design intent (§14.1.7):** The Phase-3 library has 20 reference components. Phase 5 adds 30 more, bringing the total to 50. Each reference component is a small curated sub-architecture: a named pattern (e.g. *Netflix CDN stack*, *Uber dispatch core*, *Stripe idempotency layer*) authored as a JSON topology + a ~500 word Opus-written explainer. Users drag-in components from the library palette; they materialize on the canvas as a group of nodes + edges with pre-filled config.
+
+The 30 new components span the full §12.1 chaos-family surface — enough reference material that a user can assemble nearly any production architecture from primitives.
+
+**The 30 components:**
+
+| # | Name | Node count | Family tag |
+|---|---|---|---|
+| 21 | Netflix Open Connect CDN | 8 | CDN · edge |
+| 22 | Uber dispatch core | 12 | real-time · matching |
+| 23 | Stripe idempotency layer | 6 | payments · dedup |
+| 24 | Twitter timeline fan-out | 10 | feed · fan-out |
+| 25 | Discord voice edge | 7 | real-time · WebRTC |
+| 26 | Slack real-time presence | 5 | presence · WebSocket |
+| 27 | Dropbox block storage | 8 | storage · chunking |
+| 28 | Kafka cluster w/ exactly-once | 6 | streaming · idempotency |
+| 29 | Airbnb search + ranking | 9 | search · ML |
+| 30 | Lyft surge pricing engine | 7 | real-time · pricing |
+| 31 | Cloudflare Workers edge compute | 5 | edge · serverless |
+| 32 | AWS Lambda cold-start cache warmer | 4 | serverless · latency |
+| 33 | Redis consistent-hashing ring | 6 | cache · sharding |
+| 34 | Elasticsearch shard layout | 8 | search · sharding |
+| 35 | Cassandra multi-DC replication | 9 | database · replication |
+| 36 | MongoDB sharded cluster | 8 | database · sharding |
+| 37 | PostgreSQL logical replication | 6 | database · replication |
+| 38 | Vitess MySQL sharding | 8 | database · sharding |
+| 39 | CockroachDB multi-region write | 9 | database · geo |
+| 40 | DynamoDB hot-key smoothing | 6 | database · hot-key |
+| 41 | Spanner TrueTime transactions | 8 | database · consensus |
+| 42 | Two-phase commit coordinator | 5 | transactions · 2PC |
+| 43 | Saga pattern orchestrator | 6 | transactions · saga |
+| 44 | Outbox + CDC pipeline | 7 | messaging · outbox |
+| 45 | Kafka connect sink + transform | 6 | streaming · ETL |
+| 46 | Flink windowed aggregation | 7 | streaming · windows |
+| 47 | Envoy sidecar mesh | 8 | mesh · L7 |
+| 48 | OAuth2 + OIDC gateway | 6 | auth · federation |
+| 49 | JWT session verification flow | 4 | auth · stateless |
+| 50 | Rate-limiter (token-bucket + sliding-window) | 5 | limiter · flow-control |
+
+- [ ] **Step 1: Define the component manifest type**
+
+```typescript
+// architex/src/lib/sd/reference-components/types.ts
+import type { CanvasNode, CanvasEdge } from "@/types/canvas";
+
+export interface ReferenceComponent {
+  id: string;
+  displayName: string;
+  nodeCount: number;
+  tags: readonly string[];
+  summary: string; // 1-2 sentences
+  explainerMdxPath: string; // 500w Opus-authored essay
+  nodes: readonly CanvasNode[];
+  edges: readonly CanvasEdge[];
+  recommendedPattern?: readonly string[]; // linked concept IDs
+}
+```
+
+- [ ] **Step 2: Write a code-generator to scaffold the 30 new files**
+
+```bash
+cd architex
+node scripts/scaffold-reference-components.mjs \
+  --names "netflix-cdn,uber-dispatch,stripe-idempotency,twitter-timeline,discord-voice-edge,slack-presence,dropbox-block-storage,kafka-exactly-once,airbnb-search,lyft-surge,cloudflare-workers,lambda-warmer,redis-ring,es-shard-layout,cassandra-multi-dc,mongodb-sharded,pg-logical-replication,vitess-mysql,cockroach-multi-region,dynamo-hot-key,spanner-truetime,two-phase-commit,saga-orchestrator,outbox-cdc,kafka-connect,flink-windowed,envoy-sidecar,oauth2-oidc,jwt-session,rate-limiter" \
+  --output architex/src/lib/sd/reference-components/
+```
+
+The generator (authored as part of this task) produces one `.ts` file per name with a stub topology + frontmatter. Content-rich detail fills in over the content-drop commit.
+
+- [ ] **Step 3: Flesh out each component**
+
+Example (shown for Netflix Open Connect; remaining 29 follow the same pattern):
+
+```typescript
+// architex/src/lib/sd/reference-components/netflix-cdn.ts
+import type { ReferenceComponent } from "./types";
+
+export const NETFLIX_CDN: ReferenceComponent = {
+  id: "ref.netflix-cdn",
+  displayName: "Netflix Open Connect CDN",
+  nodeCount: 8,
+  tags: ["cdn", "edge", "video"],
+  summary: "Origin shield + regional caches + ISP-embedded edge + client SDK + analytics feed.",
+  explainerMdxPath: "/content/sd/reference/netflix-cdn.mdx",
+  nodes: [
+    { id: "origin", family: "service", label: "Origin shield", subtype: "cdn-origin", x: 0, y: 0 },
+    { id: "regional-us", family: "service", label: "Regional cache · us-east", subtype: "cdn-regional", x: 200, y: -80 },
+    { id: "regional-eu", family: "service", label: "Regional cache · eu-west", subtype: "cdn-regional", x: 200, y: 80 },
+    { id: "edge-isp-1", family: "service", label: "Edge · ISP A", subtype: "cdn-edge", x: 420, y: -120 },
+    { id: "edge-isp-2", family: "service", label: "Edge · ISP B", subtype: "cdn-edge", x: 420, y: -20 },
+    { id: "edge-isp-3", family: "service", label: "Edge · ISP C", subtype: "cdn-edge", x: 420, y: 100 },
+    { id: "client-sdk", family: "service", label: "Client SDK", subtype: "client", x: 620, y: 0 },
+    { id: "analytics", family: "datastore", label: "Analytics feed", subtype: "event-log", x: 200, y: 220 },
+  ],
+  edges: [
+    { id: "e1", source: "origin", target: "regional-us", kind: "sync" },
+    { id: "e2", source: "origin", target: "regional-eu", kind: "sync" },
+    { id: "e3", source: "regional-us", target: "edge-isp-1", kind: "sync" },
+    { id: "e4", source: "regional-us", target: "edge-isp-2", kind: "sync" },
+    { id: "e5", source: "regional-eu", target: "edge-isp-3", kind: "sync" },
+    { id: "e6", source: "edge-isp-1", target: "client-sdk", kind: "sync" },
+    { id: "e7", source: "edge-isp-2", target: "client-sdk", kind: "sync" },
+    { id: "e8", source: "edge-isp-3", target: "client-sdk", kind: "sync" },
+    { id: "e9", source: "client-sdk", target: "analytics", kind: "async" },
+  ],
+  recommendedPattern: ["sd.concept.cdn-basics", "sd.concept.caching-hierarchy"],
+};
+```
+
+- [ ] **Step 4: Update the registry**
+
+```typescript
+// architex/src/lib/sd/reference-components/registry.ts
+import { NETFLIX_CDN } from "./netflix-cdn";
+import { UBER_DISPATCH } from "./uber-dispatch";
+// … 28 more imports
+import type { ReferenceComponent } from "./types";
+
+export const REFERENCE_COMPONENTS: Record<string, ReferenceComponent> = {
+  // existing 20 Phase-3 components retained
+  "ref.netflix-cdn": NETFLIX_CDN,
+  "ref.uber-dispatch": UBER_DISPATCH,
+  // … rest
+};
+
+export const ALL_REFERENCE_COMPONENT_IDS: readonly string[] = Object.keys(REFERENCE_COMPONENTS);
+```
+
+- [ ] **Step 5: Tests**
+
+```typescript
+// architex/src/lib/sd/reference-components/__tests__/registry.test.ts
+import { describe, it, expect } from "vitest";
+import { REFERENCE_COMPONENTS, ALL_REFERENCE_COMPONENT_IDS } from "../registry";
+
+describe("reference components registry", () => {
+  it("contains 50 components post-Phase-5", () => {
+    expect(ALL_REFERENCE_COMPONENT_IDS).toHaveLength(50);
+  });
+
+  it("every component has a non-empty nodes + edges set", () => {
+    for (const c of Object.values(REFERENCE_COMPONENTS)) {
+      expect(c.nodes.length).toBeGreaterThan(0);
+      expect(c.edges.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("every edge source/target references a valid node", () => {
+    for (const c of Object.values(REFERENCE_COMPONENTS)) {
+      const nodeIds = new Set(c.nodes.map((n) => n.id));
+      for (const e of c.edges) {
+        expect(nodeIds.has(e.source)).toBe(true);
+        expect(nodeIds.has(e.target)).toBe(true);
+      }
+    }
+  });
+
+  it("ids are globally unique and use ref.* prefix", () => {
+    const ids = ALL_REFERENCE_COMPONENT_IDS;
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) expect(id.startsWith("ref.")).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/lib/sd/reference-components
+git commit -m "plan(sd-phase-5-task15): reference components 20 → 50 (Netflix, Uber, Stripe, Twitter, 26 more)"
+```
+
+---
+
