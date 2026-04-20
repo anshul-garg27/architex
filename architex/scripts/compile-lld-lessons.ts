@@ -273,15 +273,7 @@ async function main() {
   }
 }
 
-// Run main() only when executed as a script (not imported).
-const isMain =
-  typeof process !== "undefined" &&
-  process.argv[1] &&
-  import.meta.url === `file://${process.argv[1]}`;
-
-if (isMain) {
-  main().catch((err) => {
-    console.error("[compile-lld-lessons] fatal:", err);
-    process.exit(2);
-  });
-}
+main().catch((err) => {
+  console.error("[compile-lld-lessons] fatal:", err);
+  process.exit(2);
+});
