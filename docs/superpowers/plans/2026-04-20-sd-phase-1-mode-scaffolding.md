@@ -3734,3 +3734,1209 @@ EOF
 
 ---
 
+## Task 16: Create API shells for simulations (2 routes)
+
+**Files:**
+- Create: `architex/src/app/api/sd/simulations/route.ts`
+- Create: `architex/src/app/api/sd/simulations/[id]/route.ts`
+
+Simulations are the Phase 3 flagship, but we need shells now so the store + hook wiring lands in Phase 1. POST returns the newly-created row but does NOT kick off the tick loop — that engine wrap-up is Phase 3 work.
+
+- [ ] **Step 1: Create POST+GET /api/sd/simulations**
+
+Create `architex/src/app/api/sd/simulations/route.ts`:
+
+```typescript
+/**
+ * POST /api/sd/simulations      — create simulation header; tick loop in Phase 3
+ * GET  /api/sd/simulations      — list user's sim runs
+ */
+
+import { NextResponse } from "next/server";
+import { and, desc, eq } from "drizzle-orm";
+import { getDb, sdSimulations, sdDesigns } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_ACTIVITIES = new Set([
+  "validate",
+  "stress",
+  "chaos",
+  "compare",
+  "forecast",
+  "archaeology",
+]);
+const VALID_SCALES = new Set(["10k", "100k", "1M", "10M", "100M", "1B"]);
+const VALID_CHAOS_MODES = new Set([
+  "timer",
+  "manual",
+  "budget",
+  "ai-adversary",
+  "red-team",
+  "scripted",
+]);
+
+export async function POST(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      designId?: string | null;
+      activity?: string;
+      scaleDau?: string;
+      chaosControlMode?: string | null;
+      realIncidentSlug?: string | null;
+    };
+
+    const { activity, scaleDau, designId, chaosControlMode, realIncidentSlug } = body;
+    if (!activity || !VALID_ACTIVITIES.has(activity)) {
+      return NextResponse.json(
+        { error: `activity must be one of: ${Array.from(VALID_ACTIVITIES).join(", ")}` },
+        { status: 400 },
+      );
+    }
+    if (!scaleDau || !VALID_SCALES.has(scaleDau)) {
+      return NextResponse.json(
+        { error: `scaleDau must be one of: ${Array.from(VALID_SCALES).join(", ")}` },
+        { status: 400 },
+      );
+    }
+    if (chaosControlMode && !VALID_CHAOS_MODES.has(chaosControlMode)) {
+      return NextResponse.json(
+        { error: `chaosControlMode must be one of: ${Array.from(VALID_CHAOS_MODES).join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+
+    // Verify ownership of designId if provided.
+    if (designId) {
+      const [design] = await db
+        .select({ id: sdDesigns.id })
+        .from(sdDesigns)
+        .where(and(eq(sdDesigns.id, designId), eq(sdDesigns.userId, userId)))
+        .limit(1);
+      if (!design) {
+        return NextResponse.json(
+          { error: "Design not found or not owned by user" },
+          { status: 404 },
+        );
+      }
+    }
+
+    try {
+      const [created] = await db
+        .insert(sdSimulations)
+        .values({
+          userId,
+          designId: designId ?? null,
+          activity,
+          scaleDau,
+          chaosControlMode: chaosControlMode ?? null,
+          realIncidentSlug: realIncidentSlug ?? null,
+        })
+        .returning();
+      return NextResponse.json({ simulation: created }, { status: 201 });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("one_active_sim_per_user_design")) {
+        return NextResponse.json(
+          {
+            error: "A simulation is already active for this design. Complete or abandon it first.",
+            code: "ACTIVE_SIM_EXISTS",
+          },
+          { status: 409 },
+        );
+      }
+      throw error;
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/simulations] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET() {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(sdSimulations)
+      .where(eq(sdSimulations.userId, userId))
+      .orderBy(desc(sdSimulations.startedAt))
+      .limit(50);
+
+    return NextResponse.json({ simulations: rows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/simulations] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create GET /api/sd/simulations/[id]**
+
+Create `architex/src/app/api/sd/simulations/[id]/route.ts`:
+
+```typescript
+/**
+ * GET   /api/sd/simulations/[id]  — fetch sim with event stream (owner or shared)
+ * PATCH /api/sd/simulations/[id]  — 501 (engine hookup Phase 3)
+ */
+
+import { NextResponse } from "next/server";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { getDb, sdSimulations, sdSimulationEvents } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    // Sim can be viewed by owner OR via a public share (public_share_id route).
+    // For Phase 1 we require auth; public sharing ships in Phase 3.
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const [sim] = await db
+      .select()
+      .from(sdSimulations)
+      .where(and(eq(sdSimulations.id, id), eq(sdSimulations.userId, userId)))
+      .limit(1);
+    if (!sim) {
+      return NextResponse.json({ error: "Simulation not found" }, { status: 404 });
+    }
+
+    // Fetch event stream in sim-tick order.
+    const events = await db
+      .select()
+      .from(sdSimulationEvents)
+      .where(eq(sdSimulationEvents.simulationId, id))
+      .orderBy(asc(sdSimulationEvents.simTickMs))
+      .limit(10_000); // hard cap to prevent over-fetching huge runs
+
+    return NextResponse.json({ simulation: sim, events });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/simulations/:id] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH() {
+  return NextResponse.json(
+    { error: "Simulation lifecycle mutations land in Phase 3" },
+    { status: 501 },
+  );
+}
+```
+
+- [ ] **Step 3: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/app/api/sd/simulations/
+git commit -m "$(cat <<'EOF'
+feat(api): add /api/sd/simulations shells (Phase 1)
+
+POST   /api/sd/simulations        — create sim header; tick loop in Phase 3
+GET    /api/sd/simulations        — list user's sim runs
+GET    /api/sd/simulations/[id]   — fetch sim + event stream (capped at 10k)
+PATCH  /api/sd/simulations/[id]   — 501 (engine hookup Phase 3)
+
+POST enforces the one-active-sim-per-user-per-design partial unique
+index at the DB level; returns 409 ACTIVE_SIM_EXISTS on violation.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 17: Create API shells for drill-attempts (2 routes) + active
+
+**Files:**
+- Create: `architex/src/app/api/sd/drill-attempts/route.ts`
+- Create: `architex/src/app/api/sd/drill-attempts/[id]/route.ts`
+- Create: `architex/src/app/api/sd/drill-attempts/active/route.ts`
+
+Mirror of the LLD drill-attempts routes, adapted for SD's 5-stage structure and added persona/company_preset fields.
+
+- [ ] **Step 1: Create POST+GET /api/sd/drill-attempts**
+
+Create `architex/src/app/api/sd/drill-attempts/route.ts`:
+
+```typescript
+/**
+ * POST /api/sd/drill-attempts                — start a new SD drill (409 if one active)
+ * GET  /api/sd/drill-attempts                — list user's drill history (?status=completed)
+ */
+
+import { NextResponse } from "next/server";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { getDb, sdDrillAttempts } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_MODES = new Set([
+  "study",
+  "timed",
+  "exam",
+  "pair",
+  "review",
+  "full-stack",
+  "verbal",
+]);
+
+export async function POST(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      problemSlug?: string;
+      mode?: string;
+      persona?: string | null;
+      companyPreset?: string | null;
+    };
+    const { problemSlug, mode, persona, companyPreset } = body;
+
+    if (!problemSlug || typeof problemSlug !== "string") {
+      return NextResponse.json({ error: "problemSlug required" }, { status: 400 });
+    }
+    if (!mode || !VALID_MODES.has(mode)) {
+      return NextResponse.json(
+        { error: `mode must be one of: ${Array.from(VALID_MODES).join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+    try {
+      const [created] = await db
+        .insert(sdDrillAttempts)
+        .values({
+          userId,
+          problemSlug,
+          mode,
+          persona: persona ?? null,
+          companyPreset: companyPreset ?? null,
+        })
+        .returning();
+      return NextResponse.json({ attempt: created }, { status: 201 });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("one_active_sd_drill_per_user")) {
+        return NextResponse.json(
+          {
+            error: "A drill is already active. Submit or abandon it first.",
+            code: "ACTIVE_SD_DRILL_EXISTS",
+          },
+          { status: 409 },
+        );
+      }
+      throw error;
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/drill-attempts] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const url = new URL(request.url);
+    const status = url.searchParams.get("status");
+
+    const db = getDb();
+    const baseWhere = eq(sdDrillAttempts.userId, userId);
+    const where =
+      status === "completed"
+        ? and(baseWhere, isNotNull(sdDrillAttempts.submittedAt))
+        : status === "abandoned"
+          ? and(baseWhere, isNotNull(sdDrillAttempts.abandonedAt))
+          : baseWhere;
+
+    const rows = await db
+      .select()
+      .from(sdDrillAttempts)
+      .where(where)
+      .orderBy(desc(sdDrillAttempts.startedAt))
+      .limit(100);
+
+    return NextResponse.json({ attempts: rows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/drill-attempts] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create PATCH /api/sd/drill-attempts/[id]**
+
+Create `architex/src/app/api/sd/drill-attempts/[id]/route.ts`:
+
+```typescript
+/**
+ * PATCH /api/sd/drill-attempts/[id]
+ *
+ * action: 'heartbeat' | 'advance-stage' | 'pause' | 'resume' | 'submit' | 'abandon'
+ *
+ * Updates lifecycle timestamps, current_stage, stage_times, and
+ * optional canvas_state / rubric. Enforces owner scope.
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { getDb, sdDrillAttempts } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_ACTIONS = new Set([
+  "heartbeat",
+  "advance-stage",
+  "pause",
+  "resume",
+  "submit",
+  "abandon",
+]);
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      action?: string;
+      currentStage?: number;
+      stageTimes?: Record<string, number>;
+      canvasState?: unknown;
+      rubric?: unknown;
+      aiPostmortem?: string;
+    };
+    const action = body.action;
+    if (!action || !VALID_ACTIONS.has(action)) {
+      return NextResponse.json(
+        { error: `action must be one of: ${Array.from(VALID_ACTIONS).join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+    const now = new Date();
+    const updates: Record<string, unknown> = { lastActivityAt: now };
+
+    switch (action) {
+      case "heartbeat":
+        break;
+      case "advance-stage":
+        if (
+          typeof body.currentStage !== "number" ||
+          body.currentStage < 1 ||
+          body.currentStage > 5
+        ) {
+          return NextResponse.json(
+            { error: "currentStage must be 1..5" },
+            { status: 400 },
+          );
+        }
+        updates.currentStage = body.currentStage;
+        if (body.stageTimes) updates.stageTimes = body.stageTimes;
+        break;
+      case "pause":
+        // pausedAt is client-only in Phase 1; server just records heartbeat.
+        break;
+      case "resume":
+        break;
+      case "submit":
+        updates.submittedAt = now;
+        if (body.rubric) updates.rubric = body.rubric;
+        if (body.aiPostmortem) updates.aiPostmortem = body.aiPostmortem;
+        if (body.canvasState) updates.canvasState = body.canvasState;
+        break;
+      case "abandon":
+        updates.abandonedAt = now;
+        break;
+    }
+
+    if (body.canvasState && action !== "submit") {
+      updates.canvasState = body.canvasState;
+    }
+
+    const [updated] = await db
+      .update(sdDrillAttempts)
+      .set(updates)
+      .where(
+        and(
+          eq(sdDrillAttempts.id, id),
+          eq(sdDrillAttempts.userId, userId),
+        ),
+      )
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Drill not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ attempt: updated });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/drill-attempts/:id] PATCH error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Create GET /api/sd/drill-attempts/active (with stale auto-abandon)**
+
+Create `architex/src/app/api/sd/drill-attempts/active/route.ts`:
+
+```typescript
+/**
+ * GET /api/sd/drill-attempts/active
+ *
+ * Returns the user's currently active drill, or null. Auto-abandons
+ * drills that have been idle > 30 minutes (matches LLD behavior).
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq, isNull, lt } from "drizzle-orm";
+import { getDb, sdDrillAttempts } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const STALE_THRESHOLD_MS = 30 * 60 * 1000;
+
+export async function GET() {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const staleCutoff = new Date(Date.now() - STALE_THRESHOLD_MS);
+    await db
+      .update(sdDrillAttempts)
+      .set({ abandonedAt: new Date() })
+      .where(
+        and(
+          eq(sdDrillAttempts.userId, userId),
+          isNull(sdDrillAttempts.submittedAt),
+          isNull(sdDrillAttempts.abandonedAt),
+          lt(sdDrillAttempts.lastActivityAt, staleCutoff),
+        ),
+      );
+
+    const [active] = await db
+      .select()
+      .from(sdDrillAttempts)
+      .where(
+        and(
+          eq(sdDrillAttempts.userId, userId),
+          isNull(sdDrillAttempts.submittedAt),
+          isNull(sdDrillAttempts.abandonedAt),
+        ),
+      )
+      .limit(1);
+
+    return NextResponse.json({ active: active ?? null });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/drill-attempts/active] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/app/api/sd/drill-attempts/
+git commit -m "$(cat <<'EOF'
+feat(api): add SD drill-attempts lifecycle routes
+
+POST   /api/sd/drill-attempts                  — start (409 if active)
+GET    /api/sd/drill-attempts?status=...       — history
+GET    /api/sd/drill-attempts/active           — with >30min auto-abandon
+PATCH  /api/sd/drill-attempts/:id              — heartbeat/advance-stage/
+                                                 pause/resume/submit/abandon
+
+All routes owner-scoped. Partial unique index at DB level enforces
+single-active-drill. advance-stage accepts current_stage 1..5 and a
+stage_times map for the full time accounting.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 18: Create API shells for review (cards/due + review/submit)
+
+**Files:**
+- Create: `architex/src/app/api/sd/cards/due/route.ts`
+- Create: `architex/src/app/api/sd/review/submit/route.ts`
+
+The Review mode (spec §10) reads `sd_fsrs_cards` for the due queue and writes grade results. Phase 1 ships the shells; the FSRS scheduler itself (stability/difficulty updates) lands in Phase 4. For now, `POST /api/sd/review/submit` records the grade and touches `lastReviewedAt` but does NOT recompute the schedule — it returns 501 on the rescheduling step.
+
+- [ ] **Step 1: Create GET /api/sd/cards/due**
+
+Create `architex/src/app/api/sd/cards/due/route.ts`:
+
+```typescript
+/**
+ * GET /api/sd/cards/due
+ *
+ * Returns the user's due cards (dueAt <= now), ordered oldest-first,
+ * capped at 50 for a single session. Phase 1 returns an empty array
+ * until the card generator ships in Phase 2.
+ */
+
+import { NextResponse } from "next/server";
+import { and, asc, eq, lte } from "drizzle-orm";
+import { getDb, sdFsrsCards } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const MAX_CARDS_PER_SESSION = 50;
+
+export async function GET() {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const now = new Date();
+    const rows = await db
+      .select()
+      .from(sdFsrsCards)
+      .where(and(eq(sdFsrsCards.userId, userId), lte(sdFsrsCards.dueAt, now)))
+      .orderBy(asc(sdFsrsCards.dueAt))
+      .limit(MAX_CARDS_PER_SESSION);
+
+    return NextResponse.json({ cards: rows, count: rows.length });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/cards/due] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create POST /api/sd/review/submit**
+
+Create `architex/src/app/api/sd/review/submit/route.ts`:
+
+```typescript
+/**
+ * POST /api/sd/review/submit
+ *
+ * Body: { cardId: string, grade: 'again' | 'hard' | 'good' | 'easy', elapsedMs?: number }
+ *
+ * Phase 1 records the grade and bumps lastReviewedAt + reps/lapses.
+ * The FSRS-5 scheduler (stability + difficulty update + dueAt
+ * recomputation) lands in Phase 4; this route returns 501 on the
+ * scheduler step so clients know to re-fetch when the feature is
+ * ready.
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { getDb, sdFsrsCards } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_GRADES = new Set(["again", "hard", "good", "easy"]);
+
+export async function POST(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      cardId?: string;
+      grade?: string;
+      elapsedMs?: number;
+    };
+    const { cardId, grade } = body;
+
+    if (!cardId || typeof cardId !== "string") {
+      return NextResponse.json({ error: "cardId required" }, { status: 400 });
+    }
+    if (!grade || !VALID_GRADES.has(grade)) {
+      return NextResponse.json(
+        { error: `grade must be one of: ${Array.from(VALID_GRADES).join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+    const [card] = await db
+      .select()
+      .from(sdFsrsCards)
+      .where(and(eq(sdFsrsCards.id, cardId), eq(sdFsrsCards.userId, userId)))
+      .limit(1);
+    if (!card) {
+      return NextResponse.json({ error: "Card not found" }, { status: 404 });
+    }
+
+    // Phase 1: increment reps (+ lapses if grade === 'again'), bump lastReviewedAt.
+    // FSRS re-scheduling lands in Phase 4.
+    const now = new Date();
+    const [updated] = await db
+      .update(sdFsrsCards)
+      .set({
+        reps: card.reps + 1,
+        lapses: grade === "again" ? card.lapses + 1 : card.lapses,
+        lastReviewedAt: now,
+        updatedAt: now,
+        // dueAt intentionally unchanged — FSRS-5 reschedule is Phase 4.
+      })
+      .where(eq(sdFsrsCards.id, cardId))
+      .returning();
+
+    return NextResponse.json({
+      card: updated,
+      scheduled: false,
+      message: "Grade recorded. FSRS-5 reschedule ships in Phase 4.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/review/submit] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/app/api/sd/cards/ architex/src/app/api/sd/review/
+git commit -m "$(cat <<'EOF'
+feat(api): add SD review shells (cards/due + review/submit)
+
+GET  /api/sd/cards/due      — user's due cards, max 50 per session
+POST /api/sd/review/submit  — record grade, bump reps/lapses
+
+FSRS-5 reschedule (stability/difficulty/due_at update) deferred to
+Phase 4; submit route returns scheduled: false so clients know.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 19: Create SD analytics event catalog (`sd-events.ts`)
+
+**Files:**
+- Create: `architex/src/lib/analytics/sd-events.ts`
+
+Phase 1 surface area covers 30+ events across the 5 modes. The catalog defines typed builders so event names and metadata shapes stay consistent. Later phases extend — they do NOT rename existing events.
+
+- [ ] **Step 1: Create the event builder module**
+
+Create `architex/src/lib/analytics/sd-events.ts`:
+
+```typescript
+/**
+ * SD analytics event catalog (spec §17 cross-module analytics, §18.6 onboarding).
+ *
+ * Typed builders prevent event-name drift. Every event writes to
+ * activityEvents (user-owned) + mirrors to PostHog (aggregate).
+ *
+ * Phase 1 surface:
+ *   - Mode switching, welcome banner, onboarding (§18.6)
+ *   - Drill lifecycle: start, advance-stage, pause, resume, submit, abandon, hint
+ *   - Simulation lifecycle: start, complete, abandon (tick events are Phase 3)
+ *   - Design lifecycle: create, update, snapshot, share
+ *   - Review: cards-fetched, grade-submitted
+ *   - Concept read: opened, scroll-milestone-25/50/75/95, bookmarked
+ */
+
+type SDMode = "learn" | "build" | "simulate" | "drill" | "review";
+type SDDrillMode =
+  | "study"
+  | "timed"
+  | "exam"
+  | "pair"
+  | "review"
+  | "full-stack"
+  | "verbal";
+type SDSimActivity =
+  | "validate"
+  | "stress"
+  | "chaos"
+  | "compare"
+  | "forecast"
+  | "archaeology";
+type SDReviewGrade = "again" | "hard" | "good" | "easy";
+type SDScrollMilestone = 25 | 50 | 75 | 95;
+type SDHintTier = "nudge" | "guided" | "full";
+
+type EventPayload = Record<string, unknown>;
+
+interface SDEvent {
+  event: string;
+  metadata: EventPayload;
+}
+
+// ── Mode switching ──────────────────────────────────────────────
+
+export function sdModeSwitched(args: {
+  from: SDMode | null;
+  to: SDMode;
+  trigger: "click" | "keyboard" | "url" | "welcome-banner" | "deep-link";
+}): SDEvent {
+  return { event: "sd_mode_switched", metadata: args };
+}
+
+// ── Welcome banner + onboarding (spec §18.6) ────────────────────
+
+export function sdWelcomeBannerShown(): SDEvent {
+  return { event: "sd_welcome_banner_shown", metadata: {} };
+}
+
+export function sdWelcomeBannerDismissed(args: {
+  method:
+    | "dismiss"
+    | "pick_learn"
+    | "pick_build"
+    | "pick_simulate"
+    | "pick_drill"
+    | "pick_review";
+}): SDEvent {
+  return { event: "sd_welcome_banner_dismissed", metadata: args };
+}
+
+export function sdOnboardingStarted(): SDEvent {
+  return { event: "sd_onboarding_started", metadata: {} };
+}
+
+export function sdOnboardingStepViewed(args: {
+  step: 1 | 2 | 3 | 4 | 5 | 6; // six spotlights in the 90-sec tour
+  mode: SDMode;
+}): SDEvent {
+  return { event: "sd_onboarding_step_viewed", metadata: args };
+}
+
+export function sdOnboardingCompleted(args: {
+  durationMs: number;
+  skipped: boolean;
+}): SDEvent {
+  return { event: "sd_onboarding_completed", metadata: args };
+}
+
+export function sdOnboardingSkipped(args: {
+  atStep: 1 | 2 | 3 | 4 | 5 | 6;
+}): SDEvent {
+  return { event: "sd_onboarding_skipped", metadata: args };
+}
+
+// ── Concept reads (Learn mode) ──────────────────────────────────
+
+export function sdConceptOpened(args: { conceptSlug: string; wave: number }): SDEvent {
+  return { event: "sd_concept_opened", metadata: args };
+}
+
+export function sdConceptScrollMilestone(args: {
+  conceptSlug: string;
+  milestone: SDScrollMilestone;
+}): SDEvent {
+  return { event: "sd_concept_scroll_milestone", metadata: args };
+}
+
+export function sdConceptBookmarked(args: { conceptSlug: string }): SDEvent {
+  return { event: "sd_concept_bookmarked", metadata: args };
+}
+
+export function sdConceptBookmarkRemoved(args: { conceptSlug: string }): SDEvent {
+  return { event: "sd_concept_bookmark_removed", metadata: args };
+}
+
+// ── Design lifecycle (Build mode) ───────────────────────────────
+
+export function sdDesignCreated(args: {
+  designId: string;
+  diagramType: string;
+  provider: string;
+  fromTemplate: boolean;
+}): SDEvent {
+  return { event: "sd_design_created", metadata: args };
+}
+
+export function sdDesignUpdated(args: {
+  designId: string;
+  changeCount: number; // number of diffs since last update event
+}): SDEvent {
+  return { event: "sd_design_updated", metadata: args };
+}
+
+export function sdDesignSnapshotTaken(args: {
+  designId: string;
+  version: number;
+  reason: "manual" | "auto" | "pre-simulate" | "restore";
+}): SDEvent {
+  return { event: "sd_design_snapshot_taken", metadata: args };
+}
+
+export function sdDesignShared(args: {
+  designId: string;
+  publicSlug: string;
+}): SDEvent {
+  return { event: "sd_design_shared", metadata: args };
+}
+
+// ── Simulation lifecycle (Simulate mode) ────────────────────────
+
+export function sdSimulationStarted(args: {
+  simId: string;
+  activity: SDSimActivity;
+  scaleDau: string;
+  designId: string | null;
+}): SDEvent {
+  return { event: "sd_simulation_started", metadata: args };
+}
+
+export function sdSimulationCompleted(args: {
+  simId: string;
+  activity: SDSimActivity;
+  durationSimSeconds: number;
+  p99Ms: number;
+  costPerHour: number;
+  sloMet: boolean;
+}): SDEvent {
+  return { event: "sd_simulation_completed", metadata: args };
+}
+
+export function sdSimulationAbandoned(args: {
+  simId: string;
+  elapsedMs: number;
+  reason: "give_up" | "timeout" | "auto";
+}): SDEvent {
+  return { event: "sd_simulation_abandoned", metadata: args };
+}
+
+// ── Drill lifecycle (Drill mode) ────────────────────────────────
+
+export function sdDrillStarted(args: {
+  drillId: string;
+  problemSlug: string;
+  mode: SDDrillMode;
+  persona: string | null;
+  companyPreset: string | null;
+}): SDEvent {
+  return { event: "sd_drill_started", metadata: args };
+}
+
+export function sdDrillStageAdvanced(args: {
+  drillId: string;
+  fromStage: 1 | 2 | 3 | 4;
+  toStage: 2 | 3 | 4 | 5;
+  stageDurationMs: number;
+}): SDEvent {
+  return { event: "sd_drill_stage_advanced", metadata: args };
+}
+
+export function sdDrillPaused(args: {
+  drillId: string;
+  stage: 1 | 2 | 3 | 4 | 5;
+  elapsedMs: number;
+}): SDEvent {
+  return { event: "sd_drill_paused", metadata: args };
+}
+
+export function sdDrillResumed(args: { drillId: string }): SDEvent {
+  return { event: "sd_drill_resumed", metadata: args };
+}
+
+export function sdDrillHintUsed(args: {
+  drillId: string;
+  tier: SDHintTier;
+  stage: 1 | 2 | 3 | 4 | 5;
+}): SDEvent {
+  return { event: "sd_drill_hint_used", metadata: args };
+}
+
+export function sdDrillSubmitted(args: {
+  drillId: string;
+  problemSlug: string;
+  durationMs: number;
+  rubricScore: number;
+  hintsUsed: number;
+}): SDEvent {
+  return { event: "sd_drill_submitted", metadata: args };
+}
+
+export function sdDrillAbandoned(args: {
+  drillId: string;
+  stage: 1 | 2 | 3 | 4 | 5;
+  elapsedMs: number;
+  reason: "give_up" | "timeout" | "auto";
+}): SDEvent {
+  return { event: "sd_drill_abandoned", metadata: args };
+}
+
+export function sdDrillRubricTierCrossed(args: {
+  drillId: string;
+  tier: "principal" | "staff" | "senior" | "mid" | "below";
+  score: number;
+}): SDEvent {
+  return { event: "sd_drill_rubric_tier_crossed", metadata: args };
+}
+
+// ── Review (Review mode) ─────────────────────────────────────────
+
+export function sdReviewSessionStarted(args: { dueCardCount: number }): SDEvent {
+  return { event: "sd_review_session_started", metadata: args };
+}
+
+export function sdReviewCardGraded(args: {
+  cardId: string;
+  cardType: string;
+  grade: SDReviewGrade;
+  elapsedMs: number;
+}): SDEvent {
+  return { event: "sd_review_card_graded", metadata: args };
+}
+
+export function sdReviewSessionCompleted(args: {
+  cardsReviewed: number;
+  durationMs: number;
+  accuracyPct: number;
+}): SDEvent {
+  return { event: "sd_review_session_completed", metadata: args };
+}
+
+// ── Shares + public views ───────────────────────────────────────
+
+export function sdShareLinkCopied(args: {
+  resourceType: "design" | "simulation" | "drill";
+  publicSlug: string;
+}): SDEvent {
+  return { event: "sd_share_link_copied", metadata: args };
+}
+
+// ── Errors (capture + redact PII) ───────────────────────────────
+
+export function sdClientError(args: {
+  surface: SDMode | "shell";
+  code: string;
+  message: string; // already scrubbed client-side
+}): SDEvent {
+  return { event: "sd_client_error", metadata: args };
+}
+
+// ── Emission ────────────────────────────────────────────────────
+
+/**
+ * Fire an event to the activity log (fire-and-forget).
+ * In Phase 1 this just POSTs to /api/activity. Later phases add
+ * PostHog mirroring and offline queueing.
+ */
+export async function track(event: SDEvent): Promise<void> {
+  try {
+    await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: event.event,
+        moduleId: "sd",
+        metadata: event.metadata,
+      }),
+    });
+  } catch (err) {
+    console.warn("[sd-events] track failed (non-critical):", err);
+  }
+}
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 3: Write a smoke test that counts exported builders**
+
+Create `architex/src/lib/analytics/__tests__/sd-events.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import * as sdEvents from "@/lib/analytics/sd-events";
+
+describe("sd-events catalog", () => {
+  it("exports at least 30 event builders", () => {
+    const builders = Object.values(sdEvents).filter(
+      (v) => typeof v === "function" && v.name !== "track",
+    );
+    expect(builders.length).toBeGreaterThanOrEqual(30);
+  });
+
+  it("every builder returns { event, metadata } shape", () => {
+    const sample = sdEvents.sdModeSwitched({
+      from: null,
+      to: "learn",
+      trigger: "click",
+    });
+    expect(sample.event).toBe("sd_mode_switched");
+    expect(sample.metadata).toMatchObject({
+      from: null,
+      to: "learn",
+      trigger: "click",
+    });
+  });
+
+  it("all event names are snake_case and start with sd_", () => {
+    const shape = sdEvents.sdDrillStarted({
+      drillId: "x",
+      problemSlug: "p",
+      mode: "timed",
+      persona: null,
+      companyPreset: null,
+    });
+    expect(shape.event).toMatch(/^sd_[a-z_]+$/);
+  });
+});
+```
+
+Run it:
+```bash
+pnpm test:run -- sd-events
+```
+
+Expected: PASS · all 3 assertions.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/lib/analytics/sd-events.ts \
+        architex/src/lib/analytics/__tests__/sd-events.test.ts
+git commit -m "$(cat <<'EOF'
+feat(analytics): add typed SD event catalog (Phase 1 subset)
+
+30+ builders covering mode switching, onboarding, welcome banner,
+concept reads, design lifecycle, simulation lifecycle, drill lifecycle
+(start + 5-stage advance + hint + submit + abandon + rubric tier),
+review sessions, shares, client errors.
+
+All event names snake_case, prefixed sd_. Each builder returns
+{ event, metadata } so every call site has the same shape.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
