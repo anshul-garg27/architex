@@ -1917,6 +1917,106 @@ The AI's output style calibrates on this. A Rookie asking about consistent hashi
 
 ---
 
+## 16. Pedagogical Formats
+
+> "A problem should not be presented the same way twice."
+
+### 16.1 Eight pedagogical formats (Q51)
+
+The same library of 30 problems can be presented in 8 distinct pedagogical framings. Each framing targets a different learning goal and engages a different part of the brain. Users select a framing from a problem page's top bar.
+
+#### 16.1.1 Build-Along
+
+**Goal:** learn by following a narrated construction.
+
+**Shape:** the problem page plays a guided build sequence. Step 1: "Start with a client and a single backend service." Step 2: "Now, under 1k QPS, we hit a database bottleneck. Add a cache. Here's why." Each step has a prose explanation, a canvas animation showing the change, and a checkpoint the user answers before the next step unlocks.
+
+**Best for:** Rookies. First problem they ever attempt should be in Build-Along format.
+
+#### 16.1.2 Debug-This
+
+**Goal:** find the bug in a broken design.
+
+**Shape:** user sees a diagram claimed to work at 1M DAU. They hit Simulate. Something fails. The user must identify the cause and fix it. Time-limited.
+
+**Best for:** training code-review / diagnostic skills. 5-10 min sessions.
+
+#### 16.1.3 Inherit-This-Mess
+
+**Goal:** grapple with a legacy design.
+
+**Shape:** user opens a design that is an honest tangle — 30+ nodes, 3 database flavors in use for no clear reason, deep sync chains, missing observability. Narrative intro: "You joined this team yesterday. The previous architect left. You have 2 weeks to improve reliability." User must identify priorities, propose 3 refactors, execute the top 1.
+
+**Best for:** experienced engineers; trains prioritization under constraint.
+
+#### 16.1.4 Scale-This-Up
+
+**Goal:** evolve a design from 10k DAU to 10M to 1B.
+
+**Shape:** start with a simple design that works at 10k DAU. Use the scale slider to ramp to 1M. Something breaks. Fix it. Ramp to 10M. Break. Fix. Ramp to 100M. Break. Fix. User learns that "works at scale X" does not mean "works at scale 10X."
+
+**Best for:** building scale intuition. The most requested framing in brainstorm user interviews.
+
+#### 16.1.5 CTO Interview
+
+**Goal:** explain a design to a non-technical executive.
+
+**Shape:** the canvas is done. Now the user must write a 1-page exec summary (Q52 Exec One-Pager). An AI exec reads it and pushes back: "What's the business value of cross-region replication?" "How does this tradeoff affect our time-to-market?" User must defend verbally.
+
+**Best for:** Staff+ engineers who need stakeholder-communication skills.
+
+#### 16.1.6 Guided Derivation
+
+**Goal:** derive the design from first principles, step-by-step.
+
+**Shape:** the user is prompted: "Consider: we have 200B tweets and 500M users. What must our write path look like? Think. [reveal hint]." Each derivation step is a checkpoint. The user builds the design by answering the prompts, in the order a principal engineer would derive it. Unlike Build-Along, this is Socratic — the user does the thinking.
+
+**Best for:** Journeymen-Architects seeking interview depth.
+
+#### 16.1.7 Compare-Two-Companies
+
+**Goal:** understand why two designs for the "same" problem differ.
+
+**Shape:** user opens side-by-side Instagram's feed architecture vs. Mastodon's. Or Stripe's idempotency vs. PayPal's. The user identifies the specific design decisions each made, and the consequences. Uses the Compare A/B Simulate activity for the dynamic parts.
+
+**Best for:** deep understanding. Advanced users.
+
+#### 16.1.8 Evolving-Design Campaign
+
+**Goal:** design a system that evolves over 2-3 years.
+
+**Shape:** user designs for Year 0. Time passes (narrative). The company grows. Year 1: "Revenue hits $100M, now you need fraud detection." Add. Year 2: "Europe launches; GDPR now applies." Add. Year 3: "Competitor launches; need a search feature." Add.
+
+**Best for:** Principal-level. Multi-session campaigns, 4-8 hours total.
+
+### 16.2 Selecting a format
+
+Problem pages default to the **6-pane format** (§5.5) — the reference encyclopedia shape. Above the 6-pane, a bar offers 8 pedagogical format buttons. Selecting one rewrites the page to that format. The same canonical content is reused across formats; the framing changes.
+
+Default recommendation engine:
+- R (Rookie) default: Build-Along
+- J (Journeyman) default: Guided Derivation or Debug-This
+- A (Architect) default: Scale-This-Up or Evolving-Design Campaign
+- In Crunch Mode: Drill format directly (bypass to §9)
+
+### 16.3 Cognitive science mapping (reused from LLD)
+
+Each pedagogical format implements one or more cognitive science mechanisms already cited in LLD §9:
+
+- Build-Along — worked examples with fading (CS5)
+- Debug-This — productive failure (CS4)
+- Inherit-This-Mess — elaborative interrogation (CS3) + retrieval
+- Scale-This-Up — interleaved practice (CS2) — mixing scale levels forces discrimination
+- CTO Interview — teach-back (CS7) + design debate (CS9)
+- Guided Derivation — elaborative interrogation (CS3) + Socratic questioning
+- Compare-Two-Companies — cold recall (CS6) + interleaved practice (CS2)
+- Evolving-Design Campaign — spaced retrieval over sessions
+
+This grounds the whole pedagogy stack in published research. The product is not gamification-first; it is *learning-science-first*, styled cinematically.
+
+---
+
+
 
 
 
