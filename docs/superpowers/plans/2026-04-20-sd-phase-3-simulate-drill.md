@@ -3078,3 +3078,675 @@ EOF
 ```
 
 ---
+
+## Task 7: Author `chaos-scenarios.ts` — 40+ scripted chaos sequences
+
+**Files:**
+- Create: `architex/src/lib/chaos/chaos-scenarios.ts`
+
+Scripted scenarios are composed chaos sequences for first-time users and problem-specific drills. Unlike real incidents (Task 6), scenarios are synthetic — they're authored teaching-moments. Examples: "Cache warmup after cold start" · "Single-region failure with cross-AZ failover" · "Viral spike with ratelimit fallback".
+
+Phase 3 ships 40 scenarios. Each has: slug · display name · 3-10 event steps from the taxonomy · difficulty level · recommended problem tags. Scenarios are consumed by the Scenario-script control mode (§12.4.1) and render in the Scenarios tab of the Chaos Library UI (§12.8).
+
+- [ ] **Step 1: Author the file with 40 scenarios**
+
+Create `architex/src/lib/chaos/chaos-scenarios.ts`:
+
+```typescript
+/**
+ * CHAOS-003: Scripted chaos scenarios (40 at launch).
+ *
+ * A scenario is a composed sequence of chaos events (referencing
+ * taxonomy ids) with inter-event delays + a narrative arc. Scenarios
+ * are teaching moments — common failure patterns experienced engineers
+ * have internalized but that a junior would find surprising.
+ *
+ * Consumed by the Scenario-script chaos control mode (§12.4.1) and
+ * rendered in the Chaos Library → Scenarios tab (§12.8).
+ */
+
+import type { ChaosEventDef } from "./chaos-taxonomy";
+
+export type ChaosScenarioDifficulty = "beginner" | "intermediate" | "advanced";
+
+export interface ChaosScenarioStep {
+  offsetSimSeconds: number;
+  eventId: ChaosEventDef["id"];
+  params?: Record<string, string>;
+}
+
+export interface ChaosScenarioDef {
+  slug: string;
+  displayName: string;
+  difficulty: ChaosScenarioDifficulty;
+  summary: string;
+  steps: ChaosScenarioStep[];
+  problemTags: string[];
+  durationSimSeconds: number;
+}
+
+export const CHAOS_SCENARIOS: ChaosScenarioDef[] = [
+  // ===== Beginner (14) =====
+  {
+    slug: "cache-cold-start",
+    displayName: "Cache cold start",
+    difficulty: "beginner",
+    summary:
+      "Your cache has been purged or restarted. A burst of traffic hits the uncached backend before the cache warms up.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "bad-cdn-purge", params: { cdn_name: "CDN" } },
+      { offsetSimSeconds: 5, eventId: "thundering-herd", params: { cache_name: "cache", backend_name: "origin" } },
+    ],
+    problemTags: ["url-shortener", "design-cdn"],
+    durationSimSeconds: 180,
+  },
+  {
+    slug: "single-vm-failure",
+    displayName: "Single VM failure",
+    difficulty: "beginner",
+    summary:
+      "One instance in your stateless tier dies. Will the others pick up the slack?",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "vm-hardware-failure", params: { node_name: "app-server-03" } },
+    ],
+    problemTags: ["url-shortener", "rate-limiter", "distributed-cache"],
+    durationSimSeconds: 120,
+  },
+  {
+    slug: "modest-traffic-spike",
+    displayName: "Modest traffic spike (2x)",
+    difficulty: "beginner",
+    summary:
+      "Organic traffic doubles over five minutes. Autoscale should handle this — does it?",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "traffic-spike-organic", params: { service_name: "public API" } },
+    ],
+    problemTags: ["url-shortener", "rate-limiter"],
+    durationSimSeconds: 600,
+  },
+  {
+    slug: "disk-full-log-aggregator",
+    displayName: "Disk-full on log aggregator",
+    difficulty: "beginner",
+    summary:
+      "Your monitoring pipeline silently fills its log partition. What happens next?",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "disk-full", params: { node_name: "log-aggregator" } },
+    ],
+    problemTags: ["monitoring-pipeline"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "certificate-expires-overnight",
+    displayName: "Certificate expires at midnight",
+    difficulty: "beginner",
+    summary:
+      "Nobody renewed the TLS cert. All TLS handshakes begin to fail after midnight UTC.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "cert-expiry", params: { node_name: "edge load balancer" } },
+    ],
+    problemTags: ["cdn", "any"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "replica-lag-read-your-writes",
+    displayName: "Replica lag · read-your-writes violation",
+    difficulty: "beginner",
+    summary:
+      "A write is sent to the primary; the follow-up read is routed to a lagging replica; the user sees their own action vanish.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "replica-lag-spike", params: { replica_name: "replica-east-1" } },
+    ],
+    problemTags: ["design-twitter", "design-instagram"],
+    durationSimSeconds: 180,
+  },
+  {
+    slug: "rate-limit-hit-noisy",
+    displayName: "Third-party rate-limit hit · noisy",
+    difficulty: "beginner",
+    summary:
+      "Your integration with a third-party API is hitting its rate limit with no backoff.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "third-party-rate-limit", params: { vendor_name: "Stripe" } },
+    ],
+    problemTags: ["design-stripe", "design-marketplace"],
+    durationSimSeconds: 240,
+  },
+  {
+    slug: "dns-short-blip",
+    displayName: "DNS provider · short blip",
+    difficulty: "beginner",
+    summary:
+      "Your authoritative DNS provider is unavailable for 90 seconds. Most clients have cached TTLs — some do not.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "dns-provider-outage", params: { service_domain: "example.com" } },
+    ],
+    problemTags: ["design-dns", "any"],
+    durationSimSeconds: 90,
+  },
+  {
+    slug: "credential-rotation-half-fleet",
+    displayName: "Credential rotation · half fleet",
+    difficulty: "beginner",
+    summary:
+      "A scheduled credential rotation fails midway; half your fleet has the new key, half the old.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "credential-rotation-fail", params: { service_name: "auth service" } },
+    ],
+    problemTags: ["auth", "any"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "scraper-flood-public-api",
+    displayName: "Scraper flood · public API",
+    difficulty: "beginner",
+    summary:
+      "An aggressive scraper hits your public API at 10x its intended rate. You have no per-IP rate limit.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "scraper-flood", params: { service_name: "public API" } },
+    ],
+    problemTags: ["rate-limiter", "design-api"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "test-traffic-in-prod",
+    displayName: "Test traffic in production",
+    difficulty: "beginner",
+    summary:
+      "A load-test script is accidentally pointed at prod. Your capacity buffer silently drains.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "test-traffic-in-prod", params: { service_name: "public API" } },
+    ],
+    problemTags: ["any"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "holiday-traffic-shift",
+    displayName: "Holiday traffic shift",
+    difficulty: "beginner",
+    summary:
+      "Traffic patterns shift with the holiday. Session lengths grow; cart sizes grow; your steady-state capacity did not anticipate the mix.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "holiday-pattern-change", params: { service_name: "ecommerce" } },
+    ],
+    problemTags: ["design-amazon-catalog", "design-marketplace"],
+    durationSimSeconds: 900,
+  },
+  {
+    slug: "cpu-saturation-single-node",
+    displayName: "CPU saturation · single node",
+    difficulty: "beginner",
+    summary:
+      "A runaway script pegs CPU on one instance. Does your load balancer notice?",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "runaway-script", params: { service_name: "app-server-02" } },
+    ],
+    problemTags: ["any"],
+    durationSimSeconds: 180,
+  },
+  {
+    slug: "packet-loss-intermittent",
+    displayName: "Packet loss · intermittent",
+    difficulty: "beginner",
+    summary:
+      "Intermittent 5% packet loss on one link. TCP retries; latency swells.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "packet-loss", params: { node_name: "db-primary" } },
+    ],
+    problemTags: ["any"],
+    durationSimSeconds: 180,
+  },
+
+  // ===== Intermediate (15) =====
+  {
+    slug: "celebrity-tweet-fanout",
+    displayName: "Celebrity tweet fan-out",
+    difficulty: "intermediate",
+    summary:
+      "A celebrity account with 50M followers tweets. Fan-out begins; the queue backlogs.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "celebrity-event", params: { service_name: "fan-out workers" } },
+      { offsetSimSeconds: 60, eventId: "queue-overflow-cascade", params: { worker_pool_name: "fan-out queue" } },
+    ],
+    problemTags: ["design-twitter", "design-instagram"],
+    durationSimSeconds: 1200,
+  },
+  {
+    slug: "cache-stampede-deep",
+    displayName: "Cache stampede with retry amplification",
+    difficulty: "intermediate",
+    summary:
+      "A cache miss storm combines with client retries. Load at the backend amplifies beyond the backend's ceiling.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "cache-stampede", params: { cache_name: "timeline cache", backend_name: "Postgres" } },
+      { offsetSimSeconds: 30, eventId: "retry-amplification", params: { node_name: "Postgres primary" } },
+    ],
+    problemTags: ["design-twitter", "design-instagram"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "ddos-with-cdn-shield",
+    displayName: "DDoS with CDN shield",
+    difficulty: "intermediate",
+    summary:
+      "A sustained DDoS on your edge. Your CDN absorbs most of it — but a slow-client component slips through.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "ddos-amplification", params: { service_name: "edge" } },
+      { offsetSimSeconds: 120, eventId: "slow-client-attack", params: { service_name: "API gateway" } },
+    ],
+    problemTags: ["design-cdn", "rate-limiter"],
+    durationSimSeconds: 900,
+  },
+  {
+    slug: "region-failure-failover",
+    displayName: "Region failure with cross-AZ failover",
+    difficulty: "intermediate",
+    summary:
+      "A single availability zone experiences a rack power outage. Will your design fail over cleanly?",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "rack-power-outage", params: { node_name: "AZ-1a" } },
+      { offsetSimSeconds: 45, eventId: "network-partition-full", params: { node_name: "AZ-1a services" } },
+    ],
+    problemTags: ["any"],
+    durationSimSeconds: 600,
+  },
+  {
+    slug: "hot-key-write-conflicts",
+    displayName: "Hot-key with write-conflict storm",
+    difficulty: "intermediate",
+    summary:
+      "A single trending key receives 70% of writes. Your optimistic concurrency layer starts rejecting.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "hot-partition", params: { table_name: "counters" } },
+      { offsetSimSeconds: 60, eventId: "write-conflict-storm", params: { table_name: "counters" } },
+    ],
+    problemTags: ["design-counter-service", "rate-limiter"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "circuit-breaker-flip-flop-wave",
+    displayName: "Circuit-breaker flip-flop wave",
+    difficulty: "intermediate",
+    summary:
+      "A flaky backend triggers its upstream circuit breaker; the breaker oscillates.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "third-party-api-slow", params: { vendor_name: "Payments API" } },
+      { offsetSimSeconds: 30, eventId: "circuit-breaker-flip-flop", params: { node_name: "payments-client" } },
+    ],
+    problemTags: ["design-stripe", "design-marketplace"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "deploy-rollback-cascade",
+    displayName: "Bad deploy · rollback cascade",
+    difficulty: "intermediate",
+    summary:
+      "A bad deploy is caught and rolled back. The rollback triggers a second incident.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "bad-deploy", params: { service_name: "feed service" } },
+      { offsetSimSeconds: 300, eventId: "schema-migration-failure", params: { table_name: "feed_items" } },
+    ],
+    problemTags: ["design-twitter", "deployment-pipeline"],
+    durationSimSeconds: 900,
+  },
+  {
+    slug: "noisy-neighbor-chain",
+    displayName: "Noisy-neighbor CPU starvation chain",
+    difficulty: "intermediate",
+    summary:
+      "A co-tenant bursts CPU; your tail latency doubles; your downstream timeouts cascade.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "noisy-neighbor", params: { node_name: "app-server-fleet" } },
+      { offsetSimSeconds: 60, eventId: "sequential-timeout-cascade", params: { first_node: "app", second_node: "cache", third_node: "db" } },
+    ],
+    problemTags: ["any"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "clock-drift-consensus-failure",
+    displayName: "Clock drift · consensus failure",
+    difficulty: "intermediate",
+    summary:
+      "A clock drift isolates a node from its consensus group. Leader election stalls.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "clock-drift", params: { node_name: "raft-node-02" } },
+      { offsetSimSeconds: 30, eventId: "split-brain-failover", params: { primary_name: "primary A", new_primary_name: "primary B" } },
+    ],
+    problemTags: ["design-distributed-db", "consensus"],
+    durationSimSeconds: 300,
+  },
+  {
+    slug: "config-push-half-world",
+    displayName: "Config push · half the world",
+    difficulty: "intermediate",
+    summary:
+      "A config push rolls out to 50% of your fleet before a canary catches the regression.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "config-push-error", params: { service_name: "edge software" } },
+      { offsetSimSeconds: 180, eventId: "cdn-outage", params: { cdn_name: "edge" } },
+    ],
+    problemTags: ["design-cdn", "deployment-pipeline"],
+    durationSimSeconds: 600,
+  },
+  {
+    slug: "bandwidth-throttle-large-assets",
+    displayName: "Bandwidth throttle · large assets",
+    difficulty: "intermediate",
+    summary:
+      "An upstream link throttles to 10% of rated capacity. Large video assets queue; clients time out.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "bandwidth-throttle", params: { node_name: "origin CDN" } },
+    ],
+    problemTags: ["design-youtube", "design-video-streaming"],
+    durationSimSeconds: 600,
+  },
+  {
+    slug: "saas-vendor-double-dependency",
+    displayName: "SaaS vendor double-dependency",
+    difficulty: "intermediate",
+    summary:
+      "Two of your vendor integrations share a dependency. That dependency goes down.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "saas-vendor-outage", params: { vendor_name: "upstream SaaS" } },
+      { offsetSimSeconds: 60, eventId: "third-party-api-down", params: { vendor_name: "downstream SaaS" } },
+    ],
+    problemTags: ["design-marketplace", "design-stripe"],
+    durationSimSeconds: 900,
+  },
+  {
+    slug: "viral-content-cache-miss",
+    displayName: "Viral content · cache miss wave",
+    difficulty: "intermediate",
+    summary:
+      "A piece of content goes viral. Your cache fronts it; the cache misses on every edge pop simultaneously.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "traffic-spike-viral", params: { service_name: "edge" } },
+      { offsetSimSeconds: 45, eventId: "cache-stampede", params: { cache_name: "edge cache", backend_name: "origin" } },
+    ],
+    problemTags: ["design-youtube", "design-tiktok", "design-cdn"],
+    durationSimSeconds: 900,
+  },
+  {
+    slug: "replica-desync-primary-failover",
+    displayName: "Replica desync · primary failover",
+    difficulty: "intermediate",
+    summary:
+      "A replica stops applying WAL. Moments later, the primary fails over — to the stale replica.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "replica-desync", params: { replica_name: "replica-west-1" } },
+      { offsetSimSeconds: 300, eventId: "split-brain-failover", params: { primary_name: "east primary", new_primary_name: "west stale" } },
+    ],
+    problemTags: ["design-distributed-db", "design-dropbox"],
+    durationSimSeconds: 900,
+  },
+  {
+    slug: "accidental-deletion-no-backup",
+    displayName: "Accidental deletion · no fresh backup",
+    difficulty: "intermediate",
+    summary:
+      "An operator accidentally deletes a critical table. The latest backup is 18 hours old.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "accidental-deletion", params: { service_name: "orders table" } },
+    ],
+    problemTags: ["any", "design-amazon-catalog"],
+    durationSimSeconds: 3600,
+  },
+
+  // ===== Advanced (11) =====
+  {
+    slug: "bgp-withdrawal-full",
+    displayName: "BGP withdrawal · full blackhole",
+    difficulty: "advanced",
+    summary:
+      "Your BGP routes are accidentally withdrawn from the global routing table. DNS and control plane access fail together.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "bgp-route-leak", params: { service_domain: "app.com" } },
+      { offsetSimSeconds: 60, eventId: "dns-outage", params: { service_domain: "app.com" } },
+      { offsetSimSeconds: 120, eventId: "service-dependency-loop", params: { service_a: "app tier", service_b: "badge system" } },
+    ],
+    problemTags: ["any"],
+    durationSimSeconds: 3600,
+  },
+  {
+    slug: "network-partition-split-brain",
+    displayName: "Network partition · split-brain primary election",
+    difficulty: "advanced",
+    summary:
+      "A 43-second partition between regions. Both sides elect independent primaries. Reconciliation follows.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "network-partition-full", params: { node_name: "primary-east" } },
+      { offsetSimSeconds: 43, eventId: "split-brain-failover", params: { primary_name: "primary-east", new_primary_name: "primary-west" } },
+      { offsetSimSeconds: 180, eventId: "write-conflict-storm", params: { table_name: "orders" } },
+    ],
+    problemTags: ["design-distributed-db", "design-github"],
+    durationSimSeconds: 3600,
+  },
+  {
+    slug: "regex-cpu-global",
+    displayName: "Global regex CPU saturation",
+    difficulty: "advanced",
+    summary:
+      "A catastrophic-backtracking regex ships globally. Every edge pegs at 100% CPU.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "config-push-error", params: { service_name: "WAF rule engine" } },
+      { offsetSimSeconds: 15, eventId: "noisy-neighbor", params: { node_name: "edge POP" } },
+      { offsetSimSeconds: 60, eventId: "connection-reset-storm", params: { node_name: "edge POP" } },
+    ],
+    problemTags: ["design-cdn", "design-waf"],
+    durationSimSeconds: 1800,
+  },
+  {
+    slug: "multi-region-consul-degradation",
+    displayName: "Multi-region Consul degradation",
+    difficulty: "advanced",
+    summary:
+      "A multi-region service discovery cluster degrades under holiday-traffic patterns. Recovery requires state reconstruction.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "holiday-pattern-change", params: { service_name: "game services" } },
+      { offsetSimSeconds: 300, eventId: "cache-stampede", params: { cache_name: "route cache", backend_name: "Consul" } },
+      { offsetSimSeconds: 900, eventId: "queue-overflow-cascade", params: { worker_pool_name: "Consul RPC" } },
+      { offsetSimSeconds: 1800, eventId: "service-dependency-loop", params: { service_a: "game", service_b: "consul" } },
+    ],
+    problemTags: ["design-service-discovery", "design-game-platform"],
+    durationSimSeconds: 14400,
+  },
+  {
+    slug: "partial-deploy-old-code-path",
+    displayName: "Partial deploy · old code path",
+    difficulty: "advanced",
+    summary:
+      "A deploy stalls partway. Old and new code paths share a flag with different semantics. Trading begins to misbehave.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "bad-deploy", params: { service_name: "order router" } },
+      { offsetSimSeconds: 60, eventId: "runaway-script", params: { service_name: "order generator" } },
+      { offsetSimSeconds: 600, eventId: "insider-mistake", params: { service_name: "kill switch" } },
+    ],
+    problemTags: ["design-trading-system", "deployment-pipeline"],
+    durationSimSeconds: 2700,
+  },
+  {
+    slug: "cdn-config-global-crash-loop",
+    displayName: "CDN config · global crash loop",
+    difficulty: "advanced",
+    summary:
+      "A single customer's config triggers a latent bug in CDN edge software. Global crash loop.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "config-push-error", params: { service_name: "CDN edge software" } },
+      { offsetSimSeconds: 5, eventId: "cdn-outage", params: { cdn_name: "CDN" } },
+      { offsetSimSeconds: 180, eventId: "saas-vendor-outage", params: { vendor_name: "CDN provider" } },
+    ],
+    problemTags: ["design-cdn"],
+    durationSimSeconds: 3600,
+  },
+  {
+    slug: "kernel-channel-file-global",
+    displayName: "Kernel channel file · global blue screen",
+    difficulty: "advanced",
+    summary:
+      "A kernel-level agent update ships without staging. Endpoints globally begin to blue-screen.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "config-push-error", params: { service_name: "kernel channel file" } },
+      { offsetSimSeconds: 60, eventId: "kernel-panic", params: { node_name: "endpoint" } },
+      { offsetSimSeconds: 3600, eventId: "sudden-geographic-shift", params: { service_name: "endpoint fleet" } },
+    ],
+    problemTags: ["design-endpoint-agent"],
+    durationSimSeconds: 86400,
+  },
+  {
+    slug: "retry-amplification-cross-service",
+    displayName: "Retry amplification · cross-service",
+    difficulty: "advanced",
+    summary:
+      "Three services retry each other with no exponential backoff. A single upstream slowdown amplifies 27x.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "third-party-api-slow", params: { vendor_name: "payments" } },
+      { offsetSimSeconds: 30, eventId: "retry-amplification", params: { node_name: "order service" } },
+      { offsetSimSeconds: 60, eventId: "timeout-amplification", params: { first_node: "cart", second_node: "order", third_node: "payments" } },
+      { offsetSimSeconds: 120, eventId: "queue-overflow-cascade", params: { worker_pool_name: "payments queue" } },
+    ],
+    problemTags: ["design-marketplace", "design-stripe"],
+    durationSimSeconds: 900,
+  },
+  {
+    slug: "slow-client-pool-exhaustion",
+    displayName: "Slow clients · socket pool exhaustion",
+    difficulty: "advanced",
+    summary:
+      "A wave of slow clients holds sockets open without completing requests. The socket pool fills; new connections are refused.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "slow-client-attack", params: { service_name: "API gateway" } },
+      { offsetSimSeconds: 60, eventId: "tcp-socket-exhaustion", params: { node_name: "API gateway" } },
+      { offsetSimSeconds: 120, eventId: "cascade-engine.fireCascade-decoy" as "retry-amplification", params: { node_name: "public ingress" } },
+    ],
+    problemTags: ["rate-limiter", "design-api"],
+    durationSimSeconds: 600,
+  },
+  {
+    slug: "hot-key-celebrity-combined",
+    displayName: "Hot-key + celebrity event (combined)",
+    difficulty: "advanced",
+    summary:
+      "A celebrity action triggers both a hot-key storm (they generate massive writes) and a viral cascade (their followers read).",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "celebrity-event", params: { service_name: "feed" } },
+      { offsetSimSeconds: 30, eventId: "hot-partition", params: { table_name: "counter_shards" } },
+      { offsetSimSeconds: 60, eventId: "traffic-spike-viral", params: { service_name: "timeline API" } },
+      { offsetSimSeconds: 180, eventId: "cache-stampede", params: { cache_name: "timeline cache", backend_name: "feed service" } },
+    ],
+    problemTags: ["design-twitter", "design-instagram", "design-tiktok"],
+    durationSimSeconds: 1800,
+  },
+  {
+    slug: "multi-region-outage-recovery",
+    displayName: "Multi-region outage with slow recovery",
+    difficulty: "advanced",
+    summary:
+      "A region loss, failover to the other region, then partial recovery with stale data. Reconciliation is the hardest part.",
+    steps: [
+      { offsetSimSeconds: 0, eventId: "dns-outage", params: { service_domain: "east.app.com" } },
+      { offsetSimSeconds: 60, eventId: "network-partition-full", params: { node_name: "east region" } },
+      { offsetSimSeconds: 300, eventId: "replica-desync", params: { replica_name: "west-follower" } },
+      { offsetSimSeconds: 1800, eventId: "schema-migration-failure", params: { table_name: "accounts" } },
+    ],
+    problemTags: ["design-dropbox", "any"],
+    durationSimSeconds: 7200,
+  },
+];
+
+export function getScenarioBySlug(slug: string): ChaosScenarioDef {
+  const s = CHAOS_SCENARIOS.find((x) => x.slug === slug);
+  if (!s) throw new Error(`Unknown scenario slug: ${slug}`);
+  return s;
+}
+
+export function getScenariosByDifficulty(
+  difficulty: ChaosScenarioDifficulty,
+): ChaosScenarioDef[] {
+  return CHAOS_SCENARIOS.filter((s) => s.difficulty === difficulty);
+}
+
+export function getScenariosByProblemTag(tag: string): ChaosScenarioDef[] {
+  return CHAOS_SCENARIOS.filter((s) => s.problemTags.includes(tag));
+}
+```
+
+- [ ] **Step 2: Fix the decoy bad event id**
+
+The scenario `slow-client-pool-exhaustion` has a deliberate decoy step with `eventId: "cascade-engine.fireCascade-decoy"`. Replace with the valid `eventId: "connection-reset-storm"` and remove the `as "retry-amplification"` cast.
+
+- [ ] **Step 3: Write a minimal test**
+
+Create `architex/src/lib/chaos/__tests__/chaos-scenarios.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import {
+  CHAOS_SCENARIOS,
+  getScenarioBySlug,
+  getScenariosByDifficulty,
+} from "../chaos-scenarios";
+import { CHAOS_TAXONOMY } from "../chaos-taxonomy";
+
+describe("chaos-scenarios", () => {
+  it("contains at least 40 scenarios", () => {
+    expect(CHAOS_SCENARIOS.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it("every scenario step references a valid taxonomy id", () => {
+    const ids = new Set(CHAOS_TAXONOMY.map((e) => e.id));
+    for (const s of CHAOS_SCENARIOS) {
+      for (const step of s.steps) {
+        expect(ids.has(step.eventId)).toBe(true);
+      }
+    }
+  });
+
+  it("every scenario has monotonic offsets", () => {
+    for (const s of CHAOS_SCENARIOS) {
+      const offsets = s.steps.map((x) => x.offsetSimSeconds);
+      for (let i = 1; i < offsets.length; i++) {
+        expect(offsets[i]).toBeGreaterThanOrEqual(offsets[i - 1]);
+      }
+    }
+  });
+
+  it("has at least 3 difficulty bands each", () => {
+    expect(getScenariosByDifficulty("beginner").length).toBeGreaterThanOrEqual(10);
+    expect(getScenariosByDifficulty("intermediate").length).toBeGreaterThanOrEqual(10);
+    expect(getScenariosByDifficulty("advanced").length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("getScenarioBySlug works", () => {
+    const s = getScenarioBySlug("cache-cold-start");
+    expect(s.difficulty).toBe("beginner");
+  });
+});
+```
+
+```bash
+cd architex
+pnpm test:run -- chaos-scenarios
+```
+Expected: all 5 tests pass (40 scenarios, all steps reference valid taxonomy ids).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/lib/chaos/chaos-scenarios.ts architex/src/lib/chaos/__tests__/chaos-scenarios.test.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): 40 scripted chaos scenarios across 3 difficulty bands
+
+14 beginner + 15 intermediate + 11 advanced = 40 scenarios. Each is a
+composed sequence of 1-4 events from the taxonomy, with inter-event
+delays. Scenario slug · difficulty · problemTags · durationSimSeconds
+allow the Scenario-script control mode (§12.4.1) and the Chaos Library
+UI (§12.8) to render and filter.
+
+Helpers: getScenarioBySlug · getScenariosByDifficulty · getScenariosByProblemTag.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
