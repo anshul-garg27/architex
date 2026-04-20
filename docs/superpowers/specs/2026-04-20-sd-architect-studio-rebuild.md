@@ -1540,6 +1540,123 @@ Public scenarios are discoverable in the library's Scenarios tab. Curators (inte
 
 ---
 
+## 13. Cost & Scaling Model
+
+> "Cloud bill shock is not a surprise. It is physics you ignored."
+
+### 13.1 The philosophy (Q23)
+
+**Cost is always visible.** There is no mode where the user can hide from dollars. A per-node cost badge appears on every node by default (toggle in settings to hide if a user prefers). A corner meter runs the total. A diff annotation fires when a change moves cost by more than 5% ("+$2.40/hr since last save"). The user learns to think in dollars/hour, dollars/month, dollars/request, and dollars/user-month from the first session.
+
+This is the feature that separates Architex from every free diagramming tool and every AWS calculator. Free diagramming tools teach the user to draw systems that are technically interesting and economically insane. AWS calculators teach the user to cost systems without designing them. Architex teaches both together.
+
+### 13.2 The 6 providers (Q24)
+
+All presets are kept in a `cost-model` table in the DB, refreshed quarterly. Each provider has:
+- Per-node-family × per-size rate card
+- Egress rates per region
+- Storage rates
+- Cross-region replication rates
+- Observability tax rates
+
+| Provider | Use case | Notes |
+|---|---|---|
+| **AWS** | Default. | Most realistic for US-company designs. |
+| **GCP** | Alternative. | Better egress for YouTube-style designs. |
+| **Azure** | Alternative. | Enterprise feel. |
+| **Abstract units** | Provider-agnostic | Shows "0.1 units/hr" not "$0.11/hr". Useful for teaching without cloud vendor lock-in. |
+| **Cross-provider compare** | Side-by-side | Same design, AWS vs. GCP vs. Azure. See where egress kills you vs. where compute does. |
+| **Bare-metal (Hetzner-style)** | Alt-cloud | Shows 3-10x cost reduction for predictable workloads. Teaches that not every system belongs in AWS. |
+
+Provider is a per-design setting. Users switching providers see instant recost. One click.
+
+### 13.3 The scale slider (Q25)
+
+A persistent control at the top of Simulate. Five preset positions:
+
+| Position | DAU | Typical request volume |
+|---|---|---|
+| **10k** | 10,000 | 1-5 QPS avg, 20 QPS peak |
+| **1M** | 1,000,000 | 100 QPS avg, 1k QPS peak |
+| **10M** | 10,000,000 | 1k QPS avg, 10k QPS peak |
+| **100M** | 100,000,000 | 10k QPS avg, 100k QPS peak |
+| **1B** | 1,000,000,000 | 100k QPS avg, 1M QPS peak |
+
+The slider rescales the traffic generator and the cost calculator simultaneously. The user watches metrics and cost shift as the slider moves. "My design works at 1M. At 100M, my Redis cluster is $50k/month. Interesting."
+
+### 13.4 The 7 cost-pressure activities (Q26)
+
+Seven distinct pedagogical framings of the cost problem.
+
+1. **Budget-constrained problems** — the problem page states "Design this with a monthly budget of $8,000" (for a 10M-DAU URL shortener). Hitting the constraint is part of the rubric.
+2. **Cost-optimization drill** — a mode that takes an existing design and challenges the user to cut cost by 30% while keeping SLO intact. The AI grader scores the proposed cuts.
+3. **"What could we cut?" activity** — displays the top-5 cost lines of the current design and asks the user which is most cut-worthy. Teaches Pareto thinking.
+4. **Cost-per-user exposed** — on the dashboard, a persistent badge shows "$0.047 / user / month" for the active design. Runs in the background. The user sees the metric tick as they edit.
+5. **Forecast curve** — Simulate's Forecast activity. Projects cost over 12 months against a growth curve.
+6. **Cost-vs-p99 Pareto** — a 2D chart plotting cost against p99 latency across candidate designs. Users see the Pareto frontier and understand that some designs are dominated (strictly worse on both axes).
+7. **"Cloud bill shock" narratives** — 15 scripted scenarios where a design is running fine, then a bill arrives. Narrative walks the user through how the cost accumulated (egress, retries, idle capacity, etc.) and what the engineering fix is.
+
+### 13.5 The 8 hidden costs (Q27)
+
+These are the cost categories that make junior engineers cry when they see their first real bill. Each is taught explicitly.
+
+| Hidden cost | Taught in | Typical scale of surprise |
+|---|---|---|
+| **Egress** | Concept: CDN fundamentals · Problem: Design YouTube | 10-40% of bill for video-heavy designs |
+| **Observability tax** | Concept: Observability · Problem: Design a monitoring pipeline | 5-15% of bill; logs often worse than metrics |
+| **On-call load** | Concept: Incident response · Problem: any | Hidden human cost, but shown as "hours/month on-call" |
+| **Vendor lock-in** | Concept: Deployment patterns · Problem: any (compare-providers) | Shown as "6-month migration effort" when changing providers |
+| **Cross-region replication** | Concept: Replication · Problem: Design Google Docs | 20-50% of bill for strict-consistency multi-region |
+| **Idle waste** | Concept: Capacity planning · Problem: any | 15-30% of bill for over-provisioned stateless tiers |
+| **Retry amplification** | Concept: Retries with jitter · Problem: Design Stripe | Can 3-10x load during failures, invisible until chaos drill |
+| **Compliance overhead** | Concept: none yet — Phase 4 addition · Problem: Design Stripe | 10-20% for PCI/HIPAA-bound systems |
+
+Each is tagged on nodes that incur it, and pulsed visually during the corresponding Simulate activity.
+
+### 13.6 Named-band real-company costs (Q28)
+
+A library of 30+ named-company cost bands, with source and year stamps.
+
+| Company | Category | Estimated cost | Source · year |
+|---|---|---|---|
+| Netflix | Streaming infrastructure | ~$400M/yr | Company filings, 2022 |
+| Reddit | Hosting | ~$100M/yr | S-1 filing, 2024 |
+| Pinterest | Infrastructure | ~$750M/yr (AWS committed) | Earnings, 2022 |
+| Slack | Hosting | ~$300M/yr | Salesforce filings, 2023 |
+| Dropbox | Infrastructure | $175M/yr savings by leaving AWS | Dropbox engineering blog, 2016 |
+| Shopify | Infrastructure | ~$500M/yr | Earnings, 2023 |
+| Airbnb | Infrastructure | ~$100M/yr | Earnings, 2022 |
+| Twitter/X | Infrastructure | ~$700M/yr (pre-Musk) | Internal leaks, 2022 |
+| Stripe | Infrastructure | ~$100M/yr | Industry estimates, 2023 |
+| Discord | Infrastructure | ~$40-60M/yr | Industry estimates, 2023 |
+
+Each band is a card in a "Real-world cost library" at `/sd/learn/reference-costs`. Users see these when they finish a design and the dashboard says "Your design costs $8M/yr at 10M DAU. For comparison, Discord spends ~$50M/yr at ~200M users." This gives users a felt sense of scale.
+
+### 13.7 Cost model implementation
+
+Lives in `architex/src/lib/simulation/cost-model.ts` (already built for AWS). Extensions:
+
+- Add GCP rate tables (new file `cost-model-gcp.ts`)
+- Add Azure rate tables (new file `cost-model-azure.ts`)
+- Add bare-metal tables (Hetzner)
+- Add egress matrix (source-region × destination-region × provider)
+- Add observability-tax overlay (logs/metrics/traces cost per event)
+- Add idle-waste calculator (provisioned - utilized, at provider rates)
+
+Quarterly refresh job refreshes rate tables from provider public pricing pages.
+
+### 13.8 Cost UI surfaces
+
+- **Per-node badge** (default on): small pill "$0.11/hr" or "$0.11 x 12 = $1.32/hr" for scaled clusters
+- **Corner meter** in Simulate and Build: "$287/hr · $206k/month"
+- **Diff annotation**: popover when a change exceeds 5% cost delta
+- **Bottom-panel Cost tab** in Build: full breakdown bar chart
+- **Dashboard Cost/User badge**: "0.047 / user / month" when the active design is open
+- **Pareto chart** in the Compare A/B activity: 2D cost vs. p99
+
+---
+
+
 
 
 
