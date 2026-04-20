@@ -2096,5 +2096,889 @@ EOF
 
 ---
 
+## Task 14: Build section + pane components, `ConceptColumn`, `ProblemColumn`, and 3 content-format components
+
+This is the largest UI task. It lands:
+- 10 concept-section components (`HookSection` · `AnalogySection` · `PrimitiveSection` · `AnatomySection` · `NumbersThatMatterSection` · `TradeoffsSection` · `AntiCasesSection` · `SeenInWildSection` · `BridgesSection` · `ConceptCheckpointsSection`)
+- 6 problem-pane components (`ProblemStatementPane` · `RequirementsPane` · `ScaleNumbersPane` · `CanonicalDesignPane` · `FailureModesChaosPane` · `ConceptsUsedPane`) + an inline `ProblemCheckpointsPane` that renders at the bottom of any pane
+- `ConceptColumn.tsx` and `ProblemColumn.tsx` — top-level scroll containers that map payload → components
+- 3 Q32 content-format components: `ScalingNumbersStrip.tsx` (format 3), `DecisionTree.tsx` (format 4), `EngineeringBlogCard.tsx` (format 5)
+
+**Files:**
+- Create: 10 files in `architex/src/components/modules/sd/learn/concept-sections/`
+- Create: 7 files in `architex/src/components/modules/sd/learn/problem-panes/`
+- Create: `architex/src/components/modules/sd/learn/ConceptColumn.tsx`
+- Create: `architex/src/components/modules/sd/learn/ProblemColumn.tsx`
+- Create: `architex/src/components/modules/sd/learn/ScalingNumbersStrip.tsx`
+- Create: `architex/src/components/modules/sd/learn/DecisionTree.tsx`
+- Create: `architex/src/components/modules/sd/learn/EngineeringBlogCard.tsx`
+
+- [ ] **Step 1: Build the shared `ScalingNumbersStrip` (Q32 format 3)**
+
+Per spec §18.7: *"Redis: 100k ops/sec · sub-ms p99 · $0.11/hr" — inline visual token*. Renders at the top of every concept + problem page and inline in the `numbersThatMatter` section.
+
+```typescript
+// src/components/modules/sd/learn/ScalingNumbersStrip.tsx
+'use client';
+import { cn } from '@/lib/utils';
+
+export interface ScalingNumber {
+  label: string;
+  value: string;
+  unit?: string;
+  citation?: string;
+  sourceYear?: number;
+}
+
+export function ScalingNumbersStrip({ numbers, dense }: { numbers: ScalingNumber[]; dense?: boolean }) {
+  if (numbers.length === 0) return null;
+  return (
+    <ul
+      className={cn(
+        'flex flex-wrap gap-x-4 gap-y-2 rounded-md border border-cobalt/20 bg-cobalt/5',
+        dense ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm',
+      )}
+      aria-label="Scaling numbers"
+    >
+      {numbers.map((n, i) => (
+        <li key={i} className="flex items-baseline gap-1">
+          <span className="font-mono font-semibold text-cobalt-300">{n.value}</span>
+          {n.unit && <span className="font-mono text-cobalt-300/80">{n.unit}</span>}
+          <span className="text-foreground-muted">· {n.label}</span>
+          {n.sourceYear && <span className="ml-1 text-xs text-foreground-muted/60">({n.sourceYear})</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+- [ ] **Step 2: Build the `DecisionTree` component (Q32 format 4)**
+
+Used inline in concept bodies via MDX (`<DecisionTree>...</DecisionTree>`). Reads a branching config from props.
+
+```typescript
+// src/components/modules/sd/learn/DecisionTree.tsx
+'use client';
+import { useState } from 'react';
+
+export interface DecisionBranch { question: string; yes: string; no: string }
+export interface DecisionTreeProps { root: string; branches: DecisionBranch[] }
+
+export function DecisionTree({ root, branches }: DecisionTreeProps) {
+  const [answers, setAnswers] = useState<boolean[]>([]);
+  const current = branches[answers.length] ?? null;
+  const terminal = !current
+    ? answers[answers.length - 1]
+      ? branches[answers.length - 1].yes
+      : branches[answers.length - 1].no
+    : null;
+
+  return (
+    <figure className="my-6 rounded-lg border border-cobalt/20 p-4">
+      <figcaption className="mb-3 font-serif text-sm italic text-foreground-muted">Decision tree · {root}</figcaption>
+      {terminal ? (
+        <div className="space-y-2">
+          <p className="font-serif">Recommendation: <strong>{terminal}</strong></p>
+          <button onClick={() => setAnswers([])} className="text-xs text-cobalt-300 underline">Start over</button>
+        </div>
+      ) : current && (
+        <div className="space-y-2">
+          <p className="font-serif">{current.question}</p>
+          <div className="flex gap-2">
+            <button onClick={() => setAnswers([...answers, true])}  className="rounded border border-cobalt/40 px-3 py-1 hover:bg-cobalt/10">Yes</button>
+            <button onClick={() => setAnswers([...answers, false])} className="rounded border border-cobalt/40 px-3 py-1 hover:bg-cobalt/10">No</button>
+          </div>
+        </div>
+      )}
+    </figure>
+  );
+}
+```
+
+- [ ] **Step 3: Build `EngineeringBlogCard` (Q32 format 5)**
+
+Renders links to real engineering blogs with company, title, year, reading time. Used at the end of `seenInWild` and inside `conceptsUsed` panes.
+
+```typescript
+// src/components/modules/sd/learn/EngineeringBlogCard.tsx
+'use client';
+import { ExternalLink } from 'lucide-react';
+import type { ConceptFrontmatter } from '@/lib/sd/content-types';
+
+type Link = ConceptFrontmatter['engineeringBlogLinks'][number];
+
+export function EngineeringBlogCard({ link }: { link: Link }) {
+  return (
+    <a href={link.url} target="_blank" rel="noopener noreferrer"
+       className="group block rounded-lg border border-border p-3 transition hover:border-cobalt/40 hover:bg-cobalt/5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-cobalt-300">{link.company} · {link.year}</span>
+        <ExternalLink className="h-3 w-3 text-foreground-muted group-hover:text-cobalt-300" aria-hidden />
+      </div>
+      <p className="mt-1 font-serif leading-snug">{link.title}</p>
+      {link.readingMinutes && (
+        <p className="mt-1 text-xs text-foreground-muted">{link.readingMinutes}-min read</p>
+      )}
+    </a>
+  );
+}
+```
+
+- [ ] **Step 4: Build the 10 concept-section components**
+
+Each section is a small React component keyed on `data-section-id`. The registration callback from `useConceptScrollSync` wires the ref. Example:
+
+```typescript
+// src/components/modules/sd/learn/concept-sections/HookSection.tsx
+'use client';
+import { forwardRef } from 'react';
+import { MDXRenderer } from '@/components/shared/learn/MDXRenderer';
+
+export interface SectionProps {
+  id: string;
+  body: string;                          // MDX source
+  registerRef: (el: HTMLElement | null) => void;
+}
+
+export const HookSection = forwardRef<HTMLElement, SectionProps>(function HookSection({ body, registerRef }, _ref) {
+  return (
+    <section
+      ref={registerRef}
+      data-section-id="hook"
+      className="prose-sd prose-serif mx-auto max-w-2xl py-8"
+      aria-labelledby="hook-heading"
+    >
+      <h2 id="hook-heading" className="font-serif text-2xl text-cobalt-200">The Itch</h2>
+      <MDXRenderer source={body} />
+    </section>
+  );
+});
+```
+
+The other 9 section components follow the same template:
+- `AnalogySection`: h2 "Analogy" · adds a small italic banner styling.
+- `PrimitiveSection`: h2 "The Primitive" · largest body (500-700 words); renders MDX with diagrams + pseudocode.
+- `AnatomySection`: h2 "Anatomy" · renders the architecture anatomy diagram inline via `<SDCanvasReadonly inline slug={...} />`; scroll-sync registers this section but also passes `anchorNodeIds[anatomy]` so the main canvas pulses in parallel.
+- `NumbersThatMatterSection`: h2 "Numbers that Matter" · renders `<ScalingNumbersStrip numbers={frontmatter.scalingNumbers} />` at the top and then `MDXRenderer` for the prose.
+- `TradeoffsSection`: h2 "Tradeoffs" · "You gain X. You pay Y." layout with two columns.
+- `AntiCasesSection`: h2 "When not to use it" · amber-bordered callout.
+- `SeenInWildSection`: h2 "Seen in the wild" · renders `<EngineeringBlogCard link={...} />` cards at the bottom.
+- `BridgesSection`: h2 "Bridges" · delegates to `<CrossModuleBridgeCard />` (Task 17).
+- `ConceptCheckpointsSection`: h2 "Checkpoints" · iterates `frontmatter.checkpoints` and renders the typed checkpoint component (RecallCheckpoint · ApplyCheckpoint · CompareCheckpoint — no CreateCheckpoint for concepts per spec §6.3).
+
+Every component takes the same `SectionProps` shape. This keeps `ConceptColumn` trivial:
+
+```typescript
+// src/components/modules/sd/learn/ConceptColumn.tsx
+'use client';
+import { useCallback } from 'react';
+import { HookSection } from './concept-sections/HookSection';
+import { AnalogySection } from './concept-sections/AnalogySection';
+import { PrimitiveSection } from './concept-sections/PrimitiveSection';
+import { AnatomySection } from './concept-sections/AnatomySection';
+import { NumbersThatMatterSection } from './concept-sections/NumbersThatMatterSection';
+import { TradeoffsSection } from './concept-sections/TradeoffsSection';
+import { AntiCasesSection } from './concept-sections/AntiCasesSection';
+import { SeenInWildSection } from './concept-sections/SeenInWildSection';
+import { BridgesSection } from './concept-sections/BridgesSection';
+import { ConceptCheckpointsSection } from './concept-sections/ConceptCheckpointsSection';
+import { useConceptScrollSync } from '@/hooks/useConceptScrollSync';
+import { useSDLearnProgress } from '@/hooks/useSDLearnProgress';
+import { ScalingNumbersStrip } from './ScalingNumbersStrip';
+import type { ConceptPayload, ConceptSectionId } from '@/lib/sd/content-types';
+
+export function ConceptColumn({ payload }: { payload: ConceptPayload }) {
+  const { frontmatter, sections } = payload;
+  const { patch } = useSDLearnProgress('concept', frontmatter.slug);
+
+  const onSectionEnter = useCallback((id: ConceptSectionId) => {
+    patch({
+      sectionState: { [id]: { visited: true } },
+      lastSectionId: id,
+      deepestScrollPct: Math.round(((['hook','analogy','primitive','anatomy','numbersThatMatter','tradeoffs','antiCases','seenInWild','bridges','checkpoints'].indexOf(id) + 1) / 10) * 100),
+    });
+  }, [patch]);
+
+  const { register } = useConceptScrollSync({ anchorNodeIds: frontmatter.anchorNodeIds, onSectionEnter });
+
+  return (
+    <article className="pb-24" aria-labelledby="concept-title">
+      <header className="mx-auto max-w-2xl pb-4 pt-8">
+        <p className="text-xs font-semibold uppercase tracking-wider text-cobalt-300">Wave {frontmatter.wave} · Concept {frontmatter.waveOrder}</p>
+        <h1 id="concept-title" className="mt-1 font-serif text-4xl text-foreground">{frontmatter.title}</h1>
+        {frontmatter.subtitle && <p className="mt-2 font-serif italic text-foreground-muted">{frontmatter.subtitle}</p>}
+        <div className="mt-4"><ScalingNumbersStrip numbers={frontmatter.scalingNumbers} dense /></div>
+      </header>
+      <HookSection                 id="hook"               body={sections.hook}               registerRef={register('hook')} />
+      <AnalogySection              id="analogy"            body={sections.analogy}            registerRef={register('analogy')} />
+      <PrimitiveSection            id="primitive"          body={sections.primitive}          registerRef={register('primitive')} />
+      <AnatomySection              id="anatomy"            body={sections.anatomy}            registerRef={register('anatomy')} frontmatter={frontmatter} />
+      <NumbersThatMatterSection    id="numbersThatMatter"  body={sections.numbersThatMatter}  registerRef={register('numbersThatMatter')} numbers={frontmatter.scalingNumbers} />
+      <TradeoffsSection            id="tradeoffs"          body={sections.tradeoffs}          registerRef={register('tradeoffs')} />
+      <AntiCasesSection            id="antiCases"          body={sections.antiCases}          registerRef={register('antiCases')} />
+      <SeenInWildSection           id="seenInWild"         body={sections.seenInWild}         registerRef={register('seenInWild')} blogLinks={frontmatter.engineeringBlogLinks} />
+      <BridgesSection              id="bridges"            body={sections.bridges}            registerRef={register('bridges')} slug={frontmatter.slug} />
+      <ConceptCheckpointsSection   id="checkpoints"        body={sections.checkpoints}        registerRef={register('checkpoints')} checkpoints={frontmatter.checkpoints} />
+    </article>
+  );
+}
+```
+
+- [ ] **Step 5: Build the 6 problem-pane components**
+
+Per spec §5.5, §6.4. Problems are tabbed, so each pane is a self-contained component with its own MDX renderer. `ProblemColumn` renders a tab strip + the active pane body.
+
+```typescript
+// src/components/modules/sd/learn/ProblemColumn.tsx
+'use client';
+import { useMemo } from 'react';
+import { ProblemStatementPane } from './problem-panes/ProblemStatementPane';
+import { RequirementsPane } from './problem-panes/RequirementsPane';
+import { ScaleNumbersPane } from './problem-panes/ScaleNumbersPane';
+import { CanonicalDesignPane } from './problem-panes/CanonicalDesignPane';
+import { FailureModesChaosPane } from './problem-panes/FailureModesChaosPane';
+import { ConceptsUsedPane } from './problem-panes/ConceptsUsedPane';
+import { useProblemPaneSync } from '@/hooks/useProblemPaneSync';
+import { useSDLearnProgress } from '@/hooks/useSDLearnProgress';
+import { ScalingNumbersStrip } from './ScalingNumbersStrip';
+import { cn } from '@/lib/utils';
+import type { ProblemPayload, ProblemPaneId } from '@/lib/sd/content-types';
+
+const PANE_LABELS: Record<ProblemPaneId, string> = {
+  problemStatement: 'Problem',
+  requirements: 'Requirements',
+  scaleNumbers: 'Napkin Math',
+  canonicalDesign: 'Canonical Design',
+  failureModesChaos: 'Failure & Chaos',
+  conceptsUsed: 'Concepts Used',
+  checkpoints: 'Checkpoints',
+};
+
+export function ProblemColumn({ payload, persona = 'journeyman' }: { payload: ProblemPayload; persona?: 'rookie' | 'journeyman' | 'architect' }) {
+  const { frontmatter, panes } = payload;
+  const { patch } = useSDLearnProgress('problem', frontmatter.slug);
+  const { activePane, setPane, activeSolutionIndex, setSolution, activeCanvas } = useProblemPaneSync({
+    frontmatter,
+    onPaneChange: (id) => patch({ sectionState: { [id]: { visited: true } }, lastSectionId: id }),
+  });
+
+  const order = frontmatter.recommendedOrder[persona];
+  const paneIds = useMemo(() => [...order, 'checkpoints' as const], [order]);
+
+  return (
+    <article className="pb-24">
+      <header className="mx-auto max-w-3xl px-4 pb-3 pt-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-cobalt-300">{frontmatter.domain} · {frontmatter.difficulty}</p>
+        <h1 className="mt-1 font-serif text-4xl">{frontmatter.title}</h1>
+        <div className="mt-3"><ScalingNumbersStrip numbers={frontmatter.scalingNumbers} dense /></div>
+      </header>
+
+      <nav className="sticky top-0 z-10 border-b border-border bg-background/90 px-4 py-2 backdrop-blur" aria-label="Problem panes">
+        <ul className="flex gap-1 overflow-x-auto">
+          {paneIds.map((p) => (
+            <li key={p}>
+              <button
+                onClick={() => setPane(p)}
+                className={cn(
+                  'whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition',
+                  activePane === p ? 'bg-cobalt/20 text-cobalt-200' : 'text-foreground-muted hover:bg-cobalt/5',
+                )}
+                aria-current={activePane === p ? 'page' : undefined}
+              >
+                {PANE_LABELS[p]}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <section className="mx-auto max-w-3xl px-4 py-6">
+        {activePane === 'problemStatement'  && <ProblemStatementPane body={panes.problemStatement} />}
+        {activePane === 'requirements'     && <RequirementsPane     body={panes.requirements} />}
+        {activePane === 'scaleNumbers'     && <ScaleNumbersPane     body={panes.scaleNumbers} numbers={frontmatter.scalingNumbers} />}
+        {activePane === 'canonicalDesign'  && (
+          <CanonicalDesignPane
+            body={panes.canonicalDesign}
+            solutions={frontmatter.canonicalSolutions}
+            activeIndex={activeSolutionIndex}
+            onSolutionChange={setSolution}
+            canvas={activeCanvas}
+          />
+        )}
+        {activePane === 'failureModesChaos' && <FailureModesChaosPane body={panes.failureModesChaos} chaosSlugs={frontmatter.recommendedChaos} />}
+        {activePane === 'conceptsUsed'      && <ConceptsUsedPane      body={panes.conceptsUsed} conceptSlugs={frontmatter.linkedConcepts} lldSlugs={frontmatter.linkedLldPatterns} />}
+        {activePane === 'checkpoints'       && <ProblemCheckpointsInline checkpoints={frontmatter.checkpoints} />}
+      </section>
+    </article>
+  );
+}
+```
+
+Individual panes are straightforward MDXRenderer wrappers. `CanonicalDesignPane` is the most complex — it renders tabs A/B/C above the `MDXRenderer` and an `<SDCanvasReadonly canvas={canvas} />` strip.
+
+- [ ] **Step 6: Test contract of each section**
+
+Add a snapshot test for `ConceptColumn` rendering with a fixture payload. Verify:
+- All 10 section elements have `data-section-id`
+- The top `ScalingNumbersStrip` renders with `frontmatter.scalingNumbers`
+- H1 matches `frontmatter.title`
+
+Add a paired test for `ProblemColumn`:
+- Default `activePane` is `canonicalDesign`
+- Clicking a tab updates the hash and calls `patch` with `{ sectionState: { [paneId]: { visited: true } }, lastSectionId: paneId }`
+- Default recommended order matches persona prop
+
+- [ ] **Step 7: Run + commit**
+
+```bash
+pnpm typecheck
+pnpm test:run -- ConceptColumn ProblemColumn
+git add architex/src/components/modules/sd/learn/
+git commit -m "$(cat <<'EOF'
+feat(sd-learn): section + pane components · ConceptColumn · ProblemColumn (Task 14/35)
+
+10 concept sections + 6 problem panes + ConceptColumn (scroll-sync
+IntersectionObserver) + ProblemColumn (URL-hash tab nav + per-persona
+recommended order). Plus 3 Q32 content-format primitives:
+ScalingNumbersStrip (cobalt-bordered inline strip), DecisionTree
+(branching interactive), EngineeringBlogCard (real-company link
+cards). MDX bodies render via shared MDXRenderer (LLD Phase 2).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 15: `SDCanvasReadonly` (scroll-sync wrapper) + `NodePopover` + 16-family registry
+
+**Files:**
+- Create: `architex/src/lib/sd/node-families.ts`
+- Create: `architex/src/components/modules/sd/learn/SDCanvasReadonly.tsx`
+- Create: `architex/src/components/modules/sd/learn/NodePopover.tsx`
+- Create: `architex/src/components/shared/learn/popover-shell.tsx` (extracted from LLD)
+- Modify: `architex/src/components/modules/lld/learn/ClassPopover.tsx` (import shared shell)
+
+- [ ] **Step 1: Extract the shared popover shell from LLD**
+
+LLD Phase 2 has `ClassPopover.tsx` with layout and close-on-outside-click logic. Extract the chrome (positioning, close button, focus trap, ARIA) into `src/components/shared/learn/popover-shell.tsx`, leaving pattern-specific content as children. LLD's `ClassPopover` becomes a thin wrapper.
+
+```typescript
+// src/components/shared/learn/popover-shell.tsx
+'use client';
+import { useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+export interface PopoverShellProps {
+  title: string;
+  subtitle?: string;
+  anchorPos: { x: number; y: number };
+  onClose: () => void;
+  accent?: 'amber' | 'cobalt';
+  children: React.ReactNode;
+}
+
+export function PopoverShell({ title, subtitle, anchorPos, onClose, accent = 'cobalt', children }: PopoverShellProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onClick);
+    ref.current?.querySelector<HTMLElement>('button,a,[role="button"]')?.focus();
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onClick);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-labelledby="popover-title"
+      className={cn(
+        'absolute z-40 w-80 rounded-lg border bg-background p-4 shadow-xl',
+        accent === 'cobalt' ? 'border-cobalt/30' : 'border-amber-500/30',
+      )}
+      style={{ top: anchorPos.y + 12, left: anchorPos.x + 12 }}
+    >
+      <button
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute right-2 top-2 text-foreground-muted hover:text-foreground"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <h3 id="popover-title" className="font-serif text-lg pr-6">{title}</h3>
+      {subtitle && <p className="mt-0.5 text-xs text-foreground-muted">{subtitle}</p>}
+      <div className="mt-3">{children}</div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Write the 16-family registry**
+
+```typescript
+// src/lib/sd/node-families.ts
+/**
+ * SD-039: Registry of the 16 node families from spec §11.2.
+ * Each family has a pedagogic content block used by NodePopover when
+ * a reader clicks a node on the read-only canvas during Learn mode.
+ */
+export interface NodeFamilySpec {
+  id: string;
+  label: string;
+  iconSlug: string;                       // rendered by existing IconRegistry
+  colorBand: string;                      // HSL or Tailwind class
+  typicalSubtypes: string[];
+  conceptSlugRefs: string[];              // concept deep-dive jumps
+  costPerUnitHint?: string;               // e.g. "~$0.11/hr cache.t4g.medium"
+  failureModeRefs: string[];              // chaos event slugs
+  description: string;                    // 1-sentence popover body
+}
+
+export const NODE_FAMILIES: NodeFamilySpec[] = [
+  { id: 'client', label: 'Client tier', iconSlug: 'monitor', colorBand: 'bg-cobalt/10', typicalSubtypes: ['browser','mobile','iot','service-as-client'], conceptSlugRefs: ['client-server'], failureModeRefs: ['slow-client-attack'], description: 'Anything outside the trust boundary that initiates requests.' },
+  { id: 'edge-cdn', label: 'Edge & CDN', iconSlug: 'globe', colorBand: 'bg-violet/10', typicalSubtypes: ['cloudfront','fastly','cloudflare','akamai'], conceptSlugRefs: ['cdn-fundamentals'], costPerUnitHint: '~$0.08/GB egress', failureModeRefs: ['cdn-outage','bad-cdn-purge'], description: 'Edge POPs that terminate TLS, cache, and shorten the route to users.' },
+  { id: 'load-balancer', label: 'Load balancer', iconSlug: 'split', colorBand: 'bg-sky/10', typicalSubtypes: ['l4-nlb','l7-alb','envoy','nginx','dns','anycast'], conceptSlugRefs: ['load-balancing'], failureModeRefs: ['tcp-syn-flood','connection-reset-storm'], description: 'L4 or L7 fan-out across healthy backends.' },
+  { id: 'api-gateway', label: 'API gateway', iconSlug: 'door-open', colorBand: 'bg-cyan/10', typicalSubtypes: ['aws-api-gw','kong','zuul','in-house'], conceptSlugRefs: ['rate-limiter-concept','api-design'], failureModeRefs: ['cloud-provider-throttle'], description: 'Auth + rate limit + routing in front of services.' },
+  { id: 'app-service', label: 'App / service node', iconSlug: 'server', colorBand: 'bg-emerald/10', typicalSubtypes: ['stateless','stateful','worker','cron','lambda'], conceptSlugRefs: ['statelessness'], failureModeRefs: ['bad-deploy','noisy-neighbor-cpu'], description: 'The business-logic tier. Stateless unless explicitly marked.' },
+  { id: 'db-relational', label: 'Database · relational', iconSlug: 'database', colorBand: 'bg-indigo/10', typicalSubtypes: ['postgres','mysql'], conceptSlugRefs: ['replication','consistency-models'], costPerUnitHint: '~$0.17/hr db.r6g.large', failureModeRefs: ['hot-partition','replica-desync','deadlock-storm'], description: 'SQL storage with strong transactional guarantees.' },
+  { id: 'db-document', label: 'Database · document', iconSlug: 'file-text', colorBand: 'bg-indigo/10', typicalSubtypes: ['mongodb','dynamodb'], conceptSlugRefs: ['sharding'], failureModeRefs: ['hot-partition'], description: 'JSON/BSON document store.' },
+  { id: 'db-column', label: 'Database · column', iconSlug: 'columns', colorBand: 'bg-indigo/10', typicalSubtypes: ['cassandra','scylla','bigquery'], conceptSlugRefs: ['consistent-hashing'], failureModeRefs: ['replica-desync'], description: 'Wide-column for heavy write workloads.' },
+  { id: 'db-kv', label: 'Database · key-value', iconSlug: 'key', colorBand: 'bg-indigo/10', typicalSubtypes: ['redis','dynamodb-kv','memcached'], conceptSlugRefs: ['caching-strategies'], costPerUnitHint: '~$0.11/hr cache.t4g.medium · 100k ops/sec', failureModeRefs: ['cache-stampede','redis-eviction-cascade'], description: 'O(1) primary-key reads at sub-ms latency.' },
+  { id: 'db-graph', label: 'Database · graph', iconSlug: 'share-2', colorBand: 'bg-indigo/10', typicalSubtypes: ['neo4j','neptune'], conceptSlugRefs: [], failureModeRefs: [], description: 'Node-edge storage for relationship-heavy queries.' },
+  { id: 'db-timeseries', label: 'Database · time-series', iconSlug: 'activity', colorBand: 'bg-indigo/10', typicalSubtypes: ['influxdb','timescaledb','prometheus'], conceptSlugRefs: [], failureModeRefs: [], description: 'Append-optimized storage for metrics.' },
+  { id: 'cache', label: 'Cache', iconSlug: 'zap', colorBand: 'bg-rose/10', typicalSubtypes: ['in-process','redis','memcached','cdn-cache'], conceptSlugRefs: ['caching-strategies'], costPerUnitHint: '~$0.11/hr cache.t4g.medium', failureModeRefs: ['cache-stampede','cache-poisoning'], description: 'Fast read-path memory.' },
+  { id: 'queue', label: 'Queue / stream', iconSlug: 'layers', colorBand: 'bg-amber/10', typicalSubtypes: ['sqs','rabbitmq','kafka','kinesis'], conceptSlugRefs: ['message-queues'], failureModeRefs: ['queue-overflow-cascade'], description: 'Decouples producers and consumers.' },
+  { id: 'storage', label: 'Object / file storage', iconSlug: 'box', colorBand: 'bg-slate/10', typicalSubtypes: ['s3','gcs','blob','hdfs'], conceptSlugRefs: [], costPerUnitHint: '~$0.023/GB/mo S3 Standard', failureModeRefs: [], description: 'Blob or file storage.' },
+  { id: 'search-analytics', label: 'Search & analytics', iconSlug: 'search', colorBand: 'bg-teal/10', typicalSubtypes: ['elasticsearch','opensearch','algolia','snowflake'], conceptSlugRefs: ['inverted-index'], failureModeRefs: [], description: 'Inverted-index search or OLAP.' },
+  { id: 'observability', label: 'Observability', iconSlug: 'bar-chart-3', colorBand: 'bg-fuchsia/10', typicalSubtypes: ['prometheus','datadog','sentry','jaeger','grafana'], conceptSlugRefs: ['observability'], failureModeRefs: [], description: 'Metrics, logs, traces — the on-call lifeline.' },
+];
+
+export const getFamily = (id: string) => NODE_FAMILIES.find((f) => f.id === id);
+```
+
+- [ ] **Step 3: `NodePopover` (SD-specific popover content)**
+
+```typescript
+// src/components/modules/sd/learn/NodePopover.tsx
+'use client';
+import Link from 'next/link';
+import { PopoverShell } from '@/components/shared/learn/popover-shell';
+import { getFamily } from '@/lib/sd/node-families';
+
+export interface NodePopoverProps {
+  familyId: string;
+  subtype?: string;
+  anchorPos: { x: number; y: number };
+  onClose: () => void;
+  onJumpToSection?: (sectionId: string) => void;
+}
+
+export function NodePopover({ familyId, subtype, anchorPos, onClose, onJumpToSection }: NodePopoverProps) {
+  const f = getFamily(familyId);
+  if (!f) return null;
+
+  return (
+    <PopoverShell title={f.label} subtitle={subtype} anchorPos={anchorPos} onClose={onClose} accent="cobalt">
+      <p className="font-serif leading-snug">{f.description}</p>
+
+      {f.costPerUnitHint && (
+        <p className="mt-2 rounded-md bg-cobalt/5 px-2 py-1 text-xs font-mono text-cobalt-200">{f.costPerUnitHint}</p>
+      )}
+
+      {f.conceptSlugRefs.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">Deep-dives</p>
+          <ul className="mt-1 space-y-1">
+            {f.conceptSlugRefs.map((slug) => (
+              <li key={slug}>
+                <Link href={`/sd/learn/concepts/${slug}`} className="text-sm text-cobalt-300 hover:underline">→ {slug}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {f.failureModeRefs.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">Vulnerable to</p>
+          <ul className="mt-1 space-y-1">
+            {f.failureModeRefs.map((slug) => (
+              <li key={slug}>
+                <Link href={`/sd/chaos/events/${slug}`} className="text-sm text-amber-400 hover:underline">⚠ {slug}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {onJumpToSection && (
+        <button
+          onClick={() => { onJumpToSection('anatomy'); onClose(); }}
+          className="mt-3 rounded-md border border-cobalt/40 px-3 py-1 text-xs hover:bg-cobalt/10"
+        >
+          Jump to Anatomy section
+        </button>
+      )}
+    </PopoverShell>
+  );
+}
+```
+
+- [ ] **Step 4: `SDCanvasReadonly` — thin wrapper that composes `LLDCanvas` (read-only), overlays `highlightedNodeIds`, and mounts `NodePopover` on click**
+
+```typescript
+// src/components/modules/sd/learn/SDCanvasReadonly.tsx
+'use client';
+import { useState } from 'react';
+import { LLDCanvas } from '@/components/modules/lld/canvas/LLDCanvas';
+import { NodePopover } from './NodePopover';
+
+export interface SDCanvasReadonlyProps {
+  canvas: unknown;                       // nodes + edges JSON from ConceptPayload.frontmatter.anchorNodeIds or ProblemPayload.canonicalSolutions[i].diagramJson
+  highlightedNodeIds: string[];
+  onJumpToSection?: (id: string) => void;
+  inline?: boolean;                      // rendered inline in AnatomySection vs full-bleed
+}
+
+export function SDCanvasReadonly({ canvas, highlightedNodeIds, onJumpToSection, inline }: SDCanvasReadonlyProps) {
+  const [popover, setPopover] = useState<{ familyId: string; subtype?: string; pos: { x: number; y: number } } | null>(null);
+
+  return (
+    <div className={inline ? 'h-64 w-full overflow-hidden rounded-md border border-border' : 'h-full w-full'}>
+      <LLDCanvas
+        readonly
+        state={canvas as any}
+        highlightedNodeIds={highlightedNodeIds}
+        onNodeClick={(node, event) => {
+          setPopover({
+            familyId: node.data?.familyId ?? node.type ?? 'app-service',
+            subtype: node.data?.subtype,
+            pos: { x: event.clientX, y: event.clientY },
+          });
+        }}
+        accentColor="cobalt"
+      />
+      {popover && (
+        <NodePopover
+          familyId={popover.familyId}
+          subtype={popover.subtype}
+          anchorPos={popover.pos}
+          onJumpToSection={onJumpToSection}
+          onClose={() => setPopover(null)}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 5: Verify `LLDCanvas` props (from Pre-flight Step 6)**
+
+If `LLDCanvas` does not yet export `readonly`, `highlightedNodeIds`, `onNodeClick(node, event)`, `accentColor`, add them now as a small, additive PR to LLD. Expected changes are ~40 LOC; all existing LLD tests continue to pass.
+
+- [ ] **Step 6: Tests + commit**
+
+```bash
+pnpm typecheck
+pnpm test:run -- NodePopover SDCanvasReadonly popover-shell
+git add architex/src/lib/sd/node-families.ts \
+        architex/src/components/modules/sd/learn/SDCanvasReadonly.tsx \
+        architex/src/components/modules/sd/learn/NodePopover.tsx \
+        architex/src/components/shared/learn/popover-shell.tsx \
+        architex/src/components/modules/lld/learn/ClassPopover.tsx \
+        architex/src/components/modules/lld/canvas/LLDCanvas.tsx
+git commit -m "$(cat <<'EOF'
+feat(sd-learn): SDCanvasReadonly · NodePopover · 16-family registry (Task 15/35)
+
+Shared popover-shell extracted from LLD Phase 2 (focus trap, ESC-close,
+outside-click, ARIA). Per-family registry (spec §11.2) with concept
+deep-dive refs and chaos-event vulnerability refs populates NodePopover
+when readers click a node on the read-only canvas. LLDCanvas gains
+readonly/highlightedNodeIds/onNodeClick/accentColor props (additive,
+LLD tests intact).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 16: Cross-module graph generator + prebuild hook
+
+**Files:**
+- Create: `architex/scripts/build-sd-graph.ts`
+- Create: `architex/src/lib/sd/concept-graph.ts` (generated — committed so tests and runtime can import synchronously)
+- Modify: `architex/package.json` scripts (`build:sd-graph`, `prebuild` chain)
+- Create: `architex/src/lib/sd/__tests__/concept-graph.test.ts`
+
+The generator walks `content/sd/graph/*.graph.yaml`, validates each against `GraphYamlSchema`, and emits a TypeScript file with three typed maps: `CONCEPTS_BY_SLUG`, `RELATED_FROM_CONCEPT`, `CONFUSED_WITH`. Prebuild hook keeps the generated file in sync with YAML.
+
+- [ ] **Step 1: Generator script**
+
+```typescript
+#!/usr/bin/env tsx
+// scripts/build-sd-graph.ts
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { parse as parseYaml } from 'yaml';
+import { GraphYamlSchema, type GraphYaml } from '../src/lib/sd/content-types';
+
+const GRAPH_ROOT = join(process.cwd(), 'content', 'sd', 'graph');
+const OUT = join(process.cwd(), 'src', 'lib', 'sd', 'concept-graph.ts');
+
+async function main() {
+  const files = (await readdir(GRAPH_ROOT)).filter((f) => f.endsWith('.graph.yaml'));
+  const graphs: GraphYaml[] = [];
+  for (const f of files) {
+    const raw = await readFile(join(GRAPH_ROOT, f), 'utf8');
+    const parsed = GraphYamlSchema.safeParse(parseYaml(raw));
+    if (!parsed.success) throw new Error(`[graph] ${f}: ${parsed.error.message}`);
+    graphs.push(parsed.data);
+  }
+  const concepts = graphs.filter((g) => g.kind === 'concept');
+  const problems = graphs.filter((g) => g.kind === 'problem');
+  const out = `// AUTOGENERATED by scripts/build-sd-graph.ts — do not edit by hand.
+// Run \`pnpm build:sd-graph\` after touching content/sd/graph/*.graph.yaml.
+
+import type { GraphYaml } from './content-types';
+
+export const SD_GRAPHS: readonly GraphYaml[] = ${JSON.stringify(graphs, null, 2)} as const;
+
+export const CONCEPT_GRAPHS_BY_SLUG: Record<string, GraphYaml> = Object.freeze(
+  ${JSON.stringify(Object.fromEntries(concepts.map((g) => [g.slug, g])), null, 2)}
+);
+
+export const PROBLEM_GRAPHS_BY_SLUG: Record<string, GraphYaml> = Object.freeze(
+  ${JSON.stringify(Object.fromEntries(problems.map((g) => [g.slug, g])), null, 2)}
+);
+
+export function getGraph(kind: 'concept' | 'problem', slug: string): GraphYaml | null {
+  return (kind === 'concept' ? CONCEPT_GRAPHS_BY_SLUG : PROBLEM_GRAPHS_BY_SLUG)[slug] ?? null;
+}
+`;
+  await writeFile(OUT, out);
+  console.log(`[graph] wrote ${OUT} with ${graphs.length} graphs (${concepts.length} concepts, ${problems.length} problems)`);
+}
+main().catch((e) => { console.error(e); process.exit(1); });
+```
+
+- [ ] **Step 2: Initial empty generated file + pnpm scripts**
+
+Add to `architex/package.json`:
+
+```json
+{
+  "scripts": {
+    "build:sd-graph": "tsx scripts/build-sd-graph.ts",
+    "prebuild": "pnpm build:sd-graph && pnpm build:concept-graph"
+  }
+}
+```
+
+Note: `build:concept-graph` is the LLD Phase 2 generator. `prebuild` chains both so Next.js build is always up to date.
+
+Create an initial empty `src/lib/sd/concept-graph.ts`:
+
+```typescript
+// Placeholder until build-sd-graph runs.
+import type { GraphYaml } from './content-types';
+export const SD_GRAPHS: readonly GraphYaml[] = [];
+export const CONCEPT_GRAPHS_BY_SLUG: Record<string, GraphYaml> = {};
+export const PROBLEM_GRAPHS_BY_SLUG: Record<string, GraphYaml> = {};
+export function getGraph(): GraphYaml | null { return null; }
+```
+
+- [ ] **Step 3: Also materialize into `sd_graph_edges` (DB side) as part of the generator**
+
+Extend the script to insert one row per edge into `sd_graph_edges` using `ON CONFLICT DO UPDATE`. This keeps the `/api/sd/graph` endpoint (Phase 1) consistent.
+
+```typescript
+// ... inside main() after writing concept-graph.ts:
+const { db } = await import('../src/db/client');
+const { sdGraphEdges } = await import('../src/db/schema');
+await db.transaction(async (tx) => {
+  // Delete only rows sourced from YAML files (keep chaos + runtime edges if any)
+  // Skipped if unsupported — up to task team to decide delete-or-diff strategy.
+  for (const g of graphs) {
+    for (const e of [...g.relatedConcepts.map((x) => ({ target_type: 'sd_concept', ...x, relation: x.relation })),
+                      ...g.relatedProblems.map((x) => ({ target_type: 'sd_problem', ...x })),
+                      ...g.relatedLldPatterns.map((x) => ({ target_type: 'lld_pattern', ...x })),
+                      ...g.relatedChaosEvents.map((x) => ({ target_type: 'sd_chaos', ...x }))]) {
+      await tx.insert(sdGraphEdges).values({
+        sourceType: g.kind === 'concept' ? 'sd_concept' : 'sd_problem',
+        sourceSlug: g.slug,
+        targetType: e.target_type,
+        targetSlug: e.slug,
+        relation: e.relation as any,
+        bridgeText: e.bridgeText,
+      }).onConflictDoNothing();
+    }
+  }
+});
+```
+
+- [ ] **Step 4: Unit test the generator output shape**
+
+```typescript
+// src/lib/sd/__tests__/concept-graph.test.ts
+import { describe, it, expect } from 'vitest';
+import { CONCEPT_GRAPHS_BY_SLUG, PROBLEM_GRAPHS_BY_SLUG, getGraph } from '../concept-graph';
+
+describe('sd concept graph (generated)', () => {
+  it('exports maps with expected shape', () => {
+    expect(CONCEPT_GRAPHS_BY_SLUG).toBeDefined();
+    expect(PROBLEM_GRAPHS_BY_SLUG).toBeDefined();
+    expect(typeof getGraph).toBe('function');
+  });
+  // When Task 24+ has seeded real content, re-enable:
+  it.skip('client-server concept graph is populated', () => {
+    const g = getGraph('concept', 'client-server');
+    expect(g).not.toBeNull();
+    expect(g!.relatedLldPatterns.length).toBeGreaterThan(0);
+  });
+});
+```
+
+- [ ] **Step 5: Run + commit**
+
+```bash
+pnpm build:sd-graph
+pnpm typecheck
+pnpm test:run -- concept-graph
+git add architex/scripts/build-sd-graph.ts \
+        architex/src/lib/sd/concept-graph.ts \
+        architex/src/lib/sd/__tests__/concept-graph.test.ts \
+        architex/package.json
+git commit -m "$(cat <<'EOF'
+feat(sd): cross-module graph generator + prebuild hook (Task 16/35)
+
+Walks content/sd/graph/*.graph.yaml → validates via GraphYamlSchema →
+emits src/lib/sd/concept-graph.ts with 3 typed frozen maps
+(SD_GRAPHS, CONCEPT_GRAPHS_BY_SLUG, PROBLEM_GRAPHS_BY_SLUG) + getGraph
+helper. Also inserts per-edge rows into sd_graph_edges with
+on-conflict-do-nothing so /api/sd/graph (Phase 1) stays consistent.
+prebuild hook chains build:sd-graph + build:concept-graph before
+next build.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 17: `ConfusedWithPanel` + `CrossModuleBridgeCard`
+
+**Files:**
+- Create: `architex/src/components/modules/sd/learn/ConfusedWithPanel.tsx`
+- Create: `architex/src/components/modules/sd/learn/CrossModuleBridgeCard.tsx`
+- Create: `architex/src/components/modules/sd/learn/__tests__/ConfusedWithPanel.test.tsx`
+
+Spec §17.2 defines the cross-module bridge card format: "1-2 sentence *relevance* caption, not a dry 'related link'. Users understand *why* to click." Spec §6 requires the "Confused with" surface on every concept page.
+
+- [ ] **Step 1: `ConfusedWithPanel`**
+
+```typescript
+// src/components/modules/sd/learn/ConfusedWithPanel.tsx
+'use client';
+import Link from 'next/link';
+import { getGraph } from '@/lib/sd/concept-graph';
+
+export function ConfusedWithPanel({ kind, slug }: { kind: 'concept' | 'problem'; slug: string }) {
+  const g = getGraph(kind, slug);
+  if (!g || g.confusedWith.length === 0) return null;
+  return (
+    <aside
+      className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3"
+      aria-labelledby="confused-with-heading"
+    >
+      <h3 id="confused-with-heading" className="text-xs font-semibold uppercase tracking-wider text-amber-400">
+        Commonly confused with
+      </h3>
+      <ul className="mt-2 space-y-2">
+        {g.confusedWith.map((c) => (
+          <li key={c.slug}>
+            <Link
+              href={c.kind === 'concept' ? `/sd/learn/concepts/${c.slug}` : `/sd/learn/problems/${c.slug}`}
+              className="block"
+            >
+              <span className="font-serif text-foreground hover:text-amber-300">{c.slug}</span>
+              <p className="mt-0.5 font-serif text-sm italic text-foreground-muted">{c.reason}</p>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+```
+
+- [ ] **Step 2: `CrossModuleBridgeCard`**
+
+Per §17.2 example for the SD Twitter problem:
+- → LLD: Observer pattern · "How does the fan-out queue notify follower timelines? The Observer pattern gives you the object model."
+
+```typescript
+// src/components/modules/sd/learn/CrossModuleBridgeCard.tsx
+'use client';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+type TargetType = 'sd_concept' | 'sd_problem' | 'lld_pattern' | 'sd_chaos';
+
+export interface BridgeCardProps {
+  targetType: TargetType;
+  targetSlug: string;
+  bridgeText: string;
+  label?: string;
+}
+
+const TARGET_META: Record<TargetType, { hrefPrefix: string; accent: string; label: string }> = {
+  sd_concept: { hrefPrefix: '/sd/learn/concepts/', accent: 'border-cobalt/30 hover:bg-cobalt/5',  label: 'SD concept'  },
+  sd_problem: { hrefPrefix: '/sd/learn/problems/', accent: 'border-cobalt/30 hover:bg-cobalt/5',  label: 'SD problem'  },
+  lld_pattern:{ hrefPrefix: '/lld/learn/patterns/', accent: 'border-amber-500/30 hover:bg-amber-500/5', label: 'LLD pattern' },
+  sd_chaos:   { hrefPrefix: '/sd/chaos/events/',   accent: 'border-rose-500/30 hover:bg-rose-500/5',   label: 'Chaos event' },
+};
+
+export function CrossModuleBridgeCard({ targetType, targetSlug, bridgeText, label }: BridgeCardProps) {
+  const meta = TARGET_META[targetType];
+  return (
+    <Link
+      href={`${meta.hrefPrefix}${targetSlug}`}
+      className={cn('group block rounded-lg border p-3 transition', meta.accent)}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">{label ?? meta.label}</span>
+        <ArrowRight className="h-3 w-3 text-foreground-muted transition group-hover:translate-x-0.5" />
+      </div>
+      <p className="mt-1 font-serif">{targetSlug}</p>
+      <p className="mt-1 font-serif text-sm italic text-foreground-muted">{bridgeText}</p>
+    </Link>
+  );
+}
+```
+
+- [ ] **Step 3: Test + commit**
+
+```bash
+pnpm test:run -- ConfusedWithPanel
+git commit -m "feat(sd-learn): ConfusedWithPanel + CrossModuleBridgeCard (Task 17/35)"
+```
+
+---
+
+
 
 
