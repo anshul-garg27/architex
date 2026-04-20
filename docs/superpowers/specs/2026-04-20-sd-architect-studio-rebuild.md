@@ -2094,6 +2094,168 @@ A non-negotiable: **every concept, problem, and pattern is co-written with at le
 
 ---
 
+## 18. UI & Visual Language
+
+> "One color changes. Everything else stays."
+
+### 18.1 The accent shift (Q29)
+
+The single visual change between LLD and SD is the accent color.
+
+- **LLD accent**: warm amber (`#F59E0B` + warm yellow glow on highlight)
+- **SD accent**: cool cobalt blue (`#2563EB` + cool cyan glow on highlight)
+
+Every other surface — layout, type, motion, shadow, iconography, sound — is identical to LLD. The cobalt is used in:
+- Active mode-pill highlight
+- Selected node / edge stroke
+- Progress ring fill
+- Active link underline in prose
+- Button hover states
+- Blueprint-mode background tint
+- Cascade-trace glow in Simulate
+
+Choice of cobalt: it reads as **wind, water, altitude, sky** — the atmospheric feel of systems at scale. Amber (LLD) reads as **paper, lamplight, book** — the feel of a designer's desk. Both are warm, both are dignified; the shift matters because it tells the user, without words, *you are in a different room*.
+
+### 18.2 Typography (unchanged from LLD §10)
+
+- **IBM Plex Serif** for long-form lesson prose, cinematic chaos narration, canvas labels, hook headlines
+- **Geist Sans** for UI chrome, buttons, status text
+- **Geist Mono** for code, timestamps, metrics, technical values
+
+Three text scales:
+- `--text-editorial-display` · 28px Serif · hooks
+- `--text-editorial-body` · 14px Serif · lesson prose
+- `--text-editorial-quote` · 14px Serif italic · pull quotes
+
+Ten standard UI text scales unchanged from existing `design-tokens.ts`.
+
+### 18.3 Layout system — collapsible docked panels (Q30)
+
+Three-column baseline across all modes except Review. Left and right panes are collapsible with `[` and `]`. Default widths per mode:
+
+| Mode | Left | Right | Bottom |
+|---|---|---|---|
+| Learn | 200px | 420px | — |
+| Build | 260px | 360px | 240px |
+| Simulate | 220px | 380px | 120px (timeline) |
+| Drill | 240px | 300px | 80px (submit bar) |
+| Review | — | — | — |
+
+Panels are drag-resizable. Widths persist per-mode per-user (user_preferences JSONB). Collapse state is session-only.
+
+### 18.4 The left icon rail (Q31)
+
+Universal navigation. Vertical rail, always visible on desktop. 46px wide.
+
+```
+┌──┐
+│📐│ LLD (amber highlight when active)
+│🌪│ SD  (cobalt highlight when active)
+│🎲│ Algorithms (violet highlight when active)
+│💾│ OS&DB (emerald highlight when active)
+│──│ divider
+│🔁│ Review
+│👤│ Profile
+└──┘
+```
+
+Tooltip on hover names the module. The left rail is identical in SD and LLD; only the active-highlight color changes.
+
+Within SD, the mode icons appear at the top of the main canvas area (the mode pill). ⌘1-5 shortcuts apply as specified in §3.
+
+### 18.5 Motion (Q33)
+
+- Baseline duration: **550ms** for standard transitions (same as LLD)
+- Chaos ribbon: **900ms** total choreography
+- Mode switch: **300ms** content slide
+- Scrub: real-time (bound to user drag)
+- Reduced-motion: all >300ms animations collapse to 150ms or instant; no parallax
+
+All motion lives in the existing `motion.ts`. SD-specific additions:
+- Chaos ribbon keyframes (§8.9)
+- Particle-flow easing curves
+- Node-breathing oscillator
+- Cascade-glow ease-out
+
+### 18.6 The 90-second guided onboarding (Q34)
+
+First-visit SD experience:
+
+- **00:00-00:05** — cold open full-screen: *"Welcome to the wind tunnel."* (one phrase, serif, cobalt glow on the word *wind*)
+- **00:05-00:20** — dimmed mask with a single spotlight on the **Learn** mode pill. Caption: *"Learn teaches the 40 primitives of distributed systems. Start here."*
+- **00:20-00:35** — spotlight moves to **Build**. *"Build is the drafting hall. Sketch any design you want."*
+- **00:35-00:55** — spotlight moves to **Simulate**. *"Simulate runs your design. Traffic, cost, chaos. This is the wind tunnel."*
+- **00:55-01:10** — spotlight moves to **Drill**. *"Drill is the examination room. 45 minutes, 5 stages, under the clock."*
+- **01:10-01:20** — spotlight moves to **Review**. *"Review is daily retention. 2 minutes per day."*
+- **01:20-01:30** — final caption: *"Five modes. One studio. Let's begin."* — with a "Begin" button.
+
+Skippable at any point with Escape. After first completion, never shown again.
+
+### 18.7 Content formats (Q32 · all 8, enumerated)
+
+1. **8-section concept page** (§5.4)
+2. **6-pane problem page** (§5.5)
+3. **Scaling numbers strip** · "Redis: 100k ops/sec · sub-ms p99 · $0.11/hr" — inline visual token
+4. **Decision tree** · when to use X vs Y vs Z, branching visual
+5. **Engineering blog deep-link cards** · "Netflix engineering, 2019 · 11-min read" — link cards with meta
+6. **Ask-AI inline** · a callout that opens the AI side drawer with a pre-seeded prompt
+7. **Try-it button** · "Open this in Build mode" or "Simulate this design" — action-oriented cards
+8. **Cross-module bridge card** (§17.2)
+
+All 8 are reusable components. Every concept/problem page is a composition of these 8 blocks.
+
+### 18.8 Rendering modes (Q53) · restated
+
+Enumerated in §11.6. Users toggle between:
+- Default (serif + particles + context icons)
+- Blueprint paper
+- Hand-drawn
+- Plus on/off for: particle flow, breathing, ambient sound, failure cinema
+
+Per-diagram setting, persisted in DB.
+
+### 18.9 Color themes (Q46 · 3 themes)
+
+User-selectable in settings:
+
+1. **Midnight (default)** · dark UI, cobalt accent (SD) or amber (LLD)
+2. **Parchment** · sepia-warm light theme, cobalt deepens to navy on parchment
+3. **Earth** · muted earth-palette alternate (supersedes a straight "bright" for dignity)
+
+All three pass WCAG AA for contrast. Midnight is the shipping default based on brainstorm feedback ("feels cinematic, matches the studio metaphor").
+
+### 18.10 Micro-delights
+
+Reused from LLD §11 — the Architex-wide micro-delight set:
+- Skeleton loaders shaped like content (UML → canvas skeletons for SD)
+- Empty states with character ("Your wind tunnel is calm. Press ▶ to test a design.")
+- Typewriter streaming for AI responses
+- Toast stack choreography
+- Hover lift (2px) + press depth
+- Loading messages that evolve
+- Haptic-style visual feedback (ripples, shakes, bounces)
+
+### 18.11 Accessibility
+
+- Color is never the only signal. Metric bands use color + text + shape.
+- All animations honor `prefers-reduced-motion`.
+- All interactive elements reachable by keyboard.
+- Screen reader pass for canvas: each node has an aria-label derived from its family, name, and config.
+- High-contrast color theme toggle.
+- Font size scales with browser zoom.
+
+### 18.12 Sound (Q53 · optional, off by default)
+
+- Chaos bass thump (§8.9)
+- Subtle category ambience: the wind tunnel during Simulate (low-frequency noise), the drafting hall in Build (paper rustle and distant ruler-taps), the reading nook in Learn (very soft page-turn and wood-creak)
+- Correct-checkpoint soft pop
+- Wrong-checkpoint gentle negative tone
+
+All generated via WebAudio (no file download). Off by default. Toggle in settings.
+
+---
+
+
 
 
 
