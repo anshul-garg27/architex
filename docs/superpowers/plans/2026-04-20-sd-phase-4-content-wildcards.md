@@ -219,3 +219,802 @@ Phase 4 delivers the following SD spec commitments in one six-week window (Weeks
 **Execution handoff** — subagent-driven vs inline execution.
 
 ---
+
+## Pre-flight checklist (~2 hours)
+
+- [ ] **Phases 0-3 merged**
+
+```bash
+cd architex && git log --oneline | grep -E "sd-phase-(0|1|2|3)" | head -8
+```
+Expected: at least one commit per phase (Phases 0-3).
+
+- [ ] **`SDShell`, `sd-store`, four mode layouts exist**
+
+```bash
+ls architex/src/components/modules/sd/modes/
+# Expected: LearnModeLayout.tsx BuildModeLayout.tsx SimulateModeLayout.tsx
+#           DrillModeLayout.tsx ReviewModeLayout.tsx (stub)
+```
+
+- [ ] **Waves 1-3 content seeded (17 concepts + 13 problems + 10 incidents)**
+
+```bash
+cd architex && pnpm tsx -e "
+import { db } from './src/db/client';
+import { moduleContent } from './src/db/schema';
+import { and, eq } from 'drizzle-orm';
+const c = await db.select().from(moduleContent)
+  .where(and(eq(moduleContent.moduleId, 'sd'), eq(moduleContent.contentType, 'concept')));
+const p = await db.select().from(moduleContent)
+  .where(and(eq(moduleContent.moduleId, 'sd'), eq(moduleContent.contentType, 'problem')));
+const i = await db.select().from(moduleContent)
+  .where(and(eq(moduleContent.moduleId, 'sd'), eq(moduleContent.contentType, 'incident')));
+console.log('concepts:', c.length, 'problems:', p.length, 'incidents:', i.length);
+"
+```
+Expected: `concepts: 17 problems: 13 incidents: 10`.
+
+- [ ] **`ts-fsrs` already installed (from LLD Phase 5)**
+
+```bash
+cat architex/package.json | grep ts-fsrs
+```
+Expected: `"ts-fsrs": "^4.x.x"`.
+
+- [ ] **Shared FSRS scheduler does NOT yet exist (we will promote LLD's in Task C1)**
+
+```bash
+ls architex/src/lib/shared/fsrs-scheduler.ts 2>&1 || echo "absent (expected)"
+```
+
+- [ ] **Clerk OAuth strategies confirmed for GitHub + LinkedIn + Notion**
+
+Open Clerk dashboard → Social Connections → verify GitHub + LinkedIn enabled. Notion is not a Clerk-native provider; we will wire Notion OAuth manually in Task I1.
+
+- [ ] **`resend` account exists + domain verified**
+
+```bash
+# One-time op, not a scripted step. Confirm:
+# 1. https://resend.com/domains → architex.dev verified (SPF + DKIM).
+# 2. From-address: digest@architex.dev.
+# 3. RESEND_API_KEY in .env.local and in Vercel env.
+```
+
+- [ ] **Content authoring calendar approved**
+
+Content lead confirms Opus + editor throughput target: **1.5 pieces/day × 6 weeks = 63 pieces**. We need 23 + 17 + 60 = 100 pieces — so content runs in parallel with engineering and spans the full 6-week window at ~2.3 pieces/day. If throughput slips, the plan's task-order gates (concepts before review cards, problems before Crunch-Mode presets) still let us ship a partial-but-coherent launch. Content lead owns the calendar in Notion.
+
+- [ ] **Baseline passes**
+
+```bash
+cd architex && pnpm typecheck && pnpm lint && pnpm test:run && pnpm build
+```
+
+- [ ] **Commit any fixes**
+
+```bash
+git commit -am "fix: pre-flight verification for SD Phase 4"
+```
+
+---
+
+## File Structure
+
+```
+architex/
+├── content/sd/                                                    # NEW — source-of-truth
+│   ├── concepts/
+│   │   ├── wave-4-messaging-streams/
+│   │   │   ├── message-queues-vs-event-streams.mdx                # B1
+│   │   │   ├── delivery-semantics.mdx                             # B2
+│   │   │   ├── change-data-capture.mdx                            # B3
+│   │   │   └── stream-processing.mdx                              # B4
+│   │   ├── wave-5-distributed-systems/                            # B5-B9
+│   │   ├── wave-6-resilience/                                     # B10-B13
+│   │   ├── wave-7-operational/                                    # B14-B18
+│   │   └── wave-8-modern/                                         # B19-B23
+│   ├── problems/
+│   │   ├── domain-2-location-realtime/                            # B24-B28
+│   │   ├── domain-3-storage-sync/                                 # B29-B32
+│   │   ├── domain-4-commerce-payments/                            # B33-B37
+│   │   ├── domain-5-search-discovery/                             # B38-B40
+│   │   └── domain-6-infrastructure/                               # B41-B45
+│   └── chaos-scenarios/
+│       ├── batch-1-compute-network/                               # B46-B50 (20)
+│       ├── batch-2-data-state/                                    # B51-B55 (20)
+│       └── batch-3-traffic-dependency/                            # B56-B60 (20)
+├── content/prompts/                                               # NEW — Opus templates
+│   ├── sd-concept-prompt.md                                       # A2
+│   ├── sd-problem-prompt.md                                       # A3
+│   ├── sd-chaos-prompt.md                                         # A4
+│   └── editor-rubric.md                                           # A5
+├── scripts/
+│   ├── seed-sd-content.ts                                         # A6
+│   ├── auto-generate-sd-cards.ts                                  # C8
+│   └── validate-sd-content.ts                                     # A7
+├── drizzle/
+│   ├── NNNN_add_sd_fsrs_cards.sql                                 # C3
+│   ├── NNNN_add_user_integrations.sql                             # H2, I2
+│   ├── NNNN_add_weekly_digest_sends.sql                           # F1
+│   ├── NNNN_add_crunch_plans.sql                                  # J1
+│   ├── NNNN_add_profile_pages.sql                                 # E1
+│   └── NNNN_add_user_theme_timezone.sql                           # K5
+├── package.json                                                   # MODIFY (+5 deps)
+└── src/
+    ├── db/schema/
+    │   ├── sd-fsrs-cards.ts                                       # NEW — C2
+    │   ├── user-integrations.ts                                   # NEW — H2, I2
+    │   ├── weekly-digest-sends.ts                                 # NEW — F1
+    │   ├── crunch-plans.ts                                        # NEW — J1
+    │   ├── profile-pages.ts                                       # NEW — E1
+    │   ├── users.ts                                               # MODIFY — +theme +timezone
+    │   ├── index.ts                                               # MODIFY
+    │   └── relations.ts                                           # MODIFY
+    ├── lib/shared/
+    │   ├── fsrs-scheduler.ts                                      # NEW (promoted) — C1
+    │   ├── mastery.ts                                             # NEW — C16
+    │   └── integrations/
+    │       ├── provider.ts                                        # NEW — interface
+    │       ├── github.ts                                          # NEW — H
+    │       ├── notion.ts                                          # NEW — I
+    │       └── linkedin.ts                                        # NEW — G
+    ├── lib/sd/
+    │   ├── card-generators/
+    │   │   ├── index.ts                                           # NEW
+    │   │   ├── from-concept-mcq.ts                                # C4
+    │   │   ├── from-concept-primitive.ts                          # C5
+    │   │   ├── from-problem-diagram.ts                            # C6
+    │   │   └── from-concept-cloze.ts                              # C7
+    │   ├── crunch/
+    │   │   ├── company-presets.ts                                 # J3
+    │   │   ├── plan-generator.ts                                  # J4
+    │   │   ├── reshuffler.ts                                      # J5
+    │   │   └── ics-export.ts                                      # J8
+    │   ├── digest/
+    │   │   ├── content-selector.ts                                # F2
+    │   │   ├── tier-aware.ts                                      # F8
+    │   │   └── render.tsx                                         # F4
+    │   └── rollout/
+    │       ├── cohort-hash.ts                                     # M2
+    │       └── flags.ts                                           # M1
+    ├── lib/analytics/sd-events.ts                                 # MODIFY — +digest, +crunch, +review
+    ├── app/
+    │   ├── api/sd/
+    │   │   ├── cards/route.ts                                     # C10
+    │   │   ├── cards/due/route.ts                                 # C10
+    │   │   ├── cards/[id]/route.ts                                # C10
+    │   │   ├── review/submit/route.ts                             # C10
+    │   │   ├── mastery/route.ts                                   # C16
+    │   │   ├── stats/route.ts                                     # C17
+    │   │   ├── crunch/create/route.ts                             # J2
+    │   │   ├── crunch/[id]/route.ts                               # J6
+    │   │   ├── crunch/[id]/ics/route.ts                           # J8
+    │   │   ├── integrations/github/save/route.ts                  # H4
+    │   │   ├── integrations/github/pull/route.ts                  # H7
+    │   │   ├── integrations/notion/sync/route.ts                  # I4, I5
+    │   │   ├── integrations/linkedin/claim/route.ts               # G3
+    │   │   └── badge/verify/[claimId]/route.ts                    # G7
+    │   ├── api/webhooks/
+    │   │   ├── github-save/route.ts                               # H8 conflict webhook
+    │   │   └── resend-bounces/route.ts                            # F10
+    │   ├── api/cron/
+    │   │   ├── weekly-digest/route.ts                             # F5
+    │   │   └── notion-sync/route.ts                               # I7
+    │   ├── profile/
+    │   │   ├── [username]/page.tsx                                # E3
+    │   │   ├── [username]/opengraph-image.tsx                     # E8
+    │   │   └── settings/integrations/page.tsx                     # H3, I3
+    │   ├── crunch/
+    │   │   ├── new/page.tsx                                       # J2
+    │   │   └── [id]/page.tsx                                      # J6
+    │   ├── admin/
+    │   │   ├── sd-flags/page.tsx                                  # M9
+    │   │   └── digest/preview/page.tsx                            # F7
+    │   └── unsubscribe/[token]/page.tsx                           # F6
+    ├── components/modules/sd/
+    │   ├── modes/ReviewModeLayout.tsx                             # MODIFY — fill stub
+    │   ├── review/
+    │   │   ├── ReviewCard.tsx                                     # C11
+    │   │   ├── ReviewRatingRow.tsx                                # C11
+    │   │   ├── SwipeGestureLayer.tsx                              # C12
+    │   │   ├── ReviewSessionComplete.tsx                          # C15
+    │   │   ├── ReviewEmptyState.tsx                               # C15
+    │   │   └── CrossModuleQueueBadge.tsx                          # C14
+    │   ├── learn/
+    │   │   ├── MobileConceptPage.tsx                              # D3
+    │   │   ├── MobileProblemPage.tsx                              # D4
+    │   │   ├── MobileCanvas.tsx                                   # D5
+    │   │   └── MobileAIChatSheet.tsx                              # D6
+    │   ├── portfolio/
+    │   │   ├── DesignsGallery.tsx                                 # E4
+    │   │   ├── WaveProgressRings.tsx                              # E5
+    │   │   ├── CompletedDrillsList.tsx                            # E6
+    │   │   ├── StreakBlock.tsx                                    # E7
+    │   │   └── LinkedInBadge.tsx                                  # G6
+    │   ├── crunch/
+    │   │   ├── CrunchEntryForm.tsx                                # J2
+    │   │   ├── CompanyPresetSelector.tsx                          # J3
+    │   │   ├── CrunchPlanDayCard.tsx                              # J6
+    │   │   └── CrunchCompletionCertificate.tsx                    # J9
+    │   ├── integrations/
+    │   │   ├── GitHubRepoPicker.tsx                               # H3
+    │   │   ├── GitHubSaveButton.tsx                               # H4
+    │   │   ├── NotionPagePicker.tsx                               # I3
+    │   │   ├── NotionSyncNowButton.tsx                            # I6
+    │   │   └── LinkedInClaimButton.tsx                            # G2
+    │   └── themes/
+    │       ├── ThemePickerCard.tsx                                # K6
+    │       └── theme-tokens.css                                   # K2-K4
+    ├── components/shared/
+    │   ├── MobileBottomBar.tsx                                    # D8
+    │   ├── OpenOnDesktopCard.tsx                                  # D10
+    │   └── FaviconPulse.tsx                                       # L1-L3
+    ├── hooks/
+    │   ├── useSDReviewQueue.ts                                    # C9
+    │   ├── useSDReviewKeyboard.ts                                 # C13
+    │   ├── useSwipeGestures.ts                                    # C12
+    │   ├── useMobileViewport.ts                                   # D1
+    │   ├── useFaviconPulse.ts                                     # L2
+    │   ├── useCrunchPlan.ts                                       # J6
+    │   └── useIntegration.ts                                      # H, I, G
+    ├── stores/
+    │   ├── review-store.ts                                        # MODIFY — cross-module
+    │   └── theme-store.ts                                         # K5
+    └── emails/
+        └── weekly-digest.tsx                                      # F4 — React Email
+```
+
+**Rationale:**
+- `content/sd/` is **outside** `src/` intentionally — it is editable by the content lead without touching the engineering tree, and it is versioned so we can diff an author's changes review-by-review.
+- `src/lib/shared/fsrs-scheduler.ts` is the promoted single source of truth for all FSRS logic (LLD, SD, and any future module). Task C1 moves LLD's wrapper; Task C2+ adds SD table.
+- `src/lib/sd/card-generators/` mirrors LLD's convention but operates on SD content (concept pages and problem pages).
+- `content/prompts/` holds the Opus authoring templates — these are prompts, not code, and they live alongside the content they produce.
+- OAuth credentials never leak into src: `user_integrations.tokenCiphertext` stores AES-GCM-encrypted tokens; the encryption key is `ENCRYPTION_KEY_V1` in env, rotated via key-version column.
+- Portfolio `[username]/page.tsx` uses App Router's default static rendering with ISR `revalidate = 900` (15 min). Heavy parts (designs gallery images) lazy-load.
+- Cron routes (`/api/cron/*`) use Vercel's `vercel.json` cron config (no custom infra). Authenticated via `CRON_SECRET` header.
+- Theme tokens live in CSS (not JS) to avoid hydration flash and let the pre-hydration inline script pick the right theme.
+
+---
+
+## Task Group A · Content Authoring Playbook
+
+*Before we write a single concept or problem, we stand up the pipeline that scales Opus authorship from "one-off per piece" to "100 pieces in 6 weeks with editorial quality." This group has zero production code — it's scripts, prompts, and a validation harness. Ship this first; every B-task depends on it.*
+
+---
+
+## Task A1: Authoring pipeline — `content/sd/` folder structure
+
+**Files:** `content/sd/README.md`, folder scaffold, `.gitattributes`
+
+- [ ] **Step 1: Create the folder tree**
+
+```bash
+cd architex
+mkdir -p content/sd/{concepts,problems,chaos-scenarios}
+mkdir -p content/sd/concepts/{wave-4-messaging-streams,wave-5-distributed-systems,wave-6-resilience,wave-7-operational,wave-8-modern}
+mkdir -p content/sd/problems/{domain-2-location-realtime,domain-3-storage-sync,domain-4-commerce-payments,domain-5-search-discovery,domain-6-infrastructure}
+mkdir -p content/sd/chaos-scenarios/{batch-1-compute-network,batch-2-data-state,batch-3-traffic-dependency}
+mkdir -p content/prompts
+```
+
+- [ ] **Step 2: Root README**
+
+Create `content/sd/README.md`:
+
+```markdown
+# SD Content Source of Truth
+
+All concepts, problems, and chaos scenarios live here as authored MDX files.
+Engineering seeds them into Postgres via `scripts/seed-sd-content.ts`.
+
+## Filename convention
+
+- Concepts: `wave-N-<group>/<slug>.mdx` — slug is kebab-case, matches the concept's URL slug.
+- Problems: `domain-N-<group>/<slug>.mdx`.
+- Chaos scenarios: `batch-N-<group>/<slug>.mdx`.
+
+## Frontmatter schema
+
+Validated by `scripts/validate-sd-content.ts`. See `content/prompts/editor-rubric.md`
+for the editorial rubric every piece must pass before the seed will accept it.
+
+## Authorship protocol
+
+1. Content lead drops an Opus prompt into a new issue labeled `opus-authoring`.
+2. Opus generates the first draft. Editor passes with inline comments.
+3. Opus second draft. Editor final pass.
+4. PR merges the MDX file. CI runs `validate-sd-content.ts` and blocks on failure.
+5. Nightly seed job (or manual `pnpm db:seed:sd`) inserts rows into `module_content`.
+```
+
+- [ ] **Step 3: `.gitattributes` for MDX**
+
+Append to repo root `.gitattributes`:
+
+```
+content/**/*.mdx diff=markdown
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add content/ .gitattributes
+git commit -m "$(cat <<'EOF'
+feat(sd-phase-4): scaffold content/ folder structure
+
+Three top-level families (concepts / problems / chaos-scenarios), each
+with sub-buckets matching spec §5.2, §5.3, and §12.1. MDX source of
+truth outside src/ so content-lead authorship does not touch the
+engineering tree.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task A2: Opus prompt template — concept (8-section format)
+
+**Files:** `content/prompts/sd-concept-prompt.md`
+
+- [ ] **Step 1: Write the prompt template**
+
+Create `content/prompts/sd-concept-prompt.md`:
+
+````markdown
+# SD Concept Authoring Prompt (Opus 4.7)
+
+You are Claude Opus 4.7 authoring a System Design concept page for the
+Architex SD module. Follow the 8-section format defined in spec §5.4.
+Hit each section's word target within ±20%. Write in the Architex
+brand voice: clarity over cleverness · specific and concrete · honest
+tradeoffs · authoritative without arrogance · numbers are load-bearing.
+
+## Inputs you will receive
+
+- `slug`: kebab-case URL slug
+- `title`: the display title
+- `wave`: wave number + theme (e.g. "Wave 4 · Messaging & Streams")
+- `persona`: R (Rookie) / J (Journeyman) / A (Architect) — set your
+  explanatory depth accordingly; default J if unspecified.
+- `prerequisites`: 3-5 concepts the reader is assumed to know.
+- `bridges-out`: 3-5 concepts or problems this concept is a prerequisite for.
+- `referenceNumbers`: a bullet list of specific numbers the reader should
+  walk away with (e.g. "Kafka partition: 500MB-1GB typical · p99 append
+  ≤10ms at 100k msg/s").
+
+## Output format — MDX with frontmatter
+
+```mdx
+---
+slug: "<slug>"
+title: "<title>"
+wave: <wave-number>
+waveLabel: "<Wave Label>"
+waveOrder: <order-within-wave>
+contentType: "concept"
+estimatedReadingMinutes: <int, 5-9>
+prerequisites: ["<slug1>", "<slug2>", ...]
+bridgesOut: [{kind: "concept|problem|pattern|chaos", slug: "<slug>", relevance: "<1-sentence>"}]
+wordTargetBySection:
+  hook: 60
+  analogy: 120
+  primitive: 600
+  numbers: 80
+  tradeoffs: 200
+  antiCases: 150
+  wild: 150
+  bridges: 80
+sourceYear: 2026
+contentQuality: "polished"
+generatedBy: "hybrid"
+---
+
+## Hook
+
+<60 words. One concrete scenario. Name a real product or a named scale
+(e.g. "WhatsApp delivering 100B messages/day"). End on the question the
+concept answers.>
+
+## Analogy
+
+<120 words. One physical-world mapping. Not generic ("it's like X"); a
+specific imagined scene. Make it memorable.>
+
+## The Primitive
+
+<500-700 words. Formal definition. How it works. Key invariants.
+At least one diagram (Mermaid or SVG sketch description) and at least
+one code or pseudo-code block ≤15 lines. Three short subsections allowed.>
+
+## Numbers that matter
+
+<80 words + one table. Single-row numbers strip: typical throughput,
+typical latency, cost band, capacity unit. Every number cited inline:
+(Kafka, LinkedIn engineering blog, 2023).>
+
+| Metric | Typical | Source |
+|--------|---------|--------|
+| ... | ... | ... |
+
+## Tradeoffs — what you gain, what you pay
+
+<200 words. One "you gain X, you pay Y" paragraph. Be honest. Call out
+the biggest cost by name, don't hide it.>
+
+## When not to use it
+
+<150 words. 2-3 named anti-cases. "Don't use CDC for audit logging; the
+CDC stream does not capture WHY a change happened." Concrete.>
+
+## Seen in the wild
+
+<150 words. One named company + year + engineering blog link. Extract a
+specific decision that company made. "Stripe uses idempotency keys
+scoped by customer-id; a collision across customers is impossible."
+(Stripe engineering blog, 2020).>
+
+## Bridges
+
+<5 link cards. Each 1-2 sentences of relevance, not "related article".>
+
+- → **<Concept A>** · <why it connects>
+- → **<Problem A>** · <why this concept matters in that problem>
+- → **<LLD Pattern>** · <object-model equivalent>
+- → **<Chaos event>** · <what breaks if this is misconfigured>
+- → **<Concept B>** · <next-step concept>
+```
+
+## Rules
+
+1. **Every number has a source.** If you cannot find one, flag the
+   sentence with `<!-- NEEDS-SOURCE -->` and the editor will resolve.
+2. **No clichés.** Banned: "leverages", "utilizes", "enables", "paradigm
+   shift", "industry-leading", "best-in-class".
+3. **No self-reference.** Don't say "in this section" or "as we
+   discussed". The reader is reading top-to-bottom.
+4. **Code is tested.** If you include a code snippet, add a comment
+   with the language and any assumed import.
+5. **Bridges are asymmetric.** Going *to* a harder concept gets one
+   sentence of relevance; going *to* a problem gets the sentence that
+   says *how* the concept is used in that problem.
+6. **Voice variants.** After the Standard output, produce an ELI5
+   version and an ELI-Senior version in separate `---`-delimited
+   blocks. The ELI5 version is analogy-led, 600 words total. The
+   ELI-Senior version is numbers-led, 400 words total, assumes
+   10+ years of experience.
+
+## Deliverable
+
+One MDX file. Three voice variants stacked. Total ~2000 words for
+Standard, ~600 for ELI5, ~400 for ELI-Senior. Save at
+`content/sd/concepts/<wave-dir>/<slug>.mdx`.
+````
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add content/prompts/sd-concept-prompt.md
+git commit -m "$(cat <<'EOF'
+feat(sd-phase-4): add Opus concept authoring prompt template
+
+8-section format, voice rules, banned-word list, three voice variants
+(Standard / ELI5 / ELI-Senior). Used by content lead for every Wave
+4-8 concept.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task A3: Opus prompt template — problem (6-pane format)
+
+**Files:** `content/prompts/sd-problem-prompt.md`
+
+- [ ] **Step 1: Write the prompt template**
+
+Create `content/prompts/sd-problem-prompt.md`:
+
+````markdown
+# SD Problem Authoring Prompt (Opus 4.7)
+
+Author a System Design problem page using the 6-pane format from
+spec §5.5. Word target: 2800 (±300). Three voice variants again.
+
+## Inputs
+
+- `slug`, `title`, `domain` (number + label), `domainOrder`
+- `difficulty`: warmup / intermediate / principal
+- `prerequisiteConcepts`: 4-8 concept slugs
+- `usesPatterns`: 3-5 LLD patterns this problem's design leans on
+- `chaosBridges`: 5-8 chaos events the design must withstand
+- `scale`: a named scale band (e.g. "500M DAU, 150k ops/sec peak")
+
+## Output format — MDX with frontmatter
+
+```mdx
+---
+slug: "<slug>"
+title: "Design <Product>"
+domain: <domain-number>
+domainLabel: "<Domain Label>"
+domainOrder: <order-within-domain>
+difficulty: "warmup|intermediate|principal"
+contentType: "problem"
+estimatedReadingMinutes: <int, 14-22>
+prerequisiteConcepts: ["<slug1>", ...]
+usesPatterns: ["<lld-pattern-slug>", ...]
+chaosBridges: ["<chaos-slug>", ...]
+scale:
+  dau: <int>
+  qpsPeak: <int>
+  storage: "<band>"
+  costBand: "<$-$$$$>"
+canonicalSolutions: 3
+wordTargetByPane:
+  statement: 200
+  clarify: 400
+  napkin: 400
+  canonical: 1800   # 600 per solution × 3
+  failure: 500
+  realworld: 300
+sourceYear: 2026
+contentQuality: "polished"
+generatedBy: "hybrid"
+---
+
+## Pane 1 · Problem statement
+
+<200 words. The question as a staff interviewer would state it.
+Include scale (DAU, QPS, storage). Clarify scope: "Focus on the
+read-path for the home timeline. Assume auth is solved elsewhere.">
+
+## Pane 2 · Clarifying questions to ask
+
+<400 words. 8-12 questions the candidate should ask. Each has a typical
+answer in parentheses. Format as a checklist the reader could actually
+recite in their own interview.>
+
+- **Is X precise or approximate?** (Approximate — last-known-value is
+  fine within 30s.)
+- **Should we handle multi-region from the start?** (Single-region v1;
+  discuss multi-region tradeoffs before time runs out.)
+- ...
+
+## Pane 3 · Napkin math
+
+<400 words. Storage per record. Storage at 1y / 10y. QPS at peak.
+Bandwidth (egress). Cache working set (10-80% hot). Write down every
+calculation.>
+
+```
+Per tweet: 280 chars × 2 (UTF-8 avg) = 560B
++ metadata (user_id 8B, ts 8B, reply_to 8B) = 24B
+Total: ~600B per tweet
+
+150B tweets × 600B = 90TB (storage)
+Per day: 150k TPS × 86400 = 13B tweets/day (checks out with published numbers)
+...
+```
+
+## Pane 4 · Canonical design — 2-3 solutions
+
+### Solution A · Fan-out on write (the obvious one)
+
+<600 words. Full architecture walkthrough. Include a Mermaid or SVG
+diagram. Explain every box: write path, read path, failure modes,
+scaling knobs.>
+
+### Solution B · Fan-out on read (better for whales)
+
+<600 words. Same structure, different tradeoff tree.>
+
+### Solution C · Hybrid with whale-detector queue (optional, Principal-level)
+
+<600 words. The nuanced answer. Include the threshold logic
+(whale-detector rules) and why the hybrid wins on both ends.>
+
+## Pane 5 · Failure modes & resilience
+
+<500 words. Thundering herd. Cache stampede. Celebrity-fan-out blowup.
+Database hot-key. Each failure mode links to a chaos event the reader
+can trigger in Simulate mode. "Try: run the `celebrity-burst` chaos
+event on your Solution A — timeline inserts back up within 90s.">
+
+## Pane 6 · Real-world references
+
+<300 words. 4-6 named-company links. Twitter's timeline post. Mastodon's
+federation model (contrast). Instagram's cache warmup strategy. Each
+link has a year stamp (e.g. 2021) and a one-sentence extract of the
+decision the engineer-reader should remember.>
+
+1. **Twitter · 2013 post on timeline pre-compute** — "We gave up on
+   strict chronological order to make the cache hit rate workable."
+2. ...
+```
+
+## Rules
+
+Same as concept prompt, plus:
+1. **Always 3 solutions** (2 if the Rookie tier makes 3 absurd).
+2. **Every chaos bridge is actionable.** Don't say "might fail" —
+   name the failure mode and the chaos event slug.
+3. **Napkin math is a calculator trace.** Show the arithmetic so a
+   Rookie reader can follow.
+4. **One diagram per solution.** Mermaid (preferred) or SVG inline.
+5. **Real-world links include year.** "(Twitter engineering blog, 2013)".
+6. **Three voice variants.** Standard / ELI5 / ELI-Senior at the bottom.
+
+## Deliverable
+
+One MDX file with three voice variants stacked. Save at
+`content/sd/problems/<domain-dir>/<slug>.mdx`. Standard ~2800 words,
+ELI5 ~800, ELI-Senior ~600.
+````
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add content/prompts/sd-problem-prompt.md
+git commit -m "$(cat <<'EOF'
+feat(sd-phase-4): add Opus problem authoring prompt template
+
+6-pane format with 3 canonical solutions per problem. Napkin math as
+calculator trace. Chaos bridges are actionable event slugs. Three
+voice variants. Used for all 17 Phase 4 problems.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task A4: Opus prompt template — chaos scenario
+
+**Files:** `content/prompts/sd-chaos-prompt.md`
+
+- [ ] **Step 1: Write the template**
+
+Create `content/prompts/sd-chaos-prompt.md`:
+
+````markdown
+# SD Chaos Scenario Authoring Prompt (Opus 4.7)
+
+Author one chaos scenario for the Architex chaos library (spec §12).
+A chaos scenario is a *specific failure event* that the simulation
+engine can trigger on a user's architecture. Each scenario has a
+narrative template, trigger parameters, and a postmortem hook.
+
+## Inputs
+
+- `slug`: kebab-case event slug (e.g. "redis-hot-shard-meltdown")
+- `family`: one of Compute / Network / Data / Dependency / Traffic /
+  State / Config (per spec §12.1 taxonomy)
+- `severity`: minor / major / catastrophic
+- `targetNodeKinds`: which node families this event can fire on
+  (`cache`, `db`, `lb`, `queue`, `svc`, `edge`)
+- `basedOnIncident`: optional — slug of the real incident this is
+  derived from (see §5.6 for the 10 real incidents)
+
+## Output format — MDX with frontmatter
+
+```mdx
+---
+slug: "<slug>"
+title: "<Human-readable title>"
+family: "<family>"
+severity: "<severity>"
+targetNodeKinds: ["<kind1>", "<kind2>"]
+basedOnIncident: "<slug-or-null>"
+contentType: "chaos-scenario"
+cascadeDepth: <1-5>
+triggerParams:
+  probability: <0-1>
+  duration: "<ISO 8601 duration>"
+  blastRadius: "single-node|shard|zone|region"
+narrativeVariants: 3  # for the margin-narrative cinematic stream
+sourceYear: 2026
+contentQuality: "polished"
+---
+
+## Summary
+
+<60 words. What happens, at what scope, with what user-visible effect.>
+
+## Trigger mechanics (for the sim engine)
+
+```yaml
+on:
+  nodeKind: <kind>
+  probability: <0-1>
+effects:
+  - latencyMultiplier: <N>
+  - cpuSpike: <0-1>
+  - errorRate: <0-1>
+  - partialFailure: <bool>
+cascade:
+  - toNodeKind: <kind>
+    via: "<edge-kind>"
+    condition: "<expr>"
+recovery:
+  - afterDuration: "<ISO>"
+  - requiresAction: "<optional action slug>"
+```
+
+## Narrative variants (pick one at sim time)
+
+### Variant 1 · Cinematic
+
+<80 words, serif-style narration for the margin-stream card. Example:
+"At 14:32 UTC, a Redis shard swallows a 40MB hot key. The ring
+whistles and tilts. p99 latency bleeds through every downstream
+dependency within 11 seconds.">
+
+### Variant 2 · Technical
+
+<80 words, dry pager-report style for advanced users who want the
+mechanics front-and-center.>
+
+### Variant 3 · Humorous
+
+<80 words, gallows-humor tone for experienced engineers. Avoid
+trivializing real outages — this variant is off by default.>
+
+## Postmortem hook
+
+<200 words. After the sim ends, the narrative engine (§12.3) shows a
+1-paragraph postmortem synthesized from the user's specific run. This
+section is the *template* — it names what signals the postmortem
+should surface (RTO, MTTR, blast-radius, cascade-path), not the specific
+numbers. The sim engine fills those in at render time.>
+
+## Bridges
+
+- → **Concept**: <slug> · <relevance>
+- → **Pattern**: <slug> · <relevance>
+- → **Real incident**: <slug-or-null> · <relevance>
+```
+
+## Rules
+
+1. **Trigger mechanics are the contract.** The YAML block drives the
+   sim engine. Every field must be parseable. If the engine does not
+   support a field, do not invent one — extend the engine first.
+2. **Three variants.** Cinematic is default. Technical is a power-user
+   toggle. Humorous ships off by default.
+3. **Based on a real incident when possible.** If the scenario mirrors
+   a published postmortem (Facebook BGP 2021, Cloudflare regex 2019,
+   etc.), reference it.
+4. **Cascade depth ≤5.** Deeper cascades hurt simulation perf and
+   narrative coherence.
+5. **Recovery is automatic OR requires an action.** Don't leave a
+   scenario that never resolves; that is a bug.
+
+## Deliverable
+
+One MDX file per scenario. Save at
+`content/sd/chaos-scenarios/<batch-dir>/<slug>.mdx`. ~600 words total.
+````
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add content/prompts/sd-chaos-prompt.md
+git commit -m "$(cat <<'EOF'
+feat(sd-phase-4): add Opus chaos scenario authoring prompt template
+
+Each scenario: YAML trigger mechanics (sim-engine contract) + 3
+narrative variants (cinematic default, technical power-user, humorous
+opt-in) + postmortem hook template. Used for all 60 Phase 4 scenarios.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
