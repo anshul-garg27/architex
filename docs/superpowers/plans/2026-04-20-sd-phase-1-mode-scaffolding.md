@@ -1313,3 +1313,712 @@ EOF
 
 ---
 
+## Task 6: Create `sd_drill_attempts` + `sd_drill_interviewer_turns` schemas
+
+**Files:**
+- Create: `architex/src/db/schema/sd-drill-attempts.ts`
+- Create: `architex/src/db/schema/sd-drill-interviewer-turns.ts`
+- Modify: `architex/src/db/schema/index.ts`
+
+SD drill is a 5-stage timed mock interview (spec §9). `sd_drill_attempts` is the header; `sd_drill_interviewer_turns` holds the interviewer persona's turns, the user's responses, and any hints delivered. Mirror of LLD's drill structure but with added stage_times JSONB (5 stages × elapsed_ms map) and persona/company-preset columns.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `architex/src/db/schema/__tests__/sd-drill-attempts.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdDrillAttempts } from "@/db/schema/sd-drill-attempts";
+
+describe("sdDrillAttempts schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdDrillAttempts);
+    for (const c of [
+      "id",
+      "userId",
+      "problemSlug",
+      "mode",
+      "persona",
+      "companyPreset",
+      "startedAt",
+      "currentStage",
+      "stageTimes",
+      "submittedAt",
+      "abandonedAt",
+      "canvasState",
+      "rubric",
+      "aiPostmortem",
+      "publicShareId",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+Create `architex/src/db/schema/__tests__/sd-drill-interviewer-turns.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdDrillInterviewerTurns } from "@/db/schema/sd-drill-interviewer-turns";
+
+describe("sdDrillInterviewerTurns schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdDrillInterviewerTurns);
+    for (const c of [
+      "id",
+      "drillId",
+      "stage",
+      "turnIndex",
+      "speaker",
+      "content",
+      "hintTier",
+      "tokenCost",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+```bash
+pnpm test:run -- sd-drill-attempts.schema sd-drill-interviewer-turns.schema
+```
+
+Expected: both FAIL · modules missing.
+
+- [ ] **Step 3: Write the schema files**
+
+Create `architex/src/db/schema/sd-drill-attempts.ts`:
+
+```typescript
+/**
+ * DB-SD-10: sd_drill_attempts — SD mock interview attempts.
+ *
+ * mode: 'study' | 'timed' | 'exam' | 'pair' | 'review' | 'full-stack' | 'verbal'
+ * current_stage: 1..5 (clarify → capacity → API → architecture → deep-dive)
+ * stage_times: map { "1": ms, "2": ms, ... } accumulated per stage
+ * persona: slug into persona library (spec §9.4, 8 personas)
+ * company_preset: 'google' | 'meta' | 'stripe' | ... (influences rubric weights)
+ * rubric: final 6-axis rubric payload (spec §9.6)
+ *
+ * Partial unique index enforces one active drill per user (cross-mode) —
+ * user cannot start a second drill while one is in progress.
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  jsonb,
+  text,
+  timestamp,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export const sdDrillAttempts = pgTable(
+  "sd_drill_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    problemSlug: varchar("problem_slug", { length: 100 }).notNull(),
+    mode: varchar("mode", { length: 30 }).notNull(),
+    persona: varchar("persona", { length: 50 }),
+    companyPreset: varchar("company_preset", { length: 50 }),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    currentStage: integer("current_stage").notNull().default(1),
+    stageTimes: jsonb("stage_times").notNull().default(sql`'{}'::jsonb`),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    canvasState: jsonb("canvas_state"),
+    verbalTranscript: text("verbal_transcript"),
+    hintsUsed: jsonb("hints_used").notNull().default(sql`'[]'::jsonb`),
+    rubric: jsonb("rubric"),
+    aiPostmortem: text("ai_postmortem"),
+    publicShareId: varchar("public_share_id", { length: 20 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("one_active_sd_drill_per_user")
+      .on(t.userId)
+      .where(sql`${t.submittedAt} IS NULL AND ${t.abandonedAt} IS NULL`),
+    index("sd_drills_history_idx").on(t.userId, t.submittedAt),
+    uniqueIndex("sd_drills_public_share_uq")
+      .on(t.publicShareId)
+      .where(sql`${t.publicShareId} IS NOT NULL`),
+  ],
+);
+
+export type SDDrillAttempt = typeof sdDrillAttempts.$inferSelect;
+export type NewSDDrillAttempt = typeof sdDrillAttempts.$inferInsert;
+```
+
+Create `architex/src/db/schema/sd-drill-interviewer-turns.ts`:
+
+```typescript
+/**
+ * DB-SD-11: sd_drill_interviewer_turns — drill chat log (persona ↔ user).
+ *
+ * One row per turn. Keeps the drill row small and fast; the transcript
+ * may grow to hundreds of rows across a 45-minute session. Indexed by
+ * drill + turn_index for efficient append + replay.
+ *
+ * speaker: 'interviewer' | 'candidate' | 'system' | 'coach'
+ * hint_tier: null on non-hint turns; 'nudge' | 'guided' | 'full' when coach
+ * token_cost: AI tokens consumed on this turn (for cost accounting, §13)
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { sdDrillAttempts } from "./sd-drill-attempts";
+
+export const sdDrillInterviewerTurns = pgTable(
+  "sd_drill_interviewer_turns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    drillId: uuid("drill_id")
+      .notNull()
+      .references(() => sdDrillAttempts.id, { onDelete: "cascade" }),
+    stage: integer("stage").notNull(), // 1..5
+    turnIndex: integer("turn_index").notNull(), // monotonic per drill
+    speaker: varchar("speaker", { length: 20 }).notNull(),
+    content: text("content").notNull(),
+    hintTier: varchar("hint_tier", { length: 20 }),
+    tokenCost: integer("token_cost").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sd_drill_turns_drill_turn_uq").on(t.drillId, t.turnIndex),
+  ],
+);
+
+export type SDDrillInterviewerTurn = typeof sdDrillInterviewerTurns.$inferSelect;
+export type NewSDDrillInterviewerTurn = typeof sdDrillInterviewerTurns.$inferInsert;
+```
+
+- [ ] **Step 4: Re-export from schema index**
+
+```typescript
+export {
+  sdDrillAttempts,
+  type SDDrillAttempt,
+  type NewSDDrillAttempt,
+} from "./sd-drill-attempts";
+export {
+  sdDrillInterviewerTurns,
+  type SDDrillInterviewerTurn,
+  type NewSDDrillInterviewerTurn,
+} from "./sd-drill-interviewer-turns";
+```
+
+- [ ] **Step 5: Verify typecheck + tests**
+
+```bash
+pnpm typecheck
+pnpm test:run -- sd-drill-attempts.schema sd-drill-interviewer-turns.schema
+```
+
+Expected: all PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/db/schema/sd-drill-attempts.ts \
+        architex/src/db/schema/sd-drill-interviewer-turns.ts \
+        architex/src/db/schema/__tests__/sd-drill-attempts.schema.test.ts \
+        architex/src/db/schema/__tests__/sd-drill-interviewer-turns.schema.test.ts \
+        architex/src/db/schema/index.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_drill_attempts + sd_drill_interviewer_turns schemas
+
+- sd_drill_attempts: 5-stage mock interview header. Partial unique
+  index enforces one-active-drill per user cross-mode. Includes
+  persona, company_preset, stage_times map.
+- sd_drill_interviewer_turns: chat log separated from the header row
+  for scale. Unique (drill_id, turn_index) on append; indexed by
+  that pair for efficient replay.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 7: Create `sd_shares` + `sd_fsrs_cards` schemas
+
+**Files:**
+- Create: `architex/src/db/schema/sd-shares.ts`
+- Create: `architex/src/db/schema/sd-fsrs-cards.ts`
+- Modify: `architex/src/db/schema/index.ts`
+
+Last two SD tables:
+- `sd_shares` unifies public shares across designs, sims, drills (Q41). Each shared resource gets one row with a short public_id used in `/sd/share/{shareId}` URLs, OG image URLs, and access tracking.
+- `sd_fsrs_cards` is the per-user FSRS-5 scheduling state. One row per (user, card). Combines with `sd_review_cards` (the card content) to produce the Review-mode due queue.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `architex/src/db/schema/__tests__/sd-shares.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdShares } from "@/db/schema/sd-shares";
+
+describe("sdShares schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdShares);
+    for (const c of [
+      "id",
+      "ownerUserId",
+      "resourceType",
+      "resourceId",
+      "publicSlug",
+      "ogImageUrl",
+      "viewCount",
+      "revokedAt",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+Create `architex/src/db/schema/__tests__/sd-fsrs-cards.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdFsrsCards } from "@/db/schema/sd-fsrs-cards";
+
+describe("sdFsrsCards schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdFsrsCards);
+    for (const c of [
+      "id",
+      "userId",
+      "cardSlug",
+      "cardType",
+      "difficulty",
+      "stability",
+      "reps",
+      "lapses",
+      "state",
+      "dueAt",
+      "lastReviewedAt",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+```bash
+pnpm test:run -- sd-shares.schema sd-fsrs-cards.schema
+```
+
+Expected: both FAIL · modules missing.
+
+- [ ] **Step 3: Write the schema files**
+
+Create `architex/src/db/schema/sd-shares.ts`:
+
+```typescript
+/**
+ * DB-SD-12: sd_shares — unified public share records (Q41).
+ *
+ * One row per public share across any SD resource type:
+ *   - 'design'       → sd_designs.id
+ *   - 'simulation'   → sd_simulations.id
+ *   - 'drill'        → sd_drill_attempts.id
+ *   - 'concept-reflection' → sd_concept_reflections.id (Phase 2)
+ *
+ * public_slug is a short 8-12 char URL-safe id used in /sd/share/{slug}.
+ * og_image_url is pre-rendered and cached by the image pipeline.
+ * view_count increments on each uncached load (eventual consistent).
+ * revoked_at nulls the share server-side without deleting the row
+ * (preserves view history for the owner's dashboard).
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  timestamp,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export const sdShares = pgTable(
+  "sd_shares",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerUserId: uuid("owner_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    resourceType: varchar("resource_type", { length: 30 }).notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    publicSlug: varchar("public_slug", { length: 20 }).notNull().unique(),
+    ogImageUrl: varchar("og_image_url", { length: 500 }),
+    viewCount: integer("view_count").notNull().default(0),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("sd_shares_owner_idx").on(t.ownerUserId, t.createdAt),
+    uniqueIndex("sd_shares_resource_uq").on(t.resourceType, t.resourceId),
+  ],
+);
+
+export type SDShare = typeof sdShares.$inferSelect;
+export type NewSDShare = typeof sdShares.$inferInsert;
+```
+
+Create `architex/src/db/schema/sd-fsrs-cards.ts`:
+
+```typescript
+/**
+ * DB-SD-13: sd_fsrs_cards — per-user FSRS-5 scheduling state.
+ *
+ * One row per (user, card). card_slug is a denormalized reference into
+ * either sd_concepts or sd_problems (we use a slug because cards may
+ * outlive the concept they were generated from if content evolves).
+ *
+ * FSRS-5 fields (difficulty, stability) are per algorithm spec. state
+ * is one of 'new' | 'learning' | 'review' | 'relearning'. due_at is
+ * indexed for the "what's due today" query.
+ *
+ * The card content itself (prompt, choices, correct_answer) lives in
+ * sd_review_cards — a shared table across users (Phase 2).
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  real,
+  timestamp,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export const sdFsrsCards = pgTable(
+  "sd_fsrs_cards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    cardSlug: varchar("card_slug", { length: 100 }).notNull(),
+    cardType: varchar("card_type", { length: 30 }).notNull(), // 'mcq'|'name-primitive'|'diagram-spot'|'cloze'
+    difficulty: real("difficulty").notNull(),
+    stability: real("stability").notNull(),
+    reps: integer("reps").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    state: varchar("state", { length: 20 }).notNull().default("new"),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sd_fsrs_user_card_uq").on(t.userId, t.cardSlug),
+    index("sd_fsrs_due_idx").on(t.userId, t.dueAt),
+  ],
+);
+
+export type SDFsrsCard = typeof sdFsrsCards.$inferSelect;
+export type NewSDFsrsCard = typeof sdFsrsCards.$inferInsert;
+```
+
+- [ ] **Step 4: Re-export from schema index**
+
+```typescript
+export {
+  sdShares,
+  type SDShare,
+  type NewSDShare,
+} from "./sd-shares";
+export {
+  sdFsrsCards,
+  type SDFsrsCard,
+  type NewSDFsrsCard,
+} from "./sd-fsrs-cards";
+```
+
+- [ ] **Step 5: Add relations for all 13 SD tables**
+
+Open `architex/src/db/schema/relations.ts`. Add imports at the top:
+
+```typescript
+import { sdConcepts } from "./sd-concepts";
+import { sdProblems } from "./sd-problems";
+import { sdConceptReads } from "./sd-concept-reads";
+import { sdConceptBookmarks } from "./sd-concept-bookmarks";
+import { sdDesigns } from "./sd-designs";
+import { sdDesignSnapshots } from "./sd-design-snapshots";
+import { sdDesignAnnotations } from "./sd-design-annotations";
+import { sdSimulations } from "./sd-simulations";
+import { sdSimulationEvents } from "./sd-simulation-events";
+import { sdDrillAttempts } from "./sd-drill-attempts";
+import { sdDrillInterviewerTurns } from "./sd-drill-interviewer-turns";
+import { sdShares } from "./sd-shares";
+import { sdFsrsCards } from "./sd-fsrs-cards";
+```
+
+In `usersRelations`, extend the `many` block:
+
+```typescript
+export const usersRelations = relations(users, ({ many }) => ({
+  diagrams: many(diagrams),
+  simulationRuns: many(simulationRuns),
+  progress: many(progress),
+  templates: many(templates),
+  gallerySubmissions: many(gallerySubmissions),
+  aiUsage: many(aiUsage),
+  // ── SD ───────────────────────────────────────────
+  sdConceptReads: many(sdConceptReads),
+  sdConceptBookmarks: many(sdConceptBookmarks),
+  sdDesigns: many(sdDesigns),
+  sdSimulations: many(sdSimulations),
+  sdDrillAttempts: many(sdDrillAttempts),
+  sdShares: many(sdShares),
+  sdFsrsCards: many(sdFsrsCards),
+}));
+```
+
+Append at the bottom of the file:
+
+```typescript
+// ── SD Concepts ───────────────────────────────────────────────
+export const sdConceptsRelations = relations(sdConcepts, ({ many }) => ({
+  reads: many(sdConceptReads),
+  bookmarks: many(sdConceptBookmarks),
+}));
+
+export const sdConceptReadsRelations = relations(sdConceptReads, ({ one }) => ({
+  user: one(users, { fields: [sdConceptReads.userId], references: [users.id] }),
+  concept: one(sdConcepts, {
+    fields: [sdConceptReads.conceptId],
+    references: [sdConcepts.id],
+  }),
+}));
+
+export const sdConceptBookmarksRelations = relations(
+  sdConceptBookmarks,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [sdConceptBookmarks.userId],
+      references: [users.id],
+    }),
+    concept: one(sdConcepts, {
+      fields: [sdConceptBookmarks.conceptId],
+      references: [sdConcepts.id],
+    }),
+  }),
+);
+
+// ── SD Problems ──────────────────────────────────────────────
+export const sdProblemsRelations = relations(sdProblems, () => ({
+  // Problems are referenced by slug from drills/designs; no hard FK.
+}));
+
+// ── SD Designs ───────────────────────────────────────────────
+export const sdDesignsRelations = relations(sdDesigns, ({ one, many }) => ({
+  user: one(users, { fields: [sdDesigns.userId], references: [users.id] }),
+  snapshots: many(sdDesignSnapshots),
+  annotations: many(sdDesignAnnotations),
+  simulations: many(sdSimulations),
+}));
+
+export const sdDesignSnapshotsRelations = relations(
+  sdDesignSnapshots,
+  ({ one }) => ({
+    design: one(sdDesigns, {
+      fields: [sdDesignSnapshots.designId],
+      references: [sdDesigns.id],
+    }),
+    author: one(users, {
+      fields: [sdDesignSnapshots.authorUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const sdDesignAnnotationsRelations = relations(
+  sdDesignAnnotations,
+  ({ one }) => ({
+    design: one(sdDesigns, {
+      fields: [sdDesignAnnotations.designId],
+      references: [sdDesigns.id],
+    }),
+    author: one(users, {
+      fields: [sdDesignAnnotations.authorUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── SD Simulations ───────────────────────────────────────────
+export const sdSimulationsRelations = relations(
+  sdSimulations,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [sdSimulations.userId],
+      references: [users.id],
+    }),
+    design: one(sdDesigns, {
+      fields: [sdSimulations.designId],
+      references: [sdDesigns.id],
+    }),
+    events: many(sdSimulationEvents),
+  }),
+);
+
+export const sdSimulationEventsRelations = relations(
+  sdSimulationEvents,
+  ({ one }) => ({
+    simulation: one(sdSimulations, {
+      fields: [sdSimulationEvents.simulationId],
+      references: [sdSimulations.id],
+    }),
+  }),
+);
+
+// ── SD Drill Attempts ────────────────────────────────────────
+export const sdDrillAttemptsRelations = relations(
+  sdDrillAttempts,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [sdDrillAttempts.userId],
+      references: [users.id],
+    }),
+    turns: many(sdDrillInterviewerTurns),
+  }),
+);
+
+export const sdDrillInterviewerTurnsRelations = relations(
+  sdDrillInterviewerTurns,
+  ({ one }) => ({
+    drill: one(sdDrillAttempts, {
+      fields: [sdDrillInterviewerTurns.drillId],
+      references: [sdDrillAttempts.id],
+    }),
+  }),
+);
+
+// ── SD Shares ────────────────────────────────────────────────
+export const sdSharesRelations = relations(sdShares, ({ one }) => ({
+  owner: one(users, {
+    fields: [sdShares.ownerUserId],
+    references: [users.id],
+  }),
+  // resourceId is a polymorphic pointer — no hard FK; resolved in the API layer
+}));
+
+// ── SD FSRS ──────────────────────────────────────────────────
+export const sdFsrsCardsRelations = relations(sdFsrsCards, ({ one }) => ({
+  user: one(users, { fields: [sdFsrsCards.userId], references: [users.id] }),
+}));
+```
+
+- [ ] **Step 6: Re-export all 13 relation blocks from schema index**
+
+Open `architex/src/db/schema/index.ts` and extend the final `export` block:
+
+```typescript
+export {
+  usersRelations,
+  diagramsRelations,
+  simulationRunsRelations,
+  progressRelations,
+  templatesRelations,
+  gallerySubmissionsRelations,
+  galleryUpvotesRelations,
+  aiUsageRelations,
+  // SD relation blocks
+  sdConceptsRelations,
+  sdConceptReadsRelations,
+  sdConceptBookmarksRelations,
+  sdProblemsRelations,
+  sdDesignsRelations,
+  sdDesignSnapshotsRelations,
+  sdDesignAnnotationsRelations,
+  sdSimulationsRelations,
+  sdSimulationEventsRelations,
+  sdDrillAttemptsRelations,
+  sdDrillInterviewerTurnsRelations,
+  sdSharesRelations,
+  sdFsrsCardsRelations,
+} from "./relations";
+```
+
+- [ ] **Step 7: Verify typecheck + tests**
+
+```bash
+pnpm typecheck
+pnpm test:run -- sd-shares.schema sd-fsrs-cards.schema
+```
+
+Expected: all PASS. Typecheck must also pass — it covers the new relations file.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add architex/src/db/schema/sd-shares.ts \
+        architex/src/db/schema/sd-fsrs-cards.ts \
+        architex/src/db/schema/__tests__/sd-shares.schema.test.ts \
+        architex/src/db/schema/__tests__/sd-fsrs-cards.schema.test.ts \
+        architex/src/db/schema/relations.ts \
+        architex/src/db/schema/index.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_shares + sd_fsrs_cards schemas and wire all 13 relations
+
+- sd_shares: unified public share table for designs/sims/drills/reflections
+  with OG image URL and revocation.
+- sd_fsrs_cards: per-user FSRS-5 scheduling state. Unique (user, card_slug)
+  and indexed by due_at for "due today" queries.
+- Relations file extended with all 13 SD relation blocks + added to
+  usersRelations many block.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
