@@ -2115,3 +2115,131 @@ architex/
   ```
 
 ---
+
+## Task 12: Final verification + Phase 0 sign-off
+
+**Files:**
+- Modify: `docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md` (append Phase 0 sign-off note)
+
+**Design intent:** Phase 0 is closed when (a) every earlier task's tests are still green, (b) the build artifact has not ballooned beyond the Section C threshold, (c) the sim-engine benchmark still passes within 20% of Section B's numbers, and (d) a human signs off on the baseline doc. This task gives the checklist for that sign-off.
+
+- [ ] **Step 1: Re-run the full test suite**
+
+  ```bash
+  cd architex
+  pnpm typecheck
+  pnpm lint
+  pnpm test:run
+  pnpm build
+  ```
+  Expected: all four green. Any failure here means an earlier task regressed — go fix before proceeding.
+
+- [ ] **Step 2: Re-run the sim-engine benchmark**
+
+  ```bash
+  pnpm test:run -- engine-benchmark --reporter=verbose 2>&1 | grep BENCH
+  ```
+  Expected: two `[BENCH]` lines. Compare each field to Section B of the baseline doc. If any metric regressed by more than **+20% relative** (durationMs, peakMemoryMB, p99LatencyMs), add a note to the baseline doc calling out the regression and link the commit — do not silently update the number.
+
+- [ ] **Step 3: Re-run the bundle analyzer**
+
+  ```bash
+  pnpm analyze
+  pnpm tsx scripts/capture-bundle-size.ts > /tmp/sd-phase0-bundle-final.json
+  diff /tmp/sd-phase0-bundle.json /tmp/sd-phase0-bundle-final.json || true
+  ```
+  Expected: client parsed-size delta within **+25 KB** of the Task 3 capture. If larger, record the delta in the baseline doc with an explanation (likely one of the new deps: `@sentry/nextjs`, `@mdx-js/mdx`, `rehype-sanitize`, `unist-util-visit`, `isomorphic-dompurify`).
+
+- [ ] **Step 4: Manually poke `/api/sd/*` endpoints**
+
+  ```bash
+  pnpm dev &
+  sleep 5
+  curl -s -o /dev/null -w "unauth: %{http_code}\n" http://localhost:3000/api/sd/concepts
+  curl -s -o /dev/null -w "stream-bad: %{http_code}\n" http://localhost:3000/api/sd/simulations/xyz/stream
+  curl -s -o /dev/null -w "stream-ws: %{http_code}\n" -H "Upgrade: websocket" http://localhost:3000/api/sd/simulations/xyz/stream
+  kill %1
+  ```
+  Expected: `unauth: 401`, `stream-bad: 400` (no upgrade header), `stream-ws: 401` (no Clerk session). If any returns 200 or 501 without going through the guards, the middleware did not pick up the route — check Task 5 + Task 8 wiring.
+
+- [ ] **Step 5: Append sign-off to baseline doc**
+
+  Open `docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md`. Append at the bottom:
+
+  ```markdown
+  ## Phase 0 sign-off
+
+  | Check                                              | Status | Notes |
+  | -------------------------------------------------- | ------ | ----- |
+  | typecheck / lint / test / build all green          | TODO   | link the commit SHA |
+  | sim-engine bench within +20% of Section B          | TODO   | paste [BENCH] lines |
+  | bundle parsed size within +25 KB of Section C      | TODO   | paste diff |
+  | `/api/sd/*` endpoints respond 401/400/501 correctly| TODO   | paste curl output |
+  | Feature flag registry tests green                  | TODO   | " |
+  | MDX sanitizer test green + visually verified       | TODO   | " |
+  | Sentry beforeSend scrubs canvas_state + headers    | TODO   | link test file |
+
+  _Signed-off by:_ TODO (name, date)
+  ```
+
+  Fill each `TODO` cell with the actual status during the sign-off meeting. Commit the filled-in version.
+
+- [ ] **Step 6: Final commit**
+
+  ```bash
+  git add docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md
+  git commit -m "$(cat <<'EOF'
+  docs(sd-phase-0): sign-off checklist appended to baseline
+
+  Phase 0 closes when every row in the Sign-off table is filled and the
+  doc is committed. Phase 1 starts from the commit that closes this task.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+- [ ] **Step 7: Open the Phase 0 → Phase 1 handoff PR**
+
+  ```bash
+  git push -u origin sd/phase-0-foundations
+  gh pr create \
+    --title "SD Phase 0 · foundations + pre-flight" \
+    --body "Closes the Phase 0 scope from spec §23. Delivers: sim-engine + bundle baselines, sliding-window + composite-key rate limits, requireSDAuth helper, 14 route shells with auth guards, WS handshake validator, six rollout/killswitch flags, MDX sanitizer, and Sentry PII scrubbing. No user-visible changes. See docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md for numbers."
+  ```
+  Expected: PR URL printed. Link the PR in the Phase 1 plan's Prerequisite line before starting Phase 1.
+
+---
+
+## Open questions
+
+1. **Sim-engine benchmark constants:** `CANONICAL_SHARD_DESIGN` and `CHAOS_STORM_DESIGN` in Task 2 are illustrative — the actual shape depends on the engine's input type in `src/lib/simulation/`. The plan assumes a `{nodes, edges, scale}` object; adjust if the engine uses `Blueprint` or similar. First-time executor should read `src/lib/simulation/engine.ts` and adjust the two `Object.freeze` calls to match the engine's input contract before running Step 3.
+
+2. **`@mdx-js/mdx` v3 vs the Next 16 MDX plugin:** Task 10 installs `@mdx-js/mdx@^3` but the app may already depend on a specific MDX version via `next-mdx` or similar. If `pnpm add` introduces a dupe, resolve by matching the Next version's peer range before committing Task 10.
+
+3. **Sentry DSN sourcing:** Task 11 reads `SENTRY_DSN` server-side and `NEXT_PUBLIC_SENTRY_DSN` client-side. Confirm with SRE that both vars exist in the deploy environment before Phase 1 starts emitting Sentry events.
+
+4. **WebSocket upgrade in Next 16:** Task 8 installs the handshake validator, but Next 16's App Router WebSocket story is still evolving. Phase 3 may need `runtime = 'edge'` or a custom server. The validator is runtime-agnostic so the Phase 0 contract survives either choice.
+
+---
+
+## Summary
+
+Phase 0 closes when 12 tasks land as separate commits on the `sd/phase-0-foundations` branch:
+
+| # | Task | Commit prefix |
+|---|------|---------------|
+| 1 | Baseline doc scaffold + Section A | `docs(sd-phase-0):` |
+| 2 | Sim-engine perf baseline + Section B | `perf(sd-phase-0):` |
+| 3 | Bundle-size baseline + Section C | `perf(sd-phase-0):` |
+| 4 | Sliding-window rate-limit primitive | `feat(security):` |
+| 5 | Composite (ip,userId) key for `/api/sd/*` | `feat(security):` |
+| 6 | `requireSDAuth()` helper | `feat(auth):` |
+| 7 | 14 `/api/sd/*` route shells | `feat(api):` |
+| 8 | WebSocket handshake validator | `feat(sd):` |
+| 9 | Feature-flag registry · 6 SD flags | `feat(flags):` |
+| 10 | MDX sanitizer | `feat(sd):` |
+| 11 | Sentry PII scrubbing | `feat(sentry):` |
+| 12 | Final verification + sign-off | `docs(sd-phase-0):` |
+
+No user-visible behaviour changes. Phase 1 can safely build on top of every primitive this phase introduces.
