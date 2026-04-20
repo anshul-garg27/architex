@@ -208,4 +208,392 @@ Each task commits 1-3 times. Tasks 5-13 are pure library code (fast, testable). 
 
 ---
 
-*(Tasks begin in subsequent commits — the scaffold above is intentionally minimal to let each task land as its own verifiable commit.)*
+## Task 1: Extend `lld_drill_attempts` schema with stage + rubric columns
+
+**Files:**
+- Modify: `architex/src/db/schema/lld-drill-attempts.ts`
+
+Phase 1 created the base table. Phase 4 adds six new columns without touching existing ones.
+
+- [ ] **Step 1: Open the existing schema file**
+
+Open `architex/src/db/schema/lld-drill-attempts.ts`. The file currently has columns `id`, `userId`, `problemId`, `drillMode`, six timestamps, `elapsedBeforePauseMs`, `durationLimitMs`, `canvasState`, `hintsUsed`, `gradeScore`, `gradeBreakdown`. We add six more.
+
+- [ ] **Step 2: Extend the table definition**
+
+Replace the `pgTable` body so it includes the new columns. The file becomes:
+
+```typescript
+/**
+ * DB-014: LLD drill attempts — stores active and completed drill attempts.
+ *
+ * Phase 4 additions:
+ *   - variant           — "exam" | "timed-mock" | "study"
+ *   - stages            — per-stage progress + timing (JSONB)
+ *   - current_stage     — "clarify" | "rubric" | "canvas" | "walkthrough" | "reflection"
+ *   - started_stage_at  — timestamp of current stage entry (for timing heatmap)
+ *   - hint_log          — hint consumption log with tier + penalty (JSONB)
+ *   - rubric_breakdown  — 6-axis grade output (JSONB)
+ *   - postmortem        — AI-authored post-drill report (JSONB)
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  integer,
+  jsonb,
+  real,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export const lldDrillAttempts = pgTable(
+  "lld_drill_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    problemId: varchar("problem_id", { length: 100 }).notNull(),
+    drillMode: varchar("drill_mode", { length: 20 })
+      .notNull()
+      .default("interview"),
+
+    // Phase 4 · session variant
+    variant: varchar("variant", { length: 20 }).notNull().default("timed-mock"),
+
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+
+    // Phase 4 · stage tracking
+    currentStage: varchar("current_stage", { length: 20 })
+      .notNull()
+      .default("clarify"),
+    startedStageAt: timestamp("started_stage_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    stages: jsonb("stages").notNull().default(sql`'{}'::jsonb`),
+
+    elapsedBeforePauseMs: integer("elapsed_before_pause_ms")
+      .notNull()
+      .default(0),
+    durationLimitMs: integer("duration_limit_ms").notNull(),
+
+    canvasState: jsonb("canvas_state"),
+    hintsUsed: jsonb("hints_used").notNull().default(sql`'[]'::jsonb`),
+
+    // Phase 4 · rich hint log (supersedes hintsUsed for drill mode;
+    // we keep hintsUsed for backward compat with Phase 3 drill attempts)
+    hintLog: jsonb("hint_log").notNull().default(sql`'[]'::jsonb`),
+
+    gradeScore: real("grade_score"),
+    gradeBreakdown: jsonb("grade_breakdown"),
+
+    // Phase 4 · 6-axis grade + AI postmortem
+    rubricBreakdown: jsonb("rubric_breakdown"),
+    postmortem: jsonb("postmortem"),
+  },
+  (t) => [
+    uniqueIndex("one_active_drill_per_user")
+      .on(t.userId)
+      .where(sql`${t.submittedAt} IS NULL AND ${t.abandonedAt} IS NULL`),
+    index("drill_history_idx").on(t.userId, t.submittedAt),
+    index("drill_stage_idx").on(t.userId, t.currentStage),
+  ],
+);
+
+export type LLDDrillAttempt = typeof lldDrillAttempts.$inferSelect;
+export type NewLLDDrillAttempt = typeof lldDrillAttempts.$inferInsert;
+
+// Phase 4 · shared stage/variant types re-exported for consumers
+export type DrillStage =
+  | "clarify"
+  | "rubric"
+  | "canvas"
+  | "walkthrough"
+  | "reflection";
+
+export type DrillVariant = "exam" | "timed-mock" | "study";
+```
+
+- [ ] **Step 3: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors. If the `users` import fails, confirm the schema index hasn't been reorganized.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/db/schema/lld-drill-attempts.ts
+git commit -m "$(cat <<'EOF'
+feat(db): extend lld_drill_attempts with stage + rubric columns
+
+Adds variant, currentStage, startedStageAt, stages JSONB, hintLog JSONB,
+rubricBreakdown JSONB, postmortem JSONB. Phase 1 columns untouched.
+New composite index on (user_id, current_stage) for abandoned-drill
+stage distribution queries.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 2: Generate and apply extend migration
+
+**Files:**
+- Generated: `architex/drizzle/NNNN_extend_lld_drill_attempts.sql`
+
+- [ ] **Step 1: Generate migration**
+
+```bash
+cd architex
+pnpm db:generate
+```
+Expected: a new SQL file in `architex/drizzle/` containing `ALTER TABLE "lld_drill_attempts" ADD COLUMN ...` for each of the six new columns plus `CREATE INDEX "drill_stage_idx"`. The filename has an auto-incremented prefix.
+
+- [ ] **Step 2: Review the SQL**
+
+Open the generated file. Confirm it includes:
+- `ADD COLUMN "variant" varchar(20) DEFAULT 'timed-mock' NOT NULL`
+- `ADD COLUMN "current_stage" varchar(20) DEFAULT 'clarify' NOT NULL`
+- `ADD COLUMN "started_stage_at" timestamp with time zone DEFAULT now() NOT NULL`
+- `ADD COLUMN "stages" jsonb DEFAULT '{}' NOT NULL`
+- `ADD COLUMN "hint_log" jsonb DEFAULT '[]' NOT NULL`
+- `ADD COLUMN "rubric_breakdown" jsonb`
+- `ADD COLUMN "postmortem" jsonb`
+- `CREATE INDEX "drill_stage_idx" ON ...`
+
+If anything is missing, delete the file and re-run `pnpm db:generate` (Drizzle re-reads schema).
+
+- [ ] **Step 3: Apply migration to dev DB**
+
+```bash
+pnpm db:push
+```
+Expected: migration applies cleanly. If the table has existing rows from Phase 1-3 testing, the DEFAULT on the new NOT NULL columns populates them safely.
+
+- [ ] **Step 4: Verify via Drizzle Studio**
+
+```bash
+pnpm db:studio
+```
+Open `lld_drill_attempts` · confirm the six new columns render with their defaults. Close the studio.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/drizzle/
+git commit -m "$(cat <<'EOF'
+feat(db): generate + apply lld_drill_attempts extend migration
+
+Six new columns + drill_stage_idx composite index. All NOT NULL columns
+have DEFAULT so existing rows migrate without data intervention.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 3: Create `lld_drill_interviewer_turns` table
+
+**Files:**
+- Create: `architex/src/db/schema/lld-drill-interviewer-turns.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+A second table stores the chat log. We use a dedicated table (not a JSONB column) because turns can be long, we want index-backed pagination for long sessions, and `ON DELETE CASCADE` from drill-attempts gives us free cleanup.
+
+- [ ] **Step 1: Create the schema**
+
+Create `architex/src/db/schema/lld-drill-interviewer-turns.ts`:
+
+```typescript
+/**
+ * DB-015: LLD drill interviewer turns — the chat log between the user
+ * and the Claude-backed interviewer persona.
+ *
+ * Cascade-deletes when the parent drill attempt is deleted.
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  integer,
+  text,
+  jsonb,
+  index,
+} from "drizzle-orm/pg-core";
+import { lldDrillAttempts } from "./lld-drill-attempts";
+
+export const lldDrillInterviewerTurns = pgTable(
+  "lld_drill_interviewer_turns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => lldDrillAttempts.id, { onDelete: "cascade" }),
+
+    // "user" | "interviewer" | "system"
+    role: varchar("role", { length: 20 }).notNull(),
+
+    // "clarify" | "rubric" | "canvas" | "walkthrough" | "reflection"
+    stage: varchar("stage", { length: 20 }).notNull(),
+
+    // "generic" | "amazon" | "google" | "meta" | "stripe" | "uber"
+    persona: varchar("persona", { length: 20 }).notNull().default("generic"),
+
+    // Sequential index within the attempt — starts at 0.
+    seq: integer("seq").notNull(),
+
+    content: text("content").notNull(),
+
+    // Optional metadata — token counts, model, latency, cost
+    metadata: jsonb("metadata"),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("drill_turn_attempt_seq_idx").on(t.attemptId, t.seq),
+  ],
+);
+
+export type LLDDrillInterviewerTurn =
+  typeof lldDrillInterviewerTurns.$inferSelect;
+export type NewLLDDrillInterviewerTurn =
+  typeof lldDrillInterviewerTurns.$inferInsert;
+```
+
+- [ ] **Step 2: Re-export from schema index**
+
+Open `architex/src/db/schema/index.ts`. Add the export near the other `lld-*` exports (alphabetical):
+
+```typescript
+export * from "./lld-drill-interviewer-turns";
+```
+
+- [ ] **Step 3: Add relations**
+
+Open `architex/src/db/schema/relations.ts`. Extend `lldDrillAttemptsRelations` to include the new one-to-many, and add a new relations block at the bottom:
+
+```typescript
+// Add lldDrillInterviewerTurns to the imports at top
+
+// Replace lldDrillAttemptsRelations with:
+export const lldDrillAttemptsRelations = relations(
+  lldDrillAttempts,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [lldDrillAttempts.userId],
+      references: [users.id],
+    }),
+    interviewerTurns: many(lldDrillInterviewerTurns),
+  }),
+);
+
+// At bottom of file:
+export const lldDrillInterviewerTurnsRelations = relations(
+  lldDrillInterviewerTurns,
+  ({ one }) => ({
+    attempt: one(lldDrillAttempts, {
+      fields: [lldDrillInterviewerTurns.attemptId],
+      references: [lldDrillAttempts.id],
+    }),
+  }),
+);
+```
+
+- [ ] **Step 4: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/db/schema/lld-drill-interviewer-turns.ts \
+        architex/src/db/schema/index.ts \
+        architex/src/db/schema/relations.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add lld_drill_interviewer_turns table
+
+Chat log for drill interviewer persona. One row per turn. Cascade-delete
+when parent attempt is removed. Composite index (attempt_id, seq) for
+ordered playback.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 4: Generate + apply interviewer-turns migration
+
+**Files:**
+- Generated: `architex/drizzle/NNNN_lld_drill_interviewer_turns.sql`
+
+- [ ] **Step 1: Generate migration**
+
+```bash
+cd architex
+pnpm db:generate
+```
+Expected: new SQL file with `CREATE TABLE "lld_drill_interviewer_turns"` including FK to `lld_drill_attempts(id)` with `ON DELETE CASCADE` and the `drill_turn_attempt_seq_idx` index.
+
+- [ ] **Step 2: Review the SQL**
+
+Confirm the FK reference uses `ON DELETE CASCADE`. Confirm the index is created.
+
+- [ ] **Step 3: Apply**
+
+```bash
+pnpm db:push
+```
+Expected: clean apply, no warnings.
+
+- [ ] **Step 4: Verify via Drizzle Studio**
+
+```bash
+pnpm db:studio
+```
+Confirm `lld_drill_interviewer_turns` appears. Close the studio.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/drizzle/
+git commit -m "$(cat <<'EOF'
+feat(db): generate + apply lld_drill_interviewer_turns migration
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
