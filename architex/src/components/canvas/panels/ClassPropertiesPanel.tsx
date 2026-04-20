@@ -25,7 +25,20 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import type { UMLAttribute, UMLMethod } from "@/lib/lld";
-import type { ClassNodeData } from "@/components/canvas/nodes/lld/ClassNode";
+
+/**
+ * Data payload carried on UML class nodes in the canvas store. Mirrors the
+ * shape rendered by `uml-class` node types. Defined here because the Phase 1
+ * scaffolding ships without a standalone `ClassNode` component file — the
+ * panel operates on whatever `n.data` looks like on nodes with `type ===
+ * "uml-class"`.
+ */
+export interface ClassNodeData {
+  className: string;
+  stereotype: "class" | "interface" | "abstract" | "enum";
+  attributes: UMLAttribute[];
+  methods: UMLMethod[];
+}
 
 // -- Visibility options -------------------------------------------
 
@@ -289,7 +302,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
 
   const handleAddAttribute = useCallback(() => {
     if (!selectedNode) return;
-    const data = selectedNode.data as ClassNodeData;
+    const data = selectedNode.data as unknown as ClassNodeData;
     const newAttr: UMLAttribute = {
       id: panelUid("attr"),
       name: "",
@@ -302,7 +315,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
   const handleUpdateAttribute = useCallback(
     (index: number, updates: Partial<UMLAttribute>) => {
       if (!selectedNode) return;
-      const data = selectedNode.data as ClassNodeData;
+      const data = selectedNode.data as unknown as ClassNodeData;
       const attrs = data.attributes.map((a, i) =>
         i === index ? { ...a, ...updates } : a,
       );
@@ -314,7 +327,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
   const handleRemoveAttribute = useCallback(
     (index: number) => {
       if (!selectedNode) return;
-      const data = selectedNode.data as ClassNodeData;
+      const data = selectedNode.data as unknown as ClassNodeData;
       patchData({ attributes: data.attributes.filter((_, i) => i !== index) });
     },
     [selectedNode, patchData],
@@ -327,7 +340,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
       dragAttrTarget !== null &&
       dragAttrIndex !== dragAttrTarget
     ) {
-      const data = selectedNode.data as ClassNodeData;
+      const data = selectedNode.data as unknown as ClassNodeData;
       patchData({ attributes: reorder(data.attributes, dragAttrIndex, dragAttrTarget) });
     }
     setDragAttrIndex(null);
@@ -338,7 +351,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
 
   const handleAddMethod = useCallback(() => {
     if (!selectedNode) return;
-    const data = selectedNode.data as ClassNodeData;
+    const data = selectedNode.data as unknown as ClassNodeData;
     const newMethod: UMLMethod = {
       id: panelUid("mth"),
       name: "",
@@ -352,7 +365,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
   const handleUpdateMethod = useCallback(
     (index: number, updates: Partial<UMLMethod>) => {
       if (!selectedNode) return;
-      const data = selectedNode.data as ClassNodeData;
+      const data = selectedNode.data as unknown as ClassNodeData;
       const methods = data.methods.map((m, i) =>
         i === index ? { ...m, ...updates } : m,
       );
@@ -364,7 +377,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
   const handleRemoveMethod = useCallback(
     (index: number) => {
       if (!selectedNode) return;
-      const data = selectedNode.data as ClassNodeData;
+      const data = selectedNode.data as unknown as ClassNodeData;
       patchData({ methods: data.methods.filter((_, i) => i !== index) });
     },
     [selectedNode, patchData],
@@ -377,7 +390,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
       dragMethodTarget !== null &&
       dragMethodIndex !== dragMethodTarget
     ) {
-      const data = selectedNode.data as ClassNodeData;
+      const data = selectedNode.data as unknown as ClassNodeData;
       patchData({ methods: reorder(data.methods, dragMethodIndex, dragMethodTarget) });
     }
     setDragMethodIndex(null);
@@ -410,7 +423,7 @@ export const ClassPropertiesPanel = memo(function ClassPropertiesPanel() {
     );
   }
 
-  const data = selectedNode.data as ClassNodeData;
+  const data = selectedNode.data as unknown as ClassNodeData;
 
   return (
     <div className="flex h-full flex-col">
