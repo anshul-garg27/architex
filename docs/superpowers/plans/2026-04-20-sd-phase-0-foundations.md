@@ -162,3 +162,274 @@ architex/
 - [Task 12: Final verification + Phase 0 sign-off](#task-12-final-verification--phase-0-sign-off)
 
 ---
+
+## Task 1: Create baseline doc scaffold + capture pre-flight numbers
+
+**Files:**
+- Create: `docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md`
+
+**Design intent:** One Markdown file that records every number Phase 1+ must compare against. Phase 0 populates Sections A-C; Phase 1 adds Section D (post-Phase-1 deltas), etc. This file is append-only — numbers go in, numbers never come out.
+
+- [ ] **Step 1: Make the parent directory**
+
+  ```bash
+  mkdir -p docs/superpowers/baselines
+  ```
+  Expected: creates `docs/superpowers/baselines/`. No output on success.
+
+- [ ] **Step 2: Write the baseline doc**
+
+  Create `docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md`:
+
+  ````markdown
+  # SD Phase 0 Baseline Snapshot
+
+  > Recorded at the start of SD Phase 0 to give every later phase a numeric anchor.
+  >
+  > **Rule:** When a later phase adds a section, the numbers from earlier sections are **frozen**. If a regression happens, the team opens a bug — they do not edit the earlier numbers away.
+
+  ## Section A · Build & test baseline (Phase 0 Task 1)
+
+  | Metric                      | Value | Captured from |
+  | --------------------------- | ----- | ------------- |
+  | `pnpm typecheck` duration   | TODO  | /tmp/sd-phase0-typecheck.log |
+  | `pnpm typecheck` errors     | TODO  | "" |
+  | `pnpm lint` duration        | TODO  | /tmp/sd-phase0-lint.log |
+  | `pnpm lint` errors          | TODO  | "" |
+  | `pnpm lint` warnings        | TODO  | "" |
+  | `pnpm test:run` duration    | TODO  | /tmp/sd-phase0-test.log |
+  | `pnpm test:run` test files  | TODO  | "" |
+  | `pnpm test:run` tests       | TODO  | "" |
+  | `pnpm test:run` failures    | TODO  | "" |
+  | `pnpm build` duration       | TODO  | /tmp/sd-phase0-build.log |
+  | `pnpm build` exit code      | TODO  | "" |
+
+  ## Section B · Simulation engine perf baseline (Phase 0 Task 2)
+
+  | Metric                              | Value | Scenario      |
+  | ----------------------------------- | ----- | ------------- |
+  | `canonical-shard` sim duration (ms) | TODO  | 10k DAU, validate activity |
+  | `canonical-shard` peak memory (MB)  | TODO  | "" |
+  | `canonical-shard` p99 tick (ms)     | TODO  | "" |
+  | `canonical-shard` fps target        | 60    | constant — do not edit |
+  | `chaos-storm` sim duration (ms)     | TODO  | 1M DAU, chaos activity, 10 events |
+  | `chaos-storm` peak memory (MB)      | TODO  | "" |
+  | `chaos-storm` p99 tick (ms)         | TODO  | "" |
+
+  ## Section C · Bundle-size baseline (Phase 0 Task 3)
+
+  | Bundle                           | Stat size | Parsed size |
+  | -------------------------------- | --------- | ----------- |
+  | `.next/analyze/client.html`      | TODO      | TODO        |
+  | `.next/analyze/nodejs.html`      | TODO      | TODO        |
+  | `.next/analyze/edge.html`        | TODO      | TODO        |
+
+  **Threshold rule:** Phase 1+ must not increase client parsed size by more than **+25 KB gzipped** per phase without a written exception in the phase plan.
+
+  ## Section D · Placeholder for Phase 1 (do not fill now)
+
+  _Populated by the engineer closing out SD Phase 1._
+  ````
+
+- [ ] **Step 3: Fill Section A from the pre-flight logs**
+
+  For each row in Section A, open the corresponding log file in `/tmp/` and replace `TODO` with the measured value. Example:
+
+  ```bash
+  grep -c "^" /tmp/sd-phase0-typecheck.log   # rough duration proxy = line count if timed
+  grep -c "error TS" /tmp/sd-phase0-typecheck.log
+  ```
+
+  Concrete replacements: open the Markdown table in your editor, type the numbers, save. Do NOT guess — if a value is absent from the log, re-run the pre-flight step to capture it.
+
+- [ ] **Step 4: Run typecheck to confirm the doc is pure Markdown (no accidental code imports)**
+
+  ```bash
+  pnpm typecheck
+  ```
+  Expected: unchanged from pre-flight — Markdown files don't enter the TypeScript graph.
+
+- [ ] **Step 5: Commit**
+
+  ```bash
+  git add docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md
+  git commit -m "$(cat <<'EOF'
+  docs(sd-phase-0): scaffold baseline doc + capture Section A numbers
+
+  One append-only file that later phases compare against. Section A holds
+  typecheck/lint/test/build counts; Sections B-C filled by Tasks 2 and 3.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
+
+## Task 2: Record simulation-engine perf baseline
+
+**Files:**
+- Create: `architex/src/lib/simulation/__tests__/engine-benchmark.test.ts`
+- Modify: `docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md` (Section B)
+
+**Design intent:** A repeatable Vitest harness that loads the existing simulation engine with a fixed canonical design, runs it for a fixed sim duration, and emits three numbers: sim-duration-ms, peak-memory-MB, p99-tick-ms. Future phases re-run this test and diff against Section B.
+
+- [ ] **Step 1: Write the failing test**
+
+  Create `architex/src/lib/simulation/__tests__/engine-benchmark.test.ts`:
+
+  ```typescript
+  /**
+   * SD Phase 0 · Sim-engine perf harness (Task 2).
+   *
+   * Deterministic benchmark over a canonical design and a chaos-storm design.
+   * Emits structured JSON on stdout for later diff. Kept cheap enough to run
+   * in CI (<5s wall time).
+   */
+
+  import { describe, it, expect } from "vitest";
+  import {
+    createSimulationEngine,
+    CANONICAL_SHARD_DESIGN,
+    CHAOS_STORM_DESIGN,
+  } from "@/lib/simulation";
+
+  function runBench(
+    design: typeof CANONICAL_SHARD_DESIGN,
+    durationSimSeconds: number,
+  ) {
+    const engine = createSimulationEngine({ design, seed: 1_234_567 });
+    const tickMs: number[] = [];
+    const memoryBefore = process.memoryUsage().heapUsed / 1024 / 1024;
+    const wallStart = performance.now();
+
+    for (let t = 0; t < durationSimSeconds * 1000; t += 16) {
+      const tickStart = performance.now();
+      engine.tick(16);
+      tickMs.push(performance.now() - tickStart);
+    }
+
+    const wallEnd = performance.now();
+    const memoryAfter = process.memoryUsage().heapUsed / 1024 / 1024;
+
+    tickMs.sort((a, b) => a - b);
+    const p99 = tickMs[Math.floor(tickMs.length * 0.99)] ?? 0;
+
+    return {
+      durationMs: Math.round(wallEnd - wallStart),
+      peakMemoryMB: Math.round(memoryAfter - memoryBefore),
+      p99LatencyMs: Number(p99.toFixed(2)),
+    };
+  }
+
+  describe("SD Phase 0 · sim-engine benchmark", () => {
+    it("canonical-shard runs under a 5-second budget", () => {
+      const result = runBench(CANONICAL_SHARD_DESIGN, 60);
+      // Emit machine-readable line for docs capture
+      console.log(
+        `[BENCH] canonical-shard ${JSON.stringify(result)}`,
+      );
+      expect(result.durationMs).toBeLessThan(5_000);
+    });
+
+    it("chaos-storm runs under an 8-second budget", () => {
+      const result = runBench(CHAOS_STORM_DESIGN, 60);
+      console.log(
+        `[BENCH] chaos-storm ${JSON.stringify(result)}`,
+      );
+      expect(result.durationMs).toBeLessThan(8_000);
+    });
+  });
+  ```
+
+- [ ] **Step 2: Verify the test fails for the right reason**
+
+  ```bash
+  pnpm test:run -- engine-benchmark
+  ```
+  Expected: FAIL with `Cannot find module '@/lib/simulation'` OR `CANONICAL_SHARD_DESIGN is not exported`. That's the signal — existing engine doesn't export these constants yet, so we add them next.
+
+- [ ] **Step 3: Add the two canonical designs**
+
+  Open `architex/src/lib/simulation/index.ts`. Append:
+
+  ```typescript
+  /**
+   * SD Phase 0 · Canonical designs used by the perf benchmark.
+   * Keep these objects FROZEN — editing them invalidates the baseline.
+   */
+  export const CANONICAL_SHARD_DESIGN = Object.freeze({
+    id: "phase0-canonical-shard",
+    nodes: [
+      { id: "lb", type: "load-balancer", capacity: 10_000 },
+      { id: "web1", type: "web-server", capacity: 2_000 },
+      { id: "web2", type: "web-server", capacity: 2_000 },
+      { id: "db", type: "primary-db", capacity: 500, latencyMs: 5 },
+      { id: "cache", type: "redis", capacity: 20_000, latencyMs: 1 },
+    ],
+    edges: [
+      { from: "lb", to: "web1" },
+      { from: "lb", to: "web2" },
+      { from: "web1", to: "cache" },
+      { from: "web2", to: "cache" },
+      { from: "web1", to: "db" },
+      { from: "web2", to: "db" },
+    ],
+    scale: "10k-dau",
+  });
+
+  export const CHAOS_STORM_DESIGN = Object.freeze({
+    id: "phase0-chaos-storm",
+    nodes: [
+      ...CANONICAL_SHARD_DESIGN.nodes,
+      { id: "queue", type: "message-queue", capacity: 50_000 },
+      { id: "worker", type: "worker", capacity: 1_000 },
+    ],
+    edges: [
+      ...CANONICAL_SHARD_DESIGN.edges,
+      { from: "web1", to: "queue" },
+      { from: "queue", to: "worker" },
+    ],
+    scale: "1M-dau",
+    chaosEvents: [
+      "db-slow-query",
+      "cache-eviction-storm",
+      "lb-instance-crash",
+    ],
+  });
+  ```
+
+  If `createSimulationEngine` is not yet exported from the barrel, add:
+
+  ```typescript
+  export { createSimulationEngine } from "./engine";
+  ```
+
+- [ ] **Step 4: Run the benchmark and capture output**
+
+  ```bash
+  pnpm test:run -- engine-benchmark --reporter=verbose 2>&1 | tee /tmp/sd-phase0-sim-bench.log
+  ```
+  Expected: PASS · two `[BENCH]` lines in the log with JSON shapes `{durationMs, peakMemoryMB, p99LatencyMs}`.
+
+- [ ] **Step 5: Transcribe numbers into Section B of the baseline doc**
+
+  Open `docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md`. For each row in Section B, replace `TODO` with the corresponding value from the two `[BENCH]` lines. Save.
+
+- [ ] **Step 6: Commit**
+
+  ```bash
+  git add architex/src/lib/simulation/__tests__/engine-benchmark.test.ts architex/src/lib/simulation/index.ts docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md
+  git commit -m "$(cat <<'EOF'
+  perf(sd-phase-0): capture sim-engine baseline · canonical-shard + chaos-storm
+
+  Two frozen canonical designs drive a Vitest benchmark that emits
+  durationMs, peakMemoryMB, and p99LatencyMs per scenario. Numbers landed
+  in Section B of the Phase 0 baseline doc.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
