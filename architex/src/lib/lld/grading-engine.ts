@@ -705,7 +705,15 @@ function gradeCompleteness(
   const items: GradingItem[] = [];
 
   // Check 1: Minimum class count (3 pts)
-  const minClassCount = Math.max(3, Math.floor(referenceClasses.length * 0.5));
+  // Target ~half of reference, but never require more than reference itself —
+  // perfectly matching a small reference diagram should earn this check.
+  const minClassCount = Math.max(
+    1,
+    Math.min(
+      referenceClasses.length,
+      Math.floor(referenceClasses.length * 0.5) || referenceClasses.length,
+    ),
+  );
   const hasEnoughClasses = userClasses.length >= minClassCount;
   items.push({
     description: `Has at least ${minClassCount} classes`,
@@ -717,38 +725,50 @@ function gradeCompleteness(
   });
 
   // Check 2: All classes have at least 1 method (3 pts)
+  // Requires at least one class — an empty diagram does not trivially pass.
   const classesWithMethods = userClasses.filter(
     (c) => c.methods.length > 0,
   ).length;
-  const allHaveMethods = classesWithMethods === userClasses.length;
+  const allHaveMethods =
+    userClasses.length > 0 && classesWithMethods === userClasses.length;
   items.push({
     description: "All classes have at least 1 method",
     passed: allHaveMethods,
     points: allHaveMethods
       ? 3
-      : Math.round((classesWithMethods / Math.max(1, userClasses.length)) * 3 * 10) / 10,
+      : userClasses.length === 0
+        ? 0
+        : Math.round((classesWithMethods / userClasses.length) * 3 * 10) / 10,
     feedback: allHaveMethods
       ? "All classes have methods"
-      : `${classesWithMethods}/${userClasses.length} classes have methods`,
+      : userClasses.length === 0
+        ? "No classes present"
+        : `${classesWithMethods}/${userClasses.length} classes have methods`,
   });
 
   // Check 3: All classes have at least 1 attribute (2 pts)
   const classesWithAttrs = userClasses.filter(
     (c) => c.attributes.length > 0,
   ).length;
-  const allHaveAttrs = classesWithAttrs === userClasses.length;
+  const allHaveAttrs =
+    userClasses.length > 0 && classesWithAttrs === userClasses.length;
   items.push({
     description: "All classes have at least 1 attribute",
     passed: allHaveAttrs,
     points: allHaveAttrs
       ? 2
-      : Math.round((classesWithAttrs / Math.max(1, userClasses.length)) * 2 * 10) / 10,
+      : userClasses.length === 0
+        ? 0
+        : Math.round((classesWithAttrs / userClasses.length) * 2 * 10) / 10,
     feedback: allHaveAttrs
       ? "All classes have attributes"
-      : `${classesWithAttrs}/${userClasses.length} classes have attributes`,
+      : userClasses.length === 0
+        ? "No classes present"
+        : `${classesWithAttrs}/${userClasses.length} classes have attributes`,
   });
 
   // Check 4: No orphan classes (2 pts)
+  // An empty diagram cannot earn this either — there's nothing to connect.
   const connectedClassIds = new Set<string>();
   for (const rel of userRelationships) {
     connectedClassIds.add(rel.source);
@@ -757,14 +777,17 @@ function gradeCompleteness(
   const orphanClasses = userClasses.filter(
     (c) => !connectedClassIds.has(c.id),
   );
-  const noOrphans = orphanClasses.length === 0;
+  const noOrphans =
+    userClasses.length > 0 && orphanClasses.length === 0;
   items.push({
     description: "No orphan classes (all connected by relationships)",
     passed: noOrphans,
     points: noOrphans ? 2 : 0,
     feedback: noOrphans
       ? "All classes are connected"
-      : `${orphanClasses.length} orphan class${orphanClasses.length > 1 ? "es" : ""}: ${orphanClasses.map((c) => c.name).join(", ")}`,
+      : userClasses.length === 0
+        ? "No classes present"
+        : `${orphanClasses.length} orphan class${orphanClasses.length > 1 ? "es" : ""}: ${orphanClasses.map((c) => c.name).join(", ")}`,
   });
 
   const earnedPoints = items.reduce((sum, i) => sum + i.points, 0);
