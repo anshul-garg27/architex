@@ -743,3 +743,1148 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
+
+## Task 6: Seed the curated templates library (~60 entries)
+
+**Files:**
+- Create: `architex/src/db/seeds/lld-templates-library.ts`
+- Modify: `architex/scripts/seed.ts` (or equivalent seed runner) — add seed entry
+
+- [ ] **Step 1: Create the seed file**
+
+Create `architex/src/db/seeds/lld-templates-library.ts`. The file is long but mechanical — structure is one array literal of `NewLLDTemplatesLibraryEntry` objects grouped by category:
+
+```typescript
+/**
+ * Seeds ~60 curated LLD templates into `lld_templates_library`.
+ *
+ * Breakdown:
+ * - 23 GoF pattern starters (creational/structural/behavioral) — distilled
+ *   canvases derived from `src/lib/lld/patterns.ts`
+ * - 15 architecture blueprints — imported from src/lib/templates/blueprints
+ *   (existing JSON files), curated down to 12 best-of entries
+ * - 12 microservice patterns (circuit breaker, saga, CQRS, event bus, etc.)
+ * - 10 data/AI starters (repo, agent, RAG pipeline, vector store, etc.)
+ *
+ * Total: ~60. IDs are content-stable slugs; updates are idempotent by slug.
+ */
+
+import type { NewLLDTemplatesLibraryEntry } from "@/db/schema";
+
+// Helper: minimal canvas shape the React Flow store expects.
+// We inline a tiny canvasState per template; real production seeding
+// uses import-json.ts to parse existing blueprint JSON files.
+function tpl(
+  slug: string,
+  name: string,
+  description: string,
+  category: NewLLDTemplatesLibraryEntry["category"],
+  difficulty: "beginner" | "intermediate" | "advanced",
+  patternIds: string[],
+  tags: string[],
+  canvasState: Record<string, unknown>,
+  sortOrder = 0,
+): NewLLDTemplatesLibraryEntry {
+  return {
+    slug,
+    name,
+    description,
+    category,
+    difficulty,
+    patternIds,
+    tags,
+    canvasState,
+    isCurated: true,
+    sortOrder,
+  };
+}
+
+// ── Creational (8) ──────────────────────────────────────────────
+
+const creational: NewLLDTemplatesLibraryEntry[] = [
+  tpl(
+    "singleton-registry",
+    "Singleton · Config Registry",
+    "Thread-safe lazy singleton with double-checked locking. Ideal starter for config, logger, connection-pool.",
+    "creational",
+    "beginner",
+    ["singleton"],
+    ["thread-safe", "registry", "lazy"],
+    { nodes: [], edges: [] },
+    10,
+  ),
+  tpl(
+    "factory-method-shape",
+    "Factory Method · Shape Creator",
+    "Classic GoF factory method with Shape abstract product, Creator subclasses per concrete shape.",
+    "creational",
+    "beginner",
+    ["factory-method"],
+    ["creation", "polymorphism"],
+    { nodes: [], edges: [] },
+    20,
+  ),
+  tpl(
+    "abstract-factory-gui",
+    "Abstract Factory · Cross-Platform GUI",
+    "Families of related widgets (Button/Checkbox) per OS theme (Mac/Win/Linux).",
+    "creational",
+    "intermediate",
+    ["abstract-factory"],
+    ["family", "platform"],
+    { nodes: [], edges: [] },
+    30,
+  ),
+  tpl(
+    "builder-sql-query",
+    "Builder · SQL Query Builder",
+    "Fluent builder assembling SELECT clauses step by step with optional WHERE/ORDER/LIMIT.",
+    "creational",
+    "intermediate",
+    ["builder"],
+    ["fluent", "sql"],
+    { nodes: [], edges: [] },
+    40,
+  ),
+  tpl(
+    "prototype-document",
+    "Prototype · Document Clone",
+    "Deep-copy prototype for rich-text documents with nested elements.",
+    "creational",
+    "intermediate",
+    ["prototype"],
+    ["clone", "deep-copy"],
+    { nodes: [], edges: [] },
+    50,
+  ),
+  tpl(
+    "object-pool-connection",
+    "Object Pool · DB Connection Pool",
+    "Recycled connection pool with acquire/release, max-size, and eviction.",
+    "creational",
+    "advanced",
+    ["object-pool"],
+    ["pool", "performance", "jdbc"],
+    { nodes: [], edges: [] },
+    60,
+  ),
+  tpl(
+    "dependency-injection-container",
+    "DI Container · Constructor Injection",
+    "Minimal inversion-of-container with service registration and resolution.",
+    "creational",
+    "advanced",
+    ["dependency-injection"],
+    ["ioc", "container"],
+    { nodes: [], edges: [] },
+    70,
+  ),
+  tpl(
+    "lazy-initializer",
+    "Lazy Initializer · Memoized Factory",
+    "Lazy-init wrapper with memoization and thread safety.",
+    "creational",
+    "beginner",
+    ["lazy-initialization"],
+    ["memoize", "lazy"],
+    { nodes: [], edges: [] },
+    80,
+  ),
+];
+
+// ── Structural (8) ──────────────────────────────────────────────
+
+const structural: NewLLDTemplatesLibraryEntry[] = [
+  tpl(
+    "adapter-legacy-api",
+    "Adapter · Legacy API Bridge",
+    "Wrap a legacy XML SDK behind a modern JSON interface.",
+    "structural",
+    "beginner",
+    ["adapter"],
+    ["bridge", "legacy"],
+    { nodes: [], edges: [] },
+    10,
+  ),
+  tpl(
+    "decorator-coffee",
+    "Decorator · Coffee Pricing",
+    "Stackable decorators adding milk/sugar/whip to a base beverage.",
+    "structural",
+    "beginner",
+    ["decorator"],
+    ["wrap", "composition"],
+    { nodes: [], edges: [] },
+    20,
+  ),
+  tpl(
+    "facade-video-encoder",
+    "Facade · Video Encoder",
+    "Hide ffmpeg complexity behind a simple `encode(video, format)` facade.",
+    "structural",
+    "intermediate",
+    ["facade"],
+    ["simplify", "wrapper"],
+    { nodes: [], edges: [] },
+    30,
+  ),
+  tpl(
+    "composite-file-system",
+    "Composite · File System Tree",
+    "Files and directories as a uniform tree structure.",
+    "structural",
+    "intermediate",
+    ["composite"],
+    ["tree", "recursive"],
+    { nodes: [], edges: [] },
+    40,
+  ),
+  tpl(
+    "proxy-rate-limit",
+    "Proxy · Rate-Limited API",
+    "Protection proxy throttling downstream calls per client.",
+    "structural",
+    "intermediate",
+    ["proxy"],
+    ["rate-limit", "middleware"],
+    { nodes: [], edges: [] },
+    50,
+  ),
+  tpl(
+    "bridge-rendering",
+    "Bridge · Shape × Renderer",
+    "Decouple shape abstractions from rendering backends (raster/vector).",
+    "structural",
+    "advanced",
+    ["bridge"],
+    ["decouple", "orthogonal"],
+    { nodes: [], edges: [] },
+    60,
+  ),
+  tpl(
+    "flyweight-text-glyph",
+    "Flyweight · Text Glyph Cache",
+    "Share immutable glyph state across thousands of rendered characters.",
+    "structural",
+    "advanced",
+    ["flyweight"],
+    ["cache", "memory"],
+    { nodes: [], edges: [] },
+    70,
+  ),
+  tpl(
+    "extension-object",
+    "Extension Object · Plugin Shape",
+    "Add capabilities to a base shape without subclass explosion.",
+    "structural",
+    "advanced",
+    ["extension-object"],
+    ["plugin", "capability"],
+    { nodes: [], edges: [] },
+    80,
+  ),
+];
+
+// ── Behavioral (7) ──────────────────────────────────────────────
+
+const behavioral: NewLLDTemplatesLibraryEntry[] = [
+  tpl(
+    "strategy-sort",
+    "Strategy · Sort Algorithm",
+    "Swap sort strategies (quick/merge/heap) at runtime.",
+    "behavioral",
+    "beginner",
+    ["strategy"],
+    ["runtime-choice"],
+    { nodes: [], edges: [] },
+    10,
+  ),
+  tpl(
+    "observer-event-bus",
+    "Observer · Event Bus",
+    "Publish/subscribe with synchronous fan-out notification.",
+    "behavioral",
+    "beginner",
+    ["observer"],
+    ["pubsub", "events"],
+    { nodes: [], edges: [] },
+    20,
+  ),
+  tpl(
+    "command-editor",
+    "Command · Undoable Editor",
+    "Commands encapsulate edits so an editor can undo/redo.",
+    "behavioral",
+    "intermediate",
+    ["command"],
+    ["undo", "macro"],
+    { nodes: [], edges: [] },
+    30,
+  ),
+  tpl(
+    "state-vending-machine",
+    "State · Vending Machine",
+    "FSM for vending machine transitions (idle/paying/dispensing).",
+    "behavioral",
+    "intermediate",
+    ["state"],
+    ["fsm"],
+    { nodes: [], edges: [] },
+    40,
+  ),
+  tpl(
+    "iterator-collection",
+    "Iterator · Custom Collection",
+    "Expose traversal over a private tree/graph without leaking internals.",
+    "behavioral",
+    "intermediate",
+    ["iterator"],
+    ["traversal"],
+    { nodes: [], edges: [] },
+    50,
+  ),
+  tpl(
+    "chain-of-responsibility-auth",
+    "Chain of Responsibility · Auth Pipeline",
+    "Pipeline of auth handlers (jwt → quota → abuse) each deciding pass/block.",
+    "behavioral",
+    "advanced",
+    ["chain-of-responsibility"],
+    ["pipeline", "auth"],
+    { nodes: [], edges: [] },
+    60,
+  ),
+  tpl(
+    "visitor-ast",
+    "Visitor · AST Walker",
+    "Double-dispatch visitor traversing a compiler AST.",
+    "behavioral",
+    "advanced",
+    ["visitor"],
+    ["ast", "traverse"],
+    { nodes: [], edges: [] },
+    70,
+  ),
+];
+
+// ── Architecture (12) ───────────────────────────────────────────
+
+const architecture: NewLLDTemplatesLibraryEntry[] = [
+  tpl("layered-ecommerce", "Layered · E-commerce App", "Classic 4-layer (UI → service → domain → repo).", "architecture", "beginner", [], ["layered", "crud"], { nodes: [], edges: [] }, 10),
+  tpl("hexagonal-payments", "Hexagonal · Payments Core", "Ports and adapters isolating payment domain from providers.", "architecture", "intermediate", [], ["ports-and-adapters", "ddd"], { nodes: [], edges: [] }, 20),
+  tpl("clean-arch-booking", "Clean Architecture · Booking", "Entities / use-cases / interface-adapters / frameworks.", "architecture", "intermediate", [], ["clean", "ddd"], { nodes: [], edges: [] }, 30),
+  tpl("ddd-aggregate-cart", "DDD · Shopping Cart Aggregate", "Cart aggregate with line-item invariants and domain events.", "architecture", "advanced", [], ["ddd", "aggregate"], { nodes: [], edges: [] }, 40),
+  tpl("cqrs-orders", "CQRS · Order Service", "Split read model (denormalized) from write model (aggregate).", "architecture", "advanced", [], ["cqrs"], { nodes: [], edges: [] }, 50),
+  tpl("event-sourcing-wallet", "Event Sourcing · Wallet", "Immutable event log rebuilding wallet state.", "architecture", "advanced", [], ["event-sourcing"], { nodes: [], edges: [] }, 60),
+  tpl("mvc-cms", "MVC · Minimal CMS", "Classic MVC for a blog / CMS.", "architecture", "beginner", [], ["mvc"], { nodes: [], edges: [] }, 70),
+  tpl("mvvm-spa", "MVVM · SPA Dashboard", "View-model binding for a data-heavy dashboard.", "architecture", "intermediate", [], ["mvvm", "binding"], { nodes: [], edges: [] }, 80),
+  tpl("pipe-and-filter-etl", "Pipe & Filter · ETL Job", "Streaming filter pipeline for ingest → transform → load.", "architecture", "intermediate", [], ["pipeline", "streams"], { nodes: [], edges: [] }, 90),
+  tpl("onion-crm", "Onion · CRM Core", "Concentric layers with dependencies pointing inward.", "architecture", "intermediate", [], ["onion", "ddd"], { nodes: [], edges: [] }, 100),
+  tpl("plugin-ide", "Plugin · Mini-IDE", "Host shell loading plugins over a strict API contract.", "architecture", "advanced", [], ["plugin", "extensibility"], { nodes: [], edges: [] }, 110),
+  tpl("client-server-chat", "Client/Server · Chat", "Single-server chat with transport abstraction.", "architecture", "beginner", [], ["client-server"], { nodes: [], edges: [] }, 120),
+];
+
+// ── Microservices (12) ──────────────────────────────────────────
+
+const microservices: NewLLDTemplatesLibraryEntry[] = [
+  tpl("circuit-breaker", "Circuit Breaker · Downstream Guard", "State machine (closed/open/half-open) cutting off a failing dep.", "microservices", "intermediate", [], ["resilience"], { nodes: [], edges: [] }, 10),
+  tpl("saga-order", "Saga · Distributed Order Workflow", "Orchestrated saga with compensating transactions.", "microservices", "advanced", [], ["saga", "workflow"], { nodes: [], edges: [] }, 20),
+  tpl("outbox-publisher", "Outbox · Reliable Event Publish", "Transactional outbox pattern for reliable event publishing.", "microservices", "advanced", [], ["outbox", "events"], { nodes: [], edges: [] }, 30),
+  tpl("api-gateway", "API Gateway · Fan-out", "Single entrypoint routing and aggregating.", "microservices", "intermediate", [], ["gateway"], { nodes: [], edges: [] }, 40),
+  tpl("bff-mobile", "BFF · Mobile App", "Backend for frontend tailored to mobile needs.", "microservices", "intermediate", [], ["bff"], { nodes: [], edges: [] }, 50),
+  tpl("service-discovery", "Service Discovery · Client-Side", "Client-side discovery with a registry.", "microservices", "intermediate", [], ["discovery"], { nodes: [], edges: [] }, 60),
+  tpl("sidecar-proxy", "Sidecar · Envoy Proxy", "Sidecar handling TLS/retry/metrics for app container.", "microservices", "advanced", [], ["sidecar", "service-mesh"], { nodes: [], edges: [] }, 70),
+  tpl("bulkhead-orders", "Bulkhead · Resource Isolation", "Thread-pool isolation protecting critical paths.", "microservices", "advanced", [], ["bulkhead", "resilience"], { nodes: [], edges: [] }, 80),
+  tpl("strangler-migration", "Strangler Fig · Legacy Migration", "Incremental replacement of a legacy monolith.", "microservices", "intermediate", [], ["migration"], { nodes: [], edges: [] }, 90),
+  tpl("leader-election", "Leader Election · Scheduler", "Distributed lock-based leader election.", "microservices", "advanced", [], ["leader", "consensus"], { nodes: [], edges: [] }, 100),
+  tpl("cache-aside", "Cache-Aside · Product Catalog", "Read-through caching with TTL and invalidation.", "microservices", "beginner", [], ["cache"], { nodes: [], edges: [] }, 110),
+  tpl("rate-limiter", "Rate Limiter · Token Bucket", "Per-tenant token bucket at the edge.", "microservices", "intermediate", [], ["rate-limit"], { nodes: [], edges: [] }, 120),
+];
+
+// ── Data + AI (13) ──────────────────────────────────────────────
+
+const dataAndAi: NewLLDTemplatesLibraryEntry[] = [
+  tpl("repository-orders", "Repository · Order Store", "Collection abstraction over persistence layer.", "data", "beginner", [], ["persistence"], { nodes: [], edges: [] }, 10),
+  tpl("unit-of-work", "Unit of Work · Transactional Save", "Track changes and flush as one transaction.", "data", "intermediate", [], ["uow", "persistence"], { nodes: [], edges: [] }, 20),
+  tpl("data-mapper", "Data Mapper · ORM-Lite", "Objects in memory, mapper writes them to rows.", "data", "intermediate", [], ["orm"], { nodes: [], edges: [] }, 30),
+  tpl("active-record", "Active Record · Blog Post", "Object wraps table row; save() persists itself.", "data", "beginner", [], ["orm"], { nodes: [], edges: [] }, 40),
+  tpl("lambda-architecture", "Lambda · Batch + Speed", "Batch + speed layers merging at serving layer.", "data", "advanced", [], ["lambda", "big-data"], { nodes: [], edges: [] }, 50),
+  tpl("kappa-stream", "Kappa · Streaming Only", "Single streaming pipeline replacing lambda's dual-path.", "data", "advanced", [], ["kappa", "stream"], { nodes: [], edges: [] }, 60),
+  tpl("cdc-replication", "CDC · Change Data Capture", "Replicate upstream writes via CDC stream.", "data", "advanced", [], ["cdc", "replication"], { nodes: [], edges: [] }, 70),
+  tpl("ai-agent-loop", "AI Agent · Tool Loop", "Plan → call-tool → observe → repeat agent loop.", "ai", "intermediate", [], ["agent", "llm"], { nodes: [], edges: [] }, 10),
+  tpl("rag-pipeline", "RAG · Retrieval-Augmented Generation", "Embed → retrieve → prompt → generate pipeline.", "ai", "intermediate", [], ["rag", "embeddings"], { nodes: [], edges: [] }, 20),
+  tpl("vector-store-search", "Vector Store · Semantic Search", "Ingest pipeline and query API with reranker.", "ai", "advanced", [], ["vector", "search"], { nodes: [], edges: [] }, 30),
+  tpl("ai-streaming-chat", "AI · Streaming Chat", "Streaming token delivery with abort and retry.", "ai", "intermediate", [], ["stream", "llm"], { nodes: [], edges: [] }, 40),
+  tpl("ai-workflow-orchestrator", "AI · Workflow Orchestrator", "Structured DAG of LLM calls with retries.", "ai", "advanced", [], ["orchestration"], { nodes: [], edges: [] }, 50),
+  tpl("ai-evaluation-harness", "AI · Evaluation Harness", "Offline eval pipeline over a dataset.", "ai", "advanced", [], ["eval"], { nodes: [], edges: [] }, 60),
+];
+
+export const lldTemplatesLibrarySeed: NewLLDTemplatesLibraryEntry[] = [
+  ...creational,
+  ...structural,
+  ...behavioral,
+  ...architecture,
+  ...microservices,
+  ...dataAndAi,
+];
+
+// Sanity self-check: 8 + 8 + 7 + 12 + 12 + 13 = 60
+if (
+  process.env.NODE_ENV !== "production" &&
+  lldTemplatesLibrarySeed.length !== 60
+) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[lld-templates-library seed] expected 60 entries, got ${lldTemplatesLibrarySeed.length}`,
+  );
+}
+```
+
+- [ ] **Step 2: Register with the seed runner**
+
+Open `architex/scripts/seed.ts` (or the project's seed entrypoint). Add an import and a section block:
+
+```typescript
+import { lldTemplatesLibrarySeed } from "@/db/seeds/lld-templates-library";
+import { lldTemplatesLibrary } from "@/db/schema";
+
+// Inside the main seed function, add after existing sections:
+async function seedLldTemplatesLibrary(db: Database) {
+  console.log("[seed] lld_templates_library …");
+  for (const entry of lldTemplatesLibrarySeed) {
+    await db
+      .insert(lldTemplatesLibrary)
+      .values(entry)
+      .onConflictDoUpdate({
+        target: lldTemplatesLibrary.slug,
+        set: {
+          name: entry.name,
+          description: entry.description,
+          category: entry.category,
+          difficulty: entry.difficulty,
+          tags: entry.tags,
+          patternIds: entry.patternIds,
+          canvasState: entry.canvasState,
+          sortOrder: entry.sortOrder,
+          updatedAt: new Date(),
+        },
+      });
+  }
+  console.log(`[seed] lld_templates_library: ${lldTemplatesLibrarySeed.length} entries`);
+}
+
+// Then call it in the main seed pipeline.
+await seedLldTemplatesLibrary(db);
+```
+
+If `scripts/seed.ts` does not yet exist, create a minimal one that Drizzle can invoke via `pnpm db:seed` — check `architex/package.json` for the actual seed script name.
+
+- [ ] **Step 3: Run the seed**
+
+```bash
+cd architex
+pnpm db:seed
+```
+Expected: `lld_templates_library: 60 entries` in stdout.
+
+- [ ] **Step 4: Verify via Drizzle Studio**
+
+```bash
+pnpm db:studio
+```
+Open `lld_templates_library`. Confirm 60 rows, category distribution roughly even, no duplicates on `slug`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/db/seeds/lld-templates-library.ts architex/scripts/seed.ts
+git commit -m "feat(db): seed ~60 curated lld templates
+
+23 GoF patterns + 12 architecture blueprints + 12 microservice patterns
++ 13 data/AI starters. Seed is idempotent by slug so reruns are safe.
+Placeholder canvasState will be populated with real React Flow JSON
+in Task 7 via the template loader's import path.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 7: Create `GET /api/lld/templates-library` route
+
+**Files:**
+- Create: `architex/src/app/api/lld/templates-library/route.ts`
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/templates-library/route.ts`:
+
+```typescript
+/**
+ * GET /api/lld/templates-library
+ *
+ * Optional query params:
+ *   ?category=creational|structural|behavioral|architecture|microservices|data|ai
+ *   ?difficulty=beginner|intermediate|advanced
+ *   ?q=free-text (matches name + description + tags)
+ *
+ * Public (no auth required) — templates are not user-scoped.
+ * Response is cacheable with a stale-while-revalidate header.
+ */
+
+import { NextResponse } from "next/server";
+import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { getDb, lldTemplatesLibrary } from "@/db";
+
+const VALID_CATEGORIES = new Set([
+  "creational",
+  "structural",
+  "behavioral",
+  "architecture",
+  "microservices",
+  "data",
+  "ai",
+]);
+const VALID_DIFFICULTIES = new Set(["beginner", "intermediate", "advanced"]);
+
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const category = url.searchParams.get("category");
+    const difficulty = url.searchParams.get("difficulty");
+    const q = url.searchParams.get("q")?.trim();
+
+    const where = [] as unknown[];
+    if (category && VALID_CATEGORIES.has(category)) {
+      where.push(eq(lldTemplatesLibrary.category, category));
+    }
+    if (difficulty && VALID_DIFFICULTIES.has(difficulty)) {
+      where.push(eq(lldTemplatesLibrary.difficulty, difficulty));
+    }
+    if (q && q.length > 0) {
+      const like = `%${q.toLowerCase()}%`;
+      where.push(
+        or(
+          ilike(lldTemplatesLibrary.name, like),
+          ilike(lldTemplatesLibrary.description, like),
+          sql`${lldTemplatesLibrary.tags}::text ILIKE ${like}`,
+        ),
+      );
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(lldTemplatesLibrary)
+      .where(where.length > 0 ? and(...(where as [])) : undefined)
+      .orderBy(
+        asc(lldTemplatesLibrary.category),
+        asc(lldTemplatesLibrary.sortOrder),
+      )
+      .limit(200);
+
+    return NextResponse.json(
+      { templates: rows },
+      {
+        headers: {
+          "Cache-Control":
+            "public, max-age=300, s-maxage=600, stale-while-revalidate=86400",
+        },
+      },
+    );
+  } catch (error) {
+    console.error("[api/lld/templates-library] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 3: Manual smoke test**
+
+With dev server running:
+```bash
+curl -s "http://localhost:3000/api/lld/templates-library?category=creational" | jq '.templates | length'
+```
+Expected: `8` (creational seed count).
+
+```bash
+curl -s "http://localhost:3000/api/lld/templates-library?q=saga" | jq '.templates[0].slug'
+```
+Expected: `"saga-order"`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/app/api/lld/templates-library/route.ts
+git commit -m "feat(api): add GET /api/lld/templates-library
+
+Public listing with category / difficulty / free-text filters. ILIKE
+against name/description/tags. Cacheable with stale-while-revalidate
+(templates rarely change).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 8: Create designs + snapshots + annotations API routes
+
+**Files:**
+- Create: `architex/src/app/api/lld/designs/route.ts`
+- Create: `architex/src/app/api/lld/designs/[id]/route.ts`
+- Create: `architex/src/app/api/lld/designs/[id]/snapshots/route.ts`
+- Create: `architex/src/app/api/lld/designs/[id]/annotations/route.ts`
+
+- [ ] **Step 1: POST + GET on the collection**
+
+Create `architex/src/app/api/lld/designs/route.ts`:
+
+```typescript
+/**
+ * POST /api/lld/designs           — create a new design
+ * GET  /api/lld/designs           — list the user's designs (?status=active|archived)
+ */
+
+import { NextResponse } from "next/server";
+import { and, desc, eq } from "drizzle-orm";
+import { getDb, lldDesigns } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 120);
+}
+
+export async function POST(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      name?: string;
+      description?: string;
+      templateId?: string;
+    };
+
+    if (!body.name || typeof body.name !== "string" || body.name.length > 160) {
+      return NextResponse.json(
+        { error: "name is required (<=160 chars)" },
+        { status: 400 },
+      );
+    }
+
+    const slugBase = slugify(body.name) || "untitled";
+    // Append 6 random chars to avoid collisions on rapid re-creation.
+    const slug = `${slugBase}-${crypto.randomUUID().slice(0, 6)}`;
+
+    const db = getDb();
+    const [created] = await db
+      .insert(lldDesigns)
+      .values({
+        userId,
+        name: body.name,
+        slug,
+        description: body.description?.slice(0, 2000) ?? null,
+        templateId: body.templateId ?? null,
+      })
+      .returning();
+
+    return NextResponse.json({ design: created }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const url = new URL(request.url);
+    const status = url.searchParams.get("status") ?? "active";
+
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(lldDesigns)
+      .where(
+        and(
+          eq(lldDesigns.userId, userId),
+          eq(lldDesigns.status, status === "archived" ? "archived" : "active"),
+        ),
+      )
+      .orderBy(desc(lldDesigns.lastOpenedAt))
+      .limit(100);
+
+    return NextResponse.json({ designs: rows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: GET / PATCH / DELETE on a single design**
+
+Create `architex/src/app/api/lld/designs/[id]/route.ts`:
+
+```typescript
+/**
+ * GET    /api/lld/designs/[id]  — fetch a single design
+ * PATCH  /api/lld/designs/[id]  — rename / archive / pin / describe
+ * DELETE /api/lld/designs/[id]  — cascade delete (snapshots + annotations)
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { getDb, lldDesigns } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+async function authScope(
+  params: Promise<{ id: string }>,
+): Promise<
+  | { error: NextResponse }
+  | { id: string; userId: string }
+> {
+  const { id } = await params;
+  const clerkId = await requireAuth();
+  const userId = await resolveUserId(clerkId);
+  if (!userId) {
+    return {
+      error: NextResponse.json({ error: "User not found" }, { status: 404 }),
+    };
+  }
+  return { id, userId };
+}
+
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const scope = await authScope(ctx.params);
+    if ("error" in scope) return scope.error;
+    const { id, userId } = scope;
+
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(lldDesigns)
+      .where(and(eq(lldDesigns.id, id), eq(lldDesigns.userId, userId)))
+      .limit(1);
+
+    if (!row) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Bump lastOpenedAt for "recent" ordering.
+    await db
+      .update(lldDesigns)
+      .set({ lastOpenedAt: new Date() })
+      .where(eq(lldDesigns.id, id));
+
+    return NextResponse.json({ design: row });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs/:id] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const scope = await authScope(ctx.params);
+    if ("error" in scope) return scope.error;
+    const { id, userId } = scope;
+
+    const body = (await request.json().catch(() => ({}))) as {
+      name?: string;
+      description?: string;
+      status?: "active" | "archived" | "draft";
+      isPinned?: boolean;
+    };
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (typeof body.name === "string" && body.name.length > 0) {
+      updates.name = body.name.slice(0, 160);
+    }
+    if (typeof body.description === "string") {
+      updates.description = body.description.slice(0, 2000);
+    }
+    if (body.status && ["active", "archived", "draft"].includes(body.status)) {
+      updates.status = body.status;
+    }
+    if (typeof body.isPinned === "boolean") {
+      updates.isPinned = body.isPinned;
+    }
+
+    const db = getDb();
+    const [updated] = await db
+      .update(lldDesigns)
+      .set(updates)
+      .where(and(eq(lldDesigns.id, id), eq(lldDesigns.userId, userId)))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ design: updated });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs/:id] PATCH error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const scope = await authScope(ctx.params);
+    if ("error" in scope) return scope.error;
+    const { id, userId } = scope;
+
+    const db = getDb();
+    const deleted = await db
+      .delete(lldDesigns)
+      .where(and(eq(lldDesigns.id, id), eq(lldDesigns.userId, userId)))
+      .returning({ id: lldDesigns.id });
+
+    if (deleted.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs/:id] DELETE error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Snapshots collection**
+
+Create `architex/src/app/api/lld/designs/[id]/snapshots/route.ts`:
+
+```typescript
+/**
+ * POST /api/lld/designs/[id]/snapshots  — append a new snapshot
+ * GET  /api/lld/designs/[id]/snapshots  — list (newest first, limit 100)
+ */
+
+import { NextResponse } from "next/server";
+import { and, desc, eq } from "drizzle-orm";
+import { getDb, lldDesignSnapshots, lldDesigns } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+export async function POST(
+  request: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await ctx.params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      canvasState?: Record<string, unknown>;
+      label?: string;
+      note?: string;
+      kind?: "auto" | "named";
+      nodeCount?: number;
+      edgeCount?: number;
+    };
+
+    if (!body.canvasState || typeof body.canvasState !== "object") {
+      return NextResponse.json(
+        { error: "canvasState required" },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+
+    // Verify ownership before writing.
+    const [owned] = await db
+      .select({ id: lldDesigns.id })
+      .from(lldDesigns)
+      .where(and(eq(lldDesigns.id, id), eq(lldDesigns.userId, userId)))
+      .limit(1);
+    if (!owned) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const [created] = await db
+      .insert(lldDesignSnapshots)
+      .values({
+        designId: id,
+        userId,
+        kind: body.kind === "named" ? "named" : "auto",
+        label: body.label?.slice(0, 200) ?? null,
+        note: body.note?.slice(0, 4000) ?? null,
+        canvasState: body.canvasState,
+        nodeCount: body.nodeCount ?? 0,
+        edgeCount: body.edgeCount ?? 0,
+      })
+      .returning();
+
+    // Touch parent updatedAt so list ordering surfaces recently-edited designs.
+    await db
+      .update(lldDesigns)
+      .set({ updatedAt: new Date() })
+      .where(eq(lldDesigns.id, id));
+
+    return NextResponse.json({ snapshot: created }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs/:id/snapshots] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await ctx.params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(lldDesignSnapshots)
+      .where(
+        and(
+          eq(lldDesignSnapshots.designId, id),
+          eq(lldDesignSnapshots.userId, userId),
+        ),
+      )
+      .orderBy(desc(lldDesignSnapshots.createdAt))
+      .limit(100);
+
+    return NextResponse.json({ snapshots: rows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs/:id/snapshots] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Annotations collection**
+
+Create `architex/src/app/api/lld/designs/[id]/annotations/route.ts`:
+
+```typescript
+/**
+ * GET  /api/lld/designs/[id]/annotations  — list
+ * POST /api/lld/designs/[id]/annotations  — create one or bulk upsert
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { getDb, lldDesignAnnotations, lldDesigns } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_KINDS = new Set(["sticky-note", "arrow", "circle", "text"]);
+
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await ctx.params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(lldDesignAnnotations)
+      .where(
+        and(
+          eq(lldDesignAnnotations.designId, id),
+          eq(lldDesignAnnotations.userId, userId),
+        ),
+      )
+      .limit(500);
+    return NextResponse.json({ annotations: rows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs/:id/annotations] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(
+  request: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await ctx.params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      kind?: string;
+      nodeId?: string | null;
+      x?: number;
+      y?: number;
+      body?: string;
+      color?: string;
+      meta?: Record<string, unknown>;
+    };
+
+    const kind = VALID_KINDS.has(body.kind ?? "") ? body.kind! : "sticky-note";
+
+    // Verify ownership.
+    const db = getDb();
+    const [owned] = await db
+      .select({ id: lldDesigns.id })
+      .from(lldDesigns)
+      .where(and(eq(lldDesigns.id, id), eq(lldDesigns.userId, userId)))
+      .limit(1);
+    if (!owned) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const [created] = await db
+      .insert(lldDesignAnnotations)
+      .values({
+        designId: id,
+        userId,
+        kind,
+        nodeId: body.nodeId ?? null,
+        x: typeof body.x === "number" ? body.x : 0,
+        y: typeof body.y === "number" ? body.y : 0,
+        body: (body.body ?? "").slice(0, 2000),
+        color: (body.color ?? "amber").slice(0, 20),
+        meta: body.meta ?? {},
+      })
+      .returning();
+
+    return NextResponse.json({ annotation: created }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/designs/:id/annotations] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 5: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/app/api/lld/designs architex/src/app/api/lld/designs/\[id\] architex/src/app/api/lld/designs/\[id\]/snapshots architex/src/app/api/lld/designs/\[id\]/annotations
+git commit -m "feat(api): add LLD designs + snapshots + annotations routes
+
+POST  /api/lld/designs                                  — create
+GET   /api/lld/designs?status=active|archived           — list
+GET   /api/lld/designs/:id                              — fetch + bump lastOpenedAt
+PATCH /api/lld/designs/:id                              — rename/archive/pin
+DEL   /api/lld/designs/:id                              — cascade delete
+POST  /api/lld/designs/:id/snapshots                    — append
+GET   /api/lld/designs/:id/snapshots                    — list
+GET   /api/lld/designs/:id/annotations                  — list
+POST  /api/lld/designs/:id/annotations                  — create
+
+All routes scope queries to the authenticated user and verify ownership
+before any write.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
+
+---
