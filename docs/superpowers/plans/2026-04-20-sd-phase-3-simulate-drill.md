@@ -3750,3 +3750,650 @@ EOF
 ```
 
 ---
+
+## Task 8: Author `chaos-dice.ts` — weighted-random event picker
+
+**Files:**
+- Create: `architex/src/lib/chaos/chaos-dice.ts`
+- Create: `architex/src/lib/chaos/__tests__/chaos-dice.test.ts`
+
+Chaos dice (§12.4.2) is the "random event picker" mode. Every 45 sim-seconds, the dice roll a new event from the 73-event taxonomy, weighted by the canvas's exposed surface area. If the canvas has a Redis cache node, cache-stampede is more likely than, say, BGP route leak. If there's no external dependency, third-party-API-down has zero weight.
+
+Weighting is computed from `CanvasSnapshot.nodes[].family`:
+
+- Each event has a `canvasFamilies: CanvasFamily[]` (Task 5).
+- An event's weight = sum of exposed-surface-weight for each matching canvas node / total-surface.
+- Events whose canvasFamilies do not overlap with the canvas are excluded.
+- Events with `severity: "critical"` get a 0.5× dampener (critical events are rarer; 5/10/20% of the roll weight depending on user's mastery level).
+
+- [ ] **Step 1: Red test**
+
+Create `architex/src/lib/chaos/__tests__/chaos-dice.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import { rollChaosDice, computeEventWeights } from "../chaos-dice";
+import type { CanvasSnapshot } from "../chaos-dice";
+
+const redisCacheCanvas: CanvasSnapshot = {
+  nodes: [
+    { id: "api", family: "stateless-service" },
+    { id: "redis", family: "cache" },
+    { id: "pg", family: "database" },
+  ],
+  edges: [
+    { id: "e1", from: "api", to: "redis" },
+    { id: "e2", from: "redis", to: "pg" },
+  ],
+};
+
+const emptyCanvas: CanvasSnapshot = { nodes: [], edges: [] };
+
+describe("chaos-dice", () => {
+  it("computeEventWeights excludes events with no matching canvas family", () => {
+    const weights = computeEventWeights(redisCacheCanvas, { rookieMode: false });
+    // BGP leak requires cdn/load-balancer/dns — not on this canvas.
+    expect(weights["bgp-route-leak"]).toBeUndefined();
+  });
+
+  it("computeEventWeights favors events that match canvas families", () => {
+    const weights = computeEventWeights(redisCacheCanvas, { rookieMode: false });
+    // Cache stampede should have weight > 0 because canvas has both cache + db.
+    expect(weights["cache-stampede"]).toBeGreaterThan(0);
+    expect(weights["hot-partition"]).toBeGreaterThan(0);
+  });
+
+  it("rollChaosDice on empty canvas returns null", () => {
+    const roll = rollChaosDice(emptyCanvas, { rookieMode: false, seed: 42 });
+    expect(roll).toBeNull();
+  });
+
+  it("rollChaosDice is deterministic given the same seed", () => {
+    const a = rollChaosDice(redisCacheCanvas, { rookieMode: false, seed: 123 });
+    const b = rollChaosDice(redisCacheCanvas, { rookieMode: false, seed: 123 });
+    expect(a?.eventId).toBe(b?.eventId);
+  });
+
+  it("rookieMode dampens critical events", () => {
+    // Roll 1000 times with varying seeds; count how many are critical.
+    let criticalCount = 0;
+    for (let seed = 0; seed < 1000; seed++) {
+      const roll = rollChaosDice(redisCacheCanvas, { rookieMode: true, seed });
+      if (roll && roll.severity === "critical") criticalCount++;
+    }
+    // With 0.5x dampener, critical events should be < 15% of rolls.
+    expect(criticalCount).toBeLessThan(150);
+  });
+});
+```
+
+- [ ] **Step 2: Green · implement `chaos-dice.ts`**
+
+```typescript
+/**
+ * CHAOS-004: Chaos dice — weighted-random event picker.
+ *
+ * Rolls events from the taxonomy weighted by:
+ *   1. Whether the event's canvasFamilies overlap with the user's canvas
+ *   2. A severity dampener (criticals rarer, especially in rookieMode)
+ *
+ * Deterministic: given the same canvas + options + seed, produces the
+ * same roll. Used in the chaos-dice control mode (§12.4.2) to fire a
+ * random event every 45 sim-seconds.
+ */
+
+import { CHAOS_TAXONOMY, type ChaosEventDef, type CanvasFamily } from "./chaos-taxonomy";
+
+export interface CanvasSnapshotNode {
+  id: string;
+  family: CanvasFamily;
+}
+
+export interface CanvasSnapshotEdge {
+  id: string;
+  from: string;
+  to: string;
+}
+
+export interface CanvasSnapshot {
+  nodes: CanvasSnapshotNode[];
+  edges: CanvasSnapshotEdge[];
+}
+
+export interface ChaosDiceOptions {
+  rookieMode: boolean;
+  seed: number;
+}
+
+export interface ChaosDiceRoll {
+  eventId: ChaosEventDef["id"];
+  targetNodeId: string | null;
+  severity: ChaosEventDef["severity"];
+  weight: number;
+}
+
+// Simple Mulberry32 PRNG · deterministic given seed
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function severityMultiplier(
+  severity: ChaosEventDef["severity"],
+  rookieMode: boolean,
+): number {
+  const base: Record<ChaosEventDef["severity"], number> = {
+    low: 1.0,
+    medium: 1.0,
+    high: 0.8,
+    critical: 0.5,
+  };
+  let m = base[severity];
+  if (rookieMode && severity === "critical") m *= 0.3;  // rookie extra dampener
+  if (rookieMode && severity === "high") m *= 0.6;
+  return m;
+}
+
+export function computeEventWeights(
+  canvas: CanvasSnapshot,
+  opts: { rookieMode: boolean },
+): Record<string, number> {
+  const familyCounts = new Map<CanvasFamily, number>();
+  for (const n of canvas.nodes) {
+    familyCounts.set(n.family, (familyCounts.get(n.family) ?? 0) + 1);
+  }
+
+  const weights: Record<string, number> = {};
+  for (const ev of CHAOS_TAXONOMY) {
+    let surface = 0;
+    for (const fam of ev.canvasFamilies) {
+      surface += familyCounts.get(fam) ?? 0;
+    }
+    if (surface === 0) continue;
+    const mult = severityMultiplier(ev.severity, opts.rookieMode);
+    weights[ev.id] = surface * mult;
+  }
+  return weights;
+}
+
+export function rollChaosDice(
+  canvas: CanvasSnapshot,
+  opts: ChaosDiceOptions,
+): ChaosDiceRoll | null {
+  const weights = computeEventWeights(canvas, { rookieMode: opts.rookieMode });
+  const entries = Object.entries(weights);
+  if (entries.length === 0) return null;
+
+  const total = entries.reduce((s, [, w]) => s + w, 0);
+  if (total === 0) return null;
+
+  const rand = mulberry32(opts.seed);
+  let r = rand() * total;
+  for (const [id, w] of entries) {
+    if ((r -= w) <= 0) {
+      const ev = CHAOS_TAXONOMY.find((e) => e.id === id)!;
+      // Pick a target node of a matching family
+      const matching = canvas.nodes.filter((n) =>
+        ev.canvasFamilies.includes(n.family),
+      );
+      const targetNode = matching.length > 0
+        ? matching[Math.floor(rand() * matching.length)]
+        : null;
+      return {
+        eventId: ev.id,
+        targetNodeId: targetNode?.id ?? null,
+        severity: ev.severity,
+        weight: w,
+      };
+    }
+  }
+  // Fallback (should be unreachable if total > 0)
+  const fallback = CHAOS_TAXONOMY.find((e) => e.id === entries[0][0])!;
+  return {
+    eventId: fallback.id,
+    targetNodeId: null,
+    severity: fallback.severity,
+    weight: entries[0][1],
+  };
+}
+```
+
+- [ ] **Step 3: Run tests (green)**
+
+```bash
+cd architex
+pnpm test:run -- chaos-dice
+```
+Expected: all 5 tests pass. If the "rookieMode dampens critical events" test fails, tune the `severityMultiplier` coefficients — the test bound is 15%, which corresponds to a ~0.15 aggregate dampener when there are 4 severity bands.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/lib/chaos/chaos-dice.ts architex/src/lib/chaos/__tests__/chaos-dice.test.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): weighted-random event picker (chaos-dice)
+
+Rolls events from the 73-event taxonomy weighted by canvas surface
+area and severity dampener. Deterministic (Mulberry32 seed). Rookie-
+mode dampener reduces criticals by 70% and highs by 40% for first-time
+users. Picks a target node within matching canvas families. Used in
+the chaos-dice control mode (§12.4.2) every 45 sim-seconds.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 9: Author `chaos-budget-engine.ts` — SLO-budget tracker
+
+**Files:**
+- Create: `architex/src/lib/chaos/chaos-budget-engine.ts`
+- Create: `architex/src/lib/chaos/__tests__/chaos-budget-engine.test.ts`
+
+Chaos Budget mode (§12.4.4, §12.7) lets the user specify an error budget in SLO-minutes ("tolerate 2 minutes of SLO breach"). The engine fires events that consume the budget — small events first, larger if the canvas recovers quickly. When the budget is exhausted, a margin card fires and no more events fire.
+
+Budget state is tracked per run: `{ totalMinutes, remainingMinutes, events[] }`. Each fired event deducts its estimated SLO impact (a lookup from the event def × 0.3-3.0 amplifier per canvas vulnerability). The engine stops firing when `remainingMinutes <= 0`.
+
+- [ ] **Step 1: Red test**
+
+Create `architex/src/lib/chaos/__tests__/chaos-budget-engine.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import {
+  createBudgetState,
+  deductBudget,
+  isBudgetExhausted,
+  estimateEventImpactMinutes,
+  pickNextBudgetEvent,
+} from "../chaos-budget-engine";
+import type { CanvasSnapshot } from "../chaos-dice";
+
+const canvas: CanvasSnapshot = {
+  nodes: [
+    { id: "api", family: "stateless-service" },
+    { id: "redis", family: "cache" },
+    { id: "pg", family: "database" },
+  ],
+  edges: [],
+};
+
+describe("chaos-budget-engine", () => {
+  it("createBudgetState seeds remaining = total", () => {
+    const s = createBudgetState(5);
+    expect(s.totalMinutes).toBe(5);
+    expect(s.remainingMinutes).toBe(5);
+    expect(s.events).toHaveLength(0);
+  });
+
+  it("estimateEventImpactMinutes returns positive minutes", () => {
+    const m = estimateEventImpactMinutes("cache-stampede", canvas);
+    expect(m).toBeGreaterThan(0);
+  });
+
+  it("deductBudget reduces remaining and logs the event", () => {
+    let s = createBudgetState(5);
+    s = deductBudget(s, { eventId: "cache-stampede", impactMinutes: 1.5 });
+    expect(s.remainingMinutes).toBeCloseTo(3.5, 3);
+    expect(s.events).toHaveLength(1);
+  });
+
+  it("isBudgetExhausted fires at zero", () => {
+    let s = createBudgetState(1);
+    s = deductBudget(s, { eventId: "cache-stampede", impactMinutes: 1.5 });
+    expect(isBudgetExhausted(s)).toBe(true);
+  });
+
+  it("pickNextBudgetEvent picks a small event when budget is low", () => {
+    const low = createBudgetState(0.3);
+    const pick = pickNextBudgetEvent(low, canvas, 999);
+    if (pick) {
+      const impact = estimateEventImpactMinutes(pick.eventId, canvas);
+      expect(impact).toBeLessThanOrEqual(0.3);
+    }
+  });
+
+  it("pickNextBudgetEvent returns null at exhaustion", () => {
+    const s = deductBudget(createBudgetState(1), {
+      eventId: "cache-stampede",
+      impactMinutes: 2,
+    });
+    expect(pickNextBudgetEvent(s, canvas, 0)).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 2: Green · implement `chaos-budget-engine.ts`**
+
+```typescript
+/**
+ * CHAOS-005: SLO error-budget tracker for chaos-budget mode (§12.4.4).
+ *
+ * User sets a budget in minutes; the engine picks events whose combined
+ * impact consumes it. Impact per event is estimated from the event's
+ * severity + canvas's protection surface (e.g. a cache-stampede costs
+ * fewer minutes if the canvas has a circuit breaker on the backend).
+ */
+
+import { CHAOS_TAXONOMY, type ChaosEventDef } from "./chaos-taxonomy";
+import type { CanvasSnapshot } from "./chaos-dice";
+
+export interface BudgetEvent {
+  eventId: ChaosEventDef["id"];
+  impactMinutes: number;
+  firedAtSimMs?: number;
+}
+
+export interface BudgetState {
+  totalMinutes: number;
+  remainingMinutes: number;
+  events: BudgetEvent[];
+}
+
+export function createBudgetState(totalMinutes: number): BudgetState {
+  return {
+    totalMinutes,
+    remainingMinutes: totalMinutes,
+    events: [],
+  };
+}
+
+export function deductBudget(
+  state: BudgetState,
+  event: BudgetEvent,
+): BudgetState {
+  return {
+    ...state,
+    remainingMinutes: state.remainingMinutes - event.impactMinutes,
+    events: [...state.events, event],
+  };
+}
+
+export function isBudgetExhausted(state: BudgetState): boolean {
+  return state.remainingMinutes <= 0;
+}
+
+const SEVERITY_BASE_MINUTES: Record<ChaosEventDef["severity"], number> = {
+  low: 0.1,
+  medium: 0.5,
+  high: 1.5,
+  critical: 3.0,
+};
+
+export function estimateEventImpactMinutes(
+  eventId: ChaosEventDef["id"],
+  canvas: CanvasSnapshot,
+): number {
+  const ev = CHAOS_TAXONOMY.find((e) => e.id === eventId);
+  if (!ev) return 0;
+  const base = SEVERITY_BASE_MINUTES[ev.severity];
+
+  // Canvas protection surface: if the canvas has a node family that
+  // maps to the event's protectingConcept's family, dampen the impact.
+  const canvasFamilies = new Set(canvas.nodes.map((n) => n.family));
+  let dampener = 1.0;
+  if (ev.protectingConcept && canvasFamilies.has("load-balancer")) dampener *= 0.7;
+  if (ev.protectingConcept && canvasFamilies.has("cache")) dampener *= 0.85;
+  if (ev.protectingConcept && canvasFamilies.has("monitor")) dampener *= 0.9;
+  return base * dampener;
+}
+
+export function pickNextBudgetEvent(
+  state: BudgetState,
+  canvas: CanvasSnapshot,
+  seed: number,
+): BudgetEvent | null {
+  if (isBudgetExhausted(state)) return null;
+  const candidates = CHAOS_TAXONOMY
+    .filter((ev) => {
+      const canvasFams = new Set(canvas.nodes.map((n) => n.family));
+      return ev.canvasFamilies.some((f) => canvasFams.has(f));
+    })
+    .map((ev) => ({
+      eventId: ev.id,
+      impactMinutes: estimateEventImpactMinutes(ev.id, canvas),
+    }))
+    .filter((c) => c.impactMinutes > 0 && c.impactMinutes <= state.remainingMinutes);
+
+  if (candidates.length === 0) return null;
+
+  const idx = seed % candidates.length;
+  return candidates[idx];
+}
+```
+
+- [ ] **Step 3: Run tests (green) + commit**
+
+```bash
+cd architex
+pnpm test:run -- chaos-budget-engine
+git add architex/src/lib/chaos/chaos-budget-engine.ts architex/src/lib/chaos/__tests__/chaos-budget-engine.test.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): SLO error-budget tracker for chaos-budget control mode
+
+User-configured budget in SLO-minutes; engine picks events whose
+combined impact consumes it. Impact estimate per event uses severity-
+base minutes × canvas-protection-surface dampener (load-balancer 0.7,
+cache 0.85, monitor 0.9). Budget state: totalMinutes, remainingMinutes,
+events[]. API: createBudgetState · deductBudget · isBudgetExhausted ·
+estimateEventImpactMinutes · pickNextBudgetEvent.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 10: Author `auto-escalation.ts` — recovery-watch state machine
+
+**Files:**
+- Create: `architex/src/lib/chaos/auto-escalation.ts`
+- Create: `architex/src/lib/chaos/__tests__/auto-escalation.test.ts`
+
+Auto-escalation mode (§12.4.5) fires a small event, watches recovery, and escalates if recovery succeeded. Teaches the user to think about cascade amplification: "I survived the cache stampede; now here's a cache stampede during a rate-limiter saturation."
+
+State machine:
+- `idle` → fire small event → `watching`
+- `watching` + recovery within 30 sim-seconds → `escalating` (compound event)
+- `watching` + no recovery → `cooldown` (60s pause, then re-fire same severity)
+- `escalating` → fire next event → `watching` (loop)
+- After 3 escalations → `saturated` (stop)
+
+- [ ] **Step 1: Red test**
+
+Create `architex/src/lib/chaos/__tests__/auto-escalation.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import {
+  createEscalationState,
+  advanceState,
+  pickEventForState,
+} from "../auto-escalation";
+import type { CanvasSnapshot } from "../chaos-dice";
+
+const canvas: CanvasSnapshot = {
+  nodes: [
+    { id: "api", family: "stateless-service" },
+    { id: "cache", family: "cache" },
+    { id: "db", family: "database" },
+  ],
+  edges: [],
+};
+
+describe("auto-escalation", () => {
+  it("createEscalationState starts idle", () => {
+    const s = createEscalationState();
+    expect(s.phase).toBe("idle");
+    expect(s.escalationCount).toBe(0);
+  });
+
+  it("idle → watching on fire", () => {
+    const s = createEscalationState();
+    const next = advanceState(s, { kind: "event-fired" });
+    expect(next.phase).toBe("watching");
+  });
+
+  it("watching → escalating on recovery", () => {
+    const s = { ...createEscalationState(), phase: "watching" as const };
+    const next = advanceState(s, { kind: "recovery-observed" });
+    expect(next.phase).toBe("escalating");
+    expect(next.escalationCount).toBe(1);
+  });
+
+  it("watching → cooldown on timeout", () => {
+    const s = { ...createEscalationState(), phase: "watching" as const };
+    const next = advanceState(s, { kind: "recovery-timeout" });
+    expect(next.phase).toBe("cooldown");
+  });
+
+  it("3 escalations → saturated", () => {
+    let s = { ...createEscalationState(), phase: "escalating" as const, escalationCount: 3 };
+    const next = advanceState(s, { kind: "event-fired" });
+    expect(next.phase).toBe("saturated");
+  });
+
+  it("pickEventForState returns low severity in idle", () => {
+    const s = createEscalationState();
+    const ev = pickEventForState(s, canvas, 123);
+    if (ev) expect(["low", "medium"]).toContain(ev.severity);
+  });
+
+  it("pickEventForState returns high+ severity while escalating", () => {
+    const s = { ...createEscalationState(), phase: "escalating" as const, escalationCount: 2 };
+    const ev = pickEventForState(s, canvas, 123);
+    if (ev) expect(["high", "critical"]).toContain(ev.severity);
+  });
+});
+```
+
+- [ ] **Step 2: Green · implement `auto-escalation.ts`**
+
+```typescript
+/**
+ * CHAOS-006: Auto-escalation state machine (§12.4.5).
+ *
+ * Fire small event → watch recovery → escalate if recovery succeeded.
+ * After 3 escalations, saturated. Teaches cascade-amplification
+ * intuition: "a system that shrugs off a cache stampede may not shrug
+ * off a cache stampede + rate-limit saturation."
+ */
+
+import { CHAOS_TAXONOMY, type ChaosEventDef } from "./chaos-taxonomy";
+import type { CanvasSnapshot } from "./chaos-dice";
+
+export type EscalationPhase =
+  | "idle"
+  | "watching"
+  | "escalating"
+  | "cooldown"
+  | "saturated";
+
+export interface EscalationState {
+  phase: EscalationPhase;
+  escalationCount: number;
+  lastEventAtSimMs: number;
+}
+
+export type EscalationEvent =
+  | { kind: "event-fired" }
+  | { kind: "recovery-observed" }
+  | { kind: "recovery-timeout" }
+  | { kind: "cooldown-elapsed" };
+
+export function createEscalationState(): EscalationState {
+  return { phase: "idle", escalationCount: 0, lastEventAtSimMs: 0 };
+}
+
+export function advanceState(
+  state: EscalationState,
+  ev: EscalationEvent,
+): EscalationState {
+  switch (state.phase) {
+    case "idle":
+      if (ev.kind === "event-fired") {
+        return { ...state, phase: "watching" };
+      }
+      return state;
+    case "watching":
+      if (ev.kind === "recovery-observed") {
+        return { ...state, phase: "escalating", escalationCount: state.escalationCount + 1 };
+      }
+      if (ev.kind === "recovery-timeout") {
+        return { ...state, phase: "cooldown" };
+      }
+      return state;
+    case "escalating":
+      if (state.escalationCount >= 3 && ev.kind === "event-fired") {
+        return { ...state, phase: "saturated" };
+      }
+      if (ev.kind === "event-fired") {
+        return { ...state, phase: "watching" };
+      }
+      return state;
+    case "cooldown":
+      if (ev.kind === "cooldown-elapsed") {
+        return { ...state, phase: "watching" };
+      }
+      return state;
+    case "saturated":
+      return state;
+  }
+}
+
+export function pickEventForState(
+  state: EscalationState,
+  canvas: CanvasSnapshot,
+  seed: number,
+): ChaosEventDef | null {
+  const canvasFams = new Set(canvas.nodes.map((n) => n.family));
+  let targetSeverities: ChaosEventDef["severity"][];
+  if (state.phase === "escalating" && state.escalationCount >= 2) {
+    targetSeverities = ["high", "critical"];
+  } else if (state.phase === "escalating" || state.phase === "watching") {
+    targetSeverities = ["medium", "high"];
+  } else {
+    targetSeverities = ["low", "medium"];
+  }
+
+  const candidates = CHAOS_TAXONOMY.filter(
+    (ev) =>
+      targetSeverities.includes(ev.severity) &&
+      ev.canvasFamilies.some((f) => canvasFams.has(f)),
+  );
+  if (candidates.length === 0) return null;
+  return candidates[seed % candidates.length];
+}
+```
+
+- [ ] **Step 3: Run tests (green) + commit**
+
+```bash
+cd architex
+pnpm test:run -- auto-escalation
+git add architex/src/lib/chaos/auto-escalation.ts architex/src/lib/chaos/__tests__/auto-escalation.test.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): auto-escalation state machine (idle → watching → escalating)
+
+5-phase FSM for escalation control mode (§12.4.5): idle → event-fired
+→ watching → recovery-observed → escalating → event-fired → watching
+→ ... escalationCount caps at 3, then saturated. Severity ladder:
+low/medium in idle, medium/high while watching, high/critical after
+2+ escalations. Event-picker filters taxonomy by phase and canvas
+family overlap.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
