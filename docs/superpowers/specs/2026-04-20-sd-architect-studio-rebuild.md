@@ -1046,6 +1046,142 @@ Layering pedagogy on top is additive: the coach (Haiku) consumes `metrics-collec
 
 ---
 
+## 9. Mode Deep-Dive · Drill
+
+> "A real interview has phases. Train the phases, not just the answers."
+
+### 9.1 Purpose
+
+Drill mode is the gated mock interview. The user picks a problem (and optionally a company preset or interviewer persona), enters the 5-stage clock, and designs the system under timer pressure. At end of run, they receive a 6-axis rubric, an AI postmortem, and 7 other artifacts (Q21). Drill is the mode Architects live in.
+
+### 9.2 Layout
+
+3-region desktop layout with a persistent timer bar at the top.
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│  TIMER BAR (always visible): Stage 2 of 5 · 04:21 / 05:00      │
+├──────────┬────────────────────────────────┬───────────────────┤
+│  Problem │         Canvas                  │  Interviewer      │
+│  statement│                                 │  pane             │
+│          │   · same ReactFlow engine       │                   │
+│          │                                  │   · persona       │
+│          │                                  │     avatar        │
+│          │                                  │   · chat stream   │
+│  · prompt│                                  │     (Sonnet live) │
+│  · SLOs  │                                  │   · hint credits  │
+│  · scope │                                  │                   │
+│          │                                  │                   │
+├──────────┴────────────────────────────────┴───────────────────┤
+│  Submit bar · Give up · Request hint · Stage-check             │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### 9.3 The 5-stage gated clock (Q17)
+
+The signature feature. The interview is enforced in 5 phases:
+
+| # | Stage | Duration | Allowed actions |
+|---|---|---|---|
+| 1 | **Clarify** | 5 min | Ask questions via typed chat; write "requirements" notes; no canvas editing yet |
+| 2 | **Estimate** | 5 min | Napkin math; fill a structured estimate form (QPS, storage, bandwidth); minimal canvas (you can draft high-level boxes) |
+| 3 | **Design** | 15 min | Canvas editing enabled; add node families; draw edges; define key APIs |
+| 4 | **Deep Dive** | 15 min | Interviewer asks 2-3 focused questions (e.g. "how does your cache invalidate when writes happen?"). User modifies canvas to address. |
+| 5 | **Q&A** | 5 min | Final questions. User asks the interviewer about their team, tradeoffs, etc. Cosmetic but graded. |
+
+Total: 45 minutes. The timer advances stage-by-stage automatically. The user can call a stage "done" early with ⇧↵; remaining time banks to next stage only in **Coach** mode. In **Timed Mock** and **Exam**, unused time is forfeit (enforcing realism).
+
+Stage transitions trigger a 600ms curtain animation across the canvas. The new stage label slides in from the right. The interviewer persona's chat gains a one-line stage-transition prompt ("Let's move on to the design phase. Start with a rough architecture.").
+
+### 9.4 The 7 mock modes (Q18)
+
+| Mode | Use |
+|---|---|
+| **Study** | No timer. Canvas enabled from the start. Interviewer asks questions freely. For building intuition without stress. |
+| **Timed Mock** | The default. 5-stage clock enforced. 45 min. |
+| **Exam** | Timed Mock + no hints, no AI questions allowed. Full simulation integrity. Grades you harshly. |
+| **Pair AI** | Sonnet live at every stage. Interviewer has a personality and pushes back. Most interactive. |
+| **Review** | Open a past drill attempt; review the final canvas with AI commentary overlays. |
+| **Full-Stack Loop** | 90 minutes. Same problem in SD (45 min) + LLD (45 min). Rubric covers both (Q22). The most demanding mode. |
+| **Verbal** | Microphone on. User narrates aloud while drawing. Whisper transcribes. Transcript scored for communication quality. (Q46 talk-aloud.) |
+
+### 9.5 The 8 interviewer personas (Q19)
+
+| Persona | Style |
+|---|---|
+| **Staff Engineer** | Default. Neutral, technical, clarifying. |
+| **Bar-raiser** | Pushes edge cases, tests tradeoffs. |
+| **Coach** | Warm, leads with hints, builds up. For Rookies. |
+| **Skeptic** | Challenges every decision. "Why not just use Postgres?" |
+| **Principal** | Asks about 3-year evolution, team topology, Conway's Law. |
+| **Industry Specialist** | Brings domain depth (e.g. "In payments, idempotency is critical — where does your design guarantee it?"). |
+| **Company Preset** | 8 company presets (Google, Meta, Amazon, Stripe, Netflix, Uber, Airbnb, generic FAANG). Each has a system-prompt-loaded rubric. Amazon hammers on simplicity; Google on algorithmic depth; Stripe on idempotency; Uber on microservices and scaling. |
+| **Silent Watcher** | No feedback during the drill. All feedback at the end. Trains independence. |
+
+Persona selection happens at drill start. The persona's avatar and name appear in the top-right chat pane. The persona's voice is maintained consistently by a system prompt that Sonnet consumes on every turn.
+
+### 9.6 Multi-lens browse for drills (Q20)
+
+Same 6 lenses as §4.3. The Drill library at `/sd/drill` adds one more lens: **"Recommended for you"** — Sonnet-ranked problem list based on user's recent progress and stated interview target.
+
+### 9.7 The hint system
+
+Three-tier, budgeted (mirrors LLD). Each drill starts with 15 credits.
+
+- **Nudge** (1 credit): generic prompt. "Think about the write path."
+- **Guided** (3 credits): specific help. "What happens when two users request the same counter at the same time?"
+- **Full reveal** (5 credits): explicit answer for the specific question. "The interviewer is looking for single-flight — at most one request reaches the backend per key."
+
+Hints are disabled in **Exam** mode. In **Coach** mode, they are free (no budget).
+
+### 9.8 The 8 post-interview artifacts (Q21)
+
+The moment of truth. At end of drill (submit or timeout), the user sees a results page with 8 artifacts:
+
+1. **6-axis rubric** · six scores 1-5 with one-sentence rationale each. Axes: Requirements & scope · Estimation accuracy · High-level design · Deep dive depth · Communication · Tradeoffs & awareness. Visualized as a radar chart.
+2. **AI postmortem** · 200-400 word essay by Sonnet analyzing the attempt. Honest; will call out specific misses.
+3. **Canonical compare** · side-by-side of user's canvas vs. the problem's canonical Solution A (or closest canonical). Diff highlighted. Opens in Compare A/B Simulate.
+4. **Timing heatmap** · how long the user spent per stage, compared to median of top-50% of attempts. Surfaces whether they underran Clarify (common Rookie error) or overran Design (common Journeyman error).
+5. **Follow-up drills** · 3 recommendations: "Try Design Uber next, since it builds on this" · "Re-attempt this under Skeptic persona" · "Take a 7-min concept page on CDC because your data sync was weak".
+6. **Simulate-your-design button** · "Does your design survive chaos?" — one-click into Chaos Drill in Simulate.
+7. **Shareable PDF recap** (Q21, Q44) · a nicely typeset 2-page PDF. Includes final canvas, rubric, narrative stream, and the user's own notes. OG-image share card auto-generated.
+8. **Streak stats** · "This was your 14th drill. Current streak: 7 days. Personal best on Staff rubric: 4.2/5." Motivational but calibrated.
+
+### 9.9 Grading mechanics
+
+The grade is produced by a **grading rubric engine** that consumes:
+- Final canvas state (node families, edges, overlays, overlap with canonical)
+- Napkin math entries
+- Clarification chat transcript
+- Stage timing
+- Hint credits used
+- (Verbal mode only) Transcript
+
+A Sonnet call produces a structured JSON grade with per-axis score and rationale. The grader is seeded with the problem's canonical rubric (authored alongside the problem page). No mystery — every problem page has a visible rubric that the user can read *before* attempting, but the interviewer in **Exam** mode will be harder than the written rubric.
+
+### 9.10 Frustration policy in Drill
+
+**Never mid-task.** Drill is simulation integrity. The coach is silent. The interviewer persona continues per their system prompt.
+
+Post-drill: if rubric shows three consecutive <2.5/5 drills in the same domain, an inline card appears on the results page: "Would it help to spend 30 minutes on [concept] before the next drill?" — offering a soft on-ramp without demanding a change.
+
+### 9.11 Crunch Mode (Q45) interaction
+
+When a user is in Crunch Mode (§4.6), Drill mode gets a special pinned header: "**Day 3 of 7 · Amazon Staff onsite in 4 days**". The mode auto-recommends problems that match the company preset. After each drill, the system rebalances tomorrow's plan based on today's rubric — if communication scored 2/5 today, tomorrow will include a Verbal-mode drill.
+
+### 9.12 Drill shortcuts
+
+- `⇧↵` · move to next stage early
+- `⌘↵` · submit (mid-stage or end)
+- `⌘K` · open command palette (not hint)
+- `H` · request a hint (tier picker)
+- `/` · open interviewer chat focus
+- `P` · pause (Study mode only)
+- `?` · shortcut sheet
+
+---
+
+
 
 
 
