@@ -6192,3 +6192,844 @@ EOF
 ```
 
 ---
+
+## Task 22: Reading aids — sidebar, progress bar, TOC, bookmarks strip
+
+**Files:**
+- Create: `architex/src/components/modules/lld/learn/LessonSidebar.tsx`
+- Create: `architex/src/components/modules/lld/learn/LessonProgressBar.tsx`
+- Create: `architex/src/components/modules/lld/learn/LessonTableOfContents.tsx`
+- Create: `architex/src/components/modules/lld/learn/BookmarkStrip.tsx`
+- Create: `architex/src/hooks/useTableOfContents.ts`
+
+Four distinct aids. Sidebar (180px left column — pattern list with completion badges). Progress bar (top-of-column, reflects 0..8 completed sections). TOC (right rail — per-anchor list for current pattern, highlights the anchor nearest viewport). Bookmark strip (collapsible drawer listing the user's bookmarks for jumping).
+
+- [ ] **Step 1: Create `LessonProgressBar`**
+
+Create `architex/src/components/modules/lld/learn/LessonProgressBar.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+
+interface Props {
+  completedCount: number;
+  totalSections?: number;
+}
+
+export const LessonProgressBar = memo(function LessonProgressBar({
+  completedCount,
+  totalSections = 8,
+}: Props) {
+  const pct = Math.min(100, Math.round((completedCount / totalSections) * 100));
+  return (
+    <div
+      role="progressbar"
+      aria-valuenow={completedCount}
+      aria-valuemin={0}
+      aria-valuemax={totalSections}
+      aria-label={`${completedCount} of ${totalSections} sections complete`}
+      className="sticky top-0 z-20 h-1 bg-border/20 backdrop-blur-sm"
+    >
+      <div
+        className="h-full bg-gradient-to-r from-primary to-fuchsia-500 transition-[width] duration-300"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+});
+```
+
+- [ ] **Step 2: Create `useTableOfContents`**
+
+Create `architex/src/hooks/useTableOfContents.ts`:
+
+```typescript
+"use client";
+
+import { useEffect, useMemo, useState, type RefObject } from "react";
+import type { LessonPayload, LessonSectionId } from "@/lib/lld/lesson-types";
+
+interface TOCEntry {
+  sectionId: LessonSectionId;
+  anchorId: string;
+  label: string;
+  depth: 2 | 3;
+}
+
+/**
+ * Derives a flat TOC from the lesson payload and tracks the anchor
+ * nearest to the top of the viewport inside `containerRef`.
+ */
+export function useTableOfContents({
+  payload,
+  containerRef,
+}: {
+  payload: LessonPayload | null;
+  containerRef: RefObject<HTMLElement | null>;
+}) {
+  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
+
+  const entries: TOCEntry[] = useMemo(() => {
+    if (!payload) return [];
+    const sectionIds: LessonSectionId[] = [
+      "itch",
+      "definition",
+      "mechanism",
+      "anatomy",
+      "numbers",
+      "uses",
+      "failure_modes",
+      "checkpoints",
+    ];
+    const out: TOCEntry[] = [];
+    for (const sid of sectionIds) {
+      for (const a of payload.sections[sid].anchors) {
+        out.push({
+          sectionId: sid,
+          anchorId: a.id,
+          label: a.label,
+          depth: a.depth,
+        });
+      }
+    }
+    return out;
+  }, [payload]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || entries.length === 0) return;
+
+    const anchors = entries
+      .map((e) => container.querySelector<HTMLElement>(`#${cssEscape(e.anchorId)}`))
+      .filter((el): el is HTMLElement => el !== null);
+
+    if (anchors.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (obsEntries) => {
+        let best: { id: string; top: number } | null = null;
+        for (const e of obsEntries) {
+          if (!e.isIntersecting) continue;
+          const top = e.boundingClientRect.top;
+          if (!best || top < best.top) {
+            const id = (e.target as HTMLElement).id;
+            best = { id, top };
+          }
+        }
+        if (best) setActiveAnchor(best.id);
+      },
+      { root: container, threshold: [0, 1], rootMargin: "-10% 0px -70% 0px" },
+    );
+
+    anchors.forEach((a) => observer.observe(a));
+    return () => observer.disconnect();
+  }, [entries, containerRef]);
+
+  return { entries, activeAnchor };
+}
+
+function cssEscape(id: string): string {
+  // CSS.escape in browsers; fallback for test envs.
+  if (typeof window !== "undefined" && typeof window.CSS?.escape === "function") {
+    return window.CSS.escape(id);
+  }
+  return id.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+```
+
+- [ ] **Step 3: Create `LessonTableOfContents`**
+
+Create `architex/src/components/modules/lld/learn/LessonTableOfContents.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import type { LessonSectionId } from "@/lib/lld/lesson-types";
+
+interface TOCEntry {
+  sectionId: LessonSectionId;
+  anchorId: string;
+  label: string;
+  depth: 2 | 3;
+}
+
+interface Props {
+  entries: TOCEntry[];
+  activeAnchorId: string | null;
+  onJump: (anchorId: string) => void;
+}
+
+export const LessonTableOfContents = memo(function LessonTableOfContents({
+  entries,
+  activeAnchorId,
+  onJump,
+}: Props) {
+  if (entries.length === 0) return null;
+  return (
+    <nav
+      aria-label="Table of contents"
+      className="text-xs sticky top-4 max-h-[80vh] overflow-y-auto"
+    >
+      <div className="text-[10px] uppercase tracking-wider text-foreground-muted mb-2">
+        On this page
+      </div>
+      <ul className="space-y-1 border-l border-border/30">
+        {entries.map((e) => {
+          const active = e.anchorId === activeAnchorId;
+          return (
+            <li key={`${e.sectionId}-${e.anchorId}`}>
+              <button
+                onClick={() => onJump(e.anchorId)}
+                className={`block w-full text-left pl-3 py-0.5 -ml-px border-l ${
+                  active
+                    ? "border-primary text-primary"
+                    : "border-transparent text-foreground-muted hover:text-foreground"
+                } ${e.depth === 3 ? "pl-6 text-[11px]" : ""}`}
+              >
+                {e.label}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+});
+```
+
+- [ ] **Step 4: Create `BookmarkStrip`**
+
+Create `architex/src/components/modules/lld/learn/BookmarkStrip.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useState } from "react";
+import { Bookmark as BookmarkIcon, ChevronDown, ChevronRight } from "lucide-react";
+import type { Bookmark } from "@/hooks/useBookmarks";
+
+interface Props {
+  bookmarks: Bookmark[];
+  onJump: (sectionId: string, anchorId: string) => void;
+  onRemove: (id: string) => void;
+}
+
+export const BookmarkStrip = memo(function BookmarkStrip({
+  bookmarks,
+  onJump,
+  onRemove,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  if (bookmarks.length === 0) return null;
+
+  return (
+    <div className="border-b border-border/20 bg-elevated/40">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-foreground-muted hover:text-foreground transition-colors"
+      >
+        {open ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronRight className="h-3 w-3" />
+        )}
+        <BookmarkIcon className="h-3 w-3" />
+        <span>{bookmarks.length} bookmark{bookmarks.length === 1 ? "" : "s"}</span>
+      </button>
+      {open && (
+        <ul className="px-4 pb-3 space-y-1">
+          {bookmarks.map((b) => (
+            <li
+              key={b.id}
+              className="flex items-center gap-2 text-xs group"
+            >
+              <button
+                onClick={() => onJump(b.sectionId, b.anchorId)}
+                className="flex-1 text-left text-foreground hover:text-primary truncate"
+              >
+                <span className="text-foreground-muted">{b.sectionId}</span>
+                <span className="mx-1 text-foreground-muted">›</span>
+                <span>{b.anchorLabel}</span>
+              </button>
+              <button
+                onClick={() => onRemove(b.id)}
+                aria-label="Remove bookmark"
+                className="opacity-0 group-hover:opacity-100 text-foreground-muted hover:text-red-400 transition-opacity"
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+});
+```
+
+- [ ] **Step 5: Create `LessonSidebar`**
+
+Create `architex/src/components/modules/lld/learn/LessonSidebar.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import { CheckCircle2, Circle, CircleDot } from "lucide-react";
+
+export interface SidebarEntry {
+  patternSlug: string;
+  label: string;
+  category: string;
+  completedSectionCount: number;
+  completedAt: string | null;
+}
+
+interface Props {
+  entries: SidebarEntry[];
+  currentSlug: string;
+  onSelect: (slug: string) => void;
+}
+
+function tierIcon(e: SidebarEntry) {
+  if (e.completedAt) {
+    return <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />;
+  }
+  if (e.completedSectionCount > 0) {
+    return <CircleDot className="h-3.5 w-3.5 text-primary" />;
+  }
+  return <Circle className="h-3.5 w-3.5 text-border/50" />;
+}
+
+export const LessonSidebar = memo(function LessonSidebar({
+  entries,
+  currentSlug,
+  onSelect,
+}: Props) {
+  // Group by category
+  const byCategory = new Map<string, SidebarEntry[]>();
+  for (const e of entries) {
+    const arr = byCategory.get(e.category) ?? [];
+    arr.push(e);
+    byCategory.set(e.category, arr);
+  }
+
+  return (
+    <nav aria-label="LLD lessons" className="h-full overflow-y-auto py-4">
+      {Array.from(byCategory.entries()).map(([category, items]) => (
+        <div key={category} className="mb-4">
+          <div className="px-3 text-[10px] uppercase tracking-wider text-foreground-muted mb-1">
+            {category}
+          </div>
+          <ul>
+            {items.map((e) => {
+              const active = e.patternSlug === currentSlug;
+              return (
+                <li key={e.patternSlug}>
+                  <button
+                    onClick={() => onSelect(e.patternSlug)}
+                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground hover:bg-elevated/60"
+                    }`}
+                  >
+                    {tierIcon(e)}
+                    <span className="flex-1 truncate">{e.label}</span>
+                    {e.completedSectionCount > 0 && !e.completedAt && (
+                      <span className="text-[10px] text-foreground-muted font-mono">
+                        {e.completedSectionCount}/8
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+});
+```
+
+- [ ] **Step 6: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add architex/src/components/modules/lld/learn/LessonSidebar.tsx architex/src/components/modules/lld/learn/LessonProgressBar.tsx architex/src/components/modules/lld/learn/LessonTableOfContents.tsx architex/src/components/modules/lld/learn/BookmarkStrip.tsx architex/src/hooks/useTableOfContents.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): add reading aids — sidebar, progress bar, TOC, bookmark strip
+
+Sidebar groups patterns by category with 3-tier badge (○ ◐ ✓).
+Progress bar is a sticky 1px gradient filling 0-100% across the top
+of the lesson column. TOC uses IntersectionObserver inside the
+lesson container; rootMargin biases active anchor to the top of
+viewport. Bookmark strip collapses/expands and supports inline remove.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 23: Rewrite `LearnModeLayout` to compose everything
+
+**Files:**
+- Rewrite: `architex/src/components/modules/lld/modes/LearnModeLayout.tsx`
+- Modify: `architex/src/components/modules/lld/canvas/LLDCanvas.tsx` (accept `highlightedClassIds` + `onClassClick` props if not already)
+- Modify: `architex/src/lib/analytics/lld-events.ts` (add lesson/checkpoint/bookmark events)
+
+Per spec §6 Learn layout: 180px pattern list · center read-only canvas · 380px lesson column. Plus: sticky progress bar, bookmark strip at top, TOC rail at far right, `ClassPopover` on canvas click, `ContextualExplainPopover` floating, `ConfusedWithPanel` docked above the TOC.
+
+- [ ] **Step 1: Extend analytics catalog**
+
+Open `architex/src/lib/analytics/lld-events.ts`. Add near the bottom (before `track()`):
+
+```typescript
+// ── Learn mode ──────────────────────────────────────────
+
+export function lldLessonOpened(args: { patternSlug: string }): LLDEvent {
+  return { event: "lld_lesson_opened", metadata: args };
+}
+
+export function lldLessonSectionViewed(args: {
+  patternSlug: string;
+  sectionId: string;
+  scrollDepth: number;
+}): LLDEvent {
+  return { event: "lld_lesson_section_viewed", metadata: args };
+}
+
+export function lldLessonCompleted(args: { patternSlug: string }): LLDEvent {
+  return { event: "lld_lesson_completed", metadata: args };
+}
+
+export function lldCheckpointAttempted(args: {
+  patternSlug: string;
+  kind: "recall" | "apply" | "compare" | "create";
+  attempts: number;
+  correct: boolean;
+  rating: "easy" | "good" | "hard" | "again";
+}): LLDEvent {
+  return { event: "lld_checkpoint_attempted", metadata: args };
+}
+
+export function lldExplainRequested(args: {
+  patternSlug: string;
+  sectionId: string;
+  highlightLength: number;
+}): LLDEvent {
+  return { event: "lld_explain_requested", metadata: args };
+}
+
+export function lldBookmarkToggled(args: {
+  patternSlug: string;
+  sectionId: string;
+  anchorId: string;
+  action: "created" | "deleted";
+}): LLDEvent {
+  return { event: "lld_bookmark_toggled", metadata: args };
+}
+
+export function lldClassPopoverOpened(args: {
+  patternSlug: string;
+  classId: string;
+}): LLDEvent {
+  return { event: "lld_class_popover_opened", metadata: args };
+}
+```
+
+- [ ] **Step 2: Ensure canvas accepts highlight + click props**
+
+Open `architex/src/components/modules/lld/canvas/LLDCanvas.tsx`. Check its props interface. If `highlightedClassIds?: string[]` and `onClassClick?: (classId: string, position: { x: number; y: number }) => void` are not present, add them. The node rendering layer should (a) apply a `data-highlighted` attribute when the class id is in the highlighted set and (b) dim non-highlighted nodes to `opacity: 0.4`. Add a Tailwind rule or a `[data-highlighted="true"]` style entry. If adding these is invasive, write a thin `HighlightableLLDCanvas` wrapper instead and use that in `LearnModeLayout`.
+
+- [ ] **Step 3: Rewrite `LearnModeLayout`**
+
+Replace `architex/src/components/modules/lld/modes/LearnModeLayout.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import type {
+  LessonPayload,
+  LessonSectionId,
+} from "@/lib/lld/lesson-types";
+import { LessonSidebar, type SidebarEntry } from "../learn/LessonSidebar";
+import { LessonColumn } from "../learn/LessonColumn";
+import { LessonProgressBar } from "../learn/LessonProgressBar";
+import { LessonTableOfContents } from "../learn/LessonTableOfContents";
+import { BookmarkStrip } from "../learn/BookmarkStrip";
+import { ClassPopover } from "../learn/ClassPopover";
+import { ConfusedWithPanel } from "../learn/ConfusedWithPanel";
+import { ContextualExplainPopover } from "../learn/ContextualExplainPopover";
+import { useLearnProgress } from "@/hooks/useLearnProgress";
+import { useBookmarks } from "@/hooks/useBookmarks";
+import { useLessonScrollSync } from "@/hooks/useLessonScrollSync";
+import { useTableOfContents } from "@/hooks/useTableOfContents";
+import { LLDCanvas } from "../canvas/LLDCanvas";
+import { DESIGN_PATTERNS } from "@/lib/lld/patterns";
+import {
+  track,
+  lldLessonOpened,
+  lldLessonCompleted,
+  lldCheckpointAttempted,
+  lldBookmarkToggled,
+  lldClassPopoverOpened,
+} from "@/lib/analytics/lld-events";
+import { ratingFromAttempts } from "@/lib/lld/checkpoint-types";
+
+const DEFAULT_SLUG = "singleton";
+
+export const LearnModeLayout = memo(function LearnModeLayout() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeSlug = searchParams.get("pattern") ?? DEFAULT_SLUG;
+
+  // Sidebar entries: join pattern catalog + user progress list
+  const sidebarQuery = useQuery<{
+    progress: Array<{
+      patternSlug: string;
+      completedSectionCount: number;
+      completedAt: string | null;
+    }>;
+  }>({
+    queryKey: ["lld-learn-progress-list"],
+    queryFn: async () => {
+      const res = await fetch("/api/lld/learn-progress", { method: "GET" });
+      if (!res.ok) return { progress: [] };
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+
+  const sidebarEntries: SidebarEntry[] = useMemo(() => {
+    const progressMap = new Map(
+      (sidebarQuery.data?.progress ?? []).map((p) => [p.patternSlug, p]),
+    );
+    return DESIGN_PATTERNS.map((p) => {
+      const prog = progressMap.get(p.id);
+      return {
+        patternSlug: p.id,
+        label: p.name,
+        category: p.category ?? "Other",
+        completedSectionCount: prog?.completedSectionCount ?? 0,
+        completedAt: prog?.completedAt ?? null,
+      };
+    });
+  }, [sidebarQuery.data]);
+
+  // Lesson payload (via DB-backed module_content)
+  const lessonQuery = useQuery<{ payload: LessonPayload | null }>({
+    queryKey: ["lld-lesson", activeSlug],
+    queryFn: async () => {
+      const res = await fetch(`/api/lld/lessons/${activeSlug}`, {
+        method: "GET",
+      }).catch(() => null);
+      if (!res || !res.ok) return { payload: null };
+      return res.json();
+    },
+    staleTime: 10 * 60_000,
+  });
+
+  const payload = lessonQuery.data?.payload ?? null;
+
+  const progressHook = useLearnProgress(activeSlug);
+  const bookmarksHook = useBookmarks(activeSlug);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [highlightedClassIds, setHighlightedClassIds] = useState<string[]>([]);
+  const [activeSectionId, setActiveSectionId] =
+    useState<LessonSectionId | null>(null);
+  const [popoverState, setPopoverState] = useState<{
+    classId: string;
+    className: string;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  // Scroll-sync: highlight + progress
+  useLessonScrollSync({
+    containerRef,
+    payload,
+    onActiveSectionChange: (id) => {
+      setActiveSectionId(id);
+      if (id) progressHook.patchActiveSection(id);
+    },
+    onHighlightedClassesChange: setHighlightedClassIds,
+    onSectionProgress: (id, state) => {
+      progressHook.patchSectionProgress(id, state);
+    },
+  });
+
+  // Fire open event once per slug
+  useEffect(() => {
+    if (!payload) return;
+    track(lldLessonOpened({ patternSlug: activeSlug }));
+    progressHook.incrementVisit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlug, payload?.patternSlug]);
+
+  // Mark completed when all 8 sections hit completedAt + checkpoints all answered
+  useEffect(() => {
+    const prog = progressHook.progress;
+    if (!prog) return;
+    if (prog.completedAt) return; // already marked
+    if (prog.completedSectionCount < 8) return;
+    const cpStats = prog.checkpointStats ?? {};
+    const allFour = ["recall", "apply", "compare", "create"] as const;
+    const cps = cpStats.checkpoints as unknown as
+      | Record<string, { correct: boolean }>
+      | undefined;
+    // checkpoint stats are stored per-kind via recordCheckpointAttempt in CheckpointSection
+    const sectionCpStats = (prog.checkpointStats ?? {}) as Record<
+      string,
+      { attempts: number; correct: boolean }
+    >;
+    // Flatten: if every kind key is present on progress.checkpointStats
+    const haveAll = allFour.every((k) => sectionCpStats[k]);
+    if (haveAll) {
+      progressHook.markCompleted();
+      track(lldLessonCompleted({ patternSlug: activeSlug }));
+    }
+  }, [progressHook, activeSlug]);
+
+  const { entries: tocEntries, activeAnchor } = useTableOfContents({
+    payload,
+    containerRef,
+  });
+
+  const jumpToAnchor = (anchorId: string) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const el = container.querySelector<HTMLElement>(`[id="${anchorId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const jumpToSection = (sid: LessonSectionId) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const el = container.querySelector<HTMLElement>(`#section-${sid}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handlePatternSelect = (slug: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("pattern", slug);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
+
+  if (!payload) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-foreground-muted font-serif">
+        {lessonQuery.isLoading
+          ? "Loading lesson…"
+          : `No lesson authored for "${activeSlug}" yet. Run \`pnpm compile:lld-lessons\` or pick another pattern from the sidebar.`}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full">
+      {/* Left: pattern sidebar */}
+      <aside className="w-[180px] shrink-0 border-r border-border/20 bg-elevated/20">
+        <LessonSidebar
+          entries={sidebarEntries}
+          currentSlug={activeSlug}
+          onSelect={handlePatternSelect}
+        />
+      </aside>
+
+      {/* Center: canvas */}
+      <div className="flex-1 min-w-0 relative">
+        <LLDCanvas
+          patternSlug={activeSlug}
+          readonly
+          highlightedClassIds={highlightedClassIds}
+          onClassClick={(classId: string, pos: { x: number; y: number }) => {
+            setPopoverState({ classId, className: classId, position: pos });
+            track(lldClassPopoverOpened({ patternSlug: activeSlug, classId }));
+          }}
+        />
+        {popoverState && (
+          <ClassPopover
+            classId={popoverState.classId}
+            className={popoverState.className}
+            payload={payload}
+            position={popoverState.position}
+            onDismiss={() => setPopoverState(null)}
+            onJumpToSection={jumpToSection}
+          />
+        )}
+      </div>
+
+      {/* Right: lesson column + TOC rail */}
+      <div className="flex w-[460px] shrink-0 border-l border-border/20">
+        <div className="flex-1 min-w-0 flex flex-col">
+          <LessonProgressBar
+            completedCount={progressHook.progress?.completedSectionCount ?? 0}
+          />
+          <BookmarkStrip
+            bookmarks={bookmarksHook.bookmarks}
+            onJump={(sectionId, anchorId) => {
+              jumpToSection(sectionId as LessonSectionId);
+              setTimeout(() => jumpToAnchor(anchorId), 300);
+            }}
+            onRemove={(id) => {
+              const b = bookmarksHook.bookmarks.find((x) => x.id === id);
+              bookmarksHook.toggle({
+                sectionId: b?.sectionId ?? "",
+                anchorId: b?.anchorId ?? "",
+                anchorLabel: b?.anchorLabel ?? "",
+              });
+            }}
+          />
+          <LessonColumn
+            ref={containerRef}
+            payload={payload}
+            isBookmarked={(anchorId) =>
+              activeSectionId
+                ? bookmarksHook.isBookmarked(activeSectionId, anchorId)
+                : false
+            }
+            onBookmarkToggle={async (sectionId, anchorId, anchorLabel) => {
+              const result = await bookmarksHook.toggle({
+                sectionId,
+                anchorId,
+                anchorLabel,
+              });
+              track(
+                lldBookmarkToggled({
+                  patternSlug: activeSlug,
+                  sectionId,
+                  anchorId,
+                  action: result.action,
+                }),
+              );
+            }}
+            onCheckpointResult={(kind, attempts, correct) => {
+              const rating = ratingFromAttempts(attempts, correct);
+              progressHook.recordCheckpointAttempt(
+                "checkpoints" as LessonSectionId,
+                attempts,
+                correct,
+              );
+              track(
+                lldCheckpointAttempted({
+                  patternSlug: activeSlug,
+                  kind,
+                  attempts,
+                  correct,
+                  rating,
+                }),
+              );
+            }}
+          />
+          <ContextualExplainPopover
+            patternSlug={activeSlug}
+            payload={payload}
+            lessonContainerRef={containerRef}
+          />
+        </div>
+        <aside className="w-[120px] shrink-0 border-l border-border/20 bg-elevated/10 px-2 py-4">
+          <LessonTableOfContents
+            entries={tocEntries}
+            activeAnchorId={activeAnchor}
+            onJump={jumpToAnchor}
+          />
+          <div className="mt-4">
+            <ConfusedWithPanel
+              patternSlug={activeSlug}
+              resolvePatternLabel={(slug) => {
+                const p = DESIGN_PATTERNS.find((x) => x.id === slug);
+                return p?.name ?? slug;
+              }}
+            />
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+});
+```
+
+- [ ] **Step 4: Add the lesson GET route that the layout calls**
+
+The layout fetches `/api/lld/lessons/[slug]`. Create `architex/src/app/api/lld/lessons/[patternSlug]/route.ts`:
+
+```typescript
+/**
+ * GET /api/lld/lessons/[patternSlug]
+ *
+ * Returns the compiled LessonPayload for a pattern. Public-readable
+ * (no auth) since lessons are not user-specific.
+ */
+
+import { NextResponse } from "next/server";
+import { loadLesson } from "@/lib/lld/lesson-loader";
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ patternSlug: string }> },
+) {
+  try {
+    const { patternSlug } = await params;
+    const payload = await loadLesson(patternSlug);
+    return NextResponse.json({ payload });
+  } catch (error) {
+    console.error("[api/lld/lessons/:slug] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 5: Verify typecheck + build**
+
+```bash
+cd architex
+pnpm typecheck
+pnpm build
+```
+Expected: both pass. `pnpm build` will run `prebuild` → `build-concept-graph.ts` → `next build`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/components/modules/lld/modes/LearnModeLayout.tsx architex/src/app/api/lld/lessons/ architex/src/lib/analytics/lld-events.ts architex/src/components/modules/lld/canvas/LLDCanvas.tsx
+git commit -m "$(cat <<'EOF'
+feat(lld): compose LearnModeLayout — 180px sidebar / canvas / lesson + TOC
+
+Three-column grid per spec §6. Sidebar shows category-grouped patterns
+with 3-tier badges. Canvas is read-only in Learn mode, accepts
+highlightedClassIds (dims others to 0.4) and onClassClick opening
+ClassPopover. Right column hosts progress bar, bookmark strip,
+LessonColumn with 8 sections, and a 120px TOC rail with
+ConfusedWithPanel docked underneath. Contextual explain popover floats
+over the lesson column.
+
+Lesson payload comes from new /api/lld/lessons/[slug] route (loader
+wraps module_content). Progress + checkpoint attempts wire through to
+FSRS rating + analytics.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
