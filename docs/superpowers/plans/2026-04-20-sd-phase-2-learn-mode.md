@@ -665,4 +665,764 @@ EOF
 
 ---
 
+## Task 5: Define content payload types + extract shared MDX compiler
+
+**Files:**
+- Create: `architex/src/lib/sd/content-types.ts`
+- Create: `architex/scripts/lib/mdx-compiler.ts` (extracted from LLD Phase 2)
+- Modify: `architex/scripts/compile-lld-lessons.ts` (import shared compiler)
+
+This task is the first structural refactor — LLD Phase 2's `scripts/compile-lld-lessons.ts` has the MDX→JSONB transformer inlined. Before writing the SD compiler (Task 6), factor out the shared part. The factoring is mechanical and tested by LLD Phase 2's existing test suite; no behavior change for LLD.
+
+- [ ] **Step 1: Extract shared MDX compiler helper**
+
+Create `architex/scripts/lib/mdx-compiler.ts`:
+
+```typescript
+/**
+ * Shared MDX compilation primitives for LLD lessons (Phase 2) and SD
+ * concept/problem pages (this phase). Callers supply a Zod schema for
+ * frontmatter validation; the body is compiled to a string of React
+ * elements for DB storage and runtime re-hydration.
+ *
+ * Contracts:
+ * - Input: file path to a .mdx file with YAML frontmatter.
+ * - Output: { frontmatter, bodyMdx, sections }. bodyMdx is the raw MDX
+ *   body (post-frontmatter); sections is the split-by-`<!-- Section: X -->`
+ *   map keyed by section id.
+ * - Errors: throws McfError with { path, reason } on parse/schema failure.
+ */
+import { readFile } from 'node:fs/promises';
+import matter from 'gray-matter';
+import type { ZodSchema } from 'zod';
+
+export class McfError extends Error {
+  constructor(public path: string, public reason: string) {
+    super(`[mdx-compiler] ${path}: ${reason}`);
+  }
+}
+
+export interface CompiledMdx<TFrontmatter> {
+  frontmatter: TFrontmatter;
+  bodyMdx: string;
+  sections: Record<string, string>;
+}
+
+const SECTION_MARKER = /<!--\s*Section:\s*([a-z0-9-_]+)\s*-->/gi;
+
+export async function compileMdx<TFrontmatter>(
+  filePath: string,
+  frontmatterSchema: ZodSchema<TFrontmatter>,
+): Promise<CompiledMdx<TFrontmatter>> {
+  const raw = await readFile(filePath, 'utf8');
+  const parsed = matter(raw);
+  const fm = frontmatterSchema.safeParse(parsed.data);
+  if (!fm.success) throw new McfError(filePath, `frontmatter invalid: ${fm.error.message}`);
+
+  const sections: Record<string, string> = {};
+  const body = parsed.content;
+  const markers = [...body.matchAll(SECTION_MARKER)];
+  if (markers.length === 0) throw new McfError(filePath, 'no `<!-- Section: X -->` markers found');
+
+  for (let i = 0; i < markers.length; i++) {
+    const m = markers[i];
+    const nextStart = i + 1 < markers.length ? markers[i + 1].index! : body.length;
+    const sectionId = m[1].toLowerCase();
+    const sectionStart = m.index! + m[0].length;
+    sections[sectionId] = body.slice(sectionStart, nextStart).trim();
+  }
+
+  return { frontmatter: fm.data, bodyMdx: body, sections };
+}
+```
+
+- [ ] **Step 2: Migrate LLD compiler to use the shared helper**
+
+Edit `architex/scripts/compile-lld-lessons.ts`. Replace the inlined MDX parsing block with:
+
+```typescript
+import { compileMdx } from './lib/mdx-compiler';
+import { LldLessonFrontmatterSchema } from '@/lib/lld/lesson-types';
+
+// ...inside main loop:
+const compiled = await compileMdx(path, LldLessonFrontmatterSchema);
+```
+
+Run the LLD Phase 2 test suite to confirm no regression:
+
+```bash
+pnpm test:run -- compile-lld-lessons
+```
+Expected: all existing tests still pass. If any test references the old inline parser, update the import path.
+
+- [ ] **Step 3: Define SD content payload types**
+
+Create `architex/src/lib/sd/content-types.ts`:
+
+```typescript
+/**
+ * SD-036: Typed payloads for the 8-section concept page and 6-pane
+ * problem page. The DB's sd_concepts.body_mdx and sd_problems.body_mdx
+ * are text columns; the runtime parses them back into these shapes.
+ *
+ * Section ids are stable across migrations — UI scroll anchors depend
+ * on them. Changing a section id is a breaking change for bookmarks
+ * and URL hashes.
+ */
+import { z } from 'zod';
+
+// ─── Concept (8 sections) ────────────────────────────────────────────
+
+export const CONCEPT_SECTION_IDS = [
+  'hook',             // §5.4 Section 1: "The Itch" — scenario, 2-3 sentences
+  'analogy',          // §5.4 Section 2: memorable physical mapping
+  'primitive',        // §5.4 Section 3: formal definition + mechanism (3-5 paragraphs)
+  'anatomy',          // architecture anatomy of the primitive — nodes, edges, relations
+  'numbersThatMatter',// §5.4 Section 4: Scaling Numbers strip + prose
+  'tradeoffs',        // §5.4 Section 5: gain/pay paragraph
+  'antiCases',        // §5.4 Section 6: "When not to use"
+  'seenInWild',       // §5.4 Section 7: named-company example
+  'bridges',          // §5.4 Section 8: cross-links
+  'checkpoints',      // 3 MCQ/rank-tradeoffs/match checkpoints (spec §6.3)
+] as const;
+
+export type ConceptSectionId = typeof CONCEPT_SECTION_IDS[number];
+
+export const ConceptFrontmatterSchema = z.object({
+  slug: z.string().min(1),
+  title: z.string().min(1),
+  subtitle: z.string().optional(),
+  wave: z.number().int().min(1).max(8),
+  waveOrder: z.number().int().min(1),
+  estimatedMinutes: z.number().int().min(1).max(60),
+  wordTargetMin: z.number().int().default(1200),
+  wordTargetMax: z.number().int().default(1800),
+  voiceVariant: z.enum(['standard', 'eli5', 'eli-senior']).default('standard'),
+  // Maps section id → node id list so scroll-sync can highlight nodes
+  anchorNodeIds: z.record(z.string(), z.array(z.string())).default({}),
+  scalingNumbers: z.array(z.object({
+    label: z.string(),
+    value: z.string(),
+    unit: z.string().optional(),
+    citation: z.string().optional(),
+    sourceYear: z.number().int().optional(),
+  })).default([]),
+  decisionTree: z.object({
+    root: z.string(),
+    branches: z.array(z.object({
+      question: z.string(),
+      yes: z.string(),
+      no: z.string(),
+    })),
+  }).optional(),
+  engineeringBlogLinks: z.array(z.object({
+    company: z.string(),
+    title: z.string(),
+    url: z.string().url(),
+    year: z.number().int(),
+    readingMinutes: z.number().int().optional(),
+  })).default([]),
+  checkpoints: z.array(z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('recall'),
+      id: z.string(),
+      prompt: z.string(),
+      options: z.array(z.object({
+        id: z.string(),
+        label: z.string(),
+        isCorrect: z.boolean(),
+        whyWrong: z.string().optional(),
+      })),
+      explanation: z.string(),
+    }),
+    z.object({
+      kind: z.literal('apply'),
+      id: z.string(),
+      scenario: z.string(),
+      correctNodeIds: z.array(z.string()),
+      distractorNodeIds: z.array(z.string()),
+      explanation: z.string(),
+    }),
+    z.object({
+      kind: z.literal('compare'),
+      id: z.string(),
+      prompt: z.string(),
+      left: z.object({ conceptSlug: z.string(), label: z.string() }),
+      right: z.object({ conceptSlug: z.string(), label: z.string() }),
+      statements: z.array(z.object({
+        id: z.string(),
+        text: z.string(),
+        correct: z.enum(['left', 'right', 'both', 'neither']),
+      })),
+      explanation: z.string(),
+    }),
+    z.object({
+      kind: z.literal('create'),
+      id: z.string(),
+      prompt: z.string(),
+      starterCanvas: z.object({ nodes: z.array(z.any()), edges: z.array(z.any()) }),
+      rubric: z.array(z.object({ criterion: z.string(), points: z.number() })),
+      referenceSolution: z.object({ nodes: z.array(z.any()), edges: z.array(z.any()) }),
+      explanation: z.string(),
+    }),
+  ])).length(3), // §6.3: exactly 3 checkpoints per concept
+});
+
+export type ConceptFrontmatter = z.infer<typeof ConceptFrontmatterSchema>;
+
+export interface ConceptPayload {
+  frontmatter: ConceptFrontmatter;
+  sections: Record<ConceptSectionId, string>; // MDX source per section
+}
+
+// ─── Problem (6 panes) ───────────────────────────────────────────────
+
+export const PROBLEM_PANE_IDS = [
+  'problemStatement',   // §5.5 Pane 1
+  'requirements',       // F + NF (spec §5.5 pane 2 merged into requirements block)
+  'scaleNumbers',       // §5.5 Pane 3: napkin math
+  'canonicalDesign',    // §5.5 Pane 4: 2-3 solutions (tabs in UI)
+  'failureModesChaos',  // §5.5 Pane 5
+  'conceptsUsed',       // §5.5 Pane 6: real-world references renamed for cross-link emphasis
+  'checkpoints',        // 3 checkpoints: Fermi estimate · failure-mode pick · chaos match
+] as const;
+
+export type ProblemPaneId = typeof PROBLEM_PANE_IDS[number];
+
+export const ProblemFrontmatterSchema = z.object({
+  slug: z.string().min(1),
+  title: z.string().min(1),
+  domain: z.enum(['media-social', 'location', 'storage', 'commerce', 'search', 'infra']),
+  difficulty: z.enum(['warmup', 'easy', 'mid', 'staff', 'principal']),
+  companiesAsking: z.array(z.string()).default([]),
+  recommendedOrder: z.record(
+    z.enum(['rookie', 'journeyman', 'architect']),
+    z.array(z.enum(PROBLEM_PANE_IDS)),
+  ).default({
+    rookie: [...PROBLEM_PANE_IDS],
+    journeyman: ['canonicalDesign', 'failureModesChaos', 'scaleNumbers', 'requirements', 'problemStatement', 'conceptsUsed'],
+    architect: ['canonicalDesign', 'failureModesChaos', 'requirements', 'scaleNumbers', 'conceptsUsed', 'problemStatement'],
+  }),
+  scalingNumbers: z.array(z.object({
+    label: z.string(),
+    value: z.string(),
+    unit: z.string().optional(),
+    sourceYear: z.number().int().optional(),
+  })),
+  canonicalSolutions: z.array(z.object({
+    label: z.string(), // 'A', 'B', 'C'
+    summary: z.string(),
+    diagramJson: z.any(), // nodes + edges for canvas preload
+    walkthroughMdx: z.string(), // per-solution walkthrough embedded in canonicalDesign section
+  })).min(1).max(3),
+  recommendedChaos: z.array(z.string()).default([]), // chaos event slugs
+  linkedConcepts: z.array(z.string()).default([]),
+  linkedLldPatterns: z.array(z.string()).default([]),
+  rubric: z.object({
+    axes: z.array(z.object({
+      name: z.string(),
+      weight: z.number(),
+      bands: z.array(z.object({ score: z.number(), description: z.string() })),
+    })).length(6),
+  }),
+  checkpoints: z.array(z.any()).length(3),
+  engineeringBlogLinks: z.array(z.object({
+    company: z.string(),
+    title: z.string(),
+    url: z.string().url(),
+    year: z.number().int(),
+    readingMinutes: z.number().int().optional(),
+  })).default([]),
+});
+
+export type ProblemFrontmatter = z.infer<typeof ProblemFrontmatterSchema>;
+
+export interface ProblemPayload {
+  frontmatter: ProblemFrontmatter;
+  panes: Record<ProblemPaneId, string>;
+}
+
+// ─── Graph YAML (cross-module bridges) ───────────────────────────────
+
+export const GraphYamlSchema = z.object({
+  kind: z.enum(['concept', 'problem']),
+  slug: z.string(),
+  relatedConcepts: z.array(z.object({
+    slug: z.string(),
+    relation: z.enum(['prerequisite', 'related', 'specializes', 'generalizes']),
+    bridgeText: z.string().optional(),
+  })).default([]),
+  relatedProblems: z.array(z.object({
+    slug: z.string(),
+    relation: z.enum(['uses', 'related', 'scales-up-from']),
+    bridgeText: z.string().optional(),
+  })).default([]),
+  relatedLldPatterns: z.array(z.object({
+    slug: z.string(),
+    relation: z.enum(['implements', 'leans-on', 'adjacent-abstraction']),
+    bridgeText: z.string().optional(),
+  })).default([]),
+  relatedChaosEvents: z.array(z.object({
+    slug: z.string(),
+    relation: z.enum(['protects-from', 'exposed-to']),
+    bridgeText: z.string().optional(),
+  })).default([]),
+  confusedWith: z.array(z.object({
+    kind: z.enum(['concept', 'problem']),
+    slug: z.string(),
+    reason: z.string(),
+  })).default([]),
+});
+
+export type GraphYaml = z.infer<typeof GraphYamlSchema>;
+```
+
+- [ ] **Step 4: Install any missing deps**
+
+```bash
+cd architex
+grep "gray-matter" package.json || pnpm add gray-matter@^4.0.3
+grep "zod" package.json  # should already be present from LLD Phase 1
+```
+
+- [ ] **Step 5: Write a roundtrip test**
+
+Create `architex/src/lib/sd/__tests__/content-types.test.ts`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { ConceptFrontmatterSchema, ProblemFrontmatterSchema, GraphYamlSchema } from '../content-types';
+
+describe('ConceptFrontmatterSchema', () => {
+  it('rejects a concept with wrong number of checkpoints', () => {
+    const bad = { slug: 'x', title: 't', wave: 1, waveOrder: 1, estimatedMinutes: 10, checkpoints: [] };
+    expect(ConceptFrontmatterSchema.safeParse(bad).success).toBe(false);
+  });
+  it('accepts a valid minimal concept frontmatter', () => {
+    const good = {
+      slug: 'client-server', title: 'Client-Server', wave: 1, waveOrder: 1, estimatedMinutes: 10,
+      checkpoints: [
+        { kind: 'recall', id: 'r1', prompt: 'q?', options: [{ id: 'a', label: 'x', isCorrect: true }], explanation: '.' },
+        { kind: 'apply', id: 'a1', scenario: 's', correctNodeIds: ['n1'], distractorNodeIds: ['n2'], explanation: '.' },
+        { kind: 'compare', id: 'c1', prompt: 'vs', left: { conceptSlug: 'x', label: 'X' }, right: { conceptSlug: 'y', label: 'Y' }, statements: [{ id: 's1', text: 't', correct: 'left' }], explanation: '.' },
+      ],
+    };
+    expect(ConceptFrontmatterSchema.safeParse(good).success).toBe(true);
+  });
+});
+
+describe('ProblemFrontmatterSchema', () => {
+  it('requires exactly 6 rubric axes', () => {
+    const bad = { rubric: { axes: [] } };
+    expect(ProblemFrontmatterSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
+describe('GraphYamlSchema', () => {
+  it('accepts a well-formed concept graph', () => {
+    const good = {
+      kind: 'concept', slug: 'client-server',
+      relatedLldPatterns: [{ slug: 'facade', relation: 'leans-on', bridgeText: 'Hides server complexity.' }],
+    };
+    expect(GraphYamlSchema.safeParse(good).success).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 6: Run + commit**
+
+```bash
+pnpm typecheck
+pnpm test:run -- content-types
+git add architex/src/lib/sd/content-types.ts \
+        architex/scripts/lib/mdx-compiler.ts \
+        architex/scripts/compile-lld-lessons.ts \
+        architex/src/lib/sd/__tests__/content-types.test.ts \
+        architex/package.json
+git commit -m "$(cat <<'EOF'
+feat(sd): define content payload types + extract shared MDX compiler (Task 5/35)
+
+- scripts/lib/mdx-compiler.ts: shared compileMdx() reused by LLD and SD
+- src/lib/sd/content-types.ts: Zod schemas for 8-section concepts
+  (with typed checkpoints discriminated union), 6-pane problems (with
+  6-axis rubric + 1-3 canonical solutions + recommended-order per
+  persona), and cross-module graph YAML
+- Roundtrip tests for both schemas
+- LLD Phase 2 compiler migrated to the shared helper; existing tests
+  continue to pass
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 6: Write the SD content compile script
+
+**Files:**
+- Create: `architex/scripts/compile-sd-content.ts`
+- Modify: `architex/package.json` (add `compile:sd-content` script)
+- Create: `architex/scripts/__tests__/compile-sd-content.test.ts`
+
+The compile script walks `content/sd/concepts/*.mdx` and `content/sd/problems/*.mdx`, validates frontmatter, splits the body into sections/panes via the `<!-- Section: X -->` markers, and upserts into `sd_concepts.body_mdx` / `sd_problems.body_mdx`. The JSONB payload persisted to DB is `{ frontmatter, sections }` for concepts and `{ frontmatter, panes }` for problems. Runtime loaders (Task 7) read and re-parse the MDX bodies per-section on demand.
+
+- [ ] **Step 1: Write the compile script**
+
+Create `architex/scripts/compile-sd-content.ts`:
+
+```typescript
+#!/usr/bin/env tsx
+/**
+ * Compile SD concept + problem MDX into sd_concepts / sd_problems rows.
+ *
+ * Usage:
+ *   pnpm compile:sd-content                        # all
+ *   pnpm compile:sd-content --kind=concept         # only concepts
+ *   pnpm compile:sd-content --slug=client-server   # one file
+ *   pnpm compile:sd-content --dry-run              # validate, don't write
+ */
+import { readdir } from 'node:fs/promises';
+import { join, basename, extname } from 'node:path';
+import { parseArgs } from 'node:util';
+import { db } from '../src/db/client';
+import { sdConcepts, sdProblems } from '../src/db/schema';
+import { eq, sql } from 'drizzle-orm';
+import { compileMdx } from './lib/mdx-compiler';
+import {
+  ConceptFrontmatterSchema, ProblemFrontmatterSchema,
+  CONCEPT_SECTION_IDS, PROBLEM_PANE_IDS,
+} from '../src/lib/sd/content-types';
+
+const CONTENT_ROOT = join(process.cwd(), 'content', 'sd');
+
+interface CliOptions { kind?: 'concept' | 'problem'; slug?: string; dryRun: boolean }
+
+function parseCli(): CliOptions {
+  const { values } = parseArgs({ options: {
+    kind: { type: 'string' }, slug: { type: 'string' }, 'dry-run': { type: 'boolean' },
+  }});
+  return { kind: values.kind as any, slug: values.slug, dryRun: !!values['dry-run'] };
+}
+
+async function compileConcept(path: string, dryRun: boolean) {
+  const compiled = await compileMdx(path, ConceptFrontmatterSchema);
+  const missing = CONCEPT_SECTION_IDS.filter((id) => !(id in compiled.sections));
+  if (missing.length) throw new Error(`${path}: missing sections ${missing.join(', ')}`);
+  const { frontmatter, sections } = compiled;
+  const wordCount = Object.values(sections).reduce((n, s) => n + s.split(/\s+/).length, 0);
+  if (wordCount < frontmatter.wordTargetMin * 0.7 || wordCount > frontmatter.wordTargetMax * 1.3) {
+    console.warn(`[warn] ${frontmatter.slug} word count ${wordCount} outside target ${frontmatter.wordTargetMin}-${frontmatter.wordTargetMax}`);
+  }
+  const payload = { frontmatter, sections };
+  if (dryRun) { console.log(`[dry] concept ${frontmatter.slug} OK (${wordCount}w)`); return; }
+  await db.insert(sdConcepts).values({
+    slug: frontmatter.slug,
+    wave: frontmatter.wave,
+    waveOrder: frontmatter.waveOrder,
+    title: frontmatter.title,
+    shortDescription: frontmatter.subtitle ?? '',
+    bodyMdx: JSON.stringify(payload),
+    wordCount,
+    readingTimeMin: frontmatter.estimatedMinutes,
+    voiceVariant: frontmatter.voiceVariant,
+    updatedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: sdConcepts.slug,
+    set: { bodyMdx: JSON.stringify(payload), wordCount, updatedAt: new Date() },
+  });
+  console.log(`[ok] concept ${frontmatter.slug} (${wordCount}w)`);
+}
+
+async function compileProblem(path: string, dryRun: boolean) {
+  const compiled = await compileMdx(path, ProblemFrontmatterSchema);
+  const missing = PROBLEM_PANE_IDS.filter((id) => !(id in compiled.sections));
+  if (missing.length) throw new Error(`${path}: missing panes ${missing.join(', ')}`);
+  const { frontmatter, sections: panes } = compiled;
+  const wordCount = Object.values(panes).reduce((n, s) => n + s.split(/\s+/).length, 0);
+  const payload = { frontmatter, panes };
+  if (dryRun) { console.log(`[dry] problem ${frontmatter.slug} OK (${wordCount}w)`); return; }
+  await db.insert(sdProblems).values({
+    slug: frontmatter.slug,
+    domain: frontmatter.domain,
+    difficulty: frontmatter.difficulty,
+    title: frontmatter.title,
+    bodyMdx: JSON.stringify(payload),
+    canonicalSolutions: frontmatter.canonicalSolutions,
+    rubric: frontmatter.rubric,
+    recommendedChaos: frontmatter.recommendedChaos,
+    linkedConcepts: frontmatter.linkedConcepts,
+    linkedLldPatterns: frontmatter.linkedLldPatterns,
+    companiesAsking: frontmatter.companiesAsking,
+    updatedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: sdProblems.slug,
+    set: { bodyMdx: JSON.stringify(payload), updatedAt: new Date() },
+  });
+  console.log(`[ok] problem ${frontmatter.slug} (${wordCount}w)`);
+}
+
+async function main() {
+  const opts = parseCli();
+  const kinds = opts.kind ? [opts.kind] : ['concept', 'problem'] as const;
+  let errors = 0;
+  for (const kind of kinds) {
+    const dir = join(CONTENT_ROOT, kind === 'concept' ? 'concepts' : 'problems');
+    const files = (await readdir(dir))
+      .filter((f) => extname(f) === '.mdx')
+      .filter((f) => !opts.slug || basename(f, '.mdx') === opts.slug);
+    for (const file of files) {
+      try {
+        const path = join(dir, file);
+        if (kind === 'concept') await compileConcept(path, opts.dryRun);
+        else await compileProblem(path, opts.dryRun);
+      } catch (e) {
+        errors++;
+        console.error(`[err] ${file}:`, (e as Error).message);
+      }
+    }
+  }
+  if (errors) { console.error(`${errors} errors`); process.exit(1); }
+}
+main().catch((e) => { console.error(e); process.exit(1); });
+```
+
+- [ ] **Step 2: Add the pnpm script**
+
+Edit `architex/package.json` scripts:
+
+```json
+{
+  "scripts": {
+    "compile:sd-content": "tsx scripts/compile-sd-content.ts",
+    "compile:sd-content:dry": "tsx scripts/compile-sd-content.ts --dry-run"
+  }
+}
+```
+
+- [ ] **Step 3: Write the fixture-driven test**
+
+Create `architex/scripts/__tests__/compile-sd-content.test.ts`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { mkdtemp, writeFile, mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { compileMdx } from '../lib/mdx-compiler';
+import { ConceptFrontmatterSchema, CONCEPT_SECTION_IDS } from '@/lib/sd/content-types';
+
+const MINIMAL_CONCEPT = `---
+slug: test
+title: Test
+wave: 1
+waveOrder: 1
+estimatedMinutes: 10
+checkpoints:
+  - { kind: recall, id: r1, prompt: q, options: [{ id: a, label: x, isCorrect: true }], explanation: e }
+  - { kind: apply, id: a1, scenario: s, correctNodeIds: [n1], distractorNodeIds: [n2], explanation: e }
+  - { kind: compare, id: c1, prompt: p, left: { conceptSlug: x, label: X }, right: { conceptSlug: y, label: Y }, statements: [{ id: s1, text: t, correct: left }], explanation: e }
+---
+
+<!-- Section: hook -->
+Scenario here.
+
+<!-- Section: analogy -->
+Analogy here.
+
+<!-- Section: primitive -->
+Body.
+
+<!-- Section: anatomy -->
+Anatomy.
+
+<!-- Section: numbersThatMatter -->
+Numbers.
+
+<!-- Section: tradeoffs -->
+Gains, pays.
+
+<!-- Section: antiCases -->
+Not here.
+
+<!-- Section: seenInWild -->
+Company.
+
+<!-- Section: bridges -->
+Links.
+
+<!-- Section: checkpoints -->
+See frontmatter.
+`;
+
+describe('compileMdx(concept)', () => {
+  it('splits into all 10 section ids and validates frontmatter', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'sd-'));
+    const path = join(dir, 'test.mdx');
+    await writeFile(path, MINIMAL_CONCEPT);
+    const c = await compileMdx(path, ConceptFrontmatterSchema);
+    expect(c.frontmatter.slug).toBe('test');
+    for (const id of CONCEPT_SECTION_IDS) {
+      expect(c.sections[id]).toBeDefined();
+    }
+  });
+});
+```
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+pnpm typecheck
+pnpm test:run -- compile-sd-content
+git add architex/scripts/compile-sd-content.ts \
+        architex/scripts/__tests__/compile-sd-content.test.ts \
+        architex/package.json
+git commit -m "$(cat <<'EOF'
+feat(sd): write compile-sd-content script (Task 6/35)
+
+Walks content/sd/{concepts,problems}/*.mdx, validates frontmatter via
+Zod, splits bodies into 10 concept sections / 7 problem panes, and
+upserts into sd_concepts/sd_problems with JSONB payload. Supports
+--kind, --slug, --dry-run flags. Word-count warns outside frontmatter
+targets. Onconflict-do-update enables incremental content authoring.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 7: Write concept-loader and problem-loader (DB → typed payload)
+
+**Files:**
+- Create: `architex/src/lib/sd/concept-loader.ts`
+- Create: `architex/src/lib/sd/problem-loader.ts`
+- Create: `architex/src/lib/sd/__tests__/concept-loader.test.ts`
+- Create: `architex/src/lib/sd/__tests__/problem-loader.test.ts`
+
+Runtime loaders take a slug, query `sd_concepts` / `sd_problems`, parse the JSONB `body_mdx` back into a typed `ConceptPayload` / `ProblemPayload`, and return it. Used by Server Components (App Router) in Task 23's `SDLearnModeLayout` via TanStack Query server-side prefetch.
+
+- [ ] **Step 1: Concept loader**
+
+Create `architex/src/lib/sd/concept-loader.ts`:
+
+```typescript
+/**
+ * SD-037: Loads a compiled concept from sd_concepts and re-validates
+ * the JSONB payload. Throws if the row is absent or malformed.
+ */
+import { db } from '@/db/client';
+import { sdConcepts } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+import {
+  ConceptFrontmatterSchema, CONCEPT_SECTION_IDS,
+  type ConceptPayload, type ConceptSectionId,
+} from './content-types';
+
+const CompiledConceptSchema = z.object({
+  frontmatter: ConceptFrontmatterSchema,
+  sections: z.record(z.enum(CONCEPT_SECTION_IDS), z.string()),
+});
+
+export class ConceptNotFoundError extends Error {
+  constructor(slug: string) { super(`concept '${slug}' not found`); }
+}
+export class ConceptMalformedError extends Error {
+  constructor(slug: string, reason: string) { super(`concept '${slug}' malformed: ${reason}`); }
+}
+
+export async function loadConcept(slug: string): Promise<ConceptPayload> {
+  const rows = await db.select({ bodyMdx: sdConcepts.bodyMdx })
+    .from(sdConcepts).where(eq(sdConcepts.slug, slug)).limit(1);
+  if (rows.length === 0) throw new ConceptNotFoundError(slug);
+
+  let parsed: unknown;
+  try { parsed = JSON.parse(rows[0].bodyMdx); }
+  catch (e) { throw new ConceptMalformedError(slug, `invalid JSON: ${(e as Error).message}`); }
+
+  const result = CompiledConceptSchema.safeParse(parsed);
+  if (!result.success) throw new ConceptMalformedError(slug, result.error.message);
+  return result.data as ConceptPayload;
+}
+
+export async function listConceptSlugsByWave(wave?: number): Promise<Array<{ slug: string; title: string; wave: number; waveOrder: number }>> {
+  const q = db.select({
+    slug: sdConcepts.slug, title: sdConcepts.title,
+    wave: sdConcepts.wave, waveOrder: sdConcepts.waveOrder,
+  }).from(sdConcepts);
+  const rows = wave === undefined ? await q : await q.where(eq(sdConcepts.wave, wave));
+  return rows.sort((a, b) => (a.wave - b.wave) || (a.waveOrder - b.waveOrder));
+}
+```
+
+- [ ] **Step 2: Problem loader (mirrors concept-loader)**
+
+Create `architex/src/lib/sd/problem-loader.ts` with the same shape: `loadProblem(slug)`, `listProblemsByDomain(domain?)`, Zod-validated re-parse, `ProblemNotFoundError` / `ProblemMalformedError`. Sections → panes (7 pane ids including `checkpoints`).
+
+- [ ] **Step 3: Tests**
+
+Create `architex/src/lib/sd/__tests__/concept-loader.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { db } from '@/db/client';
+import { sdConcepts } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { loadConcept, listConceptSlugsByWave, ConceptNotFoundError, ConceptMalformedError } from '../concept-loader';
+
+describe('loadConcept', () => {
+  const slug = 'test-loader-fixture';
+  beforeAll(async () => {
+    await db.insert(sdConcepts).values({
+      slug, wave: 1, waveOrder: 99, title: 'T', shortDescription: '',
+      bodyMdx: JSON.stringify({
+        frontmatter: {
+          slug, title: 'T', wave: 1, waveOrder: 99, estimatedMinutes: 10,
+          wordTargetMin: 1200, wordTargetMax: 1800, voiceVariant: 'standard',
+          anchorNodeIds: {}, scalingNumbers: [], engineeringBlogLinks: [],
+          checkpoints: [
+            { kind: 'recall', id: 'r1', prompt: 'q', options: [{ id: 'a', label: 'x', isCorrect: true }], explanation: '.' },
+            { kind: 'apply', id: 'a1', scenario: 's', correctNodeIds: ['n'], distractorNodeIds: ['m'], explanation: '.' },
+            { kind: 'compare', id: 'c1', prompt: 'vs', left: { conceptSlug: 'x', label: 'X' }, right: { conceptSlug: 'y', label: 'Y' }, statements: [{ id: 's1', text: 't', correct: 'left' }], explanation: '.' },
+          ],
+        },
+        sections: Object.fromEntries(['hook','analogy','primitive','anatomy','numbersThatMatter','tradeoffs','antiCases','seenInWild','bridges','checkpoints'].map((k) => [k, `# ${k}`])),
+      }),
+    });
+  });
+  afterAll(async () => { await db.delete(sdConcepts).where(eq(sdConcepts.slug, slug)); });
+
+  it('returns a typed ConceptPayload', async () => {
+    const c = await loadConcept(slug);
+    expect(c.frontmatter.slug).toBe(slug);
+    expect(c.sections.hook).toContain('hook');
+  });
+  it('throws ConceptNotFoundError for missing slug', async () => {
+    await expect(loadConcept('no-such-slug')).rejects.toBeInstanceOf(ConceptNotFoundError);
+  });
+  it('lists concepts by wave', async () => {
+    const list = await listConceptSlugsByWave(1);
+    expect(list.map((c) => c.slug)).toContain(slug);
+  });
+});
+```
+
+A parallel test file at `problem-loader.test.ts` exercises `loadProblem` + `listProblemsByDomain` with an `infra` fixture.
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+pnpm typecheck && pnpm test:run -- concept-loader problem-loader
+git add architex/src/lib/sd/concept-loader.ts \
+        architex/src/lib/sd/problem-loader.ts \
+        architex/src/lib/sd/__tests__/concept-loader.test.ts \
+        architex/src/lib/sd/__tests__/problem-loader.test.ts
+git commit -m "feat(sd): runtime loaders for compiled concepts + problems (Task 7/35)"
+```
+
+---
+
+
 
