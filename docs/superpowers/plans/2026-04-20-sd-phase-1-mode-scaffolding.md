@@ -4940,3 +4940,1013 @@ EOF
 
 ---
 
+## Task 20: Create `SDModeSwitcher` component (cobalt accent, ⌘1-5)
+
+**Files:**
+- Create: `architex/src/components/modules/sd/modes/SDModeSwitcher.tsx`
+
+- [ ] **Step 1: Create the component**
+
+Create `architex/src/components/modules/sd/modes/SDModeSwitcher.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useEffect } from "react";
+import { useUIStore, type SDMode } from "@/stores/ui-store";
+import { track, sdModeSwitched } from "@/lib/analytics/sd-events";
+import { cn } from "@/lib/utils";
+
+interface ModeOption {
+  value: SDMode;
+  icon: string;
+  label: string;
+  shortcut: string;
+}
+
+const MODES: readonly ModeOption[] = [
+  { value: "learn", icon: "📖", label: "Learn", shortcut: "⌘1" },
+  { value: "build", icon: "🎨", label: "Build", shortcut: "⌘2" },
+  { value: "simulate", icon: "🌪", label: "Simulate", shortcut: "⌘3" },
+  { value: "drill", icon: "🎯", label: "Drill", shortcut: "⌘4" },
+  { value: "review", icon: "🔁", label: "Review", shortcut: "⌘5" },
+] as const;
+
+/**
+ * Five-pill mode switcher for the SD module. Cobalt accent (#2563EB)
+ * on the active pill — this is the single visual change vs LLD's
+ * amber-accented 4-pill switcher (spec §18.1).
+ *
+ * Keyboard: ⌘1..5 (or Ctrl+1..5 on non-Mac). Spec §3 locks shortcut
+ * assignments; do not renumber.
+ */
+export const SDModeSwitcher = memo(function SDModeSwitcher() {
+  const mode = useUIStore((s) => s.sdMode) ?? "learn"; // first-visit default in UI
+  const setMode = useUIStore((s) => s.setSDMode);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) return;
+      const digit = e.key;
+      if (digit < "1" || digit > "5") return;
+      const idx = Number(digit) - 1;
+      const target = MODES[idx];
+      if (target && target.value !== mode) {
+        e.preventDefault();
+        setMode(target.value);
+        track(sdModeSwitched({ from: mode, to: target.value, trigger: "keyboard" }));
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [mode, setMode]);
+
+  return (
+    <nav
+      role="tablist"
+      aria-label="SD mode"
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-full p-1 backdrop-blur-sm",
+        "bg-background/60 border border-border/30",
+      )}
+      data-testid="sd-mode-switcher"
+    >
+      {MODES.map((m) => {
+        const active = m.value === mode;
+        return (
+          <button
+            key={m.value}
+            role="tab"
+            aria-selected={active}
+            aria-label={`${m.label} mode (${m.shortcut})`}
+            onClick={() => {
+              if (m.value !== mode) {
+                setMode(m.value);
+                track(sdModeSwitched({ from: mode, to: m.value, trigger: "click" }));
+              }
+            }}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              active
+                // Cobalt accent — #2563EB
+                ? "bg-[color:#2563EB]/20 text-[color:#60a5fa] shadow-sm ring-1 ring-[color:#2563EB]/40"
+                : "text-foreground-muted hover:text-foreground hover:bg-foreground/5",
+            )}
+          >
+            <span aria-hidden>{m.icon}</span>
+            <span>{m.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+});
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 3: Write a smoke render test**
+
+Create `architex/src/components/modules/sd/modes/__tests__/SDModeSwitcher.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { SDModeSwitcher } from "@/components/modules/sd/modes/SDModeSwitcher";
+import { useUIStore } from "@/stores/ui-store";
+
+describe("SDModeSwitcher", () => {
+  beforeEach(() => {
+    useUIStore.setState({ sdMode: null });
+  });
+
+  it("renders all 5 modes", () => {
+    render(<SDModeSwitcher />);
+    for (const label of ["Learn", "Build", "Simulate", "Drill", "Review"]) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+  });
+
+  it("clicking a mode updates the store", () => {
+    render(<SDModeSwitcher />);
+    fireEvent.click(screen.getByText("Drill"));
+    expect(useUIStore.getState().sdMode).toBe("drill");
+  });
+
+  it("active mode gets the cobalt styling", () => {
+    useUIStore.setState({ sdMode: "simulate" });
+    render(<SDModeSwitcher />);
+    const simulateTab = screen.getByRole("tab", { name: /Simulate/i });
+    expect(simulateTab.getAttribute("aria-selected")).toBe("true");
+  });
+});
+```
+
+Run:
+```bash
+pnpm test:run -- SDModeSwitcher
+```
+
+Expected: PASS · all 3 assertions.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/components/modules/sd/modes/SDModeSwitcher.tsx \
+        architex/src/components/modules/sd/modes/__tests__/SDModeSwitcher.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(sd): add SDModeSwitcher with cobalt accent + ⌘1-5 shortcuts
+
+Five-pill switcher (Learn/Build/Simulate/Drill/Review). Active pill
+gets the cobalt #2563EB accent — the single visual change from LLD's
+amber switcher (spec §18.1). ⌘1-5 shortcuts match spec §3 and do not
+renumber LLD's bindings (they coexist, scoped by active module).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 21: Create `SDWelcomeBanner` (first-visit 90-sec onboarding spec §18.6)
+
+**Files:**
+- Create: `architex/src/components/modules/sd/modes/SDWelcomeBanner.tsx`
+
+Phase 1 implements a **compressed** welcome banner: a single-screen path picker. The full 90-second spotlight carousel from spec §18.6 ships in Phase 2 — this Phase 1 version nails the shell pattern and the cobalt accent, and reads + writes the same `sdOnboardingComplete` flag so the Phase 2 carousel can swap in without breaking state.
+
+- [ ] **Step 1: Create the component**
+
+Create `architex/src/components/modules/sd/modes/SDWelcomeBanner.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useEffect } from "react";
+import { X } from "lucide-react";
+import { useUIStore, type SDMode } from "@/stores/ui-store";
+import {
+  track,
+  sdWelcomeBannerShown,
+  sdWelcomeBannerDismissed,
+} from "@/lib/analytics/sd-events";
+import { cn } from "@/lib/utils";
+
+interface PathChoice {
+  mode: SDMode;
+  icon: string;
+  label: string;
+  description: string;
+  method:
+    | "pick_learn"
+    | "pick_build"
+    | "pick_simulate"
+    | "pick_drill"
+    | "pick_review";
+}
+
+const PATHS: readonly PathChoice[] = [
+  {
+    mode: "learn",
+    icon: "📖",
+    label: "Teach me",
+    description: "40 primitives of distributed systems",
+    method: "pick_learn",
+  },
+  {
+    mode: "build",
+    icon: "🎨",
+    label: "Let me sketch",
+    description: "Open the drafting hall",
+    method: "pick_build",
+  },
+  {
+    mode: "simulate",
+    icon: "🌪",
+    label: "Run the wind tunnel",
+    description: "Traffic, cost, chaos on a design",
+    method: "pick_simulate",
+  },
+  {
+    mode: "drill",
+    icon: "🎯",
+    label: "Drill me",
+    description: "Timed 45-min mock interview",
+    method: "pick_drill",
+  },
+] as const;
+
+/**
+ * Welcome banner for first-visit SD users.
+ *
+ * Phase 1: single-screen picker with 4 paths (matching the LLD pattern,
+ * plus "wind tunnel"). The full 90-second spotlight carousel from
+ * spec §18.6 ships in Phase 2 and replaces this component internally.
+ * API surface (dismissed flag, onboarding flag) stays identical.
+ */
+export const SDWelcomeBanner = memo(function SDWelcomeBanner() {
+  const dismissed = useUIStore((s) => s.sdWelcomeBannerDismissed);
+  const setMode = useUIStore((s) => s.setSDMode);
+  const dismiss = useUIStore((s) => s.dismissSDWelcomeBanner);
+  const completeOnboarding = useUIStore((s) => s.completeSDOnboarding);
+
+  useEffect(() => {
+    if (!dismissed) {
+      track(sdWelcomeBannerShown());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (dismissed) return null;
+
+  const pick = (choice: PathChoice) => {
+    setMode(choice.mode);
+    dismiss();
+    completeOnboarding();
+    track(sdWelcomeBannerDismissed({ method: choice.method }));
+  };
+
+  return (
+    <div
+      role="banner"
+      className={cn(
+        "relative rounded-xl border backdrop-blur-sm p-4 m-3",
+        // Cobalt glow instead of LLD's amber
+        "border-[color:#2563EB]/30",
+        "bg-gradient-to-br from-[color:#2563EB]/10 via-transparent to-fuchsia-500/5",
+      )}
+      data-testid="sd-welcome-banner"
+    >
+      <button
+        aria-label="Dismiss welcome banner"
+        onClick={() => {
+          dismiss();
+          track(sdWelcomeBannerDismissed({ method: "dismiss" }));
+        }}
+        className="absolute top-2 right-2 text-foreground-muted hover:text-foreground transition-colors"
+      >
+        <X className="h-4 w-4" />
+      </button>
+
+      <div className="flex items-start gap-3">
+        <div className="text-2xl">🌪</div>
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-foreground">
+            Welcome to the wind tunnel.
+          </div>
+          <div className="text-xs text-foreground-muted mt-0.5">
+            Five modes, one studio. Pick where you want to start — you can
+            switch anytime with ⌘1-5.
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+        {PATHS.map((p) => (
+          <button
+            key={p.mode}
+            onClick={() => pick(p)}
+            className={cn(
+              "text-left rounded-lg border p-3 transition-colors",
+              "border-border/30 bg-elevated/50 hover:bg-elevated/80",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:#2563EB]/50",
+            )}
+          >
+            <div className="text-lg">{p.icon}</div>
+            <div className="text-xs font-semibold text-foreground mt-1">
+              {p.label}
+            </div>
+            <div className="text-[10px] text-foreground-muted mt-0.5">
+              {p.description}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+});
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/components/modules/sd/modes/SDWelcomeBanner.tsx
+git commit -m "$(cat <<'EOF'
+feat(sd): add SDWelcomeBanner for first-visit path picking
+
+Four-path picker (Teach me / Let me sketch / Run the wind tunnel /
+Drill me) with cobalt accent. Dismissable. Uses ui-store flags to
+track both welcome-banner-dismissed and onboarding-complete so the
+Phase 2 90-second spotlight carousel can swap in without touching
+state.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 22: Create 5 mode layout stubs (Learn / Build / Simulate / Drill / Review)
+
+**Files:**
+- Create: `architex/src/components/modules/sd/modes/LearnLayout.tsx`
+- Create: `architex/src/components/modules/sd/modes/BuildLayout.tsx`
+- Create: `architex/src/components/modules/sd/modes/SimulateLayout.tsx`
+- Create: `architex/src/components/modules/sd/modes/DrillLayout.tsx`
+- Create: `architex/src/components/modules/sd/modes/ReviewLayout.tsx`
+
+- [ ] **Step 1: Create BuildLayout (wraps existing SD canvas)**
+
+Create `architex/src/components/modules/sd/modes/BuildLayout.tsx`:
+
+```tsx
+"use client";
+
+import { memo, type ReactNode } from "react";
+
+/**
+ * Build mode · wraps today's SD canvas (React Flow) unchanged.
+ *
+ * Panels (left library, canvas, right properties, bottom timeline) are
+ * still assembled by useSDModuleImpl. BuildLayout just provides a named
+ * wrapper so modes can evolve independently. In Phase 2 this wrapper
+ * takes on layout responsibilities (collapsible panels per spec §18.3).
+ */
+export const BuildLayout = memo(function BuildLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return <div className="h-full w-full">{children}</div>;
+});
+```
+
+- [ ] **Step 2: Create LearnLayout stub**
+
+Create `architex/src/components/modules/sd/modes/LearnLayout.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+
+/**
+ * Learn mode stub — the 8-section concept page renderer ships in Phase 2.
+ * For Phase 1 we render a placeholder with a Cormorant-adjacent treatment
+ * so the mode feels distinct from Build.
+ */
+export const LearnLayout = memo(function LearnLayout() {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-8">
+      <div className="max-w-md text-center">
+        <div className="text-5xl mb-4">📖</div>
+        <h2 className="text-xl font-semibold text-foreground">Learn Mode</h2>
+        <p className="text-sm text-foreground-muted mt-2 leading-relaxed font-serif">
+          The reading nook. Forty concept atoms of distributed systems arrive
+          in Phase 2 — eight waves of five, all authored by Opus. Each page
+          is eight sections, scroll-gated checkpoints, and an ask-AI drawer.
+        </p>
+        <p className="text-xs text-foreground-muted mt-3">
+          Press <kbd>⌘2</kbd> to open Build or <kbd>⌘3</kbd> to visit the wind
+          tunnel.
+        </p>
+      </div>
+    </div>
+  );
+});
+```
+
+- [ ] **Step 3: Create SimulateLayout stub**
+
+Create `architex/src/components/modules/sd/modes/SimulateLayout.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+
+/**
+ * Simulate mode stub — the flagship 34-file simulation engine wraps in
+ * Phase 3 along with the particle layer, metric strip, chaos ribbon,
+ * and Haiku coach. Phase 1 renders a placeholder that sets the tone.
+ */
+export const SimulateLayout = memo(function SimulateLayout() {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-8">
+      <div className="max-w-md text-center">
+        <div className="text-5xl mb-4">🌪</div>
+        <h2 className="text-xl font-semibold text-foreground">Simulate Mode</h2>
+        <p className="text-sm text-foreground-muted mt-2 leading-relaxed font-serif">
+          The wind tunnel. Your design meets traffic, cost, and chaos. Six
+          activities — Validate, Stress, Chaos, Compare, Forecast, Archaeology
+          — arrive in Phase 3 alongside a replayable event stream and the
+          Haiku whisper-mode coach.
+        </p>
+        <p className="text-xs text-foreground-muted mt-3">
+          Your wind tunnel is calm. Press <kbd>⌘2</kbd> to build a design,
+          then come back.
+        </p>
+      </div>
+    </div>
+  );
+});
+```
+
+- [ ] **Step 4: Create DrillLayout stub**
+
+Create `architex/src/components/modules/sd/modes/DrillLayout.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+
+/**
+ * Drill mode stub — the 5-stage timed mock ships in Phase 3 with 8
+ * interviewer personas and a 6-axis rubric.
+ */
+export const DrillLayout = memo(function DrillLayout() {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-8">
+      <div className="max-w-md text-center">
+        <div className="text-5xl mb-4">🎯</div>
+        <h2 className="text-xl font-semibold text-foreground">Drill Mode</h2>
+        <p className="text-sm text-foreground-muted mt-2 leading-relaxed font-serif">
+          The examination room. A 45-minute, 5-stage mock interview with one
+          of eight personas and a 6-axis rubric. Phase 3 ships the full
+          experience: clarify → capacity → API → architecture → deep-dive.
+        </p>
+        <p className="text-xs text-foreground-muted mt-3">
+          One clock on the wall, nothing else to look at. For now, press
+          <kbd>⌘1</kbd> to study the atoms.
+        </p>
+      </div>
+    </div>
+  );
+});
+```
+
+- [ ] **Step 5: Create ReviewLayout stub**
+
+Create `architex/src/components/modules/sd/modes/ReviewLayout.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+
+/**
+ * Review mode stub — FSRS-5 card stack arrives in Phase 4. Phase 1
+ * places the shell.
+ */
+export const ReviewLayout = memo(function ReviewLayout() {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-8">
+      <div className="max-w-md text-center">
+        <div className="text-5xl mb-4">🔁</div>
+        <h2 className="text-xl font-semibold text-foreground">Review Mode</h2>
+        <p className="text-sm text-foreground-muted mt-2 leading-relaxed font-serif">
+          The reading chair by the window. Two to four minutes a day, FSRS-5
+          scheduling, mixed-module queue (SD · LLD · Algorithms). Card
+          generation ships in Phase 4.
+        </p>
+      </div>
+    </div>
+  );
+});
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/components/modules/sd/modes/LearnLayout.tsx \
+        architex/src/components/modules/sd/modes/BuildLayout.tsx \
+        architex/src/components/modules/sd/modes/SimulateLayout.tsx \
+        architex/src/components/modules/sd/modes/DrillLayout.tsx \
+        architex/src/components/modules/sd/modes/ReviewLayout.tsx
+git commit -m "$(cat <<'EOF'
+feat(sd): add 5 mode layout components (4 stubs + Build wrapper)
+
+BuildLayout wraps today's SD canvas unchanged. LearnLayout,
+SimulateLayout, DrillLayout, and ReviewLayout are functional stubs
+rendering a placeholder that sets the tone per spec's room metaphors
+(reading nook, drafting hall, wind tunnel, examination room, reading
+chair). Each stub carries a ⌘-key pointer to the adjacent mode so
+users discover the keyboard shortcuts naturally.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 23: Create `SDShell` top-level mode dispatcher
+
+**Files:**
+- Create: `architex/src/components/modules/sd/SDShell.tsx`
+
+- [ ] **Step 1: Create the shell**
+
+Create `architex/src/components/modules/sd/SDShell.tsx`:
+
+```tsx
+"use client";
+
+import { memo, type ReactNode } from "react";
+import { useUIStore } from "@/stores/ui-store";
+import { useSDModeSync } from "@/hooks/useSDModeSync";
+import { useSDPreferencesSync } from "@/hooks/useSDPreferencesSync";
+import { SDModeSwitcher } from "./modes/SDModeSwitcher";
+import { SDWelcomeBanner } from "./modes/SDWelcomeBanner";
+import { LearnLayout } from "./modes/LearnLayout";
+import { BuildLayout } from "./modes/BuildLayout";
+import { SimulateLayout } from "./modes/SimulateLayout";
+import { DrillLayout } from "./modes/DrillLayout";
+import { ReviewLayout } from "./modes/ReviewLayout";
+
+interface SDShellProps {
+  /** The existing Build-mode content (sidebar + canvas + props + bottom). */
+  buildContent: ReactNode;
+}
+
+/**
+ * Top-level shell for the SD module. Reads `sdMode` from ui-store and
+ * renders one of five mode layouts. Build mode receives today's
+ * unchanged SD canvas as `buildContent`.
+ *
+ * Null mode → first visit → default to "learn" (spec §3 first-visit
+ * behavior; LLD defaults to Build but SD defaults to Learn because
+ * teaching the atoms is the zero-to-one path). New users see the
+ * welcome banner which routes them into their chosen mode.
+ */
+export const SDShell = memo(function SDShell({ buildContent }: SDShellProps) {
+  const mode = useUIStore((s) => s.sdMode);
+
+  useSDModeSync();
+  useSDPreferencesSync();
+
+  // First-visit default = "learn" per spec §3 resolveSDMode.
+  const effectiveMode = mode ?? "learn";
+
+  return (
+    <div className="flex h-full flex-col" data-sd-accent="cobalt">
+      {/* Top chrome — mode pill right-aligned, matches LLD layout */}
+      <div className="flex items-center justify-end border-b border-border/20 px-3 py-2">
+        <SDModeSwitcher />
+      </div>
+
+      {/* Welcome banner (first visit only, dismissable) */}
+      <SDWelcomeBanner />
+
+      {/* Mode content */}
+      <div className="flex-1 min-h-0">
+        {effectiveMode === "learn" && <LearnLayout />}
+        {effectiveMode === "build" && <BuildLayout>{buildContent}</BuildLayout>}
+        {effectiveMode === "simulate" && <SimulateLayout />}
+        {effectiveMode === "drill" && <DrillLayout />}
+        {effectiveMode === "review" && <ReviewLayout />}
+      </div>
+    </div>
+  );
+});
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 3: Write a smoke render test**
+
+Create `architex/src/components/modules/sd/__tests__/SDShell.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SDShell } from "@/components/modules/sd/SDShell";
+import { useUIStore } from "@/stores/ui-store";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+function wrap(children: React.ReactNode) {
+  const qc = new QueryClient();
+  return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>);
+}
+
+describe("SDShell", () => {
+  beforeEach(() => {
+    useUIStore.setState({ sdMode: null, sdWelcomeBannerDismissed: true });
+  });
+
+  it("defaults to Learn mode on first visit", () => {
+    wrap(<SDShell buildContent={<div>BUILD</div>} />);
+    expect(screen.getByText("Learn Mode")).toBeTruthy();
+  });
+
+  it("renders buildContent when mode=build", () => {
+    useUIStore.setState({ sdMode: "build" });
+    wrap(<SDShell buildContent={<div>BUILD</div>} />);
+    expect(screen.getByText("BUILD")).toBeTruthy();
+  });
+
+  it("renders the Simulate stub when mode=simulate", () => {
+    useUIStore.setState({ sdMode: "simulate" });
+    wrap(<SDShell buildContent={<div>BUILD</div>} />);
+    expect(screen.getByText("Simulate Mode")).toBeTruthy();
+  });
+});
+```
+
+Run:
+```bash
+pnpm test:run -- SDShell
+```
+
+Expected: PASS · all 3 assertions.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/components/modules/sd/SDShell.tsx \
+        architex/src/components/modules/sd/__tests__/SDShell.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(sd): add SDShell top-level mode dispatcher
+
+Reads sdMode from ui-store. Renders SDModeSwitcher in top chrome,
+welcome banner if not dismissed, then one of 5 mode layouts. First
+visit defaults to Learn mode (spec §3 resolveSDMode) — the zero-to-one
+path is "study the atoms first", unlike LLD which defaults to Build.
+Cobalt data attribute set on root for theme-level accent cascading.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 24: Wire existing SD canvas into `BuildLayout` via `useSDModuleImpl`
+
+**Files:**
+- Modify: `architex/src/components/modules/sd/hooks/useSDModuleImpl.tsx`
+
+- [ ] **Step 1: Inspect current module impl**
+
+Read `architex/src/components/modules/sd/hooks/useSDModuleImpl.tsx` to understand how it currently composes `sidebar`, `canvas`, `properties`, `bottomPanel` slots for the SD module. If the file doesn't exist yet (SD module may be assembled differently than LLD), search for the entry point:
+
+```bash
+grep -r "system-design" architex/src/app/ --include="*.tsx" -l | head -5
+grep -r "ModuleContent" architex/src/components/modules/sd/ --include="*.tsx" -l | head -5
+```
+
+Document the actual layout convention. The wrap pattern below assumes the LLD pattern; adapt paths to the real file names if they differ.
+
+- [ ] **Step 2: Wrap the composed content in SDShell**
+
+Modify `useSDModuleImpl.tsx` (or the equivalent entry component). Find the return statement that builds `ModuleContent` with the 4 slots. Change it to delegate to `SDShell`. The existing 4-panel content becomes the `buildContent` prop.
+
+As in LLD, **prefer the simpler variant**: keep sidebar/canvas/properties/bottom layout in their slots today and wrap ONLY the canvas in SDShell:
+
+```tsx
+import { SDShell } from "@/components/modules/sd/SDShell";
+
+// ... existing code ...
+
+onContent({
+  sidebar: <SDSidebar {...} />,          // unchanged
+  canvas: <SDShell buildContent={<SDCanvas {...} />} />,
+  properties: <SDProperties {...} />,    // unchanged
+  bottomPanel: <SDBottomTabs {...} />,   // unchanged
+});
+```
+
+The mode switcher pill lives over the canvas only. Phase 2 can escalate to full-shell switching if needed.
+
+- [ ] **Step 3: Typecheck + run the app**
+
+```bash
+pnpm typecheck
+pnpm dev
+```
+
+Open <http://localhost:3000>. Click the SD module in the left rail.
+
+Expected observations:
+- Existing SD sidebar / properties / bottom panel all render identically
+- A 5-pill mode switcher appears above the canvas (cobalt on active pill)
+- Click Learn/Simulate/Drill/Review replaces the canvas with the mode stub
+- Click Build restores the canvas
+- ⌘1-5 works
+- URL updates to `?mode=learn` etc.
+- Refresh with `?mode=simulate` loads in Simulate mode
+- Welcome banner appears on first visit (clear localStorage: `architex-ui` to test)
+
+If anything breaks visually for existing users (Build mode should look identical to today), pause and fix before committing.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/components/modules/sd/hooks/useSDModuleImpl.tsx
+git commit -m "$(cat <<'EOF'
+feat(sd): wire SDShell over canvas, preserving Build layout
+
+The existing SD canvas renders inside Build mode unchanged. The five-pill
+mode switcher lives above the canvas. First-visit users land in Learn
+mode (spec §3) and see the welcome banner. No visible regression for
+existing users with sdMode='build' persisted.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 25: End-to-end smoke test + verification pass
+
+- [ ] **Step 1: Run full verification suite**
+
+```bash
+cd architex
+pnpm typecheck
+pnpm lint
+pnpm test:run
+pnpm build
+```
+
+All four must pass. If any fail, fix before calling Phase 1 complete. Record the output hash for the baseline comparison:
+
+```bash
+pnpm typecheck > /tmp/sd-phase-1-final.txt 2>&1
+pnpm test:run >> /tmp/sd-phase-1-final.txt 2>&1
+shasum /tmp/sd-phase-1-final.txt
+# Commit the sha to docs/superpowers/plans/.sd-phase-1-final.txt for reference.
+```
+
+- [ ] **Step 2: Manual smoke test — anonymous fresh user flow**
+
+1. Clear browser state: DevTools → Application → Local Storage → delete `architex-ui`
+2. Refresh <http://localhost:3000>, click SD in rail
+3. Expected: welcome banner visible, pill shows Learn highlighted (default)
+4. Click "Run the wind tunnel" in banner → navigates to Simulate mode, banner disappears, URL becomes `?mode=simulate`
+5. Press ⌘2 → switches to Build, URL updates
+6. Press ⌘3 → Simulate, URL updates
+7. Press ⌘4 → Drill stub
+8. Press ⌘5 → Review stub
+9. Refresh with `?mode=learn` in URL → lands in Learn mode
+10. Open DevTools → Application → Local Storage: confirm `architex-ui` has `sdMode: "learn"` persisted
+
+- [ ] **Step 3: Manual smoke test — authenticated returning user flow**
+
+Requires Clerk configured and a signed-in user with a `users` row seeded.
+
+1. While signed in, switch SD to Drill mode
+2. Watch DevTools → Network tab
+3. Expected: after ~1s, a PATCH to `/api/user-preferences/sd` fires with `{mode: "drill"}`
+4. Refresh the page → lands in Drill mode (confirmed from DB, not just localStorage)
+5. Open Drizzle Studio → `user_preferences` table → confirm the row's `preferences.sd.mode === "drill"`
+6. Sign out → refresh → localStorage still has Drill mode → loads Drill mode from cache
+
+- [ ] **Step 4: Manual smoke test — API happy path**
+
+With the dev server running and signed in:
+
+```bash
+# Concepts (empty, 200)
+curl -s http://localhost:3000/api/sd/concepts | jq .
+
+# Problems (empty, 200)
+curl -s http://localhost:3000/api/sd/problems | jq .
+
+# POST a design
+curl -s -X POST http://localhost:3000/api/sd/designs \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <your-clerk-session>" \
+  -d '{"diagramType":"system","canvasState":{"nodes":[],"edges":[]}}' | jq .
+
+# List designs (should include the one you just created)
+curl -s http://localhost:3000/api/sd/designs -H "Cookie: <>" | jq .
+
+# Start a drill
+curl -s -X POST http://localhost:3000/api/sd/drill-attempts \
+  -H "Content-Type: application/json" -H "Cookie: <>" \
+  -d '{"problemSlug":"url-shortener","mode":"timed"}' | jq .
+
+# Try to start a second drill → 409
+curl -s -X POST http://localhost:3000/api/sd/drill-attempts \
+  -H "Content-Type: application/json" -H "Cookie: <>" \
+  -d '{"problemSlug":"rate-limiter","mode":"timed"}' | jq .
+
+# Get active drill (should return the first one)
+curl -s http://localhost:3000/api/sd/drill-attempts/active -H "Cookie: <>" | jq .
+
+# Abandon it
+curl -s -X PATCH http://localhost:3000/api/sd/drill-attempts/<DRILL_ID> \
+  -H "Content-Type: application/json" -H "Cookie: <>" \
+  -d '{"action":"abandon"}' | jq .
+
+# POST for a concept → 501
+curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/sd/concepts \
+  -H "Cookie: <>"
+```
+
+Expected: all calls complete as described. 409 on second drill. 501 on concept POST.
+
+- [ ] **Step 5: Check existing SD (and LLD) modules unchanged**
+
+Switch to SD Build mode. Exercise all existing functionality:
+- Canvas renders with React Flow
+- Drag-drop from sidebar works
+- Properties panel shows component details when a node is clicked
+- Bottom tabs all functional (Metrics, Cost, Chaos, etc.)
+- No console errors
+
+Switch to LLD — confirm LLD Phase 1 still works unchanged:
+- LLD mode switcher (4 pills, amber) works
+- LLD drill history page loads
+- No cross-pollution of `sdMode` ↔ `lldMode`
+
+Anything that worked before must still work.
+
+- [ ] **Step 6: Create `.progress` tracker**
+
+Create `docs/superpowers/plans/.progress-sd-phase-1.md`:
+
+```markdown
+# SD Phase 1 Progress Tracker
+
+- [x] Phase 0 pre-flight audit complete
+- [x] Task 1:  sd_concepts schema
+- [x] Task 2:  sd_problems schema
+- [x] Task 3:  sd_concept_reads + sd_concept_bookmarks schemas
+- [x] Task 4:  sd_designs + sd_design_snapshots + sd_design_annotations schemas
+- [x] Task 5:  sd_simulations + sd_simulation_events schemas
+- [x] Task 6:  sd_drill_attempts + sd_drill_interviewer_turns schemas
+- [x] Task 7:  sd_shares + sd_fsrs_cards schemas + all 13 relations wired
+- [x] Task 8:  0002_add_sd_module migration generated + applied
+- [x] Task 9:  ui-store sdMode slice
+- [x] Task 10: sd-store with activeSDDrill + activeSDSim
+- [x] Task 11: useSDModeSync hook
+- [x] Task 12: useSDPreferencesSync hook
+- [x] Task 13: useSDDrillSync hook
+- [x] Task 14: /api/sd/concepts + /api/sd/problems shells
+- [x] Task 15: /api/sd/designs CRUD + snapshot
+- [x] Task 16: /api/sd/simulations shells
+- [x] Task 17: /api/sd/drill-attempts lifecycle routes
+- [x] Task 18: /api/sd/cards/due + /api/sd/review/submit
+- [x] Task 19: sd-events.ts analytics catalog (30+ events)
+- [x] Task 20: SDModeSwitcher (cobalt accent, ⌘1-5)
+- [x] Task 21: SDWelcomeBanner
+- [x] Task 22: 5 mode layouts
+- [x] Task 23: SDShell shell
+- [x] Task 24: wire into useSDModuleImpl
+- [x] Task 25: smoke test + verification
+
+SD Phase 1 complete on: <YYYY-MM-DD>
+Ready to start SD Phase 2: Learn mode + first content drop (Wave 1).
+```
+
+- [ ] **Step 7: Final commit + tag**
+
+```bash
+git add docs/superpowers/plans/.progress-sd-phase-1.md
+git commit -m "$(cat <<'EOF'
+chore: SD Phase 1 complete — mode scaffolding + DB
+
+- DB: 13 new SD tables via 0002_add_sd_module.sql migration,
+      5 partial unique indexes (active drill, active sim, 3 public shares)
+- Stores: sdMode + banner/onboarding slices on ui-store;
+          new sd-store with activeSDDrill + activeSDSim
+- Hooks: useSDModeSync (URL ↔ store), useSDPreferencesSync (debounced
+         DB write-through), useSDDrillSync (10s heartbeat)
+- API: 13 new route handlers under /api/sd/* covering concepts,
+       problems, designs (+ snapshot), simulations, drill-attempts,
+       review. POST/PATCH on content tables return 501 until Phase 2.
+- UI: SDShell with cobalt accent (#2563EB), 5-pill SDModeSwitcher
+      (⌘1-5), welcome banner, five mode layouts (Build wrapper + 4
+      stubs carrying spec's room metaphors).
+- Analytics: 30+ typed builders in sd-events.ts.
+
+Build mode unchanged; Learn/Simulate/Drill/Review are functional
+stubs. LLD Phase 1 untouched. Ready for SD Phase 2.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+
+git tag sd-phase-1-complete
+```
+
+---
+
+## Self-review checklist
+
+Before declaring SD Phase 1 shipped:
+
+**Spec coverage (§3, §4, §18, §21, §23):**
+- [x] 5-mode system with mode switcher — Tasks 20, 23
+- [x] DB-first persistence + localStorage cache — Tasks 9, 10, 12
+- [x] All 13 SD tables with partial unique indexes — Tasks 1-8
+- [x] 13+ new API route handlers — Tasks 14-18
+- [x] URL-reflectable modes via `?mode=` — Task 11
+- [x] Welcome banner for first-visit — Task 21
+- [x] Cobalt accent (#2563EB) — Tasks 20, 21, 23
+- [x] Analytics event catalog (30+ events) — Task 19
+- [x] Zero regression for LLD Phase 1 — Task 25 smoke test
+- [x] Zero regression for existing SD canvas — Task 24 wraps not rewrites
+
+**Spec sections explicitly out of scope for Phase 1 (don't implement):**
+- 90-second spotlight carousel (§18.6) — Phase 2
+- 8-section concept page renderer (§5.4) — Phase 2
+- 6-pane problem page (§5.5) — Phase 2
+- Simulation tick loop + chaos ribbon (§8) — Phase 3
+- Drill interviewer LLM flow + 6-axis rubric grader (§9) — Phase 3
+- FSRS-5 scheduler (§10) — Phase 4
+- Knowledge graph overlay (⌘G, §4.4) — Phase 4
+- Crunch Mode 7-day plan (§4.6) — Phase 4
+- Blueprint / hand-drawn render modes (§18.8) — Phase 5
+- Decade Saga (§20) — Phase 5/6
+
+**Placeholder check:** No TBDs, no "implement later", no skipped code blocks. Every step shows the exact code. ✓
+
+**Type consistency:** `SDMode` type defined in ui-store, imported consistently. `SDDrillMode` + `SDSimActivity` defined in sd-store, imported where used. No naming drift. ✓
+
+**Phase boundary check:** All POST/PATCH routes for content tables (concepts, problems) return 501 with a message pointing to Phase 2. Simulate PATCH returns 501 pointing to Phase 3. Review submit marks `scheduled: false` pointing to Phase 4. ✓
+
+---
+
+## Execution Handoff
+
+Plan complete and saved to `docs/superpowers/plans/2026-04-20-sd-phase-1-mode-scaffolding.md`. Two execution options:
+
+**1. Subagent-Driven (recommended)** — Dispatch a fresh subagent per task, review between tasks, fast iteration. Each task's code lands in isolated context so subagent focus stays tight.
+
+**2. Inline Execution** — Execute tasks in this session using executing-plans, batch execution with checkpoints for your review.
+
+Which approach?
+
+
