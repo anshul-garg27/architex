@@ -4826,6 +4826,860 @@ git commit -m "feat(analytics): extend sd event catalog with 14 phase-2 events (
 
 ---
 
+## Task 33: Diagnostic entry quiz (Q46 · schema + content + UI + API)
+
+**Files:**
+- Create: `architex/src/db/schema/sd-diagnostic-results.ts`
+- Create: `architex/content/sd/quiz/diagnostic.yaml` (15 questions across 3 bands)
+- Create: `architex/scripts/seed-sd-diagnostic.ts`
+- Create: `architex/src/lib/sd/diagnostic-quiz.ts`
+- Create: `architex/src/app/api/sd/diagnostic/route.ts` (POST — start)
+- Create: `architex/src/app/api/sd/diagnostic/[id]/route.ts` (GET/PATCH — progress/submit)
+- Create: `architex/src/app/sd/onboarding/quiz/page.tsx`
+- Create: `architex/src/components/modules/sd/learn/quiz/DiagnosticQuizRunner.tsx`
+- Create: `architex/src/components/modules/sd/learn/quiz/DiagnosticQuizResult.tsx`
+
+Per spec §2 Rookie persona: *"diagnostic quiz (Q46, 10 questions, 4 minutes) → guided 8-concept 'Foundations' track"*. Phase 2 lands with **15 questions, 3 per difficulty band, ~6 minutes**. Result maps to `rookie | journeyman | architect` + a recommended first concept.
+
+- [ ] **Step 1: DB schema**
+
+```typescript
+// src/db/schema/sd-diagnostic-results.ts
+import { pgTable, uuid, timestamp, jsonb, integer, varchar } from 'drizzle-orm/pg-core';
+import { users } from './users';
+
+export const sdDiagnosticResults = pgTable('sd_diagnostic_results', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }), // null for anonymous
+  anonymousId: varchar('anonymous_id', { length: 64 }), // cookie-based for anon attempts
+  questionSetVersion: integer('question_set_version').notNull().default(1),
+  answers: jsonb('answers').notNull(),   // [{ questionId, selectedId, correct, msToAnswer }]
+  band: varchar('band', { length: 32 }), // 'rookie' | 'journeyman' | 'architect'
+  recommendedConceptSlug: varchar('recommended_concept_slug', { length: 100 }),
+  score: integer('score'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+});
+```
+
+- [ ] **Step 2: Content — 15-question YAML**
+
+```yaml
+# content/sd/quiz/diagnostic.yaml
+version: 1
+questions:
+  # Band: rookie (5 questions)
+  - id: q1
+    band: rookie
+    prompt: "When an HTTP GET request crosses from a browser in New York to a server in Los Angeles, which number is closest to the typical round-trip time?"
+    options:
+      - { id: a, label: "1ms", isCorrect: false }
+      - { id: b, label: "70-90ms", isCorrect: true }
+      - { id: c, label: "500ms", isCorrect: false }
+      - { id: d, label: "2-3 seconds", isCorrect: false }
+    concept: client-server
+  - id: q2
+    band: rookie
+    prompt: "Which HTTP verb is idempotent by definition?"
+    options:
+      - { id: a, label: "POST", isCorrect: false }
+      - { id: b, label: "PUT", isCorrect: true }
+      - { id: c, label: "PATCH (always)", isCorrect: false }
+      - { id: d, label: "CONNECT", isCorrect: false }
+    concept: http-verbs
+  - id: q3
+    band: rookie
+    prompt: "DNS TTL controls..."
+    options:
+      - { id: a, label: "how long a browser can cache a DNS answer before asking again", isCorrect: true }
+      - { id: b, label: "the maximum packet size", isCorrect: false }
+      - { id: c, label: "the TCP connection timeout", isCorrect: false }
+      - { id: d, label: "the TLS handshake duration", isCorrect: false }
+    concept: dns
+  - id: q4
+    band: rookie
+    prompt: "Which protocol retransmits lost packets?"
+    options:
+      - { id: a, label: "UDP", isCorrect: false }
+      - { id: b, label: "TCP", isCorrect: true }
+      - { id: c, label: "IP", isCorrect: false }
+      - { id: d, label: "HTTP", isCorrect: false }
+    concept: tcp-vs-udp
+  - id: q5
+    band: rookie
+    prompt: "A 'stateless' service means..."
+    options:
+      - { id: a, label: "it cannot access a database", isCorrect: false }
+      - { id: b, label: "it stores no per-user state locally between requests", isCorrect: true }
+      - { id: c, label: "it never fails", isCorrect: false }
+      - { id: d, label: "it only uses GET", isCorrect: false }
+    concept: statelessness
+
+  # Band: journeyman (5 questions)
+  - id: q6
+    band: journeyman
+    prompt: "Cache stampede is most likely when..."
+    options:
+      - { id: a, label: "many requests miss cache for the same key simultaneously after expiry", isCorrect: true }
+      - { id: b, label: "the cache runs out of memory", isCorrect: false }
+      - { id: c, label: "a key is written twice", isCorrect: false }
+      - { id: d, label: "the cache is behind a load balancer", isCorrect: false }
+    concept: caching-strategies
+  - id: q7
+    band: journeyman
+    prompt: "Consistent hashing's primary benefit over modular hashing is..."
+    options:
+      - { id: a, label: "fewer keys move when the cluster size changes", isCorrect: true }
+      - { id: b, label: "it's faster to compute", isCorrect: false }
+      - { id: c, label: "it produces shorter hash values", isCorrect: false }
+      - { id: d, label: "it eliminates collisions", isCorrect: false }
+    concept: consistent-hashing
+  - id: q8
+    band: journeyman
+    prompt: "In Kafka, 'exactly-once' delivery requires..."
+    options:
+      - { id: a, label: "nothing — it's default", isCorrect: false }
+      - { id: b, label: "idempotent producer + transactional consumer + atomic write to the consumer's sink", isCorrect: true }
+      - { id: c, label: "at least 3 brokers", isCorrect: false }
+      - { id: d, label: "a dedicated ZooKeeper cluster", isCorrect: false }
+    concept: delivery-semantics
+  - id: q9
+    band: journeyman
+    prompt: "A circuit breaker's OPEN state means..."
+    options:
+      - { id: a, label: "requests flow freely", isCorrect: false }
+      - { id: b, label: "requests are rejected without calling the dependency", isCorrect: true }
+      - { id: c, label: "the breaker is disabled", isCorrect: false }
+      - { id: d, label: "only retries pass through", isCorrect: false }
+    concept: circuit-breakers
+  - id: q10
+    band: journeyman
+    prompt: "CAP theorem guarantees that during a network partition, a system cannot simultaneously be..."
+    options:
+      - { id: a, label: "consistent and fast", isCorrect: false }
+      - { id: b, label: "consistent and available (for every non-failing node)", isCorrect: true }
+      - { id: c, label: "partition-tolerant and fast", isCorrect: false }
+      - { id: d, label: "available and secure", isCorrect: false }
+    concept: cap-in-practice
+
+  # Band: architect (5 questions)
+  - id: q11
+    band: architect
+    prompt: "Raft's leader election can stall if..."
+    options:
+      - { id: a, label: "two nodes repeatedly time out with overlapping elections (split vote)", isCorrect: true }
+      - { id: b, label: "the log becomes too large", isCorrect: false }
+      - { id: c, label: "all nodes agree immediately", isCorrect: false }
+      - { id: d, label: "the network is too fast", isCorrect: false }
+    concept: consensus
+  - id: q12
+    band: architect
+    prompt: "A Hybrid Logical Clock (HLC) combines..."
+    options:
+      - { id: a, label: "physical time + a logical counter", isCorrect: true }
+      - { id: b, label: "vector clock + physical time", isCorrect: false }
+      - { id: c, label: "NTP + Lamport clock", isCorrect: false }
+      - { id: d, label: "TrueTime + Paxos epochs", isCorrect: false }
+    concept: distributed-clocks
+  - id: q13
+    band: architect
+    prompt: "Which is the strongest consistency model that still permits stale reads from replicas?"
+    options:
+      - { id: a, label: "strict serializability", isCorrect: false }
+      - { id: b, label: "linearizability", isCorrect: false }
+      - { id: c, label: "sequential consistency", isCorrect: false }
+      - { id: d, label: "monotonic reads", isCorrect: true }
+    concept: consistency-models
+  - id: q14
+    band: architect
+    prompt: "During the October 2021 Facebook outage, the reason physical access to datacenters did not restore service quickly was..."
+    options:
+      - { id: a, label: "badge systems depended on the network that was also down", isCorrect: true }
+      - { id: b, label: "datacenters were air-gapped from the fiber", isCorrect: false }
+      - { id: c, label: "the BGP issue was not fixable without recompiling the kernel", isCorrect: false }
+      - { id: d, label: "DNS providers were offline too", isCorrect: false }
+    concept: ip-routing
+    realIncidentSlug: fb-2021-bgp
+  - id: q15
+    band: architect
+    prompt: "Best way to handle retry amplification in a 5-service synchronous chain?"
+    options:
+      - { id: a, label: "add retries everywhere", isCorrect: false }
+      - { id: b, label: "enforce a total retry budget + jitter at the outermost caller only", isCorrect: true }
+      - { id: c, label: "use exponential backoff at every layer", isCorrect: false }
+      - { id: d, label: "increase timeouts by 2x at every layer", isCorrect: false }
+    concept: retries-jitter-backoff
+```
+
+- [ ] **Step 3: Seeder**
+
+```typescript
+// scripts/seed-sd-diagnostic.ts
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { parse } from 'yaml';
+import { z } from 'zod';
+
+const Schema = z.object({
+  version: z.number(),
+  questions: z.array(z.object({
+    id: z.string(),
+    band: z.enum(['rookie', 'journeyman', 'architect']),
+    prompt: z.string(),
+    options: z.array(z.object({ id: z.string(), label: z.string(), isCorrect: z.boolean() })).length(4),
+    concept: z.string(),
+    realIncidentSlug: z.string().optional(),
+  })).length(15),
+});
+
+async function main() {
+  const raw = await readFile(join(process.cwd(), 'content', 'sd', 'quiz', 'diagnostic.yaml'), 'utf8');
+  const parsed = Schema.safeParse(parse(raw));
+  if (!parsed.success) throw new Error(parsed.error.message);
+  // Write to a static asset at src/lib/sd/diagnostic-quiz.data.ts so the client can import synchronously
+  const outPath = join(process.cwd(), 'src', 'lib', 'sd', 'diagnostic-quiz.data.ts');
+  const body = `// AUTOGENERATED from content/sd/quiz/diagnostic.yaml
+export const DIAGNOSTIC_QUIZ = ${JSON.stringify(parsed.data, null, 2)} as const;
+`;
+  const { writeFile } = await import('node:fs/promises');
+  await writeFile(outPath, body);
+  console.log(`[diagnostic] wrote ${outPath}`);
+}
+main().catch((e) => { console.error(e); process.exit(1); });
+```
+
+Add to `package.json`:
+```json
+{ "scripts": { "seed:sd-diagnostic": "tsx scripts/seed-sd-diagnostic.ts" } }
+```
+
+And `prebuild`: `"prebuild": "pnpm build:sd-graph && pnpm build:concept-graph && pnpm seed:sd-diagnostic"`.
+
+- [ ] **Step 4: Grading library**
+
+```typescript
+// src/lib/sd/diagnostic-quiz.ts
+import { DIAGNOSTIC_QUIZ } from './diagnostic-quiz.data';
+
+export interface DiagnosticAnswer { questionId: string; selectedId: string; msToAnswer: number }
+export interface DiagnosticResult {
+  band: 'rookie' | 'journeyman' | 'architect';
+  score: number;                          // 0..15
+  recommendedConceptSlug: string;
+  perBandScore: Record<'rookie'|'journeyman'|'architect', { correct: number; total: number }>;
+}
+
+export function gradeDiagnostic(answers: DiagnosticAnswer[]): DiagnosticResult {
+  const questions = DIAGNOSTIC_QUIZ.questions;
+  let score = 0;
+  const perBandScore: DiagnosticResult['perBandScore'] = {
+    rookie:     { correct: 0, total: 5 },
+    journeyman: { correct: 0, total: 5 },
+    architect:  { correct: 0, total: 5 },
+  };
+  const wrongConcepts: string[] = [];
+  for (const a of answers) {
+    const q = questions.find((qq) => qq.id === a.questionId);
+    if (!q) continue;
+    const correctOpt = q.options.find((o) => o.isCorrect);
+    if (correctOpt && correctOpt.id === a.selectedId) {
+      score++;
+      perBandScore[q.band].correct++;
+    } else {
+      wrongConcepts.push(q.concept);
+    }
+  }
+  const band: DiagnosticResult['band'] =
+    perBandScore.architect.correct >= 3 && score >= 12 ? 'architect' :
+    perBandScore.journeyman.correct >= 3 && score >= 8  ? 'journeyman' :
+    'rookie';
+
+  // Recommend the first Wave 1 concept the user got wrong; fall back to 'client-server'
+  const wave1 = ['client-server', 'http-verbs', 'tcp-vs-udp', 'dns', 'ip-routing'];
+  const recommendedConceptSlug = wrongConcepts.find((c) => wave1.includes(c)) ?? (band === 'rookie' ? 'client-server' : 'caching-strategies');
+
+  return { band, score, recommendedConceptSlug, perBandScore };
+}
+```
+
+- [ ] **Step 5: API routes**
+
+`POST /api/sd/diagnostic` — starts a new attempt (inserts a row with empty `answers`), returns `{ id }`.
+`GET /api/sd/diagnostic/[id]` — returns current state.
+`PATCH /api/sd/diagnostic/[id]` — body `{ answer: DiagnosticAnswer }` appends; when `answers.length === 15`, calls `gradeDiagnostic`, writes `band`/`score`/`recommendedConceptSlug`, sets `submittedAt`, returns full result.
+
+- [ ] **Step 6: UI**
+
+```typescript
+// src/app/sd/onboarding/quiz/page.tsx — server component
+import { DiagnosticQuizRunner } from '@/components/modules/sd/learn/quiz/DiagnosticQuizRunner';
+import { DIAGNOSTIC_QUIZ } from '@/lib/sd/diagnostic-quiz.data';
+
+export default function DiagnosticQuizPage() {
+  return <DiagnosticQuizRunner questions={DIAGNOSTIC_QUIZ.questions} />;
+}
+```
+
+`DiagnosticQuizRunner` renders questions one at a time with a progress pill ("3/15"). On submit, POSTs to `/api/sd/diagnostic`, PATCHes per answer, renders `DiagnosticQuizResult` when all 15 are answered. The result view shows band + score breakdown + a big "Start with: <concept>" button linking to `/sd/learn/concepts/<slug>`.
+
+- [ ] **Step 7: Tests + commit**
+
+Grading engine tests:
+```typescript
+describe('gradeDiagnostic', () => {
+  it('returns architect for 15/15', () => { /* ... */ });
+  it('returns rookie for 3/5 rookie and 0 elsewhere', () => { /* ... */ });
+  it('recommends a wave 1 concept the user got wrong', () => { /* ... */ });
+});
+```
+
+UI test: render runner, simulate answering all 15, assert POST then 15 PATCHes then result view renders.
+
+```bash
+pnpm typecheck && pnpm test:run -- diagnostic-quiz
+git add architex/content/sd/quiz/diagnostic.yaml \
+        architex/scripts/seed-sd-diagnostic.ts \
+        architex/src/lib/sd/diagnostic-quiz.ts \
+        architex/src/lib/sd/diagnostic-quiz.data.ts \
+        architex/src/db/schema/sd-diagnostic-results.ts \
+        architex/src/app/api/sd/diagnostic/ \
+        architex/src/app/sd/onboarding/quiz/page.tsx \
+        architex/src/components/modules/sd/learn/quiz/ \
+        architex/package.json
+git commit -m "$(cat <<'EOF'
+feat(sd-onboarding): diagnostic entry quiz · 15 questions · 3 bands (Task 33/35)
+
+Content: 15 questions (5 rookie + 5 journeyman + 5 architect) covering
+client-server, http-verbs, dns, tcp-vs-udp, statelessness, caching,
+consistent-hashing, kafka semantics, circuit breakers, CAP, Raft,
+HLCs, consistency models, FB 2021 BGP, retry amplification — each
+tagged with a concept slug for weak-area recommendation.
+
+Engine: gradeDiagnostic() scores per-band, lands the user in rookie/
+journeyman/architect, and recommends a Wave 1 concept they got wrong
+(falls back to client-server for rookies).
+
+UI: /sd/onboarding/quiz runs one-question-at-a-time with a progress
+pill; result view shows band + per-band breakdown + a "Start with
+<concept>" deep-link.
+
+DB: sd_diagnostic_results with anonymous_id fallback so pre-login
+users' attempts are preserved across the auth handshake.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 34: 90-second guided onboarding tour (Q34)
+
+**Files:**
+- Create: `architex/src/hooks/useSDOnboardingTour.ts`
+- Create: `architex/src/components/modules/sd/learn/onboarding/SDOnboardingTour.tsx`
+- Create: `architex/src/components/modules/sd/learn/onboarding/SpotlightMask.tsx`
+- Modify: `architex/src/stores/ui-store.ts` (add `sdOnboardingStep` slice)
+- Modify: `architex/src/components/modules/sd/SDShell.tsx` (mount tour on first visit)
+
+Per spec §18.6, 6 steps totaling 90 seconds, skippable at any point:
+
+| Step | Time | Spotlight on | Caption |
+|------|------|---|---|
+| 0 | 0:00-0:05 | Full screen (no spotlight) | *"Welcome to the wind tunnel."* (serif, cobalt glow on *wind*) |
+| 1 | 0:05-0:20 | Learn mode pill (⌘1) | *"Learn teaches the 40 primitives of distributed systems. Start here."* |
+| 2 | 0:20-0:35 | Build mode pill (⌘2) | *"Build is the drafting hall. Sketch any design you want."* |
+| 3 | 0:35-0:55 | Simulate mode pill (⌘3) | *"Simulate runs your design. Traffic, cost, chaos. This is the wind tunnel."* |
+| 4 | 0:55-1:10 | Drill mode pill (⌘4) | *"Drill is the examination room. 45 minutes, 5 stages, under the clock."* |
+| 5 | 1:10-1:20 | Review mode pill (⌘5) | *"Review is daily retention. 2 minutes per day."* |
+| 6 | 1:20-1:30 | Center | *"Five modes. One studio. Let's begin."* + Begin button |
+
+- [ ] **Step 1: `SpotlightMask` component**
+
+```typescript
+// src/components/modules/sd/learn/onboarding/SpotlightMask.tsx
+'use client';
+import { motion } from 'motion/react';
+import { useEffect, useState } from 'react';
+
+export interface SpotlightMaskProps {
+  targetRef: React.RefObject<HTMLElement | null>;
+  /** 0 when no target — renders full dim without cutout */
+  radius?: number;
+}
+
+export function SpotlightMask({ targetRef, radius = 60 }: SpotlightMaskProps) {
+  const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = targetRef.current;
+    if (!el) { setRect(null); return; }
+    const r = el.getBoundingClientRect();
+    setRect({ x: r.left, y: r.top, w: r.width, h: r.height });
+  }, [targetRef.current]);
+
+  // SVG mask cuts a rounded rect out of a full-screen dim layer
+  if (!rect) {
+    return <motion.div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} />;
+  }
+  return (
+    <svg className="fixed inset-0 z-50 pointer-events-none" width="100%" height="100%">
+      <defs>
+        <mask id="spot">
+          <rect width="100%" height="100%" fill="white" />
+          <motion.rect
+            x={rect.x - 8} y={rect.y - 8} width={rect.w + 16} height={rect.h + 16}
+            rx={12} ry={12}
+            fill="black"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
+          />
+        </mask>
+      </defs>
+      <rect width="100%" height="100%" fill="rgb(0 0 0 / 0.7)" mask="url(#spot)" />
+    </svg>
+  );
+}
+```
+
+- [ ] **Step 2: Tour state + hook**
+
+```typescript
+// src/hooks/useSDOnboardingTour.ts
+'use client';
+import { useEffect } from 'react';
+import { useUIStore } from '@/stores/ui-store';
+import { trackSDEvent } from '@/lib/analytics/sd-events';
+
+export interface UseSDOnboardingTourOptions {
+  initiallyComplete: boolean;             // from user_preferences.sd.onboardingComplete
+  onStepChange?: (step: number) => void;
+  onComplete?: () => void;
+}
+
+export function useSDOnboardingTour({ initiallyComplete, onStepChange, onComplete }: UseSDOnboardingTourOptions) {
+  const step = useUIStore((s) => s.sdOnboardingStep);
+  const setStep = useUIStore((s) => s.setSdOnboardingStep);
+  const startedAt = useUIStore((s) => s.sdOnboardingStartedAt);
+  const setStartedAt = useUIStore((s) => s.setSdOnboardingStartedAt);
+
+  useEffect(() => {
+    if (initiallyComplete || step !== null) return;
+    setStep(0);
+    setStartedAt(Date.now());
+  }, [initiallyComplete, step, setStep, setStartedAt]);
+
+  const advance = () => {
+    const next = (step ?? 0) + 1;
+    trackSDEvent({ type: 'sd_onboarding_step', step: next, durationMs: Date.now() - (startedAt ?? Date.now()) });
+    if (next > 6) { finish(); return; }
+    setStep(next);
+    onStepChange?.(next);
+  };
+
+  const skip = () => {
+    trackSDEvent({ type: 'sd_onboarding_skipped', atStep: step ?? 0 });
+    finish(true);
+  };
+
+  const finish = (skipped = false) => {
+    trackSDEvent({ type: 'sd_onboarding_completed', totalDurationMs: Date.now() - (startedAt ?? Date.now()) });
+    setStep(null);
+    onComplete?.();
+    // Persist onboardingComplete: true
+    fetch('/api/user-preferences/sd', { method: 'PATCH', body: JSON.stringify({ onboardingComplete: true }) });
+  };
+
+  return { step, advance, skip, finish };
+}
+```
+
+- [ ] **Step 3: `SDOnboardingTour` composition**
+
+```typescript
+// src/components/modules/sd/learn/onboarding/SDOnboardingTour.tsx
+'use client';
+import { useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { SpotlightMask } from './SpotlightMask';
+import { useSDOnboardingTour } from '@/hooks/useSDOnboardingTour';
+
+const STEPS = [
+  { ref: null,         caption: 'Welcome to the wind tunnel.', durationMs: 5000 },
+  { ref: 'learn-pill', caption: 'Learn teaches the 40 primitives of distributed systems. Start here.',                durationMs: 15000 },
+  { ref: 'build-pill', caption: 'Build is the drafting hall. Sketch any design you want.',                            durationMs: 15000 },
+  { ref: 'sim-pill',   caption: 'Simulate runs your design. Traffic, cost, chaos. This is the wind tunnel.',         durationMs: 20000 },
+  { ref: 'drill-pill', caption: 'Drill is the examination room. 45 minutes, 5 stages, under the clock.',             durationMs: 15000 },
+  { ref: 'review-pill',caption: 'Review is daily retention. 2 minutes per day.',                                     durationMs: 10000 },
+  { ref: null,         caption: 'Five modes. One studio. Let\u2019s begin.',                                             durationMs: 10000, showBegin: true },
+];
+
+export interface SDOnboardingTourProps {
+  initiallyComplete: boolean;
+  getRef: (key: string) => React.RefObject<HTMLElement | null>;
+}
+
+export function SDOnboardingTour({ initiallyComplete, getRef }: SDOnboardingTourProps) {
+  const { step, advance, skip, finish } = useSDOnboardingTour({ initiallyComplete });
+
+  useEffect(() => {
+    if (step === null) return;
+    const current = STEPS[step];
+    if (!current) return;
+    const timer = setTimeout(() => advance(), current.durationMs);
+    return () => clearTimeout(timer);
+  }, [step, advance]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && step !== null) skip(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [step, skip]);
+
+  if (step === null) return null;
+  const current = STEPS[step];
+  const targetRef = current.ref ? getRef(current.ref) : { current: null } as React.RefObject<HTMLElement | null>;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key={step}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.4 }}
+        className="fixed inset-0 z-50"
+      >
+        <SpotlightMask targetRef={targetRef} />
+        <div className="pointer-events-none absolute inset-x-0 top-1/3 z-[51] text-center">
+          <p className="mx-auto max-w-xl font-serif text-2xl leading-snug text-white">
+            {current.caption.split('wind').map((part, i, arr) => i === 0 ? (
+              <span key={i}>{part}{i < arr.length - 1 && <span className="text-cobalt-300 drop-shadow-[0_0_12px_rgba(37,99,235,0.8)]">wind</span>}</span>
+            ) : <span key={i}>{part}</span>)}
+          </p>
+          <div className="mt-6 flex justify-center gap-3 pointer-events-auto">
+            <button onClick={skip} className="text-sm text-white/60 hover:text-white/90">Skip</button>
+            {current.showBegin && (
+              <button onClick={() => finish(false)} className="rounded-md bg-cobalt-500 px-6 py-2 text-sm text-white hover:bg-cobalt-400">
+                Begin
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+```
+
+- [ ] **Step 4: Mount in `SDShell.tsx`**
+
+`SDShell` already has refs to the 5 mode pills from Phase 1. Expose them via a `getRef()` accessor and mount `<SDOnboardingTour initiallyComplete={userPrefs.sd.onboardingComplete} getRef={getRef} />` above all other content.
+
+- [ ] **Step 5: Tests + commit**
+
+Tests with fake timers:
+- Tour does not render when `initiallyComplete: true`
+- Tour advances through steps on timer
+- Escape at step 2 fires `sd_onboarding_skipped: { atStep: 2 }`
+- Begin button at step 6 fires `sd_onboarding_completed`
+- `onboardingComplete: true` is PATCHed to `/api/user-preferences/sd` once
+
+```bash
+pnpm typecheck && pnpm test:run -- SDOnboardingTour useSDOnboardingTour
+git add architex/src/hooks/useSDOnboardingTour.ts \
+        architex/src/components/modules/sd/learn/onboarding/ \
+        architex/src/components/modules/sd/SDShell.tsx \
+        architex/src/stores/ui-store.ts
+git commit -m "$(cat <<'EOF'
+feat(sd-onboarding): 90-second guided spotlight tour (Task 34/35)
+
+Spotlight-mask overlay mounts on SDShell first visit when
+user_preferences.sd.onboardingComplete === false. Six steps — cold
+open · Learn · Build · Simulate · Drill · Review — with serif cobalt-
+glow captions and a final Begin button. Escape skips at any point.
+Completion PATCHes onboardingComplete: true so subsequent visits are
+silent. All steps emit typed analytics events.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 35: End-to-end smoke test + `.progress-phase-2-sd.md` tracker + phase commit
+
+- [ ] **Step 1: Run full verification suite**
+
+```bash
+cd architex
+pnpm typecheck
+pnpm lint
+pnpm test:run
+pnpm build
+```
+All four must pass.
+
+- [ ] **Step 2: Seed-compile all 8 content pieces**
+
+```bash
+pnpm build:sd-graph
+pnpm seed:sd-diagnostic
+pnpm compile:sd-content          # compiles all 5 concepts + 3 problems
+```
+Expected: `sd_concepts` has 5 rows, `sd_problems` has 3 rows, `sd_graph_edges` has ~40+ rows, `src/lib/sd/concept-graph.ts` exports 8 graph entries, `src/lib/sd/diagnostic-quiz.data.ts` has 15 questions.
+
+- [ ] **Step 3: Manual E2E walk-through (~15 min)**
+
+Open `http://localhost:3000` → sign in as a test user with `user_preferences.sd.onboardingComplete: false`.
+
+1. **Onboarding tour fires.** Cold open → 5 spotlight steps → Begin button. Click Begin → lands on `/sd` dashboard.
+2. **Click "Take the placement quiz" card** → routed to `/sd/onboarding/quiz`. Answer 15 questions. Result: band = `journeyman` (7 correct rookie + 4 journeyman + 1 architect), recommended concept = `caching-strategies` (first journeyman-band wrong). Click "Start with Caching Strategies" → returns "Coming in Phase 3" (caching-strategies not in Phase 2 content) so fall back to `client-server`.
+3. **Click Learn mode pill (⌘1).** Lands at `/sd/learn`. Sidebar shows 5 Wave 1 concepts + 3 warmup problems. Click `client-server`.
+4. **Concept page renders.** Progress bar at 0%. TOC populated on the right. ConfusedWithPanel below TOC shows `peer-to-peer` + `service-mesh`. ScalingNumbersStrip at top shows 3 values.
+5. **Scroll through the 10 sections.** Canvas pulses `client` + `server` nodes when Primitive and Anatomy sections cross viewport. Progress bar fills as sections cross 95%.
+6. **Click the `server` node on canvas** → `NodePopover` opens with description, cost hint (~$0.11/hr), concept deep-dives, failure-mode links, "Jump to Anatomy section" button. Click the button → scrolls back to Anatomy, popover closes.
+7. **Highlight a paragraph in the Primitive section** → AskAI floating button shows "Explain selection". Click → drawer opens to Explain tab → Haiku renders 3-5 paragraphs.
+8. **Click a bookmark icon on the Tradeoffs header** → bookmark strip at top gets 1 entry → click it → scrolls back to Tradeoffs.
+9. **Scroll to Checkpoints.** Answer Recall wrong once → `whyWrong` shows. Answer again wrong → second `whyWrong`. Answer again → full reveal. Advance to Apply. Select one correct + one distractor → feedback shows missing + extra → submit correctly → advance. Advance through Compare.
+10. **Refresh the page.** Scroll position restored, completed sections retain ticks, checkpoint stats intact.
+11. **Press `⌘2` (Build)** → existing canvas unchanged. Press `⌘1` → back to Learn, same concept, same scroll position.
+12. **Click a problem (e.g. `url-shortener`).** Verify it loads; 7 panes render; default active pane is `canonicalDesign`; tabs A/B for solutions work; canvas swaps when switching solutions; failure-mode chaos links open the chaos library (stubbed for Phase 2 → "Coming in Phase 3").
+13. **Open DevTools → Network.** Verify:
+    - `PATCH /api/sd/learn-progress/concept/client-server` fires ~1s after each scroll burst
+    - `POST /api/sd/explain-inline` returns 200 + explanation
+    - `POST /api/sd/concept-reads` fires for concept refs with 30s rate limit
+    - `POST /api/sd/bookmarks` on bookmark create, `DELETE` on toggle-off
+
+If any step fails, fix before calling Phase 2 complete.
+
+- [ ] **Step 4: Accessibility smoke**
+
+- Tab through the lesson column: focus lands on bookmark buttons, checkpoint options, explain-button, popover close, AskAI tabs, canvas nodes.
+- Verify each checkpoint's selected-option state is conveyed via `aria-selected` or `aria-pressed`.
+- Verify NodePopover has `role="dialog"` and an accessible name.
+- Run Lighthouse → Accessibility → confirm ≥95 score on the Learn route.
+- Verify `prefers-reduced-motion: reduce` collapses the cobalt-glow onboarding animations.
+
+- [ ] **Step 5: Create `.progress-phase-2-sd.md` tracker**
+
+Create `docs/superpowers/plans/.progress-phase-2-sd.md`:
+
+```markdown
+# SD Phase 2 Progress Tracker
+
+- [x] Phase 1.5 pre-flight audit complete (SD Phase 1 tag + LLD Phase 2 tag)
+- [x] Task 1: sd_learn_progress schema
+- [x] Task 2: sd_concept_reads schema
+- [x] Task 3: sd_bookmarks schema
+- [x] Task 4: migrations generated + applied + cascade-verified
+- [x] Task 5: content-types.ts + shared MDX compiler extracted
+- [x] Task 6: compile-sd-content script
+- [x] Task 7: concept-loader + problem-loader
+- [x] Task 8: learn-progress API routes
+- [x] Task 9: useSDLearnProgress hook
+- [x] Task 10: bookmarks API routes
+- [x] Task 11: useSDBookmarks hook
+- [x] Task 12: concept-reads API route
+- [x] Task 13: useConceptScrollSync + useProblemPaneSync
+- [x] Task 14: 10 concept sections + 6 problem panes + ConceptColumn + ProblemColumn + 3 content-format components
+- [x] Task 15: SDCanvasReadonly + NodePopover + 16-family registry
+- [x] Task 16: cross-module graph generator + prebuild hook
+- [x] Task 17: ConfusedWithPanel + CrossModuleBridgeCard
+- [x] Task 18: 4 checkpoint kinds + grading engine
+- [x] Task 19: 3 AI API routes (explain-inline · suggest-analogy · show-at-scale)
+- [x] Task 20: 3 AI hooks
+- [x] Task 21: AskAISurface 3-tab drawer
+- [x] Task 22: Reading aids (sidebar, progress, TOC, bookmarks strip)
+- [x] Task 23: SDLearnModeLayout rewrite
+- [x] Task 24: Client-Server concept
+- [x] Task 25: HTTP Verbs concept
+- [x] Task 26: TCP-vs-UDP concept
+- [x] Task 27: DNS concept
+- [x] Task 28: IP Routing concept
+- [x] Task 29: URL Shortener problem
+- [x] Task 30: Rate Limiter problem
+- [x] Task 31: Distributed Cache problem
+- [x] Task 32: Analytics event catalog extension
+- [x] Task 33: Diagnostic entry quiz
+- [x] Task 34: 90-sec guided onboarding
+- [x] Task 35: E2E smoke + phase commit
+
+SD Phase 2 complete on: <YYYY-MM-DD>
+Ready to start SD Phase 3: Simulate + Drill + second content drop.
+```
+
+- [ ] **Step 6: Final commit + tag**
+
+```bash
+git add docs/superpowers/plans/.progress-phase-2-sd.md
+git commit -m "$(cat <<'EOF'
+chore: SD Phase 2 complete — Learn mode + first content drop
+
+- DB: 4 new tables (sd_learn_progress / sd_concept_reads /
+  sd_bookmarks / sd_diagnostic_results) + sd_graph_edges.bridge_text
+- Pipeline: shared MDX compiler extracted; compile-sd-content +
+  build-sd-graph + seed-sd-diagnostic; prebuild chains all three
+- Hooks: useSDLearnProgress, useSDBookmarks, useConceptScrollSync,
+  useProblemPaneSync, useSDTableOfContents, useSDSelectionExplain,
+  useSDSuggestAnalogy, useSDShowAtScale, useDiagnosticQuiz,
+  useSDOnboardingTour
+- API: 10 new routes (learn-progress × 2, bookmarks × 2, concept-reads,
+  explain-inline, suggest-analogy, show-at-scale, diagnostic × 2)
+- UI: SDLearnModeLayout composes sidebar + canvas + concept/problem
+  column + TOC + bookmark strip + progress bar + NodePopover +
+  ConfusedWithPanel + AskAISurface (3-tab drawer);
+  8-section concept renderer + 6-pane problem renderer (both with 3-
+  checkpoint each, progressive reveal, FSRS rating derivation);
+  ScalingNumbersStrip · DecisionTree · EngineeringBlogCard ·
+  CrossModuleBridgeCard content-format primitives;
+  90-sec spotlight onboarding + 15-question diagnostic quiz
+- Content: 5 Wave 1 concepts (client-server, http-verbs, tcp-vs-udp,
+  dns, ip-routing) + 3 warmup problems (url-shortener, rate-limiter,
+  distributed-cache) authored end-to-end; pipeline allows the
+  remaining 32 concepts + 27 problems to ship by content-only PRs
+  with zero engineering work
+
+Ready for SD Phase 3: Simulate + Drill + second content drop.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+
+git tag phase-2-sd-complete
+```
+
+---
+
+## Self-review checklist
+
+Before declaring SD Phase 2 shipped:
+
+**Spec coverage (§5 content, §6 Learn, §11 canvas, §14 smart canvas, §15 AI, §17 cross-module, §18.6 onboarding, §23 Phase 2 scope):**
+- [x] 8-section concept renderer (spec §5.4 · §6.3) — Task 14
+- [x] 6-pane problem renderer (spec §5.5 · §6.4) — Task 14
+- [x] MDX ingestion pipeline shared with LLD Phase 2 — Task 5-7
+- [x] Scroll-sync canvas highlight (spec §6.3) — Tasks 13, 15
+- [x] 4 checkpoint types (recall · apply · compare · create) — Task 18
+- [x] Progressive reveal on checkpoint failure — Task 18
+- [x] 3 Ask-AI contextual surfaces (L1-L3 per §15.3.1) — Tasks 19-21
+- [x] Class/node popover on canvas click (Q7 analog for SD) — Task 15
+- [x] Diagnostic entry quiz (Q46) — Task 33
+- [x] 90-sec guided onboarding (Q34) — Task 34
+- [x] Cross-linking schema (spec §17) — Tasks 16, 17
+- [x] Scaling Numbers strip (Q32 format 3) — Task 14
+- [x] Decision tree (Q32 format 4) — Task 14
+- [x] Engineering blog deep-link cards (Q32 format 5) — Task 14
+- [x] 8 Opus-authored pieces (Wave 1 + 3 warmups) — Tasks 24-31
+- [x] DB-first persistence — Tasks 1-4, 8, 10, 12
+- [x] Analytics events for Learn mode — Task 32
+- [x] Zero regression for LLD Phase 2 (compiler refactor is additive + tested) — Task 5 Step 2
+
+**Explicitly out of scope for SD Phase 2 (don't implement):**
+- Tinker mode (port from LLD §6.5 applied to SD canvas) — deferred to Phase 2.5 or Phase 3
+- Simulate-mode surfaces (particle layer, metric strip, chaos ribbon) — Phase 3
+- Drill-mode 5-stage clock + interviewer personas — Phase 3
+- Review-mode FSRS card interface — Phase 4
+- Real-incident replay pages — Phase 3
+- Cross-module Full-Stack Loop (SD+LLD 90min) — Phase 5
+- Audio narration (Q46 wild-card 2) — Phase 4
+- Voice variants ELI5 / ELI-Senior — Phase 4
+- 3 color themes (Midnight / Parchment / Earth) — Phase 4
+- Blueprint / hand-drawn render modes — Phase 5
+- Decade Saga narrative campaign — Phase 5
+- Cold recall + elaborative interrogation (CS3/CS6 from spec §6.8) — Phase 4
+- Tinker → Save to Build handoff — Phase 2.5
+
+**Placeholder check:** No TBDs. Every step has exact code. Tasks 25-28 and 30-31 are content-authoring tasks with "key ingredients" specified in enough detail that Opus can author without engineering clarification; all engineering code is complete. ✓
+
+**Type consistency:** `ConceptPayload`, `ProblemPayload`, `ConceptSectionId`, `ProblemPaneId`, `ConceptFrontmatter`, `ProblemFrontmatter`, `GraphYaml`, `CheckpointAttempt`, `FsrsRating`, `SDLearnProgress`, `SDBookmark`, `NodeFamilySpec`, `UserContext`, `DiagnosticResult` all defined once and imported consistently. ✓
+
+**Invariant: no SD→LLD circular imports.** SD can import shared primitives from `src/components/shared/learn/*`. LLD never imports from `src/components/modules/sd/*`. SD may import `LLDCanvas` and `useLearnProgress` helpers; the reverse is forbidden and enforced by ESLint's `no-restricted-imports` rule added in Task 5.
+
+**Open questions flagged:**
+
+1. **Wave 1 slug drift (pre-flight)** — Task 24-28 slugs (client-server, http-verbs, tcp-vs-udp, dns, ip-routing) diverge from spec §5.2 Wave 1 slugs (client-server, request-response, statelessness, idempotency, three-metrics). Phase 2 ships the task-brief list; Phase 3 absorbs the delta. Content lead sign-off required before Task 24 kickoff.
+2. **Canvas JSON source for concept pages** — `ConceptColumn` reads `anchorNodeIds` from frontmatter but the actual node/edge JSON for the anatomy canvas is not in `content-types.ts` schema yet. Task 14 Step 4 references a `frontmatter.anatomyDiagram` field; this field should be added to `ConceptFrontmatterSchema` (Task 5 Step 3) as `anatomyDiagram: z.object({ nodes: z.array(z.any()), edges: z.array(z.any()) }).optional()` and populated in Task 24 for client-server. If missed, the Anatomy canvas renders empty — still functional, but the scroll-sync highlight has no target.
+3. **`LLDCanvas` props backfill** — Pre-flight Step 7 requires `LLDCanvas` to expose `readonly`, `highlightedNodeIds`, `onNodeClick`, `accentColor`. If any are missing, Task 15 Step 5 is a ~40 LOC additive PR to LLD. If the change is rejected or requires broader rework, fork into `SDCanvas` and defer full unification to a Phase 3 polish PR.
+4. **Diagnostic quiz anonymous identity** — Task 33 schema allows `user_id` OR `anonymous_id`. If the user logs in during the quiz, the migration step (Phase 1's anonymous→authenticated merge tree, spec §4.8) must claim the row. If Phase 1 merger doesn't yet know about `sd_diagnostic_results`, file an LLD Phase 2-style migration PR first.
+5. **Chaos event slugs referenced by concept graphs** — Tasks 24, 29 reference `slow-client-attack`, `ddos-amplification`, `tcp-syn-flood`, `cache-stampede`, `hot-partition`, `bad-deploy`, etc. These are authored in SD Phase 3 (spec §12). If Phase 2 ships before Phase 3, the chaos deep-link cards in Tasks 15 + 17 point to stub pages. UX decision: ship with stubs ("Coming in Phase 3") rather than hiding the surfaces — consistent with LLD Phase 2's stubbed Review links.
+
+---
+
+## Content authoring playbook (for the 32 concepts + 27 problems beyond Phase 2)
+
+This section exists so content-only PRs can ship without any engineering involvement after Phase 2 lands.
+
+### Adding a new concept
+
+1. **Pick a slug and wave.** Slugs match `^[a-z][a-z0-9-]{2,98}$`. Wave is 1-8 per spec §5.2. Wave 1 is already full after Phase 2 — subsequent concepts land in Waves 2-8.
+2. **Copy the template.**
+   ```bash
+   cp architex/content/sd/concepts/client-server.mdx \
+      architex/content/sd/concepts/<slug>.mdx
+   cp architex/content/sd/graph/client-server.graph.yaml \
+      architex/content/sd/graph/<slug>.graph.yaml
+   ```
+3. **Edit frontmatter.** Update `slug`, `title`, `subtitle`, `wave`, `waveOrder`, `estimatedMinutes`, `anchorNodeIds`, `scalingNumbers`, `engineeringBlogLinks`, and all 3 checkpoints (one each of recall + apply + compare).
+4. **Write the 10 sections.** Follow the Opus voice rules from spec §5.1. Word targets: hook 60w · analogy 120w · primitive 500-700w · anatomy 150w · numbersThatMatter 80w + table · tradeoffs 200w · antiCases 150w · seenInWild 150w · bridges cards. Total 1200-1800 words.
+5. **Update graph YAML.** 3-5 concept relations · 1-3 problem relations · 2-4 LLD pattern bridges · 2-4 chaos-event links · 2-3 `confusedWith` entries.
+6. **Compile + verify.**
+   ```bash
+   pnpm compile:sd-content --slug=<slug>
+   pnpm build:sd-graph
+   pnpm typecheck
+   pnpm test:run -- concept-graph
+   ```
+7. **Smoke test.** `pnpm dev` → open `/sd/learn/concepts/<slug>` → check all 10 sections render, canvas scroll-sync pulses on anchored node ids, checkpoints grade correctly, `ConfusedWithPanel` shows the right entries.
+8. **Open a content PR.** Title: `content(sd): author <Title> concept (Wave N · X/Y)`. Reviewer: content lead.
+
+### Adding a new problem
+
+Same flow, different template:
+
+1. Copy `url-shortener.mdx` + `url-shortener.graph.yaml`.
+2. Edit frontmatter — especially `domain`, `difficulty`, `companiesAsking`, `canonicalSolutions` (1-3), `rubric` (6 axes), `recommendedChaos`, `linkedConcepts`, `linkedLldPatterns`, `checkpoints` (pick any 3 from recall/apply/compare/create).
+3. Write the 7 panes. Word target 2500-3500.
+4. Update graph YAML.
+5. Compile + smoke-test.
+6. PR title: `content(sd): author <Title> problem (Domain · X/Y)`.
+
+### Editing an existing piece
+
+1. Edit the MDX file directly.
+2. `pnpm compile:sd-content --slug=<slug>` — upserts into DB.
+3. Word count warning if outside target → fix or acknowledge.
+4. PR title: `content(sd): polish <Title>`.
+
+### Author checklist per piece
+
+- [ ] Every checkpoint has pattern-specific `whyWrong` copy (not "try again")
+- [ ] Every `scalingNumbers` entry has a `sourceYear` for anything that ages
+- [ ] Every `engineeringBlogLinks` entry resolves to a live public URL
+- [ ] `confusedWith` entries disambiguate explicitly — not just "related"
+- [ ] `anchorNodeIds` cover at least Primitive, Anatomy, and one other section
+- [ ] No inline JSX outside the 8 MDX components (`<DecisionTree>`, `<ScalingNumbersStrip>`, `<EngineeringBlogCard>`, `<CrossModuleBridgeCard>`, `<ConfusedWithPanel>`, `<AskAISurface>`, `<NodePopover>`, `<SDCanvasReadonly>`)
+- [ ] MDX builds with zero warnings on `pnpm compile:sd-content:dry --slug=<slug>`
+
+### Content ops dashboard (Phase 3)
+
+Phase 3 lands a `/admin/sd-content` internal-only route that:
+- Lists all concept + problem rows in `sd_concepts` / `sd_problems`
+- Flags items where `sourceYear` is older than 4 years (per spec §5.7)
+- Shows completion rate + first-try-correct checkpoint stats per piece
+- Exposes a "regenerate graph" button that re-runs `build:sd-graph` without a full deploy
+
+Until then, content-ops uses `pnpm db:studio` and a manual spreadsheet.
+
+---
+
+## Execution Handoff
+
+Plan complete and saved to `docs/superpowers/plans/2026-04-20-sd-phase-2-learn-mode.md`. Two execution options:
+
+**1. Subagent-Driven (recommended)** — dispatch a fresh subagent per task, review between tasks. Content-authoring tasks (24-31) are especially well-suited to parallel subagents since each piece is independent. Engineering tasks (1-23, 32-34) share state (schemas → compilers → loaders → hooks → components → layout) and should execute roughly in order, but 8 + 9, 10 + 11, 19 + 20, 22 + 23 can be parallelized.
+
+**2. Inline Execution** — `superpowers:executing-plans`, batch with checkpoints at Task 4 (migrations applied), Task 7 (pipeline working end-to-end with a stub concept), Task 23 (full UI composed), Task 31 (all content seeded), Task 35 (smoke test). Recommended if the AI API routes (Task 19) need more than one back-and-forth to land — Sonnet `show-at-scale` JSON contract is the most finicky.
+
+Which approach?
+
 
 
 
