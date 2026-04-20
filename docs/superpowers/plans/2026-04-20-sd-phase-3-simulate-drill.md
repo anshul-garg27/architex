@@ -12702,3 +12702,623 @@ EOF
 ```
 
 ---
+
+## Group F · Content drop + analytics + E2E (Tasks 32-34)
+
+---
+
+## Task 32: Content-ops drop · Opus writes 12 Wave-2/3 concepts + 10 problems + 10 real-incident narratives
+
+**Files:**
+- Create (12): `architex/content/sd/concepts/wave-2/*.mdx` + `wave-3/*.mdx`
+- Create (10): `architex/content/sd/problems/*.mdx`
+- Create (10): `architex/content/sd/real-incidents/*.mdx`
+- Create: `architex/scripts/content/verify-sd-content.ts`
+
+Opus authors all 32 content pieces. Each concept follows the 8-section format from §5.4 (Hook · Analogy · Primitive · Numbers · Tradeoffs · When-not-to · Wild · Bridges). Each problem follows the 6-pane format from §5.5. Each real incident follows the 4-section format from §5.6 (Timeline · Replay · Postmortem · Bridges).
+
+**This is a content-ops task, not an engineering task.** Phase-3 engineering finishes when the scaffolding is in place. Content lands incrementally via editor + Opus throughout weeks 11-16. The verification script below asserts that the MDX renders and that the expected frontmatter fields are present.
+
+- [ ] **Step 1: Wave-2 concept shells (6 files)**
+
+For each of the 6 Wave-2 concepts listed in §5.2, create a stub MDX file with proper frontmatter. Opus fills the body across the phase. Example for `vertical-vs-horizontal-scaling.mdx`:
+
+```mdx
+---
+slug: vertical-vs-horizontal-scaling
+wave: 2
+title: Vertical vs Horizontal Scaling
+wordTarget: 1500
+authorshipStatus: draft
+generatedBy: opus
+lastReviewedAt: null
+sourceYear: 2026
+---
+
+# Vertical vs Horizontal Scaling
+
+<section data-section="hook">
+TODO — Opus hook paragraph (60 words).
+</section>
+
+<section data-section="analogy">
+TODO — Opus analogy (120 words).
+</section>
+
+<section data-section="primitive">
+TODO — formal definition, mechanics, diagrams, pseudocode (500-700 words).
+</section>
+
+<section data-section="numbers">
+TODO — numbers strip (80 words + table).
+</section>
+
+<section data-section="tradeoffs">
+TODO — 200-word honest tradeoff paragraph.
+</section>
+
+<section data-section="anti-cases">
+TODO — 2-3 anti-cases (150 words).
+</section>
+
+<section data-section="wild">
+TODO — 1 named-company example with source (150 words).
+</section>
+
+<section data-section="bridges">
+- Depends on: …
+- Used by: …
+- Implemented via: …
+- Protects against: …
+</section>
+```
+
+Repeat for `load-balancing`, `caching-strategies`, `cdn-fundamentals`, `connection-pooling`, `backpressure`.
+
+- [ ] **Step 2: Wave-3 concept shells (6 files)**
+
+Same shape for: `cap-in-practice`, `consistency-models`, `replication`, `sharding-and-consistent-hashing`, `acid-vs-base`, `distributed-transactions`.
+
+- [ ] **Step 3: Problem shells (10 files)**
+
+Each problem page follows the 6-pane format. Frontmatter:
+
+```mdx
+---
+slug: design-twitter
+domain: media-social
+difficulty: senior
+wordTarget: 2800
+authorshipStatus: draft
+generatedBy: opus
+canonicalSolutionCount: 2
+chaosTags: [cache-stampede, celebrity-event, hot-partition]
+conceptTags: [caching-strategies, sharding, replication]
+---
+
+# Design Twitter
+
+<section data-pane="problem-statement">
+TODO
+</section>
+
+<section data-pane="clarifying-questions">
+TODO — 8-12 questions with typical answers
+</section>
+
+<section data-pane="napkin-math">
+TODO — BOTE estimate
+</section>
+
+<section data-pane="canonical-design">
+TODO — 2-3 solutions, each 400-600 words
+</section>
+
+<section data-pane="failure-modes">
+TODO — 4-6 paragraphs
+</section>
+
+<section data-pane="real-world">
+TODO — 3-5 named-company links
+</section>
+```
+
+Problems (10): `design-twitter` · `design-instagram` · `design-youtube` · `design-uber` · `design-google-maps` · `design-dropbox` · `design-stripe` · `design-rate-limiter` · `design-monitoring-pipeline` · `design-message-queue`.
+
+- [ ] **Step 4: Real-incident shells (10 files)**
+
+```mdx
+---
+slug: facebook-2021-bgp
+displayName: Facebook 2021 · BGP withdrawal
+company: Facebook (Meta)
+date: 2021-10-04
+durationMinutes: 360
+wordTarget: 2000
+authorshipStatus: draft
+generatedBy: opus
+---
+
+# Facebook 2021 · BGP Withdrawal
+
+<section data-section="timeline">
+TODO — minute-by-minute with serif narration
+</section>
+
+<section data-section="replay">
+TODO — architecture sketch + event sequence commentary
+</section>
+
+<section data-section="postmortem">
+TODO — what Facebook said · what Architex adds · learnings
+</section>
+
+<section data-section="bridges">
+- Concepts: dns-redundancy, graceful-degradation, incident-response
+- Problems: design-dns-redundancy, design-badge-system
+- Chaos events: bgp-route-leak, dns-outage, service-dependency-loop
+</section>
+```
+
+Repeat for the other 9 incident slugs from Task 6.
+
+- [ ] **Step 5: Verification script**
+
+```typescript
+// architex/scripts/content/verify-sd-content.ts
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+
+const CONTENT_ROOT = path.join(process.cwd(), "content/sd");
+
+async function readMdx(dir: string): Promise<string[]> {
+  const entries = await readdir(dir);
+  return entries.filter((f) => f.endsWith(".mdx"));
+}
+
+async function assertSection(filePath: string, section: string) {
+  const body = await readFile(filePath, "utf-8");
+  if (!body.includes(`data-section="${section}"`) && !body.includes(`data-pane="${section}"`)) {
+    throw new Error(`${filePath} missing section/pane: ${section}`);
+  }
+}
+
+async function main() {
+  const conceptWave2 = await readMdx(path.join(CONTENT_ROOT, "concepts/wave-2"));
+  if (conceptWave2.length !== 6) {
+    console.error(`Expected 6 Wave-2 concepts; found ${conceptWave2.length}`);
+    process.exit(1);
+  }
+  for (const f of conceptWave2) {
+    const fp = path.join(CONTENT_ROOT, "concepts/wave-2", f);
+    for (const s of ["hook", "analogy", "primitive", "numbers", "tradeoffs", "anti-cases", "wild", "bridges"]) {
+      await assertSection(fp, s);
+    }
+  }
+
+  const conceptWave3 = await readMdx(path.join(CONTENT_ROOT, "concepts/wave-3"));
+  if (conceptWave3.length !== 6) {
+    console.error(`Expected 6 Wave-3 concepts; found ${conceptWave3.length}`);
+    process.exit(1);
+  }
+
+  const problems = await readMdx(path.join(CONTENT_ROOT, "problems"));
+  if (problems.length !== 10) {
+    console.error(`Expected 10 problems; found ${problems.length}`);
+    process.exit(1);
+  }
+  for (const f of problems) {
+    const fp = path.join(CONTENT_ROOT, "problems", f);
+    for (const pane of ["problem-statement", "clarifying-questions", "napkin-math", "canonical-design", "failure-modes", "real-world"]) {
+      await assertSection(fp, pane);
+    }
+  }
+
+  const incidents = await readMdx(path.join(CONTENT_ROOT, "real-incidents"));
+  if (incidents.length !== 10) {
+    console.error(`Expected 10 real incidents; found ${incidents.length}`);
+    process.exit(1);
+  }
+  for (const f of incidents) {
+    const fp = path.join(CONTENT_ROOT, "real-incidents", f);
+    for (const s of ["timeline", "replay", "postmortem", "bridges"]) {
+      await assertSection(fp, s);
+    }
+  }
+
+  console.log("SD Phase-3 content verification: PASS");
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+```
+
+- [ ] **Step 6: Wire into `package.json`**
+
+Add an npm script:
+
+```json
+{
+  "scripts": {
+    "verify:sd-content": "tsx scripts/content/verify-sd-content.ts"
+  }
+}
+```
+
+- [ ] **Step 7: Commit shells + verifier (Opus prose fills in across the phase)**
+
+```bash
+cd architex
+pnpm verify:sd-content
+# When body is still TODO, verifier still passes section-check; it does not require TODO-free prose.
+git add architex/content/sd/ architex/scripts/content/verify-sd-content.ts architex/package.json
+git commit -m "$(cat <<'EOF'
+feat(content): SD Phase-3 content shells · 12 concepts + 10 problems + 10 incidents
+
+32 MDX shells with frontmatter + section scaffolding. Opus + content
+editor fill bodies throughout weeks 11-16 of the phase. verify-sd-
+content.ts asserts: 6 Wave-2 concepts (8 sections each), 6 Wave-3
+concepts, 10 problems (6 panes each), 10 real incidents (4 sections
+each). pnpm verify:sd-content is the gate.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+> **Content milestone markers.** Each week of weeks 11-16 should publish 5-7 completed pieces via separate commits. Track progress with a `.progress-sd-content.md` that content-ops owns. This plan does not enumerate those commits — they will happen in parallel with engineering work.
+
+---
+
+## Task 33: Analytics catalog · 22 sim + 14 drill events
+
+**Files:**
+- Modify: `architex/src/lib/analytics/sd-events.ts`
+- Create: `architex/src/lib/analytics/__tests__/sd-events.test.ts`
+
+- [ ] **Step 1: Extend `sd-events.ts`**
+
+The Phase-1 catalog already contains ~12 SD events. Phase 3 adds **22 Simulate** + **14 Drill** events. Each is a typed discriminated union entry.
+
+```typescript
+// architex/src/lib/analytics/sd-events.ts (extend the existing file)
+
+import type { SDActivityKind, SDChaosControlMode, SDLoadModel, SDScaleSlider, SDProvider, SDDrillStage, SDDrillVariant, SDPersona } from "@/db/schema/sd-simulation-runs";
+
+// ========== Phase 3 · 22 Simulate events ==========
+type SimEv<N extends string, P extends Record<string, unknown>> = {
+  name: N;
+  props: P;
+};
+
+export type SDSimulateEvent =
+  | SimEv<"sd_sim_run_started", { runId: string; designId: string; activityKind: SDActivityKind; loadModel: SDLoadModel; scale: SDScaleSlider; provider: SDProvider }>
+  | SimEv<"sd_sim_run_completed", { runId: string; slosPassed: boolean; durationRealMs: number; chaosEventsFired: number }>
+  | SimEv<"sd_sim_run_abandoned", { runId: string; reason: string; durationRealMs: number }>
+  | SimEv<"sd_sim_activity_changed", { runId: string; from: SDActivityKind; to: SDActivityKind }>
+  | SimEv<"sd_sim_chaos_mode_changed", { runId: string; from: SDChaosControlMode | null; to: SDChaosControlMode | null }>
+  | SimEv<"sd_sim_chaos_event_fired", { runId: string; eventId: string; severity: "low" | "medium" | "high" | "critical"; controlMode: SDChaosControlMode }>
+  | SimEv<"sd_sim_chaos_scenario_picked", { runId: string; scenarioSlug: string }>
+  | SimEv<"sd_sim_chaos_dice_rolled", { runId: string; eventId: string; weight: number }>
+  | SimEv<"sd_sim_chaos_budget_exhausted", { runId: string; totalMinutes: number; eventsFired: number }>
+  | SimEv<"sd_sim_red_team_unlocked", { runId: string; userCompletedChaosDrills: number }>
+  | SimEv<"sd_sim_scrub", { runId: string; targetSimMs: number; previousSimMs: number }>
+  | SimEv<"sd_sim_playback_rate_changed", { runId: string; from: number; to: number }>
+  | SimEv<"sd_sim_fork_created", { parentRunId: string; newRunId: string; branchedAtSimMs: number; mutation: string }>
+  | SimEv<"sd_sim_share_generated", { runId: string; slug: string }>
+  | SimEv<"sd_sim_metric_drilldown_opened", { runId: string; metric: string }>
+  | SimEv<"sd_sim_cascade_trace_opened", { runId: string; chaosEventId: string; pathLength: number }>
+  | SimEv<"sd_sim_whisper_intervention_fired", { runId: string; shape: "nudge" | "suggestion" | "context"; conceptSlug?: string }>
+  | SimEv<"sd_sim_whisper_dismissed", { runId: string; interventionId: string }>
+  | SimEv<"sd_sim_coach_quiet_toggled", { runId: string; quiet: boolean }>
+  | SimEv<"sd_sim_post_run_triple_loop_clicked", { runId: string; rec: "learn" | "build" | "drill"; target: string }>
+  | SimEv<"sd_sim_scale_changed", { runId: string; from: SDScaleSlider; to: SDScaleSlider }>
+  | SimEv<"sd_sim_provider_changed", { runId: string; from: SDProvider; to: SDProvider }>;
+
+// ========== Phase 3 · 14 Drill events ==========
+export type SDDrillEvent =
+  | SimEv<"sd_drill_started", { attemptId: string; problemSlug: string; variant: SDDrillVariant; persona: SDPersona }>
+  | SimEv<"sd_drill_stage_advance", { attemptId: string; from: SDDrillStage; to: SDDrillStage; elapsedMs: number }>
+  | SimEv<"sd_drill_stage_gate_failed", { attemptId: string; stage: SDDrillStage; reason: string }>
+  | SimEv<"sd_drill_hint_requested", { attemptId: string; tier: "nudge" | "guided" | "full"; creditsRemaining: number }>
+  | SimEv<"sd_drill_interviewer_turn_sent", { attemptId: string; stage: SDDrillStage; userChars: number }>
+  | SimEv<"sd_drill_interviewer_stream_completed", { attemptId: string; stage: SDDrillStage; assistantChars: number; source: "sonnet" | "fallback" }>
+  | SimEv<"sd_drill_abandoned", { attemptId: string; stage: SDDrillStage; elapsedMs: number }>
+  | SimEv<"sd_drill_paused", { attemptId: string; stage: SDDrillStage; elapsedMs: number }>
+  | SimEv<"sd_drill_resumed", { attemptId: string; stage: SDDrillStage }>
+  | SimEv<"sd_drill_submitted", { attemptId: string; totalElapsedMs: number; hintsUsed: number }>
+  | SimEv<"sd_drill_graded", { attemptId: string; overallScore: number; tier: "stellar" | "solid" | "coaching" | "redirect"; graderModel: "sonnet" | "fallback" }>
+  | SimEv<"sd_drill_postmortem_generated", { attemptId: string; model: "sonnet" | "fallback"; essayLength: number }>
+  | SimEv<"sd_drill_recap_pdf_downloaded", { attemptId: string; bytes: number }>
+  | SimEv<"sd_drill_follow_up_clicked", { attemptId: string; kind: "drill" | "persona-switch" | "concept"; target: string }>;
+
+export type SDEvent = SDSimulateEvent | SDDrillEvent;
+
+export function trackSDEvent<E extends SDEvent>(event: E): void {
+  // Wires into the existing telemetry sink (Phase-1 analytics client).
+  const client = getAnalyticsClient();
+  client.capture(event.name, event.props);
+}
+
+// ... existing Phase-1 events remain unchanged above this block
+```
+
+- [ ] **Step 2: Test**
+
+```typescript
+// architex/src/lib/analytics/__tests__/sd-events.test.ts
+import { describe, expect, it } from "vitest";
+import type { SDSimulateEvent, SDDrillEvent } from "../sd-events";
+
+describe("sd-events · Phase 3 catalog", () => {
+  it("simulate event names cover the 22 Phase-3 events", () => {
+    const names: SDSimulateEvent["name"][] = [
+      "sd_sim_run_started",
+      "sd_sim_run_completed",
+      "sd_sim_run_abandoned",
+      "sd_sim_activity_changed",
+      "sd_sim_chaos_mode_changed",
+      "sd_sim_chaos_event_fired",
+      "sd_sim_chaos_scenario_picked",
+      "sd_sim_chaos_dice_rolled",
+      "sd_sim_chaos_budget_exhausted",
+      "sd_sim_red_team_unlocked",
+      "sd_sim_scrub",
+      "sd_sim_playback_rate_changed",
+      "sd_sim_fork_created",
+      "sd_sim_share_generated",
+      "sd_sim_metric_drilldown_opened",
+      "sd_sim_cascade_trace_opened",
+      "sd_sim_whisper_intervention_fired",
+      "sd_sim_whisper_dismissed",
+      "sd_sim_coach_quiet_toggled",
+      "sd_sim_post_run_triple_loop_clicked",
+      "sd_sim_scale_changed",
+      "sd_sim_provider_changed",
+    ];
+    expect(new Set(names).size).toBe(22);
+  });
+  it("drill event names cover the 14 Phase-3 events", () => {
+    const names: SDDrillEvent["name"][] = [
+      "sd_drill_started",
+      "sd_drill_stage_advance",
+      "sd_drill_stage_gate_failed",
+      "sd_drill_hint_requested",
+      "sd_drill_interviewer_turn_sent",
+      "sd_drill_interviewer_stream_completed",
+      "sd_drill_abandoned",
+      "sd_drill_paused",
+      "sd_drill_resumed",
+      "sd_drill_submitted",
+      "sd_drill_graded",
+      "sd_drill_postmortem_generated",
+      "sd_drill_recap_pdf_downloaded",
+      "sd_drill_follow_up_clicked",
+    ];
+    expect(new Set(names).size).toBe(14);
+  });
+});
+```
+
+- [ ] **Step 3: Wire events into the consumer code**
+
+Find every component/hook/API that should emit an event (grep for TODOs) and call `trackSDEvent`. The call sites are obvious — e.g., `useSimulateRun.startRun` emits `sd_sim_run_started`, `useDrillStage.tryAdvance` emits `sd_drill_stage_advance`, and so on.
+
+```bash
+cd architex
+pnpm test:run -- sd-events
+git add architex/src/lib/analytics/
+git commit -m "$(cat <<'EOF'
+feat(analytics): +36 typed SD Phase-3 events (22 sim + 14 drill)
+
+Simulate: run lifecycle (start/complete/abandon), activity + chaos-mode
+changes, chaos-event/scenario/dice/budget dispatches, red-team unlock,
+scrub, playback-rate, fork, share, metric drilldown, cascade trace,
+whisper coach interventions + dismissals + quiet toggle, post-run
+triple-loop clicks, scale/provider swaps. Drill: start, stage advance,
+gate fail, hint request, interviewer turn + stream complete, abandon,
+pause, resume, submit, grade, postmortem, recap PDF download, follow-up
+click. Discriminated union so trackSDEvent is type-safe at every call
+site.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 34: End-to-end verification + Playwright smoke tests + Wave 3 anonymous rollout
+
+**Files:**
+- Create: `architex/e2e/sd-simulate-mode.spec.ts`
+- Create: `architex/e2e/sd-drill-mode.spec.ts`
+- Modify: feature flag config for `sdPhase3` (shared infra from Phase 1)
+
+The final green-light gate.
+
+- [ ] **Step 1: Baseline full test suite + build**
+
+```bash
+cd architex
+pnpm typecheck
+pnpm lint
+pnpm test:run
+pnpm build
+```
+All four must pass. Fix any regressions before proceeding. Do **not** let Phase-3 land with pre-existing failures.
+
+- [ ] **Step 2: Re-verify simulation engine is untouched**
+
+```bash
+cd architex
+find src/lib/simulation -name '*.ts' -not -name '*.test.ts' -exec md5 {} \; | sort > /tmp/sim-engine-post-phase-3.md5
+diff /tmp/sim-engine-pre-phase-3.md5 /tmp/sim-engine-post-phase-3.md5
+```
+Expected: no diff (the pre-flight checksum should match). If a diff appears, revert the unintended edit before shipping — the engine is a Phase-3 READ-ONLY surface.
+
+- [ ] **Step 3: Simulate E2E**
+
+Create `architex/e2e/sd-simulate-mode.spec.ts`:
+
+```typescript
+import { expect, test } from "@playwright/test";
+
+test.describe("SD Phase-3 · Simulate mode", () => {
+  test("validate activity · run to completion", async ({ page }) => {
+    await page.goto("/sd/simulate?designId=sample-design-1");
+    await page.getByRole("button", { name: /validate/i }).click();
+    await page.getByRole("button", { name: /play/i }).click();
+    await expect(page.getByTestId("cost-meter")).toBeVisible();
+    await expect(page.getByText(/p50/i)).toBeVisible();
+    // Wait for completion (Validate activity default = 5min sim · 5x dilation = 60s real)
+    // E2E test wires a sim-time accelerator to finish in < 5s real.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("test:complete-run")));
+    await expect(page.getByText(/run complete/i)).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("chaos drill · scenario mode · cinematic ribbon fires", async ({ page }) => {
+    await page.goto("/sd/simulate?designId=sample-design-1&activityKind=chaos-drill");
+    await page.getByRole("button", { name: /scenario/i }).click();
+    await page.getByRole("button", { name: /cache cold start/i }).click();
+    await page.getByRole("button", { name: /play/i }).click();
+    // Ribbon appears
+    await expect(page.getByTestId("cinematic-chaos-ribbon")).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("archaeology · pick Facebook 2021 · verdict card renders", async ({ page }) => {
+    await page.goto("/sd/simulate?designId=sample-design-1&activityKind=archaeology");
+    await page.getByRole("button", { name: /facebook 2021/i }).click();
+    await page.getByRole("button", { name: /play/i }).click();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("test:complete-run")));
+    await expect(page.getByText(/would have survived|fell .* short/i)).toBeVisible({ timeout: 10_000 });
+  });
+});
+```
+
+- [ ] **Step 4: Drill E2E**
+
+Create `architex/e2e/sd-drill-mode.spec.ts`:
+
+```typescript
+import { expect, test } from "@playwright/test";
+
+test.describe("SD Phase-3 · Drill mode", () => {
+  test("full loop · clarify → submit → grade reveal", async ({ page }) => {
+    await page.goto("/sd/drill?problemSlug=design-twitter");
+    await page.getByRole("button", { name: /timed mock/i }).click();
+    await page.getByRole("button", { name: /staff/i }).click();
+
+    // Clarify: 2 turns minimum
+    const chat = page.getByPlaceholder(/ask the interviewer/i);
+    await chat.fill("What is the DAU target?");
+    await chat.press("Enter");
+    await expect(page.getByText(/user/i)).toBeVisible();
+    await chat.fill("Is the timeline eventually consistent?");
+    await chat.press("Enter");
+
+    // Stage-check
+    await page.getByRole("button", { name: /stage-check/i }).click();
+    await expect(page.getByText(/estimate/i)).toBeVisible();
+
+    // Estimate
+    await page.getByLabel(/peak qps/i).fill("150000");
+    await page.getByRole("button", { name: /save napkin math/i }).click();
+    await page.getByRole("button", { name: /stage-check/i }).click();
+
+    // Design stage: assume canvas drops 5 nodes + 4 edges via test hook
+    await page.evaluate(() => {
+      const w = window as unknown as { __testPopulateDesign?: () => void };
+      w.__testPopulateDesign?.();
+    });
+    await page.getByRole("button", { name: /stage-check/i }).click();
+
+    // Deep dive
+    await chat.fill("How does my design handle celebrity fan-out?");
+    await chat.press("Enter");
+    await chat.fill("What happens when Redis fails?");
+    await chat.press("Enter");
+    await page.getByRole("button", { name: /stage-check/i }).click();
+
+    // QnA
+    await chat.fill("What does your team do differently from industry?");
+    await chat.press("Enter");
+
+    // Submit
+    await page.getByRole("button", { name: /submit/i }).click();
+    // Grade reveal
+    await expect(page.getByText(/stellar|solid|coaching|redirect/i)).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("abandon + resume", async ({ page }) => {
+    await page.goto("/sd/drill?problemSlug=design-rate-limiter");
+    await page.getByRole("button", { name: /study/i }).click();
+    await page.getByRole("button", { name: /staff/i }).click();
+    await page.getByPlaceholder(/ask the interviewer/i).fill("How strict is the budget?");
+    await page.keyboard.press("Enter");
+    await page.reload();
+    await expect(page.getByText(/drill in progress/i)).toBeVisible();
+    await page.getByRole("button", { name: /resume/i }).click();
+    await expect(page.getByText(/how strict is the budget/i)).toBeVisible();
+  });
+
+  test("exam mode · hints disabled", async ({ page }) => {
+    await page.goto("/sd/drill?problemSlug=design-url-shortener&variant=exam");
+    // In exam mode, the hint ladder is not rendered
+    await expect(page.getByText(/request hint/i)).not.toBeVisible();
+  });
+});
+```
+
+- [ ] **Step 5: Run E2E**
+
+```bash
+cd architex
+pnpm exec playwright install chromium
+pnpm exec playwright test e2e/sd-simulate-mode.spec.ts e2e/sd-drill-mode.spec.ts
+```
+Expected: all 6 tests pass. If canvas test hooks (`__testPopulateDesign`) aren't wired, skip the canvas assertion locally and land the hook in a follow-up before flag flip.
+
+- [ ] **Step 6: Wave 3 anonymous 100% rollout**
+
+Update the feature flag configuration (shared infra from SD Phase 1). The exact mechanism depends on Phase-1 choices — this plan assumes a `feature-flags.ts` with `sdPhase3` defaulting to `wave-2` (10% anon). Flip to `wave-3` (100% anon):
+
+```typescript
+// architex/src/lib/feature-flags/sd-flags.ts (modify)
+export const sdPhase3Flag = {
+  key: "sdPhase3",
+  enabledForAuthenticatedUsers: true,
+  // Phase 3 final flip:
+  anonymousRollout: 1.0,  // was 0.1 in Phase 2 beta
+  killSwitchMetric: "sd_sim_run_abandoned_rate > 0.35",
+};
+```
+
+Add the rollback guard to the auto-rollback monitor (§15 of the spec). If `sd_sim_run_abandoned_rate` exceeds 35% within any 1-hour window, the monitor kills the flag automatically.
+
+- [ ] **Step 7: Final commit + tag**
+
+```bash
+cd architex
+git add architex/e2e/sd-simulate-mode.spec.ts architex/e2e/sd-drill-mode.spec.ts architex/src/lib/feature-flags/sd-flags.ts
+git commit -m "$(cat <<'EOF'
+test(e2e): SD Phase-3 Simulate + Drill smoke + Wave 3 100% rollout
+
+Three Simulate E2Es: Validate end-to-end, Chaos Drill scenario-mode
+ribbon fires, Archaeology verdict. Three Drill E2Es: full 5-stage
+loop with grade reveal, abandon/resume round-trip, exam-mode hint
+suppression. sdPhase3 flag flipped to 100% anonymous. Auto-rollback
+guard wired on sd_sim_run_abandoned_rate > 35% over 1h.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+
+git tag -a sd-phase-3-complete -m "SD Phase 3 · Simulate + Drill flagship · complete"
+```
+
+On completion: monitor the dashboards listed in §25 Success Metrics of the spec for the first 72 hours post-rollout. Expected leading indicators: (a) simulate-run completion rate ≥ 60% within first week; (b) drill completion rate ≥ 50%; (c) triple-loop CTA clickthrough ≥ 25%; (d) whisper-coach acceptance ≥ 40%; (e) real-incident Archaeology views ≥ 15% of all sim runs. Any sustained miss by >20% is a Phase-4 retro input.
+
+---
