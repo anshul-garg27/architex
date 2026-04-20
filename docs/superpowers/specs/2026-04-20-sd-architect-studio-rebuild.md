@@ -2255,6 +2255,107 @@ All generated via WebAudio (no file download). Off by default. Toggle in setting
 
 ---
 
+## 19. Collaboration, Mobile, Extensibility
+
+### 19.1 Shareable artifacts (Q41)
+
+Every completed drill, sim run, and saved diagram produces a **read-only share link**. Mechanics:
+
+- Clicking "Share" on any artifact → modal with the URL, a preview card, and OG-image preview
+- URL shape: `/sd/share/{shareId}` where `shareId` is a 16-char random slug
+- OG image: auto-generated cobalt-bordered card showing the diagram + title + "Shared on Architex"
+- Public share requires opt-in per artifact (default: private link, unlisted but accessible to anyone with URL)
+- Optional full-public with user profile badge (Q46 portfolio)
+- Shareable artifacts render on mobile (Q42) even though the authoring modes don't
+
+Shares are indexed on user profiles if public. Users can build a *portfolio* (Q46) of their best designs, linked from LinkedIn, a GitHub README, or a personal website.
+
+### 19.2 Mobile strategy (Q42)
+
+Tiered:
+- **Mobile primary**: Review mode, Learn mode, Profile, Share viewer
+- **Mobile secondary**: Dashboard (read-only but interactive)
+- **Desktop only**: Build, Simulate, Drill
+
+The "open on desktop" card for desktop-only routes includes a QR code: scanning it launches the same URL on the user's linked desktop (if the user has the optional desktop push enabled via their Architex account).
+
+Mobile Learn is the "read on the train" experience. Concept pages adapt to stacked layout. Canvases render as inline SVG. Checkpoints work. AI chat works. No tinker.
+
+Mobile Review is the primary mobile experience. Swipe-gesture FSRS. One-handed. First-run mobile experience is Review mode.
+
+### 19.3 User-authored drills (Q43)
+
+Power users can compose custom problems, chaos scenarios, and rubrics:
+
+- **Custom problems** · pick a problem shape (media-social, commerce, etc.), write a statement, set SLOs, pick canonical solution(s), add 3-5 clarifying questions with expected answers. Private by default; optional public.
+- **Custom chaos scenarios** · §12.9.
+- **Custom rubrics** · 6-axis, user-weighted for their interview target.
+
+All user-authored content has a `userAuthored: true` flag and an "unvetted" badge. Public user-authored content is moderated (human curator approval).
+
+### 19.4 The 8 integrations (Q44)
+
+| Integration | Direction | Notes |
+|---|---|---|
+| **PNG / SVG / Mermaid / JSON export** | Out | All 4 formats available from every canvas. One-click. |
+| **drawio / Excalidraw / Lucid import** | In | Mapper handles common shape vocabularies; ambiguous mappings prompt user. |
+| **GitHub save + publish** | Both | OAuth. Saves diagram JSON + auto-artifacts to a user-chosen repo. "Publish to GitHub" for any drill recap. |
+| **Notion sync** | Both | OAuth. Creates a linked Notion page for a diagram; updates bi-directionally. |
+| **Obsidian vault export** | Out | Downloads a vault-compatible folder: `concept.md`, `diagram.canvas`, `notes.md`. |
+| **LinkedIn profile badge** | Out | Adds "Architex Verified — Staff-level System Design" to a LinkedIn profile. Earned by passing specific rubric thresholds. |
+| **Google Calendar study blocks** | Out | OAuth. Crunch Mode can create study blocks on a user's calendar. |
+| **Public API** | In | REST + GraphQL. Endpoint: `/api/v1/public/*`. Rate-limited. Enables 3rd-party integrations. |
+
+All integrations are per-user opt-in. No data leaves Architex without explicit user action.
+
+### 19.5 Crunch Mode (Q45)
+
+See §4.6 and §9.11 for UI. The 7-day path generator:
+
+- **Day 0 (onboarding)** · diagnostic quiz (if not taken) + 1 drill to assess current level. Generator writes plan.
+- **Day 1** · 2 concept pages on weak areas + 1 warm-up drill
+- **Day 2** · 2 problems in Build-Along format + 1 Simulate Stress Test
+- **Day 3** · 2 problems in Guided Derivation + 1 drill under company preset
+- **Day 4** · 1 Chaos Drill + 1 concept page + 1 drill under Skeptic persona
+- **Day 5** · 2 drills + rubric review
+- **Day 6** · 1 Full-Stack Loop (SD+LLD) + rest
+- **Day 7** · 1 mock under full Exam mode + confidence calibration + last tips
+
+The generator tunes per-day difficulty based on yesterday's rubric. If the user scored >4/5 on communication yesterday, today's plan drops the Verbal drill and adds a Deep Dive specialist drill instead.
+
+### 19.6 The 12 wild cards (Q46)
+
+Each was evaluated in Batch 10 and locked in. All 12 ship — most in Phase 4+.
+
+| # | Feature | Phase |
+|---|---|---|
+| 1 | **ELI5 mode** · second Opus voice variant · analogy-first · warmer | P4 |
+| 2 | **Audio narration** · 5-8 min podcast per concept · ElevenLabs or human | P4 |
+| 3 | **Seasons + tournaments** · 6-week themed events ("Payments Season", "Chaos October") | P5 |
+| 4 | **Portfolio page** · public profile with best artifacts, rubric history, Verified badge | P4 |
+| 5 | **Diagnostic entry quiz** · 10Q / 4-min · lands user on recommended starting wave | P2 |
+| 6 | **Weekly digest email** · streak, top concept, 1 new problem, AI-recommended focus | P3 |
+| 7 | **"Blame-an-org" postmortem drill** · user plays postmortem analyst on a real incident | P4 |
+| 8 | **Teacher / bootcamp mode** · group management, cohort leaderboards, curriculum sharing | P5 |
+| 9 | **Architex Verified** · certification · 3-tier (Associate / Staff / Principal) · proctored exam | P5 |
+| 10 | **Talk-aloud mic + transcript** · verbal drill mode with Whisper transcription and grading | P3 |
+| 11 | **Dark / light / earth themes** · §18.9 | P3 |
+| 12 | **Reference-architecture library** · Netflix CDN, Stripe idempotency, etc. drag-ins | P3 (§14.1.7) |
+
+### 19.7 Community & moderation
+
+A light-touch community model (unlike LLD, SD content is more naturally shareable — system designs travel well):
+
+- Public user profiles (opt-in)
+- Public shareable artifacts (opt-in)
+- Public user-authored problems and chaos scenarios (opt-in, moderated)
+- Comments: NOT in V1 (per LLD §16 non-goals; re-evaluate for SD in Phase 6)
+- Leaderboards: NOT in V1 (learning > competition)
+- Mentorship pairing (F4 from LLD, deferred to Phase 6)
+
+---
+
+
 
 
 
