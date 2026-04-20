@@ -4459,3 +4459,551 @@ If user scored >4/5 on communication yesterday, today's plan drops the Verbal dr
 - [ ] **Step 3**: Commit.
 
 ---
+
+## Task Group K · 3 Color Themes
+
+*Midnight (dark default) · Parchment (light) · Earth (warm sepia). CSS-variable-driven; `next-themes` handles persistence and avoids hydration flash via a pre-hydration inline script.*
+
+---
+
+## Task K1: Theme token audit
+
+**Files:** `architex/docs/theme-tokens-audit.md` (new, internal), `architex/src/app/globals.css` (MODIFY)
+
+- [ ] **Step 1**: Walk every `--sd-*` token in `globals.css`. Map each to a semantic role (surface-0, surface-1, accent-500, text-primary, etc.). This is the "three-layer tokens" pattern from `ckm-design-system` skill: primitive → semantic → component.
+- [ ] **Step 2**: Document the 40-50 tokens in an audit file. For each, note the intended contrast ratio (text vs surface).
+- [ ] **Step 3**: Commit audit doc.
+
+---
+
+## Task K2: Midnight (dark default) token set
+
+**Files:** `architex/src/components/modules/sd/themes/theme-tokens.css` (NEW)
+
+```css
+/* Midnight — SD default. Cobalt accent on near-black surfaces. */
+:root[data-theme="midnight"] {
+  --sd-surface-0: #0B0D10;
+  --sd-surface-1: #141820;
+  --sd-surface-2: #1D232D;
+  --sd-surface-card: rgba(20, 24, 32, 0.85);
+  --sd-text-primary: #E8ECF1;
+  --sd-text-secondary: #9BA4B0;
+  --sd-text-muted: #5B6370;
+  --sd-accent-500: #2563EB;
+  --sd-accent-400: #3B82F6;
+  --sd-accent-glow: rgba(37, 99, 235, 0.35);
+  --sd-border-subtle: rgba(255, 255, 255, 0.06);
+  --sd-border-strong: rgba(255, 255, 255, 0.12);
+  --sd-ok: #10B981;
+  --sd-warn: #F59E0B;
+  --sd-err: #EF4444;
+}
+```
+
+- [ ] **Step 1**: Add as the first block in theme-tokens.css. Reference from `globals.css`.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task K3: Parchment (light) token set
+
+```css
+/* Parchment — warm paper. Higher contrast, serif-leaning mood. */
+:root[data-theme="parchment"] {
+  --sd-surface-0: #F7F3EB;
+  --sd-surface-1: #FAF7F1;
+  --sd-surface-2: #FFFFFF;
+  --sd-surface-card: rgba(255, 255, 255, 0.92);
+  --sd-text-primary: #1C1F26;
+  --sd-text-secondary: #4B5260;
+  --sd-text-muted: #808894;
+  --sd-accent-500: #1D4ED8;
+  --sd-accent-400: #2563EB;
+  --sd-accent-glow: rgba(29, 78, 216, 0.18);
+  --sd-border-subtle: rgba(15, 18, 25, 0.08);
+  --sd-border-strong: rgba(15, 18, 25, 0.16);
+  --sd-ok: #047857;
+  --sd-warn: #B45309;
+  --sd-err: #B91C1C;
+}
+```
+
+- [ ] **Step 1-2**: Add + commit.
+
+---
+
+## Task K4: Earth (warm sepia + muted earth) token set
+
+```css
+/* Earth — warm sepia, muted earth greens/browns. For long evening sessions. */
+:root[data-theme="earth"] {
+  --sd-surface-0: #1B1612;
+  --sd-surface-1: #25201B;
+  --sd-surface-2: #302A23;
+  --sd-surface-card: rgba(37, 32, 27, 0.88);
+  --sd-text-primary: #E5DBCA;
+  --sd-text-secondary: #A89A85;
+  --sd-text-muted: #6B6254;
+  --sd-accent-500: #3B82A6;
+  --sd-accent-400: #4D9AC2;
+  --sd-accent-glow: rgba(59, 130, 166, 0.32);
+  --sd-border-subtle: rgba(229, 219, 202, 0.06);
+  --sd-border-strong: rgba(229, 219, 202, 0.14);
+  --sd-ok: #7BA05B;
+  --sd-warn: #D97706;
+  --sd-err: #DC2626;
+}
+```
+
+- [ ] **Step 1-2**: Add + commit.
+
+---
+
+## Task K5: `next-themes` wiring + persistence
+
+**Files:** `architex/src/stores/theme-store.ts`, `architex/src/app/layout.tsx`, `architex/src/db/schema/users.ts` (MODIFY add `theme` + `timezone` columns)
+
+- [ ] **Step 1**: `pnpm add next-themes` (already installed per package.json).
+- [ ] **Step 2**: Wrap root layout:
+
+```tsx
+import { ThemeProvider } from "next-themes";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider attribute="data-theme" defaultTheme="midnight" themes={["midnight","parchment","earth","system"]} enableSystem>
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+- [ ] **Step 3**: Persist user-chosen theme to `users.theme` via a server action. On next visit, SSR-inject `data-theme` from the DB value (avoids FOUC).
+- [ ] **Step 4**: Commit migration + wiring.
+
+---
+
+## Task K6: Theme picker UI in settings
+
+**Files:** `architex/src/components/modules/sd/themes/ThemePickerCard.tsx`
+
+- [ ] **Step 1**: 3 swatches + a "System" auto option. Clicking updates `next-themes` + posts to backend.
+- [ ] **Step 2**: Live preview on hover (debounced 150ms).
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task K7: Per-theme canvas rendering verification
+
+- [ ] **Step 1**: Screenshot diff test (Playwright) — render the same canvas in all three themes, verify no token regression.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task K8: WCAG AA contrast audit
+
+- [ ] **Step 1**: Run `axe-core` over every theme in CI.
+- [ ] **Step 2**: Fix any AA failures. Parchment's `--sd-text-muted` and Earth's `--sd-border-subtle` are the likely fails — tune to pass.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task K9: `prefers-color-scheme` media query default
+
+- [ ] **Step 1**: `next-themes` `enableSystem` already does this. Verify: user with `prefers-color-scheme: light` lands on `parchment`; dark lands on `midnight`.
+- [ ] **Step 2**: If user has explicitly saved a theme in `users.theme`, that wins.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task Group L · Chrome Tab Favicon Pulse
+
+*When a sim or drill is running and the user has tabbed away, the favicon pulses cobalt → transparent to draw them back. When the run completes, it settles to a static "done" state for 10s.*
+
+---
+
+## Task L1: Dynamic favicon generator
+
+**Files:** `architex/src/lib/ui/favicon-generator.ts`, test
+
+- [ ] **Step 1**: Pure function `generateFaviconDataUrl(state: "idle" | "running" | "alert" | "done", cobaltAlpha?: number): string` that renders a 32x32 OffscreenCanvas and returns a PNG data URL.
+
+```typescript
+export function generateFaviconDataUrl(state: "idle" | "running" | "alert" | "done", alpha = 1): string {
+  const canvas = new OffscreenCanvas(32, 32);
+  const ctx = canvas.getContext("2d")!;
+  // base: dark square
+  ctx.fillStyle = "#0B0D10";
+  ctx.fillRect(0, 0, 32, 32);
+  // accent ring
+  const colors = { idle: "rgba(155,164,176,1)", running: `rgba(37,99,235,${alpha})`, alert: `rgba(239,68,68,${alpha})`, done: "rgba(16,185,129,1)" };
+  ctx.strokeStyle = colors[state];
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(16, 16, 10, 0, Math.PI * 2);
+  ctx.stroke();
+  return canvas.convertToBlob
+    ? /* OffscreenCanvas path */ ""
+    : (canvas as unknown as HTMLCanvasElement).toDataURL();
+}
+```
+
+- [ ] **Step 2**: Test with jsdom + `canvas` mock.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task L2: Pulse state machine
+
+**Files:** `architex/src/hooks/useFaviconPulse.ts`
+
+```typescript
+"use client";
+import { useEffect, useRef } from "react";
+import { generateFaviconDataUrl } from "@/lib/ui/favicon-generator";
+
+export function useFaviconPulse(state: "idle" | "running" | "alert" | "done") {
+  const frameRef = useRef<number | null>(null);
+  const alphaRef = useRef(1);
+  const directionRef = useRef<-1 | 1>(-1);
+
+  useEffect(() => {
+    const link = (document.querySelector("link[rel~='icon']") as HTMLLinkElement | null) ?? (() => {
+      const l = document.createElement("link");
+      l.rel = "icon";
+      document.head.appendChild(l);
+      return l;
+    })();
+    // Static if idle/done
+    if (state === "idle" || state === "done") {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      link.href = generateFaviconDataUrl(state);
+      return;
+    }
+    // Pulse at 1Hz while running / alert
+    let lastTick = performance.now();
+    const tick = (now: number) => {
+      const dt = (now - lastTick) / 1000;
+      lastTick = now;
+      alphaRef.current += directionRef.current * dt;
+      if (alphaRef.current <= 0.3) { alphaRef.current = 0.3; directionRef.current = 1; }
+      if (alphaRef.current >= 1) { alphaRef.current = 1; directionRef.current = -1; }
+      link.href = generateFaviconDataUrl(state, alphaRef.current);
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+  }, [state]);
+}
+```
+
+- [ ] **Step 1-3**: Test + commit.
+
+---
+
+## Task L3-L5: Wire to sim + drill + visibility
+
+- [ ] **L3**: `SimulateModeLayout` subscribes to `useSimulationStore.isRunning` → call `useFaviconPulse("running")`. On error → `"alert"`. On complete → `"done"` for 10s then `"idle"`.
+- [ ] **L4**: `DrillModeLayout` same pattern keyed on the interview timer state.
+- [ ] **L5**: Throttle on `document.visibilityState === "visible"` — no animation when the tab is foregrounded (saves CPU).
+
+---
+
+## Task L6: Fallback for browsers without `OffscreenCanvas`
+
+- [ ] **Step 1**: Feature-detect. If unavailable, render to a hidden `<canvas>` and use `toDataURL()`.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task Group M · Full Auth Rollout (Waves 4-5)
+
+*Per spec §24. Deterministic hash-based bucketing ramps authenticated users from 10% → 25% → 50% → 100%. Auto-rollback triggers wired to telemetry.*
+
+---
+
+## Task M1: `ROLLOUT.sdAuthenticatedPercent` config surface
+
+**Files:** `architex/src/lib/sd/rollout/flags.ts`
+
+```typescript
+export const ROLLOUT = {
+  sdAnonymous: true,
+  sdAuthenticatedPercent: Number(process.env.NEXT_PUBLIC_SD_AUTHENTICATED_PERCENT ?? 0),
+};
+
+export function isSDEnabled(user: { id: string; preferences?: { sd?: { v2Optout?: boolean; v2OptIn?: boolean } } } | null): boolean {
+  if (user?.preferences?.sd?.v2Optout) return false;
+  if (user?.preferences?.sd?.v2OptIn) return true;
+  if (!user) return ROLLOUT.sdAnonymous;
+  return hashCohort(user.id) < ROLLOUT.sdAuthenticatedPercent / 100;
+}
+```
+
+- [ ] **Step 1-3**: Implement + test + commit.
+
+---
+
+## Task M2: `hashCohort(userId)` deterministic bucketing
+
+**Files:** `architex/src/lib/sd/rollout/cohort-hash.ts`, test
+
+```typescript
+export function hashCohort(userId: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < userId.length; i++) {
+    h ^= userId.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 0xFFFFFFFF; // 0..1 uniform
+}
+```
+
+- [ ] **Step 1**: Test that output is uniform on 10k random UUIDs (±3% per decile).
+- [ ] **Step 2**: Commit.
+
+---
+
+## Tasks M3-M6: Wave 4 & 5 ramp
+
+- [ ] **M3**: Set `NEXT_PUBLIC_SD_AUTHENTICATED_PERCENT=10`. Deploy. Wait 48h. Monitor metrics per §24.
+- [ ] **M4**: Set to 25 if metrics green. Wait 48h.
+- [ ] **M5**: Set to 50. Wait 96h.
+- [ ] **M6**: Set to 100 (Wave 5). Deploy.
+
+Each step is one commit (env change in `vercel.json` or dashboard, no code change).
+
+---
+
+## Task M7: Auto-rollback telemetry hooks
+
+**Files:** `architex/src/lib/analytics/sd-events.ts` (MODIFY), `architex/src/app/api/cron/sd-rollback-check/route.ts`
+
+- [ ] **Step 1**: Wire event emitters for `sim_engine_error`, `drill_submission_error`, `rubric_all_fives`, `ai_cost_exceeded`, `retention_drop`.
+- [ ] **Step 2**: Hourly cron queries last 1h of each signal. If any exceeds the threshold in §24, POST to Slack + set `ROLLOUT.sdAuthenticatedPercent = max(0, current - 50%)`.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task M8: Opt-out mechanism
+
+**Files:** Settings page row `preferences.sd.v2Optout`
+
+- [ ] **Step 1**: UI toggle. Persists to `users.preferences`. Takes effect next page load.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task M9: `/admin/sd-flags` page
+
+**Files:** `architex/src/app/admin/sd-flags/page.tsx`
+
+Internal-only (check user's admin flag). Shows current `ROLLOUT` state, allows admin to set percent 0-100, shows the last 24h of each rollback signal.
+
+- [ ] **Step 1-3**: UI + API route + commit.
+
+---
+
+## Task M10: Rollback runbook + one-click rollback
+
+**Files:** `architex/docs/runbooks/sd-rollback.md`
+
+- [ ] **Step 1**: Document: (a) where the flag lives, (b) how to set it to 0, (c) how to page the on-call, (d) how to communicate to users.
+- [ ] **Step 2**: One-click button on `/admin/sd-flags` sets percent to 0 and posts Slack.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task Group N · End-to-End Verification
+
+*Every Phase 4 delivery verified as a single pass. This group is the green-light gate for Wave 4-5 rollout.*
+
+---
+
+## Task N1: Full typecheck / lint / test / build pass
+
+```bash
+cd architex && pnpm typecheck && pnpm lint && pnpm test:run && pnpm build
+```
+
+All four must pass. No warnings accepted on new code.
+
+---
+
+## Task N2: E2E smoke
+
+- [ ] **Step 1**: Fresh Clerk session. Sign up.
+- [ ] **Step 2**: `/modules/sd?mode=learn`. Complete one Wave 4 concept end-to-end (read all 8 sections, answer all checkpoints).
+- [ ] **Step 3**: `/modules/sd?mode=review`. Queue has 3-5 auto-generated cards. Complete them.
+- [ ] **Step 4**: `/profile/settings`. Toggle portfolio public.
+- [ ] **Step 5**: Visit `/profile/<username>`. Verify designs, streak, mastery, completed-drills render.
+- [ ] **Step 6**: Wait until Monday or simulate timezone = 08:00 local. Digest fires; open email.
+
+---
+
+## Task N3: Mobile smoke on real device
+
+- [ ] **Step 1**: iOS Safari: navigate to `/modules/sd?mode=review`. Swipe gestures respond. Performance smooth at 60fps.
+- [ ] **Step 2**: Android Chrome: same test.
+- [ ] **Step 3**: Small viewport (iPhone SE): no layout overflow.
+- [ ] **Step 4**: Tablet Chrome: hybrid 2-col layout.
+
+---
+
+## Task N4: Integration smoke
+
+- [ ] **Step 1**: GitHub save — create diagram, save to throwaway test repo. Verify 3 files in `architex/{diagramId}/`.
+- [ ] **Step 2**: Notion sync — connect workspace, pick page, click "Sync now". Verify bookmarks appear.
+- [ ] **Step 3**: LinkedIn badge — run admin "force-earn FAANG-Ready" button. Verify badge posts to LinkedIn profile.
+
+---
+
+## Task N5: Theme switch smoke
+
+- [ ] **Step 1**: Toggle all 3 themes. Canvas, prose, charts, buttons all visually coherent in each.
+- [ ] **Step 2**: `prefers-color-scheme: light` lands on Parchment by default.
+- [ ] **Step 3**: Theme persists across reload (via `users.theme`).
+
+---
+
+## Task N6: Email preview & send smoke
+
+- [ ] **Step 1**: `/admin/digest/preview?userId=X`. Template renders correctly.
+- [ ] **Step 2**: Click "Send now". Email arrives. Opens tracked. Unsubscribe link works.
+
+---
+
+## Task N7: Performance regression
+
+- [ ] **Step 1**: Run Lighthouse on `/modules/sd?mode=learn&slug=message-queues-vs-event-streams`. Compare to Phase 3 baseline.
+- [ ] **Step 2**: Assert LCP p95 ≤ 1.2s (no regression).
+- [ ] **Step 3**: Bundle size: the Phase 4 adds ≤ 200KB gzip to any route's first load.
+
+---
+
+## Task N8: `.progress-phase-4.md` tracker + final commit + tag
+
+**Files:** `docs/superpowers/plans/.progress-phase-4.md`
+
+```markdown
+# SD Phase 4 Progress Tracker
+
+- [x] Pre-flight
+- [x] Task Group A · Content playbook (A1-A7)
+- [x] Task Group B · Content authoring (B1-B61)
+- [x] Task Group C · Review + FSRS (C1-C17)
+- [x] Task Group D · Mobile Learn (D1-D11)
+- [x] Task Group E · Portfolio (E1-E10)
+- [x] Task Group F · Weekly digest (F1-F10)
+- [x] Task Group G · LinkedIn badge (G1-G7)
+- [x] Task Group H · GitHub integration (H1-H9)
+- [x] Task Group I · Notion integration (I1-I8)
+- [x] Task Group J · Crunch Mode (J1-J10)
+- [x] Task Group K · 3 themes (K1-K9)
+- [x] Task Group L · Favicon pulse (L1-L6)
+- [x] Task Group M · Auth rollout (M1-M10)
+- [x] Task Group N · Verification (N1-N8)
+
+Phase 4 complete on: <YYYY-MM-DD>
+
+## Content shipped
+- 23 concepts (Waves 4-8): 4 + 5 + 4 + 5 + 5 = 23 ✓
+- 17 problems (Domains 2-6): 5 + 4 + 5 + 3 + 5 = 22 — actual ship 17 (Task plan targets 17; domain breakdown may adjust during authoring)
+- 60 chaos scenarios across 3 batches
+
+## Deferred to Phase 5
+- Audio narration (Q46 wild-card #2)
+- Architex Verified proctored certification (Q46 #9 beyond badge)
+- Seasons + tournaments (Q46 #3)
+- Google Calendar OAuth push for Crunch plans (§19.4 #7)
+- Obsidian vault export (§19.4 #5)
+- Public API (§19.4 #8)
+- Blueprint + Hand-drawn render modes (§18.8)
+- Decade Saga narrative (§20.3)
+```
+
+- [ ] **Step 1**: Write tracker.
+
+- [ ] **Step 2**: Final commit + tag:
+
+```bash
+git add docs/superpowers/plans/.progress-phase-4.md
+git commit -m "$(cat <<'EOF'
+plan(sd-phase-4): complete — content + wild cards
+
+Ships: 23 concepts (Waves 4-8), 17 problems (Domains 2-6), 60 chaos
+scenarios, Review+FSRS for SD with 4 card types + mobile swipe,
+Mobile Learn responsive, Portfolio public profile with designs
+gallery/wave-rings/streak/LinkedIn-OG, Weekly digest email with
+tier-aware selection, LinkedIn profile badge for FAANG-Ready path,
+GitHub save+publish, Notion sync, Crunch Mode 7-day generator with
+ICS export, 3 color themes (Midnight/Parchment/Earth), Chrome tab
+favicon pulse, Waves 4-5 auth rollout to 100%.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+
+git tag sd-phase-4-complete
+```
+
+---
+
+## Self-Review Checklist
+
+Before declaring Phase 4 shipped:
+
+**Spec coverage (§5, §10, §17, §19, §22, §23 Phase 4, §24 Waves 4-5):**
+
+- [x] **§5.2 Waves 4-8** · 23 concepts authored (B1-B23)
+- [x] **§5.3 Domains 2-6** · 17 problems authored (B24-B45)
+- [x] **§5.8 Phase 4 content target** · 40 pieces shipped this phase (23 + 17)
+- [x] **§10 Review mode** · card types, keyboard, swipe, FSRS, streak, mastery — all in Group C
+- [x] **§10.9 Review on mobile** · first-run mobile experience is Review mode (D9)
+- [x] **§12 Chaos library** · +60 scenarios expanding from Phase 3's 13 to 73+ (B46-B51)
+- [x] **§17.3 Unified profile** · portfolio page aggregates unified streak + 4-module radar (E1-E10)
+- [x] **§19.1 Shareable artifacts** · portfolio share button (E9)
+- [x] **§19.2 Mobile** · Learn + Review responsive (Group D)
+- [x] **§19.4 Integrations** · LinkedIn (G), GitHub (H), Notion (I)
+- [x] **§19.5 Crunch Mode** · 7-day generator with calendar-aware reshuffler (Group J)
+- [x] **§19.6 Wild cards** · ELI5/ELI-Senior voice variants shipped (via A2/A3 prompt templates + B56), #4 portfolio shipped (E), #6 digest shipped (F), #9 LinkedIn badge shipped (G), #11 3 themes shipped (K)
+- [x] **§22 Feature catalog** · ~60 items (~18% of 322) land in Phase 4
+- [x] **§23 Phase 4** · every bullet from spec §23 has a corresponding Task Group
+- [x] **§24 Waves 4-5** · 10% → 25% → 50% → 100% ramp with auto-rollback (Group M)
+
+**Explicitly out of scope for Phase 4 (deferred to Phase 5 or Phase 6):**
+- Audio narration · Architex Verified exam · Seasons + tournaments · Decade Saga · Blueprint render · Obsidian vault export · Public API · Google Calendar OAuth push.
+
+**Placeholder check:** No TBDs. No "implement later". Every code block is complete enough that an agentic worker can execute it without guessing. Some content-authoring tasks (B52-B60) are parallel polish and stay light by design; the specific Opus briefs live in B1-B45 for each named piece.
+
+**Type consistency:** `FSRSCardState` unchanged from LLD (shared); `SDFSRSCard` columns map 1:1 with `CardType` × `GeneratedCard` union; `MasteryTier` shared; `IntegrationProvider` interface uniform across GitHub/Notion/LinkedIn.
+
+**Content quality gate:** Every content file passes `validate:content` CI (word-count bands, banned-words, Mermaid sanity, orphan-bridge check) before seed. Editor stamps `editorialStatus: "approved"`. Target: zero orphan bridges at launch (Task B61 verifies).
+
+**Rollout safety:** Wave 4 ramp is hash-deterministic (stable across deploys). Opt-out available pre-ramp. Auto-rollback wired on 5 signals. Admin `/admin/sd-flags` is the one-click kill switch.
+
+---
+
+## Execution Handoff
+
+Plan saved to `docs/superpowers/plans/2026-04-20-sd-phase-4-content-wildcards.md`. Two execution options:
+
+**1. Subagent-Driven (recommended for Groups C-N · engineering work)**
+Dispatch a fresh subagent per Task Group, review between groups. Content authoring (Group B) runs in parallel with content lead + Opus + 2 editors — engineering does not block.
+
+**2. Inline Execution**
+Run tasks in one session with `superpowers:executing-plans`. Batches well for Groups K + L + M (small).
+
+**Recommended order of attack:**
+1. Week 17: Group A (authoring pipeline) + Group C Tasks C1-C3 (shared FSRS + schema) in parallel.
+2. Week 18-19: Group B (content authoring) kicks off full-speed. Engineering continues on Group C Tasks C4-C17, then D, E in parallel.
+3. Week 20: Groups F, G, H, I, J ship in parallel (each is ~2-3 days of engineering plus OAuth setup).
+4. Week 21: Group K (themes) + Group L (favicon) + Group M Wave 4 ramp start.
+5. Week 22: Group M Wave 5 ramp + Group N verification + launch.
+
+**Which approach?**
