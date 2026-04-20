@@ -15,6 +15,13 @@
       "when": 1776698456172,
       "tag": "0001_nostalgic_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776724766666,
+      "tag": "0002_thin_karnak",
+      "breakpoints": true
     }
   ]
 }
