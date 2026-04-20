@@ -8801,3 +8801,701 @@ EOF
 ```
 
 ---
+
+## Task 24: Archaeology · incident picker + verdict card + chaos-library API
+
+**Files:**
+- Create: `architex/src/components/modules/sd/simulate/ArchaeologyIncidentPicker.tsx`
+- Create: `architex/src/components/modules/sd/simulate/ArchaeologyVerdictCard.tsx`
+- Create: `architex/src/app/api/sd/chaos-library/route.ts`
+
+The Archaeology activity (§8.3.6) renders the 10 real incidents as cards. Click an incident → load its event sequence → run it against the user's canvas → show the verdict ("Your design survives Facebook 2021 BGP for 18 minutes longer than Facebook did, because...").
+
+The chaos-library API exposes the 73-event taxonomy + the 10 incidents + 40 scenarios as a single JSON payload consumed by `/sd/chaos` page (§12.8).
+
+- [ ] **Step 1: `ArchaeologyIncidentPicker`**
+
+```tsx
+// architex/src/components/modules/sd/simulate/ArchaeologyIncidentPicker.tsx
+"use client";
+import { REAL_INCIDENTS } from "@/lib/chaos/real-incidents";
+
+export function ArchaeologyIncidentPicker({
+  onPick,
+}: {
+  onPick: (slug: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+      {REAL_INCIDENTS.map((i) => (
+        <button
+          key={i.slug}
+          type="button"
+          onClick={() => onPick(i.slug)}
+          className="group flex flex-col rounded-lg border border-neutral-700 bg-neutral-900 p-4 text-left transition hover:border-red-500 hover:bg-red-500/5"
+        >
+          <span className="mb-1 font-mono text-[11px] text-neutral-500">
+            {i.company} · {i.date} · {i.durationMinutes}min
+          </span>
+          <span className="mb-2 font-serif text-base text-neutral-100">
+            {i.displayName}
+          </span>
+          <span className="font-serif text-xs leading-relaxed text-neutral-400 line-clamp-4">
+            {i.summary}
+          </span>
+          <span className="mt-2 text-[10px] uppercase tracking-wide text-red-400 opacity-0 transition group-hover:opacity-100">
+            → Replay against your design
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: `ArchaeologyVerdictCard`**
+
+```tsx
+// architex/src/components/modules/sd/simulate/ArchaeologyVerdictCard.tsx
+"use client";
+import { getIncidentBySlug } from "@/lib/chaos/real-incidents";
+
+export interface ArchaeologyVerdict {
+  incidentSlug: string;
+  survivedSeconds: number;
+  realDurationSeconds: number;
+  verdictMargin: number;  // (survived - real) / real
+  keyWeakness: string;
+  keyStrength: string;
+}
+
+export function ArchaeologyVerdictCard({
+  verdict,
+}: {
+  verdict: ArchaeologyVerdict;
+}) {
+  const incident = getIncidentBySlug(verdict.incidentSlug);
+  const survivedLonger = verdict.verdictMargin > 0;
+  return (
+    <article className="mx-auto max-w-2xl rounded-lg border border-neutral-700 bg-neutral-950 p-6 shadow-xl">
+      <header className="mb-4 border-b border-neutral-800 pb-3">
+        <h2 className="font-serif text-xl text-neutral-100">
+          {incident.displayName}
+        </h2>
+        <p className="mt-1 text-xs text-neutral-500">
+          {incident.company} · {incident.date} · {incident.durationMinutes} minute outage
+        </p>
+      </header>
+      <div className="mb-4">
+        <p className="font-serif text-lg leading-relaxed text-neutral-100">
+          {survivedLonger ? (
+            <>
+              Your design survived {formatDuration(verdict.survivedSeconds)} longer
+              than {incident.company} did,
+            </>
+          ) : (
+            <>
+              Your design fell {formatDuration(Math.abs(verdict.survivedSeconds - verdict.realDurationSeconds))} short
+              of what {incident.company} achieved before recovery,
+            </>
+          )}
+          <span className="font-normal italic text-neutral-300">
+            {" "}because {verdict.keyStrength}.
+          </span>
+        </p>
+      </div>
+      <div className="rounded-md border border-red-500/40 bg-red-500/5 p-3">
+        <p className="mb-1 text-xs uppercase tracking-wide text-red-400">
+          The weakness
+        </p>
+        <p className="font-serif text-sm text-neutral-200">
+          {verdict.keyWeakness}
+        </p>
+      </div>
+    </article>
+  );
+}
+
+function formatDuration(sec: number): string {
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m${sec % 60 > 0 ? ` ${sec % 60}s` : ""}`;
+  const hours = Math.floor(sec / 3600);
+  const mins = Math.floor((sec % 3600) / 60);
+  return `${hours}h${mins > 0 ? ` ${mins}m` : ""}`;
+}
+```
+
+- [ ] **Step 3: Chaos-library API**
+
+```typescript
+// architex/src/app/api/sd/chaos-library/route.ts
+import { NextResponse } from "next/server";
+import { CHAOS_TAXONOMY, chaosFamilyCounts } from "@/lib/chaos/chaos-taxonomy";
+import { REAL_INCIDENTS } from "@/lib/chaos/real-incidents";
+import { CHAOS_SCENARIOS } from "@/lib/chaos/chaos-scenarios";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  return NextResponse.json({
+    taxonomy: CHAOS_TAXONOMY,
+    taxonomyFamilyCounts: chaosFamilyCounts(),
+    realIncidents: REAL_INCIDENTS,
+    scenarios: CHAOS_SCENARIOS,
+  });
+}
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+cd architex
+git add architex/src/components/modules/sd/simulate/ArchaeologyIncidentPicker.tsx architex/src/components/modules/sd/simulate/ArchaeologyVerdictCard.tsx architex/src/app/api/sd/chaos-library/route.ts
+git commit -m "$(cat <<'EOF'
+feat(sim-ui): Archaeology activity · 10-incident picker + verdict card + API
+
+ArchaeologyIncidentPicker: 10-card gallery with company · date ·
+duration · summary · hover-reveal "Replay against your design" CTA.
+ArchaeologyVerdictCard: renders the would-your-design-survive verdict
+with strength + weakness reasons. /api/sd/chaos-library exposes the
+73 events + 10 incidents + 40 scenarios as a single JSON for the
+/sd/chaos page (§12.8).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 25: 7 drill-in features — scrubber, slow-mo, pause/inspect, cascade-trace, metric-drilldown, what-if, replay/share
+
+**Files:**
+- Create: `architex/src/hooks/useTimeScrubber.ts`
+- Create: `architex/src/hooks/useWhatIfBranch.ts`
+- Create: `architex/src/hooks/useReplayShare.ts`
+- Create: `architex/src/components/modules/sd/simulate/TimelineScrubber.tsx`
+- Create: `architex/src/components/modules/sd/simulate/SlowMoControl.tsx`
+- Create: `architex/src/components/modules/sd/simulate/PauseInspectPopover.tsx`
+- Create: `architex/src/components/modules/sd/simulate/CascadeTraceOverlay.tsx`
+- Create: `architex/src/components/modules/sd/simulate/WhatIfBranchButton.tsx`
+- Create: `architex/src/components/modules/sd/simulate/ReplayShareDialog.tsx`
+
+Per §8.6, seven drill-in features let the user inspect a run. `MetricDrilldownDialog` already shipped in Task 20. The remaining 6 land here. Replay & Share ships in Phase 3 as a URL-hash-only stub; the full Phase-5 deterministic replay consumes the `keyframes` + `sd_chaos_event_log` already persisted in Task 1 + 2.
+
+- [ ] **Step 1: `useTimeScrubber` hook + scrubber component**
+
+```typescript
+// architex/src/hooks/useTimeScrubber.ts
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+export interface TimeScrubberState {
+  paused: boolean;
+  currentSimMs: number;
+  maxSimMs: number;
+  playbackRate: number;  // 0.25, 0.5, 1, 2, 4
+}
+
+export function useTimeScrubber(maxSimMs: number) {
+  const [state, setState] = useState<TimeScrubberState>({
+    paused: true,
+    currentSimMs: 0,
+    maxSimMs,
+    playbackRate: 1,
+  });
+  const raf = useRef<number | null>(null);
+  const lastTickAt = useRef<number>(0);
+
+  useEffect(() => setState((s) => ({ ...s, maxSimMs })), [maxSimMs]);
+
+  const tick = useCallback(() => {
+    setState((s) => {
+      if (s.paused) return s;
+      const now = Date.now();
+      const realDelta = now - lastTickAt.current;
+      lastTickAt.current = now;
+      const next = s.currentSimMs + realDelta * s.playbackRate;
+      return { ...s, currentSimMs: Math.min(s.maxSimMs, next) };
+    });
+    raf.current = requestAnimationFrame(tick);
+  }, []);
+
+  const play = useCallback(() => {
+    lastTickAt.current = Date.now();
+    setState((s) => ({ ...s, paused: false }));
+    if (raf.current == null) raf.current = requestAnimationFrame(tick);
+  }, [tick]);
+
+  const pause = useCallback(() => {
+    setState((s) => ({ ...s, paused: true }));
+    if (raf.current != null) {
+      cancelAnimationFrame(raf.current);
+      raf.current = null;
+    }
+  }, []);
+
+  const seek = useCallback(
+    (simMs: number) =>
+      setState((s) => ({
+        ...s,
+        currentSimMs: Math.max(0, Math.min(s.maxSimMs, simMs)),
+      })),
+    [],
+  );
+
+  const setRate = useCallback(
+    (rate: number) => setState((s) => ({ ...s, playbackRate: rate })),
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      if (raf.current != null) cancelAnimationFrame(raf.current);
+    },
+    [],
+  );
+
+  return { state, play, pause, seek, setRate };
+}
+```
+
+```tsx
+// architex/src/components/modules/sd/simulate/TimelineScrubber.tsx
+"use client";
+import { useTimeScrubber } from "@/hooks/useTimeScrubber";
+
+export function TimelineScrubber({
+  maxSimMs,
+  onScrub,
+}: {
+  maxSimMs: number;
+  onScrub?: (simMs: number) => void;
+}) {
+  const { state, play, pause, seek, setRate } = useTimeScrubber(maxSimMs);
+  return (
+    <div
+      className="flex items-center gap-3 border-t border-neutral-800 bg-neutral-950 px-4 py-2"
+      role="toolbar"
+      aria-label="Timeline controls"
+    >
+      <button
+        type="button"
+        onClick={state.paused ? play : pause}
+        className="rounded bg-neutral-800 px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-neutral-200 hover:bg-neutral-700"
+        aria-keyshortcuts="Space"
+      >
+        {state.paused ? "▶ Play" : "⏸ Pause"}
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={maxSimMs}
+        value={state.currentSimMs}
+        step={100}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          seek(v);
+          onScrub?.(v);
+        }}
+        className="flex-1 accent-sky-500"
+        aria-label="Scrub timeline"
+      />
+      <span className="font-mono text-xs text-neutral-400">
+        {formatMs(state.currentSimMs)} / {formatMs(state.maxSimMs)}
+      </span>
+      <select
+        value={state.playbackRate}
+        onChange={(e) => setRate(Number(e.target.value))}
+        className="rounded bg-neutral-800 px-2 py-1 font-mono text-xs text-neutral-200"
+        aria-label="Playback rate"
+      >
+        <option value={0.25}>0.25x</option>
+        <option value={0.5}>0.5x</option>
+        <option value={1}>1x</option>
+        <option value={2}>2x</option>
+        <option value={4}>4x</option>
+      </select>
+    </div>
+  );
+}
+
+function formatMs(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const mm = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+```
+
+- [ ] **Step 2: `SlowMoControl` (standalone rate control for non-scrubber surfaces)**
+
+```tsx
+// architex/src/components/modules/sd/simulate/SlowMoControl.tsx
+"use client";
+export function SlowMoControl({
+  rate,
+  onRateChange,
+}: {
+  rate: number;
+  onRateChange: (rate: number) => void;
+}) {
+  const rates = [0.25, 0.5, 1, 2, 4];
+  return (
+    <div className="flex gap-1" role="radiogroup" aria-label="Playback rate">
+      {rates.map((r) => (
+        <button
+          key={r}
+          type="button"
+          role="radio"
+          aria-checked={rate === r}
+          onClick={() => onRateChange(r)}
+          className={`rounded px-2 py-1 font-mono text-[11px] transition ${
+            rate === r ? "bg-sky-500 text-white" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+          }`}
+        >
+          {r}x
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 3: `PauseInspectPopover`**
+
+```tsx
+// architex/src/components/modules/sd/simulate/PauseInspectPopover.tsx
+"use client";
+
+export interface NodeRuntimeState {
+  nodeId: string;
+  label: string;
+  queueDepth: number;
+  activeConnections: number;
+  cpuPct: number;
+  p99Ms: number;
+  cacheHitRate?: number;
+  status: "healthy" | "degraded" | "down";
+}
+
+export function PauseInspectPopover({
+  state,
+  x,
+  y,
+}: {
+  state: NodeRuntimeState;
+  x: number;
+  y: number;
+}) {
+  const statusColor = state.status === "healthy" ? "text-emerald-400" : state.status === "degraded" ? "text-amber-400" : "text-red-400";
+  return (
+    <div
+      role="dialog"
+      className="pointer-events-none absolute z-40 w-64 rounded-md border border-neutral-700 bg-neutral-950/95 p-3 font-mono text-xs text-neutral-200 shadow-xl"
+      style={{ left: x + 8, top: y + 8 }}
+    >
+      <p className="mb-2 font-serif text-sm text-neutral-100">{state.label}</p>
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+        <dt className="text-neutral-500">status</dt>
+        <dd className={statusColor}>{state.status}</dd>
+        <dt className="text-neutral-500">queue</dt>
+        <dd>{state.queueDepth}</dd>
+        <dt className="text-neutral-500">active conns</dt>
+        <dd>{state.activeConnections}</dd>
+        <dt className="text-neutral-500">cpu</dt>
+        <dd>{state.cpuPct.toFixed(0)}%</dd>
+        <dt className="text-neutral-500">p99</dt>
+        <dd>{state.p99Ms.toFixed(0)}ms</dd>
+        {state.cacheHitRate != null && (
+          <>
+            <dt className="text-neutral-500">cache hit</dt>
+            <dd>{(state.cacheHitRate * 100).toFixed(1)}%</dd>
+          </>
+        )}
+      </dl>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: `CascadeTraceOverlay`**
+
+```tsx
+// architex/src/components/modules/sd/simulate/CascadeTraceOverlay.tsx
+"use client";
+
+export interface CascadePath {
+  nodes: Array<{ id: string; enteredAtSimMs: number }>;
+  edges: Array<{ from: string; to: string; latencyContributionMs: number }>;
+}
+
+export function CascadeTraceOverlay({
+  path,
+  visible,
+}: {
+  path: CascadePath;
+  visible: boolean;
+}) {
+  if (!visible || path.nodes.length === 0) return null;
+  return (
+    <div
+      className="pointer-events-none fixed inset-0 z-20"
+      data-testid="cascade-trace-overlay"
+    >
+      <svg width="100%" height="100%" className="absolute inset-0">
+        {path.edges.map((e, i) => (
+          <line
+            key={`${e.from}-${e.to}-${i}`}
+            x1={0}
+            y1={0}
+            x2={0}
+            y2={0}
+            stroke="#0ea5e9"
+            strokeWidth={2}
+            strokeDasharray="4 2"
+            className="animate-pulse"
+            data-edge={`${e.from}-${e.to}`}
+          />
+        ))}
+      </svg>
+      <ol className="absolute bottom-24 left-4 rounded-md border border-sky-500/40 bg-neutral-950/90 p-3 font-mono text-xs text-sky-100">
+        {path.nodes.map((n, i) => (
+          <li key={n.id}>
+            {i + 1}. {n.id} · entered @ {Math.floor(n.enteredAtSimMs / 1000)}s
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+```
+
+> **Note:** The SVG coordinates above are placeholders — they connect to the canvas viewport context (Phase-2 ReactFlow integration). The polish of drawing against real canvas coordinates lands in the Task 26 layout composition.
+
+- [ ] **Step 5: `useWhatIfBranch` + button**
+
+```typescript
+// architex/src/hooks/useWhatIfBranch.ts
+"use client";
+import { useCallback, useState } from "react";
+
+export interface WhatIfBranch {
+  parentRunId: string;
+  branchedAtSimMs: number;
+  newRunId?: string;  // populated after server ack
+  mutation: string;  // human-readable description
+  createdAt: string;
+}
+
+export function useWhatIfBranch(runId: string) {
+  const [branches, setBranches] = useState<WhatIfBranch[]>([]);
+  const [creating, setCreating] = useState(false);
+
+  const createBranch = useCallback(
+    async (atSimMs: number, mutation: string) => {
+      setCreating(true);
+      try {
+        const res = await fetch(`/api/sd/simulation-runs/${runId}/fork`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ atSimMs, mutation }),
+        });
+        if (!res.ok) throw new Error("Fork failed");
+        const body = await res.json() as { newRunId: string };
+        setBranches((prev) => [
+          ...prev,
+          {
+            parentRunId: runId,
+            branchedAtSimMs: atSimMs,
+            newRunId: body.newRunId,
+            mutation,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+        return body.newRunId;
+      } finally {
+        setCreating(false);
+      }
+    },
+    [runId],
+  );
+
+  return { branches, createBranch, creating };
+}
+```
+
+```tsx
+// architex/src/components/modules/sd/simulate/WhatIfBranchButton.tsx
+"use client";
+import { useEffect } from "react";
+import { useWhatIfBranch } from "@/hooks/useWhatIfBranch";
+
+export function WhatIfBranchButton({
+  runId,
+  paused,
+  currentSimMs,
+  onBranched,
+}: {
+  runId: string;
+  paused: boolean;
+  currentSimMs: number;
+  onBranched?: (newRunId: string) => void;
+}) {
+  const { createBranch, creating } = useWhatIfBranch(runId);
+
+  // Bind 'B' keyboard shortcut
+  useEffect(() => {
+    const handler = async (e: KeyboardEvent) => {
+      if (!paused) return;
+      if (e.key === "b" || e.key === "B") {
+        const mutation = window.prompt("Describe the what-if (e.g., 'add a rate limiter')");
+        if (!mutation) return;
+        const id = await createBranch(currentSimMs, mutation);
+        if (id) onBranched?.(id);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [paused, currentSimMs, createBranch, onBranched]);
+
+  return (
+    <button
+      type="button"
+      disabled={!paused || creating}
+      onClick={async () => {
+        const mutation = window.prompt("Describe the what-if");
+        if (!mutation) return;
+        const id = await createBranch(currentSimMs, mutation);
+        if (id) onBranched?.(id);
+      }}
+      className="rounded bg-sky-600 px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-40"
+      aria-keyshortcuts="B"
+    >
+      Branch (B)
+    </button>
+  );
+}
+```
+
+- [ ] **Step 6: `useReplayShare` + dialog**
+
+```typescript
+// architex/src/hooks/useReplayShare.ts
+"use client";
+import { useCallback, useState } from "react";
+
+export function useReplayShare(runId: string) {
+  const [shareSlug, setShareSlug] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  const share = useCallback(async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/sd/simulation-runs/${runId}/share`, {
+        method: "POST",
+      });
+      if (!res.ok) return null;
+      const body = await res.json() as { slug: string };
+      setShareSlug(body.slug);
+      return body.slug;
+    } finally {
+      setGenerating(false);
+    }
+  }, [runId]);
+
+  const shareUrl = shareSlug
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/sd/replay/${shareSlug}`
+    : null;
+
+  return { share, shareSlug, shareUrl, generating };
+}
+```
+
+```tsx
+// architex/src/components/modules/sd/simulate/ReplayShareDialog.tsx
+"use client";
+import { useReplayShare } from "@/hooks/useReplayShare";
+
+export function ReplayShareDialog({
+  runId,
+  open,
+  onClose,
+}: {
+  runId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { share, shareUrl, generating } = useReplayShare(runId);
+  if (!open) return null;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="w-[420px] rounded-lg bg-neutral-900 p-6 font-serif text-neutral-100 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="mb-2 text-lg">Share this run</h2>
+        <p className="mb-4 text-sm text-neutral-400">
+          Generate a read-only link. Anyone with the link can scrub the
+          timeline, view the metrics, and read the narrative stream. They
+          cannot edit the canvas.
+        </p>
+        {shareUrl ? (
+          <input
+            type="text"
+            readOnly
+            value={shareUrl}
+            className="w-full rounded border border-neutral-700 bg-neutral-800 px-2 py-1.5 font-mono text-xs text-neutral-100"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={share}
+            disabled={generating}
+            className="rounded bg-sky-500 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+          >
+            {generating ? "Generating…" : "Generate share link"}
+          </button>
+        )}
+        <div className="mt-4 text-right">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded bg-neutral-700 px-3 py-1.5 text-sm"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd architex
+git add architex/src/hooks/useTimeScrubber.ts architex/src/hooks/useWhatIfBranch.ts architex/src/hooks/useReplayShare.ts architex/src/components/modules/sd/simulate/TimelineScrubber.tsx architex/src/components/modules/sd/simulate/SlowMoControl.tsx architex/src/components/modules/sd/simulate/PauseInspectPopover.tsx architex/src/components/modules/sd/simulate/CascadeTraceOverlay.tsx architex/src/components/modules/sd/simulate/WhatIfBranchButton.tsx architex/src/components/modules/sd/simulate/ReplayShareDialog.tsx
+git commit -m "$(cat <<'EOF'
+feat(sim-ui): 7 drill-in features · scrubber · slow-mo · pause/inspect · cascade · what-if · share
+
+Task 25 wraps the inspection surfaces from §8.6. Timeline scrubber
+with 0.25x-4x playback rate. Pause/inspect popover over canvas nodes
+shows queue depth, active conns, CPU, p99. Cascade trace overlay
+draws the failure path (ordered list + SVG line scaffolding; final
+canvas-coord wiring in Task 26). What-if branching gated to paused
+state, 'B' keyboard shortcut, prompts for mutation description. Replay
+share dialog posts to /fork + renders shareable URL.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
