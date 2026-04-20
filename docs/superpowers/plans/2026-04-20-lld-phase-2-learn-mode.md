@@ -1638,3 +1638,1411 @@ EOF
 ```
 
 ---
+
+## Task 8: Create learn-progress API routes
+
+**Files:**
+- Create: `architex/src/app/api/lld/learn-progress/route.ts`
+- Create: `architex/src/app/api/lld/learn-progress/[patternSlug]/route.ts`
+
+- [ ] **Step 1: Create list route**
+
+Create `architex/src/app/api/lld/learn-progress/route.ts`:
+
+```typescript
+/**
+ * GET /api/lld/learn-progress
+ *
+ * Returns an array of the user's LLD learn-progress rows (all patterns
+ * with any progress). Used by the Learn sidebar to show per-pattern
+ * completion badges without N+1 fetches.
+ */
+
+import { NextResponse } from "next/server";
+import { desc, eq } from "drizzle-orm";
+import { getDb, lldLearnProgress } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+export async function GET() {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select({
+        patternSlug: lldLearnProgress.patternSlug,
+        completedSectionCount: lldLearnProgress.completedSectionCount,
+        completedAt: lldLearnProgress.completedAt,
+        visitCount: lldLearnProgress.visitCount,
+        updatedAt: lldLearnProgress.updatedAt,
+      })
+      .from(lldLearnProgress)
+      .where(eq(lldLearnProgress.userId, userId))
+      .orderBy(desc(lldLearnProgress.updatedAt))
+      .limit(100);
+
+    return NextResponse.json({ progress: rows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/learn-progress] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create per-pattern GET+PATCH route**
+
+Create `architex/src/app/api/lld/learn-progress/[patternSlug]/route.ts`:
+
+```typescript
+/**
+ * GET   /api/lld/learn-progress/[patternSlug]
+ * PATCH /api/lld/learn-progress/[patternSlug]
+ *
+ * GET: return the full progress row for the given pattern (or a default
+ * zero-state row if none exists — no 404, fewer error paths in the UI).
+ *
+ * PATCH body shape:
+ *   {
+ *     sectionProgress?: Partial<SectionProgressMap>,   // merge, not replace
+ *     lastScrollY?: number,
+ *     activeSectionId?: LessonSectionId | null,
+ *     checkpointStats?: Partial<Record<LessonSectionId, { attempts: number, correct: boolean }>>,
+ *     markCompleted?: boolean,   // sets completedAt = now() if true
+ *     incrementVisit?: boolean,  // increments visit_count (client calls on mount)
+ *   }
+ *
+ * Always upserts — first PATCH creates the row. All fields optional; only
+ * provided fields are merged. Returns the updated row.
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq, sql } from "drizzle-orm";
+import { getDb, lldLearnProgress } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_SECTION_IDS = new Set([
+  "itch",
+  "definition",
+  "mechanism",
+  "anatomy",
+  "numbers",
+  "uses",
+  "failure_modes",
+  "checkpoints",
+]);
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ patternSlug: string }> },
+) {
+  try {
+    const { patternSlug } = await params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(lldLearnProgress)
+      .where(
+        and(
+          eq(lldLearnProgress.userId, userId),
+          eq(lldLearnProgress.patternSlug, patternSlug),
+        ),
+      )
+      .limit(1);
+
+    if (row) {
+      return NextResponse.json({ progress: row });
+    }
+
+    // Zero-state default so UI avoids a null-check branch.
+    return NextResponse.json({
+      progress: {
+        patternSlug,
+        sectionProgress: {},
+        lastScrollY: 0,
+        activeSectionId: null,
+        completedSectionCount: 0,
+        checkpointStats: {},
+        completedAt: null,
+        visitCount: 0,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/learn-progress/:slug] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+function sanitizeSectionProgress(
+  input: unknown,
+): Record<string, unknown> | null {
+  if (!input || typeof input !== "object") return null;
+  const entries = Object.entries(input as Record<string, unknown>);
+  const cleaned: Record<string, unknown> = {};
+  for (const [k, v] of entries) {
+    if (!VALID_SECTION_IDS.has(k)) continue;
+    if (!v || typeof v !== "object") continue;
+    cleaned[k] = v;
+  }
+  return cleaned;
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ patternSlug: string }> },
+) {
+  try {
+    const { patternSlug } = await params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      sectionProgress?: unknown;
+      lastScrollY?: number;
+      activeSectionId?: string | null;
+      checkpointStats?: unknown;
+      markCompleted?: boolean;
+      incrementVisit?: boolean;
+    };
+
+    const db = getDb();
+
+    // Load existing row (if any) to compute completedSectionCount.
+    const [existing] = await db
+      .select()
+      .from(lldLearnProgress)
+      .where(
+        and(
+          eq(lldLearnProgress.userId, userId),
+          eq(lldLearnProgress.patternSlug, patternSlug),
+        ),
+      )
+      .limit(1);
+
+    // Merge section progress
+    const existingSP = (existing?.sectionProgress ?? {}) as Record<
+      string,
+      { scrollDepth: number; firstSeenAt: number | null; completedAt: number | null }
+    >;
+    const patchSP = sanitizeSectionProgress(body.sectionProgress) ?? {};
+    const mergedSP = { ...existingSP, ...patchSP };
+    const completedCount = Object.values(mergedSP).filter(
+      (v) => v && typeof v === "object" && "completedAt" in v && v.completedAt !== null,
+    ).length;
+
+    const existingStats = (existing?.checkpointStats ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const patchStats =
+      body.checkpointStats && typeof body.checkpointStats === "object"
+        ? (body.checkpointStats as Record<string, unknown>)
+        : {};
+    const mergedStats = { ...existingStats, ...patchStats };
+
+    const now = new Date();
+    const values = {
+      userId,
+      patternSlug,
+      sectionProgress: mergedSP,
+      lastScrollY:
+        typeof body.lastScrollY === "number"
+          ? body.lastScrollY
+          : existing?.lastScrollY ?? 0,
+      activeSectionId:
+        body.activeSectionId === undefined
+          ? existing?.activeSectionId ?? null
+          : body.activeSectionId,
+      completedSectionCount: completedCount,
+      checkpointStats: mergedStats,
+      completedAt:
+        body.markCompleted && !existing?.completedAt
+          ? now
+          : existing?.completedAt ?? null,
+      visitCount:
+        (existing?.visitCount ?? 0) + (body.incrementVisit ? 1 : 0),
+      updatedAt: now,
+    };
+
+    const [updated] = await db
+      .insert(lldLearnProgress)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [lldLearnProgress.userId, lldLearnProgress.patternSlug],
+        set: {
+          sectionProgress: values.sectionProgress,
+          lastScrollY: values.lastScrollY,
+          activeSectionId: values.activeSectionId,
+          completedSectionCount: values.completedSectionCount,
+          checkpointStats: values.checkpointStats,
+          completedAt: values.completedAt,
+          visitCount: sql`${lldLearnProgress.visitCount} + ${body.incrementVisit ? 1 : 0}`,
+          updatedAt: values.updatedAt,
+        },
+      })
+      .returning();
+
+    return NextResponse.json({ progress: updated });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/learn-progress/:slug] PATCH error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 4: Smoke-test manually**
+
+With dev server running and signed in:
+```bash
+curl -X PATCH -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"lastScrollY": 420, "incrementVisit": true}' \
+  http://localhost:3000/api/lld/learn-progress/singleton
+```
+Expected: 200 with `{progress: {...lastScrollY: 420, visitCount: 1...}}`. Second invocation: `visitCount: 2`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/app/api/lld/learn-progress/
+git commit -m "$(cat <<'EOF'
+feat(api): add LLD learn-progress routes
+
+GET  /api/lld/learn-progress                   — list all user's progress rows
+GET  /api/lld/learn-progress/[patternSlug]     — single pattern (zero-state if empty)
+PATCH /api/lld/learn-progress/[patternSlug]    — merge-patch with upsert
+
+PATCH merges sectionProgress and checkpointStats maps (not replace),
+increments visit_count atomically, sets completed_at on markCompleted.
+Zero-state GET avoids 404 branch in the UI.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 9: Create `useLearnProgress` hook
+
+**Files:**
+- Create: `architex/src/hooks/useLearnProgress.ts`
+- Test: `architex/src/hooks/__tests__/useLearnProgress.test.tsx`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useLearnProgress.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { useLearnProgress } from "@/hooks/useLearnProgress";
+
+const wrapper = (qc: QueryClient) =>
+  function Wrap({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  };
+
+describe("useLearnProgress", () => {
+  let qc: QueryClient;
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        progress: {
+          patternSlug: "singleton",
+          sectionProgress: {},
+          lastScrollY: 0,
+          activeSectionId: null,
+          completedSectionCount: 0,
+          checkpointStats: {},
+          completedAt: null,
+          visitCount: 1,
+        },
+      }),
+    });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("fetches progress on mount", async () => {
+    const { result } = renderHook(() => useLearnProgress("singleton"), {
+      wrapper: wrapper(qc),
+    });
+    await waitFor(() => expect(result.current.progress).not.toBeNull());
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/lld/learn-progress/singleton",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("patchSectionProgress debounces 1s before POST", async () => {
+    const { result } = renderHook(() => useLearnProgress("singleton"), {
+      wrapper: wrapper(qc),
+    });
+    await waitFor(() => expect(result.current.progress).not.toBeNull());
+    fetchSpy.mockClear();
+
+    act(() => {
+      result.current.patchSectionProgress("itch", { scrollDepth: 0.5 });
+    });
+    vi.advanceTimersByTime(500);
+    expect(fetchSpy).not.toHaveBeenCalled(); // still within debounce
+
+    act(() => {
+      result.current.patchSectionProgress("itch", { scrollDepth: 0.8 });
+    });
+    vi.advanceTimersByTime(1100);
+    await Promise.resolve();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/lld/learn-progress/singleton",
+      expect.objectContaining({ method: "PATCH" }),
+    );
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.sectionProgress.itch.scrollDepth).toBe(0.8);
+  });
+
+  it("markCompleted fires immediately (no debounce)", async () => {
+    const { result } = renderHook(() => useLearnProgress("singleton"), {
+      wrapper: wrapper(qc),
+    });
+    await waitFor(() => expect(result.current.progress).not.toBeNull());
+    fetchSpy.mockClear();
+
+    act(() => {
+      result.current.markCompleted();
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/lld/learn-progress/singleton",
+      expect.objectContaining({ method: "PATCH" }),
+    );
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.markCompleted).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useLearnProgress
+```
+Expected: FAIL with `Cannot find module '@/hooks/useLearnProgress'`.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useLearnProgress.ts`:
+
+```typescript
+"use client";
+
+import { useCallback, useEffect, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { LessonSectionId, SectionState } from "@/db";
+
+interface LearnProgressRow {
+  patternSlug: string;
+  sectionProgress: Partial<Record<LessonSectionId, SectionState>>;
+  lastScrollY: number;
+  activeSectionId: LessonSectionId | null;
+  completedSectionCount: number;
+  checkpointStats: Partial<
+    Record<LessonSectionId, { attempts: number; correct: boolean }>
+  >;
+  completedAt: string | null;
+  visitCount: number;
+}
+
+interface ProgressPatch {
+  sectionProgress?: Partial<Record<LessonSectionId, Partial<SectionState>>>;
+  lastScrollY?: number;
+  activeSectionId?: LessonSectionId | null;
+  checkpointStats?: Partial<
+    Record<LessonSectionId, { attempts: number; correct: boolean }>
+  >;
+  markCompleted?: boolean;
+  incrementVisit?: boolean;
+}
+
+const DEBOUNCE_MS = 1000;
+
+/**
+ * Hook that owns the DB round-trip for a single pattern's learn progress.
+ *
+ * GET: fetched on mount via useQuery (5min stale).
+ * PATCH: section/scroll updates debounced 1s; markCompleted fires immediately.
+ * Optimistic updates via queryClient.setQueryData so UI reacts without waiting.
+ */
+export function useLearnProgress(patternSlug: string) {
+  const queryClient = useQueryClient();
+  const queryKey = ["lld-learn-progress", patternSlug] as const;
+
+  const query = useQuery<{ progress: LearnProgressRow }>({
+    queryKey,
+    queryFn: async () => {
+      const res = await fetch(`/api/lld/learn-progress/${patternSlug}`, {
+        method: "GET",
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to load progress: ${res.status}`);
+      }
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (patch: ProgressPatch) => {
+      const res = await fetch(`/api/lld/learn-progress/${patternSlug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to patch progress: ${res.status}`);
+      }
+      return (await res.json()) as { progress: LearnProgressRow };
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKey, data);
+    },
+  });
+
+  const pendingPatchRef = useRef<ProgressPatch | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushPending = useCallback(() => {
+    const pending = pendingPatchRef.current;
+    pendingPatchRef.current = null;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (pending) mutation.mutate(pending);
+  }, [mutation]);
+
+  const scheduleFlush = useCallback(
+    (patch: ProgressPatch) => {
+      // Merge into pending
+      const pending = pendingPatchRef.current ?? {};
+      pendingPatchRef.current = {
+        ...pending,
+        ...patch,
+        sectionProgress: {
+          ...(pending.sectionProgress ?? {}),
+          ...(patch.sectionProgress ?? {}),
+        },
+        checkpointStats: {
+          ...(pending.checkpointStats ?? {}),
+          ...(patch.checkpointStats ?? {}),
+        },
+      };
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(flushPending, DEBOUNCE_MS);
+    },
+    [flushPending],
+  );
+
+  // Flush on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingPatchRef.current) flushPending();
+    };
+  }, [flushPending]);
+
+  const patchSectionProgress = useCallback(
+    (sectionId: LessonSectionId, state: Partial<SectionState>) => {
+      scheduleFlush({ sectionProgress: { [sectionId]: state } });
+    },
+    [scheduleFlush],
+  );
+
+  const patchActiveSection = useCallback(
+    (sectionId: LessonSectionId | null) => {
+      scheduleFlush({ activeSectionId: sectionId });
+    },
+    [scheduleFlush],
+  );
+
+  const patchScrollY = useCallback(
+    (scrollY: number) => {
+      scheduleFlush({ lastScrollY: scrollY });
+    },
+    [scheduleFlush],
+  );
+
+  const recordCheckpointAttempt = useCallback(
+    (sectionId: LessonSectionId, attempts: number, correct: boolean) => {
+      // Checkpoint results are important — flush immediately, bypass debounce.
+      if (pendingPatchRef.current) flushPending();
+      mutation.mutate({
+        checkpointStats: { [sectionId]: { attempts, correct } },
+      });
+    },
+    [flushPending, mutation],
+  );
+
+  const markCompleted = useCallback(() => {
+    if (pendingPatchRef.current) flushPending();
+    mutation.mutate({ markCompleted: true });
+  }, [flushPending, mutation]);
+
+  const incrementVisit = useCallback(() => {
+    mutation.mutate({ incrementVisit: true });
+  }, [mutation]);
+
+  return {
+    progress: query.data?.progress ?? null,
+    isLoading: query.isLoading,
+    patchSectionProgress,
+    patchActiveSection,
+    patchScrollY,
+    recordCheckpointAttempt,
+    markCompleted,
+    incrementVisit,
+    /** For tests + emergency shutdowns. */
+    _flushPending: flushPending,
+  };
+}
+```
+
+Note: `LessonSectionId` and `SectionState` are exported from `@/db` via `@/db/schema/lld-learn-progress.ts` → `schema/index.ts` → `@/db` barrel. Confirm your `src/db/index.ts` re-exports these. If not, add:
+
+```typescript
+// In src/db/index.ts or src/db/schema/index.ts
+export type { LessonSectionId, SectionState } from "./schema/lld-learn-progress";
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useLearnProgress
+```
+Expected: PASS · all 3 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useLearnProgress.ts architex/src/hooks/__tests__/useLearnProgress.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): add useLearnProgress with debounced writes
+
+Reads progress row via TanStack Query (5min stale). Section/scroll
+patches debounced 1s and merged into pending state before flushing.
+Checkpoint attempts and markCompleted bypass debounce — they are
+important events that shouldn't be lost to a page navigation race.
+Flushes any pending patch on unmount.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 10: Create bookmarks API routes
+
+**Files:**
+- Create: `architex/src/app/api/lld/bookmarks/route.ts`
+- Create: `architex/src/app/api/lld/bookmarks/[id]/route.ts`
+
+- [ ] **Step 1: Create list + create route**
+
+Create `architex/src/app/api/lld/bookmarks/route.ts`:
+
+```typescript
+/**
+ * GET  /api/lld/bookmarks?patternSlug=...       — list (all or filtered)
+ * POST /api/lld/bookmarks                       — create (409 if anchor already bookmarked)
+ */
+
+import { NextResponse } from "next/server";
+import { and, desc, eq } from "drizzle-orm";
+import { getDb, lldBookmarks } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_SECTION_IDS = new Set([
+  "itch",
+  "definition",
+  "mechanism",
+  "anatomy",
+  "numbers",
+  "uses",
+  "failure_modes",
+  "checkpoints",
+]);
+
+export async function GET(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const url = new URL(request.url);
+    const patternSlug = url.searchParams.get("patternSlug");
+
+    const db = getDb();
+    const where = patternSlug
+      ? and(
+          eq(lldBookmarks.userId, userId),
+          eq(lldBookmarks.patternSlug, patternSlug),
+        )
+      : eq(lldBookmarks.userId, userId);
+
+    const rows = await db
+      .select()
+      .from(lldBookmarks)
+      .where(where)
+      .orderBy(desc(lldBookmarks.createdAt))
+      .limit(200);
+
+    return NextResponse.json({ bookmarks: rows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/bookmarks] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      patternSlug?: string;
+      sectionId?: string;
+      anchorId?: string;
+      anchorLabel?: string;
+      note?: string;
+    };
+
+    const { patternSlug, sectionId, anchorId, anchorLabel } = body;
+
+    if (!patternSlug || typeof patternSlug !== "string") {
+      return NextResponse.json(
+        { error: "patternSlug required" },
+        { status: 400 },
+      );
+    }
+    if (!sectionId || !VALID_SECTION_IDS.has(sectionId)) {
+      return NextResponse.json(
+        {
+          error: `sectionId must be one of: ${Array.from(VALID_SECTION_IDS).join(", ")}`,
+        },
+        { status: 400 },
+      );
+    }
+    if (!anchorId || typeof anchorId !== "string") {
+      return NextResponse.json(
+        { error: "anchorId required" },
+        { status: 400 },
+      );
+    }
+    if (!anchorLabel || typeof anchorLabel !== "string") {
+      return NextResponse.json(
+        { error: "anchorLabel required" },
+        { status: 400 },
+      );
+    }
+    if (body.note !== undefined && typeof body.note !== "string") {
+      return NextResponse.json(
+        { error: "note must be a string if provided" },
+        { status: 400 },
+      );
+    }
+    if (body.note && body.note.length > 10_000) {
+      return NextResponse.json(
+        { error: "note max length is 10000 chars" },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+    try {
+      const [created] = await db
+        .insert(lldBookmarks)
+        .values({
+          userId,
+          patternSlug,
+          sectionId,
+          anchorId,
+          anchorLabel,
+          note: body.note ?? null,
+        })
+        .returning();
+      return NextResponse.json({ bookmark: created }, { status: 201 });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("lld_bookmarks_user_anchor_idx")
+      ) {
+        return NextResponse.json(
+          {
+            error: "Bookmark already exists for this anchor.",
+            code: "BOOKMARK_EXISTS",
+          },
+          { status: 409 },
+        );
+      }
+      throw error;
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/bookmarks] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create PATCH+DELETE route**
+
+Create `architex/src/app/api/lld/bookmarks/[id]/route.ts`:
+
+```typescript
+/**
+ * PATCH  /api/lld/bookmarks/[id]    — update note only
+ * DELETE /api/lld/bookmarks/[id]    — hard delete
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { getDb, lldBookmarks } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as { note?: string };
+    if (body.note !== undefined && typeof body.note !== "string") {
+      return NextResponse.json(
+        { error: "note must be a string" },
+        { status: 400 },
+      );
+    }
+    if (body.note && body.note.length > 10_000) {
+      return NextResponse.json(
+        { error: "note max length is 10000 chars" },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+    const [updated] = await db
+      .update(lldBookmarks)
+      .set({ note: body.note ?? null, updatedAt: new Date() })
+      .where(
+        and(eq(lldBookmarks.id, id), eq(lldBookmarks.userId, userId)),
+      )
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Bookmark not found" }, { status: 404 });
+    }
+    return NextResponse.json({ bookmark: updated });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/bookmarks/:id] PATCH error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const [deleted] = await db
+      .delete(lldBookmarks)
+      .where(
+        and(eq(lldBookmarks.id, id), eq(lldBookmarks.userId, userId)),
+      )
+      .returning({ id: lldBookmarks.id });
+
+    if (!deleted) {
+      return NextResponse.json({ error: "Bookmark not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, id: deleted.id });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/bookmarks/:id] DELETE error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/app/api/lld/bookmarks/
+git commit -m "$(cat <<'EOF'
+feat(api): add LLD bookmarks routes
+
+GET    /api/lld/bookmarks?patternSlug=...   — list (optional filter)
+POST   /api/lld/bookmarks                   — create (409 on duplicate anchor)
+PATCH  /api/lld/bookmarks/:id               — update note
+DELETE /api/lld/bookmarks/:id               — hard delete
+
+Scoped to authenticated user on every route. Max note length 10_000.
+Duplicate anchor returns code: "BOOKMARK_EXISTS" for UI toggle path.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 11: Create `useBookmarks` hook
+
+**Files:**
+- Create: `architex/src/hooks/useBookmarks.ts`
+- Test: `architex/src/hooks/__tests__/useBookmarks.test.tsx`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useBookmarks.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { useBookmarks } from "@/hooks/useBookmarks";
+
+const wrapper = (qc: QueryClient) =>
+  function Wrap({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  };
+
+describe("useBookmarks", () => {
+  let qc: QueryClient;
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("fetches bookmarks scoped to patternSlug", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        bookmarks: [
+          {
+            id: "b1",
+            patternSlug: "singleton",
+            sectionId: "itch",
+            anchorId: "the-itch",
+            anchorLabel: "The Itch",
+            note: null,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }),
+    });
+    const { result } = renderHook(() => useBookmarks("singleton"), {
+      wrapper: wrapper(qc),
+    });
+    await waitFor(() => expect(result.current.bookmarks).toHaveLength(1));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/lld/bookmarks?patternSlug=singleton",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("toggle creates when not bookmarked", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ bookmarks: [] }),
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        bookmark: {
+          id: "b2",
+          patternSlug: "singleton",
+          sectionId: "definition",
+          anchorId: "precise-def",
+          anchorLabel: "Precise Definition",
+        },
+      }),
+    });
+
+    const { result } = renderHook(() => useBookmarks("singleton"), {
+      wrapper: wrapper(qc),
+    });
+    await waitFor(() => expect(result.current.bookmarks).toHaveLength(0));
+
+    await act(async () => {
+      await result.current.toggle({
+        sectionId: "definition",
+        anchorId: "precise-def",
+        anchorLabel: "Precise Definition",
+      });
+    });
+
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/lld/bookmarks");
+    const init = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(init.method).toBe("POST");
+  });
+
+  it("toggle deletes when already bookmarked", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        bookmarks: [
+          {
+            id: "b3",
+            patternSlug: "singleton",
+            sectionId: "itch",
+            anchorId: "the-itch",
+            anchorLabel: "The Itch",
+            note: null,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }),
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, id: "b3" }),
+    });
+
+    const { result } = renderHook(() => useBookmarks("singleton"), {
+      wrapper: wrapper(qc),
+    });
+    await waitFor(() => expect(result.current.bookmarks).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.toggle({
+        sectionId: "itch",
+        anchorId: "the-itch",
+        anchorLabel: "The Itch",
+      });
+    });
+
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/lld/bookmarks/b3");
+    const init = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(init.method).toBe("DELETE");
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useBookmarks
+```
+Expected: FAIL with `Cannot find module '@/hooks/useBookmarks'`.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useBookmarks.ts`:
+
+```typescript
+"use client";
+
+import { useCallback } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+export interface Bookmark {
+  id: string;
+  patternSlug: string;
+  sectionId: string;
+  anchorId: string;
+  anchorLabel: string;
+  note: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+interface ToggleArgs {
+  sectionId: string;
+  anchorId: string;
+  anchorLabel: string;
+}
+
+/**
+ * Read + mutate bookmarks for a given pattern. Exposes a `toggle` helper
+ * that creates-or-deletes based on whether an anchor is already bookmarked.
+ *
+ * `null` patternSlug = global (all bookmarks) — used by the Dashboard
+ * later. For Learn mode always pass the current pattern slug.
+ */
+export function useBookmarks(patternSlug: string | null) {
+  const queryClient = useQueryClient();
+  const queryKey = patternSlug
+    ? (["lld-bookmarks", patternSlug] as const)
+    : (["lld-bookmarks", "all"] as const);
+
+  const query = useQuery<{ bookmarks: Bookmark[] }>({
+    queryKey,
+    queryFn: async () => {
+      const url = patternSlug
+        ? `/api/lld/bookmarks?patternSlug=${encodeURIComponent(patternSlug)}`
+        : "/api/lld/bookmarks";
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) throw new Error(`Failed to load bookmarks: ${res.status}`);
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (args: ToggleArgs) => {
+      if (!patternSlug) throw new Error("Cannot create bookmark without patternSlug");
+      const res = await fetch("/api/lld/bookmarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patternSlug, ...args }),
+      });
+      if (!res.ok) throw new Error(`Failed to create bookmark: ${res.status}`);
+      return (await res.json()) as { bookmark: Bookmark };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/lld/bookmarks/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Failed to delete bookmark: ${res.status}`);
+      return (await res.json()) as { ok: true; id: string };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const updateNoteMutation = useMutation({
+    mutationFn: async ({ id, note }: { id: string; note: string }) => {
+      const res = await fetch(`/api/lld/bookmarks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+      if (!res.ok) throw new Error(`Failed to update bookmark: ${res.status}`);
+      return (await res.json()) as { bookmark: Bookmark };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const toggle = useCallback(
+    async (args: ToggleArgs) => {
+      const bookmarks = query.data?.bookmarks ?? [];
+      const existing = bookmarks.find(
+        (b) =>
+          b.patternSlug === patternSlug &&
+          b.sectionId === args.sectionId &&
+          b.anchorId === args.anchorId,
+      );
+      if (existing) {
+        await deleteMutation.mutateAsync(existing.id);
+        return { action: "deleted" as const, id: existing.id };
+      }
+      const result = await createMutation.mutateAsync(args);
+      return { action: "created" as const, id: result.bookmark.id };
+    },
+    [query.data, patternSlug, createMutation, deleteMutation],
+  );
+
+  const isBookmarked = useCallback(
+    (sectionId: string, anchorId: string): boolean => {
+      const bookmarks = query.data?.bookmarks ?? [];
+      return bookmarks.some(
+        (b) =>
+          b.patternSlug === patternSlug &&
+          b.sectionId === sectionId &&
+          b.anchorId === anchorId,
+      );
+    },
+    [query.data, patternSlug],
+  );
+
+  return {
+    bookmarks: query.data?.bookmarks ?? [],
+    isLoading: query.isLoading,
+    toggle,
+    isBookmarked,
+    updateNote: (id: string, note: string) =>
+      updateNoteMutation.mutateAsync({ id, note }),
+  };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useBookmarks
+```
+Expected: PASS · all 3 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useBookmarks.ts architex/src/hooks/__tests__/useBookmarks.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): add useBookmarks with toggle + isBookmarked
+
+toggle() inspects current bookmarks to decide create-vs-delete —
+consumers get one binary action per anchor. isBookmarked() is a
+pure lookup for rendering the filled/empty bookmark icon.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 12: Create `POST /api/lld/concept-reads` route
+
+**Files:**
+- Create: `architex/src/app/api/lld/concept-reads/route.ts`
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/concept-reads/route.ts`:
+
+```typescript
+/**
+ * POST /api/lld/concept-reads
+ *
+ * Logs a concept view — append-only. Client calls this when a section
+ * containing a concept reference enters the viewport for ≥2s.
+ *
+ * Body: { conceptId, patternSlug, sectionId }
+ *
+ * Rate limit: max 1 POST per (user, concept, pattern, section) per 30s
+ * to avoid double-counting on fast scroll. Enforced in memory via a
+ * simple in-process Map — acceptable because single-region dev + small
+ * write volume. Production swap to Redis if needed.
+ *
+ * GET is not exposed — consumers read via FSRS progress boosting or
+ * server-side queries.
+ */
+
+import { NextResponse } from "next/server";
+import { getDb, lldConceptReads } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const RECENT_WINDOW_MS = 30 * 1000;
+const recentWrites = new Map<string, number>();
+
+function keyFor(
+  userId: string,
+  conceptId: string,
+  patternSlug: string,
+  sectionId: string,
+): string {
+  return `${userId}:${conceptId}:${patternSlug}:${sectionId}`;
+}
+
+export async function POST(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      conceptId?: string;
+      patternSlug?: string;
+      sectionId?: string;
+    };
+
+    const { conceptId, patternSlug, sectionId } = body;
+    if (!conceptId || typeof conceptId !== "string") {
+      return NextResponse.json(
+        { error: "conceptId required" },
+        { status: 400 },
+      );
+    }
+    if (!patternSlug || typeof patternSlug !== "string") {
+      return NextResponse.json(
+        { error: "patternSlug required" },
+        { status: 400 },
+      );
+    }
+    if (!sectionId || typeof sectionId !== "string") {
+      return NextResponse.json(
+        { error: "sectionId required" },
+        { status: 400 },
+      );
+    }
+
+    // Rate limit in-process
+    const k = keyFor(userId, conceptId, patternSlug, sectionId);
+    const last = recentWrites.get(k);
+    if (last && Date.now() - last < RECENT_WINDOW_MS) {
+      return NextResponse.json({ ok: true, rateLimited: true });
+    }
+    recentWrites.set(k, Date.now());
+
+    // Cheap GC — keep the map bounded
+    if (recentWrites.size > 10_000) {
+      const cutoff = Date.now() - RECENT_WINDOW_MS;
+      for (const [key, t] of recentWrites) {
+        if (t < cutoff) recentWrites.delete(key);
+      }
+    }
+
+    const db = getDb();
+    await db.insert(lldConceptReads).values({
+      userId,
+      conceptId,
+      patternSlug,
+      sectionId,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/concept-reads] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/app/api/lld/concept-reads/
+git commit -m "$(cat <<'EOF'
+feat(api): add POST /api/lld/concept-reads
+
+Append-only concept-view log with 30s in-memory rate limit per
+(user, concept, pattern, section). Returns rateLimited:true (not a
+4xx) so clients don't need to distinguish noisy vs actionable failures.
+In-process Map is OK for single-region dev; production can swap to
+Redis if write volume warrants.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
