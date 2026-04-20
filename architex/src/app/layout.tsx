@@ -16,7 +16,6 @@ import "./globals.css";
 let MaybeClerkProvider: React.ComponentType<{ children: React.ReactNode }> | null = null;
 if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
   try {
-    // @ts-expect-error -- Clerk v7 conditional exports resolve at runtime
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     MaybeClerkProvider = require("@clerk/nextjs").ClerkProvider;
   } catch {

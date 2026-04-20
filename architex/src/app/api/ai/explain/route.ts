@@ -505,10 +505,12 @@ Guidelines:
       (message.usage.input_tokens / 1_000_000) * 3.0 +
       (message.usage.output_tokens / 1_000_000) * 15.0;
 
-    // Log usage (fire-and-forget)
-    logUsage(userId, totalTokens, cost).catch((err) =>
-      console.error("[api/ai/explain] Failed to log usage:", err),
-    );
+    // Log usage (fire-and-forget) — only when we have a resolved user id
+    if (userId) {
+      logUsage(userId, totalTokens, cost).catch((err) =>
+        console.error("[api/ai/explain] Failed to log usage:", err),
+      );
+    }
 
     // Parse the AI response
     try {
