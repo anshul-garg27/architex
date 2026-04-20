@@ -1594,3 +1594,517 @@ EOF
 *The task bodies below are **prescriptive authoring briefs** — each one includes the concept/problem's `slug`, `title`, `wave/domain`, 3-5 reference numbers Opus must hit, the 3-5 prerequisite concept slugs, and the 5-8 bridge slugs. Opus then fills the 8-section or 6-pane format. This is how the content scales from template to 100 pieces without losing editorial direction.*
 
 ---
+
+## Task B1: Wave 4 · `message-queues-vs-event-streams`
+
+- **Slug:** `message-queues-vs-event-streams`
+- **Title:** `Message Queues vs Event Streams`
+- **Wave:** 4 · Messaging & Streams · Order 1/4
+- **Prerequisites:** `request-response` · `statelessness` · `load-balancing`
+- **Reference numbers Opus must hit:**
+  - RabbitMQ single-queue: 20-50k msg/sec typical, p99 ≤5ms
+  - Kafka single-partition: 500k msg/sec on NVMe, 50MB/s write
+  - Retention: RabbitMQ default 0 post-ack; Kafka default 168h (7d)
+  - Ordering: RabbitMQ per-queue, Kafka per-partition
+  - Consumer semantics: RabbitMQ competing consumers; Kafka consumer groups + partition assignment
+- **Bridges-out (5):** `delivery-semantics` (concept) · `change-data-capture` (concept) · `design-notification-service` (problem) · `observer-pattern` (LLD) · `dependency-timeout-cascade` (chaos)
+- **Editor rubric items specific to this piece:** Must call out *why* Kafka is a log (append-only) and RabbitMQ is a queue (ephemeral). The diagram in Primitive must show both topologies side by side.
+
+- [ ] **Step 1** · Open an issue labeled `opus-authoring` with the above brief. Attach `content/prompts/sd-concept-prompt.md` as context.
+- [ ] **Step 2** · Opus produces draft 1. Editor runs `pnpm validate:content` locally and comments inline.
+- [ ] **Step 3** · Opus draft 2. Editor stamps `editorialStatus: "approved"`.
+- [ ] **Step 4** · PR merges `content/sd/concepts/wave-4-messaging-streams/message-queues-vs-event-streams.mdx`. CI green.
+- [ ] **Step 5** · Seed: `pnpm db:seed:sd`. Verify row: `slug=message-queues-vs-event-streams, moduleId=sd`.
+
+---
+
+## Task B2: Wave 4 · `delivery-semantics`
+
+- **Slug:** `delivery-semantics`
+- **Title:** `Delivery Semantics — at-most-once, at-least-once, exactly-once`
+- **Wave:** 4 · Order 2/4
+- **Prerequisites:** `message-queues-vs-event-streams` · `idempotency`
+- **Reference numbers:**
+  - At-most-once: zero duplicates, data loss possible (fire-and-forget UDP)
+  - At-least-once: no loss, duplicates likely (default Kafka producer with ack=1)
+  - Exactly-once: Kafka transactions + idempotent producer (KIP-98, 2017) — 30-40% throughput cost
+  - Deduplication window: 7 days typical (matches Kafka default retention)
+- **Bridges-out:** `idempotency` · `change-data-capture` · `design-stripe-payments` · `saga-pattern` (LLD) · `duplicate-delivery-storm` (chaos)
+- **Voice note:** The tradeoffs section must be blunt: exactly-once costs ~30% throughput. Many architects assume it's free.
+
+- [ ] **Step 1-5** (same authoring loop as B1).
+
+---
+
+## Task B3: Wave 4 · `change-data-capture`
+
+- **Slug:** `change-data-capture`
+- **Title:** `Change Data Capture (CDC)`
+- **Wave:** 4 · Order 3/4
+- **Prerequisites:** `replication` · `delivery-semantics` · `message-queues-vs-event-streams`
+- **Reference numbers:**
+  - Debezium: MySQL binlog / Postgres WAL / MongoDB oplog readers
+  - Latency: 50-500ms tail p99 at moderate load
+  - Throughput: ~10k changes/sec per connector, linear scale-out
+  - Resilience: snapshot-on-startup + streaming; exactly-once via offset commit
+  - Anti-case: CDC is not audit log — it captures state changes, not intent
+- **Bridges-out:** `outbox-pattern` · `design-dropbox` · `design-onenote-sync` · `replication` · `silent-log-gap` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B4: Wave 4 · `stream-processing`
+
+- **Slug:** `stream-processing`
+- **Title:** `Stream Processing — windowing, watermarks, exactly-once in Kafka/Flink`
+- **Wave:** 4 · Order 4/4
+- **Prerequisites:** `message-queues-vs-event-streams` · `delivery-semantics` · `distributed-clocks`
+- **Reference numbers:**
+  - Flink checkpoint interval: 1-60s typical; <1s penalizes throughput
+  - Window types: tumbling · sliding · session · global
+  - Watermark lag p99: aim for ≤5s late-event tolerance
+  - Exactly-once: 2PC via TwoPhaseCommitSinkFunction (Flink), coordinator-less (Kafka Streams transactions)
+  - Throughput: 1M events/sec/node on commodity hardware (Flink benchmark, 2023)
+- **Bridges-out:** `distributed-clocks` · `design-twitch` · `design-metrics-system` · `windowing-late-event-storm` (chaos) · `observer-pattern` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B5: Wave 5 · `consensus-raft-paxos`
+
+- **Slug:** `consensus-raft-paxos`
+- **Title:** `Consensus — Raft and Paxos in One Paragraph`
+- **Wave:** 5 · Distributed Systems · Order 1/5
+- **Prerequisites:** `replication` · `leader-election` (forward-declared) · `quorum-reads-writes` (forward-declared)
+- **Reference numbers:**
+  - Raft: leader + followers · term-based · log-replication with prevLogIndex matching
+  - Paxos: prepare-phase + accept-phase · majority quorum (⌈N/2⌉+1)
+  - Latency: 1 round-trip single-region, 2 RT cross-region
+  - Throughput ceiling: 10-50k ops/sec/group (etcd benchmark, 2024)
+  - Anti-case: do not use consensus for high-write metadata (use gossip + CRDT)
+- **Bridges-out:** `leader-election` · `design-distributed-cron` · `chubby-paper` · `split-brain-on-network-partition` (chaos) · `saga-pattern` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B6: Wave 5 · `leader-election`
+
+- **Slug:** `leader-election`
+- **Title:** `Leader Election`
+- **Wave:** 5 · Order 2/5
+- **Prerequisites:** `consensus-raft-paxos` · `failure-handling`
+- **Reference numbers:**
+  - Bully algorithm: O(N²) messages, O(N) time
+  - Raft leader election: randomized timeout 150-300ms, one RT per election
+  - ZooKeeper-style: ephemeral znodes with sequence; leader = lowest sequence
+  - Lease-based: TTL 10-30s typical, renew at 1/3 TTL
+  - Split-brain risk: avoid with majority quorum or fencing token
+- **Bridges-out:** `consensus-raft-paxos` · `design-distributed-cron` · `design-zoom-meetings` · `gossip-protocols` · `dual-leader-write-conflict` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B7: Wave 5 · `distributed-clocks`
+
+- **Slug:** `distributed-clocks`
+- **Title:** `Distributed Clocks — logical, vector, and hybrid logical clocks`
+- **Wave:** 5 · Order 3/5
+- **Prerequisites:** `replication` · `consistency-models`
+- **Reference numbers:**
+  - Lamport logical: monotonic counter, not directly comparable across nodes
+  - Vector clocks: O(N) bytes per event, captures causal order
+  - HLC (Hybrid Logical Clock): logical + physical, bounded skew to wall clock ±500ms
+  - NTP: skew target ±10ms datacenter, ±100ms WAN
+  - Google TrueTime: ±7ms worst case, custom hardware + GPS
+- **Bridges-out:** `consensus-raft-paxos` · `design-google-maps` · `design-find-friends` · `stream-processing` · `clock-drift-cascade` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B8: Wave 5 · `gossip-protocols`
+
+- **Slug:** `gossip-protocols`
+- **Title:** `Gossip Protocols`
+- **Wave:** 5 · Order 4/5
+- **Prerequisites:** `distributed-clocks` · `failure-handling`
+- **Reference numbers:**
+  - Epidemic spreading: O(log N) rounds to converge, N nodes
+  - Round interval: 1-3s typical (Cassandra default 1s)
+  - Fanout: 3-5 peers per round
+  - Convergence at 1000 nodes: ~10s
+  - Anti-case: do not use gossip for strongly-consistent metadata (use consensus)
+- **Bridges-out:** `consensus-raft-paxos` · `design-metrics-system` · `design-youtube-recommendations` · `quorum-reads-writes` · `gossip-blackhole-split` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B9: Wave 5 · `quorum-reads-writes`
+
+- **Slug:** `quorum-reads-writes`
+- **Title:** `Quorum Reads and Writes`
+- **Wave:** 5 · Order 5/5
+- **Prerequisites:** `replication` · `consensus-raft-paxos`
+- **Reference numbers:**
+  - N=3, R=2, W=2 (Cassandra default): overlapping quorums, strong consistency
+  - N=3, R=1, W=1: no overlap, eventual consistency
+  - W+R > N ⇒ strong consistency; W+R ≤ N ⇒ eventual
+  - Latency: dominated by the slowest W-th replica ack
+  - Anti-case: do not use W=3 for hot writes (2-of-3 is often enough)
+- **Bridges-out:** `replication` · `cap-in-practice` · `design-amazon-checkout` · `design-stripe-payments` · `slow-replica-tail-latency` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B10: Wave 6 · `circuit-breakers`
+
+- **Slug:** `circuit-breakers`
+- **Title:** `Circuit Breakers`
+- **Wave:** 6 · Resilience · Order 1/4
+- **Prerequisites:** `failure-handling` · `retries-with-jitter` (forward-declared)
+- **Reference numbers:**
+  - States: closed · open · half-open
+  - Trip threshold: 50% error rate over 10s window typical
+  - Open timeout: 30-60s before half-open probe
+  - Hystrix defaults (2016): 10s window, 20 req minimum, 50% error trip
+  - Anti-case: do not wrap a call that has its own retry budget (compounding delay)
+- **Bridges-out:** `retries-with-jitter` · `bulkheads-pool-isolation` · `design-stripe-payments` · `design-amazon-checkout` · `dependency-brownout` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B11: Wave 6 · `retries-with-jitter`
+
+- **Slug:** `retries-with-jitter`
+- **Title:** `Retries with Exponential Backoff and Jitter`
+- **Wave:** 6 · Order 2/4
+- **Prerequisites:** `idempotency` · `circuit-breakers`
+- **Reference numbers:**
+  - Exponential backoff: `min(cap, base * 2^attempt)`; cap 30-60s
+  - Jitter: full-random multiplier 0-1 (AWS blog, 2015)
+  - Max attempts: 3-5 for synchronous; 10+ for async queue workers
+  - Without jitter: thundering-herd on recovery; with jitter: load spread
+  - Anti-case: do not retry non-idempotent calls without a dedup key
+- **Bridges-out:** `idempotency` · `circuit-breakers` · `design-stripe-payments` · `thundering-herd-on-recovery` (chaos) · `retry-pattern` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B12: Wave 6 · `bulkheads-pool-isolation`
+
+- **Slug:** `bulkheads-pool-isolation`
+- **Title:** `Bulkheads and Pool Isolation`
+- **Wave:** 6 · Order 3/4
+- **Prerequisites:** `circuit-breakers` · `connection-pooling`
+- **Reference numbers:**
+  - Thread pool per dependency: 20-50 threads typical
+  - Semaphore-based: cheap but no timeout
+  - Connection pool per DB: 10-30 per service (PgBouncer transaction mode)
+  - Goroutine-per-request (Go): up to 10k cheap, 100k+ needs care
+  - Anti-case: do not share a single pool across two dependencies with wildly different latency profiles
+- **Bridges-out:** `circuit-breakers` · `connection-pooling` · `design-twitch` · `design-zoom-meetings` · `noisy-neighbor-pool-exhaustion` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B13: Wave 6 · `graceful-degradation`
+
+- **Slug:** `graceful-degradation`
+- **Title:** `Graceful Degradation`
+- **Wave:** 6 · Order 4/4
+- **Prerequisites:** `circuit-breakers` · `caching-strategies` · `bulkheads-pool-isolation`
+- **Reference numbers:**
+  - Netflix Hystrix fallback: cached · static · empty response
+  - Stale-while-revalidate: serve 10-60s stale cache on origin failure
+  - Feature-flag-driven shedding: drop 10-50% of optional features under load
+  - Anti-case: do not serve stale payment confirmations; financial correctness trumps availability
+- **Bridges-out:** `caching-strategies` · `design-amazon-checkout` · `design-netflix-playback` (LLD cross-bridge) · `origin-failure-cache-serves-stale` (chaos) · `null-object-pattern` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B14: Wave 7 · `observability-metrics-logs-traces`
+
+- **Slug:** `observability-metrics-logs-traces`
+- **Title:** `Observability — Metrics, Logs, Traces, and How They Differ`
+- **Wave:** 7 · Operational · Order 1/5
+- **Prerequisites:** `request-response` · `statelessness` · `load-balancing`
+- **Reference numbers:**
+  - Metrics: aggregated, low cardinality, cheap storage (Prometheus at 1-5GB/day/node)
+  - Logs: unstructured-to-JSON, high cardinality, 100MB-1GB/day/node typical
+  - Traces: per-request span tree, 0.1-1% sampled, 10-50GB/day aggregated
+  - USE method: Utilization / Saturation / Errors (Brendan Gregg, 2012)
+  - RED method: Rate / Errors / Duration (Tom Wilkie, 2015)
+- **Bridges-out:** `sli-slo-sla` · `design-metrics-system` · `design-datadog-pipeline` (from Phase 3) · `alert-storm-on-deploy` (chaos) · `observer-pattern` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B15: Wave 7 · `sli-slo-sla`
+
+- **Slug:** `sli-slo-sla`
+- **Title:** `SLI · SLO · SLA`
+- **Wave:** 7 · Order 2/5
+- **Prerequisites:** `observability-metrics-logs-traces`
+- **Reference numbers:**
+  - SLI: "what you measure" (p99 latency, error rate)
+  - SLO: "what you promise internally" (99.9% over 30d)
+  - SLA: "what you contract externally" (usually SLO minus a safety margin)
+  - 99.9% = 43.2 min/month downtime budget
+  - 99.99% = 4.32 min/month
+  - Error budget burn: 2x SLO-breach triggers freeze on new deploys
+- **Bridges-out:** `observability-metrics-logs-traces` · `incident-response` · `design-amazon-checkout` · `design-stripe-payments` · `slo-burn-alert` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B16: Wave 7 · `deployment-patterns`
+
+- **Slug:** `deployment-patterns`
+- **Title:** `Deployment Patterns — Blue-Green, Canary, Feature Flags, Rollback`
+- **Wave:** 7 · Order 3/5
+- **Prerequisites:** `load-balancing` · `observability-metrics-logs-traces`
+- **Reference numbers:**
+  - Blue-green: 2x infra, atomic switch, rollback in seconds
+  - Canary: 1-5% → 25% → 50% → 100%, 10-30 min per stage typical
+  - Feature flags: per-user or per-cohort rollout, sub-second toggle
+  - Rollback: aim for ≤5 min MTTR from detection to 100% pre-deploy
+  - Anti-case: do not canary a schema migration; use expand/contract pattern
+- **Bridges-out:** `feature-flags-rollout` · `incident-response` · `design-feature-flags` (problem) · `failed-canary-silent-regression` (chaos) · `deployment-pattern` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B17: Wave 7 · `capacity-planning-littles-law`
+
+- **Slug:** `capacity-planning-littles-law`
+- **Title:** `Capacity Planning — Little's Law in Practice`
+- **Wave:** 7 · Order 4/5
+- **Prerequisites:** `load-balancing` · `observability-metrics-logs-traces`
+- **Reference numbers:**
+  - L = λ × W (concurrency = arrival-rate × avg-latency)
+  - Example: 10k req/s × 50ms = 500 concurrent in-flight requests
+  - Queueing saturation at ~70% utilization (M/M/1 curves)
+  - Headroom: aim for 2x peak for noisy-neighbor + burst absorption
+  - Anti-case: do not size to average; size to p95 burst
+- **Bridges-out:** `observability-metrics-logs-traces` · `backpressure` · `design-uber-dispatch` · `saturation-cliff` (chaos) · `queue-metric-tracking` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B18: Wave 7 · `incident-response`
+
+- **Slug:** `incident-response`
+- **Title:** `Incident Response — The Runbook Shape`
+- **Wave:** 7 · Order 5/5
+- **Prerequisites:** `observability-metrics-logs-traces` · `sli-slo-sla`
+- **Reference numbers:**
+  - Detect → Engage → Diagnose → Mitigate → Resolve → Postmortem
+  - MTTR target: p50 ≤15 min, p95 ≤60 min for Sev-1
+  - Runbook signal-to-noise: <10% false-positive page rate or on-call leaves the team
+  - Blameless postmortem within 5 business days
+  - Anti-case: do not call an incident resolved until telemetry proves it
+- **Bridges-out:** `sli-slo-sla` · `design-datadog-pipeline` · `design-pagerduty-like-system` · `alert-storm-on-deploy` (chaos) · `facebook-bgp-2021` (real incident)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B19: Wave 8 · `edge-compute-stateless-at-edge`
+
+- **Slug:** `edge-compute-stateless-at-edge`
+- **Title:** `Edge Compute and the Stateless-at-the-Edge Pattern`
+- **Wave:** 8 · Modern · Order 1/5
+- **Prerequisites:** `cdn-fundamentals` · `statelessness` · `load-balancing`
+- **Reference numbers:**
+  - Cloudflare Workers: 50ms p99 cold start, sub-ms warm
+  - Fastly Compute@Edge: WASM, ~ms cold start
+  - AWS Lambda@Edge: 100-300ms cold start (Node/Python)
+  - Edge-locations: 200+ POPs (Cloudflare 2024), 400+ (AWS CloudFront)
+  - Anti-case: edge is wrong for multi-tenant stateful sessions; keep state in regional DB
+- **Bridges-out:** `cdn-fundamentals` · `webassembly-runtime` · `design-google-maps` · `design-shopify-storefront` · `edge-config-push-bug` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B20: Wave 8 · `webassembly-runtime`
+
+- **Slug:** `webassembly-runtime`
+- **Title:** `WebAssembly as a Runtime Boundary`
+- **Wave:** 8 · Order 2/5
+- **Prerequisites:** `edge-compute-stateless-at-edge`
+- **Reference numbers:**
+  - Module size: 50KB-500KB typical (vs containers at 100MB+)
+  - Cold start: <1ms (vs 100ms+ for Lambda, 1s+ for containers)
+  - WASI: system-interface standard for filesystem + network
+  - Memory: 4GB max per instance (current limit)
+  - Anti-case: WASM is poor for long-lived stateful workers (use traditional server)
+- **Bridges-out:** `edge-compute-stateless-at-edge` · `design-shopify-storefront` · `design-feature-flags` · `memory-limit-cascade` (chaos) · `strategy-pattern` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B21: Wave 8 · `vector-search-rag`
+
+- **Slug:** `vector-search-rag`
+- **Title:** `Vector Search and Retrieval-Augmented Generation (RAG)`
+- **Wave:** 8 · Order 3/5
+- **Prerequisites:** `caching-strategies` · `observability-metrics-logs-traces`
+- **Reference numbers:**
+  - Embedding dim: 768-3072 (OpenAI ada-002: 1536; text-embedding-3-large: 3072)
+  - HNSW index: 10-50ms p99 at 10M vectors
+  - Recall@10 vs. exact: 0.95 typical at default HNSW params
+  - Storage: 4 bytes/dim/vector → 1M × 1536 dim = 6GB
+  - Anti-case: do not use vector search for exact-match lookups; keyword index is O(1)
+- **Bridges-out:** `caching-strategies` · `design-youtube-recommendations` · `design-spotify-discovery` · `ai-as-system-component` · `embedding-drift-on-model-update` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B22: Wave 8 · `event-sourcing-cqrs`
+
+- **Slug:** `event-sourcing-cqrs`
+- **Title:** `Event Sourcing and CQRS`
+- **Wave:** 8 · Order 4/5
+- **Prerequisites:** `change-data-capture` · `stream-processing` · `replication`
+- **Reference numbers:**
+  - Event store write: append-only, ~10k events/sec/partition
+  - Snapshot cadence: every 100-1000 events typical
+  - Projection lag p99: ≤5s for user-facing reads
+  - Anti-case: do not event-source a simple CRUD domain; the overhead is real
+  - Rehydration cost: O(events_since_snapshot); watch for unbounded growth
+- **Bridges-out:** `change-data-capture` · `stream-processing` · `design-google-docs` · `design-whatsapp-sync` · `projection-replay-storm` (chaos) · `command-pattern` (LLD)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B23: Wave 8 · `ai-as-system-component`
+
+- **Slug:** `ai-as-system-component`
+- **Title:** `AI as a System Component — LLM Behind a Queue`
+- **Wave:** 8 · Order 5/5
+- **Prerequisites:** `message-queues-vs-event-streams` · `retries-with-jitter` · `vector-search-rag`
+- **Reference numbers:**
+  - Claude Sonnet p50 latency: 1-3s at 1k tokens; p99 can exceed 30s
+  - Retry budget: 3 attempts with exponential backoff typical
+  - Rate limits: Anthropic tier-1 = 50 req/min, tier-4 = 4000 req/min
+  - Cost: input $3/M, output $15/M tokens (Claude Sonnet 4.7, 2026 rates)
+  - Anti-case: do not put LLM on the critical synchronous path without a cached fallback
+- **Bridges-out:** `message-queues-vs-event-streams` · `vector-search-rag` · `design-google-search` · `design-spotify-discovery` · `llm-hallucination-retry-loop` (chaos)
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B24: Domain 2 · `design-uber-dispatch`
+
+- **Slug:** `design-uber-dispatch`
+- **Title:** `Design Uber (Dispatch)`
+- **Domain:** 2 · Location & Real-time · Order 1/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `distributed-clocks` · `consistent-hashing` · `gossip-protocols` · `load-balancing` · `backpressure`
+- **Uses patterns (LLD):** `observer-pattern` · `strategy-pattern` · `chain-of-responsibility`
+- **Chaos bridges:** `driver-pool-location-desync` · `surge-compute-saturation` · `gps-spoof-injection` · `dispatch-queue-backpressure` · `map-tile-cdn-miss`
+- **Scale band:** 100M DAU, 15M trips/day peak, 5M drivers online concurrently, 50k dispatches/sec peak
+- **3 canonical solutions:**
+  - A · Geohash + Redis GEO (the obvious): h3 or quadkey shard, driver positions in Redis GEO, dispatcher polls candidate set.
+  - B · Spatial index server + gossip (the scale-out answer): dedicated spatial service, gossip for driver state, consistent-hashing across cells.
+  - C · Hybrid with whale-cell detector (the Principal answer): normal cells use Solution A; hot cells (airports, stadiums) promoted to Solution B with dedicated Redis shards.
+
+- [ ] **Step 1-5** (authoring loop from B1).
+
+---
+
+## Task B25: Domain 2 · `design-google-maps`
+
+- **Slug:** `design-google-maps`
+- **Title:** `Design Google Maps (Tiles + Routing)`
+- **Domain:** 2 · Order 2/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `cdn-fundamentals` · `edge-compute-stateless-at-edge` · `caching-strategies` · `distributed-clocks` · `vector-search-rag`
+- **Uses patterns:** `decorator-pattern` · `composite-pattern` · `strategy-pattern`
+- **Chaos bridges:** `tile-cdn-region-purge` · `route-cache-invalidation-storm` · `search-index-stale` · `traffic-layer-ingestion-gap` · `directions-timeout-cascade`
+- **Scale band:** 2B MAU, 100PB tile storage, 1B route-requests/day, 250k req/sec peak
+- **3 canonical solutions:**
+  - A · Pre-rendered tile pyramid (the classic): zoom 0-20, quadtree, CloudFront-style CDN with 1-year TTL on base tiles.
+  - B · Vector tiles + client render (the modern): ship tile data, client GPU renders; 10x smaller payload.
+  - C · Hybrid with real-time traffic overlay: Solution A base + vector overlay for live layer, refresh 60-90s.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B26: Domain 2 · `design-find-friends`
+
+- **Slug:** `design-find-friends`
+- **Title:** `Design Find My Friends (Eventually Consistent Location)`
+- **Domain:** 2 · Order 3/5
+- **Difficulty:** Intermediate
+- **Prerequisite concepts:** `distributed-clocks` · `consistency-models` · `gossip-protocols` · `caching-strategies`
+- **Uses patterns:** `observer-pattern` · `publish-subscribe` (LLD)
+- **Chaos bridges:** `gps-spoof-injection` · `gossip-blackhole-split` · `push-notification-storm` · `battery-drain-on-chatty-client` · `privacy-mode-read-conflict`
+- **Scale band:** 500M DAU, 10M friend-pairs sharing, 1k locations/sec/user burst
+- **3 canonical solutions:**
+  - A · Polling with TTL (warmup): client polls every 30-60s, cache 2-5 min TTL.
+  - B · Pub-sub with delta pushes (core answer): friend pair subscription, updates via push only on movement > 50m.
+  - C · Hybrid with ambient presence (Principal): pub-sub for active sessions, periodic snapshot for dormant.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B27: Domain 2 · `design-zoom-meetings`
+
+- **Slug:** `design-zoom-meetings`
+- **Title:** `Design Zoom-like Video Conferencing`
+- **Domain:** 2 · Order 4/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `edge-compute-stateless-at-edge` · `load-balancing` · `backpressure` · `leader-election` · `bulkheads-pool-isolation`
+- **Uses patterns:** `mediator-pattern` · `strategy-pattern` · `state-pattern`
+- **Chaos bridges:** `sfu-overload-cascade` · `network-jitter-cascade` · `packet-loss-degradation` · `bandwidth-starvation` · `region-failover-disconnect`
+- **Scale band:** 300M DAU, 1B meeting-minutes/day, 10k concurrent large meetings (1000+ participants)
+- **3 canonical solutions:**
+  - A · MCU (Multipoint Control Unit): server mixes streams — simple but CPU-heavy.
+  - B · SFU (Selective Forwarding Unit): server relays, client mixes — scales horizontally.
+  - C · Hybrid MCU/SFU with cascading SFUs (Principal): multi-region SFU tree for global meetings; fallback to MCU for low-bandwidth clients.
+
+- [ ] **Step 1-5**.
+
+---
+
+## Task B28: Domain 2 · `design-twitch`
+
+- **Slug:** `design-twitch`
+- **Title:** `Design Twitch-like Live Streaming`
+- **Domain:** 2 · Order 5/5
+- **Difficulty:** Principal
+- **Prerequisite concepts:** `cdn-fundamentals` · `stream-processing` · `backpressure` · `bulkheads-pool-isolation` · `message-queues-vs-event-streams`
+- **Uses patterns:** `pipeline-pattern` · `observer-pattern` · `strategy-pattern`
+- **Chaos bridges:** `transcoding-pipeline-stall` · `viewer-spike-origin-overload` · `cdn-edge-eviction-storm` · `chat-flood-backpressure` · `monetization-ad-pod-miss`
+- **Scale band:** 30M DAU, 2M concurrent viewers peak, 100k concurrent streamers, 5 Gbps egress/region
+- **3 canonical solutions:**
+  - A · Origin + CDN with HLS (classic): streamer → origin → transcode ladder → CDN → HLS client, 5-15s latency.
+  - B · WebRTC for low-latency interactive: sub-second latency, SFU topology, 10k viewer/stream cap before tree-cascade.
+  - C · Hybrid with dual-output: WebRTC for subscribers who want low latency; HLS for mass audience.
+
+- [ ] **Step 1-5**.
+
+---
