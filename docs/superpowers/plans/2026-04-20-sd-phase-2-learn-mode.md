@@ -3995,6 +3995,838 @@ EOF
 
 ---
 
+## Task 24: Author `client-server.mdx` + `client-server.graph.yaml` (full authoring template)
+
+**Files:**
+- Create: `architex/content/sd/concepts/client-server.mdx`
+- Create: `architex/content/sd/graph/client-server.graph.yaml`
+- Modify: `architex/src/lib/sd/__tests__/concept-graph.test.ts` (re-enable skipped tests)
+
+This task is the full concept authoring template. Tasks 25-28 reuse the shape with concept-specific content. Each file is ~1200-1800 words across 10 sections per spec §5.4.
+
+**Authoring voice checklist (from spec §5.1 + `docs/CONTENT_STRATEGY.md`):**
+- Clarity over cleverness · Specific, concrete, never generic · Every tradeoff has "You gain X. You pay Y." phrasing
+- Numbers are load-bearing and cited with year stamps
+- No "obviously" or "of course" — no condescension
+- Every diagram referenced in the text must exist
+
+- [ ] **Step 1: Write `client-server.mdx`**
+
+```mdx
+---
+slug: client-server
+title: Client-Server
+subtitle: The 60-year-old idea that every distributed system still rides on.
+wave: 1
+waveOrder: 1
+estimatedMinutes: 12
+wordTargetMin: 1200
+wordTargetMax: 1800
+voiceVariant: standard
+anchorNodeIds:
+  hook: []
+  analogy: []
+  primitive: [client, server, network-edge]
+  anatomy: [client, server]
+  numbersThatMatter: [server]
+  tradeoffs: [client, server]
+  antiCases: [client, server]
+  seenInWild: [server]
+  bridges: []
+  checkpoints: []
+scalingNumbers:
+  - label: "HTTP round-trip across regions"
+    value: "70-150"
+    unit: "ms"
+    sourceYear: 2024
+  - label: "Typical request-response throughput per nginx worker"
+    value: "40k"
+    unit: "req/sec"
+    sourceYear: 2023
+  - label: "TLS 1.3 handshake cost (cold)"
+    value: "1 RTT"
+    sourceYear: 2024
+engineeringBlogLinks:
+  - company: "Cloudflare"
+    title: "Why HTTP/3 matters for the mobile web"
+    url: "https://blog.cloudflare.com/http3-the-past-present-and-future/"
+    year: 2019
+    readingMinutes: 8
+  - company: "Netflix"
+    title: "Netflix at the edge: how we design for 100M clients"
+    url: "https://netflixtechblog.com/edge-authentication-and-token-agnostic-identity-propagation-514e47e0b602"
+    year: 2020
+    readingMinutes: 12
+checkpoints:
+  - kind: recall
+    id: cs-r1
+    prompt: "Which statement best captures the client-server contract?"
+    options:
+      - { id: a, label: "Clients and servers are symmetric peers.", isCorrect: false, whyWrong: "That describes peer-to-peer, not client-server. In client-server, one side initiates and the other responds." }
+      - { id: b, label: "The server waits; the client initiates.", isCorrect: true }
+      - { id: c, label: "Servers handle state; clients never do.", isCorrect: false, whyWrong: "Clients routinely hold UI and caching state. The contract is about who initiates, not who stores." }
+      - { id: d, label: "Clients must use HTTP.", isCorrect: false, whyWrong: "Client-server is a structural pattern independent of protocol. gRPC, WebSockets, raw TCP all use it." }
+    explanation: "The definitional asymmetry is who initiates. Everything else — protocols, state, scale — sits on top."
+  - kind: apply
+    id: cs-a1
+    scenario: "Given a sketch of a mobile app talking to a Node.js backend behind an Application Load Balancer, pick every node that plays the 'server' role."
+    correctNodeIds: [node-js-backend, application-load-balancer]
+    distractorNodeIds: [mobile-app, user-device]
+    explanation: "The ALB terminates TLS and forwards; the Node service answers. Both are servers relative to the mobile client. The fact that the ALB is also a client of the Node service is a layering detail — at each layer, the client-server contract holds."
+  - kind: compare
+    id: cs-c1
+    prompt: "Client-server vs peer-to-peer: which statements describe which?"
+    left: { conceptSlug: client-server, label: "Client-server" }
+    right: { conceptSlug: peer-to-peer, label: "Peer-to-peer" }
+    statements:
+      - { id: s1, text: "Trust boundary sits between two labeled role groups.", correct: left }
+      - { id: s2, text: "Every node can both offer and consume services.", correct: right }
+      - { id: s3, text: "Failure of one node is a local event, not a topology change.", correct: both }
+    explanation: "Client-server draws the trust boundary crisply — the server decides, the client asks. P2P dissolves the line, at the cost of harder reasoning about identity and trust."
+---
+
+<!-- Section: hook -->
+
+## The Itch
+
+It's 1970. The ARPANET has sixteen nodes. If I want a file on your
+machine, I dial in; you answer; we talk. You decide what I may read.
+I never touch your disk. Fifty-five years later, that asymmetry — you
+wait, I ask — still governs almost every byte on the modern internet.
+
+You can design without knowing the word. You cannot design *honestly*
+without the concept.
+
+<!-- Section: analogy -->
+
+## Analogy
+
+A restaurant kitchen. Cooks keep station, knives sharp, pantry stocked
+— always ready, never initiating. Patrons arrive, sit, order. The
+contract is one-way at any moment: the patron asks, the kitchen
+answers. The kitchen does not choose what the patron eats; the patron
+does not enter the walk-in cooler. Either role is easy to replace
+without the other noticing, so long as the menu and the language of
+ordering stay fixed.
+
+Client-server is that contract, at network speed.
+
+<!-- Section: primitive -->
+
+## The Primitive
+
+Two roles, one direction of initiation. A **client** opens a connection,
+states a request, and waits. A **server** listens on a known address,
+parses the request, produces a response, and closes or keeps the
+connection.
+
+The contract has four load-bearing pieces:
+
+1. **Address binding.** The server holds a stable identity — a hostname,
+   an IP:port, a service discovery entry. Clients find it. The reverse
+   is not required: the server usually does not know the client's
+   address until the client connects.
+2. **Protocol asymmetry.** The server defines the schema — HTTP verbs,
+   gRPC methods, SQL dialects. Clients conform. A server can version
+   its protocol without contacting its callers; clients must discover
+   the new version or fail.
+3. **Resource ownership.** The server owns the authoritative copy of
+   whatever resource is exchanged. Clients may cache, but the server
+   arbitrates. When the two disagree, the server wins by definition.
+4. **Trust gradient.** Every server treats every unknown client as
+   hostile until proven otherwise. This is why authentication,
+   rate-limiting, and input validation live on the server side of the
+   wire. A client that "trusts itself" will be impersonated within
+   hours of a public IP.
+
+What the contract does *not* say: anything about scale, about
+protocol, about language, about cloud provider. "Client-server" is
+structural, not technological. A tcp-to-tcp Unix daemon, a GraphQL
+cluster at Shopify, an Excel macro calling SOAP — all three satisfy
+the contract at the level that matters.
+
+What the contract *permits* but doesn't require: many clients per
+server (typical), many servers per client (common for reliability),
+intermediate proxies that change the illusion of who is serving whom
+(CDNs, gateways, service meshes), and clients that are servers from
+another layer's point of view (the CDN is a client of origin; the
+browser is a client of CDN).
+
+<!-- Section: anatomy -->
+
+## Anatomy
+
+A minimal architecture diagram carries three node kinds: the client
+tier (browser, app, IoT, batch job), the network edge (TLS, load
+balancer, WAF), and the server tier (stateless or stateful services).
+The edge is not strictly required — a curl call against a raw
+Postgres socket satisfies the pattern — but at production scale,
+between the client and the first service, there is always a middle
+layer that terminates TLS, fans out, and throttles.
+
+Scroll-sync note: as you read this section, the canvas on the right
+highlights the **client** and **server** nodes. Click either to open
+the deep-dive popover.
+
+<!-- Section: numbersThatMatter -->
+
+## Numbers that Matter
+
+A reasonable production-shape web server handles **5,000-40,000
+requests per second per instance** for typical payloads, depending on
+CPU, language runtime, and how much of the request is parsed before
+the handler runs. That's 40-200 concurrent connections per second per
+core on modern hardware.
+
+Network cost matters more than most first-time designers expect.
+Across US regions, RTT is **60-90ms**; across continents,
+**140-220ms**; within an AZ, **0.3-1.5ms**. Every additional hop —
+extra proxy, extra sidecar, extra region — is round-trip latency
+you paid for.
+
+TLS handshakes cost real time. A cold TLS 1.3 handshake is
+**1 round-trip**; earlier versions took 2-3. Session resumption
+collapses the cost to ~0, but only for warm connections. Design for
+the cold case; enjoy the warm case as a bonus.
+
+<!-- Section: tradeoffs -->
+
+## Tradeoffs
+
+**You gain:** clarity of roles and trust. The server is the authority;
+the client is the supplicant. Every question — "where does X live?",
+"who decides?", "who gets rate-limited?" — has a single obvious
+answer.
+
+**You pay:** a single point of blame. When the server is slow, the
+client is slow. When the server is down, the application is down.
+Every design choice that claims to fix "client-server's fragility"
+— peer-to-peer, edge compute, serverless — is actually relocating the
+server, not eliminating it.
+
+<!-- Section: antiCases -->
+
+## When Not To Use It
+
+**When peers have symmetric authority.** BitTorrent does not suit a
+client-server shape because no peer has more claim to the file than
+any other. Git over HTTP imposes client-server on an inherently
+peer-like workflow and pays for it with rituals (fetch/push).
+
+**When the latency floor exceeds the budget.** If a client needs 5ms
+response and a server lives 200ms away, no amount of caching or
+region replication rescues the design; the model itself is wrong.
+Move the compute, or accept a different contract (fire-and-forget).
+
+**When the authority is transient.** For CRDTs and collaborative
+editing, there is no "one source of truth" at an instant; the truth
+converges over time. Forcing a server contract onto a CRDT imports
+complexity the CRDT was designed to eliminate.
+
+<!-- Section: seenInWild -->
+
+## Seen in the Wild
+
+Every major consumer product is client-server at the outer wire, even
+when the inner machinery is heterogeneous. Netflix serves ~100 million
+concurrent streams via a client-server contract at the video-player
+layer; the CDN within is a P2P-flavored mesh at the CDN-to-CDN layer,
+but from the player's view, it's request-response to a URL.
+
+Shopify runs a GraphQL client-server contract at storefront scale —
+the merchant's theme is the client, Shopify's cluster is the server.
+When they moved from REST to GraphQL in 2018, the structural pattern
+did not change; only the schema and verb shape did.
+
+Cloudflare's Workers platform sells "compute at the edge" while
+preserving the client-server contract: the edge is still a server,
+just closer to the client. The words "edge compute" describe
+geography, not pattern.
+
+<!-- Section: bridges -->
+
+## Bridges
+
+→ **LLD: Facade pattern** · The server is the facade. It hides
+all the complexity of the kitchen from the patron.
+→ **SD: HTTP verbs (next concept)** · Client-server is structural;
+HTTP verbs are the vocabulary. You cannot speak the language before
+you have the grammar.
+→ **SD: Rate limiter problem** · A rate limiter is how the server
+defends the asymmetry from malicious clients. Covered in Problem 3.
+→ **Chaos: slow-client-attack** · Servers are vulnerable to clients
+that hold connections open. This is why timeouts exist.
+
+<!-- Section: checkpoints -->
+
+## Checkpoints
+
+See frontmatter.
+```
+
+- [ ] **Step 2: Write `client-server.graph.yaml`**
+
+```yaml
+kind: concept
+slug: client-server
+relatedConcepts:
+  - slug: http-verbs
+    relation: related
+    bridgeText: "The client-server contract gives you the grammar; HTTP verbs give you the vocabulary."
+  - slug: statelessness
+    relation: related
+    bridgeText: "Statelessness is the default choice that makes client-server scale horizontally."
+relatedProblems:
+  - slug: url-shortener
+    relation: uses
+    bridgeText: "The URL shortener is client-server in its simplest form: one server, many clients, one lookup."
+  - slug: rate-limiter
+    relation: uses
+    bridgeText: "A rate limiter is how the server defends the asymmetry at the boundary."
+relatedLldPatterns:
+  - slug: facade
+    relation: adjacent-abstraction
+    bridgeText: "The server plays the role Facade plays at class scale — one entry point, many hidden collaborators."
+  - slug: proxy
+    relation: adjacent-abstraction
+    bridgeText: "A reverse proxy is a Proxy pattern scaled to the network."
+relatedChaosEvents:
+  - slug: slow-client-attack
+    relation: exposed-to
+    bridgeText: "Servers that trust clients to close connections in a timely fashion can be held hostage by slow clients."
+  - slug: ddos-amplification
+    relation: exposed-to
+  - slug: tcp-syn-flood
+    relation: exposed-to
+confusedWith:
+  - kind: concept
+    slug: peer-to-peer
+    reason: "P2P dissolves the client-server trust boundary — every peer can both offer and consume services. Client-server enforces the asymmetry."
+  - kind: concept
+    slug: service-mesh
+    reason: "A service mesh is client-server repeated many times with sidecars; still client-server, just in a control plane around it."
+```
+
+- [ ] **Step 3: Compile + smoke + commit**
+
+```bash
+cd architex
+pnpm build:sd-graph
+pnpm compile:sd-content --slug=client-server
+pnpm test:run -- concept-graph
+
+pnpm dev
+# Open http://localhost:3000/sd/learn/concepts/client-server
+# Scroll through all 10 sections, verify canvas highlights, checkpoints
+# all three, AskAI drawer opens, ConfusedWith shows peer-to-peer + service-mesh.
+
+git add architex/content/sd/concepts/client-server.mdx \
+        architex/content/sd/graph/client-server.graph.yaml \
+        architex/src/lib/sd/concept-graph.ts \
+        architex/src/lib/sd/__tests__/concept-graph.test.ts
+git commit -m "$(cat <<'EOF'
+content(sd): author Client-Server concept (Wave 1 · 1/5)
+
+Full 10-section concept: hook (ARPANET 1970) → analogy (restaurant
+kitchen) → primitive (4 load-bearing pieces) → anatomy (client/edge/
+server triad) → numbers (40k req/sec/core, 70-150ms x-region RTT, 1
+RTT TLS 1.3) → tradeoffs (clarity vs single point of blame) → anti-
+cases (BitTorrent/CRDT/5ms SLA) → seen in wild (Netflix/Shopify/
+Cloudflare Workers) → bridges (LLD Facade + Proxy, HTTP verbs, rate
+limiter, slow-client-attack) → 3 checkpoints (recall/apply/compare).
+
+Graph YAML introduces relations to http-verbs, statelessness, the 3
+warmup problems, LLD Facade/Proxy, and 3 chaos events. Confused-with
+disambiguates peer-to-peer and service-mesh.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Tasks 25-28: Author the remaining 4 Wave 1 concepts
+
+Each task below uses the Task 24 template with concept-specific content. Budget 2.5-3.5 hours per concept for drafting + human review + Opus polish loop.
+
+### Task 25: `http-verbs.mdx` + graph
+
+- [ ] Create `architex/content/sd/concepts/http-verbs.mdx` following Task 24 structure. Key ingredients:
+  - **Hook**: "1996. Tim Berners-Lee defines GET, POST, PUT, DELETE as separate idempotent and side-effecting operations. Thirty years later, ORM frameworks still blur the line and production teams still pay for it."
+  - **Analogy**: verbs at a post office counter — READ a letter, SEND a letter, REPLACE a letter, DESTROY a letter. Different clerks, different ledgers.
+  - **Primitive**: 4 load-bearing verbs (GET, POST, PUT, DELETE) · idempotency semantics · safe vs unsafe · 2xx/4xx/5xx bands
+  - **Numbers**: HEAD-only traffic can be 20-40% of requests on content-heavy sites. Idempotency-key retry cost: 2-3x write amplification.
+  - **Tradeoffs**: "You gain a shared vocabulary across every HTTP service. You pay the cost of explaining why POST is not idempotent to every new hire."
+  - **Anti-cases**: RPC-over-HTTP (gRPC) skips the verb semantics — appropriate for internal services where the shared vocabulary is Protobuf, not HTTP
+  - **Seen in wild**: Stripe's use of the `Idempotency-Key` header on POST · GitHub API's consistent use of PUT for upsert
+  - **Confused with**: gRPC (different vocabulary), WebSockets (bi-directional, no verbs once opened)
+
+- [ ] Create `architex/content/sd/graph/http-verbs.graph.yaml` with relations: `idempotency` (concept, prerequisite), `client-server` (concept, prerequisite), `rate-limiter` (problem, uses), `retry-amplification` (chaos, exposed-to), LLD Command pattern (`command`, adjacent-abstraction).
+
+- [ ] Run `pnpm compile:sd-content --slug=http-verbs && pnpm build:sd-graph`.
+
+- [ ] Smoke-test in browser.
+
+- [ ] Commit with message `content(sd): author HTTP Verbs concept (Wave 1 · 2/5)`.
+
+### Task 26: `tcp-vs-udp.mdx` + graph
+
+- [ ] MDX per Task 24 template. Key ingredients:
+  - **Hook**: "Your video call is grainy; it's not that your bandwidth dropped, it's that you're sending 1500-byte frames over a protocol that will retransmit a dropped frame after you've already stopped caring about it."
+  - **Analogy**: registered mail vs postcard · TCP (registered — every piece accounted for) vs UDP (postcard — sent, forgotten, maybe received)
+  - **Primitive**: 3-way handshake · flow control (sliding window) · congestion control (slow start, fast retransmit) · head-of-line blocking · UDP as "IP with ports"
+  - **Numbers**: TCP handshake adds 1 RTT. QUIC (UDP-based) combines handshake + TLS in 1 RTT. HOL blocking costs 40-80ms on 5% packet loss in a 150ms RTT connection.
+  - **Tradeoffs**: "You gain guaranteed delivery with TCP. You pay for stale bytes and HOL blocking."
+  - **Anti-cases**: live video/audio (UDP wins), DNS queries (UDP wins until > 512 bytes), any file transfer (TCP wins)
+  - **Seen in wild**: YouTube Live using QUIC since 2020 · DNS falling back to TCP for large responses · BGP running over TCP even though it's a routing protocol
+  - **Confused with**: QUIC (UDP-based but with TCP semantics layered), HTTP/3 (HTTP over QUIC)
+
+- [ ] Graph YAML with: `client-server` prerequisite, `dns` and `ip-routing` related, `url-shortener` problem, `partition`/`packet-loss` chaos events.
+
+- [ ] Compile, smoke, commit `content(sd): author TCP vs UDP concept (Wave 1 · 3/5)`.
+
+### Task 27: `dns.mdx` + graph
+
+- [ ] MDX per template. Key ingredients:
+  - **Hook**: "October 2021. Facebook withdraws its own BGP routes. DNS collapses. Engineers can't badge into the building because the badge system depends on DNS. 6 hours, billions of dollars, one configuration push."
+  - **Analogy**: a phone book inside a phone book inside a phone book — each level knowing only enough to point at the next
+  - **Primitive**: recursive vs authoritative resolvers · TTL economics · glue records · CNAME chains · the 4-level hierarchy (root, TLD, authoritative, subdomain)
+  - **Numbers**: typical recursive resolver cache hit ratio: 90-97% · cold DNS lookup across continents: 20-180ms · TTL sweet spot: 300s (fresh enough to roll, cached enough to scale) · ~1.7B queries per second globally handled by public resolvers in 2024
+  - **Tradeoffs**: "You gain a global decoupling between names and addresses. You pay with a cache whose TTL you must choose before you need to change it."
+  - **Anti-cases**: short-TTL disaster (cache stampedes), long-TTL disaster (can't roll for 24 hours), DNS as service discovery within a cluster (too slow, too eventually consistent — use Consul or similar)
+  - **Seen in wild**: Route53's latency-based routing · Cloudflare's 1.1.1.1 · the Fastly 2021 incident (edge config bug cascaded via DNS-based health checks)
+  - **Confused with**: service discovery (not DNS at cluster scale), anycast (a routing trick, different layer), CDNs (DNS is how a CDN decides *which* edge to return)
+
+- [ ] Graph YAML with: `client-server` prerequisite, `tcp-vs-udp` related, LLD Observer (caching notifies invalidation), `dns-poisoning`/`dns-provider-outage`/`certificate-expiry` chaos events.
+
+- [ ] Compile, smoke, commit `content(sd): author DNS concept (Wave 1 · 4/5)`.
+
+### Task 28: `ip-routing.mdx` + graph
+
+- [ ] MDX per template. Key ingredients:
+  - **Hook**: "You open a web page in Singapore. The packet crosses 28 routers, 3 countries, 2 undersea cables, and one interconnect exchange — all decided by a protocol that has no central authority and no shared clock."
+  - **Analogy**: a dozen cab companies cooperating on rumor — "last I heard, Ninth Avenue is fast today" — passed peer to peer
+  - **Primitive**: BGP as a path-vector protocol · AS numbers · peering vs transit · route withdrawals · anycast · the 2019 Cloudflare incident (regex backtracking) vs the 2021 Facebook incident (self-BGP-withdrawal)
+  - **Numbers**: typical BGP convergence time: 30-300 seconds · global IPv4 BGP table: ~950,000 prefixes (2024) · average packet hop count: 10-20 · speed of light in fiber: ~2/3 c (so Bay Area ↔ Tokyo physical floor is 60ms, real world is 90-120ms)
+  - **Tradeoffs**: "You gain the internet. You pay with a distributed control plane that no one owns and no one debugs until it breaks on-air."
+  - **Anti-cases**: any private network (use IGP — OSPF, IS-IS — not BGP), any application concerned with sub-second routing decisions (BGP is oral tradition, not a fast path)
+  - **Seen in wild**: Cloudflare's anycast DNS (14+ POPs share 1.1.1.1), Facebook's 2021 outage, AWS Global Accelerator (anycast for app traffic)
+  - **Confused with**: DNS (names vs addresses), anycast (a routing configuration, not a protocol), SD-WAN (application-layer routing on top)
+
+- [ ] Graph YAML with: `dns` related, `tcp-vs-udp` related, LLD Observer/Mediator (BGP as gossip), `bgp-route-leak`/`partition-asymmetric`/`cloud-provider-throttle` chaos, `fb-2021-bgp` real-incident reference.
+
+- [ ] Compile, smoke, commit `content(sd): author IP Routing concept (Wave 1 · 5/5)`.
+
+---
+
+## Task 29: Author `url-shortener.mdx` + graph (problem authoring template)
+
+**Files:**
+- Create: `architex/content/sd/problems/url-shortener.mdx`
+- Create: `architex/content/sd/graph/url-shortener.graph.yaml`
+
+This task is the full **problem** authoring template (vs Task 24's **concept** template). Tasks 30-31 reuse. 2500-3500 words across the 7 panes.
+
+- [ ] **Step 1: Write `url-shortener.mdx`**
+
+```mdx
+---
+slug: url-shortener
+title: Design a URL Shortener
+domain: infra
+difficulty: warmup
+companiesAsking: [Google, Meta, Bitly, TinyURL, generic-FAANG]
+recommendedOrder:
+  rookie:      [problemStatement, requirements, scaleNumbers, canonicalDesign, failureModesChaos, conceptsUsed]
+  journeyman:  [canonicalDesign, failureModesChaos, scaleNumbers, requirements, problemStatement, conceptsUsed]
+  architect:   [canonicalDesign, failureModesChaos, requirements, scaleNumbers, conceptsUsed, problemStatement]
+scalingNumbers:
+  - label: "Reads per day at Bitly 2023"
+    value: "10B"
+    unit: "req/day"
+    sourceYear: 2023
+  - label: "Writes per day"
+    value: "100M"
+    unit: "req/day"
+    sourceYear: 2023
+  - label: "Read:Write ratio"
+    value: "100:1"
+  - label: "Total storage after 5 years"
+    value: "180"
+    unit: "TB"
+canonicalSolutions:
+  - label: "A"
+    summary: "Hash-based key generation (counter + base62 encoding). One Postgres + Redis cache."
+    diagramJson:
+      nodes:
+        - { id: client, familyId: client, label: "Browser" }
+        - { id: alb, familyId: load-balancer, label: "ALB" }
+        - { id: app, familyId: app-service, label: "Shortener API" }
+        - { id: redis, familyId: cache, label: "Redis (reads)" }
+        - { id: postgres, familyId: db-relational, label: "Postgres" }
+      edges:
+        - { source: client, target: alb, kind: sync }
+        - { source: alb, target: app, kind: sync }
+        - { source: app, target: redis, kind: sync }
+        - { source: app, target: postgres, kind: sync }
+    walkthroughMdx: "The simplest honest design. ..."
+  - label: "B"
+    summary: "Sharded DynamoDB with CDN-level caching for hot keys."
+    diagramJson:
+      nodes:
+        - { id: client, familyId: client, label: "Browser" }
+        - { id: cdn, familyId: edge-cdn, label: "CloudFront" }
+        - { id: alb, familyId: load-balancer, label: "ALB" }
+        - { id: app, familyId: app-service, label: "Shortener API" }
+        - { id: dynamo, familyId: db-kv, label: "DynamoDB (sharded)" }
+      edges:
+        - { source: client, target: cdn, kind: sync }
+        - { source: cdn, target: alb, kind: sync }
+        - { source: alb, target: app, kind: sync }
+        - { source: app, target: dynamo, kind: sync }
+    walkthroughMdx: "When 90% of reads are for 10% of keys..."
+recommendedChaos: [cache-stampede, hot-partition, redis-eviction-cascade, bad-deploy]
+linkedConcepts: [client-server, http-verbs, dns, caching-strategies, consistent-hashing]
+linkedLldPatterns: [facade, strategy, singleton]
+rubric:
+  axes:
+    - name: "Requirements & Scope"
+      weight: 0.15
+      bands:
+        - { score: 1, description: "Did not ask clarifying questions." }
+        - { score: 3, description: "Asked 3-5 clarifying questions covering functional + non-functional." }
+        - { score: 5, description: "Articulated every axis including auth, analytics, custom aliases, and expiry." }
+    - name: "Napkin Math"
+      weight: 0.15
+      bands:
+        - { score: 1, description: "No numbers." }
+        - { score: 3, description: "Back-of-envelope QPS + storage." }
+        - { score: 5, description: "QPS + storage + bandwidth + cache working set + growth curve." }
+    - name: "High-Level Design"
+      weight: 0.20
+      bands:
+        - { score: 1, description: "Missing major component (no cache, no LB)." }
+        - { score: 3, description: "Core path correct." }
+        - { score: 5, description: "Correct + justifies every component and its alternative." }
+    - name: "Deep Dives"
+      weight: 0.20
+      bands:
+        - { score: 1, description: "No depth." }
+        - { score: 3, description: "One component explained in depth (e.g. key generation)." }
+        - { score: 5, description: "Key generation + hot-key mitigation + cache invalidation all explored." }
+    - name: "Failure & Resilience"
+      weight: 0.15
+      bands:
+        - { score: 1, description: "Did not discuss failure." }
+        - { score: 3, description: "Identified 2-3 failure modes." }
+        - { score: 5, description: "Identified failure modes + mitigations + acceptable data loss." }
+    - name: "Communication"
+      weight: 0.15
+      bands:
+        - { score: 1, description: "Hard to follow." }
+        - { score: 3, description: "Structured, mostly clear." }
+        - { score: 5, description: "Structured, confident, invited feedback at each stage." }
+checkpoints:
+  - kind: apply
+    id: us-ap1
+    scenario: "Pick the components that must be present to serve 100k GET /tinyurl/* requests per second with p99 < 100ms."
+    correctNodeIds: [client, alb, app, redis]
+    distractorNodeIds: [kafka, elasticsearch]
+    explanation: "Reads are hot-key-skewed; Redis or equivalent caches the top few thousand. Kafka and Elasticsearch have no role on the read path."
+  - kind: recall
+    id: us-r1
+    prompt: "Which key generation approach is most prone to hot-partition problems at DynamoDB scale?"
+    options:
+      - { id: a, label: "Hash of the long URL", isCorrect: false, whyWrong: "Random hash spreads writes evenly." }
+      - { id: b, label: "Monotonic counter + base62 encoding", isCorrect: true }
+      - { id: c, label: "UUIDv4 per shortening", isCorrect: false, whyWrong: "UUIDv4 is random; well distributed." }
+    explanation: "Counters create temporal hot partitions — recent writes all cluster on one key range. Hash-based keys distribute naturally."
+  - kind: compare
+    id: us-c1
+    prompt: "Solution A (Postgres + Redis) vs Solution B (CDN + DynamoDB): which is better when?"
+    left:  { conceptSlug: url-shortener, label: "Solution A" }
+    right: { conceptSlug: url-shortener, label: "Solution B" }
+    statements:
+      - { id: s1, text: "Under 10M writes/day, single-region traffic — simpler operations.", correct: left }
+      - { id: s2, text: "Global reads with 90% hot-key skew — better read-path locality.", correct: right }
+      - { id: s3, text: "Requires consistent hashing to handle cluster growth without key migration.", correct: right }
+    explanation: "Solution A is right until global reach and skew dominate; Solution B is right when they do. Neither is 'correct' in isolation — context decides."
+engineeringBlogLinks:
+  - company: "Bitly"
+    title: "Lessons from running bit.ly at 10 billion clicks/day"
+    url: "https://word.bitly.com/post/29550629271/we-were-there-to-ensure-your-click-was-served"
+    year: 2023
+    readingMinutes: 9
+  - company: "Instagram"
+    title: "Sharding & IDs at Instagram"
+    url: "https://instagram-engineering.com/sharding-ids-at-instagram-1cf5a71e5a5c"
+    year: 2012
+    readingMinutes: 12
+---
+
+<!-- Section: problemStatement -->
+
+## Problem Statement
+
+Design a URL shortening service — the kind where a user pastes
+`https://nytimes.com/2025/05/03/world/europe/ukraine-ceasefire.html`
+and receives `tinyurl.com/x7Km9` in return, and any subsequent GET on
+the short form redirects to the long one.
+
+Scale assumption: **10B reads/day, 100M writes/day** (≈ Bitly 2023
+numbers). Read:write ratio 100:1. Global user base. 5-year growth runway.
+
+Focus the conversation on the **read path** — redirects dominate
+traffic. The write path matters but is not the bottleneck.
+
+<!-- Section: requirements -->
+
+## Requirements (F + NF)
+
+**Functional**
+- Shorten a long URL. Return a short key. Idempotent on the same URL
+  (optional; discuss with interviewer).
+- Resolve a short key. Redirect via HTTP 301 or 302.
+- Optionally: custom aliases (`tinyurl.com/my-party`), expiry, usage
+  analytics.
+
+**Non-functional**
+- p99 read latency < 100ms globally.
+- p99 write latency < 500ms.
+- Availability 99.95%. Read path stays up even if the write path is
+  partially down.
+- Keys are non-guessable (no sequential `tinyurl.com/1`,
+  `tinyurl.com/2`, ...).
+
+<!-- Section: scaleNumbers -->
+
+## Scale Numbers (Napkin Math)
+
+10B reads/day ÷ 86,400s ≈ **116k QPS average**, probably **3-5x peak**
+(≈ 400-600k QPS peak).
+
+100M writes/day ÷ 86,400s ≈ **1,200 writes/sec average**, **5k peak**.
+
+Storage per record: long URL (~100 bytes avg) + key (6 bytes) + timestamps
++ analytics = ~**150 bytes/record** including index overhead.
+
+Five years: 100M/day × 365 × 5 ≈ **180B records** ≈ **27 TB raw** +
+replication + indexes ≈ **80-100 TB active footprint**.
+
+Cache working set: with 90:10 Pareto, 10% of keys handle 90% of reads.
+10% × 180B = 18B hot keys × 150 bytes = 2.7 TB. Realistically, hot
+keys cluster more tightly on any given day — a **20-50 GB Redis fleet**
+absorbs the majority of read traffic.
+
+<!-- Section: canonicalDesign -->
+
+## Canonical Design
+
+(Tabs in UI: A / B. Solution A for up to ~10M writes/day and regional
+traffic; Solution B for global reach with skewed reads.)
+
+### Solution A — Hash-based key generation, Postgres + Redis
+
+Client hits ALB → Shortener API. Write path: service generates key via
+`base62(MurmurHash3(longUrl))[0..6]`, INSERT into Postgres with ON
+CONFLICT DO NOTHING (collision check), returns short URL. Read path:
+service checks Redis, falls back to Postgres, populates Redis on miss.
+
+Why hash rather than counter? Counters create temporal hot partitions;
+hash randomizes. Why base62? URL-safe alphabet of 62 characters; 6 chars
+= 62⁶ ≈ 57B unique keys, enough for 5 years.
+
+### Solution B — CDN + DynamoDB
+
+Adds CloudFront in front of the ALB. Hot keys (90% of reads) terminate
+at CDN edge with 5-min TTL. DynamoDB replaces Postgres for horizontally
+scalable writes and keyed reads. Consistent hashing naturally handled
+by DynamoDB's internal sharding.
+
+Right for: global reads, skewed distribution, 100M+ writes/day.
+
+<!-- Section: failureModesChaos -->
+
+## Failure Modes & Chaos
+
+**Cache stampede.** A popular short URL expires from Redis; 400k
+concurrent requests hit Postgres; Postgres falls over. Mitigation:
+request coalescing in the service layer (singleflight pattern), or
+probabilistic early refresh.
+
+**Hot partition in DynamoDB.** Viral short URL receives 50k QPS on one
+partition. Mitigation: write-through cache at the service layer,
+partition-key randomization for new keys.
+
+**Redis eviction cascade.** Memory pressure → keys evicted → reads
+shift to Postgres → Postgres chokes → requests timeout → retries
+amplify. Mitigation: set `maxmemory-policy: allkeys-lru`, monitor
+eviction rate, pre-scale before breach.
+
+**Bad deploy.** New version has a bug in key generation returning
+always the same key. Mitigation: canary deploy with key-uniqueness
+monitor; auto-rollback on uniqueness drop below 99.9%.
+
+Click any chaos link below to trigger the event in the Simulate mode
+(Phase 3).
+
+<!-- Section: conceptsUsed -->
+
+## Concepts Used
+
+Every short URL resolution rides on:
+- **Client-server** (the browser asks; the server decides).
+- **HTTP verbs** (GET for resolution, POST for creation).
+- **DNS** (resolving tinyurl.com).
+- **Caching strategies** (cache-aside at the service layer).
+- **Consistent hashing** (in Solution B, within DynamoDB's partition map).
+
+Related LLD patterns: **Facade** (API hides key generation + cache +
+DB), **Strategy** (pluggable key-gen algorithm), **Singleton** (the
+Redis connection pool).
+
+<!-- Section: checkpoints -->
+
+## Checkpoints
+
+See frontmatter.
+```
+
+- [ ] **Step 2: Graph YAML**
+
+```yaml
+kind: problem
+slug: url-shortener
+relatedConcepts:
+  - slug: client-server
+    relation: uses
+    bridgeText: "The shortener is the simplest possible client-server contract — one function at network scale."
+  - slug: caching-strategies
+    relation: uses
+  - slug: consistent-hashing
+    relation: uses
+relatedProblems:
+  - slug: rate-limiter
+    relation: related
+    bridgeText: "The rate limiter defends a shortener against abuse. Pair the two in a single design exercise."
+  - slug: distributed-cache
+    relation: related
+relatedLldPatterns:
+  - slug: facade
+    relation: implements
+  - slug: strategy
+    relation: implements
+relatedChaosEvents:
+  - slug: cache-stampede
+    relation: exposed-to
+  - slug: hot-partition
+    relation: exposed-to
+  - slug: bad-deploy
+    relation: exposed-to
+confusedWith:
+  - kind: problem
+    slug: distributed-cache
+    reason: "The shortener uses a distributed cache; the distributed cache problem is about designing the cache itself."
+```
+
+- [ ] **Step 3: Compile + smoke + commit**
+
+```bash
+pnpm compile:sd-content --slug=url-shortener && pnpm build:sd-graph
+git commit -m "content(sd): author URL Shortener problem (Warmup · 1/3)"
+```
+
+---
+
+## Tasks 30-31: Author the remaining 2 warmup problems
+
+### Task 30: `rate-limiter.mdx` + graph
+
+- [ ] MDX per Task 29 template. Key ingredients:
+  - **Problem statement**: "Design a rate limiter that allows each authenticated user at most 100 requests per 60s across a fleet of 50 API servers." Scale: 1M RPS fleet peak.
+  - **Requirements**: functional (enforce limit, return 429 with Retry-After); non-functional (low added latency < 5ms p99, correct within ±1% under normal load, graceful degradation if the limiter itself fails).
+  - **Napkin math**: 50 servers × 20k RPS avg per server = 1M RPS · per-user state = ~32 bytes (counter + window start) · 10M active users × 32B = 320MB hot state · fits in one Redis Cluster shard with headroom.
+  - **Canonical solutions**: A (token bucket in Redis with `INCR + EXPIRE`), B (sliding window log in Redis with `ZADD` + `ZCOUNT`), C (edge-local counters with periodic reconciliation — eventually consistent but faster).
+  - **Failure modes**: Redis outage (fail open vs fail closed — discuss), clock skew across fleet (sliding windows go wrong if servers disagree on time), retry amplification when 429 + caller retry with no jitter.
+  - **Concepts used**: HTTP verbs (429), caching strategies, consistent hashing (within Redis Cluster), retry-amplification chaos.
+  - **LLD patterns**: Strategy (pluggable algorithm), Decorator (rate-limit wrapper per route).
+  - **Rubric weights**: same 6 axes, but weight "Deep Dives" at 0.25 (the algorithm is the pedagogy).
+
+- [ ] Graph YAML with concept relations to `http-verbs`, `caching-strategies`, `consistent-hashing`, `idempotency`; LLD Strategy/Decorator; chaos `retry-amplification`, `redis-eviction-cascade`.
+
+- [ ] Compile, smoke, commit `content(sd): author Rate Limiter problem (Warmup · 2/3)`.
+
+### Task 31: `distributed-cache.mdx` + graph
+
+- [ ] MDX per template. Key ingredients:
+  - **Problem statement**: "Design a distributed cache, used by 500 application servers, storing 1TB of working-set data." Not a Redis-hosted solution — design the *cache*. Think: Memcached, Hazelcast, Couchbase shape.
+  - **Requirements**: get/set/delete at 1M ops/sec · p99 < 2ms within a datacenter · horizontally scalable with consistent hashing · graceful on node loss
+  - **Napkin math**: 1TB working set · 1KB avg value · 1B keys · 16-node cluster × 64GB RAM = 1TB · 1M ops/sec ÷ 16 = 62.5k ops/sec per node (Redis can do 100k; healthy margin)
+  - **Canonical solutions**: A (consistent-hashing ring with virtual nodes, client-side sharding), B (proxy tier with twemproxy-style routing), C (gossip-based peer discovery with replication)
+  - **Failure modes**: node loss (which keys move?), cache stampede, consistent-hashing ring misconfiguration, network partition causing split-brain on replicated keys
+  - **Concepts used**: consistent-hashing, caching-strategies, quorum reads/writes, replication
+  - **LLD patterns**: Consistent Hash Ring (if modeled as a class), Observer (cluster member notifications), Proxy (Solution B)
+
+- [ ] Graph YAML with concept relations to `consistent-hashing`, `caching-strategies`, `quorum`, `replication`; LLD Observer/Proxy; chaos `cache-stampede`, `partition-full`, `redis-eviction-cascade`.
+
+- [ ] Compile, smoke, commit `content(sd): author Distributed Cache problem (Warmup · 3/3)`.
+
+**Authoring playbook (applies to all content-only PRs for the remaining 32 concepts + 27 problems):**
+
+1. Copy `client-server.mdx` (concept) or `url-shortener.mdx` (problem) as the template. Replace frontmatter values.
+2. Write sections/panes in order. For concepts: hook → analogy → primitive → anatomy → numbers → tradeoffs → anti-cases → seen in wild → bridges → checkpoints. For problems: problemStatement → requirements → scaleNumbers → canonicalDesign → failureModesChaos → conceptsUsed → checkpoints.
+3. Every checkpoint must have pattern-specific `whyWrong` (not generic).
+4. Write `<slug>.graph.yaml` with 3-5 concept relations + 1-3 problem relations + 2-4 LLD pattern bridges + 2-4 chaos-event links + 2-3 confused-with entries.
+5. Run `pnpm compile:sd-content --slug=<slug>` → fix any schema validation errors.
+6. Run `pnpm build:sd-graph` → verify new relations appear in `src/lib/sd/concept-graph.ts`.
+7. Open `/sd/learn/concepts/<slug>` or `/sd/learn/problems/<slug>` → smoke the 10-section / 7-pane render, all checkpoints answer, canvas scroll-sync pulses on anchored nodes.
+8. Open one PR per piece. Title format: `content(sd): author <title> (Wave N · X/Y)`.
+
+**No engineering required to add concepts #6-40 or problems #4-30.** The pipeline in Tasks 5-7 + 14-23 is sufficient.
+
+---
+
+## Task 32: Extend analytics event catalog
+
+**Files:**
+- Modify: `architex/src/lib/analytics/sd-events.ts`
+- Modify: `architex/src/lib/analytics/__tests__/sd-events.test.ts`
+
+Add Phase 2-specific events to the existing Phase 1 catalog:
+
+```typescript
+// Partial — additions only, merged into existing sd-events.ts
+export type SDLearnEvent =
+  | { type: 'sd_learn_concept_opened';    conceptSlug: string; source: 'sidebar'|'link'|'tour'|'quiz-result'|'url' }
+  | { type: 'sd_learn_problem_opened';    problemSlug: string; source: 'sidebar'|'link'|'tour'|'quiz-result'|'url' }
+  | { type: 'sd_learn_section_entered';   kind: 'concept'|'problem'; slug: string; sectionId: string; scrollPct: number }
+  | { type: 'sd_learn_bookmark_added';    kind: 'concept'|'problem'; slug: string; anchor: string }
+  | { type: 'sd_learn_bookmark_removed';  kind: 'concept'|'problem'; slug: string; anchor: string }
+  | { type: 'sd_learn_checkpoint_attempt'; kind: 'concept'|'problem'; slug: string; checkpointId: string; attemptNumber: number; correct: boolean }
+  | { type: 'sd_learn_checkpoint_revealed'; kind: 'concept'|'problem'; slug: string; checkpointId: string }
+  | { type: 'sd_learn_askai_opened';      kind: 'concept'|'problem'; slug: string; tab: 'explain'|'analogy'|'scale'; source: 'floating'|'3fail'|'confusedwith'|'endofsection' }
+  | { type: 'sd_learn_askai_response';    kind: 'concept'|'problem'; slug: string; tab: 'explain'|'analogy'|'scale'; cached: boolean; inputTokens: number; outputTokens: number; cost: number }
+  | { type: 'sd_learn_completed';         kind: 'concept'|'problem'; slug: string; totalAttempts: number; mastered: boolean }
+  | { type: 'sd_diagnostic_started';      questionCount: number }
+  | { type: 'sd_diagnostic_answered';     questionIndex: number; correct: boolean }
+  | { type: 'sd_diagnostic_completed';    score: number; band: 'rookie'|'journeyman'|'architect'; recommendedConceptSlug: string }
+  | { type: 'sd_onboarding_step';         step: number; durationMs: number }
+  | { type: 'sd_onboarding_completed';    totalDurationMs: number }
+  | { type: 'sd_onboarding_skipped';      atStep: number };
+```
+
+- [ ] Wire the event emitter functions (one per event type) into `sd-events.ts` following the Phase 1 pattern.
+- [ ] Emit these events from Tasks 13, 14, 18, 20, 21, 23, 33, 34 — grep each task's files for the places where events belong.
+- [ ] Update `sd-events.test.ts` to assert the typed event builders exist and produce correctly-shaped PostHog payloads.
+
+```bash
+git commit -m "feat(analytics): extend sd event catalog with 14 phase-2 events (Task 32/35)"
+```
+
+---
+
+
 
 
 
