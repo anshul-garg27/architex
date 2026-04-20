@@ -3082,6 +3082,336 @@ Every feature in the spec, grouped for implementation planning, tagged:
 
 ---
 
+## 23. Implementation Phases
+
+Total scope: ~1800-2200 engineering hours + ~120 content-lead hours + ~200-300 Opus hours for content. Realistic calendar: **6-8 months**, 3 engineers + 1 content lead.
+
+The phased plan mirrors LLD's but with SD-specific structure.
+
+### Phase 0 · Foundations (Weeks 1-2, ~60h)
+
+Security sweep, bug triage, baseline sweep:
+- Authorization guards on all `/api/sd/*` routes
+- WebSocket auth (chaos-engine streams)
+- XSS audit on MDX rendering
+- Rate limits per user
+- Sentry PII scrubbing
+- Performance baseline run on existing simulation engine (to verify nothing regresses)
+- Bundle-size audit
+
+### Phase 1 · Mode scaffolding + DB (Weeks 3-6, ~140h)
+
+- Drizzle migration `0002_add_sd_module.sql` with all 13 new SD tables
+- 10+ new API routes for CRUD on concepts/problems/diagrams/sims/drills/shares
+- SD store extensions (`ui-store` + new `sd-store`)
+- `SDShell.tsx` with 5-mode switcher + cobalt accent
+- WelcomeBanner + first-visit onboarding skeleton
+- URL ↔ mode sync hook
+- Basic Build / Learn / Review layouts (shells only, empty content)
+- Simulate and Drill placeholders
+- Analytics event taxonomy wired (30+ events)
+- DB-first persistence for user preferences
+
+### Phase 2 · Learn mode + first content drop (Weeks 7-10, ~180h)
+
+- Full 8-section concept page layout + MDX pipeline
+- Scroll-sync canvas highlight
+- 4 checkpoint types
+- Progressive reveal on failure
+- Opus writes **8 pieces**: Wave 1 Foundations (5 concepts) + 3 warmup problems (URL shortener, rate limiter, distributed cache)
+- Tinker mode with Save-to-Build handoff
+- 3 Ask-AI contextual surfaces
+- Class/node popover
+- Diagnostic entry quiz (Q46)
+- 90-sec guided onboarding (Q34)
+- Internal + alpha opt-in rollout (Wave 1-2 of the 5-wave ramp — see §24)
+
+### Phase 3 · Simulate + Drill + second content drop (Weeks 11-16, ~280h)
+
+- Full Simulate mode UI wrapping the existing 34-file engine
+- Metric strip with threshold coaching
+- Cinematic chaos ribbon + red vignette + margin stream
+- Whisper-mode Haiku coach
+- 6 activity framings (Validate, Stress, Chaos, Compare, Forecast, Archaeology)
+- 6 chaos control modes
+- 73-event taxonomy populated
+- 10 real-incident pages authored (Opus) with replay-capable diagrams
+- Drill mode with 5-stage clock
+- 8 interviewer persona system prompts
+- 3 mock modes (Study, Timed Mock, Pair AI)
+- 6-axis rubric grader
+- AI postmortem
+- Shareable PDF recap
+- Opus writes 12 more concepts (Waves 2-3) + 10 more problems
+- Beta rollout (Wave 3: anonymous 100%)
+
+### Phase 4 · Content expansion + wild cards (Weeks 17-22, ~200h)
+
+- Opus writes remaining 23 concepts (Waves 4-8) + 17 problems + 60 chaos scenarios
+- Review mode with FSRS card generator
+- 4 card types + mobile swipe
+- Mobile Learn responsive
+- Portfolio public profile page
+- Weekly digest email
+- LinkedIn profile badge
+- GitHub save+publish integration
+- Notion sync integration
+- Crunch Mode 7-day path generator
+- 3 color themes
+- Chrome tab favicon pulse for active sim/drill
+- Full auth rollout (Waves 4-5: 10% → 50% → 100%)
+
+### Phase 5 · The Architect's Studio final polish (Weeks 23-28, ~180h)
+
+- Blueprint paper render mode
+- Hand-drawn render mode
+- Ambient sound system
+- Decade Saga infrastructure + Chapter 1-3 (Opus content)
+- 50 reference components (up from 20)
+- 3D isometric rendering (optional)
+- Advanced smart canvas: constraint solver + reverse engineer
+- Verbal drill mode with Whisper transcription
+- Full-Stack Loop (SD+LLD 90min)
+- Red-team AI chaos mode
+- Chaos budget control mode
+- Humane-design pass (F1-F12 from LLD applied to SD)
+- Accessibility audit + fixes
+
+### Phase 6 · Ecosystem (post-launch, months 7+)
+
+- Public API
+- Obsidian vault export
+- Google Calendar integration
+- Architex Verified certification
+- Teacher / bootcamp mode
+- Seasons + tournaments
+- Mentorship pairing
+- Comments (re-evaluated)
+- Decade Saga Chapters 4-10
+- VS Code extension (canvas-from-code)
+- Physical product: deck / posters / journal
+
+### Estimated engineering effort
+
+- Phase 0: 60h · 2 weeks
+- Phase 1: 140h · 4 weeks · 2 eng
+- Phase 2: 180h · 4 weeks · 2 eng + 1 content
+- Phase 3: 280h · 6 weeks · 3 eng + 1 content
+- Phase 4: 200h · 6 weeks · 2 eng + 1 content
+- Phase 5: 180h · 6 weeks · 2 eng
+- **Total GA:** ~1040h engineering + ~120h content-lead + ~200h Opus tokens ≈ **$3M-$4M loaded cost** if built at senior Bay Area rates. Compresses to $1.5M-$2M at remote-first / mid-career rates.
+
+---
+
+## 24. Rollout Plan
+
+Mirror of LLD's 5-wave ramp (Q20), adapted for SD-specific risk.
+
+### Wave 1 · Internal (Phase 2 end, Week 10)
+
+- Architex team members only
+- All sim activities enabled
+- Weekly dogfooding session
+- Feedback → backlog
+
+### Wave 2 · Alpha opt-in (Week 12)
+
+- Invite 30-50 alpha users (engineers in Architex's network)
+- Feature flag `sd_v1_alpha`
+- Weekly async feedback form
+- Data: completion rate, rubric distribution, time-in-sim, chaos events triggered
+
+### Wave 3 · Anonymous 100% (Phase 3 end, Week 16)
+
+- All anonymous visitors see SD module
+- Authenticated users opt-in via a flag on their profile
+- Measurement: activation rate, day-2 return, time-to-first-chaos-drill
+
+### Wave 4 · Authenticated 10% → 50% (Week 20)
+
+- Deterministic hash-based cohort assignment
+- Monitor: activation, retention, rubric distribution, AI cost per user
+- Gradual ramp 10 → 25 → 50% over 3 weeks
+
+### Wave 5 · Full 100% (Week 22)
+
+- All authenticated users on SD module by default
+- Opt-out mechanism (v1 opt-out flag in preferences)
+- Kill switches live
+
+### Auto-rollback triggers
+
+- Sim engine error rate >3% → rollback
+- Drill submission error rate >5% → rollback
+- Rubric distribution shifts suspiciously (>70% all-5s = grader broken; >70% all-1s = too harsh) → investigate + rollback
+- AI cost per user per day >$2 on free tier → rate-limit tightening + rollback
+- Day-2 retention drops >20% vs LLD baseline → rollback
+
+### Feature flag shape
+
+```typescript
+function isSDV2Enabled(user: User | null): boolean {
+  if (user?.preferences.sd.v2Optout) return false;
+  if (user?.preferences.sd.v2OptIn) return true;
+  if (!user) return ROLLOUT.sdAnonymous;         // 100% post-Wave 3
+  return hashCohort(user.id) < ROLLOUT.sdAuthenticatedPercent;
+}
+```
+
+Kill switches live at `/admin/sd-flags` (internal-only page). Wave 5 unlocks full-user default.
+
+---
+
+## 25. Success Metrics
+
+Four tiers of metric.
+
+### 25.1 North-star metric
+
+**Weekly active designers** · users who open Build, Simulate, or Drill at least once per week. Target at Month 6 post-GA: 40% of all Architex WAUs.
+
+### 25.2 Activation funnel (D1-D7)
+
+- D0 · visit SD · target 60% of new signups within first session
+- D1 · return · target 30%
+- D3 · first Simulate run completed · target 25%
+- D7 · first Drill attempt · target 15% (reflects the longer engagement needed for Drill)
+- D30 · Mastered 3 concepts · target 20% of activated users
+
+### 25.3 Engagement quality
+
+- Time-in-Simulate per week per active user: target 25+ minutes
+- Chaos drills per month per active user: target 4+
+- Drills with rubric >3.5/5 per active user per month: target 2+
+- Share links created per week per 100 active users: target 8+
+- AI-cost-per-active-user-per-week: target under $1.00
+
+### 25.4 Learning outcomes (long-horizon)
+
+- Users reporting interview-pass (self-report): target 50% of users who complete ≥10 drills and interview within 60 days
+- Users reporting compensation uplift (NPS-style survey): tracked for story value
+- Testimonials + Hall of Fame entries
+
+### 25.5 Product-quality metrics
+
+- P95 canvas render time: under 200ms
+- P99 simulation tick latency (for 100k sim-tick run): under 400ms
+- AI response time P95 (Haiku): under 1s
+- AI response time P95 (Sonnet): under 4s
+- Error rate across all API routes: under 0.5%
+- A11y audit score: AA compliant
+
+### 25.6 Content quality metrics
+
+- Concept page completion rate: >70% of starts
+- Average time-on-page for concept: 8-15 min (matches word target)
+- Problem page completion rate: >50% (problems are heavier)
+- Checkpoint first-try correct rate: 60-75% (target zone — too high = too easy, too low = unfair)
+
+### 25.7 Cross-module harmony metrics
+
+- % users active in 2+ modules: target 60%
+- % users active in 3+ modules: target 25%
+- % users completing at least one Full-Stack Loop (SD+LLD) over 90 days: target 5% (small but important signal)
+
+---
+
+## 26. Non-Goals
+
+Explicitly out of scope for V1 / GA. May return in Phase 6+.
+
+- **Real-time multiplayer simulation** — two users simulating the same design simultaneously (infra investment too large).
+- **Leaderboards for rubric scores** — competition distorts learning.
+- **Public comments on problems/concepts** — moderation cost too high pre-scale.
+- **Hosted production chaos testing** (Gremlin-style) — not our business.
+- **Auto-deployment from IaC generator** — generator produces code only; user deploys.
+- **AI-written full production code** from canvas — generates scaffolds, not shipping code.
+- **Mobile Build / Simulate / Drill** — honest desktop-only nudge instead.
+- **Comments on shareable artifacts in V1** — shares are read-only.
+- **Community mentor matching (F4)** — deferred to Phase 6.
+- **Pair programming with humans** — no voice channel in V1.
+- **Chrome extension for GitHub repo chaos analysis** — scoped as a future A1-style feature.
+- **Real-money gambling on interview outcomes** — absolutely not.
+- **Embedded video lectures** — the module is about drawing, simulating, and drilling; not watching.
+
+These are explicit choices. Most are deferred, not killed forever.
+
+---
+
+## 27. Open Questions
+
+Decisions pending input before or during implementation. Each is non-blocking at spec-time.
+
+1. **Serif font final choice** · IBM Plex Serif is the working default (matches LLD). Could also be EB Garamond or a custom pairing. License + visual audit.
+2. **Audio narration voice** · ElevenLabs generic vs. ElevenLabs cloned vs. human narrator. Cost delta ~$400 vs $2000 for 40 concepts.
+3. **Named-cost library year of record** · 2023 vs 2024 vs "as of publish". How often do we refresh? Quarterly auto-refresh script?
+4. **Chaos sound design** · self-produce the bass-thump vs. license a sound library. $500 diff.
+5. **Decade Saga main character** · the user as themselves, or a third-person character they shadow? Affects narrative voice fundamentally.
+6. **Company preset naming** · explicitly use "Google", "Meta", "Amazon", or abstract ("BigCo", "SocialCo")? Legal review.
+7. **Verified certification credential** · how rigorous is the proctored exam? Industry recognition strategy?
+8. **Pricing for Pro tier** · $19/month vs $29/month, annual vs monthly, team pricing structure.
+9. **GitHub integration scope** · does "publish" commit the diagram's SVG, the MDX, or both? Depends on what team use cases we want to enable.
+10. **Real-incident licensing** · our replays reference publicly-disclosed information from company postmortems. Legal review for the 10 specific incidents.
+11. **Chaos dice event weighting** · weighted uniform vs. weighted by user-design exposure surface. Product science experiment.
+12. **Whisper coach cap default for new users** · 3 or 5 per 5-min sim? User research needed.
+
+---
+
+## 28. References
+
+### Internal
+
+- `docs/superpowers/specs/2026-04-20-lld-architect-studio-rebuild.md` — sister spec. Match structure, type, and lifespan.
+- `docs/architecture/lld-module.md` — architecture doc for LLD module.
+- `docs/PROJECT_COMPLETE_ANALYSIS.md` — master product analysis.
+- `architex/src/lib/simulation/*` — the existing 34-file simulation engine (34 TS files; see §8.11 for the map).
+- `architex/docs/CONTENT_STRATEGY.md` — brand voice + 6-step teaching sequence.
+- `architex/docs/UI_DESIGN_SYSTEM_SPEC.md` — existing design system.
+- `architex/LLD_CANVAS_PLAYBOOK.md` — canvas technical details (patterns apply to SD).
+- `architex/docs/research-findings/02-code-quality-bugs.md` — Phase 0 bugs.
+- `architex/docs/research-findings/21-security-threat-model.md` — Phase 0 vulns.
+
+### Research cited
+
+- **Richard Mayer** — Cognitive Theory of Multimedia Learning (2009)
+- **John Sweller** — Cognitive Load Theory (1988)
+- **Robert Bjork** — Desirable Difficulties (1994)
+- **Manu Kapur** — Productive Failure (2008) — grounds pedagogical format "Debug-This"
+- **Roediger & Karpicke** — Testing Effect (2006) — grounds Review mode
+- **Rohrer & Taylor** — Interleaving in Math Practice (2007) — grounds interleaved practice
+- **FSRS-5 benchmark** (2024) — Review mode scheduling
+- **Allan Paivio** — Dual Coding Theory (1986)
+
+### Simulation theory cited
+
+- **Agner Erlang** (1909) — queueing theory foundations; M/M/c used in queuing-model.ts
+- **Leonard Kleinrock** — "Queueing Systems" (1975) — Little's Law applied by `capacity-planner.ts`
+- **John Gall** — "Systemantics" (1975) — informs the cascade narrative ("Every complex system has a history of prior failure modes")
+- **Richard Cook** — "How Complex Systems Fail" (1998) — 18-paragraph essay that structurally inspires the cinematic chaos narration
+- **Nygard, Michael T.** — "Release It!" (2007) — patterns for resilience, taught explicitly in Wave 6
+
+### Brainstorm artifacts
+
+The 11 visual brainstorm screens that produced this spec are at:
+- `architex/.superpowers/brainstorm/26797-1776687940/content/01-sd-audit.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/02-sd-core-architecture.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/03-sd-content.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/04-sd-simulation-pedagogy.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/05-sd-chaos-storytelling.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/06-sd-interview-layer.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/07-sd-cost-scaling.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/08-sd-ui-layer.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/09-sd-cross-module-seamlessness.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/10-sd-wild-cards.html`
+- `architex/.superpowers/brainstorm/26797-1776687940/content/11-sd-diagram-deep-angles.html`
+
+Each brainstorm screen carries the question + option set + the locked choice. For any decision in this spec, the "why" is in the corresponding brainstorm.
+
+---
+
+*End of spec.*
+
+
 
 
 
