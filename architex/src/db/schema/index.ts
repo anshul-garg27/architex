@@ -54,6 +54,14 @@ export {
   type NewLLDDrillAttempt,
 } from "./lld-drill-attempts";
 export {
+  lldLearnProgress,
+  type LLDLearnProgress,
+  type NewLLDLearnProgress,
+  type LearnSectionId,
+  type SectionState,
+  type SectionProgressMap,
+} from "./lld-learn-progress";
+export {
   userPreferences,
   type UserPreferences,
   type NewUserPreferences,
@@ -70,5 +78,6 @@ export {
   galleryUpvotesRelations,
   aiUsageRelations,
   lldDrillAttemptsRelations,
+  lldLearnProgressRelations,
   userPreferencesRelations,
 } from "./relations";

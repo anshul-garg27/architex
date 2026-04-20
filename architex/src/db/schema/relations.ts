@@ -14,6 +14,7 @@ import { templates } from "./templates";
 import { gallerySubmissions, galleryUpvotes } from "./gallery";
 import { aiUsage } from "./ai-usage";
 import { lldDrillAttempts } from "./lld-drill-attempts";
+import { lldLearnProgress } from "./lld-learn-progress";
 import { userPreferences } from "./user-preferences";
 
 // ── Users ──────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   gallerySubmissions: many(gallerySubmissions),
   aiUsage: many(aiUsage),
   lldDrillAttempts: many(lldDrillAttempts),
+  lldLearnProgress: many(lldLearnProgress),
   preferences: one(userPreferences, {
     fields: [users.id],
     references: [userPreferences.userId],
@@ -133,6 +135,18 @@ export const userPreferencesRelations = relations(
   ({ one }) => ({
     user: one(users, {
       fields: [userPreferences.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── LLD Learn Progress ────────────────────────────────────────
+
+export const lldLearnProgressRelations = relations(
+  lldLearnProgress,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [lldLearnProgress.userId],
       references: [users.id],
     }),
   }),
