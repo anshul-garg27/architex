@@ -13,16 +13,29 @@ import { progress } from "./progress";
 import { templates } from "./templates";
 import { gallerySubmissions, galleryUpvotes } from "./gallery";
 import { aiUsage } from "./ai-usage";
+import { lldBookmarks } from "./lld-bookmarks";
+import { lldConceptReads } from "./lld-concept-reads";
+import { lldDrillAttempts } from "./lld-drill-attempts";
+import { lldLearnProgress } from "./lld-learn-progress";
+import { userPreferences } from "./user-preferences";
 
 // ── Users ──────────────────────────────────────────────────────
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   diagrams: many(diagrams),
   simulationRuns: many(simulationRuns),
   progress: many(progress),
   templates: many(templates),
   gallerySubmissions: many(gallerySubmissions),
   aiUsage: many(aiUsage),
+  lldBookmarks: many(lldBookmarks),
+  lldConceptReads: many(lldConceptReads),
+  lldDrillAttempts: many(lldDrillAttempts),
+  lldLearnProgress: many(lldLearnProgress),
+  preferences: one(userPreferences, {
+    fields: [users.id],
+    references: [userPreferences.userId],
+  }),
 }));
 
 // ── Diagrams ───────────────────────────────────────────────────
@@ -103,6 +116,63 @@ export const galleryUpvotesRelations = relations(galleryUpvotes, ({ one }) => ({
 export const aiUsageRelations = relations(aiUsage, ({ one }) => ({
   user: one(users, {
     fields: [aiUsage.userId],
+    references: [users.id],
+  }),
+}));
+
+// ── LLD Drill Attempts ─────────────────────────────────────────
+
+export const lldDrillAttemptsRelations = relations(
+  lldDrillAttempts,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [lldDrillAttempts.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── User Preferences ──────────────────────────────────────────
+
+export const userPreferencesRelations = relations(
+  userPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userPreferences.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── LLD Learn Progress ────────────────────────────────────────
+
+export const lldLearnProgressRelations = relations(
+  lldLearnProgress,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [lldLearnProgress.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── LLD Concept Reads ─────────────────────────────────────────
+
+export const lldConceptReadsRelations = relations(
+  lldConceptReads,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [lldConceptReads.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── LLD Bookmarks ─────────────────────────────────────────────
+
+export const lldBookmarksRelations = relations(lldBookmarks, ({ one }) => ({
+  user: one(users, {
+    fields: [lldBookmarks.userId],
     references: [users.id],
   }),
 }));

@@ -1,0 +1,162 @@
+---
+subtitle: "Defer instantiation to subclasses"
+estimatedMinutes: 12
+conceptIds:
+  - open-closed-principle
+  - polymorphism
+  - class-explosion
+  - parametrized-factory
+sections:
+  itch:
+    scenario: "Your checkout page needs to handle Stripe today, Adyen next quarter, and Razorpay next year — without rewriting checkout each time."
+    keywords: ["payment-processor", "swappable impl", "open-closed"]
+  definition:
+    oneLiner: "Factory Method defines an interface for creating an object but lets subclasses decide which class to instantiate."
+    canonicalSource: "Gang of Four, Design Patterns (1994), p.107."
+  anatomy:
+    classes:
+      - classId: Creator
+        role: Creator
+        responsibility: Declares the factory method; may provide a default impl.
+        keyMethod: "factoryMethod(): Product"
+      - classId: ConcreteCreator
+        role: ConcreteCreator
+        responsibility: Overrides the factory method to return a ConcreteProduct.
+      - classId: Product
+        role: Product
+        responsibility: Interface that all products implement.
+      - classId: ConcreteProduct
+        role: ConcreteProduct
+        responsibility: A concrete implementation of Product.
+  numbers:
+    headline:
+      - label: "Min classes"
+        value: "4"
+      - label: "Extensibility"
+        value: "+1"
+        unit: "per product"
+  uses:
+    cases:
+      - company: "Stripe"
+        system: "PaymentMethod polymorphism"
+        whyThisPattern: "Each payment type has its own creation pipeline but shares the common PaymentMethod interface."
+      - company: "Spring Framework"
+        system: "BeanFactory.getBean()"
+        whyThisPattern: "Delegates construction to configured factories without coupling callers to concrete types."
+  failure_modes:
+    modes:
+      - title: "Class explosion"
+        whatGoesWrong: "Adding a product requires creating parallel Creator + ConcreteCreator classes — the hierarchy grows quadratically."
+        howToAvoid: "Consider a Simple Factory or a parameterized factory instead."
+        severity: "high"
+      - title: "Factory of factories"
+        whatGoesWrong: "Creator needs a factory to create its own factories — circular, brittle."
+        howToAvoid: "Flatten one level or switch to Abstract Factory."
+        severity: "medium"
+checkpoints:
+  - kind: recall
+    id: r1
+    prompt: "What is the primary role of Factory Method?"
+    options:
+      - id: a
+        label: "Create one family of products"
+        isCorrect: false
+        whyWrong: "That's Abstract Factory — Factory Method handles one product type."
+      - id: b
+        label: "Defer product construction to subclasses"
+        isCorrect: true
+      - id: c
+        label: "Compose products from parts"
+        isCorrect: false
+        whyWrong: "That's Builder."
+    explanation: "Factory Method lets subclasses pick the concrete Product to instantiate."
+  - kind: apply
+    id: a1
+    scenario: "Which class(es) from your payment-processor design are part of the Factory Method structure?"
+    correctClassIds: ["PaymentCreator", "StripePaymentCreator"]
+    distractorClassIds: ["UserService", "OrderRepository"]
+    explanation: "The Creator and ConcreteCreator are the structure. UserService and OrderRepository are collaborators."
+  - kind: compare
+    id: cp1
+    prompt: "Which apply to Factory Method vs Abstract Factory?"
+    left:
+      patternSlug: "factory-method"
+      label: "Factory Method"
+    right:
+      patternSlug: "abstract-factory"
+      label: "Abstract Factory"
+    statements:
+      - id: s1
+        text: "One factory method per product type"
+        correct: "left"
+      - id: s2
+        text: "Creates families of related products"
+        correct: "right"
+      - id: s3
+        text: "Uses inheritance"
+        correct: "both"
+    explanation: "Both use inheritance; only Abstract Factory handles product families."
+  - kind: create
+    id: cr1
+    prompt: "Sketch a Factory Method for creating notification channels (Email, SMS, Push)."
+    starterCanvas:
+      classes: []
+    rubric:
+      - criterion: "Has a Creator and 3 ConcreteCreators"
+        points: 3
+      - criterion: "Product is an interface"
+        points: 2
+    referenceSolution:
+      classes:
+        - id: nc
+          name: "NotificationCreator"
+        - id: ec
+          name: "EmailCreator"
+        - id: sc
+          name: "SmsCreator"
+        - id: pc
+          name: "PushCreator"
+    explanation: "Four classes: one Creator + three ConcreteCreators. Each ConcreteCreator returns its own Notification."
+---
+
+<!-- Section: itch -->
+## The Itch
+
+Your checkout page must support Stripe today. Next quarter you're adding Adyen. Next year, Razorpay. Hardcoding `new StripeProcessor()` in your checkout flow means every new provider rewrites the flow. You need a way to pick the concrete processor *without* the callers caring which they got.
+
+<!-- Section: definition -->
+## Definition
+
+Factory Method sits between "ask the class to construct" and "subclass picks the actual class". A base class defines the *shape* of the create call; subclasses plug in the concrete <Class id="Product" /> they produce.
+
+<!-- Section: mechanism -->
+## Mechanism
+
+The <Class id="Creator" /> declares `factoryMethod()` returning the abstract <Class id="Product" />. Each <Class id="ConcreteCreator" /> overrides the method to return a specific <Class id="ConcreteProduct" />.
+
+Callers interact only with Creator and Product types. They never see the concretes. Switching implementations is a matter of passing a different Creator instance.
+
+<!-- Section: anatomy -->
+## Anatomy
+
+Four classes form the minimal structure. In practice, you often have many ConcreteCreator/ConcreteProduct pairs.
+
+<!-- Section: numbers -->
+## Numbers
+
+Minimum four classes. Extending to a new product type adds two classes (one Creator, one Product) — linear growth, not explosive.
+
+<!-- Section: uses -->
+## Uses
+
+Stripe's PaymentMethod model: each method has its own creator but the checkout code sees only `PaymentMethod`. Spring's BeanFactory is a generalized Factory Method where creators are configured externally.
+
+<!-- Section: failure_modes -->
+## Failure Modes
+
+Class explosion is the first headline risk — each new product drags along a new Creator. The second is factory-of-factories — don't build three layers of creators when one Simple Factory or parameterized factory would do.
+
+<!-- Section: checkpoints -->
+## Checkpoints
+
+Run through the four checkpoints below.

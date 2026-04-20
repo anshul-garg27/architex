@@ -48,6 +48,34 @@ export {
   type DiagramTemplate,
   type NewDiagramTemplate,
 } from "./diagram-templates";
+export {
+  lldBookmarks,
+  type LLDBookmark,
+  type NewLLDBookmark,
+} from "./lld-bookmarks";
+export {
+  lldConceptReads,
+  type LLDConceptRead,
+  type NewLLDConceptRead,
+} from "./lld-concept-reads";
+export {
+  lldDrillAttempts,
+  type LLDDrillAttempt,
+  type NewLLDDrillAttempt,
+} from "./lld-drill-attempts";
+export {
+  lldLearnProgress,
+  type LLDLearnProgress,
+  type NewLLDLearnProgress,
+  type LearnSectionId,
+  type SectionState,
+  type SectionProgressMap,
+} from "./lld-learn-progress";
+export {
+  userPreferences,
+  type UserPreferences,
+  type NewUserPreferences,
+} from "./user-preferences";
 
 // Relations (defined in a single file to avoid circular imports)
 export {
@@ -59,4 +87,9 @@ export {
   gallerySubmissionsRelations,
   galleryUpvotesRelations,
   aiUsageRelations,
+  lldBookmarksRelations,
+  lldConceptReadsRelations,
+  lldDrillAttemptsRelations,
+  lldLearnProgressRelations,
+  userPreferencesRelations,
 } from "./relations";

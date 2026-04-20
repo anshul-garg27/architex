@@ -1,0 +1,37 @@
+pattern: singleton
+concepts:
+  - id: global-state
+    label: Global State
+    summary: State reachable from anywhere in the program — convenient, but hard to test.
+    relatedPatterns:
+      - monostate
+      - service-locator
+    introducedIn:
+      - itch
+      - failure_modes
+  - id: lazy-init
+    label: Lazy Initialization
+    summary: Defer object creation until first use to save startup cost.
+    relatedPatterns:
+      - proxy
+    introducedIn:
+      - mechanism
+      - numbers
+  - id: thread-safety
+    label: Thread Safety
+    summary: Ensuring concurrent callers cannot observe a partially-constructed instance.
+    introducedIn:
+      - mechanism
+      - failure_modes
+  - id: monostate
+    label: Monostate
+    summary: Share state via static fields without restricting instantiation.
+    relatedConcepts:
+      - global-state
+    relatedPatterns:
+      - monostate
+confusedWith:
+  - patternSlug: monostate
+    reason: Same shared state, but Monostate allows many instances.
+  - patternSlug: factory-method
+    reason: Both have a static creation entry point, but Factory Method makes many products.

@@ -1,0 +1,147 @@
+---
+subtitle: "Step-by-step construction of complex objects"
+estimatedMinutes: 12
+conceptIds:
+  - fluent-api
+  - telescoping-constructor
+  - immutable-product
+  - staged-construction
+sections:
+  definition:
+    oneLiner: "Builder separates the construction of a complex object from its representation so the same construction can create different representations."
+    canonicalSource: "Gang of Four, Design Patterns (1994), p.97."
+  anatomy:
+    classes:
+      - classId: Builder
+        role: Builder
+        responsibility: Interface declaring stepwise construction methods.
+      - classId: ConcreteBuilder
+        role: ConcreteBuilder
+        responsibility: Builds and assembles parts into the Product.
+      - classId: Director
+        role: Director
+        responsibility: Orchestrates the builder in a fixed order.
+      - classId: Product
+        role: Product
+        responsibility: The complex object under construction.
+  numbers:
+    headline:
+      - label: "Classes"
+        value: "3-4"
+      - label: "Fluent steps"
+        value: "many"
+  failure_modes:
+    modes:
+      - title: "Forgotten .build()"
+        whatGoesWrong: "Caller configures the builder but never calls build(), getting no Product."
+        howToAvoid: "Return `this` from setters and make build() return the distinct Product type."
+        severity: "low"
+      - title: "Reused mutable builder"
+        whatGoesWrong: "Two threads share a builder; products come out tangled."
+        howToAvoid: "Make the builder single-use or clone it between products."
+        severity: "medium"
+checkpoints:
+  - kind: recall
+    id: r1
+    prompt: "When is Builder the right choice?"
+    options:
+      - id: a
+        label: "When construction has many optional parts"
+        isCorrect: true
+      - id: b
+        label: "When you need exactly one instance"
+        isCorrect: false
+        whyWrong: "That's Singleton."
+      - id: c
+        label: "When you need to clone an object"
+        isCorrect: false
+        whyWrong: "That's Prototype."
+    explanation: "Builder shines when the object has many optional fields and you don't want a 10-arg constructor."
+  - kind: apply
+    id: a1
+    scenario: "Which classes make up an HTTP Request Builder?"
+    correctClassIds: ["RequestBuilder", "Request"]
+    distractorClassIds: ["Socket", "HttpClient"]
+    explanation: "RequestBuilder + Request are the structure. Socket and HttpClient are collaborators downstream."
+  - kind: compare
+    id: cp1
+    prompt: "Which apply to Builder vs Factory Method?"
+    left:
+      patternSlug: "builder"
+      label: "Builder"
+    right:
+      patternSlug: "factory-method"
+      label: "Factory Method"
+    statements:
+      - id: s1
+        text: "Produces one object through many steps"
+        correct: "left"
+      - id: s2
+        text: "Chooses the concrete class at creation time"
+        correct: "right"
+      - id: s3
+        text: "Hides construction details from the caller"
+        correct: "both"
+    explanation: "Both hide construction; Builder steps through it, Factory Method resolves it in one shot."
+  - kind: create
+    id: cr1
+    prompt: "Design a builder for an email: subject, body, attachments, recipients."
+    starterCanvas:
+      classes: []
+    rubric:
+      - criterion: "Has an EmailBuilder class"
+        points: 2
+      - criterion: "Produces an immutable Email via build()"
+        points: 3
+    referenceSolution:
+      classes:
+        - id: eb
+          name: "EmailBuilder"
+        - id: e
+          name: "Email"
+    explanation: "Two classes suffice for most cases. Add a Director only if multiple callers share identical sequences."
+---
+
+<!-- Section: itch -->
+## The Itch
+
+You add `new Request(url, headers, body, timeout, retries, backoff, tlsConfig, proxyUrl…)` and the parameter list is now longer than the function body that uses it. Each new feature adds one more arg. You can't remember the order. Builder gives you named-parameter semantics without needing the language feature.
+
+<!-- Section: definition -->
+## Definition
+
+Builder separates the *construction* of a complex object from its *representation*. Two callers can use the same Builder and receive different final objects depending on which steps they trigger.
+
+<!-- Section: mechanism -->
+## Mechanism
+
+1. The caller gets a <Class id="Builder" /> instance.
+2. Calls step methods in any order (most builders allow partial ordering).
+3. Calls `build()` to receive the final <Class id="Product" />.
+
+A <Class id="Director" /> is optional — used when multiple callers need the same construction sequence.
+
+<!-- Section: anatomy -->
+## Anatomy
+
+Three classes in the base form, four with Director. Builder returns `this` from each step for fluent chaining.
+
+<!-- Section: numbers -->
+## Numbers
+
+Builders typically have 5-25 step methods. Build time is O(n) in the number of steps.
+
+<!-- Section: uses -->
+## Uses
+
+java.lang.StringBuilder. OkHttp's Request.Builder. Apache HttpClient's RequestBuilder. Gradle's `DependencyHandler`. All of them exist because the underlying product has many optional configurations.
+
+<!-- Section: failure_modes -->
+## Failure Modes
+
+The most common mistake is forgetting `build()` — callers configure and never call the terminal method. Second: reusing a mutable builder across threads or across products. Third: confusing fluent chaining style with the Builder *pattern* (not every fluent API is a Builder).
+
+<!-- Section: checkpoints -->
+## Checkpoints
+
+Work through the four checkpoints below.

@@ -1,0 +1,23 @@
+pattern: prototype
+concepts:
+  - id: shallow-clone
+    label: Shallow Clone
+    summary: Copy only top-level references; nested objects are shared.
+  - id: deep-clone
+    label: Deep Clone
+    summary: Recursively copy every nested object.
+    introducedIn:
+      - failure_modes
+  - id: registry-of-prototypes
+    label: Registry of Prototypes
+    summary: Lookup-by-key container that returns cloned prototypes on demand.
+  - id: mutable-state-copy
+    label: Mutable State Copy
+    summary: Special-casing mutable fields during clone to avoid shared mutation bugs.
+confusedWith:
+  - patternSlug: factory-method
+    reason: Factory Method constructs fresh; Prototype copies an existing instance.
+  - patternSlug: builder
+    reason: Builder assembles parts; Prototype copies a whole object.
+  - patternSlug: memento
+    reason: Memento snapshots state for restore; Prototype copies for reuse.

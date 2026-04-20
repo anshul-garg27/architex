@@ -1,0 +1,23 @@
+pattern: observer
+concepts:
+  - id: push-vs-pull-update
+    label: Push vs Pull Update
+    summary: Push passes delta as an argument; pull lets observers ask for state after notification.
+  - id: notification-order
+    label: Notification Order
+    summary: Not guaranteed by default; must be documented and enforced if required.
+    introducedIn:
+      - failure_modes
+  - id: subscription-leak
+    label: Subscription Leak
+    summary: Forgotten unsubscribe holds references and prevents GC.
+    introducedIn:
+      - failure_modes
+  - id: reentrancy
+    label: Reentrancy
+    summary: Observer triggers another state change mid-notify; mutation of the observer list during iteration.
+confusedWith:
+  - patternSlug: mediator
+    reason: Mediator concentrates coordination in one hub; Observer is point-to-many.
+  - patternSlug: pub-sub
+    reason: Pub-Sub has a broker in the middle decoupling producer from consumer.

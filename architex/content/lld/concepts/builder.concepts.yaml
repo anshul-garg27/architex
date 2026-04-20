@@ -1,0 +1,23 @@
+pattern: builder
+concepts:
+  - id: fluent-api
+    label: Fluent API
+    summary: Method-chaining style where each call returns the receiver.
+  - id: telescoping-constructor
+    label: Telescoping Constructor
+    summary: Constructor with many overloaded parameter lists — anti-pattern Builder replaces.
+    introducedIn:
+      - itch
+  - id: immutable-product
+    label: Immutable Product
+    summary: The final object returned by build() exposes no mutators.
+  - id: staged-construction
+    label: Staged Construction
+    summary: Type-system-enforced step order via phantom types or stage classes.
+confusedWith:
+  - patternSlug: factory-method
+    reason: Factory Method returns whole objects; Builder steps through parts.
+  - patternSlug: prototype
+    reason: Prototype clones an existing instance; Builder builds fresh.
+  - patternSlug: abstract-factory
+    reason: Abstract Factory returns product families; Builder returns one complex product.

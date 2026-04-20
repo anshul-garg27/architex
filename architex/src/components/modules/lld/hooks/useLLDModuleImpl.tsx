@@ -50,6 +50,7 @@ import { LLDDataProvider } from "../LLDDataContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { trackLLDExploration } from "@/lib/progress/module-progress";
+import { LLDShell } from "../LLDShell";
 
 // Import split components
 import { LLDCanvas } from "../canvas/LLDCanvas";
@@ -1109,5 +1110,18 @@ export function useLLDModule() {
 
   const combinedOverlay = presentationOverlay ?? comparisonOverlay;
 
-  return { sidebar, canvas, properties: wrappedProperties, bottomPanel: wrappedBottomPanel, mockOverlay: combinedOverlay, confirmDialog };
+  // Phase 1 · LLD mode scaffolding — wrap canvas with LLDShell so the
+  // ModeSwitcher + WelcomeBanner render above the existing 4-panel UI.
+  // First-visit defaults to Build mode so there is no regression for
+  // existing users. Sidebar/properties/bottomPanel are preserved as-is.
+  const canvasWithShell = <LLDShell buildContent={canvas} />;
+
+  return {
+    sidebar,
+    canvas: canvasWithShell,
+    properties: wrappedProperties,
+    bottomPanel: wrappedBottomPanel,
+    mockOverlay: combinedOverlay,
+    confirmDialog,
+  };
 }

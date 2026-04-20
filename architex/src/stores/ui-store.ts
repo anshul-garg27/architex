@@ -20,6 +20,8 @@ export type Theme = "dark" | "light" | "system";
 
 export type AnimationSpeed = "slow" | "normal" | "fast";
 
+export type LLDMode = "learn" | "build" | "drill" | "review";
+
 export interface RecentlyStudiedEntry {
   module: ModuleType;
   topic: string;
@@ -90,6 +92,10 @@ interface UIState {
   // Recently studied topics (last 10)
   recentlyStudied: RecentlyStudiedEntry[];
 
+  // LLD 4-mode shell (Phase 1)
+  lldMode: LLDMode | null; // null = first visit
+  lldWelcomeBannerDismissed: boolean;
+
   // Actions
   addRecentlyStudied: (module: ModuleType, topic: string) => void;
   setActiveModule: (module: ModuleType) => void;
@@ -115,6 +121,8 @@ interface UIState {
   setOnboardingStep: (step: number) => void;
   toggleTimeline: () => void;
   toggleMinimap: () => void;
+  setLLDMode: (mode: LLDMode) => void;
+  dismissLLDWelcomeBanner: () => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -146,6 +154,8 @@ export const useUIStore = create<UIState>()(
         typeof window !== "undefined" &&
         !localStorage.getItem("architex_onboarding_completed"),
       onboardingStep: 0,
+      lldMode: null,
+      lldWelcomeBannerDismissed: false,
 
       addRecentlyStudied: (module, topic) =>
         set((s) => {
@@ -186,6 +196,8 @@ export const useUIStore = create<UIState>()(
       setOnboardingStep: (step) => set({ onboardingStep: step }),
       toggleTimeline: () => set((s) => ({ timelineVisible: !s.timelineVisible })),
       toggleMinimap: () => set((s) => ({ minimapVisible: !s.minimapVisible })),
+      setLLDMode: (mode) => set({ lldMode: mode }),
+      dismissLLDWelcomeBanner: () => set({ lldWelcomeBannerDismissed: true }),
     }),
     {
       name: "architex-ui",
@@ -201,6 +213,8 @@ export const useUIStore = create<UIState>()(
         animationSpeed: state.animationSpeed,
         timelineVisible: state.timelineVisible,
         minimapVisible: state.minimapVisible,
+        lldMode: state.lldMode,
+        lldWelcomeBannerDismissed: state.lldWelcomeBannerDismissed,
       }),
     },
   ),

@@ -1,0 +1,150 @@
+---
+subtitle: "Create new objects by copying a prototypical instance"
+estimatedMinutes: 10
+conceptIds:
+  - shallow-clone
+  - deep-clone
+  - registry-of-prototypes
+  - mutable-state-copy
+sections:
+  definition:
+    oneLiner: "Prototype specifies the kinds of objects to create using a prototypical instance and creates new objects by copying this prototype."
+    canonicalSource: "Gang of Four, Design Patterns (1994), p.117."
+  anatomy:
+    classes:
+      - classId: Prototype
+        role: Prototype
+        responsibility: Declares clone().
+        keyMethod: "clone(): Prototype"
+      - classId: ConcretePrototype
+        role: ConcretePrototype
+        responsibility: Implements clone() with the right copy semantics.
+      - classId: Client
+        role: Client
+        responsibility: Asks a prototype to clone itself.
+  numbers:
+    headline:
+      - label: "Classes"
+        value: "2-3"
+      - label: "Clone cost"
+        value: "O(n)"
+  failure_modes:
+    modes:
+      - title: "Shallow-vs-deep confusion"
+        whatGoesWrong: "clone() shares nested references; the clone mutates the original."
+        howToAvoid: "Deep-clone collections and any mutable fields. Test by mutating the clone and asserting the original is unchanged."
+        severity: "high"
+      - title: "Circular references"
+        whatGoesWrong: "Deep clone recurses forever on a cycle."
+        howToAvoid: "Track already-cloned refs in a map during the recursion."
+        severity: "medium"
+      - title: "Clone drift"
+        whatGoesWrong: "A new field is added to the class but not to clone(); clones lose state."
+        howToAvoid: "Use reflection-based copy libraries or a code-gen annotation."
+        severity: "medium"
+checkpoints:
+  - kind: recall
+    id: r1
+    prompt: "When does Prototype beat Factory Method?"
+    options:
+      - id: a
+        label: "When you need to create different representations"
+        isCorrect: false
+        whyWrong: "That's Builder."
+      - id: b
+        label: "When setup cost is high and most config is shared"
+        isCorrect: true
+      - id: c
+        label: "When you need exactly one instance"
+        isCorrect: false
+        whyWrong: "That's Singleton."
+    explanation: "If construction is expensive and you want small tweaks on a base object, cloning is cheaper than building from scratch."
+  - kind: apply
+    id: a1
+    scenario: "Which classes make up a Prototype-based UI-theme system?"
+    correctClassIds: ["Theme"]
+    distractorClassIds: ["Renderer", "EventBus"]
+    explanation: "Just the Theme class needs to implement clone(); Renderer and EventBus consume themes but aren't part of the pattern structure."
+  - kind: compare
+    id: cp1
+    prompt: "Which applies to Prototype vs Factory Method?"
+    left:
+      patternSlug: "prototype"
+      label: "Prototype"
+    right:
+      patternSlug: "factory-method"
+      label: "Factory Method"
+    statements:
+      - id: s1
+        text: "Returns a copy of an existing instance"
+        correct: "left"
+      - id: s2
+        text: "Uses inheritance to pick the concrete class"
+        correct: "right"
+      - id: s3
+        text: "Hides creation details from callers"
+        correct: "both"
+    explanation: "Prototype relies on identity; Factory Method relies on class hierarchy."
+  - kind: create
+    id: cr1
+    prompt: "Design a Prototype for game enemies where 80% of stats are shared."
+    starterCanvas:
+      classes: []
+    rubric:
+      - criterion: "Enemy class with clone()"
+        points: 3
+      - criterion: "Deep copy semantics"
+        points: 2
+    referenceSolution:
+      classes:
+        - id: e
+          name: "Enemy"
+    explanation: "One class with clone() suffices. The clone-per-variant pattern avoids repeating 80% of the configuration."
+---
+
+<!-- Section: itch -->
+## The Itch
+
+You have a game with 500 enemy variants. Each differs from a "base zombie" by 2-3 stats. Hand-coding 500 constructors means 80% repeated configuration. What you want: start from a base instance, tweak the diff, get a new instance.
+
+<!-- Section: definition -->
+## Definition
+
+Prototype delegates object creation to the object itself via a <Class id="Prototype" />.clone() method. Callers don't name the class — they name the *instance to copy*.
+
+<!-- Section: mechanism -->
+## Mechanism
+
+1. Declare <Class id="Prototype" /> with `clone()`.
+2. <Class id="ConcretePrototype" /> implements clone with appropriate copy depth.
+3. <Class id="Client" /> calls `somePrototype.clone()` and receives a fresh instance.
+4. Often a registry holds named prototypes for lookup by key.
+
+<!-- Section: anatomy -->
+## Anatomy
+
+Two classes in the minimal form. Three if you add a Client that holds the prototype registry.
+
+<!-- Section: numbers -->
+## Numbers
+
+Shallow clone is O(1) in pointer copies. Deep clone is O(n) in object graph size. Measure: never assume.
+
+<!-- Section: uses -->
+## Uses
+
+JavaScript's `Object.create`. CAD applications cloning component templates. Game engines cloning entity archetypes. Kubernetes cloning pod specs with overrides.
+
+<!-- Section: failure_modes -->
+## Failure Modes
+
+Shallow-vs-deep is the #1 bug source — a clone that shares a nested array tangles original + copy. Track every mutable field and deep-clone it, or use an immutable data structure.
+
+Circular refs blow the stack unless you memoize. Add a visited-set to the clone recursion.
+
+Clone drift happens when someone adds a new field and forgets to update clone(). Use reflection or a library that handles this automatically.
+
+<!-- Section: checkpoints -->
+## Checkpoints
+
+Four checkpoints below.
