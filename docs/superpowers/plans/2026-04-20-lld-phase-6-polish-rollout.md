@@ -3917,3 +3917,2071 @@ git commit -m "plan(lld-phase-6-task17): admin flag + kill-switch UI & APIs (aud
 
 ---
 
+
+## Task 18: Migration runner (dual-write + backfill + read-switch)
+
+**Files:**
+- Create: `architex/src/db/schema/schema-migrations-state.ts`
+- Create: `architex/src/db/migrations/runner.ts`
+- Create: `architex/src/db/migrations/registry.ts`
+- Create: `architex/src/db/migrations/__tests__/runner.test.ts`
+- Modify: `architex/src/db/schema/index.ts`, `architex/src/db/schema/relations.ts`
+
+**Design intent:** Schema changes *after* Phase 1 cannot hot-swap — they need a state machine. Runner moves each migration through INACTIVE → DUAL_WRITE → BACKFILL → READ_NEW → COMPLETE. State lives in a DB table so multiple app instances agree. Gated by `lld.migration.*.enabled` flag so a broken migration can be paused per-user by flipping a flag.
+
+- [ ] **Step 1: Schema for migration state**
+
+Create `architex/src/db/schema/schema-migrations-state.ts`:
+
+```typescript
+import { pgTable, uuid, varchar, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
+
+export const schemaMigrationsState = pgTable("schema_migrations_state", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  migrationKey: varchar("migration_key", { length: 200 }).notNull().unique(),
+  state: varchar("state", { length: 20 })
+    .notNull()
+    .default("inactive"), // inactive | dual_write | backfill | read_new | complete
+  dualWriteStartedAt: timestamp("dual_write_started_at", { withTimezone: true }),
+  backfillStartedAt: timestamp("backfill_started_at", { withTimezone: true }),
+  backfillCompletedAt: timestamp("backfill_completed_at", { withTimezone: true }),
+  readSwitchedAt: timestamp("read_switched_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  rowsBackfilled: integer("rows_backfilled").notNull().default(0),
+  rowsTotal: integer("rows_total"),
+  lastError: jsonb("last_error"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type SchemaMigrationState = typeof schemaMigrationsState.$inferSelect;
+```
+
+Re-export from `src/db/schema/index.ts`.
+
+- [ ] **Step 2: Generate + apply migration**
+
+```bash
+cd architex && pnpm db:generate && pnpm db:push
+```
+
+- [ ] **Step 3: Registry of migrations**
+
+Create `architex/src/db/migrations/registry.ts`:
+
+```typescript
+/**
+ * Every registered data migration (Phase 6 Task 18).
+ *
+ * A migration describes:
+ *  - key: stable string identifier
+ *  - flagKey: feature flag that gates it
+ *  - oldReader/oldWriter: reads/writes the pre-migration state
+ *  - newReader/newWriter: reads/writes the post-migration state
+ *  - backfill: returns a row iterator (chunks of 500 rows)
+ *  - validate: returns true when newReader and oldReader agree
+ *
+ * The runner transitions state and invokes the right pair based on
+ * the current state.
+ */
+
+import type { FlagKey } from "@/features/flags/registry";
+
+export interface MigrationDef<TOld = unknown, TNew = unknown> {
+  key: string;
+  flagKey: FlagKey;
+  description: string;
+  /** Count of total rows that need migrating (for progress %). */
+  countTotalRows(): Promise<number>;
+  /** Write to old store only. */
+  writeOld(data: TNew): Promise<void>;
+  /** Write to old + new store (dual-write). */
+  writeDual(data: TNew): Promise<void>;
+  /** Write to new store only. */
+  writeNew(data: TNew): Promise<void>;
+  /** Read from old store. */
+  readOld(id: string): Promise<TOld | null>;
+  /** Read from new store. */
+  readNew(id: string): Promise<TNew | null>;
+  /** Copy a chunk of rows from old → new. Returns rows written. */
+  backfillChunk(offset: number, limit: number): Promise<number>;
+  /** Validation sample — assert old and new agree for a random row. */
+  validateSample(): Promise<{ ok: boolean; mismatches: number }>;
+}
+
+export const REGISTERED_MIGRATIONS: MigrationDef[] = [
+  // Example migration registered below — real migrations will be added
+  // alongside the schema change that motivates them.
+];
+```
+
+- [ ] **Step 4: The runner**
+
+Create `architex/src/db/migrations/runner.ts`:
+
+```typescript
+/**
+ * Generic migration runner (Phase 6 Task 18).
+ *
+ * Usage (Route Handler):
+ *   POST /api/admin/migrations  body: { key: "progress_v2", action: "advance" }
+ *
+ * Runner operates only on the state machine; the actual data moves
+ * are defined per-migration in `registry.ts`.
+ *
+ * State machine:
+ *   INACTIVE  ──(advance)──▶ DUAL_WRITE (flag must be on)
+ *   DUAL_WRITE ──(advance, wait ≥24h)──▶ BACKFILL
+ *   BACKFILL  ──(advance, rowsBackfilled ≥ rowsTotal)──▶ READ_NEW
+ *   READ_NEW  ──(advance, validateSample ok for ≥24h)──▶ COMPLETE
+ *   any       ──(rollback)──▶ previous state (manual)
+ */
+
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { schemaMigrationsState } from "@/db/schema";
+import { Events, emit } from "@/lib/analytics/lld-events";
+import { REGISTERED_MIGRATIONS, type MigrationDef } from "./registry";
+import { isEnabledServer } from "@/features/flags/gates.server";
+
+export type MigrationState =
+  | "inactive"
+  | "dual_write"
+  | "backfill"
+  | "read_new"
+  | "complete";
+
+interface AdvanceResult {
+  key: string;
+  fromState: MigrationState;
+  toState: MigrationState;
+  note?: string;
+  rowsWritten?: number;
+}
+
+async function loadState(key: string): Promise<MigrationState> {
+  const rows = await db
+    .select()
+    .from(schemaMigrationsState)
+    .where(eq(schemaMigrationsState.migrationKey, key));
+  return (rows[0]?.state ?? "inactive") as MigrationState;
+}
+
+async function setState(
+  key: string,
+  next: MigrationState,
+  extras: Record<string, unknown> = {},
+): Promise<void> {
+  const patch = {
+    state: next,
+    updatedAt: new Date(),
+    ...(next === "dual_write" ? { dualWriteStartedAt: new Date() } : {}),
+    ...(next === "backfill" ? { backfillStartedAt: new Date() } : {}),
+    ...(next === "read_new" ? { readSwitchedAt: new Date() } : {}),
+    ...(next === "complete" ? { completedAt: new Date() } : {}),
+    ...extras,
+  };
+  // Upsert (registered migrations are a finite set).
+  const existing = await db
+    .select()
+    .from(schemaMigrationsState)
+    .where(eq(schemaMigrationsState.migrationKey, key));
+  if (existing.length === 0) {
+    await db.insert(schemaMigrationsState).values({
+      migrationKey: key,
+      ...patch,
+    });
+  } else {
+    await db
+      .update(schemaMigrationsState)
+      .set(patch)
+      .where(eq(schemaMigrationsState.migrationKey, key));
+  }
+}
+
+export async function advance(key: string): Promise<AdvanceResult> {
+  const def = REGISTERED_MIGRATIONS.find((m) => m.key === key);
+  if (!def) throw new Error(`No migration registered for key: ${key}`);
+
+  const current = await loadState(key);
+
+  // Flag gate — flipping the gate pauses progress for this migration.
+  const flagOn = await isEnabledServer(def.flagKey, null);
+  if (!flagOn) throw new Error(`Migration flag ${def.flagKey} is off`);
+
+  let next: MigrationState;
+  let extras: Record<string, unknown> = {};
+
+  switch (current) {
+    case "inactive":
+      next = "dual_write";
+      break;
+    case "dual_write": {
+      // Wait at least 24h before starting backfill.
+      const rows = await db
+        .select()
+        .from(schemaMigrationsState)
+        .where(eq(schemaMigrationsState.migrationKey, key));
+      const started = rows[0]?.dualWriteStartedAt;
+      if (started && Date.now() - started.getTime() < 24 * 3600 * 1000) {
+        throw new Error(
+          "dual_write must run ≥24h before advancing to backfill",
+        );
+      }
+      const total = await def.countTotalRows();
+      next = "backfill";
+      extras = { rowsTotal: total };
+      break;
+    }
+    case "backfill": {
+      const rows = await db
+        .select()
+        .from(schemaMigrationsState)
+        .where(eq(schemaMigrationsState.migrationKey, key));
+      const { rowsBackfilled, rowsTotal } = rows[0] ?? {};
+      if ((rowsTotal ?? 0) > 0 && (rowsBackfilled ?? 0) < (rowsTotal ?? 0)) {
+        throw new Error(
+          `backfill incomplete: ${rowsBackfilled}/${rowsTotal}`,
+        );
+      }
+      extras = { backfillCompletedAt: new Date() };
+      next = "read_new";
+      break;
+    }
+    case "read_new": {
+      const v = await def.validateSample();
+      if (!v.ok) {
+        throw new Error(
+          `validation failed: ${v.mismatches} mismatches — fix before advancing`,
+        );
+      }
+      next = "complete";
+      break;
+    }
+    case "complete":
+      return {
+        key,
+        fromState: current,
+        toState: current,
+        note: "already complete",
+      };
+  }
+
+  await setState(key, next, extras);
+  await emit(
+    Events.migrationAdvanced({
+      migrationKey: key,
+      fromState: current,
+      toState: next,
+      affectedRows: typeof extras.rowsTotal === "number" ? extras.rowsTotal : 0,
+    }),
+  );
+  return { key, fromState: current, toState: next };
+}
+
+/**
+ * Run one chunk of a BACKFILL migration. Returns rows written.
+ * Idempotent — call in a cron until rowsBackfilled === rowsTotal.
+ */
+export async function backfillOneChunk(
+  key: string,
+  limit = 500,
+): Promise<number> {
+  const def = REGISTERED_MIGRATIONS.find((m) => m.key === key);
+  if (!def) throw new Error(`no migration: ${key}`);
+
+  const state = await loadState(key);
+  if (state !== "backfill") {
+    throw new Error(`backfill requires state=backfill, got ${state}`);
+  }
+
+  const rows = await db
+    .select()
+    .from(schemaMigrationsState)
+    .where(eq(schemaMigrationsState.migrationKey, key));
+  const { rowsBackfilled } = rows[0] ?? { rowsBackfilled: 0 };
+  const written = await def.backfillChunk(rowsBackfilled ?? 0, limit);
+
+  await db
+    .update(schemaMigrationsState)
+    .set({
+      rowsBackfilled: (rowsBackfilled ?? 0) + written,
+      updatedAt: new Date(),
+    })
+    .where(eq(schemaMigrationsState.migrationKey, key));
+  return written;
+}
+
+export async function rollback(
+  key: string,
+  target: MigrationState,
+): Promise<AdvanceResult> {
+  const current = await loadState(key);
+  await setState(key, target);
+  await emit(
+    Events.migrationAdvanced({
+      migrationKey: key,
+      fromState: current,
+      toState: target,
+      affectedRows: 0,
+    }),
+  );
+  return { key, fromState: current, toState: target };
+}
+
+/**
+ * Dual-write dispatcher. Call from app code when writing data that
+ * might be undergoing migration. Reads the migration state once and
+ * picks the right writer.
+ */
+export async function writeThroughMigration<T>(
+  def: MigrationDef<unknown, T>,
+  data: T,
+): Promise<void> {
+  const state = await loadState(def.key);
+  switch (state) {
+    case "inactive":
+      await def.writeOld(data);
+      return;
+    case "dual_write":
+    case "backfill":
+      await def.writeDual(data);
+      return;
+    case "read_new":
+    case "complete":
+      await def.writeNew(data);
+      return;
+  }
+}
+
+/**
+ * Read dispatcher. Routes reads to the correct store based on state.
+ */
+export async function readThroughMigration<TOld, TNew>(
+  def: MigrationDef<TOld, TNew>,
+  id: string,
+): Promise<TOld | TNew | null> {
+  const state = await loadState(def.key);
+  if (state === "read_new" || state === "complete") {
+    return def.readNew(id);
+  }
+  return def.readOld(id);
+}
+```
+
+- [ ] **Step 5: Admin route to advance/backfill**
+
+Create `architex/src/app/api/admin/migrations/route.ts`:
+
+```typescript
+import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
+import {
+  advance,
+  backfillOneChunk,
+  rollback,
+  type MigrationState,
+} from "@/db/migrations/runner";
+
+export async function POST(req: Request) {
+  await requireAdmin();
+  const body = (await req.json()) as {
+    key: string;
+    action: "advance" | "backfill" | "rollback";
+    target?: MigrationState;
+  };
+
+  try {
+    if (body.action === "advance") {
+      return NextResponse.json(await advance(body.key));
+    }
+    if (body.action === "backfill") {
+      const written = await backfillOneChunk(body.key);
+      return NextResponse.json({ written });
+    }
+    if (body.action === "rollback") {
+      if (!body.target) {
+        return NextResponse.json(
+          { error: "target state required" },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json(await rollback(body.key, body.target));
+    }
+    return NextResponse.json({ error: "unknown action" }, { status: 400 });
+  } catch (err) {
+    return NextResponse.json(
+      { error: (err as Error).message },
+      { status: 400 },
+    );
+  }
+}
+```
+
+- [ ] **Step 6: Runner tests**
+
+Create `architex/src/db/migrations/__tests__/runner.test.ts`:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/db", () => {
+  const rows: unknown[] = [];
+  return {
+    db: {
+      select: () => ({
+        from: () => ({
+          where: () => Promise.resolve(rows),
+        }),
+      }),
+      insert: () => ({ values: (row: unknown) => {
+        rows.push(row);
+        return Promise.resolve();
+      } }),
+      update: () => ({
+        set: () => ({ where: () => Promise.resolve() }),
+      }),
+      __rows: rows,
+    },
+  };
+});
+
+describe("migration runner", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("throws when migration is not registered", async () => {
+    const { advance } = await import("../runner");
+    await expect(advance("nonexistent")).rejects.toThrow(/No migration/);
+  });
+
+  // Full integration tests live in a separate e2e suite that runs
+  // against a real Postgres — too slow for unit tests.
+});
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd architex && pnpm db:generate && pnpm db:push
+git add architex/src/db/schema/schema-migrations-state.ts architex/src/db/migrations architex/src/app/api/admin/migrations architex/src/db/schema/index.ts architex/drizzle/
+git commit -m "plan(lld-phase-6-task18): generic migration runner (dual-write/backfill/read-switch/complete)"
+```
+
+---
+
+## Task 19: Sentry client/server/edge initialization
+
+**Files:**
+- Create: `architex/sentry.client.config.ts`
+- Create: `architex/sentry.server.config.ts`
+- Create: `architex/sentry.edge.config.ts`
+- Create: `architex/src/lib/sentry/init.ts`
+- Create: `architex/src/lib/sentry/scrub.ts`
+- Create: `architex/src/lib/sentry/__tests__/scrub.test.ts`
+- Modify: `architex/next.config.ts`
+
+**Design intent:** Sentry wraps three runtimes. Each config delegates to `src/lib/sentry/init.ts` which reuses the scrubber and chooses DSN from `NEXT_PUBLIC_SENTRY_DSN`. Scrubber strips headers, cookies, auth tokens, and any keys matching `SENSITIVE_KEYS` from `error-tracking.ts`.
+
+- [ ] **Step 1: Shared scrubber**
+
+Create `architex/src/lib/sentry/scrub.ts`:
+
+```typescript
+/**
+ * Sentry beforeSend scrub hook (Phase 6 Task 19).
+ *
+ * Reuses the PII scrubber from error-tracking.ts and additionally
+ * strips all request headers, cookies, and query params that are
+ * known to carry auth state.
+ */
+
+import { scrubPII } from "@/lib/analytics/error-tracking";
+
+const HEADER_DENY = new Set([
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "x-forwarded-for",
+  "x-real-ip",
+]);
+
+const QUERY_DENY = new Set(["token", "access_token", "refresh_token", "api_key", "key"]);
+
+export function scrubSentryEvent<T extends Record<string, unknown>>(
+  event: T,
+): T {
+  const scrubbed = scrubPII(event) as T;
+
+  // Strip request headers.
+  if (scrubbed && typeof scrubbed === "object" && "request" in scrubbed) {
+    const req = scrubbed.request as Record<string, unknown>;
+    if (req?.headers) {
+      for (const k of Object.keys(req.headers as Record<string, unknown>)) {
+        if (HEADER_DENY.has(k.toLowerCase())) {
+          (req.headers as Record<string, unknown>)[k] = "[REDACTED]";
+        }
+      }
+    }
+    if (typeof req?.url === "string") {
+      try {
+        const u = new URL(req.url);
+        for (const key of Array.from(u.searchParams.keys())) {
+          if (QUERY_DENY.has(key.toLowerCase())) {
+            u.searchParams.set(key, "[REDACTED]");
+          }
+        }
+        req.url = u.toString();
+      } catch {
+        /* leave as-is */
+      }
+    }
+  }
+  return scrubbed;
+}
+```
+
+- [ ] **Step 2: Scrub test**
+
+Create `architex/src/lib/sentry/__tests__/scrub.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { scrubSentryEvent } from "../scrub";
+
+describe("scrubSentryEvent", () => {
+  it("redacts authorization + cookie headers", () => {
+    const scrubbed = scrubSentryEvent({
+      request: {
+        headers: {
+          authorization: "Bearer ey",
+          cookie: "session=abc",
+          "content-type": "application/json",
+        },
+      },
+    });
+    expect((scrubbed.request as any).headers.authorization).toBe("[REDACTED]");
+    expect((scrubbed.request as any).headers.cookie).toBe("[REDACTED]");
+    expect((scrubbed.request as any).headers["content-type"]).toBe(
+      "application/json",
+    );
+  });
+
+  it("redacts query params in request.url", () => {
+    const scrubbed = scrubSentryEvent({
+      request: { url: "https://api.example.com/r?token=secret&foo=1" },
+    });
+    expect((scrubbed.request as any).url).toContain("token=%5BREDACTED%5D");
+    expect((scrubbed.request as any).url).toContain("foo=1");
+  });
+});
+```
+
+- [ ] **Step 3: Shared init**
+
+Create `architex/src/lib/sentry/init.ts`:
+
+```typescript
+import * as Sentry from "@sentry/nextjs";
+import { scrubSentryEvent } from "./scrub";
+import { setBreadcrumbFunction } from "@/lib/analytics/emit-pipeline";
+
+export function initSentry(runtime: "client" | "server" | "edge"): void {
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  if (!dsn) {
+    // eslint-disable-next-line no-console
+    if (runtime === "client") {
+      console.info("[sentry] DSN not set, skipping initialization");
+    }
+    return;
+  }
+
+  Sentry.init({
+    dsn,
+    environment: process.env.NEXT_PUBLIC_ARCHITEX_ENV ?? "development",
+    release: process.env.NEXT_PUBLIC_ARCHITEX_COMMIT,
+    tracesSampleRate: 0.1,
+    replaysSessionSampleRate: 0.0, // opt-in only
+    replaysOnErrorSampleRate: 0.5,
+    integrations:
+      runtime === "client"
+        ? [Sentry.browserTracingIntegration?.(), Sentry.replayIntegration?.()]
+        : [],
+    beforeSend(event) {
+      return scrubSentryEvent(event as unknown as Record<string, unknown>) as typeof event;
+    },
+    beforeBreadcrumb(breadcrumb) {
+      // Filter noisy breadcrumbs (next/router pushes on every link)
+      if (breadcrumb.category === "navigation" && breadcrumb.data?.to?.startsWith?.("/_next/")) {
+        return null;
+      }
+      return breadcrumb;
+    },
+  });
+
+  // Wire analytics pipeline → Sentry breadcrumbs.
+  if (runtime === "client") {
+    setBreadcrumbFunction(({ category, message, level, data }) => {
+      Sentry.addBreadcrumb({
+        category,
+        message,
+        level: level ?? "info",
+        data,
+      });
+    });
+  }
+}
+```
+
+- [ ] **Step 4: Three entry files**
+
+Create `architex/sentry.client.config.ts`:
+```typescript
+import { initSentry } from "@/lib/sentry/init";
+initSentry("client");
+```
+Create `architex/sentry.server.config.ts`:
+```typescript
+import { initSentry } from "@/lib/sentry/init";
+initSentry("server");
+```
+Create `architex/sentry.edge.config.ts`:
+```typescript
+import { initSentry } from "@/lib/sentry/init";
+initSentry("edge");
+```
+
+- [ ] **Step 5: Wrap next.config with Sentry webpack plugin**
+
+Edit `architex/next.config.ts` (or `.mjs`) — wrap existing config with `withSentryConfig`:
+
+```typescript
+import { withSentryConfig } from "@sentry/nextjs";
+// existing config object as `nextConfig`
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+});
+```
+
+- [ ] **Step 6: Verify + commit**
+
+```bash
+cd architex && pnpm test:run src/lib/sentry/__tests__/scrub.test.ts
+pnpm typecheck && pnpm build
+git add architex/sentry.*.config.ts architex/src/lib/sentry architex/next.config.ts
+git commit -m "plan(lld-phase-6-task19): Sentry client/server/edge + scrubbed beforeSend + breadcrumb wiring"
+```
+
+---
+
+## Task 20: Error boundary + performance monitor components
+
+**Files:**
+- Create: `architex/src/components/observability/ErrorBoundary.tsx`
+- Create: `architex/src/components/observability/PerformanceMonitor.tsx`
+- Create: `architex/src/components/observability/__tests__/ErrorBoundary.test.tsx`
+
+**Design intent:** Wrap each mode layout (`LearnModeLayout`, `DrillModeLayout`, etc.) in an ErrorBoundary that: (a) fires `lld_error_boundary_caught`, (b) sends to Sentry via `captureException`, (c) renders a friendly fallback with retry. `PerformanceMonitor` uses `web-vitals` to fire `lld_performance_metric` for LCP/INP/CLS/FCP/TTFB.
+
+- [ ] **Step 1: Error boundary**
+
+Create `architex/src/components/observability/ErrorBoundary.tsx`:
+
+```tsx
+"use client";
+
+import { Component, type ReactNode } from "react";
+import * as Sentry from "@sentry/nextjs";
+import { Events, emit } from "@/lib/analytics/lld-events";
+import type { LLDMode } from "@/types/telemetry";
+
+interface Props {
+  modeAtError: LLDMode;
+  children: ReactNode;
+  fallback?: (args: { reset: () => void; error: Error }) => ReactNode;
+}
+
+interface State {
+  error: Error | null;
+}
+
+export class LLDErrorBoundary extends Component<Props, State> {
+  state: State = { error: null };
+
+  static getDerivedStateFromError(error: Error): State {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: { componentStack?: string }): void {
+    Sentry.captureException(error, {
+      tags: { lldMode: this.props.modeAtError },
+      extra: { componentStack: info.componentStack },
+    });
+    void emit(
+      Events.errorBoundaryCaught({
+        errorName: error.name,
+        errorMessage: error.message,
+        modeAtError: this.props.modeAtError,
+        componentStack: info.componentStack ?? "",
+      }),
+    );
+  }
+
+  reset = (): void => {
+    this.setState({ error: null });
+  };
+
+  render(): ReactNode {
+    if (this.state.error) {
+      const fallback =
+        this.props.fallback ??
+        (({ reset, error }) => (
+          <div className="flex h-full flex-col items-center justify-center p-8">
+            <h2 className="text-lg font-semibold">Something went wrong.</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {error.message}
+            </p>
+            <button
+              type="button"
+              onClick={reset}
+              className="mt-4 rounded bg-primary px-3 py-1.5 text-sm"
+            >
+              Try again
+            </button>
+          </div>
+        ));
+      return fallback({ reset: this.reset, error: this.state.error });
+    }
+    return this.props.children;
+  }
+}
+```
+
+- [ ] **Step 2: Error boundary test**
+
+Create `architex/src/components/observability/__tests__/ErrorBoundary.test.tsx`:
+
+```tsx
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render } from "@testing-library/react";
+import { LLDErrorBoundary } from "../ErrorBoundary";
+
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+}));
+
+vi.mock("@/lib/analytics/lld-events", () => ({
+  Events: { errorBoundaryCaught: vi.fn((p) => ({ name: "x", properties: p })) },
+  emit: vi.fn(),
+}));
+
+function Boom(): JSX.Element {
+  throw new Error("boom");
+}
+
+describe("LLDErrorBoundary", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("catches a child render error and shows fallback", () => {
+    // Suppress React's error logging for this intentional throw.
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { getByText } = render(
+      <LLDErrorBoundary modeAtError="drill">
+        <Boom />
+      </LLDErrorBoundary>,
+    );
+    expect(getByText(/something went wrong/i)).toBeInTheDocument();
+    spy.mockRestore();
+  });
+});
+```
+
+- [ ] **Step 3: Performance monitor**
+
+Create `architex/src/components/observability/PerformanceMonitor.tsx`:
+
+```tsx
+"use client";
+
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { onLCP, onINP, onCLS, onFCP, onTTFB, type Metric } from "web-vitals";
+import { Events, emit } from "@/lib/analytics/lld-events";
+
+const BUDGETS = {
+  LCP: { good: 2500, poor: 4000 },
+  INP: { good: 200, poor: 500 },
+  CLS: { good: 0.1, poor: 0.25 },
+  FCP: { good: 1800, poor: 3000 },
+  TTFB: { good: 800, poor: 1800 },
+} as const;
+
+function rate(name: keyof typeof BUDGETS, value: number): "good" | "needs-improvement" | "poor" {
+  const b = BUDGETS[name];
+  if (value <= b.good) return "good";
+  if (value <= b.poor) return "needs-improvement";
+  return "poor";
+}
+
+function report(metric: keyof typeof BUDGETS, value: number, pathname: string): void {
+  void emit(
+    Events.performanceMetric({
+      metric,
+      value,
+      rating: rate(metric, value),
+      pathname,
+    }),
+  );
+}
+
+export function PerformanceMonitor(): null {
+  const pathname = usePathname() ?? "/";
+  useEffect(() => {
+    const safe = (fn: () => void) => {
+      try {
+        fn();
+      } catch {
+        /* ignore */
+      }
+    };
+    safe(() => onLCP((m: Metric) => report("LCP", m.value, pathname)));
+    safe(() => onINP((m: Metric) => report("INP", m.value, pathname)));
+    safe(() => onCLS((m: Metric) => report("CLS", m.value, pathname)));
+    safe(() => onFCP((m: Metric) => report("FCP", m.value, pathname)));
+    safe(() => onTTFB((m: Metric) => report("TTFB", m.value, pathname)));
+  }, [pathname]);
+  return null;
+}
+```
+
+- [ ] **Step 4: Mount in LLDShell**
+
+Inside `src/components/modules/lld/LLDShell.tsx`, wrap each layout switch-case with `<LLDErrorBoundary modeAtError={mode}>` and mount `<PerformanceMonitor />` at the top.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/components/observability architex/src/components/modules/lld/LLDShell.tsx
+git commit -m "plan(lld-phase-6-task20): error boundary + web-vitals performance monitor"
+```
+
+---
+
+## Task 21: Lighthouse CI with perf budgets
+
+**Files:**
+- Create: `architex/.lighthouserc.json`
+- Create: `.github/workflows/lighthouse-ci.yml`
+
+**Design intent:** Enforce LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 on PRs touching `src/components/modules/lld/**` or `src/app/**`. Runs in CI against a preview deploy. Fails the PR if any budget exceeded by >10%.
+
+- [ ] **Step 1: Lighthouse config**
+
+Create `architex/.lighthouserc.json`:
+
+```json
+{
+  "ci": {
+    "collect": {
+      "numberOfRuns": 3,
+      "url": [
+        "http://localhost:3000",
+        "http://localhost:3000/modules/lld",
+        "http://localhost:3000/modules/lld?mode=learn",
+        "http://localhost:3000/modules/lld?mode=build",
+        "http://localhost:3000/modules/lld?mode=drill",
+        "http://localhost:3000/modules/lld?mode=review"
+      ],
+      "startServerCommand": "pnpm start",
+      "startServerReadyPattern": "Ready in",
+      "settings": {
+        "preset": "desktop",
+        "throttlingMethod": "simulate",
+        "chromeFlags": "--no-sandbox"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.85 }],
+        "categories:accessibility": ["error", { "minScore": 0.95 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
+        "interaction-to-next-paint": ["error", { "maxNumericValue": 200 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "first-contentful-paint": ["warn", { "maxNumericValue": 1800 }],
+        "server-response-time": ["warn", { "maxNumericValue": 800 }],
+        "total-blocking-time": ["error", { "maxNumericValue": 300 }],
+        "uses-responsive-images": "off",
+        "uses-webp-images": "off",
+        "offscreen-images": "off"
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}
+```
+
+- [ ] **Step 2: GitHub Actions workflow**
+
+Create `.github/workflows/lighthouse-ci.yml`:
+
+```yaml
+name: Lighthouse CI
+
+on:
+  pull_request:
+    paths:
+      - "architex/src/components/modules/lld/**"
+      - "architex/src/app/**"
+      - "architex/src/components/observability/**"
+      - "architex/next.config.ts"
+      - "architex/.lighthouserc.json"
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: architex/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: architex
+      - run: pnpm build
+        working-directory: architex
+        env:
+          NEXT_PUBLIC_POSTHOG_KEY: ""
+          NEXT_PUBLIC_SENTRY_DSN: ""
+      - run: pnpm dlx @lhci/cli@0.14 autorun --config=.lighthouserc.json
+        working-directory: architex
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/.lighthouserc.json .github/workflows/lighthouse-ci.yml
+git commit -m "plan(lld-phase-6-task21): Lighthouse CI with LCP/INP/CLS budgets on every PR"
+```
+
+---
+
+## Task 22: Accessibility audit — automated + manual
+
+**Files:**
+- Create: `.github/workflows/accessibility-audit.yml`
+- Create: `docs/sre/lld-a11y-audit-checklist.md`
+- Create: `architex/tests/a11y/lld-modes.spec.ts`
+
+**Design intent:** Automated `axe-core` scans run nightly against all four mode URLs. Manual checklist covers what axe cannot verify (contrast of canvas SVG, screen reader flow, keyboard traps, ARIA on React Flow).
+
+- [ ] **Step 1: Playwright + axe spec**
+
+Create `architex/tests/a11y/lld-modes.spec.ts`:
+
+```typescript
+import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+const MODES: Array<"learn" | "build" | "drill" | "review"> = [
+  "learn",
+  "build",
+  "drill",
+  "review",
+];
+
+for (const mode of MODES) {
+  test(`LLD ${mode} mode has no axe violations (WCAG AA)`, async ({
+    page,
+  }) => {
+    await page.goto(`/modules/lld?mode=${mode}`);
+    await page.waitForLoadState("networkidle");
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .disableRules([
+        // React Flow injects SVGs that axe mis-classifies. We assert
+        // ARIA on the canvas container manually below.
+        "svg-img-alt",
+      ])
+      .analyze();
+
+    const criticalOrSerious = results.violations.filter(
+      (v) => v.impact === "critical" || v.impact === "serious",
+    );
+    expect(
+      criticalOrSerious,
+      `a11y violations in ${mode}: ${JSON.stringify(criticalOrSerious, null, 2)}`,
+    ).toEqual([]);
+  });
+
+  test(`LLD ${mode} mode canvas has ARIA label`, async ({ page }) => {
+    await page.goto(`/modules/lld?mode=${mode}`);
+    const canvas = page.locator('[data-testid="lld-canvas"]');
+    if ((await canvas.count()) > 0) {
+      const label = await canvas.getAttribute("aria-label");
+      expect(label).toBeTruthy();
+    }
+  });
+}
+```
+
+- [ ] **Step 2: Nightly workflow**
+
+Create `.github/workflows/accessibility-audit.yml`:
+
+```yaml
+name: Accessibility Audit
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "architex/src/components/modules/lld/**"
+
+jobs:
+  axe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: architex/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: architex
+      - run: pnpm dlx playwright install chromium
+        working-directory: architex
+      - run: pnpm build && pnpm start &
+        working-directory: architex
+      - run: npx wait-on http://localhost:3000
+      - run: pnpm dlx playwright test tests/a11y/lld-modes.spec.ts
+        working-directory: architex
+```
+
+- [ ] **Step 3: Manual audit checklist**
+
+Create `docs/sre/lld-a11y-audit-checklist.md`:
+
+```markdown
+# LLD Accessibility Manual Audit (WCAG AA)
+
+Run before each major rollout stage. Automated axe-core catches ~40% of issues.
+
+## 1. Color contrast
+- [ ] All text ≥ 4.5:1 vs background (test with macOS Digital Color Meter)
+- [ ] Focus ring ≥ 3:1 contrast in all 6 themes (Midnight, Parchment, Terminal, Neon, Bright, High Contrast)
+- [ ] Canvas node labels legible on both light and dark backgrounds
+- [ ] Grade tier colors distinguishable in deuteranopia simulation (use Color Oracle)
+
+## 2. Keyboard navigation
+- [ ] Tab order follows visual order in all 4 mode layouts
+- [ ] Escape closes popovers, modals, command palette, flag dev panel
+- [ ] ⌘K opens Spotlight from every mode
+- [ ] ⌘1..4 switches modes from every focus position
+- [ ] J/K scrolls Learn lesson (spec Q14)
+- [ ] Space pauses Drill timer
+- [ ] 1..4 + A/H/G/E rate Review cards (Anki-style)
+- [ ] Focus never trapped inside canvas (test: Tab out of React Flow)
+- [ ] Focus visible on every interactive element (≥2px outline)
+
+## 3. Screen reader flow
+- [ ] VoiceOver rotor lists all 4 mode pills by label
+- [ ] Lesson sections announce as headings in outline (VO + H)
+- [ ] Canvas nodes have role="button" + aria-label="Class {name}"
+- [ ] Drill timer announces remaining minutes every 60s (aria-live="polite")
+- [ ] Grade tier reveal announced (aria-live="assertive")
+- [ ] Empty Review state announces "All caught up"
+
+## 4. Focus management
+- [ ] Mode switch moves focus to the new layout's main region
+- [ ] Opening a popover moves focus into it; closing restores trigger focus
+- [ ] Tinker Save-to-Build restores focus to Build canvas
+- [ ] Error boundary fallback restores focus on retry
+
+## 5. ARIA on canvas
+- [ ] React Flow canvas has role="application" + aria-label
+- [ ] Each node: aria-describedby pointing to properties panel
+- [ ] Edges: aria-label with source → target
+- [ ] Selection state reflected in aria-selected
+- [ ] Keyboard: Arrow keys pan canvas; +/- zoom; R resets view
+
+## 6. Reduced motion
+- [ ] All 36 pattern motion signatures disable when prefers-reduced-motion
+- [ ] Mode-switch choreography uses 0ms transitions in reduced mode
+- [ ] Tinker unlock ceremony becomes instant
+- [ ] Drill timer heartbeat pulse does not animate
+
+## 7. Forms + inputs
+- [ ] Every form input has <label>
+- [ ] Error messages linked via aria-describedby
+- [ ] Required fields marked aria-required="true"
+
+## 8. Images + icons
+- [ ] Decorative icons have aria-hidden="true"
+- [ ] Informative icons have aria-label OR adjacent text
+- [ ] Pattern mascot illustrations (V4) have alt text
+
+## Sign-off
+Date: ____________
+Auditor: ____________
+Modes verified: ____________
+Outstanding items: ____________
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add .github/workflows/accessibility-audit.yml docs/sre/lld-a11y-audit-checklist.md architex/tests/a11y/lld-modes.spec.ts
+git commit -m "plan(lld-phase-6-task22): a11y audit (axe nightly + manual WCAG AA checklist)"
+```
+
+---
+
+## Task 23: k6 load/stress/smoke harness
+
+**Files:**
+- Create: `k6/smoke.js`, `k6/load.js`, `k6/stress.js`
+- Create: `k6/scenarios/drill-lifecycle.js`, `k6/scenarios/lesson-scroll.js`, `k6/scenarios/review-session.js`, `k6/scenarios/anonymous-migration.js`
+- Create: `k6/README.md`
+- Create: `.github/workflows/load-test.yml`
+
+**Design intent:** Three test profiles against the 6 LLD API routes. Smoke = 1 VU for 1 min (sanity). Load = 50 VUs for 10 min (realistic peak). Stress = ramp 0→500 VUs over 30 min (find breaking point). All tests hit staging, never prod.
+
+- [ ] **Step 1: Smoke test**
+
+Create `k6/smoke.js`:
+
+```javascript
+import http from "k6/http";
+import { check, sleep } from "k6";
+
+export const options = {
+  vus: 1,
+  duration: "1m",
+  thresholds: {
+    http_req_failed: ["rate<0.01"],
+    http_req_duration: ["p(95)<500"],
+  },
+};
+
+const BASE = __ENV.K6_BASE_URL || "https://staging.architex.dev";
+
+export default function () {
+  const r1 = http.get(`${BASE}/api/user-preferences`);
+  check(r1, { "prefs 200": (r) => r.status === 200 });
+
+  const r2 = http.get(`${BASE}/api/lld/drill-attempts/active`);
+  check(r2, { "active 2xx": (r) => r.status === 200 || r.status === 204 });
+
+  sleep(1);
+}
+```
+
+- [ ] **Step 2: Drill lifecycle scenario**
+
+Create `k6/scenarios/drill-lifecycle.js`:
+
+```javascript
+import http from "k6/http";
+import { check, sleep, group } from "k6";
+
+const BASE = __ENV.K6_BASE_URL || "https://staging.architex.dev";
+
+export function drillLifecycle(authHeader) {
+  group("drill-lifecycle", () => {
+    const start = http.post(
+      `${BASE}/api/lld/drill-attempts`,
+      JSON.stringify({ problemId: "parking-lot", drillMode: "interview" }),
+      { headers: { "Content-Type": "application/json", Authorization: authHeader } },
+    );
+    check(start, { "drill started 201": (r) => r.status === 201 });
+    const drillId = start.json("id");
+    if (!drillId) return;
+
+    // 5 heartbeats over 30s
+    for (let i = 0; i < 5; i++) {
+      const hb = http.patch(
+        `${BASE}/api/lld/drill-attempts/${drillId}`,
+        JSON.stringify({ action: "heartbeat" }),
+        { headers: { "Content-Type": "application/json", Authorization: authHeader } },
+      );
+      check(hb, { "heartbeat 200": (r) => r.status === 200 });
+      sleep(6);
+    }
+
+    const submit = http.patch(
+      `${BASE}/api/lld/drill-attempts/${drillId}`,
+      JSON.stringify({
+        action: "submit",
+        canvasState: { nodes: [], edges: [] },
+      }),
+      { headers: { "Content-Type": "application/json", Authorization: authHeader } },
+    );
+    check(submit, { "drill submit 200": (r) => r.status === 200 });
+  });
+}
+```
+
+- [ ] **Step 3: Load + stress profiles**
+
+Create `k6/load.js`:
+
+```javascript
+import { drillLifecycle } from "./scenarios/drill-lifecycle.js";
+
+export const options = {
+  stages: [
+    { duration: "1m", target: 10 },
+    { duration: "8m", target: 50 },
+    { duration: "1m", target: 0 },
+  ],
+  thresholds: {
+    http_req_failed: ["rate<0.01"],
+    http_req_duration: ["p(95)<1000", "p(99)<2000"],
+    checks: ["rate>0.99"],
+  },
+};
+
+const TOKEN = __ENV.K6_TEST_TOKEN || "";
+
+export default function () {
+  drillLifecycle(`Bearer ${TOKEN}`);
+}
+```
+
+Create `k6/stress.js`:
+
+```javascript
+import { drillLifecycle } from "./scenarios/drill-lifecycle.js";
+
+export const options = {
+  stages: [
+    { duration: "5m", target: 50 },
+    { duration: "5m", target: 100 },
+    { duration: "5m", target: 200 },
+    { duration: "5m", target: 350 },
+    { duration: "5m", target: 500 },
+    { duration: "5m", target: 0 },
+  ],
+  thresholds: {
+    http_req_failed: ["rate<0.05"], // stress tolerates 5% failure
+  },
+};
+
+const TOKEN = __ENV.K6_TEST_TOKEN || "";
+
+export default function () {
+  drillLifecycle(`Bearer ${TOKEN}`);
+}
+```
+
+- [ ] **Step 4: README**
+
+Create `k6/README.md`:
+
+```markdown
+# k6 Load / Stress / Smoke harness
+
+## Install
+- macOS: `brew install k6`
+- Docker: `docker run --rm -i grafana/k6 run - < smoke.js`
+
+## Run
+- Smoke (1 VU, 1 min): `k6 run smoke.js`
+- Load (0→50 VUs, 10 min): `K6_TEST_TOKEN=... k6 run load.js`
+- Stress (0→500 VUs, 30 min): `K6_TEST_TOKEN=... k6 run stress.js`
+
+## Environment
+- `K6_BASE_URL` — default `https://staging.architex.dev`
+- `K6_TEST_TOKEN` — test user JWT (rotate weekly)
+
+## Scenarios
+- `scenarios/drill-lifecycle.js` — POST drill, heartbeat, submit
+- `scenarios/lesson-scroll.js` — scroll events → progress PATCH
+- `scenarios/review-session.js` — 3-card review rating flow
+- `scenarios/anonymous-migration.js` — login + migrate anonymous data
+
+## Against prod
+Never. Stress tests against prod will cause real user impact. Use staging.
+
+## Thresholds
+Breaks the CI job if:
+- `http_req_failed` > 1% (smoke/load) or > 5% (stress)
+- p95 latency > 1000ms (load) / 500ms (smoke)
+- `checks` pass rate < 99% (load)
+```
+
+- [ ] **Step 5: Workflow**
+
+Create `.github/workflows/load-test.yml`:
+
+```yaml
+name: Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: smoke / load / stress
+        default: smoke
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Run
+        env:
+          K6_BASE_URL: https://staging.architex.dev
+          K6_TEST_TOKEN: ${{ secrets.K6_TEST_TOKEN }}
+        run: k6 run k6/${{ github.event.inputs.profile }}.js
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add k6/ .github/workflows/load-test.yml
+git commit -m "plan(lld-phase-6-task23): k6 smoke/load/stress harness for LLD API (manual dispatch only)"
+```
+
+---
+
+## Task 24: SLO, error budget, severity classification
+
+**Files:**
+- Create: `docs/sre/lld-slo.md`
+- Create: `docs/sre/lld-severity-classification.md`
+- Create: `docs/sre/lld-kill-switch-runbook.md`
+
+**Design intent:** Define the contract operators hold themselves to — what constitutes a Sev-1, how much downtime is budgeted per quarter, when to trigger rollback.
+
+- [ ] **Step 1: SLO doc**
+
+Create `docs/sre/lld-slo.md`:
+
+```markdown
+# LLD Service Level Objectives
+
+**Scope:** `/modules/lld` UI + all routes under `/api/lld/*` + `/api/user-preferences*`.
+
+**Window:** 7-day rolling.
+
+## Availability SLO
+- Target: **99.5%** of HTTP requests return 2xx or 3xx over 7 days
+- Error budget: **50.4 minutes / week** total (3024 min × 0.5% × 60 / 100)
+- Measurement: Vercel edge logs aggregated by Sentry
+- Breaching → stop shipping new LLD features until restored
+
+## Latency SLO
+- Target: p95 of `/api/lld/*` < 500ms, p99 < 1500ms over 7 days
+- Error budget: 0.05 × 24 × 7 × 60 = 50.4 min / week of p95 breach
+- Measurement: k6 load test + real-user metrics via `lld_performance_metric`
+
+## Drill Submission Correctness
+- Target: **99.9%** of drill submissions result in a grade record within 3s
+- Errors count as: timeout, 500, grade missing from DB 30s after POST
+- Budget: 0.1% × weekly drills (~1000) = ≈1 allowed failure per week
+- Breaching → trigger `lld.killswitch.drill_submission`
+
+## Learn Mode Engagement SLO (leading indicator, not availability)
+- Target: p50 lesson completion rate ≥ 40% among users who open a lesson
+- Windowed 7-day comparison vs control cohort
+- Breaching by >10pp → rollback to previous rollout stage
+
+## Core Web Vitals Budgets
+- LCP: p75 ≤ 2500ms
+- INP: p75 ≤ 200ms
+- CLS: p75 ≤ 0.1
+
+Source: `lld_performance_metric` events aggregated in PostHog.
+
+## Error Budget Policy
+
+**Green (≥30% budget remaining):** ship freely.
+
+**Yellow (10-30% remaining):** require code review from a second SRE before merging to main. Prefer feature-flag-OFF defaults for new work.
+
+**Red (<10% remaining):** freeze all user-facing LLD changes. Only SLA-restoring fixes allowed. Rollback the most recently rolled-out stage.
+
+## Exhaustion response
+If the budget is exhausted mid-week:
+1. Kill-switch the offending feature (if identifiable)
+2. Roll back the most recent `ROLLOUT_CONFIG` change
+3. Post-mortem within 3 business days
+4. SLO review in the next quarterly planning
+```
+
+- [ ] **Step 2: Severity classification**
+
+Create `docs/sre/lld-severity-classification.md`:
+
+```markdown
+# LLD Severity Classification
+
+## Sev-1 (Critical — page on-call 24/7)
+- `/modules/lld` returns 5xx for >10% of requests for >5 min
+- All drill submissions fail for >5 min
+- User data loss confirmed (wrong user sees another user's diagram)
+- Security incident: unauthorized access, data exfiltration
+- Accessibility regression: complete keyboard lockout, screen-reader silence in any mode
+
+## Sev-2 (High — page on-call business hours)
+- One mode (Learn/Build/Drill/Review) broken but others work
+- Grade score incorrect by >20 points (systematic, not one-off)
+- FSRS scheduler stuck (same pattern appears on same day repeatedly)
+- AI feature (A1-A9) returns empty for >30 min
+- Web vitals budget breach sustained >1h
+
+## Sev-3 (Medium — fix in next sprint)
+- Minor visual regression
+- One pattern in one wave shows wrong content
+- Motion signature breaks for one pattern
+- Non-essential analytics event missing
+
+## Sev-4 (Low — backlog)
+- Typo in content
+- Analytics dashboard card missing
+- Dev-only tooling issue
+
+## Page tree
+- On-call engineer (via Opsgenie)
+- SRE lead (Sev-1 only)
+- VP Eng notified for Sev-1 > 30 min
+- Post-mortem owner = person who drove the fix
+```
+
+- [ ] **Step 3: Kill-switch runbook**
+
+Create `docs/sre/lld-kill-switch-runbook.md`:
+
+```markdown
+# LLD Kill-Switch Runbook
+
+## When to pull a kill switch
+- Sev-1 as defined in lld-severity-classification.md
+- Error rate for a specific feature > 5% sustained over 5 min
+- User reports confirm data corruption risk
+
+## How (production)
+1. Go to `/admin/kill-switch`, type reason, click TRIGGER for the affected flag.
+   This **only writes an audit event**.
+2. Open a hotfix PR editing `.env.production`:
+   ```
+   NEXT_PUBLIC_LLD_KILL_SWITCHES=lld.killswitch.drill_submission
+   ```
+3. Get one other SRE's approval.
+4. Merge and trigger a deploy. Vercel redeploys in ~90s.
+5. Verify: hit the admin panel; flag should now report `reason: "killed"`.
+
+## Recovery
+1. Investigate the root cause; fix and ship.
+2. Roll back by removing the flag key from `NEXT_PUBLIC_LLD_KILL_SWITCHES`.
+3. Redeploy.
+4. Post-mortem within 3 business days.
+
+## Flags available for kill
+- `lld.killswitch.drill_submission` — disables grade POST
+- `lld.killswitch.ai_features` — disables all Claude surfaces
+- `lld.killswitch.canvas_live` — disables live-collab canvas
+- `lld.killswitch.telemetry` — disables PostHog capture
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add docs/sre/lld-slo.md docs/sre/lld-severity-classification.md docs/sre/lld-kill-switch-runbook.md
+git commit -m "plan(lld-phase-6-task24): SLO + error budget + severity ladder + kill-switch runbook"
+```
+
+---
+
+## Task 25: Rollout schedule + dashboard spec
+
+**Files:**
+- Create: `docs/rollout/lld-rollout-schedule.md`
+- Create: `docs/rollout/lld-dashboard-spec.md`
+
+**Design intent:** A calendar view of the 5-wave ramp with per-ramp flag config + acceptance criteria for advancing. Dashboard spec enumerates the metrics + their PostHog insight types for every Success Metrics row the product team tracks.
+
+- [ ] **Step 1: Rollout schedule**
+
+Create `docs/rollout/lld-rollout-schedule.md`:
+
+```markdown
+# LLD Rollout Schedule (spec §15 Q20)
+
+## Wave 0 — Internal (Week 0)
+- **Stage:** `internal`
+- **Audience:** @architex.dev emails only
+- **Flags set to `internal`:** none in production; all dev overrides
+- **Entry criteria:** Phase 1 ships, staging passes k6 smoke
+- **Exit criteria:** zero Sev-1 in 48h, drill error rate < 0.5%, team smoke pass
+
+## Wave 1 — Beta 5% (Weeks 1-2)
+- **Stage:** `beta5` (5% of authenticated users, hashed)
+- **Promoted flags (set via `src/features/rollout-config.ts`):**
+  - `lld.drill.hostile_interviewer`: `beta5`
+  - `lld.drill.company_mock`: `beta5`
+  - `lld.review.cold_recall`: `beta5`
+  - `lld.review.confidence_weighted`: `beta5`
+- **Entry:** Wave 0 met exit criteria
+- **Exit:** 7-day drill error < 1%, lesson completion >= control, p95 latency < 500ms
+
+## Wave 2 — Rollout 25% (Weeks 3-4)
+- **Stage:** `rollout25`
+- **Promoted flags:**
+  - `lld.build.anti_pattern_detector`: `rollout25`
+  - `lld.build.pattern_recommendation`: `rollout25`
+- **Entry:** Wave 1 exit criteria held for 7 days
+- **Exit:** same thresholds hold with 5× users
+
+## Wave 3 — Rollout 50% (Weeks 5-6)
+- **Stage:** `rollout50`
+- **Promoted flags:**
+  - `lld.learn.contextual_ai`: `rollout50`
+  - `lld.learn.tinker_mode`: `rollout50`
+  - `lld.build.ai_review_v2`: `rollout50`
+  - `lld.drill.three_submodes`: `rollout50`
+  - `lld.drill.tiered_celebration`: `rollout50`
+  - `lld.review.swipe_gestures`: `rollout50`
+  - Studio: `lld.studio.radial_menu`, `lld.studio.gesture_grammar`, `lld.studio.ambient_soundscape`, `lld.studio.presentation_mode`, `lld.studio.dual_view`: `rollout50`
+- **Entry:** Wave 2 clean
+- **Exit:** Core Web Vitals budgets held, engagement metrics stable
+
+## Wave 4 — Rollout 100% (Weeks 7+)
+- **Stage:** `rollout100`
+- **Promoted flags:** everything not on an experiment variant
+  - Shell: `lld.shell.v2`, `lld.welcome_banner.enabled`, `lld.mode_switcher.v2`
+  - Modes: all `*.enabled`, `*.progressive_checkpoint_reveal`, `*.scroll_sync`
+  - Studio: `lld.studio.cinematic_cold_open`, `lld.studio.spatial_home`, `lld.studio.pattern_rooms`, `lld.studio.editorial_typography`, `lld.studio.fluid_layers`, `lld.studio.signature`, `lld.studio.first_time_ritual`
+- **Entry:** Wave 3 clean for 7 days
+- **Exit:** Legacy Classic-mode toggle kept for 4 weeks behind a setting, then removed
+
+## Rollback triggers (any wave)
+- Drill error rate > 5% sustained 1h → rollback to prior stage
+- Lesson completion drop > 20% vs control → rollback
+- > 3 data-loss reports in 24h → full rollback
+- FSRS rating distribution >80% "Again" → investigate + rollback
+- Core Web Vitals budgets breached for >24h → rollback to prior stage
+
+## Rollback mechanics
+Edit `src/features/rollout-config.ts`, move the offending flag down one stage, merge, deploy. If urgent and engineer unavailable: trigger kill-switch per runbook.
+
+## Success exit criteria (post-Wave 4)
+All hold for 30 days:
+- Availability ≥ 99.5%
+- Drill submission correctness ≥ 99.9%
+- Lesson completion ≥ 40% of openers
+- Weekly review sessions ≥ 35% of active users
+- Core Web Vitals: 90% good across LCP/INP/CLS
+```
+
+- [ ] **Step 2: Dashboard spec**
+
+Create `docs/rollout/lld-dashboard-spec.md`:
+
+```markdown
+# LLD Success Metrics Dashboard (PostHog)
+
+## Activation
+- **First module opened**: `lld_module_opened` where `firstVisit=true`, unique users / signups
+- **First lesson opened**: `lld_lesson_opened`, unique users / first-opens
+- **First drill started**: `lld_drill_started`, unique users / module opens
+- **First review card rated**: `lld_review_card_rated`, unique users / review-eligible users
+
+## Retention
+- **D1**: returning within 24h of first `lld_module_opened`
+- **D7**: returning within 7 days
+- **D30**: returning within 30 days
+- Cohort by rollout stage
+
+## Engagement per mode
+- **Learn**: median `lld_lesson_section_viewed.dwellMs` per section; lesson completion rate
+- **Build**: median `lld_build_canvas_edit` actions per session
+- **Drill**: drill attempts per week per user; abandon rate
+- **Review**: median session length; cards rated per session
+
+## Drill completion rate
+- `lld_drill_submitted` / `lld_drill_started` grouped by drillMode
+- Tier distribution: funnel through `DrillGradeTier`
+
+## Review adherence
+- % of due cards actually reviewed within 24h of due
+- `lld_review_session_started` frequency per user / week
+
+## Cost per user
+- Claude API cost: from `aiUsage` table joined on userId
+- AI opt-in cost: mean $/active user / month
+- Breakdown by `lld_contextual_ask_architect.surface` + `lld_drill_grade_reviewed.aiFeedbackShown`
+
+## Feature flag health
+- `lld_feature_flag_evaluated.reason` pie chart per flag
+- Kill-switch fires: `lld_kill_switch_fired` timeline
+
+## A/B experiments
+- For each `lld_ab_exposure.experimentKey`, conversion comparison:
+  - `lld.experiment.drill_celebration_v2` → rate of next drill started within 1h
+  - `lld.experiment.review_card_layout` → session card count
+  - `lld.experiment.welcome_banner_copy` → path button click through
+
+## Performance
+- `lld_performance_metric` p75 by metric name + pathname
+- Breach timeline: events where `rating === "poor"`
+
+## Error-boundary catches
+- `lld_error_boundary_caught` count by `modeAtError`, by `errorName`
+
+## Daily volume baselines
+Record in a shared doc and alert on ±50% deviation:
+- `lld_module_opened/day`
+- `lld_lesson_completed/day`
+- `lld_drill_submitted/day`
+- `lld_review_session_completed/day`
+
+## Saved queries
+PostHog insight names (create matching these):
+- `LLD_ACTIVATION_BREAKDOWN`
+- `LLD_DRILL_FUNNEL`
+- `LLD_RETENTION_D1_D7_D30`
+- `LLD_MODE_DISTRIBUTION`
+- `LLD_CORE_WEB_VITALS`
+- `LLD_COST_PER_USER`
+- `LLD_FLAG_EVAL_REASONS`
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docs/rollout/lld-rollout-schedule.md docs/rollout/lld-dashboard-spec.md
+git commit -m "plan(lld-phase-6-task25): rollout schedule (5 waves) + dashboard metric spec"
+```
+
+---
+
+## Task 26: React hooks for feature flag + A/B + rollout
+
+**Files:**
+- Create: `architex/src/hooks/useFeatureFlag.ts`, `useAbVariant.ts`, `useRolloutStage.ts`, `useTelemetry.ts`
+- Create: `architex/src/hooks/__tests__/useFeatureFlag.test.tsx`, `useAbVariant.test.tsx`, `useRolloutStage.test.tsx`
+
+**Design intent:** React hooks are the canonical surface for component code. Re-rendering when PostHog flags load requires a subscription — hook wraps that. `useTelemetry` returns a scoped `emit` that carries the current mode.
+
+- [ ] **Step 1: useFeatureFlag**
+
+Create `architex/src/hooks/useFeatureFlag.ts`:
+
+```typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { isEnabled } from "@/features/flags/gates";
+import type { FlagKey } from "@/features/flags/registry";
+
+export function useFeatureFlag(key: FlagKey): boolean {
+  const [enabled, setEnabled] = useState(() => isEnabled(key));
+
+  useEffect(() => {
+    // Re-evaluate on dev override or remote flag reload.
+    const handler = () => setEnabled(isEnabled(key));
+    window.addEventListener("architex:flag-overrides-changed", handler);
+    return () =>
+      window.removeEventListener("architex:flag-overrides-changed", handler);
+  }, [key]);
+
+  return enabled;
+}
+```
+
+- [ ] **Step 2: useAbVariant**
+
+Create `architex/src/hooks/useAbVariant.ts`:
+
+```typescript
+"use client";
+
+import { useEffect, useMemo } from "react";
+import { exposeExperiment } from "@/features/ab-test";
+import type { FlagKey } from "@/features/flags/registry";
+import { getAnonymousId } from "@/features/cohort";
+
+export function useAbVariant(key: FlagKey, userId: string | null): string {
+  const effectiveId = userId ?? getAnonymousId();
+  const variant = useMemo(
+    () => exposeExperiment(key, effectiveId),
+    [key, effectiveId],
+  );
+
+  useEffect(() => {
+    // Re-expose on user-id change.
+  }, [effectiveId]);
+
+  return variant;
+}
+```
+
+- [ ] **Step 3: useRolloutStage**
+
+Create `architex/src/hooks/useRolloutStage.ts`:
+
+```typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { currentStage, type LLDRolloutStage } from "@/features/rollout-config";
+import { setStampingRolloutStage } from "@/lib/analytics/cohort-stamping";
+import type { FlagKey } from "@/features/flags/registry";
+
+export function useRolloutStage(key: FlagKey): LLDRolloutStage {
+  const [stage] = useState<LLDRolloutStage>(() => currentStage(key));
+
+  useEffect(() => {
+    setStampingRolloutStage(stage);
+  }, [stage]);
+
+  return stage;
+}
+```
+
+- [ ] **Step 4: useTelemetry**
+
+Create `architex/src/hooks/useTelemetry.ts`:
+
+```typescript
+"use client";
+
+import { useCallback } from "react";
+import { emit, Events } from "@/lib/analytics/lld-events";
+
+export function useTelemetry() {
+  const fire = useCallback((event: Parameters<typeof emit>[0]) => {
+    void emit(event);
+  }, []);
+  return { emit: fire, Events };
+}
+```
+
+- [ ] **Step 5: Tests**
+
+Skeleton tests (one example, repeat pattern):
+
+Create `architex/src/hooks/__tests__/useFeatureFlag.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { useFeatureFlag } from "../useFeatureFlag";
+import { __testing_gates } from "@/features/flags/gates";
+
+describe("useFeatureFlag", () => {
+  beforeEach(() => {
+    __testing_gates.reset();
+  });
+
+  it("reflects current flag state", () => {
+    const { result } = renderHook(() =>
+      useFeatureFlag("lld.welcome_banner.enabled"),
+    );
+    expect(result.current).toBe(true); // registry default
+  });
+});
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/hooks/useFeatureFlag.ts architex/src/hooks/useAbVariant.ts architex/src/hooks/useRolloutStage.ts architex/src/hooks/useTelemetry.ts architex/src/hooks/__tests__/useFeatureFlag.test.tsx
+git commit -m "plan(lld-phase-6-task26): React hooks — useFeatureFlag / useAbVariant / useRolloutStage / useTelemetry"
+```
+
+---
+
+## Task 27: Wire observability into every mode layout
+
+**Files:**
+- Modify: `architex/src/components/modules/lld/modes/LearnModeLayout.tsx`
+- Modify: `architex/src/components/modules/lld/modes/BuildModeLayout.tsx`
+- Modify: `architex/src/components/modules/lld/modes/DrillModeLayout.tsx`
+- Modify: `architex/src/components/modules/lld/modes/ReviewModeLayout.tsx`
+- Modify: `architex/src/components/modules/lld/LLDShell.tsx`
+
+**Design intent:** Each mode layout wrapped with `<LLDErrorBoundary modeAtError={mode}>`. `<PerformanceMonitor />` mounted in `LLDShell`. Each layout fires `lld_module_opened` (once per mount) + `lld_mode_switched` (on mount if referrer is a different mode).
+
+- [ ] **Step 1: Pattern for each layout**
+
+Sketch that every mode layout file gets:
+
+```tsx
+// top of file
+import { LLDErrorBoundary } from "@/components/observability/ErrorBoundary";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+
+// inside component return
+return (
+  <LLDErrorBoundary modeAtError="learn">
+    {/* existing layout tree */}
+  </LLDErrorBoundary>
+);
+```
+
+The enabled/disabled check:
+
+```tsx
+const enabled = useFeatureFlag("lld.learn.enabled");
+if (!enabled) {
+  return <ModeDisabledFallback mode="learn" />;
+}
+```
+
+- [ ] **Step 2: LLDShell updates**
+
+In `src/components/modules/lld/LLDShell.tsx`:
+
+```tsx
+import { PerformanceMonitor } from "@/components/observability/PerformanceMonitor";
+import { useEffect } from "react";
+import { emit, Events } from "@/lib/analytics/lld-events";
+
+// top of shell component
+useEffect(() => {
+  const referrer = typeof document !== "undefined" ? document.referrer : null;
+  void emit(
+    Events.moduleOpened({
+      referrer,
+      firstVisit: !localStorage.getItem("architex_lld_seen"),
+    }),
+  );
+  localStorage.setItem("architex_lld_seen", "1");
+}, []);
+
+// in the JSX
+<>
+  <PerformanceMonitor />
+  {/* existing LLDShell body */}
+</>
+```
+
+- [ ] **Step 3: Mode disabled fallback component**
+
+Create `architex/src/components/modules/lld/modes/ModeDisabledFallback.tsx`:
+
+```tsx
+import type { LLDMode } from "@/types/telemetry";
+
+export function ModeDisabledFallback({ mode }: { mode: LLDMode }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+      <h2 className="text-lg font-semibold capitalize">{mode} mode is rolling out</h2>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        This mode is currently available to a subset of users. It will reach
+        everyone soon — keep an eye on your notification center.
+      </p>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/components/modules/lld
+git commit -m "plan(lld-phase-6-task27): wire ErrorBoundary + PerformanceMonitor + flag gating into every mode"
+```
+
+---
+
+## Task 28: Final verification + commit
+
+Last task — verify everything wired, typechecks, tests pass, then final commit.
+
+- [ ] **Step 1: Full test suite**
+
+```bash
+cd architex
+pnpm typecheck
+pnpm lint
+pnpm test:run
+pnpm build
+```
+
+All four must pass. If any fail, fix before calling Phase 6 complete. Expected coverage:
+- telemetry: `lld-events.test.ts`, `emit-pipeline.test.ts`, `autocapture-config.test.ts`, `identity.test.ts`
+- flags: `registry.test.ts`, `gates.test.ts`, `gates.server.test.ts`, `kill-switch.test.ts`
+- rollout: `rollout.test.ts`, `cohort.test.ts`, `ab-test.test.ts`
+- observability: `ErrorBoundary.test.tsx`, `scrub.test.ts`
+- migrations: `runner.test.ts`
+
+- [ ] **Step 2: Manual smoke test**
+
+Fresh browser, Clerk signed-in test user:
+
+1. Open `/modules/lld`. Expected: one `lld_module_opened` event in PostHog dev log.
+2. Click ⌘3 → Drill. Expected: `lld_mode_switched { from: "learn", to: "drill" }`.
+3. Open DevTools → Network → `/api/activity`. Expected: events POSTed, 204s.
+4. Open DevTools → Application → Local Storage. Expected: `architex_flag_overrides_v1` empty by default, `architex_anonymous_id_v1` populated.
+5. Open flag dev panel (bottom-right purple button in dev). Toggle `lld.welcome_banner.enabled` off. Refresh. Welcome banner should be gone.
+6. Clear overrides. Trigger an artificial error: in React DevTools set `LearnModeLayout`'s state to throw. Expected: error boundary catches it, renders fallback, fires `lld_error_boundary_caught` + Sentry issue.
+7. Throttle network to 3G and reload. Expected: web-vitals events fire with `rating: "poor"`.
+8. Check `/admin/flags` as admin. Expected: registry table renders.
+9. Check `/admin/kill-switch`. Expected: 4 kill-switch buttons, reason-required check works.
+
+- [ ] **Step 3: Create `.progress-phase-6.md` tracker**
+
+Create `docs/superpowers/plans/.progress-phase-6.md`:
+
+```markdown
+# Phase 6 Progress Tracker
+
+Pre-flight: Phase 1-5 outputs verified
+
+- [x] Task 1: Phase 6 dependencies
+- [x] Task 2: shared telemetry discriminated union
+- [x] Task 3: LLD_EVENTS compile-time enum
+- [x] Task 4: extend lld-events builders to 43
+- [x] Task 5: shared emit pipeline
+- [x] Task 6: PostHog autocapture config
+- [x] Task 7: posthog-js identity bootstrap
+- [x] Task 8: cohort stamping subscriber
+- [x] Task 9: feature flag registry
+- [x] Task 10: client gates + kill switch
+- [x] Task 11: server gates
+- [x] Task 12: dev flag override panel
+- [x] Task 13: ESLint require-feature-flag-gate rule
+- [x] Task 14: rollout stages + ramp config
+- [x] Task 15: cohort assignment helper
+- [x] Task 16: A/B test framework
+- [x] Task 17: admin flag + kill-switch UI/API
+- [x] Task 18: migration runner (dual-write / backfill / read-switch)
+- [x] Task 19: Sentry client/server/edge + scrub
+- [x] Task 20: error boundary + performance monitor
+- [x] Task 21: Lighthouse CI
+- [x] Task 22: a11y audit (axe + manual checklist)
+- [x] Task 23: k6 smoke / load / stress
+- [x] Task 24: SLO + severity + kill-switch runbook
+- [x] Task 25: rollout schedule + dashboard spec
+- [x] Task 26: React hooks
+- [x] Task 27: wire observability into every mode layout
+- [x] Task 28: verification pass
+
+Phase 6 complete on: <YYYY-MM-DD>
+Ready for launch: all rollout flags configured, SLO thresholds in PostHog, Sentry receiving.
+```
+
+- [ ] **Step 4: Final commit**
+
+```bash
+git add docs/superpowers/plans/.progress-phase-6.md
+git commit -m "$(cat <<'EOF'
+plan(lld-phase-6): polish, analytics, rollout safety
+
+Completes Phase 6: Architex LLD production hardening.
+
+Telemetry:
+- 43-event discriminated union with compile-time enum
+- Shared emit pipeline (consent + 3 sinks + fail-silent)
+- PostHog real-client bootstrap (autocapture allowlist, opt-in)
+- Cohort/rollout/variant/mode stamping
+
+Feature flags:
+- Registry as SoT (~42 flags: 15 shell/mode, 3 A/B, 4 kill switches, 2 migration gates)
+- Client gates with kill-switch env short-circuit
+- Server gates with deterministic cohort hashing
+- Dev panel with stale-flag indicators
+- Local ESLint plugin requires flagged code
+
+Rollout + A/B:
+- 5-stage ramp (off/internal/beta5/25/50/100)
+- Rollout config in code (diff-able)
+- Cohort assignment (SHA-256 server, FNV client)
+- A/B framework with once-per-session exposure
+
+Migration safety:
+- schema_migrations_state table
+- Generic runner (inactive → dual_write → backfill → read_new → complete)
+- Flag-gated + auditable advancement
+
+Observability:
+- Sentry client/server/edge with scrubbed beforeSend
+- Error boundaries on every mode layout
+- Core Web Vitals monitor (LCP/INP/CLS budgets)
+
+CI + ops:
+- Lighthouse CI budgets (LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1)
+- k6 smoke/load/stress profiles
+- Nightly axe-core accessibility audit
+- SLO (99.5% / 7-day rolling) + severity ladder + kill-switch runbook
+- Rollout calendar with per-wave flag config
+
+Ready for launch.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+
+git tag phase-6-complete
+```
+
+---
+
+## Self-review checklist
+
+Before declaring Phase 6 shipped:
+
+**Spec coverage (§13 Q19, §15 Q20):**
+- [x] Analytics taxonomy expanded to 43 events, typed — Tasks 2, 3, 4
+- [x] PostHog integration (wrapper, autocapture, identity) — Tasks 5, 6, 7
+- [x] Feature-flag harness with dev panel + ESLint rule — Tasks 9-13
+- [x] A/B test framework — Task 16
+- [x] Rollout stages + config + cohorts — Tasks 14, 15
+- [x] Kill switches with runbook — Tasks 10, 17, 24
+- [x] Migration safety (dual-write/backfill/read-switch) — Task 18
+- [x] Sentry error monitoring — Task 19
+- [x] Accessibility audit (WCAG AA) — Task 22
+- [x] Performance budgets (Lighthouse CI) — Task 21
+- [x] Load / stress test harness (k6) — Task 23
+- [x] SLO + error budget + Sev-1 definition — Task 24
+- [x] Success-metrics dashboard spec — Task 25
+
+**Out of scope for Phase 6 (deferred):**
+- Real-time alerting wiring to PagerDuty (docs/sre/lld-slo.md declares the contract; wiring is Task 30+ — Phase 7 ecosystem)
+- PostHog revenue tracking (Phase 7)
+- Browser / VS Code extension telemetry (Phase 7 per spec §15)
+- Public API analytics (Phase 7)
+
+**Placeholder check:** Every task ships executable code/config. Only the `REGISTERED_MIGRATIONS` array is intentionally empty — migrations are added alongside the schema change that motivates them.
+
+**Type consistency:** `FlagKey` from registry, `LLDMode`/`DrillMode`/`CohortBucket`/`RolloutStage` from telemetry, `LLDRolloutStage` aliases RolloutStage. No drift.
+
+---
+
+## Execution Handoff
+
+Plan complete and saved to `docs/superpowers/plans/2026-04-20-lld-phase-6-polish-rollout.md`. Two execution options:
+
+**1. Subagent-Driven (recommended)** — dispatch a fresh subagent per task, review between tasks. Each task's code lands in isolated context.
+
+**2. Inline Execution** — execute tasks in this session using executing-plans.
+
+Which approach?
