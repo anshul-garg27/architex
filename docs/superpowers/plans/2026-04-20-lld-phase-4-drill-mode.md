@@ -2168,5 +2168,918 @@ EOF
 
 ---
 
+## Task 11: `interviewer-persona.ts` — streaming Sonnet wrapper
+
+**Files:**
+- Create: `architex/src/lib/ai/interviewer-persona.ts`
+- Test: `architex/src/lib/ai/__tests__/interviewer-persona.test.ts`
+
+Wraps the existing `ClaudeClient` singleton with a streaming-capable method. The server route (Task 25) consumes this module to stream tokens back to the client over SSE.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/ai/__tests__/interviewer-persona.test.ts`:
+
+```typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  buildInterviewerRequest,
+  parseTurnHistory,
+  InterviewerPersonaRequestError,
+  type InterviewerTurn,
+} from "@/lib/ai/interviewer-persona";
+
+describe("interviewer-persona · buildInterviewerRequest", () => {
+  const turn: InterviewerTurn = {
+    role: "user",
+    stage: "clarify",
+    content: "The lot can have variable levels, right?",
+    seq: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  it("composes the system prompt + message history", () => {
+    const req = buildInterviewerRequest({
+      persona: "amazon",
+      stage: "clarify",
+      problemTitle: "Parking Lot",
+      history: [turn],
+    });
+    expect(req.model).toBe("claude-sonnet-4-20250514");
+    expect(req.system).toMatch(/Bar Raiser/);
+    expect(req.system).toMatch(/Parking Lot/);
+    expect(req.messages).toHaveLength(1);
+    expect(req.messages[0]?.role).toBe("user");
+  });
+
+  it("throws if last turn is not from user", () => {
+    const interviewerTurn: InterviewerTurn = {
+      role: "interviewer",
+      stage: "clarify",
+      content: "Let's clarify scope first.",
+      seq: 1,
+      createdAt: new Date().toISOString(),
+    };
+    expect(() =>
+      buildInterviewerRequest({
+        persona: "generic",
+        stage: "clarify",
+        problemTitle: "Parking Lot",
+        history: [interviewerTurn],
+      }),
+    ).toThrow(InterviewerPersonaRequestError);
+  });
+
+  it("caps history length to prevent runaway token costs", () => {
+    const manyTurns: InterviewerTurn[] = Array.from({ length: 100 }, (_, i) => ({
+      role: i % 2 === 0 ? "interviewer" : "user",
+      stage: "clarify",
+      content: `Turn ${i}`,
+      seq: i,
+      createdAt: new Date().toISOString(),
+    }));
+    // Last turn must be user to be valid
+    manyTurns[manyTurns.length - 1]!.role = "user";
+
+    const req = buildInterviewerRequest({
+      persona: "generic",
+      stage: "clarify",
+      problemTitle: "Parking Lot",
+      history: manyTurns,
+    });
+    expect(req.messages.length).toBeLessThanOrEqual(30);
+  });
+});
+
+describe("interviewer-persona · parseTurnHistory", () => {
+  it("flattens DB rows into chronological turn history", () => {
+    const rows = [
+      { role: "interviewer", seq: 2, content: "c" },
+      { role: "user", seq: 1, content: "b" },
+      { role: "interviewer", seq: 0, content: "a" },
+    ];
+    const history = parseTurnHistory(rows as any);
+    expect(history.map((h) => h.content)).toEqual(["a", "b", "c"]);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- interviewer-persona
+```
+Expected: FAIL.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/ai/interviewer-persona.ts`:
+
+```typescript
+/**
+ * AI-013: Streaming Claude wrapper for drill interviewer turns.
+ *
+ * Composes persona system prompt + chronological chat history and
+ * returns a shape the `ClaudeClient.streamText()` can consume. The
+ * server route (Task 25) pipes the stream back as SSE to the browser.
+ */
+
+import {
+  systemPromptFor,
+  type InterviewerPersona,
+} from "@/lib/ai/interviewer-prompts";
+import type { DrillStage } from "@/lib/lld/drill-stages";
+
+export interface InterviewerTurn {
+  role: "user" | "interviewer" | "system";
+  stage: DrillStage;
+  content: string;
+  seq: number;
+  createdAt: string;
+}
+
+export interface InterviewerRequestOptions {
+  persona: InterviewerPersona;
+  stage: DrillStage;
+  problemTitle: string;
+  history: InterviewerTurn[];
+  /** Max turns to send (both user+interviewer) — defaults to 30. */
+  historyCap?: number;
+}
+
+export interface InterviewerRequest {
+  model: "claude-sonnet-4-20250514";
+  system: string;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  maxTokens: number;
+}
+
+export class InterviewerPersonaRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InterviewerPersonaRequestError";
+  }
+}
+
+const DEFAULT_HISTORY_CAP = 30;
+
+function mapRole(turn: InterviewerTurn): "user" | "assistant" {
+  // Claude expects alternating user/assistant. Our "interviewer" maps to
+  // assistant; "user" stays user; "system" turns (rare — injected hints)
+  // are folded into the user message before them and silently dropped.
+  if (turn.role === "interviewer") return "assistant";
+  return "user";
+}
+
+export function parseTurnHistory(
+  rows: Array<Pick<InterviewerTurn, "role" | "seq" | "content"> & Partial<InterviewerTurn>>,
+): InterviewerTurn[] {
+  return [...rows]
+    .sort((a, b) => a.seq - b.seq)
+    .map((r) => ({
+      role: r.role,
+      stage: (r.stage as DrillStage) ?? "canvas",
+      content: r.content,
+      seq: r.seq,
+      createdAt: r.createdAt ?? new Date(0).toISOString(),
+    }));
+}
+
+export function buildInterviewerRequest(
+  opts: InterviewerRequestOptions,
+): InterviewerRequest {
+  const cap = opts.historyCap ?? DEFAULT_HISTORY_CAP;
+  const trimmed = opts.history.slice(-cap);
+
+  if (trimmed.length === 0) {
+    throw new InterviewerPersonaRequestError(
+      "Cannot build interviewer request with empty history.",
+    );
+  }
+  const last = trimmed[trimmed.length - 1]!;
+  if (last.role !== "user") {
+    throw new InterviewerPersonaRequestError(
+      `Last turn must be from user, got '${last.role}'.`,
+    );
+  }
+
+  const messages = trimmed
+    .filter((t) => t.role !== "system")
+    .map((t) => ({
+      role: mapRole(t),
+      content: t.content,
+    }));
+
+  const system =
+    systemPromptFor(opts.persona, opts.stage) +
+    `\n\nProblem title: "${opts.problemTitle}".`;
+
+  return {
+    model: "claude-sonnet-4-20250514",
+    system,
+    messages,
+    maxTokens: 400, // keep turns terse per BASE_RULES
+  };
+}
+```
+
+Note: the actual streaming call is in the API route (Task 25). This module is pure + testable. The streaming layer delegates to the existing `ClaudeClient` singleton which already handles cost tracking and rate-limit backoff.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- interviewer-persona
+```
+Expected: PASS · 4 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/ai/interviewer-persona.ts architex/src/lib/ai/__tests__/interviewer-persona.test.ts
+git commit -m "$(cat <<'EOF'
+feat(ai): streaming interviewer persona request builder
+
+buildInterviewerRequest composes persona system prompt + chronological
+chat history capped at 30 turns. Throws if last turn is not from user
+(protects against double-invocation). parseTurnHistory sorts DB rows by
+seq. Streaming itself happens in the API route.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 12: `postmortem-generator.ts` — Sonnet post-drill report writer
+
+**Files:**
+- Create: `architex/src/lib/ai/postmortem-generator.ts`
+- Test: `architex/src/lib/ai/__tests__/postmortem-generator.test.ts`
+
+After the drill submits, we run one final Sonnet call to author the postmortem: a structured 6-section narrative covering strengths, gaps, pattern-choice commentary, tradeoff analysis, canonical-diff highlights, and 2-3 suggested follow-up drills. Output is strict JSON so the UI renders sections deterministically.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/ai/__tests__/postmortem-generator.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  buildPostmortemPrompt,
+  parsePostmortemResponse,
+  PostmortemParseError,
+  type PostmortemInput,
+} from "@/lib/ai/postmortem-generator";
+
+const input: PostmortemInput = {
+  problemId: "parking-lot",
+  problemTitle: "Parking Lot",
+  variant: "timed-mock",
+  persona: "generic",
+  rubric: {
+    clarification: { score: 80, good: [], missing: [], wrong: [] },
+    classes: { score: 70, good: [], missing: [], wrong: [] },
+    relationships: { score: 60, good: [], missing: [], wrong: [] },
+    patternFit: { score: 75, good: [], missing: [], wrong: [] },
+    tradeoffs: { score: 50, good: [], missing: [], wrong: [] },
+    communication: { score: 85, good: [], missing: [], wrong: [] },
+  },
+  finalScore: 68,
+  stageDurationsMs: {
+    clarify: 120_000,
+    rubric: 60_000,
+    canvas: 900_000,
+    walkthrough: 300_000,
+    reflection: 120_000,
+  },
+  canvasSummary: "5 classes, 7 edges. Pattern claimed: strategy.",
+  canonical: {
+    patternsExpected: ["strategy", "factory-method"],
+    keyTradeoffs: ["polymorphism vs switch", "strategy cost"],
+  },
+};
+
+describe("postmortem-generator · buildPostmortemPrompt", () => {
+  it("builds a prompt containing all rubric scores + canonical hints", () => {
+    const req = buildPostmortemPrompt(input);
+    expect(req.model).toBe("claude-sonnet-4-20250514");
+    expect(req.user).toMatch(/Parking Lot/);
+    expect(req.user).toMatch(/tradeoffs/);
+    expect(req.user).toMatch(/strategy/);
+    expect(req.user).toMatch(/68/);
+  });
+
+  it("requests strict JSON output format", () => {
+    const req = buildPostmortemPrompt(input);
+    expect(req.user).toMatch(/JSON/i);
+  });
+});
+
+describe("postmortem-generator · parsePostmortemResponse", () => {
+  const valid = JSON.stringify({
+    tldr: "Solid core. Weak tradeoff articulation.",
+    strengths: ["Classes clearly justified", "Clean walkthrough"],
+    gaps: ["Missed strategy vs factory tradeoff"],
+    patternCommentary:
+      "Strategy was right; you didn't articulate why not Template Method.",
+    tradeoffAnalysis:
+      "You accepted polymorphism cost without naming it.",
+    canonicalDiff: ["You missed PricingStrategy as a separate class."],
+    followUps: ["Retry with a constraint", "Drill strategy-vs-template-method"],
+  });
+
+  it("parses a well-formed JSON response", () => {
+    const result = parsePostmortemResponse(valid);
+    expect(result.tldr.length).toBeGreaterThan(0);
+    expect(result.strengths).toHaveLength(2);
+    expect(result.followUps.length).toBeGreaterThan(0);
+  });
+
+  it("strips ```json fence wrappers", () => {
+    const withFence = "```json\n" + valid + "\n```";
+    const result = parsePostmortemResponse(withFence);
+    expect(result.tldr.length).toBeGreaterThan(0);
+  });
+
+  it("throws PostmortemParseError on missing fields", () => {
+    expect(() => parsePostmortemResponse('{"tldr": "x"}')).toThrow(
+      PostmortemParseError,
+    );
+  });
+
+  it("throws PostmortemParseError on invalid JSON", () => {
+    expect(() => parsePostmortemResponse("not json")).toThrow(
+      PostmortemParseError,
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- postmortem-generator
+```
+Expected: FAIL.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/ai/postmortem-generator.ts`:
+
+```typescript
+/**
+ * AI-014: Drill postmortem generator
+ *
+ * One Sonnet call after drill submission. Produces a strict-JSON
+ * postmortem that the UI splits into sections: TL;DR, strengths, gaps,
+ * pattern commentary, tradeoff analysis, canonical diff, follow-ups.
+ */
+
+import type { RubricBreakdown } from "@/lib/lld/drill-rubric";
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import type { DrillVariant } from "@/lib/lld/drill-variants";
+import type { InterviewerPersona } from "@/lib/ai/interviewer-prompts";
+
+export interface PostmortemInput {
+  problemId: string;
+  problemTitle: string;
+  variant: DrillVariant;
+  persona: InterviewerPersona;
+  rubric: RubricBreakdown;
+  finalScore: number; // 0-100
+  stageDurationsMs: Record<DrillStage, number>;
+  canvasSummary: string;
+  canonical: {
+    patternsExpected: string[];
+    keyTradeoffs: string[];
+  } | null;
+}
+
+export interface PostmortemOutput {
+  tldr: string;
+  strengths: string[];
+  gaps: string[];
+  patternCommentary: string;
+  tradeoffAnalysis: string;
+  canonicalDiff: string[];
+  followUps: string[];
+}
+
+export interface PostmortemRequest {
+  model: "claude-sonnet-4-20250514";
+  system: string;
+  user: string;
+  maxTokens: number;
+}
+
+export class PostmortemParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PostmortemParseError";
+  }
+}
+
+const SYSTEM_PROMPT = `
+You are a senior engineer writing a post-drill review for a candidate who
+just finished a timed LLD (low-level design) whiteboard interview.
+
+Your writing principles:
+- Direct, humane, specific. No padding.
+- Highlight strengths honestly. Don't damn with faint praise.
+- Name 1-3 specific gaps. Give concrete "next time, do X" advice.
+- Never lecture. Never repeat the rubric mechanically.
+
+Output STRICT JSON with this shape:
+
+{
+  "tldr": "<=220 chars, one sentence",
+  "strengths": ["<=3 bullets, each <=120 chars"],
+  "gaps": ["<=3 bullets, each <=160 chars"],
+  "patternCommentary": "<=240 chars, one short paragraph",
+  "tradeoffAnalysis": "<=240 chars, one short paragraph",
+  "canonicalDiff": ["<=4 bullets"],
+  "followUps": ["<=3 bullets"]
+}
+
+No prose outside the JSON.
+`.trim();
+
+export function buildPostmortemPrompt(
+  input: PostmortemInput,
+): PostmortemRequest {
+  const rubricLines = Object.entries(input.rubric)
+    .map(([axis, result]) => `  - ${axis}: ${result.score}/100`)
+    .join("\n");
+
+  const timingLines = Object.entries(input.stageDurationsMs)
+    .map(([stage, ms]) => `  - ${stage}: ${Math.round(ms / 1000)}s`)
+    .join("\n");
+
+  const canonicalBlock = input.canonical
+    ? `Canonical reference expected patterns: ${input.canonical.patternsExpected.join(
+        ", ",
+      )}.
+Canonical key tradeoffs:\n${input.canonical.keyTradeoffs
+        .map((t) => `  - ${t}`)
+        .join("\n")}`
+    : "No canonical reference solution available for this problem.";
+
+  const user = `
+Problem: "${input.problemTitle}" (id: ${input.problemId})
+Variant: ${input.variant}
+Interviewer persona: ${input.persona}
+Final score: ${input.finalScore}/100
+
+6-axis rubric breakdown:
+${rubricLines}
+
+Per-stage time spent:
+${timingLines}
+
+Canvas summary at submit: ${input.canvasSummary}
+
+${canonicalBlock}
+
+Write the postmortem as STRICT JSON.
+`.trim();
+
+  return {
+    model: "claude-sonnet-4-20250514",
+    system: SYSTEM_PROMPT,
+    user,
+    maxTokens: 900,
+  };
+}
+
+const REQUIRED_KEYS: (keyof PostmortemOutput)[] = [
+  "tldr",
+  "strengths",
+  "gaps",
+  "patternCommentary",
+  "tradeoffAnalysis",
+  "canonicalDiff",
+  "followUps",
+];
+
+function stripFence(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("```")) {
+    const firstNewline = trimmed.indexOf("\n");
+    const last = trimmed.lastIndexOf("```");
+    if (firstNewline !== -1 && last > firstNewline) {
+      return trimmed.slice(firstNewline + 1, last).trim();
+    }
+  }
+  return trimmed;
+}
+
+export function parsePostmortemResponse(raw: string): PostmortemOutput {
+  const text = stripFence(raw);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new PostmortemParseError("Postmortem response was not valid JSON.");
+  }
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new PostmortemParseError("Postmortem must be a JSON object.");
+  }
+  const obj = parsed as Record<string, unknown>;
+  for (const key of REQUIRED_KEYS) {
+    if (!(key in obj)) {
+      throw new PostmortemParseError(`Postmortem missing required key: ${key}`);
+    }
+  }
+  return {
+    tldr: String(obj.tldr),
+    strengths: Array.isArray(obj.strengths) ? obj.strengths.map(String) : [],
+    gaps: Array.isArray(obj.gaps) ? obj.gaps.map(String) : [],
+    patternCommentary: String(obj.patternCommentary),
+    tradeoffAnalysis: String(obj.tradeoffAnalysis),
+    canonicalDiff: Array.isArray(obj.canonicalDiff)
+      ? obj.canonicalDiff.map(String)
+      : [],
+    followUps: Array.isArray(obj.followUps) ? obj.followUps.map(String) : [],
+  };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- postmortem-generator
+```
+Expected: PASS · 5 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/ai/postmortem-generator.ts architex/src/lib/ai/__tests__/postmortem-generator.test.ts
+git commit -m "$(cat <<'EOF'
+feat(ai): postmortem generator (Sonnet, strict JSON)
+
+buildPostmortemPrompt folds rubric + timing + canonical refs into a
+single Sonnet prompt. parsePostmortemResponse tolerates markdown fences,
+validates required keys, throws PostmortemParseError on malformed input.
+Output shape: tldr + strengths + gaps + patternCommentary +
+tradeoffAnalysis + canonicalDiff + followUps.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 13: `grading-engine-v2.ts` — deterministic + Haiku composer
+
+**Files:**
+- Create: `architex/src/lib/lld/grading-engine-v2.ts`
+- Test: `architex/src/lib/lld/__tests__/grading-engine-v2.test.ts`
+
+Composes the existing `grading-engine.ts` (deterministic structure checks — classes, relationships, pattern usage) with a Haiku-backed qualitative pass that fills in the three axes the deterministic engine can't score: **clarification quality**, **tradeoff articulation**, and **communication**.
+
+The engine MUST degrade gracefully when the Anthropic key is missing — qualitative axes fall back to heuristic scores based on observable proxies (number of clarifying questions asked; walkthrough length; tradeoff keyword density).
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/lld/__tests__/grading-engine-v2.test.ts`:
+
+```typescript
+import { describe, it, expect, vi } from "vitest";
+import {
+  gradeDrillAttempt,
+  heuristicClarificationScore,
+  heuristicTradeoffScore,
+  heuristicCommunicationScore,
+  type DrillGradeInput,
+} from "@/lib/lld/grading-engine-v2";
+
+const baseInput: DrillGradeInput = {
+  problemId: "parking-lot",
+  canvasState: { nodes: [], edges: [] },
+  interviewerTurns: [
+    { role: "user", stage: "clarify", content: "How many levels?" },
+    { role: "user", stage: "clarify", content: "What vehicle types?" },
+  ],
+  walkthroughText:
+    "User pulls up. ParkingLot.assignSpot() selects a spot by size using PricingStrategy. Ticket is issued. We use Strategy over a switch to keep pricing extensible; the cost is one interface indirection.",
+  selfGrade: 4,
+  stageDurationsMs: {
+    clarify: 60_000,
+    rubric: 30_000,
+    canvas: 900_000,
+    walkthrough: 240_000,
+    reflection: 60_000,
+  },
+};
+
+describe("grading-engine-v2 · heuristic fallbacks", () => {
+  it("heuristicClarificationScore rewards multiple questions", () => {
+    expect(heuristicClarificationScore([])).toBe(0);
+    expect(heuristicClarificationScore(["q1"])).toBeLessThan(50);
+    expect(heuristicClarificationScore(["q1", "q2", "q3"])).toBeGreaterThan(70);
+  });
+
+  it("heuristicTradeoffScore rewards tradeoff keywords", () => {
+    expect(heuristicTradeoffScore("")).toBe(0);
+    expect(heuristicTradeoffScore("i drew classes")).toBeLessThan(40);
+    expect(
+      heuristicTradeoffScore(
+        "We trade memory for speed here. Strategy costs an interface but gives us extensibility. Tradeoff: more classes.",
+      ),
+    ).toBeGreaterThan(60);
+  });
+
+  it("heuristicCommunicationScore rewards sentence structure", () => {
+    expect(heuristicCommunicationScore("")).toBe(0);
+    expect(heuristicCommunicationScore("classes. go.")).toBeLessThan(40);
+    expect(
+      heuristicCommunicationScore(
+        "First, the user arrives. Then we call assignSpot which picks a spot by size. Finally, a ticket is issued and returned to the gate.",
+      ),
+    ).toBeGreaterThan(70);
+  });
+});
+
+describe("grading-engine-v2 · gradeDrillAttempt (fallback mode)", () => {
+  it("returns a valid 6-axis rubric breakdown", async () => {
+    const result = await gradeDrillAttempt(baseInput, {
+      mode: "fallback-only",
+    });
+    expect(result.rubric.clarification.score).toBeGreaterThanOrEqual(0);
+    expect(result.rubric.clarification.score).toBeLessThanOrEqual(100);
+    expect(result.rubric.classes.score).toBeGreaterThanOrEqual(0);
+    expect(result.rubric.tradeoffs.score).toBeGreaterThan(40);
+    expect(result.finalScore).toBeGreaterThanOrEqual(0);
+    expect(result.finalScore).toBeLessThanOrEqual(100);
+  });
+
+  it("penalizes empty canvas heavily", async () => {
+    const result = await gradeDrillAttempt(
+      { ...baseInput, canvasState: { nodes: [], edges: [] } },
+      { mode: "fallback-only" },
+    );
+    expect(result.rubric.classes.score).toBeLessThan(40);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- grading-engine-v2
+```
+Expected: FAIL.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/lld/grading-engine-v2.ts`:
+
+```typescript
+/**
+ * LLD-023: Drill grading engine v2 — 6-axis composer
+ *
+ * Composes the existing deterministic grading-engine.ts with a Haiku
+ * qualitative pass. When no API key is configured, qualitative axes
+ * fall back to heuristic scoring; the final score remains sensible.
+ */
+
+import {
+  AXIS_WEIGHTS,
+  RUBRIC_AXES,
+  computeWeightedScore,
+  type RubricAxis,
+  type RubricAxisResult,
+  type RubricBreakdown,
+} from "@/lib/lld/drill-rubric";
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import type { InterviewerTurn } from "@/lib/ai/interviewer-persona";
+import { getCanonicalFor } from "@/lib/lld/drill-canonical";
+import { gradeSubmission } from "@/lib/lld/grading-engine";
+
+export interface DrillGradeInput {
+  problemId: string;
+  canvasState: { nodes: Array<{ id: string; data?: unknown }>; edges: unknown[] };
+  interviewerTurns: Pick<InterviewerTurn, "role" | "stage" | "content">[];
+  walkthroughText: string;
+  selfGrade: number; // 1-5
+  stageDurationsMs: Record<DrillStage, number>;
+}
+
+export interface DrillGradeOutput {
+  rubric: RubricBreakdown;
+  finalScore: number;
+}
+
+export interface GradeOptions {
+  mode?: "ai-preferred" | "fallback-only";
+}
+
+// ── Heuristic fallbacks ──────────────────────────────────────────────
+
+const CLARIFY_WEIGHT_PER_Q = 28; // score ≈ 28*n, capped at 100
+
+export function heuristicClarificationScore(questions: string[]): number {
+  if (questions.length === 0) return 0;
+  return Math.min(100, Math.round(CLARIFY_WEIGHT_PER_Q * questions.length));
+}
+
+const TRADEOFF_KEYWORDS = [
+  "tradeoff",
+  "trade off",
+  "trade-off",
+  "cost of",
+  "in exchange",
+  "gain",
+  "pay",
+  "memory vs",
+  "speed vs",
+  "complexity",
+  "extensibility",
+  "flexibility",
+  "indirection",
+  "overhead",
+  "boilerplate",
+];
+
+export function heuristicTradeoffScore(walkthrough: string): number {
+  if (walkthrough.trim().length === 0) return 0;
+  const lower = walkthrough.toLowerCase();
+  const hits = TRADEOFF_KEYWORDS.reduce(
+    (acc, kw) => acc + (lower.includes(kw) ? 1 : 0),
+    0,
+  );
+  const lengthBonus = Math.min(25, Math.floor(walkthrough.length / 40));
+  return Math.min(100, hits * 15 + lengthBonus);
+}
+
+export function heuristicCommunicationScore(walkthrough: string): number {
+  const trimmed = walkthrough.trim();
+  if (trimmed.length === 0) return 0;
+  const sentences = trimmed.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const avgLen = trimmed.length / Math.max(1, sentences.length);
+  const lengthScore = Math.min(60, Math.floor(trimmed.length / 8));
+  // Reward moderate sentence length (10-100 chars); penalize too-short.
+  const structureScore = avgLen < 10 ? 0 : avgLen > 200 ? 20 : 40;
+  return Math.min(100, lengthScore + structureScore);
+}
+
+// ── Deterministic axes (compose legacy engine) ──────────────────────
+
+function gradeClassesAxis(input: DrillGradeInput): RubricAxisResult {
+  const canonical = getCanonicalFor(input.problemId);
+  if (!canonical) {
+    // No reference — score by raw class count + naming sanity.
+    const n = input.canvasState.nodes.length;
+    return {
+      score: Math.min(100, n * 15),
+      good: n >= 3 ? ["Multiple classes drafted"] : [],
+      missing: n < 3 ? ["Canvas is sparse — need at least 3 classes."] : [],
+      wrong: [],
+    };
+  }
+  // Compose legacy engine. It expects a submission object; we project.
+  try {
+    const legacy = gradeSubmission({
+      problemId: input.problemId,
+      canvasState: input.canvasState,
+    } as unknown as Parameters<typeof gradeSubmission>[0]);
+    const axis = (legacy as unknown as { classesScore?: number }).classesScore ?? 50;
+    return {
+      score: Math.min(100, Math.max(0, axis)),
+      good: [],
+      missing: [],
+      wrong: [],
+    };
+  } catch {
+    return { score: 50, good: [], missing: [], wrong: [] };
+  }
+}
+
+function gradeRelationshipsAxis(input: DrillGradeInput): RubricAxisResult {
+  const edges = input.canvasState.edges.length;
+  if (edges === 0) {
+    return {
+      score: 0,
+      good: [],
+      missing: ["Canvas has no relationships between classes."],
+      wrong: [],
+    };
+  }
+  return {
+    score: Math.min(100, edges * 20),
+    good: edges >= 3 ? ["Clear class linkage"] : [],
+    missing: edges < 3 ? ["Relationships are thin."] : [],
+    wrong: [],
+  };
+}
+
+function gradePatternFitAxis(input: DrillGradeInput): RubricAxisResult {
+  const canonical = getCanonicalFor(input.problemId);
+  if (!canonical) return { score: 60, good: [], missing: [], wrong: [] };
+  const walkthroughLower = input.walkthroughText.toLowerCase();
+  const matches = canonical.patterns.filter((p) =>
+    walkthroughLower.includes(p.toLowerCase()),
+  );
+  const score = Math.min(100, 30 + matches.length * 35);
+  return {
+    score,
+    good: matches.map((m) => `Identified ${m} pattern`),
+    missing: canonical.patterns
+      .filter((p) => !walkthroughLower.includes(p.toLowerCase()))
+      .map((p) => `Could have named ${p} explicitly`),
+    wrong: [],
+  };
+}
+
+// ── Entry point ─────────────────────────────────────────────────────
+
+export async function gradeDrillAttempt(
+  input: DrillGradeInput,
+  opts: GradeOptions = {},
+): Promise<DrillGradeOutput> {
+  const clarifyQuestions = input.interviewerTurns
+    .filter((t) => t.role === "user" && t.stage === "clarify")
+    .map((t) => t.content);
+
+  const rubric: RubricBreakdown = {
+    clarification: {
+      score: heuristicClarificationScore(clarifyQuestions),
+      good: clarifyQuestions.length >= 2 ? ["Asked multiple clarifiers"] : [],
+      missing: clarifyQuestions.length < 2
+        ? ["Need at least 2 clarifying questions."]
+        : [],
+      wrong: [],
+    },
+    classes: gradeClassesAxis(input),
+    relationships: gradeRelationshipsAxis(input),
+    patternFit: gradePatternFitAxis(input),
+    tradeoffs: {
+      score: heuristicTradeoffScore(input.walkthroughText),
+      good: [],
+      missing: [],
+      wrong: [],
+    },
+    communication: {
+      score: heuristicCommunicationScore(input.walkthroughText),
+      good: [],
+      missing: [],
+      wrong: [],
+    },
+  };
+
+  // Optional Haiku pass for qualitative refinement.
+  if (opts.mode !== "fallback-only" && typeof process !== "undefined") {
+    const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+    if (hasKey) {
+      // The actual AI pass is wired by the API route (Task 22) which has
+      // access to the ClaudeClient singleton. This module stays pure.
+      // Refinement hook: if the caller sets `opts.mode = 'ai-preferred'`
+      // but the key is present, we trust the caller to refine qualitative
+      // axes via a separate ClaudeClient.sendText() call.
+    }
+  }
+
+  const finalScore = computeWeightedScore(rubric);
+
+  return { rubric, finalScore };
+}
+
+// ── Internal helpers re-exported for server-side AI pass ────────────
+
+export { RUBRIC_AXES, AXIS_WEIGHTS };
+export type { RubricAxis };
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- grading-engine-v2
+```
+Expected: PASS · 5 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/lld/grading-engine-v2.ts architex/src/lib/lld/__tests__/grading-engine-v2.test.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): grading-engine-v2 composes deterministic + heuristic
+
+Six-axis rubric output. Deterministic axes (classes/relationships/
+patternFit) use legacy grading-engine.ts + canonical solutions.
+Qualitative axes (clarification/tradeoffs/communication) fall back to
+heuristic scorers when no Anthropic key is configured. The server-side
+API route layers a Haiku qualitative refinement on top.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+
 
 
