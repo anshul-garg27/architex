@@ -3881,6 +3881,78 @@ function fork(run: SimRun, atSimTimeMs: number, mutation: Partial<SimConfig>): S
 
 ---
 
+### 29.11 Engineering roadmap — which engine piece ships in which phase
+
+The ten engineering decisions in §29.1-29.10 do not all ship in V1. Most ship across Phases 2-5; multiplayer is Phase 6. The mapping below is the shipping contract.
+
+| Piece | Phase | Week | Why this phase |
+|---|---|---|---|
+| **§29.1 Dual-clock model** | Phase 2 | W7-10 | Prerequisite for Learn mode's tinker canvas (basic dilation for trying things quickly). |
+| **§29.5 SVG + Canvas hybrid rendering** | Phase 2 | W7-10 | Prerequisite for Build mode. Canvas scaffolding must be right before content lands. |
+| **§29.6 Edge routing (algorithms 1, 2, 3, 6)** | Phase 2 | W7-10 | A* + Manhattan + Bezier + crossing-min cover Architecture / Deployment / Sequence — the three diagram types used in first-content drop. |
+| **§29.7 Auto-layout (Dagre + d3-force + swimlane + incremental)** | Phase 2 | W7-10 | Dagre for Architecture; swimlane for Sequence; d3-force for the State Machine templates in first content drop. ELK and radial deferred. |
+| **§29.4 Cascade engine — basic physics** | Phase 3 | W11-16 | Saturation curves + failure probability + basic circuit-breakers. Full hysteresis tuning waits until we can validate against real-incident replays (§12.5, also Phase 3). |
+| **§29.3 Load models (Uniform + Poisson + Diurnal + Burst)** | Phase 3 | W11-16 | The four load models needed for the Validate, Stress, Forecast, and Chaos activities in Simulate mode MVP. |
+| **§29.2 HDR Histogram metrics engine** | Phase 4 | W17-22 | Full metrics engine with both HDR (latency) and T-Digest (cost). Phase 3 ships with a simpler ring-buffer-only metrics strip; Phase 4 upgrades to HDR + lifetime percentiles. |
+| **§29.3 Load models (Zipfian + Segment-mix + Per-endpoint + Trace-replay)** | Phase 4 | W17-22 | The four "advanced" load models. Trace replay ships with Alibaba 2018 only; Google 2011 and Meta F4 in Phase 5. |
+| **§29.6 Edge routing (algorithm 4: force-directed)** | Phase 4 | W17-22 | Needed for Service Mesh diagrams, which land in the second content drop. |
+| **§29.7 Auto-layout (ELK + radial)** | Phase 4 | W17-22 | ELK for Deployment / Network topology diagrams. Radial for blast-radius views. |
+| **§29.4 Cascade engine — full hysteresis tuning** | Phase 4 | W17-22 | After real-incident replays are authored (§12.5), tune amplification constants against their published timelines. This is the scream-test validation. |
+| **§29.8 Deterministic replay** | Phase 5 | W23-28 | The biggest infra investment. Requires the event log format to be stable (Phase 3/4 work), and the what-if-engine.ts file to be updated in place. Also enables Replay-Share (Q41). |
+| **§29.9 Span-tree waterfall tracing** | Phase 5 | W23-28 | Requires Phase 3 spans to have been plumbed through the engine. UI surface lands here. |
+| **§29.6 Edge bundling (algorithm 5)** | Phase 5 | W23-28 | Polish pass; the one routing algorithm that is nice-to-have, not critical. Flagged for cut if Phase 5 is tight. |
+| **§29.10 Multiplayer (Co-op Pair via Yjs)** | Phase 6 | Month 7+ | Post-launch. Aligned with §26 Non-Goals carve-out ("deferred, not killed"). |
+
+**Summary by phase.**
+
+- **Phase 2 (Learn mode + scaffolding, W7-10, 180h):** Clock model, rendering hybrid, 4 of 6 routing algorithms, 4 of 6 layout algorithms. The canvas substrate is complete.
+- **Phase 3 (Simulate + Drill MVP, W11-16, 280h):** Cascade physics (basic), 4 of 8 load models, basic metrics strip, chaos ribbon cinematics. The wind tunnel first spins.
+- **Phase 4 (Content expansion + wild cards, W17-22, 200h):** HDR histograms, 4 advanced load models, force-directed routing, ELK + radial layout, cascade physics tuning against real incidents. The engine becomes accurate.
+- **Phase 5 (Architect's Studio final polish, W23-28, 180h):** Deterministic replay, span-tree waterfall, edge bundling. The engine becomes replayable, traceable, and beautiful.
+- **Phase 6 (Ecosystem, Month 7+):** Multiplayer Co-op Pair. The engine becomes shared.
+
+**Critical path.** The single hardest deliverable is §29.8 Deterministic Replay in Phase 5. It touches three existing files (`time-travel.ts`, `what-if-engine.ts`, `metrics-engine.ts`), introduces a new subsystem (snapshots + event log + seeded RNG), and must preserve bit-identical replay across machines. Budget accordingly; do not cut scope on this one without explicit product sign-off — it is the foundation of shareable drills (Q41), What-If branching (§8.6.7), and every post-launch pedagogical extension.
+
+**Out-of-scope for Phase 6 but tracked.** N-user classroom mode (Teacher Mode variant). Voice pair sessions. Multi-region simulation (real regions, real latency). These are F-tier bets (F1-F12 from LLD's "wild-card" taxonomy).
+
+---
+
+### 29.12 Open Questions (engineering-scoped, non-blocking)
+
+Each of the following is flagged for discussion during or after the relevant Phase. None block spec acceptance.
+
+1. **HDR vs T-Digest standardization (§29.2).** We currently specify HDR Histogram for latency and T-Digest for cost. Standardizing on HDR for both would reduce bundle size by ~8 KB but requires careful configuration of `highestTrackableValue` for cost (which can span 6 orders of magnitude). Bench before Phase 4.
+2. **Routing algorithm cut (§29.6).** Is shipping all 6 routing algorithms realistic for Phases 2-5? Recommended cut: edge bundling (algorithm 5) deferred from Phase 3 to Phase 5. Recommended accepted; flagged for review if Phase 5 is tight.
+3. **Cascade amplification constants (§29.4).** Current constants come from the brainstorm. Need empirical validation against the 10 real-incident replays (§12.5) before Phase 3 ships. If validation fails by > 30% on cascade duration, we re-tune, not re-architect.
+4. **Trace replay dataset licensing (§29.3).** Alibaba 2018, Google 2011, Meta F4 are academic datasets. Confirm redistribution license allows bundling in a commercial product. Legal review before Phase 4.
+5. **Live Pair Session reconciliation (§29.10).** The task brief references a "Live Pair Session" in §19 / B10·Q41; the current §19 has no such feature (Q41 is Shareability). Either §19 needs a new sub-section in Phase 6 ("Live Pair Session"), or §29.10 stands alone as the definitive reference. Defer to Phase 6 planning.
+6. **Non-Goal reconciliation (§29.10 vs §26).** §26 Non-Goals says "no real-time multiplayer simulation". §29.10 schedules it for Phase 6. §26 already allows deferred-not-killed features. Add a footnote to §26 pointing at §29.10 for clarity, or defer footnote to Phase 6 re-spec.
+7. **Per-edge routing override UX (§29.6).** We specify that users can override the default routing per-edge. The UX surface is unspecified. Likely a right-click edge menu, "Route as: [dropdown]". Resolve during Phase 2 Build mode UX pass.
+8. **Snapshot compression strategy (§29.8).** We assume `JSON.stringify` + gzip. Might be worth Protobuf or MessagePack if snapshot sizes creep past 100 KB. Bench before Phase 5.
+9. **CRDT bundle size (§29.10).** Yjs adds ~40 KB gzipped. Acceptable for Phase 6 where multiplayer is opt-in; add a dynamic import so users never opting into multiplayer never ship the bundle.
+10. **WebWorker vs main-thread for ELK (§29.7).** We specify WebWorker to avoid blocking. Need to confirm the ReactFlow v12 integration handles async layout correctly without flicker. Prototype in Phase 2.
+11. **Determinism of floating-point physics (§29.4, §29.8).** IEEE 754 is not bit-identical across architectures in all operations. If cross-machine replay fails bit-identity on, say, ARM vs x86, we switch to fixed-point math for the critical physics loops. Tested in Phase 5.
+12. **Frame budget under 500 nodes + 10k particles (§29.5).** Claimed 60fps on M1 MacBook Air. Validate on Intel MacBook (2019) and a Windows laptop with integrated GPU. If 40fps is the best we can do on lower-tier hardware, communicate the spec honestly and gate the particle layer with a quality setting.
+
+---
+
+### 29.13 Section summary · how to read this section alongside the rest of the spec
+
+§29 is the **engine documentation**. The rest of the spec is the **product documentation**. When you implement:
+
+- Open this file when you need to know "what physics do I implement" or "what library do I import".
+- Open §8 when you need to know "what does the Simulate UI look like".
+- Open §11 when you need to know "what diagrams exist and what their vocabulary is".
+- Open §12 when you need to know "what chaos events fire and what narration plays".
+
+The numbers in §29 drive the experiences in §8/§11/§12. If the numbers are wrong, the experiences feel wrong. If the numbers are right, the experiences feel inevitable — the living-lab principle in practice.
+
+This is the last section of the SD rebuild spec. When a reader gets here, they have read 29 sections + a TOC + a 54+10 decision record and now know exactly what needs to be built and why. The next artifact after this spec is the implementation plan (see §23 Phased Implementation).
+
+---
+
+*End of spec.*
+
 
 
 
