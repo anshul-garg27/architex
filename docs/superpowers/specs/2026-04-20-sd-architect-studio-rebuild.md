@@ -2016,6 +2016,85 @@ This grounds the whole pedagogy stack in published research. The product is not 
 
 ---
 
+## 17. Cross-Module Seamlessness
+
+> "One profile. One streak. One palette. One muscle memory. Four modules, one Architex."
+
+### 17.1 The knowledge graph (Q5, Q35)
+
+See §4.4 for the full graph definition. Restated briefly for this section:
+
+- Every concept / problem / pattern / chaos event is a node
+- Edges encode prerequisite, uses, related, cross-module bridge
+- Navigation: (1) permanent neighbor sidebar on every page · (2) end-of-page link cards · (3) graph view (⌘G)
+
+### 17.2 Bridge cards (Q32, Q35)
+
+A **cross-module bridge card** is one of the 8 canonical content formats. It appears end-of-page and as a floating recommendation in the neighbor sidebar.
+
+Example bridge cards on the SD Twitter problem page:
+- → **LLD: Observer pattern** · "How does the fan-out queue notify follower timelines? The Observer pattern gives you the object model."
+- → **LLD: Pub-Sub pattern** · "Observer + a queue = Pub-Sub. Same primitive, different abstraction level."
+- → **Algorithms: Consistent Hashing** · "When you shard timelines by user id, you'll want this."
+- → **OS&DB: Write-ahead logs** · "The durability layer under your writes."
+
+Each bridge has a 1-2 sentence *relevance* caption, not a dry "related link". Users understand *why* to click.
+
+### 17.3 Unified profile (Q36)
+
+Single profile, multiple module lenses.
+
+- **One streak** · shared across all modules. Any activity in any module counts toward the streak (Review card, Learn scroll, Build save, Simulate run, Drill attempt, Algorithms kata).
+- **One FSRS queue** · mixes cards from SD, LLD, Algorithms, OS&DB. Today's queue might be 5 SD cards + 2 LLD cards + 3 Algorithms. FSRS schedules cards agnostic of module.
+- **Per-module lenses** · the profile page has tabs: Overview · SD · LLD · Algorithms · OS&DB. Each tab shows module-specific progress rings, rubric history, mastered-concepts list.
+- **Overall progress visualization** · a unified radar chart shows "Distributed Systems · Object Design · Algorithmic Thinking · Operating Systems" on 4 axes. This is the persona-identifier. Architects want all four axes high.
+
+### 17.4 Universal shortcuts (Q37 · all 8)
+
+| Shortcut | Action |
+|---|---|
+| **⌘K** | Universal command palette (cmdk). Fuzzy search across modules. Jumps to any concept, problem, pattern, saved diagram. |
+| **⌘,** | Profile + settings. Quick switch between module lenses. |
+| **⌘⇧M** | Module switcher overlay. Shows 4 modules + Review + Profile as a grid. Jump anywhere in 1 second. |
+| **⌘G** | Graph view. Zoomable 2D knowledge map. Overlays current page. |
+| **⌘R** | Review. Opens today's FSRS queue immediately. |
+| **⌘?** | Shortcuts sheet. Context-aware: shows universal + mode-specific. |
+| **NL queries** | Type free text into ⌘K: "show me problems that use consistent hashing" → Sonnet query parsed into graph query. ~$0.01 per query. |
+| **⌘[** / **⌘]** | Jump back / forward through recent pages (same as browser history). |
+
+Shortcuts are identical across modules. Learning them once in LLD applies in SD. This is the **muscle-memory invariant** (Q29).
+
+### 17.5 DB-first persistent state (Q38)
+
+Already touched in §4 and §7. Summarized here.
+
+- Every mutation writes through to Postgres within 10 seconds.
+- localStorage is read-through cache only.
+- On login on a new device, the user resumes exactly where they left off: same mode, same scroll, same mid-drill timer, same canvas state.
+- Conflict resolution: last-write-wins per field; per-diagram, the newer `updatedAt` wins; for FSRS records, union with max of `reps` and `lapses`.
+
+### 17.6 Daily dashboard (Q39)
+
+See §4.5. Restated with cross-module emphasis:
+
+- **Streak pill** · unified across modules
+- **FSRS queue** · mixed card types
+- **Resume** · any module, any mode
+- **AI recommended** · Sonnet's pick across modules, based on unified progress
+
+The dashboard is the same dashboard for SD / LLD / Algorithms / OS&DB. The module switcher above the cards lets a user filter if they want — but the default is everything.
+
+### 17.7 Progress-aware AI context (Q40)
+
+Every AI call (see §15.6) carries the full `UserContext` including other modules' progress. The SD whisper coach knows a user has Mastered LLD's Observer pattern, and can phrase a suggestion as "This is a fan-out, similar to LLD Observer. Consider a queue + async workers." The coach speaks to a *whole* engineer.
+
+### 17.8 Cross-module bridges by design (not bolted on)
+
+A non-negotiable: **every concept, problem, and pattern is co-written with at least 2 cross-module bridges**. Opus writes the bridge text as part of authoring the primary content. No "related articles" scraper; all bridges are hand-made. A concept without bridges fails QA and doesn't ship.
+
+---
+
+
 
 
 
