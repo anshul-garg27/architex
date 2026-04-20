@@ -1268,6 +1268,174 @@ Review is the primary mobile experience. First-run mobile experience is Review m
 
 ---
 
+## 11. Canvas & Diagram System
+
+> "A canvas is a vocabulary. The richer the vocabulary, the more truthful the design."
+
+The canvas is the most-used surface in the product. It appears in Build, Simulate, Drill, and read-only in Learn. Its vocabulary was specified in Batch 11.
+
+### 11.1 Ten diagram types (Q47)
+
+Each type has its own node palette, its own edge semantics, its own layout rules. Users can switch types per-tab within the same project.
+
+| Type | Purpose | Default layout |
+|---|---|---|
+| **1 · Architecture (boxes)** | The default. High-level system with services and databases. | Layered (left-to-right: client → edge → app → data) |
+| **2 · Sequence** | Request flow across services over time. | Swimlanes + vertical time axis |
+| **3 · Deployment topology** | Physical/logical placement: regions, zones, VPCs, containers. | Nested groups |
+| **4 · Data flow** | Sources → transforms → sinks. For pipelines, CDC, ETL. | Left-to-right pipeline |
+| **5 · State machine** | Entity lifecycle. For order state, payment state, session state. | Circular/force-directed |
+| **6 · ER (entity-relationship)** | Persistent data model. Tables, columns, relationships. | Auto-layered |
+| **7 · Network topology** | Routers, firewalls, VPNs, peering. For network-design problems. | Free-layout with grouping |
+| **8 · Swimlanes (Conway's Law visible)** | Services grouped by owning team. Shows team-boundary friction. | Horizontal swimlanes per team |
+| **9 · Service mesh** | Sidecars, control-plane, mTLS edges. For microservice infrastructure. | Concentric — data plane inner, control plane outer |
+| **10 · Cascade / blast-radius graph** | Which failure cascades where. Edges weighted by cascade probability. | Force-directed, hub-and-spoke |
+
+Switching types on a canvas with existing content runs a **projection** — preserves node identity, remaps edge semantics if needed, prompts the user on ambiguous mappings. E.g. promoting an Architecture diagram to a Deployment Topology asks "Which region does [service] run in?" for each service.
+
+### 11.2 Sixteen node families (Q48)
+
+The core vocabulary. Each family has an icon, a color band, a set of valid configs, and a simulation model in `failure-modes.ts`.
+
+| # | Family | Examples / sub-types |
+|---|---|---|
+| 1 | **Client tier** | Browser, mobile app, IoT device, backend service as client |
+| 2 | **Edge & CDN** | CloudFront, Fastly, Cloudflare, Akamai |
+| 3 | **Load balancers** | L4 (AWS NLB), L7 (ALB, Envoy, nginx), DNS (Route53), anycast |
+| 4 | **API gateways** | AWS API Gateway, Kong, Zuul, in-house |
+| 5 | **App / service nodes** | Stateless service, stateful service, worker, cron, Lambda/Cloud Function |
+| 6 | **Databases · 6 flavors** | **6a relational** (Postgres, MySQL) · **6b document** (MongoDB, DynamoDB) · **6c column** (Cassandra, Scylla, BigQuery) · **6d key-value** (Redis, DynamoDB-KV, Memcached) · **6e graph** (Neo4j, Neptune) · **6f time-series** (InfluxDB, TimescaleDB, Prometheus) |
+| 7 | **Caches** | In-process, Redis, Memcached, CDN-cache |
+| 8 | **Queues & streams** | SQS, RabbitMQ, Kafka, Kinesis, Pub/Sub |
+| 9 | **Object / file storage** | S3, GCS, Azure Blob, HDFS |
+| 10 | **Search & analytics** | Elasticsearch, OpenSearch, Algolia, Snowflake, BigQuery (analytic) |
+| 11 | **Observability** | Prometheus, Datadog, Sentry, Jaeger, Grafana |
+| 12 | **Auth & identity** | OAuth provider, SSO, session store, IAM |
+| 13 | **3rd-party external** | Stripe, Twilio, SendGrid, OpenAI API — anything outside the trust boundary |
+| 14 | **Containers / regions / zones** | Region group, AZ group, Kubernetes cluster, VPC |
+| 15 | **Replicated / sharded badges** | Modifier, not a standalone node — applied to database or cache node to indicate replication topology or shard count |
+| 16 | **Edge types** | Also a modifier: solid edge = synchronous call, dashed = asynchronous, dotted = batch / periodic |
+
+Total: 16 families, 6 database sub-flavors, 3 edge modifiers. The grammar is rich enough to express 95%+ of real production architectures.
+
+### 11.3 Node configuration schema
+
+Each node carries a config object. Properties panel (§7.5) is generated from the family's schema. Config affects simulation behavior:
+
+```typescript
+interface SDNode {
+  id: string
+  family: NodeFamily  // 1..14
+  subtype?: string    // within family
+  name: string
+  region?: string
+  replication?: "none" | "leader-follower" | "multi-leader" | "leaderless"
+  shardCount?: number
+  consistency?: "strong" | "sequential" | "causal" | "eventual"
+  qpsTarget?: number
+  storageGB?: number
+  cpuCores?: number
+  memoryGB?: number
+  provider: "aws" | "gcp" | "azure" | "abstract" | "bare-metal"
+  instanceType?: string  // provider-specific
+  costOverride?: number  // user-specified $/hr if not a preset
+  failureModel?: FailureModelRef  // from failure-modes.ts
+  notes?: string
+}
+
+interface SDEdge {
+  source: string
+  target: string
+  kind: "sync" | "async" | "batch"
+  protocol?: "http" | "grpc" | "websocket" | "tcp" | "custom"
+  latencyBudgetMs?: number
+  payloadSizeKB?: number
+}
+```
+
+Validation runs on every save. Misconfigurations surface as anti-pattern warnings (§14).
+
+### 11.4 Ten overlays (Q49)
+
+Enumerated briefly in §7.7. Expanded here for clarity. Overlays are compositional — multiple can be active simultaneously. Each uses a single color channel so they don't fight each other.
+
+| Overlay | Color channel | Rendering |
+|---|---|---|
+| Latency heat | Node border | Gradient green → yellow → red |
+| Cost heat | Node fill shade | Low-alpha fill; darker = more expensive |
+| Blast radius | Outline glow | Cobalt glow expanding through reachable downstream |
+| Request path trace | Edge stroke width | Thicker during animated trace |
+| Data locality | Node tint | Region-coded: us-east blue, us-west green, eu-west orange, ap red |
+| Layered views | Canvas opacity | Layer masks dim other layers to 30% |
+| Error rate live | Edge stroke dash | Increasing dash frequency as error rate rises |
+| Semantic zoom | Node detail | Configs hide at <40% zoom; only region labels at <10% |
+| Timeline scrub | Global | Scrubbing rewinds all overlays in sync |
+| 3D isometric | Global | Canvas tilts to 30° axonometric; nodes render as cuboids |
+
+3D isometric is a visual flourish (Q49). Performance-hungry. Off by default. The brainstorm noted this as "optional spectacle" — keep it as a toggle, not a default.
+
+### 11.5 Canvas engine layering
+
+```
+┌──────────────────────────────────────────┐
+│   ReactFlow (base)                        │
+│   ├─ Custom node renderers (16 families)  │
+│   ├─ Custom edge renderers (3 kinds)      │
+│   ├─ A* edge routing                      │
+│   ├─ Dagre / Elk auto-layout              │
+│   └─ Minimap + controls                   │
+│                                           │
+│   Overlay layer (compositional)           │
+│   ├─ Latency heat                         │
+│   ├─ Cost heat                            │
+│   ├─ Blast radius                         │
+│   ├─ Data locality                        │
+│   └─ Layered views                        │
+│                                           │
+│   Particle layer (Simulate only)          │
+│   ├─ Request particles                    │
+│   ├─ Edge flow rates                      │
+│   └─ Node breathing animation             │
+│                                           │
+│   Cinematic layer (Simulate only)         │
+│   ├─ Chaos ribbon                         │
+│   ├─ Red vignette                          │
+│   └─ Margin narrative stream              │
+│                                           │
+│   Blueprint/Hand-drawn rendering modes    │
+│   └─ SVG filter passes (Q53)              │
+└──────────────────────────────────────────┘
+```
+
+Particle and cinematic layers are only mounted in Simulate. In Build, they exist in the DOM but are paused. Zero teardown/re-init on mode switch.
+
+### 11.6 Visual rendering modes (Q53)
+
+Each mode is a single-click toggle. All run on the same underlying canvas state.
+
+1. **Blueprint paper** · cyan/navy palette, graph-paper background, architect-blueprint font (Archivo, condensed). Looks like a drafting-table printout.
+2. **Hand-drawn** · rough.js rendering pass, wobble filter, Caveat handwritten labels. Looks like Excalidraw or a whiteboard photo.
+3. **Animated data flow particles** · always on during Simulate; optional in Build.
+4. **Node breathing** · subtle 4s pulse at each node's current QPS rate. During Simulate, the pulse speeds up with load.
+5. **Serif labels** · IBM Plex Serif for node labels. Gives the diagram a magazine quality.
+6. **Ambient sound** · see §15 and §20.
+7. **Failure cinematography** · the full chaos pulse choreography (§8.9).
+8. **Context-aware node icons** · each node family has 4-6 icon variants. The renderer picks based on subtype (e.g. database family shows Postgres elephant icon vs. MongoDB leaf vs. Cassandra cross based on subtype). Small detail; enormous atmosphere.
+
+Rendering modes stack. The default is **Serif labels + animated particles + context-aware icons** (a premium "studio" look). A user can switch to blueprint or hand-drawn for a different mood.
+
+### 11.7 Performance budget
+
+Canvas target: 60 FPS with up to 80 nodes and 150 edges in Build mode, 40 FPS with particle layer active in Simulate mode. Hard ceilings:
+- Node count: 200 (soft warning at 100)
+- Edge count: 400 (soft warning at 200)
+- Particle count: 800 in flight (auto-sampled down if load exceeds)
+
+Past these, the UI surfaces a "You're approaching diagram limits — consider extracting a sub-diagram" nudge.
+
+---
+
+
 
 
 
