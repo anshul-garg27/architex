@@ -6697,3 +6697,536 @@ EOF
 ```
 
 ---
+
+## Task 17: Author rubric grader + postmortem + post-run summarizer
+
+**Files:**
+- Create: `architex/src/lib/ai/sd-rubric-grader.ts`
+- Create: `architex/src/lib/ai/sd-postmortem-generator.ts`
+- Create: `architex/src/lib/ai/sd-post-run-summarizer.ts`
+- Create: `architex/src/lib/ai/__tests__/sd-rubric-grader.test.ts`
+
+Three Sonnet-backed analysis features that fire at drill submission:
+
+1. **Rubric grader** (§9.9): produces a 6-axis score (Requirements · Estimation · HL Design · Deep Dive · Communication · Tradeoffs) with one-sentence rationale each.
+2. **Postmortem generator** (§9.8 artifact 2): writes a 200-400 word essay.
+3. **Post-run summarizer** (§15.3.3 S2): writes the Simulate-mode results-card narrative with triple-loop recommendations (Learn / Build / Drill).
+
+All three use the same Claude singleton + a structured JSON-output prompt. Fallback: deterministic axis scores + a templated postmortem.
+
+- [ ] **Step 1: Rubric grader — prompt + parser**
+
+```typescript
+// architex/src/lib/ai/sd-rubric-grader.ts
+
+/**
+ * AI-022: 6-axis rubric grader for drill submissions (§9.9).
+ *
+ * Inputs: final canvas, napkin math, clarification chat, stage timing,
+ * hint log, (optional) verbal transcript, persona + problem canonical
+ * rubric. Output: { axes: Record<Axis, {score: 1-5, rationale: string}>,
+ * overallScore: number }.
+ */
+
+import { claudeSingleton } from "./claude-client";
+import { getPersona, type SDPersona, type SDCompanyPreset } from "./sd-interviewer-prompts";
+
+export type RubricAxis =
+  | "requirements-scope"
+  | "estimation"
+  | "high-level-design"
+  | "deep-dive"
+  | "communication"
+  | "tradeoffs";
+
+export interface RubricAxisScore {
+  score: 1 | 2 | 3 | 4 | 5;
+  rationale: string;
+}
+
+export interface RubricBreakdown {
+  axes: Record<RubricAxis, RubricAxisScore>;
+  overallScore: number;  // weighted 1-5
+  graderModel: "sonnet" | "fallback";
+  graderVersion: string;
+  gradedAt: string;  // ISO
+}
+
+export interface GraderInput {
+  problemSlug: string;
+  persona: SDPersona;
+  companyPreset?: SDCompanyPreset;
+  canvas: unknown;
+  napkinMath?: { qps?: number; storage?: string; bandwidth?: string; notes?: string };
+  clarifyTranscript: Array<{ role: "user" | "assistant"; content: string }>;
+  deepDiveTranscript: Array<{ role: "user" | "assistant"; content: string }>;
+  stageTiming: Record<string, number>;
+  hintsUsed: Array<{ tier: "nudge" | "guided" | "full"; creditsDeducted: number }>;
+  verbalTranscript?: string;
+}
+
+const AXIS_ORDER: RubricAxis[] = [
+  "requirements-scope",
+  "estimation",
+  "high-level-design",
+  "deep-dive",
+  "communication",
+  "tradeoffs",
+];
+
+const DEFAULT_WEIGHTS: Record<RubricAxis, number> = {
+  "requirements-scope": 0.15,
+  estimation: 0.1,
+  "high-level-design": 0.25,
+  "deep-dive": 0.25,
+  communication: 0.1,
+  tradeoffs: 0.15,
+};
+
+export function buildGraderPrompt(input: GraderInput): string {
+  const persona = getPersona(input.persona, input.companyPreset);
+  return `You are grading a system-design interview.
+
+Persona the interview was conducted under:
+${persona.systemPrompt}
+
+Problem: ${input.problemSlug}
+
+Canvas (JSON): ${JSON.stringify(input.canvas).slice(0, 6000)}
+
+Napkin math: ${JSON.stringify(input.napkinMath ?? {})}
+
+Clarify transcript (last 10 turns):
+${input.clarifyTranscript.slice(-10).map((t) => `${t.role}: ${t.content}`).join("\n")}
+
+Deep-dive transcript (last 10 turns):
+${input.deepDiveTranscript.slice(-10).map((t) => `${t.role}: ${t.content}`).join("\n")}
+
+Stage timing (ms per stage): ${JSON.stringify(input.stageTiming)}
+
+Hints used (${input.hintsUsed.length} total): ${JSON.stringify(input.hintsUsed)}
+
+${input.verbalTranscript ? `Verbal transcript:\n${input.verbalTranscript.slice(0, 3000)}` : ""}
+
+Score on 6 axes (1-5 each, 1=broken, 3=acceptable, 5=principal-grade).
+Each axis requires a one-sentence rationale that references specific
+evidence from the canvas, transcript, or timing.
+
+Output VALID JSON only:
+{
+  "axes": {
+    "requirements-scope":  { "score": 1|2|3|4|5, "rationale": "..." },
+    "estimation":          { "score": 1|2|3|4|5, "rationale": "..." },
+    "high-level-design":   { "score": 1|2|3|4|5, "rationale": "..." },
+    "deep-dive":           { "score": 1|2|3|4|5, "rationale": "..." },
+    "communication":       { "score": 1|2|3|4|5, "rationale": "..." },
+    "tradeoffs":           { "score": 1|2|3|4|5, "rationale": "..." }
+  }
+}
+
+No preamble. No commentary. JSON only.`;
+}
+
+export function computeOverallScore(
+  axes: RubricBreakdown["axes"],
+  weights: Record<RubricAxis, number> = DEFAULT_WEIGHTS,
+): number {
+  let sum = 0;
+  let totalWeight = 0;
+  for (const axis of AXIS_ORDER) {
+    const w = weights[axis];
+    sum += axes[axis].score * w;
+    totalWeight += w;
+  }
+  return sum / totalWeight;
+}
+
+export async function gradeRubric(
+  input: GraderInput,
+): Promise<RubricBreakdown> {
+  const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+  if (!hasKey) {
+    return fallbackGrade(input);
+  }
+  const prompt = buildGraderPrompt(input);
+  try {
+    const res = await claudeSingleton().sonnet({
+      system: "Return VALID JSON only. No preamble.",
+      messages: [{ role: "user", content: prompt }],
+      maxTokens: 1200,
+      temperature: 0.2,
+    });
+    const parsed = JSON.parse(res.text) as { axes: RubricBreakdown["axes"] };
+    return {
+      axes: parsed.axes,
+      overallScore: computeOverallScore(parsed.axes),
+      graderModel: "sonnet",
+      graderVersion: "2026-04-20",
+      gradedAt: new Date().toISOString(),
+    };
+  } catch {
+    return fallbackGrade(input);
+  }
+}
+
+/** Deterministic fallback grade. Produces credible-looking 3.5/5 range with rationale. */
+export function fallbackGrade(input: GraderInput): RubricBreakdown {
+  const hintPenalty = Math.min(1.5, input.hintsUsed.length * 0.15);
+  const base: 1 | 2 | 3 | 4 | 5 = 3;
+  const axes = Object.fromEntries(
+    AXIS_ORDER.map((a) => [
+      a,
+      {
+        score: Math.max(1, Math.round(base - hintPenalty * 0.5)) as 1 | 2 | 3 | 4 | 5,
+        rationale: `Fallback grade (no AI key). Axis: ${a}. Canvas has ${JSON.stringify(input.canvas).slice(0, 50)}.`,
+      } as RubricAxisScore,
+    ]),
+  ) as RubricBreakdown["axes"];
+  return {
+    axes,
+    overallScore: computeOverallScore(axes),
+    graderModel: "fallback",
+    graderVersion: "2026-04-20-fallback",
+    gradedAt: new Date().toISOString(),
+  };
+}
+```
+
+- [ ] **Step 2: Postmortem generator**
+
+```typescript
+// architex/src/lib/ai/sd-postmortem-generator.ts
+
+/**
+ * AI-023: Sonnet postmortem generator (§9.8 artifact 2).
+ * 200-400 word essay · honest · calls out specific misses.
+ */
+
+import { claudeSingleton } from "./claude-client";
+import type { GraderInput, RubricBreakdown } from "./sd-rubric-grader";
+
+export interface Postmortem {
+  essay: string;
+  keyMisses: string[];
+  keyStrengths: string[];
+  generatedModel: "sonnet" | "fallback";
+  generatedAt: string;
+}
+
+export async function generatePostmortem(
+  input: GraderInput,
+  rubric: RubricBreakdown,
+): Promise<Postmortem> {
+  const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+  if (!hasKey) {
+    return fallbackPostmortem(input, rubric);
+  }
+  const prompt = `You are writing a postmortem for a system-design interview.
+The candidate interviewed on: ${input.problemSlug}
+Overall score: ${rubric.overallScore.toFixed(2)}/5
+
+Axis breakdown:
+${Object.entries(rubric.axes)
+  .map(([k, v]) => `  - ${k}: ${v.score}/5 · ${v.rationale}`)
+  .join("\n")}
+
+Hints used: ${input.hintsUsed.length}
+Stage timing: ${JSON.stringify(input.stageTiming)}
+
+Write a 250-400 word postmortem. Structure:
+  - Paragraph 1: the strongest moment of the interview (with specific evidence).
+  - Paragraph 2: the biggest miss (specific; cite evidence).
+  - Paragraph 3: the 3 things to practice before the next interview.
+
+Voice: honest, direct, peer-to-peer. Not cheerleader. Not harsh. Not generic.
+
+Output VALID JSON:
+{
+  "essay": "<the 3-paragraph essay>",
+  "keyMisses": ["miss-1", "miss-2", "miss-3"],
+  "keyStrengths": ["strength-1", "strength-2"]
+}`;
+  try {
+    const res = await claudeSingleton().sonnet({
+      system: "Return VALID JSON only.",
+      messages: [{ role: "user", content: prompt }],
+      maxTokens: 1500,
+      temperature: 0.4,
+    });
+    const parsed = JSON.parse(res.text);
+    return { ...parsed, generatedModel: "sonnet", generatedAt: new Date().toISOString() };
+  } catch {
+    return fallbackPostmortem(input, rubric);
+  }
+}
+
+function fallbackPostmortem(
+  input: GraderInput,
+  rubric: RubricBreakdown,
+): Postmortem {
+  const worst = Object.entries(rubric.axes).sort(
+    ([, a], [, b]) => a.score - b.score,
+  )[0];
+  return {
+    essay: `You scored ${rubric.overallScore.toFixed(2)}/5 on ${input.problemSlug}. The weakest axis was ${worst[0]} (${worst[1].score}/5). Full postmortem requires an ANTHROPIC_API_KEY.`,
+    keyMisses: [worst[0]],
+    keyStrengths: [],
+    generatedModel: "fallback",
+    generatedAt: new Date().toISOString(),
+  };
+}
+```
+
+- [ ] **Step 3: Post-run summarizer (Simulate mode · §15.3.3 S2)**
+
+```typescript
+// architex/src/lib/ai/sd-post-run-summarizer.ts
+
+/**
+ * AI-024: Sonnet post-run summarizer for Simulate results cards (§8.7).
+ * Writes the results-card narrative + the 3 triple-loop recommendations
+ * (Learn / Build / Drill).
+ */
+
+import { claudeSingleton } from "./claude-client";
+import type { MetricsSnapshot } from "../simulation/adapters/hdr-metrics";
+
+export interface PostRunInput {
+  activityKind:
+    | "validate"
+    | "stress"
+    | "chaos-drill"
+    | "compare-ab"
+    | "forecast"
+    | "archaeology";
+  slosPassed: boolean | null;
+  finalMetrics: MetricsSnapshot;
+  narrativeStreamTail: string[];
+  chaosEventsFired: number;
+  topThreeHotSpots: string[];
+}
+
+export interface PostRunSummary {
+  narrative: string;
+  learnRec: { conceptSlug: string; reason: string };
+  buildRec: { action: string; reason: string };
+  drillRec: { problemSlug: string; persona: string; reason: string };
+  generatedModel: "sonnet" | "fallback";
+  generatedAt: string;
+}
+
+export async function summarizePostRun(
+  input: PostRunInput,
+): Promise<PostRunSummary> {
+  const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+  if (!hasKey) {
+    return fallbackPostRun(input);
+  }
+  const prompt = `You are writing the results-card narrative for a system-design simulation.
+
+Activity: ${input.activityKind}
+SLOs passed: ${input.slosPassed}
+Final metrics: p50=${input.finalMetrics.p50}ms p99=${input.finalMetrics.p99}ms p99.9=${input.finalMetrics.p99_9}ms
+Chaos events fired: ${input.chaosEventsFired}
+Top 3 hot-spots: ${input.topThreeHotSpots.join(", ")}
+Narrative-stream tail:
+${input.narrativeStreamTail.slice(-6).map((s) => `  ${s}`).join("\n")}
+
+Output VALID JSON with 4 fields:
+{
+  "narrative": "<2-3 sentences summarizing what happened>",
+  "learnRec": { "conceptSlug": "<slug>", "reason": "<1 sentence>" },
+  "buildRec": { "action": "<short imperative>", "reason": "<1 sentence>" },
+  "drillRec": { "problemSlug": "<slug>", "persona": "<persona>", "reason": "<1 sentence>" }
+}`;
+  try {
+    const res = await claudeSingleton().sonnet({
+      system: "Return VALID JSON only.",
+      messages: [{ role: "user", content: prompt }],
+      maxTokens: 700,
+      temperature: 0.4,
+    });
+    const parsed = JSON.parse(res.text);
+    return { ...parsed, generatedModel: "sonnet", generatedAt: new Date().toISOString() };
+  } catch {
+    return fallbackPostRun(input);
+  }
+}
+
+function fallbackPostRun(input: PostRunInput): PostRunSummary {
+  return {
+    narrative: `Run completed. SLOs ${input.slosPassed ? "passed" : "failed"}; ${input.chaosEventsFired} chaos events fired. Full recommendations require an ANTHROPIC_API_KEY.`,
+    learnRec: { conceptSlug: "caching-strategies", reason: "Generic fallback recommendation." },
+    buildRec: { action: "Add a circuit breaker on your slowest call", reason: "Generic fallback." },
+    drillRec: { problemSlug: "design-twitter", persona: "staff", reason: "Generic fallback." },
+    generatedModel: "fallback",
+    generatedAt: new Date().toISOString(),
+  };
+}
+```
+
+- [ ] **Step 4: Grader test**
+
+```typescript
+// architex/src/lib/ai/__tests__/sd-rubric-grader.test.ts
+
+import { describe, expect, it, vi } from "vitest";
+import {
+  buildGraderPrompt,
+  computeOverallScore,
+  fallbackGrade,
+  type GraderInput,
+} from "../sd-rubric-grader";
+
+const input: GraderInput = {
+  problemSlug: "design-twitter",
+  persona: "staff",
+  canvas: { nodes: [], edges: [] },
+  clarifyTranscript: [{ role: "user", content: "What are the SLOs?" }],
+  deepDiveTranscript: [],
+  stageTiming: { clarify: 300_000, design: 900_000, "deep-dive": 900_000 },
+  hintsUsed: [],
+};
+
+describe("sd-rubric-grader", () => {
+  it("buildGraderPrompt mentions canvas and problem", () => {
+    const p = buildGraderPrompt(input);
+    expect(p).toContain("design-twitter");
+    expect(p).toContain("Canvas");
+  });
+
+  it("computeOverallScore blends per-axis weights", () => {
+    const axes = Object.fromEntries(
+      ["requirements-scope", "estimation", "high-level-design", "deep-dive", "communication", "tradeoffs"].map((a) => [
+        a,
+        { score: 3 as const, rationale: "" },
+      ]),
+    ) as any;
+    expect(computeOverallScore(axes)).toBe(3);
+  });
+
+  it("fallbackGrade applies hint penalty", () => {
+    const noPenalty = fallbackGrade(input);
+    const withPenalty = fallbackGrade({ ...input, hintsUsed: [
+      { tier: "full", creditsDeducted: 5 },
+      { tier: "full", creditsDeducted: 5 },
+      { tier: "full", creditsDeducted: 5 },
+    ] });
+    expect(withPenalty.overallScore).toBeLessThan(noPenalty.overallScore);
+  });
+
+  it("fallbackGrade marks graderModel as fallback", () => {
+    const r = fallbackGrade(input);
+    expect(r.graderModel).toBe("fallback");
+  });
+});
+```
+
+- [ ] **Step 5: Run + commit**
+
+```bash
+cd architex
+pnpm test:run -- sd-rubric-grader
+git add architex/src/lib/ai/sd-rubric-grader.ts architex/src/lib/ai/sd-postmortem-generator.ts architex/src/lib/ai/sd-post-run-summarizer.ts architex/src/lib/ai/__tests__/sd-rubric-grader.test.ts
+git commit -m "$(cat <<'EOF'
+feat(ai): 6-axis rubric grader + postmortem + post-run summarizer
+
+Three Sonnet-backed analysis features firing at drill/sim submission.
+gradeRubric: 6 axes × 1-5 scores with per-axis rationale + weighted
+overall. generatePostmortem: 250-400 word 3-paragraph essay.
+summarizePostRun: Simulate results-card narrative + triple-loop
+Learn/Build/Drill recommendations. All three have deterministic
+fallbacks; graderModel field marks which path produced the output.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 18: Author `red-team-chaos-planner.ts` — Sonnet adversary planner (wiring side)
+
+**Files:**
+- Create: `architex/src/lib/ai/red-team-chaos-planner.ts`
+
+Complements Task 11 (`src/lib/chaos/red-team-ai.ts` — validation side). This file owns the Sonnet call + retry + fallback. Returns a validated `ChaosScenarioDef`.
+
+```typescript
+/**
+ * AI-025: Red-team chaos planner (§12.4.6 wiring).
+ *
+ * Task 11 (src/lib/chaos/red-team-ai.ts) owns prompt building +
+ * validation. This file owns the Sonnet call, retry policy, and
+ * fallback (pick the hardest advanced scenario from chaos-scenarios).
+ */
+
+import { claudeSingleton } from "./claude-client";
+import {
+  buildRedTeamPrompt,
+  parseRedTeamResponse,
+  validateRedTeamScenario,
+} from "@/lib/chaos/red-team-ai";
+import type { ChaosScenarioDef } from "@/lib/chaos/chaos-scenarios";
+import { CHAOS_SCENARIOS } from "@/lib/chaos/chaos-scenarios";
+import type { CanvasSnapshot } from "@/lib/chaos/chaos-dice";
+
+const MAX_RETRIES = 2;
+
+export async function planRedTeamAttack(
+  canvas: CanvasSnapshot,
+  opts: { difficulty: "advanced" | "intermediate" | "beginner" },
+): Promise<{ scenario: ChaosScenarioDef; source: "sonnet" | "fallback" }> {
+  const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+  if (!hasKey) {
+    return { scenario: fallbackHardestScenario(), source: "fallback" };
+  }
+
+  const prompt = buildRedTeamPrompt(canvas, opts);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await claudeSingleton().sonnet({
+        system: "You are the red team. Return VALID JSON only.",
+        messages: [{ role: "user", content: prompt }],
+        maxTokens: 1500,
+        temperature: 0.7,
+      });
+      const parsed = parseRedTeamResponse(res.text);
+      validateRedTeamScenario(parsed);
+      return { scenario: parsed, source: "sonnet" };
+    } catch (err) {
+      if (attempt === MAX_RETRIES) {
+        return { scenario: fallbackHardestScenario(), source: "fallback" };
+      }
+      // retry with a firmer instruction
+    }
+  }
+  return { scenario: fallbackHardestScenario(), source: "fallback" };
+}
+
+export function fallbackHardestScenario(): ChaosScenarioDef {
+  const hardest = CHAOS_SCENARIOS.filter((s) => s.difficulty === "advanced");
+  return hardest[hardest.length - 1];
+}
+```
+
+- [ ] **Step 1: Commit**
+
+```bash
+cd architex
+git add architex/src/lib/ai/red-team-chaos-planner.ts
+git commit -m "$(cat <<'EOF'
+feat(ai): red-team chaos planner wiring (Sonnet call + 2-retry fallback)
+
+Pairs with src/lib/chaos/red-team-ai.ts (Task 11 validation side).
+planRedTeamAttack: Sonnet → parse → validate → return scenario. On
+validation failure: up to 2 retries, then fallback to the hardest
+advanced scenario from chaos-scenarios. Returns { scenario, source }
+so the UI can show an "AI-generated" vs "library-sourced" pill.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
