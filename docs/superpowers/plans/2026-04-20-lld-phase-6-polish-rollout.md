@@ -853,3 +853,1027 @@ EOF
 ```
 
 ---
+
+## Task 3: Create the compile-time event-name enum
+
+**Files:**
+- Create: `architex/src/lib/analytics/lld-events.enum.ts`
+- Create: `architex/src/lib/analytics/__tests__/lld-events.test.ts`
+
+**Design intent:** A flat `const` object with the event-name string literals becomes a single source-of-truth for PostHog. Runtime code uses the enum; tests reference the enum; the dashboard spec references the enum. If the union in `telemetry.ts` and the enum drift, a typecheck assertion catches it.
+
+- [ ] **Step 1: Write the enum (TDD — test first)**
+
+Create `architex/src/lib/analytics/__tests__/lld-events.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { LLD_EVENTS } from "../lld-events.enum";
+import type { LLDEventName } from "@/types/telemetry";
+
+describe("LLD_EVENTS enum", () => {
+  it("exports every name from the discriminated union", () => {
+    // This compile-time assertion fails if the enum misses an event.
+    const _check: Record<LLDEventName, LLDEventName> = {
+      lld_module_opened: LLD_EVENTS.MODULE_OPENED,
+      lld_mode_switched: LLD_EVENTS.MODE_SWITCHED,
+      lld_welcome_banner_shown: LLD_EVENTS.WELCOME_BANNER_SHOWN,
+      lld_welcome_banner_dismissed: LLD_EVENTS.WELCOME_BANNER_DISMISSED,
+      lld_lesson_opened: LLD_EVENTS.LESSON_OPENED,
+      lld_lesson_section_viewed: LLD_EVENTS.LESSON_SECTION_VIEWED,
+      lld_lesson_completed: LLD_EVENTS.LESSON_COMPLETED,
+      lld_checkpoint_attempted: LLD_EVENTS.CHECKPOINT_ATTEMPTED,
+      lld_checkpoint_revealed: LLD_EVENTS.CHECKPOINT_REVEALED,
+      lld_checkpoint_fsrs_rated: LLD_EVENTS.CHECKPOINT_FSRS_RATED,
+      lld_class_popover_opened: LLD_EVENTS.CLASS_POPOVER_OPENED,
+      lld_lesson_scroll_synced: LLD_EVENTS.LESSON_SCROLL_SYNCED,
+      lld_tinker_started: LLD_EVENTS.TINKER_STARTED,
+      lld_tinker_saved: LLD_EVENTS.TINKER_SAVED,
+      lld_contextual_ask_architect: LLD_EVENTS.CONTEXTUAL_ASK_ARCHITECT,
+      lld_build_canvas_edit: LLD_EVENTS.BUILD_CANVAS_EDIT,
+      lld_build_pattern_loaded: LLD_EVENTS.BUILD_PATTERN_LOADED,
+      lld_build_code_generated: LLD_EVENTS.BUILD_CODE_GENERATED,
+      lld_anti_pattern_detected: LLD_EVENTS.ANTI_PATTERN_DETECTED,
+      lld_ai_review_requested: LLD_EVENTS.AI_REVIEW_REQUESTED,
+      lld_drill_started: LLD_EVENTS.DRILL_STARTED,
+      lld_drill_paused: LLD_EVENTS.DRILL_PAUSED,
+      lld_drill_resumed: LLD_EVENTS.DRILL_RESUMED,
+      lld_drill_hint_used: LLD_EVENTS.DRILL_HINT_USED,
+      lld_drill_submitted: LLD_EVENTS.DRILL_SUBMITTED,
+      lld_drill_abandoned: LLD_EVENTS.DRILL_ABANDONED,
+      lld_drill_grade_reviewed: LLD_EVENTS.DRILL_GRADE_REVIEWED,
+      lld_review_session_started: LLD_EVENTS.REVIEW_SESSION_STARTED,
+      lld_review_card_shown: LLD_EVENTS.REVIEW_CARD_SHOWN,
+      lld_review_card_rated: LLD_EVENTS.REVIEW_CARD_RATED,
+      lld_review_session_completed: LLD_EVENTS.REVIEW_SESSION_COMPLETED,
+      lld_frustration_detected: LLD_EVENTS.FRUSTRATION_DETECTED,
+      lld_frustration_intervention_shown: LLD_EVENTS.FRUSTRATION_INTERVENTION_SHOWN,
+      lld_frustration_intervention_accepted: LLD_EVENTS.FRUSTRATION_INTERVENTION_ACCEPTED,
+      lld_spotlight_search_opened: LLD_EVENTS.SPOTLIGHT_SEARCH_OPENED,
+      lld_spotlight_search_executed: LLD_EVENTS.SPOTLIGHT_SEARCH_EXECUTED,
+      lld_share_card_generated: LLD_EVENTS.SHARE_CARD_GENERATED,
+      lld_feature_flag_evaluated: LLD_EVENTS.FEATURE_FLAG_EVALUATED,
+      lld_kill_switch_fired: LLD_EVENTS.KILL_SWITCH_FIRED,
+      lld_ab_exposure: LLD_EVENTS.AB_EXPOSURE,
+      lld_rollout_stage_changed: LLD_EVENTS.ROLLOUT_STAGE_CHANGED,
+      lld_error_boundary_caught: LLD_EVENTS.ERROR_BOUNDARY_CAUGHT,
+      lld_performance_metric: LLD_EVENTS.PERFORMANCE_METRIC,
+      lld_migration_advanced: LLD_EVENTS.MIGRATION_ADVANCED,
+    };
+    expect(Object.keys(_check).length).toBe(43);
+  });
+
+  it("every value is snake_case with lld_ prefix", () => {
+    for (const value of Object.values(LLD_EVENTS)) {
+      expect(value).toMatch(/^lld_[a-z0-9_]+$/);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run test (should fail — no enum yet)**
+
+```bash
+cd architex && pnpm test:run src/lib/analytics/__tests__/lld-events.test.ts
+```
+
+Expected: `Cannot find module '../lld-events.enum'`.
+
+- [ ] **Step 3: Create the enum**
+
+Create `architex/src/lib/analytics/lld-events.enum.ts`:
+
+```typescript
+/**
+ * Flat const enum of all LLD event names (Phase 6 Task 3).
+ *
+ * Keyed by UPPER_SNAKE constant, values are the wire-format names
+ * (lowercase snake_case with `lld_` prefix). Consumers should prefer
+ * `LLD_EVENTS.DRILL_SUBMITTED` to raw strings.
+ */
+
+export const LLD_EVENTS = {
+  // Shell
+  MODULE_OPENED: "lld_module_opened",
+  MODE_SWITCHED: "lld_mode_switched",
+  WELCOME_BANNER_SHOWN: "lld_welcome_banner_shown",
+  WELCOME_BANNER_DISMISSED: "lld_welcome_banner_dismissed",
+
+  // Learn
+  LESSON_OPENED: "lld_lesson_opened",
+  LESSON_SECTION_VIEWED: "lld_lesson_section_viewed",
+  LESSON_COMPLETED: "lld_lesson_completed",
+  CHECKPOINT_ATTEMPTED: "lld_checkpoint_attempted",
+  CHECKPOINT_REVEALED: "lld_checkpoint_revealed",
+  CHECKPOINT_FSRS_RATED: "lld_checkpoint_fsrs_rated",
+  CLASS_POPOVER_OPENED: "lld_class_popover_opened",
+  LESSON_SCROLL_SYNCED: "lld_lesson_scroll_synced",
+  TINKER_STARTED: "lld_tinker_started",
+  TINKER_SAVED: "lld_tinker_saved",
+  CONTEXTUAL_ASK_ARCHITECT: "lld_contextual_ask_architect",
+
+  // Build
+  BUILD_CANVAS_EDIT: "lld_build_canvas_edit",
+  BUILD_PATTERN_LOADED: "lld_build_pattern_loaded",
+  BUILD_CODE_GENERATED: "lld_build_code_generated",
+  ANTI_PATTERN_DETECTED: "lld_anti_pattern_detected",
+  AI_REVIEW_REQUESTED: "lld_ai_review_requested",
+
+  // Drill
+  DRILL_STARTED: "lld_drill_started",
+  DRILL_PAUSED: "lld_drill_paused",
+  DRILL_RESUMED: "lld_drill_resumed",
+  DRILL_HINT_USED: "lld_drill_hint_used",
+  DRILL_SUBMITTED: "lld_drill_submitted",
+  DRILL_ABANDONED: "lld_drill_abandoned",
+  DRILL_GRADE_REVIEWED: "lld_drill_grade_reviewed",
+
+  // Review
+  REVIEW_SESSION_STARTED: "lld_review_session_started",
+  REVIEW_CARD_SHOWN: "lld_review_card_shown",
+  REVIEW_CARD_RATED: "lld_review_card_rated",
+  REVIEW_SESSION_COMPLETED: "lld_review_session_completed",
+
+  // Cross-cutting
+  FRUSTRATION_DETECTED: "lld_frustration_detected",
+  FRUSTRATION_INTERVENTION_SHOWN: "lld_frustration_intervention_shown",
+  FRUSTRATION_INTERVENTION_ACCEPTED: "lld_frustration_intervention_accepted",
+  SPOTLIGHT_SEARCH_OPENED: "lld_spotlight_search_opened",
+  SPOTLIGHT_SEARCH_EXECUTED: "lld_spotlight_search_executed",
+  SHARE_CARD_GENERATED: "lld_share_card_generated",
+  FEATURE_FLAG_EVALUATED: "lld_feature_flag_evaluated",
+  KILL_SWITCH_FIRED: "lld_kill_switch_fired",
+  AB_EXPOSURE: "lld_ab_exposure",
+  ROLLOUT_STAGE_CHANGED: "lld_rollout_stage_changed",
+  ERROR_BOUNDARY_CAUGHT: "lld_error_boundary_caught",
+  PERFORMANCE_METRIC: "lld_performance_metric",
+  MIGRATION_ADVANCED: "lld_migration_advanced",
+} as const;
+
+export type LLDEventConstant = (typeof LLD_EVENTS)[keyof typeof LLD_EVENTS];
+```
+
+- [ ] **Step 4: Run test again (should pass)**
+
+```bash
+cd architex && pnpm test:run src/lib/analytics/__tests__/lld-events.test.ts
+```
+
+Expected: both tests pass.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/analytics/lld-events.enum.ts architex/src/lib/analytics/__tests__/lld-events.test.ts
+git commit -m "plan(lld-phase-6-task3): add LLD_EVENTS enum + exhaustiveness test"
+```
+
+---
+
+
+## Task 4: Extend the `lld-events.ts` builder catalog
+
+**Files:**
+- Modify: `architex/src/lib/analytics/lld-events.ts`
+
+**Design intent:** Phase 1's Task 11 shipped ~7 builders. Phase 6 expands to the full 43. Every builder is a pure function returning the shape `{ name, properties }` which the emit pipeline stamps with base fields. No builder touches global state.
+
+- [ ] **Step 1: Inspect existing builders (Phase 1 output)**
+
+```bash
+cd architex && cat src/lib/analytics/lld-events.ts | head -60
+```
+
+Expected: See the Phase 1 builders (`lldModeSwitched`, `lldDrillStarted`, etc.) plus the local `LLDEvent` interface and `track` function.
+
+- [ ] **Step 2: Rewrite `lld-events.ts`**
+
+Replace the entire file with the full builder catalog. This replaces the Phase 1 file; the old `track` function moves to the emit pipeline in Task 5.
+
+```typescript
+/**
+ * LLD analytics event catalog (Phase 6 Task 4 — extends Phase 1 Task 11).
+ *
+ * Builders produce typed events using the discriminated union in
+ * `src/types/telemetry.ts`. The emit pipeline (`emit-pipeline.ts`)
+ * stamps `timestamp`, `cohort`, `rolloutStage`, `currentMode`, and
+ * `variants` before the event is sent anywhere.
+ *
+ * Usage:
+ *   import { Events, emit } from "@/lib/analytics/lld-events";
+ *   emit(Events.drillStarted({ problemId, drillMode, durationLimitMs }));
+ */
+
+import type {
+  LLDEvent,
+  LLDEventName,
+  LLDEventProperties,
+  LLDMode,
+  DrillMode,
+  DrillGradeTier,
+  CheckpointKind,
+  FsrsRating,
+  FrustrationLevel,
+  CohortBucket,
+  RolloutStage,
+} from "@/types/telemetry";
+
+type Builder<T extends LLDEventName> = (
+  props: LLDEventProperties<T>,
+) => Extract<LLDEvent, { name: T }>;
+
+function make<T extends LLDEventName>(name: T): Builder<T> {
+  return (properties) =>
+    ({ name, properties, timestamp: Date.now() }) as Extract<
+      LLDEvent,
+      { name: T }
+    >;
+}
+
+export const Events = {
+  // Shell
+  moduleOpened: make("lld_module_opened"),
+  modeSwitched: make("lld_mode_switched"),
+  welcomeBannerShown: make("lld_welcome_banner_shown"),
+  welcomeBannerDismissed: make("lld_welcome_banner_dismissed"),
+
+  // Learn
+  lessonOpened: make("lld_lesson_opened"),
+  lessonSectionViewed: make("lld_lesson_section_viewed"),
+  lessonCompleted: make("lld_lesson_completed"),
+  checkpointAttempted: make("lld_checkpoint_attempted"),
+  checkpointRevealed: make("lld_checkpoint_revealed"),
+  checkpointFsrsRated: make("lld_checkpoint_fsrs_rated"),
+  classPopoverOpened: make("lld_class_popover_opened"),
+  lessonScrollSynced: make("lld_lesson_scroll_synced"),
+  tinkerStarted: make("lld_tinker_started"),
+  tinkerSaved: make("lld_tinker_saved"),
+  contextualAskArchitect: make("lld_contextual_ask_architect"),
+
+  // Build
+  buildCanvasEdit: make("lld_build_canvas_edit"),
+  buildPatternLoaded: make("lld_build_pattern_loaded"),
+  buildCodeGenerated: make("lld_build_code_generated"),
+  antiPatternDetected: make("lld_anti_pattern_detected"),
+  aiReviewRequested: make("lld_ai_review_requested"),
+
+  // Drill
+  drillStarted: make("lld_drill_started"),
+  drillPaused: make("lld_drill_paused"),
+  drillResumed: make("lld_drill_resumed"),
+  drillHintUsed: make("lld_drill_hint_used"),
+  drillSubmitted: make("lld_drill_submitted"),
+  drillAbandoned: make("lld_drill_abandoned"),
+  drillGradeReviewed: make("lld_drill_grade_reviewed"),
+
+  // Review
+  reviewSessionStarted: make("lld_review_session_started"),
+  reviewCardShown: make("lld_review_card_shown"),
+  reviewCardRated: make("lld_review_card_rated"),
+  reviewSessionCompleted: make("lld_review_session_completed"),
+
+  // Cross-cutting
+  frustrationDetected: make("lld_frustration_detected"),
+  frustrationInterventionShown: make("lld_frustration_intervention_shown"),
+  frustrationInterventionAccepted: make(
+    "lld_frustration_intervention_accepted",
+  ),
+  spotlightSearchOpened: make("lld_spotlight_search_opened"),
+  spotlightSearchExecuted: make("lld_spotlight_search_executed"),
+  shareCardGenerated: make("lld_share_card_generated"),
+  featureFlagEvaluated: make("lld_feature_flag_evaluated"),
+  killSwitchFired: make("lld_kill_switch_fired"),
+  abExposure: make("lld_ab_exposure"),
+  rolloutStageChanged: make("lld_rollout_stage_changed"),
+  errorBoundaryCaught: make("lld_error_boundary_caught"),
+  performanceMetric: make("lld_performance_metric"),
+  migrationAdvanced: make("lld_migration_advanced"),
+} as const;
+
+export { emit } from "./emit-pipeline";
+export { LLD_EVENTS } from "./lld-events.enum";
+export type {
+  LLDEvent,
+  LLDEventName,
+  LLDMode,
+  DrillMode,
+  DrillGradeTier,
+  CheckpointKind,
+  FsrsRating,
+  FrustrationLevel,
+  CohortBucket,
+  RolloutStage,
+};
+```
+
+- [ ] **Step 3: Update all existing import sites**
+
+```bash
+cd architex && grep -rln "from '@/lib/analytics/lld-events'" src --include="*.ts" --include="*.tsx" | wc -l
+```
+
+Expected: small number (<10, mostly Phase 1 files). For each file, change:
+
+```typescript
+// before
+import { track, lldModeSwitched } from "@/lib/analytics/lld-events";
+track(lldModeSwitched({ from, to, trigger }));
+
+// after
+import { Events, emit } from "@/lib/analytics/lld-events";
+emit(Events.modeSwitched({ from, to, trigger }));
+```
+
+- [ ] **Step 4: Verify typecheck**
+
+```bash
+cd architex && pnpm typecheck
+```
+
+If the emit-pipeline file doesn't exist yet, temporarily stub it with: `export const emit = (_e: unknown) => {};` so typecheck passes; Task 5 replaces it.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/analytics/lld-events.ts
+git commit -m "plan(lld-phase-6-task4): expand lld-events builders to full 43-event catalog"
+```
+
+---
+
+## Task 5: Build the single shared emit pipeline
+
+**Files:**
+- Create: `architex/src/lib/analytics/emit-pipeline.ts`
+- Create: `architex/src/lib/analytics/__tests__/emit-pipeline.test.ts`
+
+**Design intent:** All 43 events flow through `emit()`. The pipeline is responsible for (a) attaching base fields, (b) checking consent, (c) mirroring to activity-log + PostHog + Sentry breadcrumb, (d) swallowing network errors, (e) in-memory dev-mode queue for test assertions.
+
+- [ ] **Step 1: Write the test first**
+
+Create `architex/src/lib/analytics/__tests__/emit-pipeline.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { emit, __testing } from "../emit-pipeline";
+import { Events } from "../lld-events";
+
+describe("emit pipeline", () => {
+  beforeEach(() => {
+    __testing.reset();
+    global.fetch = vi.fn().mockResolvedValue(new Response("ok"));
+  });
+
+  it("attaches timestamp + base fields", async () => {
+    __testing.setBaseFields({
+      cohort: "bucket_12",
+      rolloutStage: "beta5",
+      currentMode: "learn",
+      variants: { drill_celebration_v2: "confetti" },
+    });
+
+    await emit(
+      Events.modeSwitched({ from: "learn", to: "build", trigger: "click" }),
+    );
+    const captured = __testing.getCaptured();
+    expect(captured).toHaveLength(1);
+    const only = captured[0];
+    expect(only.name).toBe("lld_mode_switched");
+    expect(only.cohort).toBe("bucket_12");
+    expect(only.rolloutStage).toBe("beta5");
+    expect(only.currentMode).toBe("learn");
+    expect(only.variants).toEqual({ drill_celebration_v2: "confetti" });
+    expect(typeof only.timestamp).toBe("number");
+  });
+
+  it("skips emission when consent is denied", async () => {
+    __testing.setConsent(false);
+    await emit(Events.moduleOpened({ referrer: null, firstVisit: true }));
+    expect(__testing.getCaptured()).toHaveLength(0);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("still writes to activity log when PostHog is not initialised", async () => {
+    __testing.setConsent(true);
+    __testing.setPostHogReady(false);
+    await emit(Events.welcomeBannerShown({}));
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/activity",
+      expect.any(Object),
+    );
+  });
+
+  it("swallows network errors silently", async () => {
+    __testing.setConsent(true);
+    global.fetch = vi.fn().mockRejectedValue(new Error("offline"));
+    await expect(
+      emit(
+        Events.drillStarted({
+          problemId: "p1",
+          drillMode: "interview",
+          durationLimitMs: 1_800_000,
+        }),
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("adds a Sentry breadcrumb for error_boundary_caught events", async () => {
+    __testing.setConsent(true);
+    const bc = vi.fn();
+    __testing.setBreadcrumbFn(bc);
+    await emit(
+      Events.errorBoundaryCaught({
+        errorName: "TypeError",
+        errorMessage: "foo",
+        modeAtError: "drill",
+        componentStack: "…",
+      }),
+    );
+    expect(bc).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "lld-telemetry",
+        message: "lld_error_boundary_caught",
+      }),
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run test (should fail)**
+
+```bash
+cd architex && pnpm test:run src/lib/analytics/__tests__/emit-pipeline.test.ts
+```
+
+- [ ] **Step 3: Create the pipeline**
+
+Create `architex/src/lib/analytics/emit-pipeline.ts`:
+
+```typescript
+/**
+ * Shared emit pipeline (Phase 6 Task 5).
+ *
+ * Every LLD event passes through `emit()`. Responsibilities:
+ *  - Attach base fields (cohort, rolloutStage, currentMode, variants)
+ *  - Guard on consent
+ *  - Mirror to three sinks: activity log, PostHog, Sentry breadcrumb
+ *  - Fail-silent
+ */
+
+import type {
+  LLDEvent,
+  CohortBucket,
+  RolloutStage,
+  LLDMode,
+} from "@/types/telemetry";
+import * as posthog from "./posthog";
+import { hasAnalyticsConsent } from "./consent";
+
+type BreadcrumbFn = (args: {
+  category: string;
+  message: string;
+  level?: "fatal" | "error" | "warning" | "info" | "debug";
+  data?: Record<string, unknown>;
+}) => void;
+
+interface BaseFields {
+  cohort?: CohortBucket;
+  rolloutStage?: RolloutStage;
+  currentMode?: LLDMode;
+  variants?: Record<string, string>;
+}
+
+let _base: BaseFields = {};
+let _testingCaptured: LLDEvent[] = [];
+let _testingConsentOverride: boolean | null = null;
+let _testingPostHogOverride: boolean | null = null;
+let _breadcrumbFn: BreadcrumbFn | null = null;
+
+export function setBaseFields(patch: Partial<BaseFields>): void {
+  _base = { ..._base, ...patch };
+}
+
+export function setBreadcrumbFunction(fn: BreadcrumbFn): void {
+  _breadcrumbFn = fn;
+}
+
+export async function emit(event: LLDEvent): Promise<void> {
+  const consentOK = _testingConsentOverride ?? hasAnalyticsConsent();
+  if (!consentOK) return;
+
+  const enriched: LLDEvent = {
+    ...event,
+    cohort: event.cohort ?? _base.cohort,
+    rolloutStage: event.rolloutStage ?? _base.rolloutStage,
+    currentMode: event.currentMode ?? _base.currentMode,
+    variants: event.variants ?? _base.variants,
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    _testingCaptured.push(enriched);
+  }
+
+  try {
+    await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: enriched.name,
+        moduleId: "lld",
+        metadata: {
+          ...enriched.properties,
+          __cohort: enriched.cohort,
+          __rolloutStage: enriched.rolloutStage,
+          __currentMode: enriched.currentMode,
+          __variants: enriched.variants,
+          __timestamp: enriched.timestamp,
+        },
+      }),
+      keepalive: true,
+    });
+  } catch {
+    /* swallow */
+  }
+
+  const posthogReady = _testingPostHogOverride ?? posthog.isPostHogReady();
+  if (posthogReady) {
+    try {
+      posthog.track(enriched.name, {
+        ...enriched.properties,
+        cohort: enriched.cohort,
+        rollout_stage: enriched.rolloutStage,
+        current_mode: enriched.currentMode,
+        variants: enriched.variants,
+      });
+    } catch {
+      /* swallow */
+    }
+  }
+
+  if (_breadcrumbFn) {
+    try {
+      _breadcrumbFn({
+        category: "lld-telemetry",
+        message: enriched.name,
+        level: "info",
+        data: enriched.properties as Record<string, unknown>,
+      });
+    } catch {
+      /* swallow */
+    }
+  }
+}
+
+export const __testing = {
+  reset(): void {
+    _base = {};
+    _testingCaptured = [];
+    _testingConsentOverride = null;
+    _testingPostHogOverride = null;
+    _breadcrumbFn = null;
+  },
+  setBaseFields(fields: BaseFields): void {
+    _base = fields;
+  },
+  setConsent(ok: boolean): void {
+    _testingConsentOverride = ok;
+  },
+  setPostHogReady(ok: boolean): void {
+    _testingPostHogOverride = ok;
+  },
+  setBreadcrumbFn(fn: BreadcrumbFn): void {
+    _breadcrumbFn = fn;
+  },
+  getCaptured(): LLDEvent[] {
+    return [..._testingCaptured];
+  },
+};
+```
+
+- [ ] **Step 4: Ensure `hasAnalyticsConsent` exists**
+
+Open `architex/src/lib/analytics/consent.ts` and verify it exports `hasAnalyticsConsent()`. If not, add:
+
+```typescript
+export function hasAnalyticsConsent(): boolean {
+  const stored = getStoredConsent();
+  return stored?.analytics === true;
+}
+```
+
+- [ ] **Step 5: Run test + commit**
+
+```bash
+cd architex && pnpm test:run src/lib/analytics/__tests__/emit-pipeline.test.ts
+git add architex/src/lib/analytics/emit-pipeline.ts architex/src/lib/analytics/__tests__/emit-pipeline.test.ts architex/src/lib/analytics/consent.ts
+git commit -m "plan(lld-phase-6-task5): add shared emit pipeline for LLD telemetry"
+```
+
+---
+
+## Task 6: PostHog autocapture configuration
+
+**Files:**
+- Create: `architex/src/lib/analytics/autocapture-config.ts`
+- Create: `architex/src/lib/analytics/__tests__/autocapture-config.test.ts`
+
+**Design intent:** PostHog autocapture fires DOM click events automatically. Left unconfigured it produces noisy, PII-rich data. We narrow to an opt-in allowlist (`data-ph-capture`) + broad denylist.
+
+- [ ] **Step 1: Test first**
+
+Create `architex/src/lib/analytics/__tests__/autocapture-config.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  AUTOCAPTURE_CSS_ALLOWLIST,
+  AUTOCAPTURE_CSS_DENYLIST,
+  buildPostHogConfig,
+  shouldCaptureElement,
+} from "../autocapture-config";
+
+describe("autocapture-config", () => {
+  it("allowlist includes annotated buttons", () => {
+    expect(AUTOCAPTURE_CSS_ALLOWLIST).toContain("button[data-ph-capture]");
+    expect(AUTOCAPTURE_CSS_ALLOWLIST).toContain("a[data-ph-capture]");
+  });
+
+  it("denylist blocks PII-heavy elements", () => {
+    expect(AUTOCAPTURE_CSS_DENYLIST).toContain("input[type=password]");
+    expect(AUTOCAPTURE_CSS_DENYLIST).toContain("input[type=email]");
+    expect(AUTOCAPTURE_CSS_DENYLIST).toContain(".ph-no-capture");
+  });
+
+  it("buildPostHogConfig exports a valid PostHog init config", () => {
+    const cfg = buildPostHogConfig("phc_test_key");
+    expect(cfg.api_host).toBe("https://us.i.posthog.com");
+    expect(cfg.capture_pageview).toBe(false);
+    expect(cfg.session_recording.maskAllInputs).toBe(true);
+  });
+
+  it("shouldCaptureElement respects denylist and allowlist", () => {
+    const pwd = document.createElement("input");
+    pwd.type = "password";
+    expect(shouldCaptureElement(pwd)).toBe(false);
+
+    const btn = document.createElement("button");
+    btn.dataset.phCapture = "";
+    expect(shouldCaptureElement(btn)).toBe(true);
+
+    const blocked = document.createElement("div");
+    blocked.dataset.phNoCapture = "";
+    expect(shouldCaptureElement(blocked)).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 2: Implement**
+
+Create `architex/src/lib/analytics/autocapture-config.ts`:
+
+```typescript
+/**
+ * PostHog autocapture configuration (Phase 6 Task 6).
+ */
+
+export const AUTOCAPTURE_CSS_ALLOWLIST: readonly string[] = [
+  "button[data-ph-capture]",
+  "a[data-ph-capture]",
+  "[role=button][data-ph-capture]",
+  "[role=tab][data-ph-capture]",
+];
+
+export const AUTOCAPTURE_CSS_DENYLIST: readonly string[] = [
+  "input[type=password]",
+  "input[type=email]",
+  "input[type=text]:not([data-ph-capture])",
+  "textarea",
+  ".ph-no-capture",
+  "[data-ph-no-capture]",
+  ".react-flow",
+  ".react-flow *",
+];
+
+export interface PostHogConfig {
+  api_host: string;
+  autocapture: {
+    css_selector_allowlist: readonly string[];
+    element_allowlist: readonly string[];
+    dom_event_allowlist: readonly string[];
+  };
+  session_recording: {
+    maskAllInputs: boolean;
+    maskTextSelector: string;
+    recordCrossOriginIframes: boolean;
+  };
+  capture_pageview: boolean;
+  capture_pageleave: boolean;
+  disable_session_recording: boolean;
+  respect_dnt: boolean;
+  persistence: "localStorage+cookie" | "localStorage" | "cookie" | "memory";
+  loaded: (ph: unknown) => void;
+}
+
+export function buildPostHogConfig(_apiKey: string): PostHogConfig {
+  return {
+    api_host: "https://us.i.posthog.com",
+    autocapture: {
+      css_selector_allowlist: AUTOCAPTURE_CSS_ALLOWLIST,
+      element_allowlist: ["button", "a"],
+      dom_event_allowlist: ["click", "submit"],
+    },
+    session_recording: {
+      maskAllInputs: true,
+      maskTextSelector: ".ph-mask",
+      recordCrossOriginIframes: false,
+    },
+    capture_pageview: false,
+    capture_pageleave: false,
+    disable_session_recording: false,
+    respect_dnt: true,
+    persistence: "localStorage+cookie",
+    loaded: (_ph) => {
+      /* init.ts handles handoff */
+    },
+  };
+}
+
+export function shouldCaptureElement(el: HTMLElement): boolean {
+  for (const sel of AUTOCAPTURE_CSS_DENYLIST) {
+    if (el.matches?.(sel)) return false;
+  }
+  for (const sel of AUTOCAPTURE_CSS_ALLOWLIST) {
+    if (el.matches?.(sel)) return true;
+  }
+  return false;
+}
+```
+
+- [ ] **Step 3: Verify tests pass + commit**
+
+```bash
+cd architex && pnpm test:run src/lib/analytics/__tests__/autocapture-config.test.ts
+git add architex/src/lib/analytics/autocapture-config.ts architex/src/lib/analytics/__tests__/autocapture-config.test.ts
+git commit -m "plan(lld-phase-6-task6): add PostHog autocapture configuration"
+```
+
+---
+
+## Task 7: PostHog identity + bootstrap
+
+**Files:**
+- Create: `architex/src/lib/analytics/identity.ts`
+- Create: `architex/src/lib/analytics/__tests__/identity.test.ts`
+
+**Design intent:** Dynamically `import` `posthog-js` only when `NEXT_PUBLIC_POSTHOG_KEY` is set, initialise with autocapture config, call `identify()` with Clerk user ID when auth resolves. Anonymous users get a PostHog-assigned UUID.
+
+- [ ] **Step 1: Test first**
+
+Create `architex/src/lib/analytics/__tests__/identity.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import {
+  bootstrapPostHog,
+  identifyUser,
+  resetIdentity,
+  __testing,
+} from "../identity";
+
+describe("identity", () => {
+  beforeEach(() => {
+    __testing.reset();
+  });
+
+  it("is a no-op when NEXT_PUBLIC_POSTHOG_KEY is missing", async () => {
+    delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    const importer = vi.fn();
+    await bootstrapPostHog({ importer });
+    expect(importer).not.toHaveBeenCalled();
+  });
+
+  it("dynamically imports posthog-js when key is set", async () => {
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test";
+    const init = vi.fn();
+    const importer = vi.fn().mockResolvedValue({
+      default: { init, identify: vi.fn(), reset: vi.fn() },
+    });
+    await bootstrapPostHog({ importer });
+    expect(init).toHaveBeenCalledWith("phc_test", expect.objectContaining({
+      api_host: "https://us.i.posthog.com",
+    }));
+  });
+
+  it("identifyUser never sends email", () => {
+    const ph = { identify: vi.fn() };
+    __testing.setClient(ph);
+    identifyUser({
+      clerkUserId: "user_abc",
+      email: "foo@example.com",
+      tier: "pro",
+    });
+    const [, traits] = ph.identify.mock.calls[0];
+    expect(traits).not.toHaveProperty("email");
+    expect(traits).toHaveProperty("tier", "pro");
+  });
+
+  it("resetIdentity calls posthog.reset", () => {
+    const ph = { reset: vi.fn() };
+    __testing.setClient(ph);
+    resetIdentity();
+    expect(ph.reset).toHaveBeenCalled();
+  });
+});
+```
+
+- [ ] **Step 2: Implement**
+
+Create `architex/src/lib/analytics/identity.ts`:
+
+```typescript
+/**
+ * PostHog identity lifecycle (Phase 6 Task 7).
+ */
+
+import { buildPostHogConfig } from "./autocapture-config";
+import { initPostHog, reset as resetPostHogWrapper } from "./posthog";
+
+interface PostHogClient {
+  init(key: string, config: unknown): void;
+  identify(id: string, traits?: Record<string, unknown>): void;
+  reset(): void;
+  capture(event: string, properties?: Record<string, unknown>): void;
+  isFeatureEnabled(flag: string): boolean | undefined;
+  getFeatureFlag(flag: string): string | boolean | undefined;
+  onFeatureFlags(cb: () => void): void;
+  opt_out_capturing(): void;
+  opt_in_capturing(): void;
+  has_opted_out_capturing(): boolean;
+}
+
+let _client: PostHogClient | null = null;
+
+interface BootstrapOptions {
+  importer?: () => Promise<{ default: PostHogClient }>;
+}
+
+export async function bootstrapPostHog(
+  opts: BootstrapOptions = {},
+): Promise<void> {
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  if (!key) return;
+
+  const importer =
+    opts.importer ??
+    (() => import("posthog-js") as Promise<{ default: PostHogClient }>);
+  try {
+    const mod = await importer();
+    const client = mod.default;
+    client.init(key, buildPostHogConfig(key));
+    _client = client;
+    initPostHog(client);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[posthog] bootstrap failed:", err);
+  }
+}
+
+const ALLOWED_TRAITS = new Set([
+  "tier",
+  "createdAt",
+  "lldVersion",
+  "primaryMode",
+  "masteredPatternsCount",
+  "signupSource",
+]);
+
+function scrubTraits(
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (ALLOWED_TRAITS.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+export interface IdentifyArgs {
+  clerkUserId: string;
+  email?: string;
+  tier?: "free" | "pro" | "team";
+  createdAt?: number;
+  lldVersion?: "v1" | "v2";
+  primaryMode?: "learn" | "build" | "drill" | "review";
+  masteredPatternsCount?: number;
+  signupSource?: string;
+}
+
+export function identifyUser(args: IdentifyArgs): void {
+  if (!_client) return;
+  _client.identify(args.clerkUserId, scrubTraits({ ...args, email: undefined }));
+}
+
+export function resetIdentity(): void {
+  if (_client) _client.reset();
+  resetPostHogWrapper();
+}
+
+export const __testing = {
+  reset(): void {
+    _client = null;
+  },
+  setClient(c: unknown): void {
+    _client = c as PostHogClient;
+  },
+};
+```
+
+- [ ] **Step 3: Wire bootstrap into app root**
+
+Edit `architex/src/app/layout.tsx` — add client-boundary init that calls `bootstrapPostHog()` once on mount. Do NOT call `identifyUser` on mount — call it from a Clerk `useUser()` subscriber when `isSignedIn` flips.
+
+- [ ] **Step 4: Verify + commit**
+
+```bash
+cd architex && pnpm test:run src/lib/analytics/__tests__/identity.test.ts
+pnpm typecheck
+git add architex/src/lib/analytics/identity.ts architex/src/lib/analytics/__tests__/identity.test.ts architex/src/app/layout.tsx
+git commit -m "plan(lld-phase-6-task7): wire PostHog identity + dynamic bootstrap"
+```
+
+---
+
+## Task 8: Cohort stamping subscriber
+
+**Files:**
+- Create: `architex/src/lib/analytics/cohort-stamping.ts`
+
+**Design intent:** When cohort/rollout/A-B layers resolve, push values into the emit pipeline's `setBaseFields`. One-way: cohort layer → analytics.
+
+- [ ] **Step 1: Implement**
+
+Create `architex/src/lib/analytics/cohort-stamping.ts`:
+
+```typescript
+import { setBaseFields } from "./emit-pipeline";
+import type { CohortBucket, LLDMode, RolloutStage } from "@/types/telemetry";
+
+export interface StampingState {
+  cohort?: CohortBucket;
+  rolloutStage?: RolloutStage;
+  currentMode?: LLDMode;
+  variants?: Record<string, string>;
+}
+
+let _state: StampingState = {};
+
+export function setStampingCohort(cohort: CohortBucket): void {
+  _state = { ..._state, cohort };
+  setBaseFields(_state);
+}
+
+export function setStampingRolloutStage(stage: RolloutStage): void {
+  _state = { ..._state, rolloutStage: stage };
+  setBaseFields(_state);
+}
+
+export function setStampingCurrentMode(mode: LLDMode | null): void {
+  _state = { ..._state, currentMode: mode ?? undefined };
+  setBaseFields(_state);
+}
+
+export function addStampingVariant(experimentKey: string, variant: string): void {
+  _state = {
+    ..._state,
+    variants: { ...(_state.variants ?? {}), [experimentKey]: variant },
+  };
+  setBaseFields(_state);
+}
+
+export function getStampingSnapshot(): StampingState {
+  return { ..._state };
+}
+
+export function __testing_resetStamping(): void {
+  _state = {};
+  setBaseFields({});
+}
+```
+
+- [ ] **Step 2: Wire into ui-store**
+
+In `architex/src/stores/ui-store.ts`, import `setStampingCurrentMode`. Inside the `setLLDMode` action body, after existing side effects:
+
+```typescript
+setStampingCurrentMode(mode);
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/lib/analytics/cohort-stamping.ts architex/src/stores/ui-store.ts
+git commit -m "plan(lld-phase-6-task8): stamp cohort/rollout/mode/variants on every event"
+```
+
+---
+
