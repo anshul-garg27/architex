@@ -2637,3 +2637,904 @@ EOF
 ```
 
 ---
+
+## Task Group C · Review Mode + FSRS for SD
+
+*This group is pure engineering. It promotes the LLD FSRS infrastructure into `src/lib/shared/`, adds a SD-specific card table, four generators (one per card type), cross-module queue support, mobile swipe gestures, and a keyboard-first desktop review. Style mirrors the LLD Phase 5 plan line-for-line — TDD, bite-sized steps, full code.*
+
+---
+
+## Task C1: Promote `fsrs-scheduler.ts` to shared module
+
+**Files:**
+- `architex/src/lib/shared/fsrs-scheduler.ts` (NEW — copy from `src/lib/lld/fsrs-scheduler.ts`)
+- `architex/src/lib/lld/fsrs-scheduler.ts` (MODIFY — re-export from shared)
+- `architex/src/lib/shared/__tests__/fsrs-scheduler.test.ts` (NEW — full test suite moved)
+
+*The existing `src/lib/lld/fsrs-scheduler.ts` is already a thin `ts-fsrs` wrapper. Phase 5 of LLD demanded it stay LLD-only; now Phase 4 of SD needs the same primitives, so we hoist it to `shared/` and make `lld/fsrs-scheduler.ts` a re-export. No semantic change to LLD callers.*
+
+- [ ] **Step 1: Write the failing test** — `architex/src/lib/shared/__tests__/fsrs-scheduler.test.ts`:
+
+Copy verbatim from `architex/src/lib/lld/__tests__/fsrs-scheduler.test.ts`. Update the import path from `@/lib/lld/fsrs-scheduler` to `@/lib/shared/fsrs-scheduler`.
+
+Run: `pnpm test:run -- shared/fsrs-scheduler` → FAIL (new path missing).
+
+- [ ] **Step 2: Copy the file**
+
+```bash
+cd architex
+cp src/lib/lld/fsrs-scheduler.ts src/lib/shared/fsrs-scheduler.ts
+```
+
+Update the header comment at the top of `src/lib/shared/fsrs-scheduler.ts`:
+
+```typescript
+/**
+ * Shared FSRS-5 scheduler. Thin wrapper over ts-fsrs.
+ * Used by LLD, SD, and any future module. Single point of change for
+ * future FSRS-6 / per-user optimizer weight upgrades.
+ */
+```
+
+- [ ] **Step 3: Re-export from LLD path**
+
+Replace contents of `src/lib/lld/fsrs-scheduler.ts`:
+
+```typescript
+/**
+ * Deprecated path. Import from `@/lib/shared/fsrs-scheduler` instead.
+ * Kept as a re-export for Phase 5 LLD callers; drop in Phase 6.
+ */
+export * from "@/lib/shared/fsrs-scheduler";
+```
+
+Delete the old test file (it now lives in `shared/__tests__/`).
+
+Run: `pnpm test:run` → PASS (both paths work).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/lib/shared/fsrs-scheduler.ts architex/src/lib/shared/__tests__/fsrs-scheduler.test.ts architex/src/lib/lld/fsrs-scheduler.ts
+git rm architex/src/lib/lld/__tests__/fsrs-scheduler.test.ts
+git commit -m "$(cat <<'EOF'
+refactor(fsrs): promote LLD FSRS scheduler to shared module
+
+SD Phase 4 reuses the same ts-fsrs wrapper. LLD path is now a
+re-export; drop in Phase 6. No semantic change for LLD callers;
+tests move from lld/__tests__ to shared/__tests__.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task C2: Create `sd_fsrs_cards` DB schema
+
+**Files:** `architex/src/db/schema/sd-fsrs-cards.ts`, `index.ts`, `relations.ts`
+
+- [ ] **Step 1: Create the schema**
+
+```typescript
+/**
+ * DB-022: SD FSRS cards — spaced-repetition store for System Design.
+ * moduleId = "sd" always; cross-module queue merges SD + LLD + algorithms
+ * + osdb at read time (§17.3 one FSRS queue).
+ */
+import { sql } from "drizzle-orm";
+import {
+  pgTable, uuid, varchar, timestamp, integer, real, jsonb, text,
+  index, uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { users } from "./users";
+
+export const sdFSRSCards = pgTable(
+  "sd_fsrs_cards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    moduleId: varchar("module_id", { length: 50 }).notNull().default("sd"),
+    // conceptId or problemId — exactly one is non-null
+    conceptSlug: varchar("concept_slug", { length: 120 }),
+    problemSlug: varchar("problem_slug", { length: 120 }),
+
+    /** "mcq" | "name-primitive" | "diagram-spot" | "cloze" */
+    cardType: varchar("card_type", { length: 20 }).notNull(),
+    /** "concept-autogen" | "problem-autogen" | "manual" | "ai" */
+    source: varchar("source", { length: 30 }).notNull(),
+
+    front: text("front").notNull(),
+    back: text("back").notNull(),
+    // For mcq: array of strings. For diagram-spot: array of option labels.
+    options: jsonb("options"),
+    correctIndex: integer("correct_index"),
+    // For diagram-spot: a serialized mini-diagram JSON (nodes+edges).
+    diagramSketch: jsonb("diagram_sketch"),
+    // For name-primitive: list of accepted answers for fuzzy match.
+    acceptedAnswers: jsonb("accepted_answers"),
+    // For cloze: the sentence template with `___` placeholder.
+    clozeTemplate: text("cloze_template"),
+
+    // FSRS-5 state — matches FSRSCardState in shared/fsrs-scheduler.ts
+    state: varchar("state", { length: 20 }).notNull().default("new"),
+    stability: real("stability").notNull().default(0),
+    difficulty: real("difficulty").notNull().default(0),
+    lastReview: timestamp("last_review", { withTimezone: true }),
+    due: timestamp("due", { withTimezone: true }).notNull().defaultNow(),
+    reps: integer("reps").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("sd_fsrs_user_due_idx").on(t.userId, t.due),
+    index("sd_fsrs_user_concept_idx").on(t.userId, t.conceptSlug),
+    index("sd_fsrs_user_problem_idx").on(t.userId, t.problemSlug),
+    // Dedupe auto-generated concept cards across re-seeds.
+    uniqueIndex("sd_fsrs_concept_dedupe_idx")
+      .on(t.userId, t.conceptSlug, t.cardType, t.source)
+      .where(sql`${t.conceptSlug} IS NOT NULL AND ${t.source} = 'concept-autogen'`),
+    uniqueIndex("sd_fsrs_problem_dedupe_idx")
+      .on(t.userId, t.problemSlug, t.cardType, t.source)
+      .where(sql`${t.problemSlug} IS NOT NULL AND ${t.source} = 'problem-autogen'`),
+  ],
+);
+
+export type SDFSRSCard = InferSelectModel<typeof sdFSRSCards>;
+export type NewSDFSRSCard = InferInsertModel<typeof sdFSRSCards>;
+```
+
+- [ ] **Step 2: Re-export from `index.ts`**
+
+```typescript
+export { sdFSRSCards, type SDFSRSCard, type NewSDFSRSCard } from "./sd-fsrs-cards";
+```
+
+- [ ] **Step 3: Add relations** — `relations.ts`:
+
+```typescript
+import { sdFSRSCards } from "./sd-fsrs-cards";
+// ... in usersRelations many():
+sdFSRSCards: many(sdFSRSCards),
+// At bottom:
+export const sdFSRSCardsRelations = relations(sdFSRSCards, ({ one }) => ({
+  user: one(users, {
+    fields: [sdFSRSCards.userId],
+    references: [users.id],
+  }),
+}));
+```
+
+- [ ] **Step 4: Typecheck + commit**
+
+```bash
+cd architex && pnpm typecheck
+git add architex/src/db/schema/sd-fsrs-cards.ts architex/src/db/schema/index.ts architex/src/db/schema/relations.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_fsrs_cards schema
+
+Holds SD-specific card types (mcq / name-primitive / diagram-spot /
+cloze) with FSRS-5 state inline. Two partial-unique indexes prevent
+duplicate auto-generation on re-seeds (one per concept, one per
+problem). Cross-module queue merges at read time.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task C3: Generate and apply migration
+
+- [ ] **Step 1:** `cd architex && pnpm db:generate`
+
+Expected: new SQL file `drizzle/NNNN_add_sd_fsrs_cards.sql` with:
+- `CREATE TABLE sd_fsrs_cards`
+- 3 btree indexes
+- 2 partial unique indexes with `WHERE` clauses
+
+- [ ] **Step 2:** Review the SQL. Ensure the `WHERE` predicates are present for the two partial unique indexes. If either is missing, delete the file and re-run `pnpm db:generate`.
+
+- [ ] **Step 3:** `pnpm db:push && pnpm db:studio` · verify table exists with 0 rows.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/drizzle/
+git commit -m "feat(db): apply sd_fsrs_cards migration
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task C4: Card generator — MCQ from concept
+
+**Files:** `architex/src/lib/sd/card-generators/from-concept-mcq.ts` + test
+
+MCQ cards come from the "Numbers that matter" table or the "Tradeoffs" section. Opus does NOT author MCQ cards directly; we extract them by parsing the frontmatter-driven `mcqs` array that the concept prompt template emits.
+
+Extend the concept prompt template (A2) with an optional footer block:
+
+````markdown
+## Generated MCQs (for Review mode)
+
+```yaml
+mcqs:
+  - front: "Which Kafka setting guarantees exactly-once delivery?"
+    options: ["ack=0", "ack=1", "ack=all + idempotent producer + transactions", "retries=0"]
+    correctIndex: 2
+  - front: "..."
+    options: [...]
+    correctIndex: N
+```
+````
+
+- [ ] **Step 1: Failing test** — `__tests__/from-concept-mcq.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { cardsFromConceptMCQ } from "../from-concept-mcq";
+
+describe("cardsFromConceptMCQ", () => {
+  it("extracts MCQs from frontmatter", () => {
+    const frontmatter = {
+      slug: "delivery-semantics",
+      mcqs: [
+        { front: "Q1", options: ["a","b","c"], correctIndex: 1 },
+        { front: "Q2", options: ["x","y"], correctIndex: 0 },
+      ],
+    };
+    const cards = cardsFromConceptMCQ({ frontmatter });
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toMatchObject({
+      conceptSlug: "delivery-semantics",
+      cardType: "mcq",
+      source: "concept-autogen",
+      front: "Q1",
+      options: ["a","b","c"],
+      correctIndex: 1,
+    });
+  });
+
+  it("returns [] if mcqs missing", () => {
+    expect(cardsFromConceptMCQ({ frontmatter: { slug: "x" } })).toEqual([]);
+  });
+
+  it("skips malformed mcq entries", () => {
+    const cards = cardsFromConceptMCQ({
+      frontmatter: {
+        slug: "x",
+        mcqs: [
+          { front: "Q1", options: ["a","b"], correctIndex: 0 },
+          { front: "Q2", correctIndex: 0 }, // missing options
+          { options: ["a"], correctIndex: 0 }, // missing front
+          { front: "Q3", options: ["a","b"], correctIndex: 99 }, // out of bounds
+        ],
+      },
+    });
+    expect(cards).toHaveLength(1);
+    expect(cards[0]!.front).toBe("Q1");
+  });
+});
+```
+
+Run: FAIL.
+
+- [ ] **Step 2: Create generator**
+
+```typescript
+/**
+ * Extracts MCQ cards from a concept's frontmatter `mcqs` block.
+ */
+import type { NewSDFSRSCard } from "@/db/schema";
+
+type GeneratedCard = Omit<NewSDFSRSCard, "userId" | "moduleId">;
+
+interface MCQEntry { front?: unknown; options?: unknown; correctIndex?: unknown }
+
+export function cardsFromConceptMCQ(args: {
+  frontmatter: { slug?: unknown; mcqs?: unknown };
+}): GeneratedCard[] {
+  const slug = typeof args.frontmatter.slug === "string" ? args.frontmatter.slug : null;
+  if (!slug || !Array.isArray(args.frontmatter.mcqs)) return [];
+  const out: GeneratedCard[] = [];
+  for (const raw of args.frontmatter.mcqs as MCQEntry[]) {
+    if (typeof raw.front !== "string" || !raw.front.trim()) continue;
+    if (!Array.isArray(raw.options) || raw.options.length < 2) continue;
+    if (typeof raw.correctIndex !== "number") continue;
+    if (raw.correctIndex < 0 || raw.correctIndex >= raw.options.length) continue;
+    const options = (raw.options as unknown[]).filter((o): o is string => typeof o === "string");
+    if (options.length !== raw.options.length) continue;
+    out.push({
+      conceptSlug: slug,
+      problemSlug: null,
+      cardType: "mcq",
+      source: "concept-autogen",
+      front: raw.front,
+      back: options[raw.correctIndex]!,
+      options,
+      correctIndex: raw.correctIndex,
+      diagramSketch: null,
+      acceptedAnswers: null,
+      clozeTemplate: null,
+    });
+  }
+  return out;
+}
+```
+
+Run: PASS.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git commit -am "feat(sd): mcq card generator from concept frontmatter
+
+Reads frontmatter.mcqs array (authored by Opus), emits typed
+GeneratedCard rows. Three validation branches + happy path.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task C5: Card generator — name-the-primitive from concept
+
+**Files:** `architex/src/lib/sd/card-generators/from-concept-primitive.ts` + test
+
+Name-the-primitive cards ask "what's the name for X?". Opus authors these via frontmatter:
+
+```yaml
+primitives:
+  - front: "What is the name for the technique where appending a random 0-1 multiplier prevents thundering herd on retry?"
+    acceptedAnswers: ["jitter", "full-jitter", "randomized backoff", "random jitter"]
+```
+
+- [ ] **Step 1: Failing test** — `__tests__/from-concept-primitive.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { cardsFromConceptPrimitive } from "../from-concept-primitive";
+
+describe("cardsFromConceptPrimitive", () => {
+  it("extracts name-the-primitive cards", () => {
+    const cards = cardsFromConceptPrimitive({
+      frontmatter: {
+        slug: "retries-with-jitter",
+        primitives: [
+          { front: "What's the name for the random multiplier?", acceptedAnswers: ["jitter", "full-jitter"] },
+        ],
+      },
+    });
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({
+      cardType: "name-primitive",
+      source: "concept-autogen",
+      front: "What's the name for the random multiplier?",
+      acceptedAnswers: ["jitter", "full-jitter"],
+    });
+    expect(cards[0]!.back).toBe("jitter");
+  });
+
+  it("skips entries with empty acceptedAnswers", () => {
+    expect(cardsFromConceptPrimitive({
+      frontmatter: { slug: "x", primitives: [{ front: "Q", acceptedAnswers: [] }] },
+    })).toEqual([]);
+  });
+});
+```
+
+- [ ] **Step 2: Create**
+
+```typescript
+import type { NewSDFSRSCard } from "@/db/schema";
+
+type GeneratedCard = Omit<NewSDFSRSCard, "userId" | "moduleId">;
+
+interface PrimitiveEntry { front?: unknown; acceptedAnswers?: unknown }
+
+export function cardsFromConceptPrimitive(args: {
+  frontmatter: { slug?: unknown; primitives?: unknown };
+}): GeneratedCard[] {
+  const slug = typeof args.frontmatter.slug === "string" ? args.frontmatter.slug : null;
+  if (!slug || !Array.isArray(args.frontmatter.primitives)) return [];
+  const out: GeneratedCard[] = [];
+  for (const raw of args.frontmatter.primitives as PrimitiveEntry[]) {
+    if (typeof raw.front !== "string" || !raw.front.trim()) continue;
+    if (!Array.isArray(raw.acceptedAnswers) || raw.acceptedAnswers.length === 0) continue;
+    const accepted = (raw.acceptedAnswers as unknown[]).filter((a): a is string => typeof a === "string" && a.trim().length > 0);
+    if (accepted.length === 0) continue;
+    out.push({
+      conceptSlug: slug,
+      problemSlug: null,
+      cardType: "name-primitive",
+      source: "concept-autogen",
+      front: raw.front,
+      back: accepted[0]!,
+      options: null,
+      correctIndex: null,
+      diagramSketch: null,
+      acceptedAnswers: accepted,
+      clozeTemplate: null,
+    });
+  }
+  return out;
+}
+```
+
+- [ ] **Step 3: Commit**
+
+---
+
+## Task C6: Card generator — diagram-spot from problem
+
+**Files:** `architex/src/lib/sd/card-generators/from-problem-diagram.ts` + test
+
+Diagram-spot cards show a small architecture and ask "what's missing?" or "what's the anti-pattern here?". Opus authors via frontmatter `diagramSpots`:
+
+```yaml
+diagramSpots:
+  - front: "This design sends 10k tweets/s through a single-partition Kafka topic. What will break?"
+    diagramSketch:
+      nodes: [{id: "svc", kind: "service"}, {id: "kafka", kind: "queue", label: "topic (1 partition)"}, {id: "db", kind: "db"}]
+      edges: [{from: "svc", to: "kafka"}, {from: "kafka", to: "db"}]
+    options: ["Hot partition bottleneck at ~50k msg/s max throughput", "DB will fail first", "The service is stateless, no issue"]
+    correctIndex: 0
+```
+
+- [ ] **Step 1: Failing test** — similar structure to C4/C5.
+- [ ] **Step 2: Create generator** that serializes `diagramSketch` into the `diagramSketch` JSONB column, copies options + correctIndex, sets `cardType: "diagram-spot"`.
+- [ ] **Step 3: Commit**
+
+```typescript
+import type { NewSDFSRSCard } from "@/db/schema";
+
+type GeneratedCard = Omit<NewSDFSRSCard, "userId" | "moduleId">;
+
+interface DiagramSpotEntry {
+  front?: unknown;
+  diagramSketch?: unknown;
+  options?: unknown;
+  correctIndex?: unknown;
+}
+
+export function cardsFromProblemDiagram(args: {
+  frontmatter: { slug?: unknown; diagramSpots?: unknown };
+}): GeneratedCard[] {
+  const slug = typeof args.frontmatter.slug === "string" ? args.frontmatter.slug : null;
+  if (!slug || !Array.isArray(args.frontmatter.diagramSpots)) return [];
+  const out: GeneratedCard[] = [];
+  for (const raw of args.frontmatter.diagramSpots as DiagramSpotEntry[]) {
+    if (typeof raw.front !== "string" || !raw.front.trim()) continue;
+    if (!Array.isArray(raw.options) || raw.options.length < 2) continue;
+    if (typeof raw.correctIndex !== "number" || raw.correctIndex < 0 || raw.correctIndex >= raw.options.length) continue;
+    if (!raw.diagramSketch || typeof raw.diagramSketch !== "object") continue;
+    const options = (raw.options as unknown[]).filter((o): o is string => typeof o === "string");
+    if (options.length !== raw.options.length) continue;
+    out.push({
+      conceptSlug: null,
+      problemSlug: slug,
+      cardType: "diagram-spot",
+      source: "problem-autogen",
+      front: raw.front,
+      back: options[raw.correctIndex]!,
+      options,
+      correctIndex: raw.correctIndex,
+      diagramSketch: raw.diagramSketch as object,
+      acceptedAnswers: null,
+      clozeTemplate: null,
+    });
+  }
+  return out;
+}
+```
+
+---
+
+## Task C7: Card generator — cloze from concept numbered strip
+
+**Files:** `architex/src/lib/sd/card-generators/from-concept-cloze.ts` + test
+
+Cloze cards are fill-in-the-blank on the numbers strip. Opus authors via frontmatter `clozes`:
+
+```yaml
+clozes:
+  - template: "A single Redis shard can serve ~___ ops/sec at sub-ms p99."
+    back: "100k"
+```
+
+- [ ] **Step 1-3:** same pattern as C4-C6.
+
+```typescript
+import type { NewSDFSRSCard } from "@/db/schema";
+
+type GeneratedCard = Omit<NewSDFSRSCard, "userId" | "moduleId">;
+
+interface ClozeEntry { template?: unknown; back?: unknown }
+
+export function cardsFromConceptCloze(args: {
+  frontmatter: { slug?: unknown; clozes?: unknown };
+}): GeneratedCard[] {
+  const slug = typeof args.frontmatter.slug === "string" ? args.frontmatter.slug : null;
+  if (!slug || !Array.isArray(args.frontmatter.clozes)) return [];
+  const out: GeneratedCard[] = [];
+  for (const raw of args.frontmatter.clozes as ClozeEntry[]) {
+    if (typeof raw.template !== "string" || !raw.template.includes("___")) continue;
+    if (typeof raw.back !== "string" || !raw.back.trim()) continue;
+    out.push({
+      conceptSlug: slug,
+      problemSlug: null,
+      cardType: "cloze",
+      source: "concept-autogen",
+      front: raw.template.replace("___", "_____"),
+      back: raw.back,
+      options: null,
+      correctIndex: null,
+      diagramSketch: null,
+      acceptedAnswers: [raw.back],
+      clozeTemplate: raw.template,
+    });
+  }
+  return out;
+}
+```
+
+---
+
+## Task C8: Auto-card pipeline — run generators on every new content seed
+
+**Files:** `architex/scripts/auto-generate-sd-cards.ts`, extend `seed-sd-content.ts` to call it
+
+- [ ] **Step 1**: Create `architex/scripts/auto-generate-sd-cards.ts`:
+
+```typescript
+#!/usr/bin/env tsx
+/**
+ * Run all four SD card generators against every seeded concept or problem,
+ * producing a set of auto-generated FSRS cards for each opted-in user.
+ *
+ * Runs nightly as a cron; also runs ad-hoc after `pnpm db:seed:sd`.
+ */
+import { db } from "../src/db/client";
+import { moduleContent, sdFSRSCards, users } from "../src/db/schema";
+import { eq, and } from "drizzle-orm";
+import { cardsFromConceptMCQ } from "../src/lib/sd/card-generators/from-concept-mcq";
+import { cardsFromConceptPrimitive } from "../src/lib/sd/card-generators/from-concept-primitive";
+import { cardsFromProblemDiagram } from "../src/lib/sd/card-generators/from-problem-diagram";
+import { cardsFromConceptCloze } from "../src/lib/sd/card-generators/from-concept-cloze";
+
+async function main() {
+  const optedIn = await db.select({ id: users.id }).from(users).where(eq(users.preferencesSdReviewOptIn, true));
+  console.log(`[auto-cards] ${optedIn.length} users opted-in`);
+  const concepts = await db.select().from(moduleContent).where(and(eq(moduleContent.moduleId, "sd"), eq(moduleContent.contentType, "concept")));
+  const problems = await db.select().from(moduleContent).where(and(eq(moduleContent.moduleId, "sd"), eq(moduleContent.contentType, "problem")));
+
+  let inserted = 0;
+  for (const u of optedIn) {
+    for (const c of concepts) {
+      const fm = c.metadata as Record<string, unknown>;
+      const cards = [
+        ...cardsFromConceptMCQ({ frontmatter: fm }),
+        ...cardsFromConceptPrimitive({ frontmatter: fm }),
+        ...cardsFromConceptCloze({ frontmatter: fm }),
+      ];
+      if (cards.length === 0) continue;
+      const rows = cards.map((c) => ({ ...c, userId: u.id, moduleId: "sd" }));
+      await db.insert(sdFSRSCards).values(rows).onConflictDoNothing();
+      inserted += rows.length;
+    }
+    for (const p of problems) {
+      const fm = p.metadata as Record<string, unknown>;
+      const cards = cardsFromProblemDiagram({ frontmatter: fm });
+      if (cards.length === 0) continue;
+      const rows = cards.map((c) => ({ ...c, userId: u.id, moduleId: "sd" }));
+      await db.insert(sdFSRSCards).values(rows).onConflictDoNothing();
+      inserted += rows.length;
+    }
+  }
+  console.log(`[auto-cards] inserted ${inserted} rows`);
+}
+
+if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });
+```
+
+- [ ] **Step 2**: Add cron at `app/api/cron/auto-generate-sd-cards/route.ts` (daily 04:00 UTC via `vercel.json`).
+
+- [ ] **Step 3**: Add `users.preferencesSdReviewOptIn` boolean column (migration). Default `false` at Wave 4 start; flips to `true` for opted-in users via a preferences toggle.
+
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task C9: SD review-store (extends shared `review-store`)
+
+**Files:** `architex/src/stores/review-store.ts` (MODIFY — was LLD-only in Phase 5)
+
+Extend the existing Zustand store to a cross-module shape:
+
+```typescript
+export interface CrossModuleQueueItem {
+  module: "lld" | "sd" | "algo" | "osdb";
+  cardId: string;
+  // polymorphic per module; we discriminate on `module` at render time
+  payload: LLDFSRSCard | SDFSRSCard | AlgoFSRSCard | OSDBFSRSCard;
+}
+
+interface ReviewStoreState {
+  queue: CrossModuleQueueItem[];
+  currentIndex: number;
+  revealed: boolean;
+  sessionStats: { again: number; hard: number; good: number; easy: number };
+  // ...
+  loadQueue: (userId: string) => Promise<void>;
+  revealCurrent: () => void;
+  rate: (rating: 1 | 2 | 3 | 4) => Promise<void>;
+  resetSession: () => void;
+}
+```
+
+- [ ] **Step 1**: Test the queue merge. Given 3 LLD cards due + 2 SD cards due, the queue has 5 items, sorted by `due ASC` with a tiebreak biased toward the module the user worked in most recently (last 48h from `activityEvents`).
+
+- [ ] **Step 2**: Implement `loadQueue` to hit `GET /api/fsrs/cards/due` (new cross-module endpoint, Task C10) and populate the queue.
+
+- [ ] **Step 3**: Implement `rate` to call `POST /api/{module}/review/submit` (dispatched by `payload.module`), update local state, advance `currentIndex`.
+
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task C10: API routes — `/api/sd/cards/*` + cross-module `/api/fsrs/cards/due`
+
+**Files:**
+- `app/api/sd/cards/route.ts` (POST — create card; GET — list by user+concept/problem)
+- `app/api/sd/cards/due/route.ts` (GET — SD-only due queue)
+- `app/api/sd/cards/[id]/route.ts` (GET, PATCH — single card; DELETE — suspend)
+- `app/api/sd/review/submit/route.ts` (POST — submit rating, advance FSRS state)
+- `app/api/fsrs/cards/due/route.ts` (GET — cross-module merged queue; NEW infrastructure)
+
+- [ ] **Step 1**: Write tests for each route mirroring the LLD Phase 5 Task 9/10/12 structure.
+- [ ] **Step 2**: Implement each route using Clerk auth (`auth()`), Drizzle queries, and the shared `scheduleReview` function.
+- [ ] **Step 3**: The cross-module endpoint at `/api/fsrs/cards/due` UNIONs all four module tables:
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/db/client";
+import { lldFSRSCards, sdFSRSCards /* algoFSRSCards, osdbFSRSCards */ } from "@/db/schema";
+import { and, eq, lte, sql } from "drizzle-orm";
+
+export async function GET(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const limit = Math.min(20, Math.max(1, Number(req.nextUrl.searchParams.get("limit") ?? 10)));
+  const now = new Date();
+
+  const [lld, sd] = await Promise.all([
+    db.select().from(lldFSRSCards)
+      .where(and(eq(lldFSRSCards.userId, userId), lte(lldFSRSCards.due, now), sql`${lldFSRSCards.suspendedAt} IS NULL`))
+      .orderBy(lldFSRSCards.due).limit(limit),
+    db.select().from(sdFSRSCards)
+      .where(and(eq(sdFSRSCards.userId, userId), lte(sdFSRSCards.due, now), sql`${sdFSRSCards.suspendedAt} IS NULL`))
+      .orderBy(sdFSRSCards.due).limit(limit),
+  ]);
+
+  const merged = [
+    ...lld.map((c) => ({ module: "lld" as const, cardId: c.id, payload: c })),
+    ...sd.map((c) => ({ module: "sd" as const, cardId: c.id, payload: c })),
+  ].sort((a, b) => new Date(a.payload.due).getTime() - new Date(b.payload.due).getTime())
+   .slice(0, limit);
+
+  return NextResponse.json({ items: merged });
+}
+```
+
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task C11: Review session component — single-card, mobile-first
+
+**Files:** `architex/src/components/modules/sd/review/ReviewCard.tsx`, `ReviewRatingRow.tsx`
+
+Mirror LLD Phase 5 `ReviewCard` but add card-type-specific rendering:
+- `mcq` → options with 1-4 digit hotkeys and tap targets
+- `name-primitive` → text input with fuzzy match on blur
+- `diagram-spot` → inline SVG canvas (React Flow readonly) + options
+- `cloze` → front text with blank cursor + input
+
+- [ ] **Step 1-3**: Test each card-type rendering, then implement. Full component code:
+
+```tsx
+"use client";
+
+import { useSDReviewQueue } from "@/hooks/useSDReviewQueue";
+import { ReviewRatingRow } from "./ReviewRatingRow";
+import { SDMCQCard } from "./SDMCQCard";
+import { SDPrimitiveCard } from "./SDPrimitiveCard";
+import { SDDiagramSpotCard } from "./SDDiagramSpotCard";
+import { SDClozeCard } from "./SDClozeCard";
+
+export function ReviewCard() {
+  const { current, revealed, reveal, rate } = useSDReviewQueue();
+  if (!current) return null;
+  const card = current.payload;
+
+  return (
+    <div className="flex flex-col gap-6 rounded-2xl bg-[var(--sd-surface-card)] p-8 shadow-lg">
+      {card.cardType === "mcq" && <SDMCQCard card={card} revealed={revealed} onReveal={reveal} />}
+      {card.cardType === "name-primitive" && <SDPrimitiveCard card={card} revealed={revealed} onReveal={reveal} />}
+      {card.cardType === "diagram-spot" && <SDDiagramSpotCard card={card} revealed={revealed} onReveal={reveal} />}
+      {card.cardType === "cloze" && <SDClozeCard card={card} revealed={revealed} onReveal={reveal} />}
+      {revealed && <ReviewRatingRow onRate={rate} />}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task C12: Mobile swipe gestures
+
+**Files:** `architex/src/components/modules/sd/review/SwipeGestureLayer.tsx`, `architex/src/hooks/useSwipeGestures.ts`
+
+Per spec §10.5 and LLD B8:
+- Swipe **left** → Again
+- Swipe **down** → Hard
+- Swipe **up** → Good
+- Swipe **right** → Easy
+
+- [ ] **Step 1**: Write the hook using Framer Motion's `useMotionValue` + `useAnimationControls`:
+
+```tsx
+"use client";
+import { motion, useAnimation, useMotionValue } from "motion/react";
+import { useEffect } from "react";
+import type { ReactNode } from "react";
+
+interface Props {
+  children: ReactNode;
+  onRate: (rating: 1 | 2 | 3 | 4) => void;
+  disabled?: boolean;
+}
+
+const SWIPE_THRESHOLD = 120; // px
+
+export function SwipeGestureLayer({ children, onRate, disabled }: Props) {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const controls = useAnimation();
+
+  async function handleEnd(_e: unknown, info: { offset: { x: number; y: number } }) {
+    const { x: dx, y: dy } = info.offset;
+    if (disabled) return;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (Math.max(absX, absY) < SWIPE_THRESHOLD) {
+      await controls.start({ x: 0, y: 0 });
+      return;
+    }
+    const rating: 1 | 2 | 3 | 4 =
+      absX > absY ? (dx < 0 ? 1 : 4) // left=Again, right=Easy
+      : (dy < 0 ? 3 : 2);             // up=Good, down=Hard
+    await controls.start({
+      x: absX > absY ? (dx < 0 ? -400 : 400) : 0,
+      y: absY > absX ? (dy < 0 ? -400 : 400) : 0,
+      opacity: 0,
+      transition: { duration: 0.24 },
+    });
+    onRate(rating);
+    x.set(0); y.set(0);
+    controls.set({ opacity: 1 });
+  }
+
+  return (
+    <motion.div
+      drag
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.7}
+      style={{ x, y }}
+      animate={controls}
+      onDragEnd={handleEnd}
+      className="touch-pan-y"
+    >
+      {children}
+    </motion.div>
+  );
+}
+```
+
+- [ ] **Step 2**: Compose in `ReviewModeLayout.tsx` behind a `isMobile` check (from `useMobileViewport`, Task D1).
+
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task C13: Keyboard shortcuts (desktop)
+
+Per §10.5: `1..4` for MCQ options (when not revealed), `Space` to reveal, `A/H/G/E` to rate Again/Hard/Good/Easy, `↵` to advance.
+
+- [ ] **Step 1**: Create `architex/src/hooks/useSDReviewKeyboard.ts` mirroring LLD's `useReviewKeyboard.ts` but distinguishing card-type-specific shortcuts:
+  - MCQ: 1-4 select option (pre-reveal) or rate (post-reveal with A/H/G/E)
+  - Name-primitive: Enter submits input; post-reveal A/H/G/E rate
+  - Diagram-spot: 1-4 select option; post-reveal A/H/G/E rate
+  - Cloze: Enter submits input; post-reveal A/H/G/E rate
+
+- [ ] **Step 2**: Skip handling if focus is in `<input>`/`<textarea>` (so free-text cards work).
+
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task C14: Unified cross-module queue — the shared queue merger
+
+**Files:** `architex/src/components/modules/sd/review/CrossModuleQueueBadge.tsx`, modification to `ReviewModeLayout.tsx`
+
+Display a small pill above the card: `SD · 3 of 5 · 2 LLD queued next`. This is purely presentation layer; the merge logic lives in Task C10's `/api/fsrs/cards/due`.
+
+- [ ] **Step 1-3**: Component, test, commit.
+
+---
+
+## Task C15: Streak + empty-state + completion summary
+
+**Files:** `architex/src/components/modules/sd/review/ReviewEmptyState.tsx`, `ReviewSessionComplete.tsx`
+
+Mirror LLD Phase 5 Task 19:
+- Empty state: "All caught up — come back tomorrow." with a warming-streak icon.
+- Session complete: 4-bucket histogram (Again/Hard/Good/Easy) + "Tomorrow: N cards due."
+
+- [ ] **Step 1-3**: Implement as lightly-styled presentation components. Commit.
+
+---
+
+## Task C16: Mastery derivation per concept cluster
+
+**Files:** `architex/src/lib/shared/mastery.ts`, `architex/src/app/api/sd/mastery/route.ts`, test
+
+Per spec §10.7: mastery tier is derived, not stored. Tiers:
+- **Not started** — 0 cards for this concept
+- **Introduced** — ≥1 card, average stability < 3d
+- **Learning** — average stability 3-10d
+- **Mastered** — average stability ≥10d AND lapses < 1 per 5 reps
+
+- [ ] **Step 1**: Pure function:
+
+```typescript
+export type MasteryTier = "not-started" | "introduced" | "learning" | "mastered";
+
+export function deriveMastery(cards: Array<{ stability: number; reps: number; lapses: number }>): MasteryTier {
+  if (cards.length === 0) return "not-started";
+  const avgStability = cards.reduce((s, c) => s + c.stability, 0) / cards.length;
+  const totalReps = cards.reduce((s, c) => s + c.reps, 0);
+  const totalLapses = cards.reduce((s, c) => s + c.lapses, 0);
+  const lapseRate = totalReps > 0 ? totalLapses / totalReps : 0;
+  if (avgStability < 3) return "introduced";
+  if (avgStability < 10) return "learning";
+  if (lapseRate < 0.2) return "mastered";
+  return "learning";
+}
+```
+
+- [ ] **Step 2**: API route aggregates per-concept mastery for the user.
+
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task C17: Review mode stats (retention curve · per-wave mastery)
+
+**Files:** `architex/src/app/api/sd/stats/route.ts`, `components/modules/sd/review/ReviewStats.tsx`, `components/charts/RetentionCurveChart.tsx` (reuse from LLD), `components/modules/sd/portfolio/WaveProgressRings.tsx` (shared with Task E5)
+
+- [ ] **Step 1-3**: Endpoint returns `{ retentionCurve: Array<{daysAgo: number, retained: number, total: number}>, perWaveMastery: Array<{wave: number, tier: MasteryTier, conceptsMastered: number, conceptsTotal: number}> }`. Chart components wired to the response. Commit.
+
+---
