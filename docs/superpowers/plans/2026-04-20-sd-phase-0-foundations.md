@@ -1446,3 +1446,672 @@ architex/
   ```
 
 ---
+
+## Task 9: Feature-flag registry extension — six SD flags
+
+**Files:**
+- Modify: `architex/src/features/flags/registry.ts` (created in LLD Phase 6 Task 9)
+- Modify: `architex/src/features/flags/__tests__/registry.test.ts`
+
+**Design intent:** Register every SD-wide rollout flag today so Phase 1+ code cannot read a flag that isn't in the registry (the ESLint rule from LLD Phase 6 forbids ungated reads). Six flags: four rollout stages (alpha / beta / 50% / 100%) and two kill switches (chaos-engine, simulation). Additional per-feature flags come online in Phase 3+.
+
+- [ ] **Step 1: Extend the registry test**
+
+  Open `architex/src/features/flags/__tests__/registry.test.ts`. Append these assertions inside the existing `describe("flag registry", () => { ... })`:
+
+  ```typescript
+    it("declares the SD Phase 0 rollout flags", () => {
+      const expected = [
+        "sd.v1.alpha",
+        "sd.v1.beta",
+        "sd.v1.rollout50",
+        "sd.v1.rollout100",
+        "sd.killswitch.chaos_engine",
+        "sd.killswitch.simulation",
+      ];
+      for (const key of expected) {
+        expect(
+          FLAG_REGISTRY.has(key as never),
+          `missing sd flag ${key}`,
+        ).toBe(true);
+      }
+    });
+
+    it("sd.killswitch.* defaults to true (on)", () => {
+      expect(
+        (FLAG_REGISTRY.get("sd.killswitch.chaos_engine" as never) as {
+          defaultValue: boolean;
+        }).defaultValue,
+      ).toBe(true);
+      expect(
+        (FLAG_REGISTRY.get("sd.killswitch.simulation" as never) as {
+          defaultValue: boolean;
+        }).defaultValue,
+      ).toBe(true);
+    });
+
+    it("sd rollout flags carry a rolloutStage", () => {
+      const withStage = [
+        ["sd.v1.alpha", "internal"],
+        ["sd.v1.beta", "beta5"],
+        ["sd.v1.rollout50", "rollout50"],
+        ["sd.v1.rollout100", "rollout100"],
+      ] as const;
+      for (const [key, stage] of withStage) {
+        const meta = FLAG_REGISTRY.get(key as never) as {
+          rolloutStage: string;
+        };
+        expect(meta.rolloutStage, `flag ${key}`).toBe(stage);
+      }
+    });
+  ```
+
+- [ ] **Step 2: Run — verify failure**
+
+  ```bash
+  pnpm test:run -- registry
+  ```
+  Expected: FAIL on `missing sd flag sd.v1.alpha` etc.
+
+- [ ] **Step 3: Extend the registry**
+
+  Open `architex/src/features/flags/registry.ts`. Add to `FLAG_KEYS` (after the LLD entries, before the closing `] as const`):
+
+  ```typescript
+    // SD Phase 0 rollout flags
+    "sd.v1.alpha",
+    "sd.v1.beta",
+    "sd.v1.rollout50",
+    "sd.v1.rollout100",
+    // SD kill switches (default ON; flip OFF to kill)
+    "sd.killswitch.chaos_engine",
+    "sd.killswitch.simulation",
+  ```
+
+  Then add to the `FLAG_REGISTRY` Map constructor (after the LLD entries):
+
+  ```typescript
+    [
+      "sd.v1.alpha",
+      {
+        owner: "@sd-eng",
+        description: "SD module · alpha opt-in (Phase 2 end, ~30-50 users)",
+        defaultValue: false,
+        rolloutStage: "internal",
+        removeBy: "2026-12-01",
+      },
+    ],
+    [
+      "sd.v1.beta",
+      {
+        owner: "@sd-eng",
+        description: "SD module · anonymous 100% (Phase 3 end)",
+        defaultValue: false,
+        rolloutStage: "beta5",
+        removeBy: "2026-12-01",
+      },
+    ],
+    [
+      "sd.v1.rollout50",
+      {
+        owner: "@sd-eng",
+        description: "SD module · authenticated 50% cohort",
+        defaultValue: false,
+        rolloutStage: "rollout50",
+        removeBy: "2027-02-01",
+      },
+    ],
+    [
+      "sd.v1.rollout100",
+      {
+        owner: "@sd-eng",
+        description: "SD module · authenticated 100% (full launch)",
+        defaultValue: false,
+        rolloutStage: "rollout100",
+        removeBy: "2027-03-01",
+      },
+    ],
+    [
+      "sd.killswitch.chaos_engine",
+      {
+        owner: "@sd-sre",
+        description:
+          "Master switch for the chaos-engine WebSocket stream. Flip off to halt all Simulate runs.",
+        defaultValue: true,
+        killSwitch: true,
+      },
+    ],
+    [
+      "sd.killswitch.simulation",
+      {
+        owner: "@sd-sre",
+        description:
+          "Master switch for the simulation engine + Simulate mode UI.",
+        defaultValue: true,
+        killSwitch: true,
+      },
+    ],
+  ```
+
+- [ ] **Step 4: Run — expect all PASS**
+
+  ```bash
+  pnpm test:run -- registry
+  pnpm lint
+  ```
+  Expected: registry test 100% green; lint shows zero new warnings.
+
+- [ ] **Step 5: Commit**
+
+  ```bash
+  git add architex/src/features/flags/registry.ts architex/src/features/flags/__tests__/registry.test.ts
+  git commit -m "$(cat <<'EOF'
+  feat(flags): register SD Phase 0 rollout + kill-switch flags
+
+  Four rollout flags (alpha/beta/rollout50/rollout100) mirror the Wave
+  1-5 plan from spec §24. Two kill switches (chaos_engine, simulation)
+  default ON so the default state is safe. Per-feature SD flags will be
+  added in Phase 1-5 plans.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
+
+## Task 10: MDX sanitizer for Learn + Review rendering
+
+**Files:**
+- Create: `architex/src/lib/sd/mdx-sanitizer.ts`
+- Create: `architex/src/lib/sd/__tests__/mdx-sanitizer.test.ts`
+- Modify: `architex/package.json` (add 4 deps)
+
+**Design intent:** Phase 2 renders authored MDX from `sd_concepts.body_mdx` and `sd_problems.body_mdx` inside React. Some content will be authored by Opus, but Phase 4 adds user-authored content (`sd_user_problems`) — untrusted input. We install `rehype-sanitize` (hast-level sanitizer) + `@mdx-js/mdx` for parsing + `unist-util-visit` for inspection + `isomorphic-dompurify` for a defense-in-depth HTML pass over any raw-html escape hatch. The sanitizer runs at **render time**, not at **write time**, so that tightening the schema later doesn't require a DB rewrite.
+
+- [ ] **Step 1: Add deps**
+
+  ```bash
+  cd architex
+  pnpm add @mdx-js/mdx@^3 rehype-sanitize@^6 unist-util-visit@^5 isomorphic-dompurify@^2
+  ```
+  Expected: four packages resolved. Verify in `package.json`:
+
+  ```bash
+  grep -E '@mdx-js/mdx|rehype-sanitize|unist-util-visit|isomorphic-dompurify' package.json
+  ```
+
+- [ ] **Step 2: Write the failing test**
+
+  Create `architex/src/lib/sd/__tests__/mdx-sanitizer.test.ts`:
+
+  ```typescript
+  import { describe, it, expect } from "vitest";
+  import { sanitizeMDX } from "@/lib/sd/mdx-sanitizer";
+
+  describe("sanitizeMDX", () => {
+    it("preserves safe markdown + headings + code", () => {
+      const input = `# Title\n\nSome *italic* and **bold**.\n\n\`\`\`ts\nconst x = 1;\n\`\`\``;
+      const out = sanitizeMDX(input);
+      expect(out).toContain("# Title");
+      expect(out).toContain("**bold**");
+      expect(out).toContain("```ts");
+    });
+
+    it("strips <script> blocks", () => {
+      const input = "# Safe\n\n<script>alert('x')</script>\n\nTail.";
+      const out = sanitizeMDX(input);
+      expect(out.toLowerCase()).not.toContain("<script");
+      expect(out).toContain("# Safe");
+      expect(out).toContain("Tail.");
+    });
+
+    it("strips javascript: URLs in links", () => {
+      const input = "[x](javascript:alert(1))";
+      const out = sanitizeMDX(input);
+      expect(out).not.toContain("javascript:");
+    });
+
+    it("strips event handlers (onload, onclick)", () => {
+      const input = `<img src="x" onerror="alert(1)" />`;
+      const out = sanitizeMDX(input);
+      expect(out).not.toContain("onerror");
+    });
+
+    it("allows whitelisted JSX components (Diagram, Quiz)", () => {
+      const input = `<Diagram id="abc" />\n<Quiz id="q1" />`;
+      const out = sanitizeMDX(input);
+      expect(out).toContain("<Diagram");
+      expect(out).toContain("<Quiz");
+    });
+
+    it("strips non-whitelisted JSX components", () => {
+      const input = `<IFrame src="https://evil.com" />`;
+      const out = sanitizeMDX(input);
+      expect(out).not.toContain("<IFrame");
+    });
+  });
+  ```
+
+- [ ] **Step 3: Run — verify failure**
+
+  ```bash
+  pnpm test:run -- mdx-sanitizer
+  ```
+  Expected: FAIL `Cannot find module '@/lib/sd/mdx-sanitizer'`.
+
+- [ ] **Step 4: Implement the sanitizer**
+
+  Create `architex/src/lib/sd/mdx-sanitizer.ts`:
+
+  ```typescript
+  /**
+   * SD Phase 0 · MDX sanitizer for Learn + Review (Task 10).
+   *
+   * Strategy: parse the MDX source into an AST, walk it, remove every
+   * element whose tag name is not in ALLOWED_TAGS or ALLOWED_JSX_COMPONENTS.
+   * For remaining elements, strip non-whitelisted attributes and reject any
+   * `href` / `src` whose protocol isn't in ALLOWED_PROTOCOLS. Serialize back
+   * to MDX source and run one pass through DOMPurify for raw-HTML bits.
+   */
+
+  import { visit } from "unist-util-visit";
+  import type { Root } from "mdast";
+  import DOMPurify from "isomorphic-dompurify";
+  // @ts-expect-error - @mdx-js/mdx does not ship types for the parser subpath
+  import { fromMarkdown } from "mdast-util-from-markdown";
+  // @ts-expect-error - parity
+  import { toMarkdown } from "mdast-util-to-markdown";
+  // @ts-expect-error - parity
+  import { mdxFromMarkdown, mdxToMarkdown } from "mdast-util-mdx";
+  // @ts-expect-error - parity
+  import { mdxjs } from "micromark-extension-mdxjs";
+
+  const ALLOWED_TAGS = new Set<string>([
+    "p", "br", "hr", "strong", "em", "code", "pre",
+    "ul", "ol", "li", "blockquote",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "a", "img", "table", "thead", "tbody", "tr", "th", "td",
+  ]);
+
+  const ALLOWED_JSX_COMPONENTS = new Set<string>([
+    "Diagram", "Quiz", "Callout", "Stepper", "Reveal", "Concept", "Problem",
+  ]);
+
+  const ALLOWED_PROTOCOLS = new Set<string>(["http:", "https:", "mailto:"]);
+
+  const ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
+    a: new Set(["href", "title", "rel", "target"]),
+    img: new Set(["src", "alt", "title", "width", "height"]),
+    Diagram: new Set(["id", "interactive", "caption"]),
+    Quiz: new Set(["id", "type"]),
+    Callout: new Set(["tone"]),
+    Stepper: new Set(["id"]),
+    Reveal: new Set(["label"]),
+    Concept: new Set(["slug"]),
+    Problem: new Set(["slug"]),
+  };
+
+  interface MDXNode {
+    type: string;
+    name?: string;
+    attributes?: Array<{ name: string; value: string }>;
+    url?: string;
+    children?: MDXNode[];
+    value?: string;
+  }
+
+  function isSafeURL(value: string | undefined): boolean {
+    if (!value) return true;
+    try {
+      const url = new URL(value, "http://localhost");
+      return ALLOWED_PROTOCOLS.has(url.protocol);
+    } catch {
+      // Relative paths parse as localhost — treat as safe.
+      return !/^[a-z]+:/i.test(value);
+    }
+  }
+
+  export function sanitizeMDX(source: string): string {
+    const tree = fromMarkdown(source, {
+      extensions: [mdxjs()],
+      mdastExtensions: [mdxFromMarkdown()],
+    }) as unknown as Root;
+
+    visit(tree as unknown as MDXNode, (node, index, parent) => {
+      if (!parent || typeof index !== "number") return;
+      const n = node as MDXNode;
+
+      // Strip <script>, <style>, <iframe> etc.
+      if (n.type === "html" && typeof n.value === "string") {
+        const cleaned = DOMPurify.sanitize(n.value, {
+          ALLOWED_TAGS: Array.from(ALLOWED_TAGS),
+          ALLOWED_ATTR: ["href", "src", "alt", "title"],
+        });
+        n.value = cleaned;
+        return;
+      }
+
+      // JSX components — only whitelisted names, whitelisted attributes.
+      if (
+        (n.type === "mdxJsxFlowElement" || n.type === "mdxJsxTextElement") &&
+        typeof n.name === "string"
+      ) {
+        if (!ALLOWED_JSX_COMPONENTS.has(n.name)) {
+          (parent.children ?? []).splice(index, 1);
+          return ["skip", index];
+        }
+        const allowed = ALLOWED_ATTRS[n.name] ?? new Set<string>();
+        n.attributes = (n.attributes ?? []).filter((a) =>
+          allowed.has(a.name),
+        );
+      }
+
+      // Links / images — reject bad protocols.
+      if (n.type === "link" || n.type === "image") {
+        if (!isSafeURL(n.url)) {
+          (parent.children ?? []).splice(index, 1);
+          return ["skip", index];
+        }
+      }
+    });
+
+    return toMarkdown(tree as unknown as Root, {
+      extensions: [mdxToMarkdown()],
+    }) as string;
+  }
+  ```
+
+- [ ] **Step 5: Run — expect PASS**
+
+  ```bash
+  pnpm test:run -- mdx-sanitizer
+  ```
+  Expected: PASS · 6 assertions. If an `unist-util-visit` callback type fights TypeScript, widen to `any` **only inside the visit callback** and keep the exported surface strict.
+
+- [ ] **Step 6: Commit**
+
+  ```bash
+  git add architex/src/lib/sd/mdx-sanitizer.ts architex/src/lib/sd/__tests__/mdx-sanitizer.test.ts architex/package.json architex/pnpm-lock.yaml
+  git commit -m "$(cat <<'EOF'
+  feat(sd): MDX sanitizer for Learn + Review rendering
+
+  Whitelist approach: allowed tags + allowed JSX components (Diagram,
+  Quiz, Callout, Stepper, Reveal, Concept, Problem) + allowed protocols
+  (http/https/mailto). Raw-HTML blocks pass through DOMPurify as defense
+  in depth. Runs at render time so schema tightening doesn't require DB
+  rewrites. Fulfills spec §23 Phase 0 XSS-audit requirement.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
+
+## Task 11: Sentry PII scrubbing for SD payloads
+
+**Files:**
+- Create: `architex/sentry.client.config.ts`
+- Create: `architex/sentry.server.config.ts`
+- Create: `architex/sentry.edge.config.ts`
+- Create: `architex/src/instrumentation.ts`
+- Create: `architex/src/lib/security/__tests__/pii-scrubber-sd.test.ts`
+- Modify: `architex/src/lib/security/pii-scrubber.ts` (adds `sanitizeSDEventPayload`)
+- Modify: `architex/package.json` (add `@sentry/nextjs`)
+
+**Design intent:** Sentry is not yet wired in this repo; Phase 3 will start firing events from the simulation engine. We add Sentry now with a strict scrubbing config so no SD-specific payload (problem slugs, diagram canvas JSON, user chat transcripts) ever reaches Sentry in raw form. The `sanitizeSDEventPayload` function is the single choke-point — `beforeSend` in all three Sentry configs routes through it.
+
+- [ ] **Step 1: Add dep**
+
+  ```bash
+  cd architex
+  pnpm add @sentry/nextjs@^8
+  ```
+
+- [ ] **Step 2: Write the failing test**
+
+  Create `architex/src/lib/security/__tests__/pii-scrubber-sd.test.ts`:
+
+  ```typescript
+  import { describe, it, expect } from "vitest";
+  import { sanitizeSDEventPayload } from "@/lib/security/pii-scrubber";
+
+  describe("sanitizeSDEventPayload", () => {
+    it("redacts canvas_state", () => {
+      const ev = {
+        extra: {
+          canvas_state: { nodes: [{ id: "secret" }], edges: [] },
+          sd: { activity: "chaos" },
+        },
+      };
+      const out = sanitizeSDEventPayload(ev);
+      expect(out.extra?.canvas_state).toBe("[redacted-canvas]");
+      expect(out.extra?.sd).toEqual({ activity: "chaos" });
+    });
+
+    it("redacts chat_transcript entirely", () => {
+      const ev = {
+        extra: { chat_transcript: [{ role: "user", content: "hi" }] },
+      };
+      expect(sanitizeSDEventPayload(ev).extra?.chat_transcript).toBe(
+        "[redacted-transcript]",
+      );
+    });
+
+    it("redacts Authorization and Cookie headers", () => {
+      const ev = {
+        request: {
+          headers: {
+            Authorization: "Bearer xyz",
+            Cookie: "__session=abc",
+            Accept: "application/json",
+          },
+        },
+      };
+      const out = sanitizeSDEventPayload(ev);
+      expect(out.request?.headers?.Authorization).toBe("[redacted]");
+      expect(out.request?.headers?.Cookie).toBe("[redacted]");
+      expect(out.request?.headers?.Accept).toBe("application/json");
+    });
+
+    it("redacts env-like values in extra", () => {
+      const ev = {
+        extra: {
+          ANTHROPIC_API_KEY: "sk-ant-xxx",
+          DATABASE_URL: "postgres://user:pass@host/db",
+          safe_field: "hello",
+        },
+      };
+      const out = sanitizeSDEventPayload(ev);
+      expect(out.extra?.ANTHROPIC_API_KEY).toBe("[redacted-secret]");
+      expect(out.extra?.DATABASE_URL).toBe("[redacted-secret]");
+      expect(out.extra?.safe_field).toBe("hello");
+    });
+
+    it("truncates problem_name over 200 chars", () => {
+      const long = "x".repeat(300);
+      const ev = { extra: { problem_name: long } };
+      const out = sanitizeSDEventPayload(ev);
+      const val = out.extra?.problem_name as string;
+      expect(val.length).toBeLessThanOrEqual(203); // 200 + ellipsis
+      expect(val.endsWith("...")).toBe(true);
+    });
+  });
+  ```
+
+- [ ] **Step 3: Run — verify failure**
+
+  ```bash
+  pnpm test:run -- pii-scrubber-sd
+  ```
+  Expected: FAIL `sanitizeSDEventPayload is not a function`.
+
+- [ ] **Step 4: Implement the scrubber**
+
+  Open `architex/src/lib/security/pii-scrubber.ts`. Append:
+
+  ```typescript
+  /**
+   * SD Phase 0 · Sentry scrubber for SD-specific payload shapes (Task 11).
+   *
+   * Redacts:
+   *   - canvas_state (can embed user-written labels)
+   *   - chat_transcript (interviewer-persona turns)
+   *   - verbal_transcript (Whisper output)
+   *   - any extra key matching /(API_KEY|SECRET|TOKEN|DATABASE_URL|PASSWORD)/i
+   *   - Authorization / Cookie request headers
+   * Truncates:
+   *   - problem_name / problem_slug to 200 chars
+   */
+
+  const SECRET_KEY_RE = /(API_KEY|SECRET|TOKEN|DATABASE_URL|PASSWORD)/i;
+  const REDACT = "[redacted]";
+  const REDACT_CANVAS = "[redacted-canvas]";
+  const REDACT_TRANSCRIPT = "[redacted-transcript]";
+  const REDACT_SECRET = "[redacted-secret]";
+  const TRUNCATE_AT = 200;
+
+  export interface SentryLikeEvent {
+    extra?: Record<string, unknown>;
+    request?: {
+      headers?: Record<string, string>;
+    };
+  }
+
+  export function sanitizeSDEventPayload<T extends SentryLikeEvent>(
+    event: T,
+  ): T {
+    if (event.extra) {
+      const nextExtra: Record<string, unknown> = { ...event.extra };
+
+      if ("canvas_state" in nextExtra) nextExtra.canvas_state = REDACT_CANVAS;
+      if ("chat_transcript" in nextExtra)
+        nextExtra.chat_transcript = REDACT_TRANSCRIPT;
+      if ("verbal_transcript" in nextExtra)
+        nextExtra.verbal_transcript = REDACT_TRANSCRIPT;
+
+      for (const [key, value] of Object.entries(nextExtra)) {
+        if (SECRET_KEY_RE.test(key)) {
+          nextExtra[key] = REDACT_SECRET;
+          continue;
+        }
+        if (
+          (key === "problem_name" || key === "problem_slug") &&
+          typeof value === "string" &&
+          value.length > TRUNCATE_AT
+        ) {
+          nextExtra[key] = value.slice(0, TRUNCATE_AT) + "...";
+        }
+      }
+
+      event.extra = nextExtra;
+    }
+
+    if (event.request?.headers) {
+      const nextHeaders: Record<string, string> = { ...event.request.headers };
+      for (const header of Object.keys(nextHeaders)) {
+        if (/^(authorization|cookie|x-clerk)/i.test(header)) {
+          nextHeaders[header] = REDACT;
+        }
+      }
+      event.request.headers = nextHeaders;
+    }
+
+    return event;
+  }
+  ```
+
+- [ ] **Step 5: Wire Sentry configs**
+
+  Create `architex/sentry.client.config.ts`:
+
+  ```typescript
+  import * as Sentry from "@sentry/nextjs";
+  import { sanitizeSDEventPayload } from "@/lib/security/pii-scrubber";
+
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    tracesSampleRate: 0.1,
+    beforeSend(event) {
+      return sanitizeSDEventPayload(event as never);
+    },
+  });
+  ```
+
+  Create `architex/sentry.server.config.ts`:
+
+  ```typescript
+  import * as Sentry from "@sentry/nextjs";
+  import { sanitizeSDEventPayload } from "@/lib/security/pii-scrubber";
+
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 0.1,
+    beforeSend(event) {
+      return sanitizeSDEventPayload(event as never);
+    },
+  });
+  ```
+
+  Create `architex/sentry.edge.config.ts` (identical shape to server):
+
+  ```typescript
+  import * as Sentry from "@sentry/nextjs";
+  import { sanitizeSDEventPayload } from "@/lib/security/pii-scrubber";
+
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 0.1,
+    beforeSend(event) {
+      return sanitizeSDEventPayload(event as never);
+    },
+  });
+  ```
+
+  Create `architex/src/instrumentation.ts`:
+
+  ```typescript
+  export async function register() {
+    if (process.env.NEXT_RUNTIME === "nodejs") {
+      await import("../sentry.server.config");
+    }
+    if (process.env.NEXT_RUNTIME === "edge") {
+      await import("../sentry.edge.config");
+    }
+  }
+  ```
+
+- [ ] **Step 6: Run — expect all PASS**
+
+  ```bash
+  pnpm test:run -- pii-scrubber-sd
+  pnpm typecheck
+  ```
+  Expected: 5 passing assertions; typecheck unchanged from baseline.
+
+- [ ] **Step 7: Smoke-verify Sentry init**
+
+  ```bash
+  pnpm build 2>&1 | grep -i "sentry\|instrument"
+  ```
+  Expected: no errors. If Sentry complains about a missing DSN, that's fine for Phase 0 — the configs guard against it by falling back to no-op when `SENTRY_DSN` is unset.
+
+- [ ] **Step 8: Commit**
+
+  ```bash
+  git add architex/sentry.client.config.ts architex/sentry.server.config.ts architex/sentry.edge.config.ts architex/src/instrumentation.ts architex/src/lib/security/pii-scrubber.ts architex/src/lib/security/__tests__/pii-scrubber-sd.test.ts architex/package.json architex/pnpm-lock.yaml
+  git commit -m "$(cat <<'EOF'
+  feat(sentry): PII-scrubbing for SD-specific payloads
+
+  sanitizeSDEventPayload redacts canvas_state, chat_transcript,
+  verbal_transcript, secret-shaped env vars, and auth headers. Truncates
+  problem names to 200 chars. Wired into client/server/edge Sentry
+  configs via beforeSend. Missing DSN is a no-op for local/dev.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
