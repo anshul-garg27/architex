@@ -1435,6 +1435,112 @@ Past these, the UI surfaces a "You're approaching diagram limits — consider ex
 
 ---
 
+## 12. Chaos Library
+
+> "Every war story you wish you'd read before being paged at 3am."
+
+### 12.1 Taxonomy (Q11) · 73 events in 7 families
+
+Each event has: a canonical name, a family, a severity band, a narrative template, a simulation model, a real-incident tie (if applicable), and a "what protects against this" card. Events are authored alongside concepts and problems. Opus writes each narrative template; the sim model is engineered by the chaos team.
+
+| Family | Count | Examples |
+|---|---|---|
+| **Infrastructure** | 14 | VM hardware failure, disk corruption, disk-full, kernel panic, clock drift, NUMA imbalance, noisy-neighbor CPU starvation, full TCP socket table, IP exhaustion, DNS server outage, certificate expiry, hypervisor eviction, power outage on rack, cooling failure |
+| **Data** | 11 | Replica lag spike, replica desync, corrupt index, silent data corruption, write conflict storm, cache stampede, cache poisoning, split-brain during failover, hot partition, deadlock storm, schema migration failure |
+| **Network** | 10 | Partition (full), partition (asymmetric), packet loss, latency injection, bandwidth throttle, TCP SYN flood, DNS poisoning, BGP route leak, MTU mismatch, connection reset storm |
+| **Cascade** | 9 | Retry amplification, timeout amplification, circuit-breaker flip-flop, thundering herd, sequential-timeout cascade, deadlock between services, service-dependency loop, queue overflow cascade, Redis memory eviction cascade |
+| **External** | 8 | 3rd-party API down (Stripe, etc.), 3rd-party API slow, 3rd-party rate-limit hit, SaaS vendor outage (SaaS chain), DNS-provider outage, TLS provider outage, CDN outage, cloud-provider API-throttle |
+| **Human** | 10 | Bad deploy, config push error, credential rotation fail, runbook misuse, accidental deletion, runaway script, test traffic in prod, forgot-to-restart, bad CDN purge, insider mistake |
+| **Load** | 11 | Traffic spike (organic), traffic spike (viral), slow-client attack, ddos amplification, scraper flood, celebrity event, product launch, time-based (new year's eve), holiday pattern change, demographic shift, sudden geographic shift |
+
+Total: 14 + 11 + 10 + 9 + 8 + 10 + 11 = **73**. Every event is visible in the chaos library at `/sd/chaos`. Cards are grouped by family, filterable by severity and by the node family that suffers.
+
+### 12.2 The 10 real incident replays (Q13)
+
+Enumerated in §5.6. Each has:
+
+- **A 2-scene-to-7-scene timeline**, narrated in third-person present-tense serif prose
+- **A faithful-ish architecture diagram** reproduced from the real company's published postmortem
+- **Replay** · run the real incident's event sequence against the faithful diagram, or replay it against your own design (Archaeology activity, §8.3.6)
+- **Postmortem** · what the company said, what Architex adds, key learnings
+- **Bridges** · which concepts + problems this illuminates
+
+Incident pages are the most linkable assets in the product. They are optimized for OG-image sharing. A "Facebook 2021 BGP" card can be dropped into Slack and looks cinematic.
+
+### 12.3 The narrative engine · cinematic prose (Q12)
+
+Already built (`narrative-engine.ts`); this spec defines **how narratives are composed**.
+
+Voice rules:
+
+- **Third-person present-tense.** "The database's connection pool saturates." Not "The database saturated its connection pool."
+- **Physical verbs.** Saturates, floods, isolates, withdraws, drains, starves. Not "experiences issues" or "becomes unavailable".
+- **Concrete nouns.** Specific components by their on-canvas name. Not "the backend".
+- **Serif typeset.** All event text rendered in IBM Plex Serif 14-16px, 1.6 line-height.
+- **1-3 sentences per event.** Short enough to read mid-pulse. Long enough to be memorable.
+
+Narrative template example for "Cache stampede":
+
+> *Template:* `The {cache_name} cools below the hit-rate threshold. Requests begin arriving at {backend_name} faster than it can serve them. A queue forms; the queue deepens; the queue does not drain.`
+>
+> *Rendered in context:* `The Redis hot-cache cools below the hit-rate threshold. Requests begin arriving at Postgres-primary faster than it can serve them. A queue forms; the queue deepens; the queue does not drain.`
+
+Templates are authored by Opus per chaos event. ~73 templates. Each fires with interpolated names from the user's canvas.
+
+### 12.4 The 6 chaos control modes (Q14)
+
+Already enumerated in §8.4. To restate the taxonomy and their use cases:
+
+1. **Scenario script** · pre-authored. 40+ scenarios at launch. Best for first exposure.
+2. **Chaos dice** · weighted-random. Best for repeated practice with variety.
+3. **Manual injection** · user controls. Best for testing specific hypotheses.
+4. **Chaos budget** · SLO-driven. Best for learning budget thinking (e.g. "I can tolerate 43 minutes of SLO breach per month").
+5. **Auto-escalation** · system escalates on recovery. Best for resilience testing.
+6. **Red-team AI** · Sonnet plays adversary. Hardest mode. Unlocked after 3 runs.
+
+### 12.5 The cinematic pulse (Q15) · restated
+
+The full choreography is in §8.9. Key constants:
+
+- 8vh full-width ribbon
+- 900ms total sequence (slide-in 200ms, hold 500ms, dock 200ms)
+- Red vignette 22% alpha at edges, 0% center, 300ms fade
+- Optional bass thump 80Hz+40Hz, 300ms decay
+- Dock to margin narrative stream (Q16)
+- Reduced-motion users get a static banner
+
+### 12.6 The margin narrative stream (Q16) · restated
+
+Living document on the right side of Simulate (or below canvas in Drill). Each event becomes a card. Scrollable. Clickable to scrub timeline. Exportable as a draft postmortem (§13 auto-artifacts).
+
+### 12.7 Chaos budget tracking
+
+Integrated with the cost-model and metric-collector:
+- Running SLO-minute counter during a run
+- Persistent "budget remaining" display when in Chaos Budget control mode
+- Budget-exhausted event triggers its own margin card ("Budget exhausted at 19:47:11. 0 minutes remaining.")
+
+### 12.8 The chaos library UI
+
+`/sd/chaos` has three tabs:
+
+1. **Events** · 73-card grid. Filterable. Each card: severity icon, 1-sentence description, linked problems, "Simulate this on any design" button.
+2. **Real Incidents** · 10 cinematic cards. Each links to its replay page.
+3. **Scenarios** · 40+ composed sequences. User-authored scenarios (Q43) live here too, flagged as "community" or "your own".
+
+### 12.9 User-authored chaos (Q43)
+
+Any user can compose a custom chaos scenario:
+- Pick 3-10 events from the taxonomy
+- Sequence them with inter-event delays
+- Attach a narrative arc ("Black Friday surge with database failure mid-event")
+- Save as private (default) or public (opt-in)
+
+Public scenarios are discoverable in the library's Scenarios tab. Curators (internal team) can promote strong community scenarios to the canonical list. This is the community content loop.
+
+---
+
+
 
 
 
