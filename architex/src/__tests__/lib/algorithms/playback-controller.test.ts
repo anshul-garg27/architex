@@ -41,6 +41,12 @@ describe('PlaybackController', () => {
   });
 
   // ── play / pause / stop ─────────────────────────────────────
+  //
+  // Note: ALG-246 introduced a pedagogical timing multiplier — the first
+  // 3 steps are 1.5x slower (learning pace) and milestone steps are 2x.
+  // Tests that scrub the fake clock must account for it:
+  //   step 0 -> step 1: duration * 1.5  (step 0 idx < 3)
+  //   step 1 -> step 2: duration * 1.5  (step 1 idx < 3)
 
   test('play advances through steps', () => {
     const onStep = vi.fn();
@@ -50,12 +56,12 @@ describe('PlaybackController', () => {
     ctrl.play();
     expect(ctrl.isPlaying()).toBe(true);
 
-    // Advance past step 0 duration (100ms)
-    vi.advanceTimersByTime(100);
+    // Advance past step 0 duration (100 * 1.5 = 150ms pedagogical)
+    vi.advanceTimersByTime(150);
     expect(onStep).toHaveBeenCalledWith(steps[1], 1);
 
-    // Advance again
-    vi.advanceTimersByTime(100);
+    // Advance past step 1 duration (still pedagogical, idx < 3)
+    vi.advanceTimersByTime(150);
     expect(onStep).toHaveBeenCalledWith(steps[2], 2);
 
     ctrl.destroy();
@@ -108,7 +114,7 @@ describe('PlaybackController', () => {
     ctrl.play();
     ctrl.play(); // should not restart or double schedule
 
-    vi.advanceTimersByTime(100);
+    vi.advanceTimersByTime(150); // pedagogical: step 0 -> step 1 at 150ms
     // Should have been called: constructor(1) + step1(1) = 2 times
     expect(onStep).toHaveBeenCalledTimes(2);
 
@@ -121,7 +127,7 @@ describe('PlaybackController', () => {
     const ctrl = new PlaybackController(steps, onStep);
 
     ctrl.play();
-    vi.advanceTimersByTime(100); // reaches last step
+    vi.advanceTimersByTime(150); // pedagogical delay to reach last step
     // Now at end; playing should be false
     expect(ctrl.isPlaying()).toBe(false);
 
@@ -201,8 +207,8 @@ describe('PlaybackController', () => {
     const ctrl = new PlaybackController(steps, onStep, onComplete);
 
     ctrl.play();
-    vi.advanceTimersByTime(100); // step 1
-    vi.advanceTimersByTime(100); // step 2 (last) - triggers onComplete
+    vi.advanceTimersByTime(150); // step 1 (pedagogical: idx 0 < 3)
+    vi.advanceTimersByTime(150); // step 2 (last, idx 1 < 3) - triggers onComplete
 
     expect(onComplete).toHaveBeenCalledTimes(1);
 
@@ -228,14 +234,15 @@ describe('PlaybackController', () => {
     const steps = makeSteps(5);
     const ctrl = new PlaybackController(steps, onStep);
 
-    // Speed 2x = duration/2 = 50ms per step
+    // Speed 2x = duration/2 = 50ms base, plus pedagogical 1.5x (first 3 steps)
+    // Effective delay = 75ms per step for steps 0-2.
     ctrl.setSpeed(2);
     ctrl.play();
 
-    vi.advanceTimersByTime(50);
+    vi.advanceTimersByTime(75);
     expect(onStep).toHaveBeenCalledWith(steps[1], 1);
 
-    vi.advanceTimersByTime(50);
+    vi.advanceTimersByTime(75);
     expect(onStep).toHaveBeenCalledWith(steps[2], 2);
 
     ctrl.destroy();
@@ -247,13 +254,13 @@ describe('PlaybackController', () => {
     const ctrl = new PlaybackController(steps, onStep);
 
     ctrl.play();
-    // At default speed (1x), 100ms per step
-    vi.advanceTimersByTime(50); // halfway through step 0
+    // At default speed (1x), 100 * 1.5 (pedagogical) = 150ms for step 0
+    vi.advanceTimersByTime(75); // halfway through pedagogical step 0
 
-    // Now set speed to 4x (25ms per step)
+    // Now set speed to 4x; effective delay = 25 * 1.5 = 37.5ms → 38ms.
     ctrl.setSpeed(4);
-    // The timer was cleared and rescheduled; advance 25ms
-    vi.advanceTimersByTime(25);
+    // The timer was cleared and rescheduled.
+    vi.advanceTimersByTime(40);
     expect(onStep).toHaveBeenCalledWith(steps[1], 1);
 
     ctrl.destroy();

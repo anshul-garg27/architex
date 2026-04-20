@@ -56,10 +56,11 @@ describe('PlaybackController', () => {
     ctrl.play();
     expect(ctrl.isPlaying()).toBe(true);
 
-    vi.advanceTimersByTime(50);
+    // ALG-246 pedagogical slowdown: first 3 steps run at 1.5x duration.
+    vi.advanceTimersByTime(75);
     expect(callback).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), 1);
 
-    vi.advanceTimersByTime(50);
+    vi.advanceTimersByTime(75);
     expect(callback).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }), 2);
   });
 
@@ -140,8 +141,9 @@ describe('PlaybackController', () => {
     ctrl.setSpeed(2);
     ctrl.play();
 
-    // At speed 2, 100ms duration becomes 50ms delay
-    vi.advanceTimersByTime(50);
+    // At speed 2, 100ms duration becomes 50ms delay, plus pedagogical 1.5x
+    // on the first 3 steps → effective delay = 75ms for step 0.
+    vi.advanceTimersByTime(75);
     expect(callback).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), 1);
   });
 
