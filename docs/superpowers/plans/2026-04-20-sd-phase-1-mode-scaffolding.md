@@ -726,3 +726,590 @@ EOF
 
 ---
 
+## Task 4: Create `sd_designs` + `sd_design_snapshots` + `sd_design_annotations` schemas
+
+**Files:**
+- Create: `architex/src/db/schema/sd-designs.ts`
+- Create: `architex/src/db/schema/sd-design-snapshots.ts`
+- Create: `architex/src/db/schema/sd-design-annotations.ts`
+- Modify: `architex/src/db/schema/index.ts`
+
+These three tables model the **Build mode** artifact lifecycle. A `sd_designs` row is the persistent diagram the user sees in Build. `sd_design_snapshots` captures immutable versions on manual save or auto-snap (every 5 minutes while actively editing, per spec §7). `sd_design_annotations` stores inline sticky notes, decision rationale, and reviewer comments.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `architex/src/db/schema/__tests__/sd-designs.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdDesigns } from "@/db/schema/sd-designs";
+
+describe("sdDesigns schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdDesigns);
+    for (const c of [
+      "id",
+      "userId",
+      "name",
+      "problemSlug",
+      "diagramType",
+      "canvasState",
+      "provider",
+      "renderMode",
+      "isPublic",
+      "publicShareId",
+      "version",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+Create `architex/src/db/schema/__tests__/sd-design-snapshots.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdDesignSnapshots } from "@/db/schema/sd-design-snapshots";
+
+describe("sdDesignSnapshots schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdDesignSnapshots);
+    for (const c of [
+      "id",
+      "designId",
+      "version",
+      "canvasState",
+      "authorUserId",
+      "reason",
+      "createdAt",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+Create `architex/src/db/schema/__tests__/sd-design-annotations.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdDesignAnnotations } from "@/db/schema/sd-design-annotations";
+
+describe("sdDesignAnnotations schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdDesignAnnotations);
+    for (const c of [
+      "id",
+      "designId",
+      "authorUserId",
+      "annotationType",
+      "anchor",
+      "body",
+      "resolved",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+```bash
+pnpm test:run -- sd-designs.schema sd-design-snapshots.schema sd-design-annotations.schema
+```
+
+Expected: all three FAIL · modules missing.
+
+- [ ] **Step 3: Write the schema files**
+
+Create `architex/src/db/schema/sd-designs.ts`:
+
+```typescript
+/**
+ * DB-SD-05: sd_designs — the Build-mode diagram record.
+ *
+ * One row per saved diagram. canvasState is the React Flow nodes+edges
+ * blob. provider controls the icon set ('aws' | 'gcp' | 'azure' | 'generic').
+ * render_mode supports default / blueprint / hand-drawn (spec §18.8).
+ *
+ * public_share_id is populated when the user publishes (spec §4.8).
+ * Unique on that column where non-null (partial unique index).
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  jsonb,
+  boolean,
+  integer,
+  timestamp,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { users } from "./users";
+
+export const sdDesigns = pgTable(
+  "sd_designs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 200 }),
+    problemSlug: varchar("problem_slug", { length: 100 }),
+    diagramType: varchar("diagram_type", { length: 30 }).notNull(),
+    canvasState: jsonb("canvas_state").notNull(),
+    provider: varchar("provider", { length: 20 }).notNull().default("aws"),
+    renderMode: varchar("render_mode", { length: 30 })
+      .notNull()
+      .default("default"),
+    isPublic: boolean("is_public").notNull().default(false),
+    publicShareId: varchar("public_share_id", { length: 20 }),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("sd_designs_user_updated_idx").on(t.userId, t.updatedAt),
+    uniqueIndex("sd_designs_public_share_uq")
+      .on(t.publicShareId)
+      .where(sql`${t.publicShareId} IS NOT NULL`),
+  ],
+);
+
+export type SDDesign = typeof sdDesigns.$inferSelect;
+export type NewSDDesign = typeof sdDesigns.$inferInsert;
+```
+
+Create `architex/src/db/schema/sd-design-snapshots.ts`:
+
+```typescript
+/**
+ * DB-SD-06: sd_design_snapshots — immutable version history for sd_designs.
+ *
+ * Written on manual save, auto-snap (every 5 min of edit activity), or
+ * pre-simulate ("pin this state before we run it"). reason is a short
+ * free-text label shown in the version-history panel.
+ *
+ * Compound index on (designId, version) gives O(log n) access to any
+ * historical version; a designId's snapshots share monotonically
+ * increasing version numbers.
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  jsonb,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+import { sdDesigns } from "./sd-designs";
+
+export const sdDesignSnapshots = pgTable(
+  "sd_design_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    designId: uuid("design_id")
+      .notNull()
+      .references(() => sdDesigns.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    canvasState: jsonb("canvas_state").notNull(),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reason: varchar("reason", { length: 50 }).notNull(), // 'manual'|'auto'|'pre-simulate'|'restore'
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sd_design_snapshots_design_version_uq").on(t.designId, t.version),
+  ],
+);
+
+export type SDDesignSnapshot = typeof sdDesignSnapshots.$inferSelect;
+export type NewSDDesignSnapshot = typeof sdDesignSnapshots.$inferInsert;
+```
+
+Create `architex/src/db/schema/sd-design-annotations.ts`:
+
+```typescript
+/**
+ * DB-SD-07: sd_design_annotations — inline comments + sticky notes on designs.
+ *
+ * anchor JSONB shape: { nodeId?: string, edgeId?: string, x?: number, y?: number }.
+ * At least one of nodeId / edgeId / (x, y) must be provided at write time
+ * (validated at the API layer, not the DB).
+ *
+ * annotation_type controls the render style:
+ *   - 'note': yellow sticky (user's own thinking)
+ *   - 'rationale': blue callout (decision justification)
+ *   - 'comment': gray conversation bubble (feedback from reviewer)
+ *   - 'todo': red flag (needs-fix marker)
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  jsonb,
+  text,
+  boolean,
+  timestamp,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+import { sdDesigns } from "./sd-designs";
+
+export const sdDesignAnnotations = pgTable(
+  "sd_design_annotations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    designId: uuid("design_id")
+      .notNull()
+      .references(() => sdDesigns.id, { onDelete: "cascade" }),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    annotationType: varchar("annotation_type", { length: 20 }).notNull(),
+    anchor: jsonb("anchor").notNull(),
+    body: text("body").notNull(),
+    resolved: boolean("resolved").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("sd_design_annotations_design_idx").on(t.designId, t.resolved),
+  ],
+);
+
+export type SDDesignAnnotation = typeof sdDesignAnnotations.$inferSelect;
+export type NewSDDesignAnnotation = typeof sdDesignAnnotations.$inferInsert;
+```
+
+- [ ] **Step 4: Re-export all three from schema index**
+
+```typescript
+export {
+  sdDesigns,
+  type SDDesign,
+  type NewSDDesign,
+} from "./sd-designs";
+export {
+  sdDesignSnapshots,
+  type SDDesignSnapshot,
+  type NewSDDesignSnapshot,
+} from "./sd-design-snapshots";
+export {
+  sdDesignAnnotations,
+  type SDDesignAnnotation,
+  type NewSDDesignAnnotation,
+} from "./sd-design-annotations";
+```
+
+- [ ] **Step 5: Verify typecheck + tests**
+
+```bash
+pnpm typecheck
+pnpm test:run -- sd-designs.schema sd-design-snapshots.schema sd-design-annotations.schema
+```
+
+Expected: all PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/db/schema/sd-designs.ts \
+        architex/src/db/schema/sd-design-snapshots.ts \
+        architex/src/db/schema/sd-design-annotations.ts \
+        architex/src/db/schema/__tests__/sd-designs.schema.test.ts \
+        architex/src/db/schema/__tests__/sd-design-snapshots.schema.test.ts \
+        architex/src/db/schema/__tests__/sd-design-annotations.schema.test.ts \
+        architex/src/db/schema/index.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_designs + snapshots + annotations schemas
+
+- sd_designs: Build-mode diagram record; canvasState JSONB carries
+  the React Flow blob. Partial unique index on public_share_id.
+- sd_design_snapshots: immutable version history (manual/auto/pre-sim).
+  Unique (design_id, version).
+- sd_design_annotations: sticky notes, rationale callouts, comments,
+  todos anchored to nodes/edges/coords. Index includes resolved flag
+  for fast "open annotations" queries.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 5: Create `sd_simulations` + `sd_simulation_events` schemas
+
+**Files:**
+- Create: `architex/src/db/schema/sd-simulations.ts`
+- Create: `architex/src/db/schema/sd-simulation-events.ts`
+- Modify: `architex/src/db/schema/index.ts`
+
+Simulation runs and their event streams. `sd_simulations` is the header row — one per completed (or in-flight) run. `sd_simulation_events` is the event log: every chaos event, every SLO breach, every cost-threshold crossing, every coach intervention. This is the data source for the replay scrubber in Phase 3 Simulate mode.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `architex/src/db/schema/__tests__/sd-simulations.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdSimulations } from "@/db/schema/sd-simulations";
+
+describe("sdSimulations schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdSimulations);
+    for (const c of [
+      "id",
+      "userId",
+      "designId",
+      "activity",
+      "scaleDau",
+      "chaosControlMode",
+      "realIncidentSlug",
+      "startedAt",
+      "completedAt",
+      "durationSimSeconds",
+      "metrics",
+      "narrativeStream",
+      "publicShareId",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+Create `architex/src/db/schema/__tests__/sd-simulation-events.schema.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { sdSimulationEvents } from "@/db/schema/sd-simulation-events";
+
+describe("sdSimulationEvents schema", () => {
+  it("exports expected columns", () => {
+    const cols = Object.keys(sdSimulationEvents);
+    for (const c of [
+      "id",
+      "simulationId",
+      "simTickMs",
+      "wallClockMs",
+      "eventType",
+      "family",
+      "severity",
+      "payload",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+```bash
+pnpm test:run -- sd-simulations.schema sd-simulation-events.schema
+```
+
+Expected: both FAIL · modules missing.
+
+- [ ] **Step 3: Write the schema files**
+
+Create `architex/src/db/schema/sd-simulations.ts`:
+
+```typescript
+/**
+ * DB-SD-08: sd_simulations — one row per simulation run (flagship mode).
+ *
+ * activity is one of 'validate' | 'stress' | 'chaos' | 'compare' |
+ * 'forecast' | 'archaeology' (spec §8.5, six activity framings).
+ *
+ * scale_dau is the target traffic profile; chaos_control_mode is used
+ * when activity='chaos' (one of 6 modes, spec §8.8); real_incident_slug
+ * is used when activity='archaeology' (points to sd_real_incidents).
+ *
+ * metrics is the final p50/p95/p99/err/cost/slo summary. narrative_stream
+ * holds the ordered margin cards Opus writes as the sim unfolds.
+ *
+ * Partial unique index enforces "one active sim per user per design"
+ * so a user cannot accidentally start a second sim on the same diagram
+ * (would fight for resources in the tick loop).
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  jsonb,
+  timestamp,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+import { sdDesigns } from "./sd-designs";
+
+export const sdSimulations = pgTable(
+  "sd_simulations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    designId: uuid("design_id").references(() => sdDesigns.id, {
+      onDelete: "set null",
+    }),
+    activity: varchar("activity", { length: 30 }).notNull(),
+    scaleDau: varchar("scale_dau", { length: 10 }).notNull(),
+    chaosControlMode: varchar("chaos_control_mode", { length: 30 }),
+    realIncidentSlug: varchar("real_incident_slug", { length: 100 }),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+    durationSimSeconds: integer("duration_sim_seconds"),
+    metrics: jsonb("metrics").notNull().default(sql`'{}'::jsonb`),
+    narrativeStream: jsonb("narrative_stream")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    publicShareId: varchar("public_share_id", { length: 20 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("sd_simulations_user_started_idx").on(t.userId, t.startedAt),
+    uniqueIndex("one_active_sim_per_user_design")
+      .on(t.userId, t.designId)
+      .where(sql`${t.completedAt} IS NULL AND ${t.abandonedAt} IS NULL`),
+    uniqueIndex("sd_simulations_public_share_uq")
+      .on(t.publicShareId)
+      .where(sql`${t.publicShareId} IS NOT NULL`),
+  ],
+);
+
+export type SDSimulation = typeof sdSimulations.$inferSelect;
+export type NewSDSimulation = typeof sdSimulations.$inferInsert;
+```
+
+Create `architex/src/db/schema/sd-simulation-events.ts`:
+
+```typescript
+/**
+ * DB-SD-09: sd_simulation_events — the event log for a simulation run.
+ *
+ * Every chaos event, SLO breach, cost-threshold crossing, and coach
+ * intervention lands here. The replay scrubber (Phase 3) reads this
+ * table in sim_tick_ms order to reconstruct the run.
+ *
+ * sim_tick_ms is simulation-clock milliseconds since t0; wall_clock_ms
+ * is real wall clock for correlating with external traces.
+ *
+ * family / severity are denormalized copies of sd_chaos_events fields
+ * so the event stream is self-contained (no joins on replay).
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  bigint,
+  jsonb,
+  index,
+} from "drizzle-orm/pg-core";
+import { sdSimulations } from "./sd-simulations";
+
+export const sdSimulationEvents = pgTable(
+  "sd_simulation_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    simulationId: uuid("simulation_id")
+      .notNull()
+      .references(() => sdSimulations.id, { onDelete: "cascade" }),
+    simTickMs: bigint("sim_tick_ms", { mode: "number" }).notNull(),
+    wallClockMs: bigint("wall_clock_ms", { mode: "number" }).notNull(),
+    eventType: varchar("event_type", { length: 50 }).notNull(),
+    family: varchar("family", { length: 30 }).notNull(),
+    severity: varchar("severity", { length: 20 }).notNull(),
+    payload: jsonb("payload"),
+  },
+  (t) => [
+    index("sd_sim_events_sim_tick_idx").on(t.simulationId, t.simTickMs),
+    index("sd_sim_events_family_severity_idx").on(t.family, t.severity),
+  ],
+);
+
+export type SDSimulationEvent = typeof sdSimulationEvents.$inferSelect;
+export type NewSDSimulationEvent = typeof sdSimulationEvents.$inferInsert;
+```
+
+- [ ] **Step 4: Re-export from schema index**
+
+```typescript
+export {
+  sdSimulations,
+  type SDSimulation,
+  type NewSDSimulation,
+} from "./sd-simulations";
+export {
+  sdSimulationEvents,
+  type SDSimulationEvent,
+  type NewSDSimulationEvent,
+} from "./sd-simulation-events";
+```
+
+- [ ] **Step 5: Verify typecheck + tests**
+
+```bash
+pnpm typecheck
+pnpm test:run -- sd-simulations.schema sd-simulation-events.schema
+```
+
+Expected: all PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/db/schema/sd-simulations.ts \
+        architex/src/db/schema/sd-simulation-events.ts \
+        architex/src/db/schema/__tests__/sd-simulations.schema.test.ts \
+        architex/src/db/schema/__tests__/sd-simulation-events.schema.test.ts \
+        architex/src/db/schema/index.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_simulations + sd_simulation_events schemas
+
+- sd_simulations: one row per run with activity, scale, chaos mode,
+  final metrics, narrative stream. Partial unique index enforces
+  one-active-sim-per-user-per-design + one-share-per-sim.
+- sd_simulation_events: replayable event log ordered by sim_tick_ms.
+  Denormalized family/severity avoids joins on replay.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
