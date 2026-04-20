@@ -3461,6 +3461,229 @@ A simulation engine that lies produces a generation of architects who learned th
 
 ---
 
+### 29.1 Simulation Clock Model · dual-clock (B12·Q55 → Option B)
+
+**The decision.** Architex SD runs two clocks in parallel: a **real-time clock** (wall time — chaos drills, the 40-minute interview timer, the whisper-coach cooldowns) and a **sim-time clock** (the virtual time inside the wind tunnel — forecast runs, evolving campaigns, the Decade Saga). The user always sees both, labeled explicitly ("sim-time 2mo · real-time 1:47"). Dilation is configurable per activity; the default for a Forecast run is **30 sim-days per real-minute**; for a Chaos Drill it is **1:1 — real-time because the drama needs to land in a body, not on a clock**; for the Decade Saga Chapter 3 compressed view it is **1 sim-year per real-minute**.
+
+**Options considered.**
+
+- **Option A · Single real-time clock.** Simplest. Every run is wall-time. Forecasts become "watch the dashboard for 30 real minutes". Kills the Forecast activity (§8.3.5) and the Decade Saga (§20).
+- **Option B · Dual-clock with user-aware labeling.** Two independent clocks. User sees both. Dilation rate per activity. **Chosen.**
+- **Option C · Single sim-time clock with "real-time mode" override.** Collapses the two into one with a flag. Loses the pedagogical value of showing the gap; the user never sees that "30 days of production traffic happened in 1 minute of your attention".
+
+**Why Option B wins.** The product's pedagogical promise includes "watch your system evolve over 10 years in 40 minutes" (Decade Saga, §20). That is only possible with dilation. But chaos drills must be **felt in the body** — a cinematic cascade at sim-time 30x is slapstick, not pedagogy. So the engine must support both simultaneously, and the user must always know which clock they're on. Labeling the gap is itself a lesson: most junior engineers have never watched a diurnal traffic curve compressed to 90 seconds, and watching one is how you develop the intuition that 2am on a Tuesday is when you'll be paged.
+
+**Implementation notes.**
+
+```typescript
+interface SimClock {
+  realStartMs: number        // Date.now() at run start
+  simStartMs: number         // virtual timeline origin
+  dilationFactor: number     // sim-ms per real-ms
+  paused: boolean
+}
+
+function now(clock: SimClock): { realMs: number; simMs: number } {
+  const elapsedRealMs = Date.now() - clock.realStartMs
+  const simMs = clock.simStartMs + elapsedRealMs * clock.dilationFactor
+  return { realMs: elapsedRealMs, simMs }
+}
+```
+
+- Dilation factor is stored in the `SDSimulationRun` row (§21) so replay is deterministic.
+- The UI renders both clocks in the top chrome; the sim-time format adapts ("sim-time 47s", "sim-time 2:31", "sim-time 2d 4h", "sim-time 4mo", "sim-time 2.3yr").
+- During chaos events the dilation factor is temporarily pinned to 1:1 and eased back after 3 real seconds — the failure happens in the user's body, the recovery happens on the system's clock.
+- The Forecast activity exposes a "dilation slider" (1x, 30x, 300x, 3000x) and warns the user when they cross a threshold where visual animation no longer tracks (the particle layer auto-downsamples past 300x, and at 3000x the canvas switches to a time-lapse render).
+
+**Cross-module consistency.** LLD also has a simulation layer (test runs, complexity traces) but runs purely in real-time; no dilation is needed. This is one of the few places SD's engine diverges from LLD's — a deliberate divergence, because distributed-systems pedagogy requires compression and single-program pedagogy does not.
+
+---
+
+### 29.2 Metrics Engine · HDR Histogram per node (B12·Q56 → Option B)
+
+**The decision.** Each simulated node maintains an **HDR Histogram** (`hdr-histogram-js` on npm) for its latency, throughput, and error-rate series. In parallel, a 30-second rolling window backed by a **ring buffer** feeds the live metric strip (§8.4). The HDR histogram answers "what was p99.99 over the last 2 hours of sim time"; the ring buffer answers "what is p99 right now, in the last 30 seconds". Both are O(1) per sample; both are log-linear memory; both are accurate out of the box.
+
+**Options considered.**
+
+- **Option A · Array of all samples, compute percentiles on read.** Simple, honest, wrong. 1M samples/second × 60 seconds × 200 nodes = 12B samples/minute. Out of memory in < 10 seconds.
+- **Option B · HDR Histogram per node + ring buffer for live window.** Log-linear memory (~2 KB per histogram for 0–60s latency range at 3 significant digits). Accurate to p99.99. **Chosen.**
+- **Option C · T-Digest per node.** Streaming quantile estimator; better for unbounded distributions; more CPU per sample; slightly less accurate at the tail unless parameter-tuned. Candidate for cost metrics (§29.2.3) but not primary.
+- **Option D · Reservoir sampling.** Correct on average, fails on tail. A cascade that triggers 1 latency spike in a 10M-sample run should not get lost in the reservoir. Rejected.
+
+**Why Option B wins.** Three reasons. (1) **Fixed memory** — every node gets ~2 KB regardless of traffic rate. For 200 nodes, the histogram budget is ~400 KB; well under the 16 MB simulation state budget. (2) **Tail accuracy** — p99 / p99.9 / p99.99 are the percentiles that matter pedagogically, because those are the percentiles where the tail meets SLOs. HDR Histograms are tail-accurate by construction; T-Digest is tail-accurate only with careful tuning. (3) **Battle-tested library** — `hdr-histogram-js` is a port of Gil Tene's HDR Histogram, used by every serious latency-sensitive JVM / Go / Rust project in production. We do not want to invent a percentile estimator.
+
+**Implementation notes.**
+
+```typescript
+import * as hdr from 'hdr-histogram-js'
+
+class NodeMetrics {
+  private latencyHdr = hdr.build({ numberOfSignificantValueDigits: 3 })
+  private ringBuffer = new RingBuffer<number>(30 * 1000)  // 30s at 1ms res
+  private lastTick = Date.now()
+
+  record(latencyMs: number) {
+    this.latencyHdr.recordValue(latencyMs)
+    this.ringBuffer.push(latencyMs)
+  }
+
+  lifetimePercentile(p: number): number {
+    return this.latencyHdr.getValueAtPercentile(p)
+  }
+
+  livePercentile(p: number, windowMs = 30_000): number {
+    // rolling window; recomputes on demand from ring buffer
+    return quantile(this.ringBuffer.valuesSince(Date.now() - windowMs), p)
+  }
+}
+```
+
+- Histogram parameters: `numberOfSignificantValueDigits: 3`, `lowestDiscernibleValue: 1ms`, `highestTrackableValue: 60_000ms`. Rationale: a sim can reasonably produce 1ms–60s latencies; three significant digits gives us p99.9 accuracy within 0.1%.
+- Ring buffer: 30,000 entries × 8 bytes = 240 KB per node. For 200 nodes: ~48 MB. At the upper end of our budget; if we push to 500 nodes (§29.5) we either shrink the window to 10s or share a sampled buffer.
+- **Cost metrics use T-Digest, not HDR.** Cost distributions are heavy-tailed and unbounded (a single node running a badly-configured Kinesis shard can drive $/s to absurd values). T-Digest handles unbounded better. This is the one place we split libraries.
+- Metrics are dumped to the `SDSimulationRun` row on run completion as a snapshot: lifetime p50/p90/p99/p99.9/p99.99 per node, a 60-bucket time-series of p99 over the run's duration, and a serialized HDR buffer for deep inspection.
+- For Compare A/B runs (§8.3.4), both histograms are rendered on the same axis with the winner's values highlighted.
+
+**Open question (29.11).** Should cost metrics keep T-Digest (as specified here) or should we standardize on a single library to reduce bundle size? Bundle impact of carrying both: ~18 KB gzipped. Minor; keep both.
+
+---
+
+### 29.3 Load Model Fidelity · ship all 8 (B12·Q57 → all)
+
+**The decision.** Every simulation run picks **one of eight load models**. All eight ship in V1. Each is a shape for the inter-arrival-time distribution + the request-mix distribution + optional hot-key skew. Users can swap models mid-run in Simulate mode. Problem templates pick a default; chaos scenarios may override.
+
+| # | Model | Distribution | Pedagogical payload |
+|---|---|---|---|
+| 1 | **Uniform** | Constant QPS, constant payload | Baseline. Easy mode. "What does steady state look like?" |
+| 2 | **Poisson process** | Exponential inter-arrival times at rate λ | The real shape of most web traffic. Teaches why averaging QPS is a lie — burstiness is normal. |
+| 3 | **Diurnal** | Time-of-day curve with per-region timezone shifts | Teaches why 2am-local-time is when failures happen. Weekend-vs-weekday overlay. |
+| 4 | **Burst / flash crowd** | Pareto-distributed bursts + exponential ramp | HackerNews front page. Reddit hug-of-death. Teaches why burst capacity is not average capacity. |
+| 5 | **Zipfian hot-key** | Zipf(α=1) over key space; 20/80 access | Teaches cache hot-spots and shard hotspots. The only way to teach consistent-hashing-with-virtual-nodes honestly. |
+| 6 | **User-segment mix** | Mixture of 4 segments — mobile, desktop, bot, API client — each with a distinct request-shape profile | Mobile does short GETs; bots do expensive POSTs; desktop does mixed sessions; API clients do batched bursts. Teaches that "QPS" is not a scalar. |
+| 7 | **Per-endpoint profile** | Independent distributions per endpoint (e.g., GET /feed uses Poisson·λ=5000, POST /upload uses Pareto·α=0.8) | Teaches why backend load is not linear in frontend QPS — some endpoints amplify, some absorb. |
+| 8 | **Real-world trace replay** | Anonymized Alibaba 2018 + Google 2011 + Meta F4 traces | The gold standard. Run your design against a real trace from a real datacenter. Teaches that your synthetic models were always a cartoon. |
+
+**Options considered.**
+
+- **Option A · ship Uniform + Poisson only (2 models).** Covers 80% of pedagogy. Fast to ship. Loses the diurnal/hot-key/trace-replay lessons — the ones that separate journeymen from seniors.
+- **Option B · ship all 8 (chosen).** Every model earns its keep. The "teaches X" column above is the shipping criterion.
+
+**Why ship all 8.** Each model teaches a lesson that cannot be taught with another. Uniform teaches steady state; Poisson teaches burstiness; Diurnal teaches timezone geopolitics; Burst teaches tail provisioning; Zipfian teaches hotspots; Segment-mix teaches customer segmentation; Per-endpoint teaches amplification; Trace-replay teaches humility. Cutting any one cuts a lesson. **The brainstorm locked all 8 (B12·Q57 → all).**
+
+**Implementation notes.**
+
+- Each model is a class implementing `LoadGenerator`:
+  ```typescript
+  interface LoadGenerator {
+    name: string
+    nextArrival(nowSimMs: number): { arrivalMs: number; request: SyntheticRequest } | null
+    reset(rngSeed: number): void
+    serialize(): LoadGeneratorConfig
+  }
+  ```
+- Trace replay (model 8) ships three anonymized traces:
+  - **Alibaba 2018** — microservice call graph, 20k services, 8-hour slice.
+  - **Google 2011** — Borg cluster trace, 12k machines, 29 days.
+  - **Meta F4** — photo-storage request pattern (public academic dataset).
+- Traces are downsampled to 1000 QPS peak so they fit in a browser tab. A "full-rate" toggle in Pro tier uses a WebWorker.
+- Load models compose with `chaos-engine` — a Poisson load with a Zipfian hot-key can run under a region-loss chaos event. The combinatorial surface here is intentional; it is how you produce "a diurnal peak that hits a cache hotspot during a partial region outage" — exactly the kind of multi-factor outage that killed AWS us-east-1 in 2021 (§12.5).
+- Each load model exposes a "shape preview" — a histogram of the next 10 minutes of synthetic traffic, rendered in the control panel before Run. This is a pedagogical surface, not a debugging tool.
+- Load model choice is saved to `SDSimulationRun` for deterministic replay (§29.8).
+
+**Cross-module note.** The load-model palette is new to SD; LLD has no analog. This is one of the biggest engineering-surface additions to the codebase — roughly 2 KLOC of new generator code across 8 files in `architex/src/lib/simulation/load-models/`.
+
+---
+
+### 29.4 Cascade Engine · physics-driven, hysteresis-aware (B12·Q58 → Option B)
+
+**The decision.** Cascade propagation is **emergent from physics**, not scripted. Each node has a **saturation curve** (exponential tail past 80% utilization), a **failure probability** proportional to saturation, and a **recovery hysteresis** so a node that was pushed past 95% does not snap back to healthy the instant load drops. Each edge carries a **circuit-breaker state machine** (closed → open → half-open → closed) with configurable thresholds. Cascades emerge; they are not authored.
+
+**Options considered.**
+
+- **Option A · Scripted cascades.** Author each cascade scenario by hand: "when LB saturates, queue grows, then worker pool exhausts, then DB connection pool saturates, then everything fails". Easy to write; easy to explain. **Kills the pedagogy.** The user learns the script, not the physics. When the real world gives them a cascade that doesn't follow the script, they have no model to reason from.
+- **Option B · Physics-driven with saturation curves, hysteresis, circuit breakers (chosen).** Cascades are emergent. Authoring a new failure mode = adjust a node's failure model, not write a new script.
+- **Option C · Hybrid.** Scripted for the 10 real-incident replays (§12.5), physics for everything else. Rejected because it creates two mental models for the user — "this is how the textbook says it happens" vs "this is how your simulation happens" — and the textbook wins every time.
+
+**Why Option B wins.** The war-story principle (§0) requires that chaos drills **feel like real outages**. Real outages are emergent. The Fastly 2021 outage was not scripted — it was a cascade that emerged from a specific config pushed to edge pops. If our engine scripts cascades, then our chaos drills are kabuki theater: the user watches a scripted failure and never learns that real failures have surprising shapes. The cost is engineering complexity (we have to get the physics right); the payoff is pedagogical honesty.
+
+**The formulas.**
+
+The math below is the minimum viable cascade physics. Each number is tunable per node family (§11.2) in `failure-modes.ts`.
+
+```
+# Utilization with tail amplification
+cpu           = load × tailFactor(load, capacity)
+tailFactor(x) = 1 + max(0, (x/capacity − 0.8)) × amplification  # amplification ∈ [1, 5]
+
+# Latency under load (exponential tail past 80% utilization)
+p99           = base + exp((cpu/capacity) − 0.8) × 50ms
+
+# Error rate under saturation (past 95% utilization)
+errorRate     = max(0, (cpu/capacity − 0.95) × 10)             # 0..0.5 for cpu/cap in [0.95, 1.00]
+
+# Failure probability per tick (drives node-down events)
+pFail(Δt)     = 1 − exp(−λ_fail × (cpu/capacity)^3 × Δt)
+
+# Recovery hysteresis — node does not come back instantly
+recoveryMs    = hystBase + (peakSaturation − 0.8) × 2000ms     # 200ms..2000ms typical
+
+# Circuit-breaker state transitions per edge
+closed    → open         when recentErrorRate > openThreshold
+open      → half-open    after cooldownMs
+half-open → closed       if probeRequest succeeds
+half-open → open         if probeRequest fails
+```
+
+These are the formulas captured in the brainstorm. They produce realistic-looking cascades out of the box for the 16 node families in §11.2.
+
+**Implementation notes.**
+
+- Each node family's failure model lives in `architex/src/lib/simulation/failure-modes.ts` (existing file). §29.4 does not rewrite the file; it **audits it** against these formulas and tunes the constants so cascade traces match the 10 real-incident timelines (§12.5) to ±15% on p99 latency and ±30% on cascade duration.
+- Circuit-breaker state is stored per edge; serialized with the run for replay.
+- Saturation curve amplification per family:
+  - Stateless service nodes: amplification = 2 (degrades gracefully).
+  - Stateful service nodes with connection pools: amplification = 4 (pool exhaustion is a cliff).
+  - Databases: amplification = 5 (connection pools + lock contention is a double cliff).
+  - Caches: amplification = 3 (thrashing past working-set size).
+  - Queues: amplification = 2 until depth > max, then amplification = ∞ (overflow = drop).
+- Recovery hysteresis prevents the pathological oscillation where a node goes open → closed → open every tick as load fluctuates around 95%. Without hysteresis, the canvas flickers at 10 Hz; with hysteresis, the cascade has the slow, sickening feel of a real outage.
+- **Validation.** The physics is tuned by replaying the 10 real incidents (§12.5) in the engine and confirming the cascade shape matches the published postmortem timeline. This is the cascade engine's equivalent of a scream test (§29.0).
+
+**Open question.** The amplification constants are currently from the brainstorm; they need validation against at least 3 real incidents before Phase 3 ships. If validation fails, we tune, not rewrite — the architecture is correct; the numbers may be wrong.
+
+---
+
+### 29.5 Rendering Engine · SVG + Canvas hybrid (B12·Q59 → Option B)
+
+**The decision.** The rendering pipeline is a **hybrid**: nodes are SVG (DOM elements with events, classes, ARIA labels); the particle layer is a single `<canvas>` positioned underneath with z-index layering; node-breathing animation uses CSS `transform: scale()` so the GPU handles it. This combination scales to **500-1000 nodes + 10,000 particles at 60fps** on a 2020 MacBook Air.
+
+**Options considered.**
+
+- **Option A · Pure SVG.** Every particle is a DOM element. Beautiful; zero GPU use; dies at 500 particles. Rejected — particle layer in Simulate (§8.2) needs 10k particles.
+- **Option B · SVG nodes + Canvas particles (chosen).** Nodes stay SVG for accessibility and interaction. Particles on a WebGL-capable canvas.
+- **Option C · Pure Canvas (PIXI.js or similar).** 60fps at 50k particles. Loses DOM accessibility — screen readers cannot announce nodes; tab navigation fails; React-Flow integration requires a full rewrite. Rejected because the accessibility cost is too high and a rewrite of §11.5 is 3 months of work we do not need.
+- **Option D · WebGL for everything via react-three-fiber.** 3D spectacle; Decade Saga benefits; massively overbuilds for a 2D diagram. Rejected.
+
+**Why Option B wins.** SVG is the correct substrate for nodes: every node is an interactive, labeled, keyboard-focusable, click-target element. Canvas is the correct substrate for particles: 10,000 entities that draw and die in under 2 seconds cannot be DOM nodes without killing the browser. The hybrid inherits both strengths. The only cost is careful z-index + pointer-events management so the canvas doesn't eat clicks meant for SVG nodes (solved with `pointer-events: none` on the canvas layer).
+
+**Implementation notes.**
+
+- Z-order (top to bottom): cinematic overlay > SVG node labels > SVG edges > SVG nodes > particle canvas > background grid. All five layers share the same world-coordinate transform.
+- Canvas size tracks the viewport in CSS pixels; particle positions are stored in world coordinates and transformed on each frame.
+- Particle updates run in an animation frame loop; the draw call is a single `requestAnimationFrame` tick; the cost is O(n) per frame.
+- Node-breathing: each node gets a CSS custom property `--breathe-scale` that a React effect updates every 50ms based on current QPS. The browser's compositor handles the actual scaling on the GPU. Zero JS during the animation itself.
+- **Performance budget.**
+  - Build mode (no Simulate): 500 nodes at 60fps. Target device: 2020 MacBook Air (M1 with 8GB RAM).
+  - Simulate mode: 500 nodes + 10k particles at 60fps; 1000 nodes + 10k particles at 40fps (acceptable).
+  - 3D isometric mode (§11.4): 200 nodes at 60fps; degrades gracefully past that.
+- **ReactFlow integration.** ReactFlow v12 is the SVG layer. The particle canvas is mounted as a custom background. ReactFlow's viewport transform is shared with the canvas via a context.
+- Failure cinematics (§11.5) render on a separate pseudo-absolute cinematic overlay so the particle layer doesn't have to compute blend modes.
+- Node-count warning (§11.7) fires at 100 nodes soft / 200 hard in Build, but Simulate lifts to 500 soft / 1000 hard because the physics engine tolerates more nodes than the smart-canvas features do.
+
+**Cross-module consistency.** LLD uses a similar hybrid but with fewer particles (its "particles" are at most 200 in-flight trace markers). The SD module inherits LLD's canvas scaffolding and extends it with the particle system. No infrastructure rewrite; targeted additions to `architex/src/components/canvas/`.
+
+---
+
 
 
 
