@@ -2355,6 +2355,74 @@ A light-touch community model (unlike LLD, SD content is more naturally shareabl
 
 ---
 
+## 20. Immersion & Narrative
+
+> "The difference between a tool and a world is one layer of breath."
+
+### 20.1 Option F selected (Q54) · Ambient narrative + Decade Saga
+
+Two layered immersion systems. Both optional.
+
+### 20.2 Ambient narrative · always available, always subtle
+
+This is the *atmosphere* layer. Minor touches that make the studio feel lived-in.
+
+- **Time-of-day canvas tint** · the canvas background subtly shifts warm/cool with the user's local time. Morning: paler. Evening: warmer amber undertone, still dark. Night: deeper navy. All sub-5% saturation changes; you don't notice until it's been off for an hour.
+- **Session opening script** · each session lands on a soft 2-second cobalt glow on the mode pill and a one-line greeting in serif: "Welcome back. 12 cards due in Review." Dismissable; disable-able.
+- **Ambient sound per mode** (Q53, opt-in):
+  - Learn: very distant piano, page-turn
+  - Build: paper rustle, T-square slide
+  - Simulate: low-frequency wind, occasional ruler tap
+  - Drill: soft metronome at clock rhythm
+  - Review: a single chime per answer rating
+- **Session closing** · a "today you..." card at session end: "Today you spent 18 minutes in Simulate, ran 2 chaos drills, and advanced one concept from Completed to Mastered. Tomorrow: 9 cards due in Review."
+
+Ambient narrative is the feel of a studio that noticed you arrived. It's a shippable differentiator; it needs very little engineering work; it is what LLD shipped and SD inherits.
+
+### 20.3 Decade Saga · optional 40-hour narrative campaign
+
+This is the *MockFlix* idea from the brainstorm (B11·Q54). Optional opt-in campaign. 40 hours of content, structured across 10 chapters. Each chapter is a mini-company in a made-up-but-realistic decade.
+
+Chapter 1 (2015): *PhotoShare — just a startup*. The user is the first architect. Designs a MVP for 1k DAU. Ships. Traffic grows.
+
+Chapter 2 (2016): *PhotoShare goes viral*. 1M DAU hits overnight. Previous design breaks. User redesigns under pressure.
+
+Chapter 3 (2017): *Kubernetes migration*. User decides whether to migrate — tradeoffs.
+
+Chapter 4 (2018): *A big outage*. User gets paged. Archaeology activity on their own design. Postmortem.
+
+Chapter 5 (2019): *International expansion*. Multi-region, GDPR, data locality.
+
+Chapter 6 (2020): *Pandemic traffic 3x*. Scale-This-Up compressed into 6 weeks.
+
+Chapter 7 (2021): *The cost reckoning*. Cloud bill hits $40M/yr. "What do we cut?"
+
+Chapter 8 (2022): *New SVP wants ML features*. Vector search, embeddings, model pipeline.
+
+Chapter 9 (2023): *Security incident*. User walks through real-ish incident response.
+
+Chapter 10 (2024): *Exit strategy*. Sell to a bigger co; user onboards a new team.
+
+Each chapter: 3-6 hours of content. Pair concept/problem pages with narrative intros and consequences. The user's decisions in each chapter persist into the next — their year-2019 choice of database flavor becomes the year-2021 cost problem.
+
+### 20.4 Decade Saga implementation
+
+- Saga state is a `sd_saga_progress` table row per user
+- Each chapter is composed of existing content (concepts, problems) + chapter-specific narrative wrappers
+- Narrative wrappers are 500-1000 words each, Opus-authored, one per chapter + one per major decision consequence
+- No new simulation infrastructure required — the saga drives existing modes with a chapter-specific context frame
+- Unlockable via a toggle in settings or a card on the dashboard
+- Shippable in Phase 5 as a post-GA feature (the core product must ship first; the saga is marketing-visible content that launches well)
+
+### 20.5 Why immersion matters
+
+Every other learning product is *screens and buttons*. The studio metaphor is the ambient layer that makes Architex feel like a *place*. The Decade Saga is the deep-engagement mechanic that creates a user's personal attachment to the product. A user who completes the Decade Saga will talk about Architex in the way gamers talk about their favorite RPGs: with identity, not utility.
+
+This is a craft bet. The brainstorm (B11·Q54) locked in *Option F · Both* explicitly because either layer alone would feel incomplete — ambient without saga is atmosphere without plot; saga without ambient is plot without atmosphere.
+
+---
+
+
 
 
 
