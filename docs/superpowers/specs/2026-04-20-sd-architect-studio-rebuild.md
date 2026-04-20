@@ -68,6 +68,7 @@ Four principles — one per area of the spec — are repeated throughout:
 26. [Non-Goals](#26-non-goals)
 27. [Open Questions](#27-open-questions)
 28. [References](#28-references)
+29. [Simulation Engine & Algorithms](#29-simulation-engine-algorithms)
 
 ---
 
@@ -3409,7 +3410,56 @@ Each brainstorm screen carries the question + option set + the locked choice. Fo
 
 ---
 
-*End of spec.*
+## 29. Simulation Engine & Algorithms
+
+> "The engine is the argument. If the physics is wrong, the pedagogy is a lie."
+
+This section exists because the first 28 sections of this spec describe **what** the studio does; §29 describes **how** the wind tunnel actually blows air. Ten engineering decisions — captured in a twelfth brainstorm batch (B12·Q55-Q64) after the initial spec was locked — fill the gap between the product surface and the numerical machinery underneath. They are the load-bearing choices in the foundation: a simulation clock, a metrics store, eight load models, a cascade physics engine, a rendering strategy, six edge-routing algorithms, six auto-layout algorithms, a deterministic replay system, a request-tracing waterfall, and a multiplayer model.
+
+Every choice below is cross-referenced back to the existing spec: B12·Q55 refers to the fifty-fifth locked question across the brainstorm corpus. The earlier Q&A Decision Record (§0 of this spec) captured Q1-Q54 in eleven batches; this section captures Q55-Q64 in the twelfth. They were extracted into their own section because they are an **engineering concern**, not a product-surface concern — the user never sees an "HDR Histogram" label, but every threshold-coaching badge (§8.5) and every cascade cinematic (§8.9) depends on whether the histogram is right.
+
+### 29.0 Engineering Philosophy — The Living-Lab Principle
+
+The four founding principles of Architex SD (§0: wind-tunnel, war-story, invisible-force, one-organism) describe what the user experiences. They do not yet describe what the engineer building the system must believe to ship those experiences honestly. §29 adds a fifth principle, scoped to the engine itself.
+
+> **The living-lab principle.** Good engineering is invisible until it's absent. The user never notices that the A* edge router routed around a container — they only notice when it doesn't and an edge cuts through a boundary. The user never notices that Dagre re-ran on the incremental graph — they only notice when it does and the canvas jitters on every keystroke. The user never notices the undo stack was managed by Zundo — they only notice when a ⌘Z fails. **Architex SD's engineering discipline is: build a system you cannot hear until it breaks, then make breaking expensive.**
+
+The LLD spec took this stance with three specific pieces — A* edge routing, Dagre auto-layout, and Zundo-backed undo/redo. All three are invisible-but-felt: the engineer gets a canvas that feels alive without ever thinking about why. The SD module inherits this stance and applies it to a **bigger canvas, more animation, more math, and more failure modes**. Every decision in §29.1-§29.10 is an application of the living-lab principle to a new problem domain:
+
+- The clock model is invisible when it works (§29.1) — the user only notices dilation when sim-time and real-time drift confuses them, so we label both.
+- HDR Histogram storage is invisible (§29.2) — the user never thinks "where is p99 stored" until p99 is wrong, at which point the entire pedagogy is compromised.
+- Eight load models are invisible individually (§29.3) — the user picks one and sees traffic, not distributions.
+- The cascade physics engine is invisible (§29.4) — the user sees a cascade, not a saturation curve, but **the saturation curve is the reason the cascade feels like a real outage**.
+- Rendering strategy is invisible (§29.5) — the user sees 500 nodes at 60fps, not the SVG-plus-canvas hybrid that made it possible.
+- Edge routing and auto-layout are invisible (§29.6, §29.7) — the user sees clean diagrams, not Dagre vs. ELK vs. d3-force.
+- Deterministic replay is invisible (§29.8) — the user sees "scrub back and re-try", not a seeded RNG and a keyframe log.
+- Tracing waterfall is invisible (§29.9) — the user sees "why was this slow", not OpenTelemetry span trees.
+- Multiplayer is invisible (§29.10) — two users see one canvas, not a CRDT reconciling their edits.
+
+This is **LLD's depth applied to a bigger canvas**. The LLD module is a single-program drafting hall; the SD module is an organism of many programs with a wind tunnel bolted on the end. Everything the LLD module got right at small scale — layout, routing, undo — the SD module must get right at **ten times the visual surface area, a hundred times the interaction density, and with a physics engine underneath**. The engineering risk is therefore a hundred-fold higher, and the living-lab principle is the answer: do not let the user feel the machinery; let them feel the system.
+
+#### How this principle maps to shipping cadence
+
+The living-lab principle has a testable consequence: **every §29 decision must ship with an acceptance test that would fail if the decision were executed naively**. Concretely:
+
+- The clock model (29.1) ships with a dual-clock stress test where sim-time and real-time are visibly independent under 30x dilation.
+- HDR histograms (29.2) ship with a test that records 100M synthetic samples and confirms p99.99 is within ±2% of the ground truth.
+- Load models (29.3) each ship with a shape test: the histogram of generated inter-arrival times must match the analytic distribution (Kolmogorov–Smirnov p > 0.95).
+- Cascade physics (29.4) ships with a hysteresis test: a node pushed past 95% and then relieved must **not** snap back to healthy — its recovery curve must be visibly non-monotonic.
+- Rendering hybrid (29.5) ships with a 1000-node, 10k-particle benchmark at 60fps on a 2020 MacBook Air (the low-end target device).
+- Edge routing (29.6) ships with a crossing-count test: 50-node/150-edge graphs render with < 10% of edges crossing containers.
+- Auto-layout (29.7) ships with a jitter test: adding a node must move the surrounding graph by less than 40 pixels at steady state.
+- Deterministic replay (29.8) ships with a reproducibility test: same seed + same events = bit-identical state trace after 30 minutes of sim-time.
+- Tracing (29.9) ships with a span-tree fuzzer: random workload → trace → visual waterfall → round-trip assertion.
+- Multiplayer (29.10) ships with a concurrency test: two users editing opposite corners of a 200-node graph converge in < 200ms.
+
+Each test is a **scream test** — if the principle is violated, the test howls. If the principle is honored, the test is invisible. This is the living-lab principle implemented in CI.
+
+#### Why this matters for the pedagogy
+
+A simulation engine that lies produces a generation of architects who learned the wrong lesson. If cascade propagation is "scripted" rather than emergent (B12·Q58 · Option A), then the user learns **the script**, not **the physics** — and when the user lands at a real job and a real outage happens, the real outage does not follow the script. Same for load models: if all traffic is uniform (§29.3 · Option 1 alone), the user never learns to recognize a diurnal saturation pattern or a Zipfian hot-key. Same for replay (§29.8): if the user cannot re-run the same failure with the same seed, the "what-if" branch is a hallucination, not a lesson. The living-lab principle is **pedagogical integrity expressed in code**.
+
+---
 
 
 
