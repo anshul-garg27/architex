@@ -11501,3 +11501,730 @@ EOF
 ```
 
 ---
+
+## Task 30: `DrillModeLayout` composition — timer · stepper · 5 stages · interviewer · hint · submit · resume
+
+**Files:**
+- Modify: `architex/src/components/modules/sd/modes/DrillModeLayout.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillTimerBar.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillStageStepper.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillVariantPicker.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillPersonaPicker.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillProblemPane.tsx`
+- Create: `architex/src/components/modules/sd/drill/stages/SDClarifyStage.tsx`
+- Create: `architex/src/components/modules/sd/drill/stages/SDEstimateStage.tsx`
+- Create: `architex/src/components/modules/sd/drill/stages/SDDesignStage.tsx`
+- Create: `architex/src/components/modules/sd/drill/stages/SDDeepDiveStage.tsx`
+- Create: `architex/src/components/modules/sd/drill/stages/SDQnAStage.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillInterviewerPane.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillHintLadder.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillSubmitBar.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillResumePrompt.tsx`
+- Create: `architex/src/components/modules/sd/drill/__tests__/DrillStageStepper.test.tsx`
+
+- [ ] **Step 1: `DrillTimerBar` + `DrillStageStepper` + pickers**
+
+```tsx
+// architex/src/components/modules/sd/drill/DrillTimerBar.tsx
+"use client";
+import { useEffect, useState } from "react";
+import { STAGE_DURATION_MS } from "@/lib/drill/sd-drill-stages";
+import { useDrillStore } from "@/stores/drill-store";
+
+export function DrillTimerBar() {
+  const { currentStage, stageStartedAt, paused } = useDrillStore();
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!stageStartedAt || paused) return;
+    const interval = setInterval(() => {
+      setElapsed(Date.now() - stageStartedAt);
+    }, 250);
+    return () => clearInterval(interval);
+  }, [stageStartedAt, paused]);
+
+  const cap = STAGE_DURATION_MS[currentStage];
+  const pct = Math.min(100, (elapsed / cap) * 100);
+  const overcap = elapsed > cap;
+  return (
+    <div
+      className="flex items-center gap-3 border-b border-neutral-800 bg-neutral-950 px-4 py-2"
+      data-testid="drill-timer-bar"
+    >
+      <span className="font-mono text-xs uppercase tracking-wide text-neutral-500">
+        {currentStage} · {Math.floor(elapsed / 60_000)}:
+        {String(Math.floor((elapsed % 60_000) / 1000)).padStart(2, "0")}
+        {" / "}
+        {Math.floor(cap / 60_000)}:00
+      </span>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-800">
+        <div
+          className={`h-full transition-all ${overcap ? "bg-red-500" : "bg-sky-500"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillStageStepper.tsx
+"use client";
+import { STAGE_ORDER } from "@/lib/drill/sd-drill-stages";
+import { useDrillStore } from "@/stores/drill-store";
+
+export function DrillStageStepper() {
+  const { currentStage } = useDrillStore();
+  const currentIdx = STAGE_ORDER.indexOf(currentStage);
+  return (
+    <ol className="flex items-center gap-2 p-3" aria-label="Drill stages">
+      {STAGE_ORDER.map((s, i) => {
+        const isCurrent = i === currentIdx;
+        const isDone = i < currentIdx;
+        return (
+          <li
+            key={s}
+            aria-current={isCurrent ? "step" : undefined}
+            className={`flex items-center gap-1 text-[11px] uppercase tracking-wide ${
+              isDone
+                ? "text-emerald-400"
+                : isCurrent
+                  ? "text-sky-400"
+                  : "text-neutral-600"
+            }`}
+          >
+            <span
+              className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                isDone
+                  ? "border-emerald-500 bg-emerald-500/10"
+                  : isCurrent
+                    ? "border-sky-500 bg-sky-500/10"
+                    : "border-neutral-700"
+              }`}
+            >
+              {i + 1}
+            </span>
+            <span>{s}</span>
+            {i < STAGE_ORDER.length - 1 && <span aria-hidden="true">→</span>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillVariantPicker.tsx
+"use client";
+import { VARIANT_CONFIGS } from "@/lib/drill/sd-drill-variants";
+import type { SDDrillVariant } from "@/db/schema/sd-drill-attempts";
+
+export function DrillVariantPicker({
+  current,
+  onPick,
+}: {
+  current: SDDrillVariant;
+  onPick: (v: SDDrillVariant) => void;
+}) {
+  // Phase 3 exposes 3 fully-supported variants; others appear in Phase 4.
+  const phase3Variants: SDDrillVariant[] = ["study", "timed-mock", "pair-ai"];
+  return (
+    <div className="flex flex-wrap gap-2">
+      {phase3Variants.map((v) => {
+        const cfg = VARIANT_CONFIGS[v];
+        return (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={current === v}
+            onClick={() => onPick(v)}
+            className={`flex max-w-[180px] flex-col rounded-md border px-3 py-2 text-left transition ${
+              current === v
+                ? "border-sky-500 bg-sky-500/10 text-sky-100"
+                : "border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-neutral-500"
+            }`}
+          >
+            <span className="font-serif text-sm">{cfg.displayName}</span>
+            <span className="text-[10px] italic text-neutral-400">{cfg.description}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillPersonaPicker.tsx
+"use client";
+import { INTERVIEWER_PERSONAS } from "@/lib/ai/sd-interviewer-prompts";
+import type { SDPersona } from "@/db/schema/sd-drill-attempts";
+
+export function DrillPersonaPicker({
+  current,
+  onPick,
+}: {
+  current: SDPersona;
+  onPick: (p: SDPersona) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {INTERVIEWER_PERSONAS.map((p) => (
+        <button
+          key={p.persona + (p.companyPreset ?? "")}
+          type="button"
+          aria-pressed={current === p.persona}
+          onClick={() => onPick(p.persona)}
+          className={`rounded-md border px-3 py-1.5 text-xs uppercase tracking-wide transition ${
+            current === p.persona
+              ? "border-sky-500 bg-sky-500/10 text-sky-100"
+              : "border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-neutral-500"
+          }`}
+        >
+          {p.persona === "company-preset" ? p.companyPreset ?? "amazon" : p.persona}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillProblemPane.tsx
+"use client";
+export function DrillProblemPane({
+  problemSlug,
+  statement,
+  slos,
+  scope,
+}: {
+  problemSlug: string;
+  statement: string;
+  slos: string[];
+  scope: string[];
+}) {
+  return (
+    <aside className="w-80 shrink-0 overflow-y-auto border-r border-neutral-800 bg-neutral-950 p-4">
+      <header className="mb-3">
+        <h2 className="font-serif text-lg text-neutral-100">{problemSlug}</h2>
+      </header>
+      <section className="mb-4">
+        <h3 className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">
+          Prompt
+        </h3>
+        <p className="font-serif text-sm leading-relaxed text-neutral-200">{statement}</p>
+      </section>
+      <section className="mb-4">
+        <h3 className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">SLOs</h3>
+        <ul className="list-disc pl-4 font-serif text-sm text-neutral-300">
+          {slos.map((s) => (
+            <li key={s}>{s}</li>
+          ))}
+        </ul>
+      </section>
+      <section>
+        <h3 className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Scope</h3>
+        <ul className="list-disc pl-4 font-serif text-sm text-neutral-300">
+          {scope.map((s) => (
+            <li key={s}>{s}</li>
+          ))}
+        </ul>
+      </section>
+    </aside>
+  );
+}
+```
+
+- [ ] **Step 2: 5 stage components**
+
+```tsx
+// architex/src/components/modules/sd/drill/stages/SDClarifyStage.tsx
+"use client";
+import { DrillInterviewerPane } from "../DrillInterviewerPane";
+export function SDClarifyStage({ attemptId }: { attemptId: string }) {
+  return (
+    <div className="flex flex-1 flex-col p-4">
+      <p className="mb-3 font-serif text-sm text-neutral-400">
+        Ask the interviewer questions to clarify scope. At least 2 questions
+        before you can advance.
+      </p>
+      <DrillInterviewerPane attemptId={attemptId} stage="clarify" />
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/stages/SDEstimateStage.tsx
+"use client";
+import { useState } from "react";
+
+export function SDEstimateStage({
+  onSave,
+}: {
+  onSave: (napkin: { qps: number; storage: string; bandwidth: string; notes: string }) => void;
+}) {
+  const [qps, setQps] = useState<number>(0);
+  const [storage, setStorage] = useState("");
+  const [bandwidth, setBandwidth] = useState("");
+  const [notes, setNotes] = useState("");
+  return (
+    <div className="flex flex-1 flex-col gap-3 p-4">
+      <p className="font-serif text-sm text-neutral-400">
+        Fill the napkin-math form. Numbers tie to your design decisions in the
+        next stage.
+      </p>
+      <label className="flex items-center gap-2 text-sm text-neutral-200">
+        <span className="w-32">Peak QPS</span>
+        <input
+          type="number"
+          value={qps}
+          onChange={(e) => setQps(Number(e.target.value))}
+          className="rounded bg-neutral-800 px-2 py-1 font-mono"
+        />
+      </label>
+      <label className="flex items-center gap-2 text-sm text-neutral-200">
+        <span className="w-32">Storage at scale</span>
+        <input
+          type="text"
+          value={storage}
+          onChange={(e) => setStorage(e.target.value)}
+          className="flex-1 rounded bg-neutral-800 px-2 py-1 font-mono"
+          placeholder="e.g., 200 PB growing 10 TB/day"
+        />
+      </label>
+      <label className="flex items-center gap-2 text-sm text-neutral-200">
+        <span className="w-32">Bandwidth</span>
+        <input
+          type="text"
+          value={bandwidth}
+          onChange={(e) => setBandwidth(e.target.value)}
+          className="flex-1 rounded bg-neutral-800 px-2 py-1 font-mono"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-sm text-neutral-200">
+        <span>Notes / assumptions</span>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="h-24 rounded bg-neutral-800 px-2 py-1 font-mono"
+          placeholder="List any assumptions you are making explicit"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={() => onSave({ qps, storage, bandwidth, notes })}
+        className="self-start rounded bg-sky-500 px-3 py-1.5 text-sm text-white"
+      >
+        Save napkin math
+      </button>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/stages/SDDesignStage.tsx
+"use client";
+export function SDDesignStage() {
+  return (
+    <div className="flex flex-1 items-center justify-center">
+      <p className="font-serif text-sm text-neutral-400">
+        {/* Canvas is mounted in the parent layout; this stage simply unlocks
+            editing controls. The ReactFlow instance comes from Phase 2's
+            canvas substrate. */}
+        Canvas editing is enabled for the next 15 minutes.
+      </p>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/stages/SDDeepDiveStage.tsx
+"use client";
+import { DrillInterviewerPane } from "../DrillInterviewerPane";
+export function SDDeepDiveStage({ attemptId }: { attemptId: string }) {
+  return (
+    <div className="flex flex-1 flex-col p-4">
+      <p className="mb-3 font-serif text-sm text-neutral-400">
+        The interviewer will ask 2-3 focused questions. Modify the canvas to
+        address each.
+      </p>
+      <DrillInterviewerPane attemptId={attemptId} stage="deep-dive" />
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/stages/SDQnAStage.tsx
+"use client";
+import { DrillInterviewerPane } from "../DrillInterviewerPane";
+export function SDQnAStage({ attemptId }: { attemptId: string }) {
+  return (
+    <div className="flex flex-1 flex-col p-4">
+      <p className="mb-3 font-serif text-sm text-neutral-400">
+        Your turn. Ask the interviewer about the team, tradeoffs, the
+        engineering culture.
+      </p>
+      <DrillInterviewerPane attemptId={attemptId} stage="qna" />
+    </div>
+  );
+}
+```
+
+- [ ] **Step 3: `DrillInterviewerPane` + `DrillHintLadder` + `DrillSubmitBar` + `DrillResumePrompt`**
+
+```tsx
+// architex/src/components/modules/sd/drill/DrillInterviewerPane.tsx
+"use client";
+import { useState } from "react";
+import { useDrillInterviewer } from "@/hooks/useDrillInterviewer";
+import type { DrillTurn } from "@/lib/ai/sd-interviewer-persona";
+
+export function DrillInterviewerPane({
+  attemptId,
+  stage,
+}: {
+  attemptId: string;
+  stage: DrillTurn["stage"];
+}) {
+  const { turns, streaming, sendTurn } = useDrillInterviewer(attemptId);
+  const [input, setInput] = useState("");
+  return (
+    <div className="flex flex-1 flex-col">
+      <div className="flex-1 overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 p-3">
+        {turns.length === 0 && (
+          <p className="font-serif text-sm italic text-neutral-500">
+            Your interviewer is listening. Type a question to begin.
+          </p>
+        )}
+        <ul className="space-y-3">
+          {turns.map((t, i) => (
+            <li key={i} className={t.role === "user" ? "text-neutral-200" : "text-sky-200"}>
+              <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-neutral-500">
+                {t.role}
+              </span>
+              <p className="font-serif text-sm leading-relaxed">{t.content}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <form
+        className="mt-2 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!input.trim() || streaming) return;
+          sendTurn(input, stage);
+          setInput("");
+        }}
+      >
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask the interviewer…"
+          className="flex-1 rounded bg-neutral-800 px-3 py-2 text-sm text-neutral-100"
+          aria-label="Message interviewer"
+        />
+        <button
+          type="submit"
+          disabled={streaming || !input.trim()}
+          className="rounded bg-sky-500 px-3 py-2 text-sm text-white disabled:opacity-50"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillHintLadder.tsx
+"use client";
+import { useState } from "react";
+import { useDrillHintLadder } from "@/hooks/useDrillHintLadder";
+import { HINT_CREDIT_COST, type HintTier } from "@/lib/drill/sd-drill-hint-ladder";
+import { useDrillStore } from "@/stores/drill-store";
+
+export function DrillHintLadder({ free }: { free: boolean }) {
+  const { requestTier } = useDrillHintLadder(free);
+  const { hintsRemaining } = useDrillStore();
+  const [reveal, setReveal] = useState<{ tier: HintTier; text: string } | null>(null);
+
+  const tiers: HintTier[] = ["nudge", "guided", "full"];
+  return (
+    <aside className="w-60 shrink-0 border-l border-neutral-800 bg-neutral-950 p-3">
+      <h3 className="mb-2 font-serif text-sm text-neutral-100">
+        Hints <span className="text-neutral-500">· {hintsRemaining} credits</span>
+      </h3>
+      <div className="flex flex-col gap-2">
+        {tiers.map((tier) => (
+          <button
+            key={tier}
+            type="button"
+            onClick={async () => {
+              const r = await requestTier(tier);
+              if (r.ok && r.text) setReveal({ tier, text: r.text });
+            }}
+            disabled={!free && hintsRemaining < HINT_CREDIT_COST[tier]}
+            className="flex items-center justify-between rounded border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-left text-xs uppercase tracking-wide text-neutral-200 transition hover:border-sky-500 disabled:opacity-40"
+          >
+            <span>{tier}</span>
+            <span className="font-mono text-neutral-500">
+              {free ? "free" : `-${HINT_CREDIT_COST[tier]}`}
+            </span>
+          </button>
+        ))}
+      </div>
+      {reveal && (
+        <div className="mt-3 rounded border border-sky-500/40 bg-sky-500/5 p-3">
+          <span className="mb-1 block text-[10px] uppercase tracking-wide text-sky-400">
+            {reveal.tier}
+          </span>
+          <p className="font-serif text-xs leading-relaxed text-neutral-200">
+            {reveal.text}
+          </p>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillSubmitBar.tsx
+"use client";
+import { useDrillStore } from "@/stores/drill-store";
+
+export function DrillSubmitBar({
+  onSubmit,
+  onAbandon,
+  onRequestHint,
+  canAdvance,
+  onAdvance,
+}: {
+  onSubmit: () => void;
+  onAbandon: () => void;
+  onRequestHint?: () => void;
+  canAdvance: boolean;
+  onAdvance: () => void;
+}) {
+  const { currentStage } = useDrillStore();
+  return (
+    <footer className="flex items-center justify-between gap-3 border-t border-neutral-800 bg-neutral-950 px-4 py-2">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onAbandon}
+          className="rounded bg-neutral-800 px-3 py-1.5 text-xs uppercase tracking-wide text-neutral-400 hover:bg-red-900 hover:text-red-200"
+        >
+          Give up
+        </button>
+        {onRequestHint && (
+          <button
+            type="button"
+            onClick={onRequestHint}
+            className="rounded bg-neutral-800 px-3 py-1.5 text-xs uppercase tracking-wide text-neutral-200"
+          >
+            Request hint
+          </button>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onAdvance}
+          disabled={!canAdvance || currentStage === "qna"}
+          className="rounded bg-sky-600 px-3 py-1.5 text-xs uppercase tracking-wide text-white disabled:opacity-40"
+          aria-keyshortcuts="Shift+Enter"
+        >
+          Stage-check ⇧↵
+        </button>
+        <button
+          type="button"
+          onClick={onSubmit}
+          className="rounded bg-emerald-600 px-3 py-1.5 text-xs uppercase tracking-wide text-white"
+          aria-keyshortcuts="Meta+Enter"
+        >
+          Submit ⌘↵
+        </button>
+      </div>
+    </footer>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillResumePrompt.tsx
+"use client";
+export function DrillResumePrompt({
+  problemSlug,
+  stage,
+  onResume,
+  onAbandon,
+}: {
+  problemSlug: string;
+  stage: string;
+  onResume: () => void;
+  onAbandon: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+    >
+      <div className="w-[400px] rounded-lg bg-neutral-900 p-6 font-serif text-neutral-100 shadow-xl">
+        <h2 className="mb-2 text-lg">Drill in progress</h2>
+        <p className="mb-4 text-sm text-neutral-400">
+          You have an unsubmitted drill on <strong>{problemSlug}</strong>, currently in{" "}
+          the <strong>{stage}</strong> stage. Resume where you left off?
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onAbandon}
+            className="rounded bg-red-900 px-3 py-1.5 text-sm text-red-100"
+          >
+            Abandon
+          </button>
+          <button
+            type="button"
+            onClick={onResume}
+            className="rounded bg-sky-500 px-3 py-1.5 text-sm text-white"
+          >
+            Resume
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Fill in `DrillModeLayout.tsx`**
+
+```tsx
+// architex/src/components/modules/sd/modes/DrillModeLayout.tsx
+"use client";
+
+import { useCallback } from "react";
+import { useDrillStore } from "@/stores/drill-store";
+import { DrillTimerBar } from "../drill/DrillTimerBar";
+import { DrillStageStepper } from "../drill/DrillStageStepper";
+import { DrillProblemPane } from "../drill/DrillProblemPane";
+import { SDClarifyStage } from "../drill/stages/SDClarifyStage";
+import { SDEstimateStage } from "../drill/stages/SDEstimateStage";
+import { SDDesignStage } from "../drill/stages/SDDesignStage";
+import { SDDeepDiveStage } from "../drill/stages/SDDeepDiveStage";
+import { SDQnAStage } from "../drill/stages/SDQnAStage";
+import { DrillHintLadder } from "../drill/DrillHintLadder";
+import { DrillSubmitBar } from "../drill/DrillSubmitBar";
+import { useDrillStage } from "@/hooks/useDrillStage";
+import { getVariantConfig } from "@/lib/drill/sd-drill-variants";
+
+export function DrillModeLayout({
+  problemSlug,
+  statement,
+  slos,
+  scope,
+}: {
+  problemSlug: string;
+  statement: string;
+  slos: string[];
+  scope: string[];
+}) {
+  const { attemptId, variant, currentStage } = useDrillStore();
+  const { tryAdvance } = useDrillStage();
+  const variantCfg = getVariantConfig(variant);
+
+  const onAdvance = useCallback(async () => {
+    await tryAdvance({
+      clarifyTurnCount: 3,
+      hasNapkinMath: true,
+      canvasNodeCount: 5,
+      canvasEdgeCount: 4,
+      deepDiveTurnCount: 2,
+      qnaTurnCount: 1,
+    });
+  }, [tryAdvance]);
+
+  const stageSwitch = () => {
+    switch (currentStage) {
+      case "clarify":
+        return <SDClarifyStage attemptId={attemptId ?? ""} />;
+      case "estimate":
+        return <SDEstimateStage onSave={() => {}} />;
+      case "design":
+        return <SDDesignStage />;
+      case "deep-dive":
+        return <SDDeepDiveStage attemptId={attemptId ?? ""} />;
+      case "qna":
+        return <SDQnAStage attemptId={attemptId ?? ""} />;
+    }
+  };
+
+  return (
+    <div className="flex h-screen flex-col bg-black">
+      <DrillTimerBar />
+      <DrillStageStepper />
+      <div className="flex flex-1 overflow-hidden">
+        <DrillProblemPane
+          problemSlug={problemSlug}
+          statement={statement}
+          slos={slos}
+          scope={scope}
+        />
+        <main className="flex flex-1 flex-col">{stageSwitch()}</main>
+        {variantCfg.hintsAllowed && <DrillHintLadder free={variantCfg.hintsFree} />}
+      </div>
+      <DrillSubmitBar
+        onSubmit={() => {}}
+        onAbandon={() => {}}
+        canAdvance={currentStage !== "qna"}
+        onAdvance={onAdvance}
+      />
+    </div>
+  );
+}
+```
+
+- [ ] **Step 5: `DrillStageStepper` test**
+
+```tsx
+// architex/src/components/modules/sd/drill/__tests__/DrillStageStepper.test.tsx
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, beforeEach } from "vitest";
+import { DrillStageStepper } from "../DrillStageStepper";
+import { useDrillStore } from "@/stores/drill-store";
+
+beforeEach(() => {
+  useDrillStore.getState().reset();
+  useDrillStore.getState().setAttempt("a1", {
+    problemSlug: "x",
+    variant: "timed-mock",
+    persona: "staff",
+  });
+});
+
+describe("DrillStageStepper", () => {
+  it("renders all 5 stages", () => {
+    render(<DrillStageStepper />);
+    ["clarify", "estimate", "design", "deep-dive", "qna"].forEach((s) =>
+      expect(screen.getByText(s)).toBeInTheDocument(),
+    );
+  });
+  it("marks the current stage", () => {
+    render(<DrillStageStepper />);
+    const list = screen.getAllByRole("listitem");
+    expect(list[0]).toHaveAttribute("aria-current", "step");
+  });
+});
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd architex
+pnpm test:run -- DrillStageStepper
+git add architex/src/components/modules/sd/drill/ architex/src/components/modules/sd/modes/DrillModeLayout.tsx
+git commit -m "$(cat <<'EOF'
+feat(drill-ui): DrillModeLayout · 5-stage composition with timer · stepper · hint · submit
+
+Timer bar tracks stage-relative elapsed, pulses red over cap. Stepper
+shows 5-stage progression with done/current/pending states. Problem
+pane renders prompt/SLOs/scope on the left. Stage-switch renders
+Clarify/Estimate/Design/Deep-dive/QnA; each stage composes the
+InterviewerPane (streaming SSE) or a structured form. Hint ladder
+renders when variant.hintsAllowed; free flag hides credits. Submit
+bar exposes Abandon / Hint / Stage-check (⇧↵) / Submit (⌘↵).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
