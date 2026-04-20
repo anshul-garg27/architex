@@ -163,7 +163,7 @@ architex/
 - Modify: `architex/src/db/schema/index.ts`
 - Modify: `architex/src/db/schema/relations.ts`
 
-- [ ] **Step 1: Write the schema file**
+- [x] **Step 1: Write the schema file**
 
 Create `architex/src/db/schema/lld-drill-attempts.ts`:
 
