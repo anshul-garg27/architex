@@ -10157,3 +10157,644 @@ EOF
 ```
 
 ---
+
+## Group E · Drill mode UI + behavior (Tasks 27-31)
+
+> Drill mode is the interview diamond. 5-stage gated clock · 8 personas · 3 mock modes · 6-axis rubric · AI postmortem · shareable PDF · abandon/resume. Group E composes on top of Task 16 (persona prompts + SSE) + Task 17 (rubric + postmortem).
+
+---
+
+## Task 27: `sd-drill-stages.ts` · `sd-drill-variants.ts` · `sd-drill-rubric.ts` · `sd-drill-canonical.ts` · `sd-drill-timing.ts` · `sd-drill-hint-ladder.ts`
+
+**Files:**
+- Create: `architex/src/lib/drill/sd-drill-stages.ts`
+- Create: `architex/src/lib/drill/sd-drill-variants.ts`
+- Create: `architex/src/lib/drill/sd-drill-rubric.ts`
+- Create: `architex/src/lib/drill/sd-drill-canonical.ts`
+- Create: `architex/src/lib/drill/sd-drill-timing.ts`
+- Create: `architex/src/lib/drill/sd-drill-hint-ladder.ts`
+- Create: `architex/src/lib/drill/__tests__/sd-drill-stages.test.ts`
+- Create: `architex/src/lib/drill/__tests__/sd-drill-rubric.test.ts`
+- Create: `architex/src/lib/drill/__tests__/sd-drill-timing.test.ts`
+
+Six library modules that make Drill's behavior correct. Pure functions; no UI; fully testable.
+
+- [ ] **Step 1: `sd-drill-stages.ts` — 5-stage FSM with gate predicates**
+
+```typescript
+// architex/src/lib/drill/sd-drill-stages.ts
+
+/**
+ * DRILL-010: 5-stage FSM for SD drill (§9.3).
+ *
+ * Stages in order: clarify → estimate → design → deep-dive → qna.
+ * Each stage has: allowedActions, duration, gate predicate (what must
+ * be true before advance is allowed), and a description.
+ */
+
+import type { SDDrillStage } from "@/db/schema/sd-drill-attempts";
+
+export const STAGE_ORDER: SDDrillStage[] = [
+  "clarify",
+  "estimate",
+  "design",
+  "deep-dive",
+  "qna",
+];
+
+export const STAGE_DURATION_MS: Record<SDDrillStage, number> = {
+  clarify: 5 * 60 * 1000,
+  estimate: 5 * 60 * 1000,
+  design: 15 * 60 * 1000,
+  "deep-dive": 15 * 60 * 1000,
+  qna: 5 * 60 * 1000,
+};
+
+export interface StageGateInput {
+  stage: SDDrillStage;
+  clarifyTurnCount: number;
+  hasNapkinMath: boolean;
+  canvasNodeCount: number;
+  canvasEdgeCount: number;
+  deepDiveTurnCount: number;
+  qnaTurnCount: number;
+}
+
+/** Returns true if the stage can be marked "done" and advanced. */
+export function canAdvanceStage(input: StageGateInput): boolean {
+  switch (input.stage) {
+    case "clarify":
+      return input.clarifyTurnCount >= 2;
+    case "estimate":
+      return input.hasNapkinMath;
+    case "design":
+      return input.canvasNodeCount >= 3 && input.canvasEdgeCount >= 2;
+    case "deep-dive":
+      return input.deepDiveTurnCount >= 2;
+    case "qna":
+      return input.qnaTurnCount >= 1;
+  }
+}
+
+export function nextStage(current: SDDrillStage): SDDrillStage | null {
+  const idx = STAGE_ORDER.indexOf(current);
+  if (idx < 0 || idx === STAGE_ORDER.length - 1) return null;
+  return STAGE_ORDER[idx + 1];
+}
+
+export function prevStage(current: SDDrillStage): SDDrillStage | null {
+  const idx = STAGE_ORDER.indexOf(current);
+  if (idx <= 0) return null;
+  return STAGE_ORDER[idx - 1];
+}
+
+export function totalDurationMs(): number {
+  return STAGE_ORDER.reduce((sum, s) => sum + STAGE_DURATION_MS[s], 0);
+}
+```
+
+- [ ] **Step 2: `sd-drill-variants.ts` — study / timed-mock / pair-ai / exam / full-stack-loop / verbal / review**
+
+```typescript
+// architex/src/lib/drill/sd-drill-variants.ts
+
+/**
+ * DRILL-011: 7-variant config for SD drill (§9.4).
+ * Phase 3 ships 3 fully-wired (study · timed-mock · pair-ai); the
+ * remaining 4 (exam · full-stack-loop · verbal · review) ship as
+ * variant enum values consumed by the rubric grader. Their UI
+ * polish (full-stack-loop's 90-min clock · verbal's Whisper mic) lands
+ * in Phase 4.
+ */
+
+import type { SDDrillVariant } from "@/db/schema/sd-drill-attempts";
+
+export interface DrillVariantConfig {
+  variant: SDDrillVariant;
+  displayName: string;
+  description: string;
+  enforceClock: boolean;
+  hintsAllowed: boolean;
+  hintsFree: boolean;
+  aiAllowed: boolean;
+  verbalMode: boolean;
+  coachSilent: boolean;
+  durationMs: number;
+}
+
+export const VARIANT_CONFIGS: Record<SDDrillVariant, DrillVariantConfig> = {
+  study: {
+    variant: "study",
+    displayName: "Study",
+    description: "No timer. Canvas enabled from the start. Build intuition without stress.",
+    enforceClock: false,
+    hintsAllowed: true,
+    hintsFree: true,
+    aiAllowed: true,
+    verbalMode: false,
+    coachSilent: false,
+    durationMs: Number.POSITIVE_INFINITY,
+  },
+  "timed-mock": {
+    variant: "timed-mock",
+    displayName: "Timed mock",
+    description: "5-stage clock enforced. 45 minutes. Default mock.",
+    enforceClock: true,
+    hintsAllowed: true,
+    hintsFree: false,
+    aiAllowed: true,
+    verbalMode: false,
+    coachSilent: true,
+    durationMs: 45 * 60 * 1000,
+  },
+  exam: {
+    variant: "exam",
+    displayName: "Exam",
+    description: "Timed-mock + no hints, no AI questions allowed. Full integrity.",
+    enforceClock: true,
+    hintsAllowed: false,
+    hintsFree: false,
+    aiAllowed: false,
+    verbalMode: false,
+    coachSilent: true,
+    durationMs: 45 * 60 * 1000,
+  },
+  "pair-ai": {
+    variant: "pair-ai",
+    displayName: "Pair AI",
+    description: "Sonnet live at every stage. Interviewer has personality and pushes back.",
+    enforceClock: true,
+    hintsAllowed: true,
+    hintsFree: false,
+    aiAllowed: true,
+    verbalMode: false,
+    coachSilent: true,
+    durationMs: 45 * 60 * 1000,
+  },
+  "full-stack-loop": {
+    variant: "full-stack-loop",
+    displayName: "Full-stack loop",
+    description: "90 minutes. Same problem in SD (45) + LLD (45). Phase-4 polish.",
+    enforceClock: true,
+    hintsAllowed: true,
+    hintsFree: false,
+    aiAllowed: true,
+    verbalMode: false,
+    coachSilent: true,
+    durationMs: 90 * 60 * 1000,
+  },
+  verbal: {
+    variant: "verbal",
+    displayName: "Verbal",
+    description: "Microphone on. User narrates aloud. Whisper transcribes. Phase-4 polish.",
+    enforceClock: true,
+    hintsAllowed: true,
+    hintsFree: false,
+    aiAllowed: true,
+    verbalMode: true,
+    coachSilent: true,
+    durationMs: 45 * 60 * 1000,
+  },
+  review: {
+    variant: "review",
+    displayName: "Review",
+    description: "Open a past drill attempt with AI commentary overlays. Phase-4 polish.",
+    enforceClock: false,
+    hintsAllowed: false,
+    hintsFree: false,
+    aiAllowed: true,
+    verbalMode: false,
+    coachSilent: false,
+    durationMs: Number.POSITIVE_INFINITY,
+  },
+};
+
+export function getVariantConfig(v: SDDrillVariant): DrillVariantConfig {
+  return VARIANT_CONFIGS[v];
+}
+```
+
+- [ ] **Step 3: `sd-drill-rubric.ts` — rubric bands + thresholds**
+
+```typescript
+// architex/src/lib/drill/sd-drill-rubric.ts
+
+/**
+ * DRILL-012: Rubric bands + weights per axis (§9.9 + §15.5).
+ *
+ * The Sonnet grader (Task 17) produces 1-5 scores per axis. This file
+ * defines how the scores map to bands, how overall maps to grade
+ * tiers, and the threshold above which a drill is "passing".
+ */
+
+import type { RubricAxis } from "@/lib/ai/sd-rubric-grader";
+
+export const RUBRIC_AXES: RubricAxis[] = [
+  "requirements-scope",
+  "estimation",
+  "high-level-design",
+  "deep-dive",
+  "communication",
+  "tradeoffs",
+];
+
+export type GradeTier = "stellar" | "solid" | "coaching" | "redirect";
+
+export function gradeTier(overall: number): GradeTier {
+  if (overall >= 4.3) return "stellar";
+  if (overall >= 3.5) return "solid";
+  if (overall >= 2.5) return "coaching";
+  return "redirect";
+}
+
+export const AXIS_LABEL: Record<RubricAxis, string> = {
+  "requirements-scope": "Requirements & scope",
+  estimation: "Estimation",
+  "high-level-design": "HL design",
+  "deep-dive": "Deep dive",
+  communication: "Communication",
+  tradeoffs: "Tradeoffs",
+};
+
+export const AXIS_BAND_COPY: Record<
+  RubricAxis,
+  Record<1 | 2 | 3 | 4 | 5, string>
+> = {
+  "requirements-scope": {
+    1: "Did not establish scope. Jumped to solution.",
+    2: "Shallow scoping. Left major questions unasked.",
+    3: "Adequate scoping. Most relevant questions covered.",
+    4: "Thorough scoping. Distinguished must-haves from nice-to-haves.",
+    5: "Principal-grade scoping. Surfaced non-obvious constraints.",
+  },
+  estimation: {
+    1: "No back-of-envelope math attempted.",
+    2: "Numeric guesses without rationale.",
+    3: "Plausible estimates with explicit assumptions.",
+    4: "Estimates tied to design decisions; cross-checked against reality.",
+    5: "Precision estimates that calibrated the entire design.",
+  },
+  "high-level-design": {
+    1: "Missing critical components or wrong abstractions.",
+    2: "Correct shape but brittle.",
+    3: "Reasonable design with visible tradeoffs.",
+    4: "Strong design; handles stated requirements cleanly.",
+    5: "Principal-grade design. Minimal overengineering; clear seams.",
+  },
+  "deep-dive": {
+    1: "Surface answers only; did not engage with specifics.",
+    2: "Some depth; missed obvious failure modes.",
+    3: "Adequate depth; reasoned through 1-2 failure modes.",
+    4: "Strong depth. Cited concrete numbers and protocols.",
+    5: "Principal-grade depth. Non-obvious failure modes surfaced preemptively.",
+  },
+  communication: {
+    1: "Fragmented; could not follow the reasoning.",
+    2: "Adequate but unstructured.",
+    3: "Clear narration; reasonable structure.",
+    4: "Structured + concise; easy to follow at pace.",
+    5: "Staff-grade communication. Every sentence earned its place.",
+  },
+  tradeoffs: {
+    1: "No tradeoffs acknowledged.",
+    2: "Tradeoffs mentioned but not explored.",
+    3: "Tradeoffs explicitly weighed.",
+    4: "Quantitative tradeoffs with cost + latency numbers.",
+    5: "Multi-axis tradeoff analysis with principled recommendation.",
+  },
+};
+
+export function axisBandCopy(axis: RubricAxis, score: 1 | 2 | 3 | 4 | 5): string {
+  return AXIS_BAND_COPY[axis][score];
+}
+```
+
+- [ ] **Step 4: `sd-drill-canonical.ts` — canonical design per problem (scaffold)**
+
+```typescript
+// architex/src/lib/drill/sd-drill-canonical.ts
+
+/**
+ * DRILL-013: Canonical solutions per problem (for Compare A/B + §9.8 artifact 3).
+ *
+ * Each problem ships 1-3 canonical solutions. The "closest" canonical
+ * is chosen at grade-time by topology similarity to the candidate's
+ * final canvas. Full 30-problem set lands across Phase 3 (10 problems)
+ * + Phase 4 (remaining 20). The shape below is what each problem module
+ * must export; Task 32 populates the MDX body + the JSON export.
+ */
+
+export interface CanonicalSolution {
+  slug: string;
+  problemSlug: string;
+  displayName: string;
+  description: string;
+  nodes: Array<{ id: string; label: string; family: string }>;
+  edges: Array<{ from: string; to: string; kind?: "sync" | "async" | "replication" }>;
+  tradeoffs: string;
+  whenToPrefer: string;
+}
+
+export interface ProblemCanonicalBundle {
+  problemSlug: string;
+  solutions: CanonicalSolution[];
+}
+
+const REGISTRY: Map<string, ProblemCanonicalBundle> = new Map();
+
+export function registerCanonical(bundle: ProblemCanonicalBundle): void {
+  REGISTRY.set(bundle.problemSlug, bundle);
+}
+
+export function getCanonicalForProblem(
+  problemSlug: string,
+): ProblemCanonicalBundle | null {
+  return REGISTRY.get(problemSlug) ?? null;
+}
+
+/** Task 32 populates per-problem modules; here is the shape one such module takes. */
+export const TWITTER_CANONICAL: ProblemCanonicalBundle = {
+  problemSlug: "design-twitter",
+  solutions: [
+    {
+      slug: "fan-out-on-write",
+      problemSlug: "design-twitter",
+      displayName: "Fan-out on write",
+      description: "Tweet authoring pushes into Redis timeline buckets per follower.",
+      nodes: [
+        { id: "api", label: "Tweet API", family: "stateless-service" },
+        { id: "queue", label: "Fan-out queue", family: "queue" },
+        { id: "worker", label: "Fan-out workers", family: "stateless-service" },
+        { id: "timeline-cache", label: "Timeline cache (Redis)", family: "cache" },
+        { id: "tweets-db", label: "Tweets DB", family: "database" },
+      ],
+      edges: [
+        { from: "api", to: "tweets-db", kind: "sync" },
+        { from: "api", to: "queue", kind: "async" },
+        { from: "queue", to: "worker", kind: "async" },
+        { from: "worker", to: "timeline-cache", kind: "sync" },
+      ],
+      tradeoffs: "Fast reads at the cost of expensive writes for celebrity users.",
+      whenToPrefer: "Read-heavy workloads; median follower count below ~10k.",
+    },
+    {
+      slug: "fan-out-on-read",
+      problemSlug: "design-twitter",
+      displayName: "Fan-out on read",
+      description: "Timelines assembled at read time from followed-user tweet streams.",
+      nodes: [
+        { id: "api", label: "Timeline API", family: "stateless-service" },
+        { id: "tweet-index", label: "Tweet index (search)", family: "search-index" },
+        { id: "tweets-db", label: "Tweets DB", family: "database" },
+        { id: "follow-graph", label: "Follow graph", family: "database" },
+      ],
+      edges: [
+        { from: "api", to: "follow-graph", kind: "sync" },
+        { from: "api", to: "tweet-index", kind: "sync" },
+        { from: "tweet-index", to: "tweets-db", kind: "sync" },
+      ],
+      tradeoffs: "Cheaper writes; expensive reads for large followee counts.",
+      whenToPrefer: "Write-heavy workloads; celebrity users without timeline preferences.",
+    },
+  ],
+};
+
+registerCanonical(TWITTER_CANONICAL);
+```
+
+- [ ] **Step 5: `sd-drill-timing.ts` — per-stage duration heatmap**
+
+```typescript
+// architex/src/lib/drill/sd-drill-timing.ts
+
+/**
+ * DRILL-014: Stage-duration heatmap (§9.8 artifact 4).
+ *
+ * Takes per-stage elapsed times + the cohort median-of-top-50% and
+ * returns per-stage {elapsed, medianTop50, deviation, interpretation}.
+ */
+
+import type { SDDrillStage } from "@/db/schema/sd-drill-attempts";
+import { STAGE_DURATION_MS, STAGE_ORDER } from "./sd-drill-stages";
+
+export interface StageTimingCell {
+  stage: SDDrillStage;
+  elapsedMs: number;
+  targetMs: number;
+  medianTop50Ms?: number;
+  deviationPct: number;
+  interpretation: "under" | "on-target" | "over" | "severely-over";
+}
+
+export interface TimingHeatmap {
+  cells: StageTimingCell[];
+  overallMs: number;
+  outliers: SDDrillStage[];  // stages classified under/severely-over
+}
+
+export function buildTimingHeatmap(
+  perStageMs: Partial<Record<SDDrillStage, number>>,
+  medianTop50?: Partial<Record<SDDrillStage, number>>,
+): TimingHeatmap {
+  const cells: StageTimingCell[] = [];
+  const outliers: SDDrillStage[] = [];
+  let overall = 0;
+  for (const stage of STAGE_ORDER) {
+    const elapsed = perStageMs[stage] ?? 0;
+    overall += elapsed;
+    const target = medianTop50?.[stage] ?? STAGE_DURATION_MS[stage];
+    const dev = ((elapsed - target) / target) * 100;
+    let interpretation: StageTimingCell["interpretation"];
+    if (dev < -30) interpretation = "under";
+    else if (dev <= 15) interpretation = "on-target";
+    else if (dev <= 40) interpretation = "over";
+    else interpretation = "severely-over";
+    if (interpretation === "under" || interpretation === "severely-over") {
+      outliers.push(stage);
+    }
+    cells.push({
+      stage,
+      elapsedMs: elapsed,
+      targetMs: target,
+      medianTop50Ms: medianTop50?.[stage],
+      deviationPct: dev,
+      interpretation,
+    });
+  }
+  return { cells, overallMs: overall, outliers };
+}
+```
+
+- [ ] **Step 6: `sd-drill-hint-ladder.ts` — 3-tier hint credit ledger**
+
+```typescript
+// architex/src/lib/drill/sd-drill-hint-ladder.ts
+
+/**
+ * DRILL-015: 3-tier hint ladder (§9.7).
+ *
+ * Nudge = 1 credit · Guided = 3 · Full reveal = 5.
+ * Each drill starts with 15 credits. Exam: disabled. Coach: free.
+ */
+
+export type HintTier = "nudge" | "guided" | "full";
+
+export const HINT_CREDIT_COST: Record<HintTier, number> = {
+  nudge: 1,
+  guided: 3,
+  full: 5,
+};
+
+export interface HintEntry {
+  tier: HintTier;
+  creditsDeducted: number;
+  requestedAtMs: number;
+  stage: string;
+  textShown: string;
+}
+
+export interface HintLedger {
+  entries: HintEntry[];
+  creditsRemaining: number;
+  freeHints: boolean;
+}
+
+export function createHintLedger(
+  initialCredits: number,
+  free: boolean,
+): HintLedger {
+  return { entries: [], creditsRemaining: initialCredits, freeHints: free };
+}
+
+export function requestHint(
+  ledger: HintLedger,
+  tier: HintTier,
+  stage: string,
+  textShown: string,
+  nowMs: number,
+): { ledger: HintLedger; ok: boolean; reason?: string } {
+  if (!ledger.freeHints && ledger.creditsRemaining < HINT_CREDIT_COST[tier]) {
+    return { ledger, ok: false, reason: "Insufficient credits." };
+  }
+  const deducted = ledger.freeHints ? 0 : HINT_CREDIT_COST[tier];
+  const next: HintLedger = {
+    ...ledger,
+    creditsRemaining: ledger.creditsRemaining - deducted,
+    entries: [
+      ...ledger.entries,
+      { tier, creditsDeducted: deducted, requestedAtMs: nowMs, stage, textShown },
+    ],
+  };
+  return { ledger: next, ok: true };
+}
+
+export function totalCreditsDeducted(ledger: HintLedger): number {
+  return ledger.entries.reduce((s, e) => s + e.creditsDeducted, 0);
+}
+```
+
+- [ ] **Step 7: Tests for stages · rubric · timing**
+
+```typescript
+// architex/src/lib/drill/__tests__/sd-drill-stages.test.ts
+import { describe, expect, it } from "vitest";
+import {
+  STAGE_ORDER,
+  canAdvanceStage,
+  nextStage,
+  prevStage,
+  totalDurationMs,
+} from "../sd-drill-stages";
+
+describe("sd-drill-stages", () => {
+  it("has 5 stages in order", () => {
+    expect(STAGE_ORDER).toEqual(["clarify", "estimate", "design", "deep-dive", "qna"]);
+  });
+  it("total duration is 45 minutes", () => {
+    expect(totalDurationMs()).toBe(45 * 60 * 1000);
+  });
+  it("clarify requires >= 2 turns", () => {
+    expect(canAdvanceStage({ stage: "clarify", clarifyTurnCount: 1, hasNapkinMath: false, canvasNodeCount: 0, canvasEdgeCount: 0, deepDiveTurnCount: 0, qnaTurnCount: 0 })).toBe(false);
+    expect(canAdvanceStage({ stage: "clarify", clarifyTurnCount: 2, hasNapkinMath: false, canvasNodeCount: 0, canvasEdgeCount: 0, deepDiveTurnCount: 0, qnaTurnCount: 0 })).toBe(true);
+  });
+  it("design requires >= 3 nodes and >= 2 edges", () => {
+    expect(canAdvanceStage({ stage: "design", clarifyTurnCount: 0, hasNapkinMath: false, canvasNodeCount: 3, canvasEdgeCount: 1, deepDiveTurnCount: 0, qnaTurnCount: 0 })).toBe(false);
+    expect(canAdvanceStage({ stage: "design", clarifyTurnCount: 0, hasNapkinMath: false, canvasNodeCount: 3, canvasEdgeCount: 2, deepDiveTurnCount: 0, qnaTurnCount: 0 })).toBe(true);
+  });
+  it("nextStage / prevStage navigate correctly", () => {
+    expect(nextStage("design")).toBe("deep-dive");
+    expect(prevStage("design")).toBe("estimate");
+    expect(nextStage("qna")).toBeNull();
+    expect(prevStage("clarify")).toBeNull();
+  });
+});
+
+// architex/src/lib/drill/__tests__/sd-drill-rubric.test.ts
+import { describe, expect, it } from "vitest";
+import { gradeTier, axisBandCopy } from "../sd-drill-rubric";
+
+describe("sd-drill-rubric", () => {
+  it("gradeTier ladders correctly", () => {
+    expect(gradeTier(4.5)).toBe("stellar");
+    expect(gradeTier(3.6)).toBe("solid");
+    expect(gradeTier(3.0)).toBe("coaching");
+    expect(gradeTier(2.0)).toBe("redirect");
+  });
+  it("axisBandCopy returns a non-empty string for each band", () => {
+    for (const score of [1, 2, 3, 4, 5] as const) {
+      expect(axisBandCopy("high-level-design", score).length).toBeGreaterThan(10);
+    }
+  });
+});
+
+// architex/src/lib/drill/__tests__/sd-drill-timing.test.ts
+import { describe, expect, it } from "vitest";
+import { buildTimingHeatmap } from "../sd-drill-timing";
+
+describe("sd-drill-timing", () => {
+  it("classifies severely-over deviations", () => {
+    const hm = buildTimingHeatmap(
+      { clarify: 10 * 60 * 1000 },  // 100% over target of 5 min
+      { clarify: 5 * 60 * 1000 },
+    );
+    expect(hm.outliers).toContain("clarify");
+    expect(hm.cells[0].interpretation).toBe("severely-over");
+  });
+  it("overallMs sums stage elapsed values", () => {
+    const hm = buildTimingHeatmap({
+      clarify: 300_000,
+      estimate: 300_000,
+      design: 900_000,
+      "deep-dive": 900_000,
+      qna: 300_000,
+    });
+    expect(hm.overallMs).toBe(45 * 60 * 1000);
+  });
+});
+```
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd architex
+pnpm test:run -- sd-drill-stages sd-drill-rubric sd-drill-timing
+git add architex/src/lib/drill/
+git commit -m "$(cat <<'EOF'
+feat(drill): 6 library modules for SD drill behavior
+
+sd-drill-stages: 5-stage FSM · canAdvanceStage gate predicates ·
+STAGE_DURATION_MS (45min total). sd-drill-variants: 7-variant config
+(Phase 3 ships study/timed-mock/pair-ai fully; exam/full-stack-loop/
+verbal/review ship as enums with Phase-4 polish). sd-drill-rubric:
+RUBRIC_AXES + gradeTier ladder (stellar/solid/coaching/redirect) +
+AXIS_BAND_COPY 1-5 copy table. sd-drill-canonical: problem → canonical
+solutions registry + Twitter example. sd-drill-timing: per-stage
+heatmap + outlier detection. sd-drill-hint-ladder: 3-tier credit
+ledger (15 start · nudge=1 · guided=3 · full=5).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
