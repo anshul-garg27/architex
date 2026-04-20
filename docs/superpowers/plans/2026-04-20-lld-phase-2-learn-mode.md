@@ -4803,3 +4803,1392 @@ EOF
 ```
 
 ---
+
+## Task 18: Four checkpoint components + grading engine extension
+
+**Files:**
+- Create: `architex/src/lib/lld/checkpoint-types.ts`
+- Rewrite: `architex/src/components/modules/lld/learn/checkpoints/RecallCheckpoint.tsx`
+- Rewrite: `architex/src/components/modules/lld/learn/checkpoints/ApplyCheckpoint.tsx`
+- Rewrite: `architex/src/components/modules/lld/learn/checkpoints/CompareCheckpoint.tsx`
+- Rewrite: `architex/src/components/modules/lld/learn/checkpoints/CreateCheckpoint.tsx`
+- Test: `architex/src/lib/lld/__tests__/checkpoint-grading.test.ts`
+
+Each checkpoint implements the Q3 progressive-reveal policy: attempt 1-2 show targeted `whyWrong` and ask to try again, attempt 3 reveals the answer.
+
+- [ ] **Step 1: Create the shared grading helpers**
+
+Create `architex/src/lib/lld/checkpoint-types.ts`:
+
+```typescript
+import type {
+  RecallCheckpoint,
+  ApplyCheckpoint,
+  CompareCheckpoint,
+  CreateCheckpoint,
+} from "./lesson-types";
+
+export type CheckpointResult = {
+  attempts: number;
+  correct: boolean;
+  /** FSRS rating derived from attempts, per spec §6 Q3. */
+  rating: "easy" | "good" | "hard" | "again";
+};
+
+export function ratingFromAttempts(
+  attempts: number,
+  correct: boolean,
+): CheckpointResult["rating"] {
+  if (!correct) return "again";
+  if (attempts === 1) return "easy";
+  if (attempts === 2) return "good";
+  return "hard";
+}
+
+export function gradeRecall(
+  checkpoint: RecallCheckpoint,
+  selectedId: string,
+): { correct: boolean; whyWrong: string | null } {
+  const option = checkpoint.options.find((o) => o.id === selectedId);
+  if (!option) return { correct: false, whyWrong: null };
+  if (option.isCorrect) return { correct: true, whyWrong: null };
+  return { correct: false, whyWrong: option.whyWrong ?? null };
+}
+
+export function gradeApply(
+  checkpoint: ApplyCheckpoint,
+  selectedClassIds: string[],
+): { correct: boolean; missing: string[]; extra: string[] } {
+  const selectedSet = new Set(selectedClassIds);
+  const correctSet = new Set(checkpoint.correctClassIds);
+  const missing = checkpoint.correctClassIds.filter((id) => !selectedSet.has(id));
+  const extra = selectedClassIds.filter((id) => !correctSet.has(id));
+  return { correct: missing.length === 0 && extra.length === 0, missing, extra };
+}
+
+export function gradeCompare(
+  checkpoint: CompareCheckpoint,
+  answers: Record<string, "left" | "right" | "both">,
+): { correct: boolean; wrongIds: string[] } {
+  const wrongIds: string[] = [];
+  for (const s of checkpoint.statements) {
+    if (answers[s.id] !== s.correct) wrongIds.push(s.id);
+  }
+  return { correct: wrongIds.length === 0, wrongIds };
+}
+
+export function gradeCreate(
+  checkpoint: CreateCheckpoint,
+  userClassNames: string[],
+): { score: number; maxScore: number; perCriterion: Array<{ criterion: string; points: number; awarded: number }> } {
+  // Simple rubric: award full points if any user class name contains the
+  // criterion keywords (lowercased). Production swap to Claude grading.
+  let score = 0;
+  let maxScore = 0;
+  const perCriterion = checkpoint.rubric.map((r) => {
+    maxScore += r.points;
+    const keyword = r.criterion.toLowerCase().split(/\s+/)[0];
+    const awarded = userClassNames.some((n) =>
+      n.toLowerCase().includes(keyword),
+    )
+      ? r.points
+      : 0;
+    score += awarded;
+    return { criterion: r.criterion, points: r.points, awarded };
+  });
+  return { score, maxScore, perCriterion };
+}
+```
+
+- [ ] **Step 2: Write the failing grading test**
+
+Create `architex/src/lib/lld/__tests__/checkpoint-grading.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  gradeRecall,
+  gradeApply,
+  gradeCompare,
+  gradeCreate,
+  ratingFromAttempts,
+} from "@/lib/lld/checkpoint-types";
+import type {
+  RecallCheckpoint,
+  ApplyCheckpoint,
+  CompareCheckpoint,
+  CreateCheckpoint,
+} from "@/lib/lld/lesson-types";
+
+describe("checkpoint grading", () => {
+  it("gradeRecall flags correct option", () => {
+    const cp: RecallCheckpoint = {
+      kind: "recall",
+      id: "r1",
+      prompt: "q",
+      options: [
+        { id: "a", label: "A", isCorrect: true },
+        { id: "b", label: "B", isCorrect: false, whyWrong: "nope" },
+      ],
+      explanation: "x",
+    };
+    expect(gradeRecall(cp, "a").correct).toBe(true);
+    expect(gradeRecall(cp, "b")).toEqual({ correct: false, whyWrong: "nope" });
+  });
+
+  it("gradeApply reports missing + extra", () => {
+    const cp: ApplyCheckpoint = {
+      kind: "apply",
+      id: "a1",
+      scenario: "s",
+      correctClassIds: ["X", "Y"],
+      distractorClassIds: ["Z"],
+      explanation: "e",
+    };
+    const r = gradeApply(cp, ["X", "Z"]);
+    expect(r.correct).toBe(false);
+    expect(r.missing).toEqual(["Y"]);
+    expect(r.extra).toEqual(["Z"]);
+    expect(gradeApply(cp, ["X", "Y"]).correct).toBe(true);
+  });
+
+  it("gradeCompare lists wrong-statement ids", () => {
+    const cp: CompareCheckpoint = {
+      kind: "compare",
+      id: "c1",
+      prompt: "p",
+      left: { patternSlug: "a", label: "A" },
+      right: { patternSlug: "b", label: "B" },
+      statements: [
+        { id: "s1", text: "…", correct: "left" },
+        { id: "s2", text: "…", correct: "both" },
+      ],
+      explanation: "e",
+    };
+    const r = gradeCompare(cp, { s1: "left", s2: "right" });
+    expect(r.correct).toBe(false);
+    expect(r.wrongIds).toEqual(["s2"]);
+  });
+
+  it("gradeCreate scores by keyword match", () => {
+    const cp: CreateCheckpoint = {
+      kind: "create",
+      id: "cr1",
+      prompt: "p",
+      starterCanvas: { classes: [] },
+      rubric: [
+        { criterion: "Creator class", points: 3 },
+        { criterion: "Product class", points: 2 },
+      ],
+      referenceSolution: { classes: [] },
+      explanation: "e",
+    };
+    const r = gradeCreate(cp, ["CreatorImpl", "ConcreteProduct"]);
+    expect(r.score).toBe(5);
+    expect(r.maxScore).toBe(5);
+  });
+
+  it("ratingFromAttempts matches Q3 policy", () => {
+    expect(ratingFromAttempts(1, true)).toBe("easy");
+    expect(ratingFromAttempts(2, true)).toBe("good");
+    expect(ratingFromAttempts(3, true)).toBe("hard");
+    expect(ratingFromAttempts(3, false)).toBe("again");
+  });
+});
+```
+
+- [ ] **Step 3: Run test to verify it passes**
+
+```bash
+pnpm test:run -- checkpoint-grading
+```
+Expected: PASS · 5 assertions.
+
+- [ ] **Step 4: Write `RecallCheckpoint`**
+
+Replace `architex/src/components/modules/lld/learn/checkpoints/RecallCheckpoint.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useState } from "react";
+import type { RecallCheckpoint as CP } from "@/lib/lld/lesson-types";
+import { gradeRecall } from "@/lib/lld/checkpoint-types";
+import { CheckCircle2, XCircle, Eye } from "lucide-react";
+
+interface Props {
+  checkpoint: CP;
+  onResult: (attempts: number, correct: boolean) => void;
+}
+
+export const RecallCheckpoint = memo(function RecallCheckpoint({
+  checkpoint,
+  onResult,
+}: Props) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  const submit = () => {
+    if (!selected || revealed) return;
+    const { correct, whyWrong } = gradeRecall(checkpoint, selected);
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+    if (correct) {
+      setRevealed(true);
+      onResult(nextAttempts, true);
+      return;
+    }
+    if (nextAttempts >= 3) {
+      setRevealed(true);
+      onResult(nextAttempts, false);
+      return;
+    }
+    setWrongFeedback(whyWrong ?? "Not quite — look at the mechanism again.");
+  };
+
+  const reveal = () => {
+    setRevealed(true);
+    onResult(Math.max(attempts, 3), false);
+  };
+
+  const correctOption = checkpoint.options.find((o) => o.isCorrect);
+
+  return (
+    <div className="rounded-xl border border-border/30 bg-elevated/40 p-4">
+      <div className="text-xs uppercase tracking-wider text-primary mb-2">
+        Recall · one answer
+      </div>
+      <p className="text-sm font-serif leading-relaxed text-foreground mb-4">
+        {checkpoint.prompt}
+      </p>
+
+      <div className="space-y-2">
+        {checkpoint.options.map((o) => (
+          <label
+            key={o.id}
+            className={`flex items-start gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${
+              selected === o.id
+                ? "border-primary/60 bg-primary/10"
+                : "border-border/30 hover:bg-elevated/60"
+            } ${revealed && o.isCorrect ? "border-green-500/60 bg-green-500/10" : ""}`}
+          >
+            <input
+              type="radio"
+              name={`cp-${checkpoint.id}`}
+              value={o.id}
+              checked={selected === o.id}
+              disabled={revealed}
+              onChange={() => {
+                setSelected(o.id);
+                setWrongFeedback(null);
+              }}
+              className="mt-1"
+            />
+            <span className="text-sm text-foreground">{o.label}</span>
+            {revealed && o.isCorrect && (
+              <CheckCircle2 className="h-4 w-4 ml-auto text-green-400" />
+            )}
+          </label>
+        ))}
+      </div>
+
+      {wrongFeedback && !revealed && (
+        <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/5 p-3 text-xs text-orange-100 flex gap-2">
+          <XCircle className="h-4 w-4 shrink-0" />
+          <div>
+            <div className="font-semibold mb-1">
+              Attempt {attempts} of 3 · {attempts === 2 ? "one more try" : "try again"}
+            </div>
+            <p className="font-serif">{wrongFeedback}</p>
+          </div>
+        </div>
+      )}
+
+      {revealed && (
+        <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <div className="text-xs uppercase tracking-wider text-primary mb-1">
+            Explanation
+          </div>
+          <p className="text-xs font-serif leading-relaxed text-foreground">
+            {checkpoint.explanation}
+          </p>
+          {correctOption && (
+            <p className="text-xs font-serif leading-relaxed text-foreground-muted mt-1">
+              Correct answer: <strong>{correctOption.label}</strong>
+            </p>
+          )}
+        </div>
+      )}
+
+      {!revealed && (
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            onClick={submit}
+            disabled={!selected}
+            className="rounded-full bg-primary/20 hover:bg-primary/30 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 text-xs uppercase tracking-wider text-primary transition-colors"
+          >
+            Submit
+          </button>
+          <button
+            onClick={reveal}
+            className="inline-flex items-center gap-1 text-[11px] text-foreground-muted hover:text-foreground"
+          >
+            <Eye className="h-3 w-3" /> Reveal answer
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
+```
+
+- [ ] **Step 5: Write `ApplyCheckpoint`**
+
+Replace `architex/src/components/modules/lld/learn/checkpoints/ApplyCheckpoint.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useState } from "react";
+import type { ApplyCheckpoint as CP } from "@/lib/lld/lesson-types";
+import { gradeApply } from "@/lib/lld/checkpoint-types";
+import { CheckCircle2 } from "lucide-react";
+
+interface Props {
+  checkpoint: CP;
+  patternSlug: string;
+  onResult: (attempts: number, correct: boolean) => void;
+}
+
+export const ApplyCheckpoint = memo(function ApplyCheckpoint({
+  checkpoint,
+  onResult,
+}: Props) {
+  const allClasses = [
+    ...checkpoint.correctClassIds,
+    ...checkpoint.distractorClassIds,
+  ];
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [attempts, setAttempts] = useState(0);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const submit = () => {
+    if (revealed) return;
+    const result = gradeApply(checkpoint, Array.from(selected));
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+    if (result.correct) {
+      setRevealed(true);
+      onResult(nextAttempts, true);
+      return;
+    }
+    if (nextAttempts >= 3) {
+      setRevealed(true);
+      onResult(nextAttempts, false);
+      return;
+    }
+    const parts: string[] = [];
+    if (result.missing.length > 0) {
+      parts.push(`Missing: ${result.missing.join(", ")}`);
+    }
+    if (result.extra.length > 0) {
+      parts.push(`Doesn't belong: ${result.extra.join(", ")}`);
+    }
+    setFeedback(parts.join(" · "));
+  };
+
+  return (
+    <div className="rounded-xl border border-border/30 bg-elevated/40 p-4">
+      <div className="text-xs uppercase tracking-wider text-primary mb-2">
+        Apply · click the classes
+      </div>
+      <p className="text-sm font-serif leading-relaxed text-foreground mb-4">
+        {checkpoint.scenario}
+      </p>
+
+      <div className="grid grid-cols-2 gap-2">
+        {allClasses.map((id) => {
+          const isSelected = selected.has(id);
+          const isCorrect = checkpoint.correctClassIds.includes(id);
+          return (
+            <button
+              key={id}
+              onClick={() => !revealed && toggle(id)}
+              disabled={revealed}
+              className={`rounded-lg border p-2 font-mono text-xs transition-colors ${
+                revealed && isCorrect
+                  ? "border-green-500/60 bg-green-500/10 text-green-200"
+                  : revealed && isSelected && !isCorrect
+                    ? "border-red-500/60 bg-red-500/10 text-red-200"
+                    : isSelected
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-border/30 text-foreground hover:bg-elevated/60"
+              }`}
+            >
+              {id}
+              {revealed && isCorrect && (
+                <CheckCircle2 className="h-3 w-3 inline ml-1" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {feedback && !revealed && (
+        <p className="mt-3 text-xs text-orange-200">
+          Attempt {attempts} of 3 · {feedback}
+        </p>
+      )}
+
+      {revealed && (
+        <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <p className="text-xs font-serif leading-relaxed text-foreground">
+            {checkpoint.explanation}
+          </p>
+        </div>
+      )}
+
+      {!revealed && (
+        <button
+          onClick={submit}
+          disabled={selected.size === 0}
+          className="mt-4 rounded-full bg-primary/20 hover:bg-primary/30 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 text-xs uppercase tracking-wider text-primary transition-colors"
+        >
+          Submit
+        </button>
+      )}
+    </div>
+  );
+});
+```
+
+- [ ] **Step 6: Write `CompareCheckpoint`**
+
+Replace `architex/src/components/modules/lld/learn/checkpoints/CompareCheckpoint.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useState } from "react";
+import type { CompareCheckpoint as CP } from "@/lib/lld/lesson-types";
+import { gradeCompare } from "@/lib/lld/checkpoint-types";
+import { CheckCircle2, XCircle } from "lucide-react";
+
+interface Props {
+  checkpoint: CP;
+  onResult: (attempts: number, correct: boolean) => void;
+}
+
+type Side = "left" | "right" | "both";
+
+export const CompareCheckpoint = memo(function CompareCheckpoint({
+  checkpoint,
+  onResult,
+}: Props) {
+  const [answers, setAnswers] = useState<Record<string, Side>>({});
+  const [attempts, setAttempts] = useState(0);
+  const [wrongIds, setWrongIds] = useState<Set<string>>(new Set());
+  const [revealed, setRevealed] = useState(false);
+
+  const allAnswered = checkpoint.statements.every((s) => answers[s.id]);
+
+  const submit = () => {
+    if (!allAnswered || revealed) return;
+    const r = gradeCompare(checkpoint, answers);
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+    setWrongIds(new Set(r.wrongIds));
+    if (r.correct) {
+      setRevealed(true);
+      onResult(nextAttempts, true);
+      return;
+    }
+    if (nextAttempts >= 3) {
+      setRevealed(true);
+      onResult(nextAttempts, false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-border/30 bg-elevated/40 p-4">
+      <div className="text-xs uppercase tracking-wider text-primary mb-2">
+        Compare · categorize each statement
+      </div>
+      <p className="text-sm font-serif leading-relaxed text-foreground mb-1">
+        {checkpoint.prompt}
+      </p>
+      <div className="flex items-center gap-2 text-xs text-foreground-muted mb-3">
+        <span className="font-mono">{checkpoint.left.label}</span>
+        <span>vs</span>
+        <span className="font-mono">{checkpoint.right.label}</span>
+      </div>
+
+      <ul className="space-y-2">
+        {checkpoint.statements.map((s) => {
+          const answer = answers[s.id];
+          const isWrong = wrongIds.has(s.id) && !revealed;
+          return (
+            <li
+              key={s.id}
+              className={`rounded-lg border p-3 ${
+                isWrong
+                  ? "border-orange-500/50 bg-orange-500/5"
+                  : "border-border/30"
+              }`}
+            >
+              <p className="text-xs font-serif leading-relaxed text-foreground mb-2">
+                {s.text}
+              </p>
+              <div className="flex gap-1">
+                {(["left", "right", "both"] as const).map((side) => {
+                  const isSelected = answer === side;
+                  const isCorrectAnswer = revealed && side === s.correct;
+                  return (
+                    <button
+                      key={side}
+                      onClick={() =>
+                        !revealed &&
+                        setAnswers((prev) => ({ ...prev, [s.id]: side }))
+                      }
+                      disabled={revealed}
+                      className={`text-[11px] rounded-full px-2 py-0.5 transition-colors ${
+                        isCorrectAnswer
+                          ? "bg-green-500/20 text-green-200"
+                          : isSelected
+                            ? "bg-primary/20 text-primary"
+                            : "bg-elevated/60 text-foreground-muted hover:bg-elevated"
+                      }`}
+                    >
+                      {side === "left"
+                        ? checkpoint.left.label
+                        : side === "right"
+                          ? checkpoint.right.label
+                          : "Both"}
+                    </button>
+                  );
+                })}
+                {revealed && answer === s.correct && (
+                  <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-green-400" />
+                )}
+                {revealed && answer !== s.correct && (
+                  <XCircle className="h-3.5 w-3.5 ml-auto text-red-400" />
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {revealed && (
+        <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <p className="text-xs font-serif leading-relaxed text-foreground">
+            {checkpoint.explanation}
+          </p>
+        </div>
+      )}
+
+      {!revealed && (
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            onClick={submit}
+            disabled={!allAnswered}
+            className="rounded-full bg-primary/20 hover:bg-primary/30 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 text-xs uppercase tracking-wider text-primary transition-colors"
+          >
+            Submit
+          </button>
+          {attempts > 0 && (
+            <span className="text-[11px] text-foreground-muted">
+              Attempt {attempts} of 3
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+```
+
+- [ ] **Step 7: Write `CreateCheckpoint`**
+
+Replace `architex/src/components/modules/lld/learn/checkpoints/CreateCheckpoint.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useState } from "react";
+import type { CreateCheckpoint as CP } from "@/lib/lld/lesson-types";
+import { gradeCreate } from "@/lib/lld/checkpoint-types";
+import { CheckCircle2 } from "lucide-react";
+
+interface Props {
+  checkpoint: CP;
+  patternSlug: string;
+  onResult: (attempts: number, correct: boolean) => void;
+}
+
+export const CreateCheckpoint = memo(function CreateCheckpoint({
+  checkpoint,
+  onResult,
+}: Props) {
+  const [names, setNames] = useState<string[]>(
+    checkpoint.starterCanvas.classes.map((c) => c.name),
+  );
+  const [revealed, setRevealed] = useState(false);
+  const [result, setResult] = useState<ReturnType<typeof gradeCreate> | null>(
+    null,
+  );
+
+  const addClass = () => setNames((ns) => [...ns, ""]);
+  const updateClass = (i: number, v: string) =>
+    setNames((ns) => ns.map((n, idx) => (idx === i ? v : n)));
+  const removeClass = (i: number) =>
+    setNames((ns) => ns.filter((_, idx) => idx !== i));
+
+  const submit = () => {
+    const r = gradeCreate(
+      checkpoint,
+      names.filter((n) => n.trim().length > 0),
+    );
+    setResult(r);
+    setRevealed(true);
+    const passed = r.score >= r.maxScore * 0.7; // 70% threshold
+    onResult(1, passed);
+  };
+
+  return (
+    <div className="rounded-xl border border-border/30 bg-elevated/40 p-4">
+      <div className="text-xs uppercase tracking-wider text-primary mb-2">
+        Create · design the classes
+      </div>
+      <p className="text-sm font-serif leading-relaxed text-foreground mb-4">
+        {checkpoint.prompt}
+      </p>
+
+      <div className="space-y-2">
+        {names.map((n, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={n}
+              onChange={(e) => updateClass(i, e.target.value)}
+              disabled={revealed}
+              placeholder="ClassName"
+              className="flex-1 rounded-lg border border-border/30 bg-background px-3 py-1.5 font-mono text-sm text-foreground disabled:opacity-60"
+            />
+            {!revealed && (
+              <button
+                onClick={() => removeClass(i)}
+                className="text-foreground-muted hover:text-red-400 text-xs"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+        {!revealed && (
+          <button
+            onClick={addClass}
+            className="text-xs text-primary hover:underline"
+          >
+            + Add class
+          </button>
+        )}
+      </div>
+
+      {revealed && result && (
+        <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+          <div className="text-xs uppercase tracking-wider text-primary">
+            Rubric · {result.score} / {result.maxScore}
+          </div>
+          <ul className="space-y-1">
+            {result.perCriterion.map((c) => (
+              <li
+                key={c.criterion}
+                className="flex items-center gap-2 text-xs text-foreground"
+              >
+                <CheckCircle2
+                  className={`h-3 w-3 ${c.awarded > 0 ? "text-green-400" : "text-border/40"}`}
+                />
+                <span className="flex-1">{c.criterion}</span>
+                <span className="font-mono text-foreground-muted">
+                  {c.awarded}/{c.points}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="text-xs font-serif leading-relaxed text-foreground-muted mt-2">
+            Reference solution: {checkpoint.referenceSolution.classes.map((c) => c.name).join(", ")}
+          </div>
+          <p className="text-xs font-serif leading-relaxed text-foreground">
+            {checkpoint.explanation}
+          </p>
+        </div>
+      )}
+
+      {!revealed && (
+        <button
+          onClick={submit}
+          disabled={names.every((n) => n.trim().length === 0)}
+          className="mt-4 rounded-full bg-primary/20 hover:bg-primary/30 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-1.5 text-xs uppercase tracking-wider text-primary transition-colors"
+        >
+          Submit
+        </button>
+      )}
+    </div>
+  );
+});
+```
+
+- [ ] **Step 8: Verify typecheck + tests pass**
+
+```bash
+pnpm typecheck
+pnpm test:run -- checkpoint-grading
+```
+Expected: no errors; grading tests pass.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add architex/src/lib/lld/checkpoint-types.ts architex/src/lib/lld/__tests__/checkpoint-grading.test.ts architex/src/components/modules/lld/learn/checkpoints/
+git commit -m "$(cat <<'EOF'
+feat(lld): implement 4 checkpoint components + shared grading engine
+
+Replaces Task 14 stubs with real components (recall MCQ, apply click-
+classes, compare categorize, create fill-rubric). All four implement
+the Q3 progressive-reveal policy: 2 wrong → targeted whyWrong, 3 wrong
+→ full answer. Attempts + correct feed the FSRS rating via
+ratingFromAttempts (easy/good/hard/again). Grading functions are pure,
+tested, reusable by Drill mode's auto-grader in Phase 3.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 19: `POST /api/lld/explain-inline` route (Haiku)
+
+**Files:**
+- Create: `architex/src/app/api/lld/explain-inline/route.ts`
+
+Takes highlighted text + section context → returns a 2-3 paragraph explanation. Haiku is cheap ($0.80/1M input, $4/1M output) so we don't need aggressive caching; the singleton client already does 1h response cache and 10/hr user rate limiting.
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/explain-inline/route.ts`:
+
+```typescript
+/**
+ * POST /api/lld/explain-inline
+ *
+ * Body: {
+ *   highlightedText: string,
+ *   patternSlug: string,
+ *   sectionId: LessonSectionId,
+ *   lessonRawExcerpt: string,   // ~1500 chars of surrounding markdown for grounding
+ * }
+ *
+ * Response: { explanation: string, cached: boolean }
+ *
+ * Uses Claude Haiku via the existing singleton client. The prompt scopes
+ * the model to the pattern + section so answers don't drift into generic
+ * OOP theory. Max output is 400 tokens.
+ */
+
+import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
+import { getClaudeClient } from "@/lib/ai/claude-client";
+
+const VALID_SECTIONS = new Set([
+  "itch",
+  "definition",
+  "mechanism",
+  "anatomy",
+  "numbers",
+  "uses",
+  "failure_modes",
+  "checkpoints",
+]);
+
+const SYSTEM_PROMPT = `You are the Architex — a sharp, generous senior engineer who mentors designers through learning design patterns. You explain clearly, never condescend, use concrete examples. You answer in 2-3 short paragraphs. You never invent code patterns not in the lesson context. You refuse topics unrelated to the pattern or section.`;
+
+export async function POST(request: Request) {
+  try {
+    await requireAuth();
+
+    const body = (await request.json().catch(() => ({}))) as {
+      highlightedText?: string;
+      patternSlug?: string;
+      sectionId?: string;
+      lessonRawExcerpt?: string;
+    };
+
+    const { highlightedText, patternSlug, sectionId, lessonRawExcerpt } = body;
+
+    if (
+      !highlightedText ||
+      typeof highlightedText !== "string" ||
+      highlightedText.trim().length < 2
+    ) {
+      return NextResponse.json(
+        { error: "highlightedText required (≥2 chars)" },
+        { status: 400 },
+      );
+    }
+    if (highlightedText.length > 2000) {
+      return NextResponse.json(
+        { error: "highlightedText too long (max 2000 chars)" },
+        { status: 400 },
+      );
+    }
+    if (!patternSlug || typeof patternSlug !== "string") {
+      return NextResponse.json(
+        { error: "patternSlug required" },
+        { status: 400 },
+      );
+    }
+    if (!sectionId || !VALID_SECTIONS.has(sectionId)) {
+      return NextResponse.json(
+        { error: `sectionId must be one of: ${Array.from(VALID_SECTIONS).join(", ")}` },
+        { status: 400 },
+      );
+    }
+    if (lessonRawExcerpt && lessonRawExcerpt.length > 4000) {
+      return NextResponse.json(
+        { error: "lessonRawExcerpt too long (max 4000 chars)" },
+        { status: 400 },
+      );
+    }
+
+    const client = getClaudeClient();
+
+    const userPrompt = `Pattern: ${patternSlug}
+Section: ${sectionId}
+
+Lesson excerpt for grounding (do NOT cite this verbatim — use it as source of truth):
+"""
+${lessonRawExcerpt ?? "(no excerpt provided)"}
+"""
+
+The reader highlighted this passage and wants you to explain it:
+"""
+${highlightedText}
+"""
+
+Explain it in 2-3 short paragraphs. Start with the key insight. Use one concrete example. End with how this connects to the rest of the pattern.`;
+
+    const result = await client.generateWithHaiku({
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }],
+      maxTokens: 400,
+      cacheKey: `explain-inline:${patternSlug}:${sectionId}:${hashShort(highlightedText)}`,
+    });
+
+    return NextResponse.json({
+      explanation: result.text,
+      cached: Boolean(result.cached),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (error instanceof Error && error.message.includes("rate_limit")) {
+      return NextResponse.json(
+        {
+          error: "AI rate limit reached for this hour. Try again later.",
+          code: "RATE_LIMITED",
+        },
+        { status: 429 },
+      );
+    }
+    console.error("[api/lld/explain-inline] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+function hashShort(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h).toString(36).slice(0, 8);
+}
+```
+
+If `getClaudeClient().generateWithHaiku()` does not exist yet, check Phase 1 pre-flight Step 5 — add the helper to `src/lib/ai/claude-client.ts` following the pattern of any existing `generateWithSonnet()`-style method. Signature:
+
+```typescript
+generateWithHaiku(args: {
+  system?: string;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  maxTokens?: number;
+  cacheKey?: string;
+}): Promise<{ text: string; cached?: boolean }>;
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors. If `generateWithHaiku` is missing, add the helper now.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/app/api/lld/explain-inline/route.ts architex/src/lib/ai/claude-client.ts
+git commit -m "$(cat <<'EOF'
+feat(api): add POST /api/lld/explain-inline (Haiku)
+
+Validates highlighted text length (2-2000 chars), pattern slug, section
+id, and optional 4k-char lesson excerpt. Builds a grounded user prompt
+that gives the model the pattern, the section, the lesson excerpt, and
+the highlight — then asks for 2-3 paragraphs. Cache key is a short
+hash of the highlight so repeated selections reuse the 1h response
+cache. Rate-limit errors surface as 429 + code: RATE_LIMITED.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 20: `useSelectionExplain` hook
+
+**Files:**
+- Create: `architex/src/hooks/useSelectionExplain.ts`
+- Test: `architex/src/hooks/__tests__/useSelectionExplain.test.tsx`
+
+Watches `document.onselectionchange`, detects when the user highlights text inside the lesson column, and returns `{ selectedText, selectionRect, requestExplain, explanation, isLoading, clear }` for the popover to consume.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useSelectionExplain.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { useSelectionExplain } from "@/hooks/useSelectionExplain";
+
+const wrapper = (qc: QueryClient) =>
+  function Wrap({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  };
+
+describe("useSelectionExplain", () => {
+  let qc: QueryClient;
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ explanation: "The key insight is X.", cached: false }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("starts with empty state", () => {
+    const { result } = renderHook(
+      () => useSelectionExplain({ patternSlug: "singleton" }),
+      { wrapper: wrapper(qc) },
+    );
+    expect(result.current.selectedText).toBe("");
+    expect(result.current.explanation).toBeNull();
+  });
+
+  it("requestExplain POSTs to explain-inline endpoint", async () => {
+    const { result } = renderHook(
+      () => useSelectionExplain({ patternSlug: "singleton" }),
+      { wrapper: wrapper(qc) },
+    );
+    await act(async () => {
+      await result.current.requestExplain({
+        selectedText: "global access",
+        sectionId: "itch",
+        lessonRawExcerpt: "Singleton provides global access to one instance.",
+      });
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/lld/explain-inline",
+      expect.objectContaining({ method: "POST" }),
+    );
+    await waitFor(() => expect(result.current.explanation).not.toBeNull());
+    expect(result.current.explanation).toContain("key insight");
+  });
+
+  it("clear() resets explanation + selectedText", async () => {
+    const { result } = renderHook(
+      () => useSelectionExplain({ patternSlug: "singleton" }),
+      { wrapper: wrapper(qc) },
+    );
+    await act(async () => {
+      await result.current.requestExplain({
+        selectedText: "global access",
+        sectionId: "itch",
+        lessonRawExcerpt: "excerpt",
+      });
+    });
+    act(() => {
+      result.current.clear();
+    });
+    expect(result.current.selectedText).toBe("");
+    expect(result.current.explanation).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useSelectionExplain
+```
+Expected: FAIL — module missing.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useSelectionExplain.ts`:
+
+```typescript
+"use client";
+
+import { useCallback, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import type { LessonSectionId } from "@/lib/lld/lesson-types";
+
+interface ExplainRequest {
+  selectedText: string;
+  sectionId: LessonSectionId;
+  lessonRawExcerpt: string;
+}
+
+interface Options {
+  patternSlug: string;
+}
+
+/**
+ * Exposes a `requestExplain()` action plus current state for the
+ * ContextualExplainPopover. Does NOT auto-fire on selection changes —
+ * callers decide when to ask (typically on popover button click) to
+ * avoid accidental token spend.
+ */
+export function useSelectionExplain({ patternSlug }: Options) {
+  const [selectedText, setSelectedText] = useState("");
+  const [explanation, setExplanation] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async (req: ExplainRequest) => {
+      const res = await fetch("/api/lld/explain-inline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          highlightedText: req.selectedText,
+          patternSlug,
+          sectionId: req.sectionId,
+          lessonRawExcerpt: req.lessonRawExcerpt,
+        }),
+      });
+      if (res.status === 429) {
+        const body = await res.json();
+        throw new Error(body.error ?? "rate limited");
+      }
+      if (!res.ok) throw new Error(`Explain failed: ${res.status}`);
+      return (await res.json()) as { explanation: string; cached: boolean };
+    },
+  });
+
+  const requestExplain = useCallback(
+    async (req: ExplainRequest) => {
+      setSelectedText(req.selectedText);
+      setExplanation(null);
+      try {
+        const result = await mutation.mutateAsync(req);
+        setExplanation(result.explanation);
+        return result;
+      } catch (err) {
+        setExplanation(
+          err instanceof Error ? `Couldn't explain: ${err.message}` : "Couldn't explain.",
+        );
+        throw err;
+      }
+    },
+    [mutation],
+  );
+
+  const clear = useCallback(() => {
+    setSelectedText("");
+    setExplanation(null);
+  }, []);
+
+  return {
+    selectedText,
+    explanation,
+    isLoading: mutation.isPending,
+    error: mutation.error?.message ?? null,
+    requestExplain,
+    clear,
+  };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useSelectionExplain
+```
+Expected: PASS · 3 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useSelectionExplain.ts architex/src/hooks/__tests__/useSelectionExplain.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): add useSelectionExplain for explain-inline
+
+Caller-driven (no auto-fire on selectionchange) so random text
+highlighting doesn't incur unexpected Haiku cost. clear() resets
+state so the popover can fully close. 429 rate-limit errors are
+caught and surfaced via the `error` field.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 21: `ContextualExplainPopover` component
+
+**Files:**
+- Create: `architex/src/components/modules/lld/learn/ContextualExplainPopover.tsx`
+
+Listens to `document.selectionchange` to compute the current selection rect, shows a floating "Explain this ✨" button just above the selection, and opens a popover with the Haiku-generated 2-3 paragraph explanation on click.
+
+- [ ] **Step 1: Create the component**
+
+Create `architex/src/components/modules/lld/learn/ContextualExplainPopover.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useEffect, useRef, useState } from "react";
+import { Sparkles, X } from "lucide-react";
+import type { LessonSectionId, LessonPayload } from "@/lib/lld/lesson-types";
+import { useSelectionExplain } from "@/hooks/useSelectionExplain";
+
+interface Props {
+  patternSlug: string;
+  payload: LessonPayload;
+  /** Element that wraps the scrollable lesson column (used to scope selections). */
+  lessonContainerRef: React.RefObject<HTMLElement | null>;
+}
+
+const MIN_SELECTION = 8; // chars — avoid firing on single-word highlights
+
+export const ContextualExplainPopover = memo(function ContextualExplainPopover({
+  patternSlug,
+  payload,
+  lessonContainerRef,
+}: Props) {
+  const [buttonPos, setButtonPos] = useState<{ x: number; y: number } | null>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState<{
+    text: string;
+    sectionId: LessonSectionId;
+    excerpt: string;
+  } | null>(null);
+
+  const { explanation, isLoading, error, requestExplain, clear } =
+    useSelectionExplain({ patternSlug });
+
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onSelectionChange() {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        setButtonPos(null);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const anchor = range.commonAncestorContainer;
+      const el =
+        anchor.nodeType === Node.ELEMENT_NODE
+          ? (anchor as HTMLElement)
+          : (anchor.parentElement as HTMLElement | null);
+      if (!el) return;
+
+      const container = lessonContainerRef.current;
+      if (!container || !container.contains(el)) {
+        setButtonPos(null);
+        return;
+      }
+
+      const text = sel.toString().trim();
+      if (text.length < MIN_SELECTION) {
+        setButtonPos(null);
+        return;
+      }
+
+      // Find the section id this selection belongs to
+      const section = el.closest("[data-section-id]") as HTMLElement | null;
+      const sectionId = section?.getAttribute("data-section-id") as
+        | LessonSectionId
+        | null;
+      if (!sectionId) {
+        setButtonPos(null);
+        return;
+      }
+
+      const rect = range.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      setButtonPos({
+        x: rect.left + rect.width / 2 - containerRect.left,
+        y: rect.top - containerRect.top,
+      });
+      setPendingSelection({
+        text,
+        sectionId,
+        excerpt: payload.sections[sectionId].raw.slice(0, 1500),
+      });
+    }
+
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () =>
+      document.removeEventListener("selectionchange", onSelectionChange);
+  }, [lessonContainerRef, payload]);
+
+  const openExplain = async () => {
+    if (!pendingSelection) return;
+    setPopoverOpen(true);
+    setButtonPos(null);
+    try {
+      await requestExplain({
+        selectedText: pendingSelection.text,
+        sectionId: pendingSelection.sectionId,
+        lessonRawExcerpt: pendingSelection.excerpt,
+      });
+    } catch {
+      // error surfaced via `error`
+    }
+  };
+
+  const close = () => {
+    setPopoverOpen(false);
+    clear();
+    setPendingSelection(null);
+  };
+
+  return (
+    <>
+      {buttonPos && !popoverOpen && (
+        <button
+          onClick={openExplain}
+          style={{
+            position: "absolute",
+            left: buttonPos.x,
+            top: buttonPos.y,
+            transform: "translate(-50%, calc(-100% - 8px))",
+          }}
+          className="z-40 inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground text-[11px] font-medium shadow-lg px-3 py-1 hover:brightness-110 transition-all"
+        >
+          <Sparkles className="h-3 w-3" />
+          Explain this
+        </button>
+      )}
+
+      {popoverOpen && pendingSelection && (
+        <div
+          ref={popoverRef}
+          role="dialog"
+          aria-label="AI explanation"
+          className="fixed bottom-6 right-6 z-50 w-96 max-h-[60vh] overflow-y-auto rounded-xl border border-border/40 bg-background/95 backdrop-blur-md shadow-2xl p-4"
+        >
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+              The Architect
+            </div>
+            <button
+              onClick={close}
+              aria-label="Close"
+              className="text-foreground-muted hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <blockquote className="text-xs italic text-foreground-muted border-l-2 border-border/30 pl-3 mb-3 font-serif">
+            "{pendingSelection.text.length > 160
+              ? pendingSelection.text.slice(0, 160) + "…"
+              : pendingSelection.text}"
+          </blockquote>
+
+          {isLoading && (
+            <div className="text-sm text-foreground-muted font-serif">
+              Thinking about {payload.patternSlug} · {pendingSelection.sectionId}…
+            </div>
+          )}
+
+          {error && !isLoading && (
+            <div className="text-sm text-red-300 font-serif">{error}</div>
+          )}
+
+          {explanation && !isLoading && (
+            <div className="text-sm font-serif leading-relaxed text-foreground whitespace-pre-wrap">
+              {explanation}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+});
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/components/modules/lld/learn/ContextualExplainPopover.tsx
+git commit -m "$(cat <<'EOF'
+feat(lld): add ContextualExplainPopover (AI explain-inline)
+
+Listens to selectionchange, shows a floating "Explain this" button above
+the selection when ≥8 chars are selected within the lesson column.
+Popover stays bottom-right while Haiku generates. Selection closest-
+section lookup via [data-section-id] ancestry. Excerpt limited to
+1500 chars of the section's raw markdown for grounded context.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
