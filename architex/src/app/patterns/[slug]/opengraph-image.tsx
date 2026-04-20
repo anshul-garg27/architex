@@ -222,6 +222,7 @@ export default async function Image({
           >
             <div
               style={{
+                display: "flex",
                 fontSize: title.length > 20 ? 48 : 56,
                 fontWeight: 700,
                 color: "#f4f4f5",
@@ -233,9 +234,10 @@ export default async function Image({
               {title} Pattern
             </div>
 
-            {shortDesc && (
+            {shortDesc ? (
               <div
                 style={{
+                  display: "flex",
                   fontSize: 18,
                   fontWeight: 400,
                   color: "#a1a1aa",
@@ -245,7 +247,7 @@ export default async function Image({
               >
                 {shortDesc}
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Bottom row: tagline + URL */}
