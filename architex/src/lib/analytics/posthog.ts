@@ -51,7 +51,7 @@ const isDev =
 
 function log(method: string, ...args: unknown[]): void {
   if (isDev) {
-    // eslint-disable-next-line no-console
+     
     console.log(`[PostHog:${method}]`, ...args);
   }
 }

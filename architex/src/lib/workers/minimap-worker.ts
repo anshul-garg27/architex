@@ -106,7 +106,7 @@ export function renderMinimap(
   const { nodes, viewport, canvasWidth, canvasHeight, backgroundColor, viewportStrokeColor } =
     request;
 
-  // eslint-disable-next-line no-restricted-globals -- worker context
+   
   const canvas = new OffscreenCanvas(canvasWidth, canvasHeight);
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;

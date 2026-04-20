@@ -134,7 +134,7 @@ export const TimeAttackMode = memo(function TimeAttackMode({
       setScore(calculateScore(completed, canvas));
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
-  }, [session, canvas]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session, canvas]);  
 
   // ── Compute final score on expiry ──
   useEffect(() => {

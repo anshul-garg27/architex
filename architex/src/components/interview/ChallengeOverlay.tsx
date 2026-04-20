@@ -244,7 +244,7 @@ function TimerDisplay({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [timerStartedAt, timerPaused]);
 
   const totalSeconds = timeMinutes * 60;

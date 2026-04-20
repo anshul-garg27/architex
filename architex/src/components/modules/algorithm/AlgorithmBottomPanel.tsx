@@ -680,7 +680,7 @@ export const AlgorithmBottomPanel = memo(function AlgorithmBottomPanel({
                     if (!textarea) return;
                     try {
                       // ALG-331: Intentional eval via Function constructor for user sandbox
-                      // eslint-disable-next-line no-new-func
+                       
                       const fn = new Function(textarea.value + '\n//# sourceURL=user-code.js'); // NOSONAR
                       const result = fn();
                       setCodeOutput(JSON.stringify(result, null, 2));

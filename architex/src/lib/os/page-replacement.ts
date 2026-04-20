@@ -324,7 +324,7 @@ export function clockPageReplacement(
     }
 
     // Clock sweep -- find a frame with refBit === false
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       if (!refBit[hand]) {
         // Found victim

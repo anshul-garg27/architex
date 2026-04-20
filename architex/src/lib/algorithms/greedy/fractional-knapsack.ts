@@ -84,7 +84,7 @@ export function fractionalKnapsack(input: number[]): AlgorithmResult {
   const steps: AnimationStep[] = [];
   let stepId = 0;
   let comparisons = 0;
-  let swaps = 0;
+  const swaps = 0;
   let reads = 0;
   let writes = 0;
 

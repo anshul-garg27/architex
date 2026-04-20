@@ -293,7 +293,7 @@ describe('Difficulty Adaptation – getConfidenceInterval', () => {
   });
 
   it('interval narrows with more data', () => {
-    let fresh = createBeliefs();
+    const fresh = createBeliefs();
     const ciFresh = getConfidenceInterval(fresh);
     const widthFresh = ciFresh.high - ciFresh.low;
 

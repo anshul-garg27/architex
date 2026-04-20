@@ -39,7 +39,7 @@ interface MermaidEditorProps {
 function highlightMermaid(code: string): React.ReactNode[] {
   return code.split("\n").map((line, i) => {
     const parts: React.ReactNode[] = [];
-    let remaining = line;
+    const remaining = line;
     let key = 0;
 
     // Mermaid directive

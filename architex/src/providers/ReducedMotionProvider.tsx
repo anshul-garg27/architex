@@ -83,7 +83,7 @@ export function ReducedMotionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ReducedMotionContextValue>(
     () => ({ prefersReducedMotion, toolbarOverride, setToolbarOverride }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [prefersReducedMotion, toolbarOverride],
   );
 

@@ -41,7 +41,7 @@ function simulateThreadPool(
     taskId: null,
     elapsed: 0,
   }));
-  let queue: QueuedTask[] = [];
+  const queue: QueuedTask[] = [];
   let rejected = 0;
 
   // Build a map from task id to duration for O(1) lookup

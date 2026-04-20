@@ -481,7 +481,7 @@ function computeMinimalCover(
   fds: FunctionalDependency[],
 ): FunctionalDependency[] {
   // 1. Decompose RHS to singletons
-  let cover: FunctionalDependency[] = [];
+  const cover: FunctionalDependency[] = [];
   for (const fd of fds) {
     for (const a of fd.rhs) {
       cover.push({ lhs: [...fd.lhs], rhs: [a] });

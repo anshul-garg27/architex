@@ -74,7 +74,7 @@ describe('Trie Algorithm Operations', () => {
   describe('trieSearchAlgo', () => {
     /** Helper: build a trie by inserting multiple words. */
     function buildTrie(words: string[]): TrieAlgoNode {
-      let root = createTrieRoot();
+      const root = createTrieRoot();
       for (const word of words) {
         // We need to manually build the trie since trieInsertAlgo
         // returns AlgorithmResult, not the modified root.

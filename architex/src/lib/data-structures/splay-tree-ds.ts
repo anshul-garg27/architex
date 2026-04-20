@@ -114,7 +114,7 @@ function splay(root: SplayNode | null, key: number, steps: DSStep[], step: (desc
     ]),
   );
 
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     if (key < current.key) {
       if (!current.left) break;

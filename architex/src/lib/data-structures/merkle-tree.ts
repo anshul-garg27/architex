@@ -95,7 +95,7 @@ export function merkleTreeBuild(data: string[]): DSResult {
   }
 
   // Pad to next power of 2
-  let paddedData = [...data];
+  const paddedData = [...data];
   while (paddedData.length > 1 && (paddedData.length & (paddedData.length - 1)) !== 0) {
     paddedData.push(paddedData[paddedData.length - 1]); // duplicate last
   }

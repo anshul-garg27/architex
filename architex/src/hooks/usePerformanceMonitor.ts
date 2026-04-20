@@ -195,7 +195,7 @@ export function usePerformanceMonitor(
       setMetrics(newMetrics);
 
       if (logToConsole) {
-        // eslint-disable-next-line no-console
+         
         console.log(
           `[Perf] FPS: ${fps} | Frame: ${newMetrics.avgFrameTimeMs}ms (max: ${newMetrics.maxFrameTimeMs}ms) | Tick: ${newMetrics.avgTickDurationMs}ms | Renders/s: ${rendersPerSecond}`,
         );

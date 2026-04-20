@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     // Log the violation for server-side monitoring.
     // In production, this would forward to a logging service (e.g. Sentry,
     // Datadog, or a custom analytics pipeline).
-    // eslint-disable-next-line no-console
+     
     console.warn('[csp-violation]', {
       documentUri: report['document-uri'],
       violatedDirective: report['violated-directive'],

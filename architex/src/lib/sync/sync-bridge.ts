@@ -182,7 +182,7 @@ export class SyncBridge {
     }
 
     let pushed = 0;
-    let pulled = 0;
+    const pulled = 0;
 
     // Find all dirty local entries.
     const dirtyIds: string[] = [];

@@ -44,8 +44,8 @@ export function countingSort(arr: number[]): AlgorithmResult {
   const n = a.length;
   const steps: AnimationStep[] = [];
   let stepId = 0;
-  let comparisons = 0;
-  let swaps = 0;
+  const comparisons = 0;
+  const swaps = 0;
   let reads = 0;
   let writes = 0;
 

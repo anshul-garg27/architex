@@ -70,7 +70,7 @@ export function boyerMooreSearch(
   let stepId = 0;
   let comparisons = 0;
   let reads = 0;
-  let writes = 0;
+  const writes = 0;
 
   // Build bad character table
   const badChar = buildBadCharTable(p);

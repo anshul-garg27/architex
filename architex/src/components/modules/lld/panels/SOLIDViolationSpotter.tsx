@@ -998,7 +998,7 @@ export const SOLIDViolationSpotter = memo(function SOLIDViolationSpotter({
                 const feedback = lineFeedback.get(lineNum);
 
                 let bgClass = "";
-                let textExtra = "";
+                const textExtra = "";
                 if (checked) {
                   if (feedback === "correct") {
                     bgClass = "bg-green-500/15 border-l-2 border-green-500";

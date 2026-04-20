@@ -87,7 +87,7 @@ export function reportWebVitals(metric: WebVitalMetric): void {
   if (isDev && rating !== 'good') {
     const threshold = WEB_VITAL_THRESHOLDS[metric.name].good;
     const unit = metric.name === 'CLS' ? '' : 'ms';
-    // eslint-disable-next-line no-console
+     
     console.warn(
       `[Web Vitals] ${metric.name} = ${metric.value}${unit} (threshold: ${threshold}${unit}) -- ${rating}`,
     );

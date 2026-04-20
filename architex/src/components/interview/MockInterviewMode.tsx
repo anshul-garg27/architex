@@ -83,7 +83,7 @@ function CountdownTimer({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [timerStartedAt, timerPaused]);
 
   const totalSeconds = Math.floor(totalMs / 1000);

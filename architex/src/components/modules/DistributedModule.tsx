@@ -266,7 +266,7 @@ const RaftCanvas = memo(function RaftCanvas({
         rafRef.current = null;
       }
     };
-  }, [activeMessages.length, prefersReducedMotion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeMessages.length, prefersReducedMotion]);  
 
   return (
     <div className="flex h-full w-full flex-col bg-background">
@@ -3766,7 +3766,7 @@ export function useDistributedModule() {
       clearInterval(demoTimer);
       clearTimeout(stopTimer);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // ── Vector clock state ──────────────────────────────────────
   const vcSimRef = useRef<VectorClockSimulation>(

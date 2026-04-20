@@ -61,7 +61,7 @@ function h2(s: string, m: number): number {
 function h3(s: string, m: number): number {
   let sum = 0;
   for (let i = 0; i < s.length; i++) {
-    // eslint-disable-next-line no-bitwise
+     
     sum += s.charCodeAt(i) ^ i;
   }
   return ((sum % m) + m) % m;

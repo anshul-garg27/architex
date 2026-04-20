@@ -55,28 +55,28 @@ const isDev = typeof process !== 'undefined'
 export class PostHogProvider implements AnalyticsProvider {
   track(event: string, properties?: Record<string, unknown>): void {
     if (isDev) {
-      // eslint-disable-next-line no-console
+       
       console.log('[PostHog:track]', event, properties);
     }
   }
 
   identify(userId: string, traits?: Record<string, unknown>): void {
     if (isDev) {
-      // eslint-disable-next-line no-console
+       
       console.log('[PostHog:identify]', userId, traits);
     }
   }
 
   page(name: string): void {
     if (isDev) {
-      // eslint-disable-next-line no-console
+       
       console.log('[PostHog:page]', name);
     }
   }
 
   reset(): void {
     if (isDev) {
-      // eslint-disable-next-line no-console
+       
       console.log('[PostHog:reset]');
     }
   }

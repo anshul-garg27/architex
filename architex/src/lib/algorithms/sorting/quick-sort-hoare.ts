@@ -143,7 +143,7 @@ function hoarePartition(
     350,
   );
 
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     // Advance left pointer: find element >= pivot
     do {

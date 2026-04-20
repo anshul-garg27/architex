@@ -388,7 +388,7 @@ describe('Plugin System – edge cases', () => {
     const manager = createPluginManager();
     manager.register(
       makeNodePlugin('string-thrower', () => {
-        throw 'string error'; // eslint-disable-line no-throw-literal
+        throw 'string error';  
       }),
     );
 

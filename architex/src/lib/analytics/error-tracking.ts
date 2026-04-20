@@ -119,21 +119,21 @@ export class SentryTracker implements ErrorTracker {
   captureException(error: Error, context?: ErrorContext): void {
     const safeContext = context ? (scrubPII(context) as ErrorContext) : undefined;
     if (isDev) {
-      // eslint-disable-next-line no-console
+       
       console.error('[Sentry:captureException]', error.message, safeContext);
     }
   }
 
   captureMessage(message: string, level: ErrorLevel = 'info'): void {
     if (isDev) {
-      // eslint-disable-next-line no-console
+       
       console.log(`[Sentry:captureMessage:${level}]`, message);
     }
   }
 
   setUser(user: ErrorUser | null): void {
     if (isDev) {
-      // eslint-disable-next-line no-console
+       
       console.log('[Sentry:setUser]', user ? { id: user.id } : null);
     }
   }
@@ -141,7 +141,7 @@ export class SentryTracker implements ErrorTracker {
   addBreadcrumb(breadcrumb: Breadcrumb): void {
     const safe = scrubPII(breadcrumb) as Breadcrumb;
     if (isDev) {
-      // eslint-disable-next-line no-console
+       
       console.log('[Sentry:breadcrumb]', safe);
     }
   }
@@ -156,7 +156,7 @@ export class SentryTracker implements ErrorTracker {
 export class ConsoleTracker implements ErrorTracker {
   captureException(error: Error, context?: ErrorContext): void {
     const safeContext = context ? (scrubPII(context) as ErrorContext) : undefined;
-    // eslint-disable-next-line no-console
+     
     console.error('[ErrorTracker:exception]', error.message, safeContext);
   }
 
@@ -167,18 +167,18 @@ export class ConsoleTracker implements ErrorTracker {
         : level === 'warning'
           ? 'warn'
           : 'log';
-    // eslint-disable-next-line no-console
+     
     console[fn](`[ErrorTracker:${level}]`, message);
   }
 
   setUser(user: ErrorUser | null): void {
-    // eslint-disable-next-line no-console
+     
     console.log('[ErrorTracker:setUser]', user ? { id: user.id } : null);
   }
 
   addBreadcrumb(breadcrumb: Breadcrumb): void {
     const safe = scrubPII(breadcrumb) as Breadcrumb;
-    // eslint-disable-next-line no-console
+     
     console.log('[ErrorTracker:breadcrumb]', safe);
   }
 }

@@ -350,7 +350,7 @@ export function useLLDModule() {
       restoringFromUrl.current = false;
     }
     // Re-run when data arrays arrive (API mode loads asynchronously)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [DESIGN_PATTERNS, SOLID_DEMOS, LLD_PROBLEMS, SEQUENCE_EXAMPLES, STATE_MACHINE_EXAMPLES]);
 
   const handleShare = useCallback(async () => {

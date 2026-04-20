@@ -205,7 +205,7 @@ export function simulateThompsonSampling(
       }
       const d = shape - 1 / 3;
       const c = 1 / Math.sqrt(9 * d);
-      // eslint-disable-next-line no-constant-condition
+       
       while (true) {
         let xg: number;
         let v: number;
