@@ -320,7 +320,7 @@ EOF
 **Files:**
 - Create: `architex/src/types/telemetry.ts`
 
-**Design intent:** Prevent event-name drift by making every LLD event a member of a single discriminated union. TypeScript's exhaustiveness checking then enforces that every new event is added to both the union and the enum, and every emitter can match on `event.name` to narrow `event.properties`.
+**Design intent:** Every LLD event is a member of a single discriminated union so TypeScript's exhaustiveness checking catches drift between the union, the enum (Task 3) and the builders (Task 4).
 
 - [ ] **Step 1: Write the shared types**
 
@@ -330,14 +330,10 @@ Create `architex/src/types/telemetry.ts`:
 /**
  * Shared telemetry types (Phase 6 Task 2).
  *
- * Every typed LLD event is a member of this discriminated union.
- * Adding a new event requires:
- *   1. Add a member to `LLDEvent` (this file)
- *   2. Add a builder to `src/lib/analytics/lld-events.ts`
- *   3. Add the name literal to `src/lib/analytics/lld-events.enum.ts`
- *
- * A compile-time check (`__exhaustive` in emit-pipeline.ts) fails if
- * a builder exists but the union is not updated.
+ * Every typed LLD event is a member of LLDEvent. Adding a new event:
+ *   1. Add a member interface below + to the LLDEvent union
+ *   2. Add a builder to src/lib/analytics/lld-events.ts
+ *   3. Add name literal to src/lib/analytics/lld-events.enum.ts
  */
 
 export type LLDMode = "learn" | "build" | "drill" | "review";
@@ -346,67 +342,64 @@ export type DrillGradeTier = "excellent" | "solid" | "partial" | "needs_work";
 export type CheckpointKind = "mcq" | "click_class" | "fill_blank" | "order_steps";
 export type FsrsRating = "again" | "hard" | "good" | "easy";
 export type FrustrationLevel = "calm" | "mild" | "frustrated" | "very_frustrated";
-export type RolloutStage = "off" | "internal" | "beta5" | "rollout25" | "rollout50" | "rollout100";
-export type CohortBucket = `bucket_${number}`; // bucket_0..bucket_99 (1% granularity)
+export type RolloutStage =
+  | "off"
+  | "internal"
+  | "beta5"
+  | "rollout25"
+  | "rollout50"
+  | "rollout100";
+export type CohortBucket = `bucket_${number}`;
+export type MigrationState =
+  | "inactive"
+  | "dual_write"
+  | "backfill"
+  | "read_new"
+  | "complete";
 
 export interface EventBase {
-  /** Wall-clock timestamp when event was fired (client-local). */
   timestamp: number;
-  /** Stable cohort bucket — auto-attached by emit pipeline. */
   cohort?: CohortBucket;
-  /** Rollout stage active when event fired — auto-attached by emit pipeline. */
   rolloutStage?: RolloutStage;
-  /** Current LLD mode when event fired — auto-attached by emit pipeline. */
   currentMode?: LLDMode;
-  /** Active A/B variants — auto-attached by emit pipeline. */
   variants?: Record<string, string>;
 }
 
-// ── Shell events ─────────────────────────────────────────
+type Ev<N extends string, P extends object> = EventBase & {
+  name: N;
+  properties: P;
+};
 
-export interface LLDModuleOpened extends EventBase {
-  name: "lld_module_opened";
-  properties: {
-    referrer: string | null;
-    firstVisit: boolean;
-  };
-}
-
-export interface LLDModeSwitched extends EventBase {
-  name: "lld_mode_switched";
-  properties: {
+// ── Shell (4) ────────────────────────────────────────────
+export type LLDModuleOpened = Ev<
+  "lld_module_opened",
+  { referrer: string | null; firstVisit: boolean }
+>;
+export type LLDModeSwitched = Ev<
+  "lld_mode_switched",
+  {
     from: LLDMode | null;
     to: LLDMode;
     trigger: "click" | "keyboard" | "url" | "auto";
-  };
-}
+  }
+>;
+export type LLDWelcomeBannerShown = Ev<
+  "lld_welcome_banner_shown",
+  Record<string, never>
+>;
+export type LLDWelcomeBannerDismissed = Ev<
+  "lld_welcome_banner_dismissed",
+  { method: "dismiss" | "pick_learn" | "pick_build" | "pick_drill" }
+>;
 
-export interface LLDWelcomeBannerShown extends EventBase {
-  name: "lld_welcome_banner_shown";
-  properties: Record<string, never>;
-}
-
-export interface LLDWelcomeBannerDismissed extends EventBase {
-  name: "lld_welcome_banner_dismissed";
-  properties: {
-    method: "dismiss" | "pick_learn" | "pick_build" | "pick_drill";
-  };
-}
-
-// ── Learn mode events ────────────────────────────────────
-
-export interface LLDLessonOpened extends EventBase {
-  name: "lld_lesson_opened";
-  properties: {
-    patternId: string;
-    wave: number;
-    variant: "eli5" | "standard" | "eli_senior";
-  };
-}
-
-export interface LLDLessonSectionViewed extends EventBase {
-  name: "lld_lesson_section_viewed";
-  properties: {
+// ── Learn (11) ───────────────────────────────────────────
+export type LLDLessonOpened = Ev<
+  "lld_lesson_opened",
+  { patternId: string; wave: number; variant: "eli5" | "standard" | "eli_senior" }
+>;
+export type LLDLessonSectionViewed = Ev<
+  "lld_lesson_section_viewed",
+  {
     patternId: string;
     section:
       | "hook"
@@ -419,95 +412,67 @@ export interface LLDLessonSectionViewed extends EventBase {
       | "cta";
     sectionIndex: number;
     dwellMs: number;
-  };
-}
-
-export interface LLDLessonCompleted extends EventBase {
-  name: "lld_lesson_completed";
-  properties: {
+  }
+>;
+export type LLDLessonCompleted = Ev<
+  "lld_lesson_completed",
+  {
     patternId: string;
     durationMs: number;
     checkpointsPassed: number;
     checkpointsFailed: number;
-  };
-}
-
-export interface LLDCheckpointAttempted extends EventBase {
-  name: "lld_checkpoint_attempted";
-  properties: {
+  }
+>;
+export type LLDCheckpointAttempted = Ev<
+  "lld_checkpoint_attempted",
+  {
     patternId: string;
     checkpointId: string;
     kind: CheckpointKind;
-    attempt: number; // 1-indexed
+    attempt: number;
     correct: boolean;
     timeToAnswerMs: number;
-  };
-}
-
-export interface LLDCheckpointRevealed extends EventBase {
-  name: "lld_checkpoint_revealed";
-  properties: {
-    patternId: string;
-    checkpointId: string;
-    afterAttempts: number;
-  };
-}
-
-export interface LLDCheckpointFsrsRated extends EventBase {
-  name: "lld_checkpoint_fsrs_rated";
-  properties: {
-    patternId: string;
-    checkpointId: string;
-    rating: FsrsRating;
-  };
-}
-
-export interface LLDClassPopoverOpened extends EventBase {
-  name: "lld_class_popover_opened";
-  properties: {
-    patternId: string;
-    classId: string;
-    source: "canvas_click" | "lesson_link";
-  };
-}
-
-export interface LLDLessonScrollSynced extends EventBase {
-  name: "lld_lesson_scroll_synced";
-  properties: {
-    patternId: string;
-    highlightedClassIds: string[];
-  };
-}
-
-export interface LLDTinkerStarted extends EventBase {
-  name: "lld_tinker_started";
-  properties: { patternId: string };
-}
-
-export interface LLDTinkerSaved extends EventBase {
-  name: "lld_tinker_saved";
-  properties: {
+  }
+>;
+export type LLDCheckpointRevealed = Ev<
+  "lld_checkpoint_revealed",
+  { patternId: string; checkpointId: string; afterAttempts: number }
+>;
+export type LLDCheckpointFsrsRated = Ev<
+  "lld_checkpoint_fsrs_rated",
+  { patternId: string; checkpointId: string; rating: FsrsRating }
+>;
+export type LLDClassPopoverOpened = Ev<
+  "lld_class_popover_opened",
+  { patternId: string; classId: string; source: "canvas_click" | "lesson_link" }
+>;
+export type LLDLessonScrollSynced = Ev<
+  "lld_lesson_scroll_synced",
+  { patternId: string; highlightedClassIds: string[] }
+>;
+export type LLDTinkerStarted = Ev<"lld_tinker_started", { patternId: string }>;
+export type LLDTinkerSaved = Ev<
+  "lld_tinker_saved",
+  {
     patternId: string;
     nodeCount: number;
     edgeCount: number;
     destination: "save_to_build" | "reset" | "done";
-  };
-}
-
-export interface LLDContextualAskArchitect extends EventBase {
-  name: "lld_contextual_ask_architect";
-  properties: {
+  }
+>;
+export type LLDContextualAskArchitect = Ev<
+  "lld_contextual_ask_architect",
+  {
     patternId: string;
     surface: "after_failed_checkpoint" | "end_of_section" | "confused_with";
     prompt: string;
-  };
-}
+  }
+>;
 
-// ── Build mode events ────────────────────────────────────
-
-export interface LLDBuildCanvasEdit extends EventBase {
-  name: "lld_build_canvas_edit";
-  properties: {
+// ── Build (5) ────────────────────────────────────────────
+export type LLDBuildCanvasEdit = Ev<
+  "lld_build_canvas_edit",
+  {
     actionKind:
       | "add_class"
       | "delete_class"
@@ -517,96 +482,74 @@ export interface LLDBuildCanvasEdit extends EventBase {
       | "reorder";
     nodeCount: number;
     edgeCount: number;
-  };
-}
-
-export interface LLDBuildPatternLoaded extends EventBase {
-  name: "lld_build_pattern_loaded";
-  properties: {
+  }
+>;
+export type LLDBuildPatternLoaded = Ev<
+  "lld_build_pattern_loaded",
+  {
     patternId: string;
     source: "sidebar" | "command_palette" | "search" | "url";
-  };
-}
-
-export interface LLDBuildCodeGenerated extends EventBase {
-  name: "lld_build_code_generated";
-  properties: {
+  }
+>;
+export type LLDBuildCodeGenerated = Ev<
+  "lld_build_code_generated",
+  {
     language: "typescript" | "python" | "java" | "go" | "rust" | "kotlin";
     lineCount: number;
-  };
-}
+  }
+>;
+export type LLDAntiPatternDetected = Ev<
+  "lld_anti_pattern_detected",
+  { antiPatternKind: string; affectedClassIds: string[] }
+>;
+export type LLDAIReviewRequested = Ev<
+  "lld_ai_review_requested",
+  { nodeCount: number; edgeCount: number; tokenEstimate: number }
+>;
 
-export interface LLDAntiPatternDetected extends EventBase {
-  name: "lld_anti_pattern_detected";
-  properties: {
-    antiPatternKind: string;
-    affectedClassIds: string[];
-  };
-}
-
-export interface LLDAIReviewRequested extends EventBase {
-  name: "lld_ai_review_requested";
-  properties: {
-    nodeCount: number;
-    edgeCount: number;
-    tokenEstimate: number;
-  };
-}
-
-// ── Drill mode events ────────────────────────────────────
-
-export interface LLDDrillStarted extends EventBase {
-  name: "lld_drill_started";
-  properties: {
-    problemId: string;
-    drillMode: DrillMode;
-    durationLimitMs: number;
-  };
-}
-
-export interface LLDDrillPaused extends EventBase {
-  name: "lld_drill_paused";
-  properties: { problemId: string; elapsedMs: number };
-}
-
-export interface LLDDrillResumed extends EventBase {
-  name: "lld_drill_resumed";
-  properties: { problemId: string; elapsedMs: number };
-}
-
-export interface LLDDrillHintUsed extends EventBase {
-  name: "lld_drill_hint_used";
-  properties: {
+// ── Drill (7) ────────────────────────────────────────────
+export type LLDDrillStarted = Ev<
+  "lld_drill_started",
+  { problemId: string; drillMode: DrillMode; durationLimitMs: number }
+>;
+export type LLDDrillPaused = Ev<
+  "lld_drill_paused",
+  { problemId: string; elapsedMs: number }
+>;
+export type LLDDrillResumed = Ev<
+  "lld_drill_resumed",
+  { problemId: string; elapsedMs: number }
+>;
+export type LLDDrillHintUsed = Ev<
+  "lld_drill_hint_used",
+  {
     problemId: string;
     hintTier: "nudge" | "guided" | "full";
     creditsRemaining: number;
-  };
-}
-
-export interface LLDDrillSubmitted extends EventBase {
-  name: "lld_drill_submitted";
-  properties: {
+  }
+>;
+export type LLDDrillSubmitted = Ev<
+  "lld_drill_submitted",
+  {
     problemId: string;
     drillMode: DrillMode;
-    grade: number; // 0-100
+    grade: number;
     durationMs: number;
     hintsUsed: number;
     tier: DrillGradeTier;
-  };
-}
-
-export interface LLDDrillAbandoned extends EventBase {
-  name: "lld_drill_abandoned";
-  properties: {
+  }
+>;
+export type LLDDrillAbandoned = Ev<
+  "lld_drill_abandoned",
+  {
     problemId: string;
     elapsedMs: number;
     reason: "give_up" | "timeout" | "auto" | "stale";
-  };
-}
-
-export interface LLDDrillGradeReviewed extends EventBase {
-  name: "lld_drill_grade_reviewed";
-  properties: {
+  }
+>;
+export type LLDDrillGradeReviewed = Ev<
+  "lld_drill_grade_reviewed",
+  {
     problemId: string;
     grade: number;
     breakdown: {
@@ -616,163 +559,132 @@ export interface LLDDrillGradeReviewed extends EventBase {
       completeness: number;
     };
     aiFeedbackShown: boolean;
-  };
-}
+  }
+>;
 
-// ── Review mode events ───────────────────────────────────
-
-export interface LLDReviewSessionStarted extends EventBase {
-  name: "lld_review_session_started";
-  properties: {
-    cardCount: number;
-    dueCount: number;
-  };
-}
-
-export interface LLDReviewCardShown extends EventBase {
-  name: "lld_review_card_shown";
-  properties: {
-    patternId: string;
-    checkpointId: string;
-    sessionPosition: number;
-  };
-}
-
-export interface LLDReviewCardRated extends EventBase {
-  name: "lld_review_card_rated";
-  properties: {
+// ── Review (4) ───────────────────────────────────────────
+export type LLDReviewSessionStarted = Ev<
+  "lld_review_session_started",
+  { cardCount: number; dueCount: number }
+>;
+export type LLDReviewCardShown = Ev<
+  "lld_review_card_shown",
+  { patternId: string; checkpointId: string; sessionPosition: number }
+>;
+export type LLDReviewCardRated = Ev<
+  "lld_review_card_rated",
+  {
     patternId: string;
     rating: FsrsRating;
     gestureInput: boolean;
     timeToAnswerMs: number;
-  };
-}
-
-export interface LLDReviewSessionCompleted extends EventBase {
-  name: "lld_review_session_completed";
-  properties: {
+  }
+>;
+export type LLDReviewSessionCompleted = Ev<
+  "lld_review_session_completed",
+  {
     cardsRated: number;
     sessionDurationMs: number;
     againCount: number;
     easyCount: number;
-  };
-}
+  }
+>;
 
-// ── Cross-cutting events ────────────────────────────────
-
-export interface LLDFrustrationDetected extends EventBase {
-  name: "lld_frustration_detected";
-  properties: {
+// ── Cross-cutting (12) ───────────────────────────────────
+export type LLDFrustrationDetected = Ev<
+  "lld_frustration_detected",
+  {
     level: FrustrationLevel;
     signals: Array<
       "rapid_undo" | "many_failed_checkpoints" | "long_idle" | "repeated_help"
     >;
     modeAtDetection: LLDMode;
-  };
-}
-
-export interface LLDFrustrationInterventionShown extends EventBase {
-  name: "lld_frustration_intervention_shown";
-  properties: {
+  }
+>;
+export type LLDFrustrationInterventionShown = Ev<
+  "lld_frustration_intervention_shown",
+  {
     level: FrustrationLevel;
     interventionKind: "silent" | "inline_nudge" | "ai_offer" | "easier_path";
-  };
-}
-
-export interface LLDFrustrationInterventionAccepted extends EventBase {
-  name: "lld_frustration_intervention_accepted";
-  properties: {
-    interventionKind: "silent" | "inline_nudge" | "ai_offer" | "easier_path";
-  };
-}
-
-export interface LLDSpotlightSearchOpened extends EventBase {
-  name: "lld_spotlight_search_opened";
-  properties: { trigger: "shortcut" | "icon" };
-}
-
-export interface LLDSpotlightSearchExecuted extends EventBase {
-  name: "lld_spotlight_search_executed";
-  properties: {
+  }
+>;
+export type LLDFrustrationInterventionAccepted = Ev<
+  "lld_frustration_intervention_accepted",
+  { interventionKind: "silent" | "inline_nudge" | "ai_offer" | "easier_path" }
+>;
+export type LLDSpotlightSearchOpened = Ev<
+  "lld_spotlight_search_opened",
+  { trigger: "shortcut" | "icon" }
+>;
+export type LLDSpotlightSearchExecuted = Ev<
+  "lld_spotlight_search_executed",
+  {
     queryLength: number;
     resultCount: number;
     selectedResultKind: "pattern" | "problem" | "lesson_section" | null;
-  };
-}
-
-export interface LLDShareCardGenerated extends EventBase {
-  name: "lld_share_card_generated";
-  properties: {
+  }
+>;
+export type LLDShareCardGenerated = Ev<
+  "lld_share_card_generated",
+  {
     kind: "drill_grade" | "pattern_mastered" | "wave_completed";
     platform: "twitter" | "linkedin" | "download" | "copy_link";
-  };
-}
-
-export interface LLDFeatureFlagEvaluated extends EventBase {
-  name: "lld_feature_flag_evaluated";
-  properties: {
+  }
+>;
+export type LLDFeatureFlagEvaluated = Ev<
+  "lld_feature_flag_evaluated",
+  {
     flagKey: string;
     value: boolean | string;
     reason: "remote" | "kill_switch" | "default" | "override";
-  };
-}
-
-export interface LLDKillSwitchFired extends EventBase {
-  name: "lld_kill_switch_fired";
-  properties: { flagKey: string; triggeredBy: string; reason: string };
-}
-
-export interface LLDAbExposure extends EventBase {
-  name: "lld_ab_exposure";
-  properties: {
-    experimentKey: string;
-    variant: string;
-    cohort: CohortBucket;
-  };
-}
-
-export interface LLDRolloutStageChanged extends EventBase {
-  name: "lld_rollout_stage_changed";
-  properties: {
+  }
+>;
+export type LLDKillSwitchFired = Ev<
+  "lld_kill_switch_fired",
+  { flagKey: string; triggeredBy: string; reason: string }
+>;
+export type LLDAbExposure = Ev<
+  "lld_ab_exposure",
+  { experimentKey: string; variant: string; cohort: CohortBucket }
+>;
+export type LLDRolloutStageChanged = Ev<
+  "lld_rollout_stage_changed",
+  {
     flagKey: string;
     from: RolloutStage;
     to: RolloutStage;
     triggeredBy: string;
-  };
-}
-
-export interface LLDErrorBoundaryCaught extends EventBase {
-  name: "lld_error_boundary_caught";
-  properties: {
+  }
+>;
+export type LLDErrorBoundaryCaught = Ev<
+  "lld_error_boundary_caught",
+  {
     errorName: string;
     errorMessage: string;
     modeAtError: LLDMode;
     componentStack: string;
-  };
-}
-
-export interface LLDPerformanceMetric extends EventBase {
-  name: "lld_performance_metric";
-  properties: {
+  }
+>;
+export type LLDPerformanceMetric = Ev<
+  "lld_performance_metric",
+  {
     metric: "LCP" | "INP" | "CLS" | "FCP" | "TTFB" | "TTI";
     value: number;
     rating: "good" | "needs-improvement" | "poor";
     pathname: string;
-  };
-}
-
-export interface LLDMigrationAdvanced extends EventBase {
-  name: "lld_migration_advanced";
-  properties: {
+  }
+>;
+export type LLDMigrationAdvanced = Ev<
+  "lld_migration_advanced",
+  {
     migrationKey: string;
-    fromState: "inactive" | "dual_write" | "backfill" | "read_new" | "complete";
-    toState: "inactive" | "dual_write" | "backfill" | "read_new" | "complete";
+    fromState: MigrationState;
+    toState: MigrationState;
     affectedRows: number;
-  };
-}
+  }
+>;
 
 // ── Union ────────────────────────────────────────────────
-
 export type LLDEvent =
   | LLDModuleOpened
   | LLDModeSwitched
@@ -826,30 +738,12 @@ export type LLDEventProperties<T extends LLDEventName> = Extract<
 >["properties"];
 ```
 
-- [ ] **Step 2: Verify typecheck**
+- [ ] **Step 2: Verify typecheck + commit**
 
 ```bash
 cd architex && pnpm typecheck
-```
-
-Expected: no errors. 43 event members in the union.
-
-- [ ] **Step 3: Commit**
-
-```bash
 git add architex/src/types/telemetry.ts
-git commit -m "$(cat <<'EOF'
-plan(lld-phase-6-task2): define LLD telemetry discriminated union
-
-43 typed events covering shell, Learn, Build, Drill, Review modes plus
-cross-cutting surfaces (frustration, spotlight, share, flags, A/B,
-rollout, error boundary, web vitals, migration). Every event carries
-auto-attached cohort + rolloutStage + currentMode + variants from the
-emit pipeline.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-EOF
-)"
+git commit -m "plan(lld-phase-6-task2): define LLD telemetry discriminated union (43 events)"
 ```
 
 ---
