@@ -1780,6 +1780,144 @@ Each artifact can be exported as Markdown, PDF, or pushed to GitHub / Notion / O
 
 ---
 
+## 15. AI Integration
+
+> "The AI is not the teacher. It is the reader's more-experienced sibling in the next chair."
+
+### 15.1 Principles
+
+- **Haiku for fast / contextual / passive.** Pattern detection, anti-pattern warnings, whisper coach, per-metric coaching, card grading. Keeps cost low.
+- **Sonnet for deep / generative / creative.** Postmortems, rubrics, reverse engineering, constraint solving, interviewer-persona turns, scenario generation.
+- **Opus offline for content.** All 40 concepts + 30 problems + 73 narratives + 40 scenarios authored via Opus at content-ops time.
+- **No AI-only experiences.** The AI augments; it never stands alone. Every AI output is explainable, citable, and reproducible.
+- **Progress-aware context (Q40).** Every AI call carries a structured user-state object — which concepts Mastered, which problems attempted, recent rubric scores, current mode. The AI speaks to *this* user, not a generic user.
+
+### 15.2 Claude infrastructure (existing)
+
+Same as LLD §12:
+
+- Singleton client with concurrency queue (max 3 parallel)
+- IndexedDB response cache (1h TTL)
+- Per-user rate limit (30/hour free, 100/hour pro) via `aiUsage` table
+- Graceful fallback when `ANTHROPIC_API_KEY` missing (heuristic-based for detection, "unavailable" banner for generative)
+- Cost tracking (Haiku $0.80/$4.00, Sonnet $3/$15 per 1M tokens)
+
+### 15.3 The AI features · complete catalog
+
+Fifteen SD-specific AI features across the 5 modes, in addition to the 9 that LLD already has (some shared).
+
+#### 15.3.1 Learn mode
+
+- **L1 · Contextual Ask-the-Architect** (§6.6, three surfaces) · Sonnet · ~$0.015/session
+- **L2 · Elaborative interrogation grader** · Haiku · grades free-text "why?" answers 1-5 · ~$0.001 per grading
+- **L3 · Concept explainer** · Sonnet · user selects a paragraph in a concept page and says "explain this differently" · ~$0.01
+
+#### 15.3.2 Build mode
+
+- **B1 · Pattern detection** (§14.1.1) · Haiku · passive · ~$0.001/scan
+- **B2 · Anti-pattern warnings** (§14.1.2) · Haiku · passive · ~$0.001/scan
+- **B3 · AI node suggestions** (§14.1.3) · Haiku · on `/` · ~$0.01
+- **B4 · Constraint solver** (§14.1.5) · Sonnet · ~$0.05
+- **B5 · Reverse engineer from text** (§14.1.6) · Sonnet · ~$0.05
+- **B6 · Build-inline Chat** (canvas-aware Q&A) · Sonnet · ~$0.02 per turn
+
+#### 15.3.3 Simulate mode
+
+- **S1 · Whisper coach** (§8.8) · Haiku · max 3 interventions per 5-min sim · ~$0.003 per intervention
+- **S2 · Post-run summarizer** · Sonnet · writes the results card's narrative and triple-loop recommendations (Q10) · ~$0.02 per run
+- **S3 · Red-team AI chaos** (§12.4 mode 6) · Sonnet · fires adversarial events · ~$0.04 per run
+
+#### 15.3.4 Drill mode
+
+- **D1 · Interviewer persona turns** (§9.5) · Sonnet · the live voice of the 8 personas · ~$0.03-0.08 per drill
+- **D2 · Rubric grader** (§9.9) · Sonnet · structured 6-axis rubric generation · ~$0.04 per drill
+- **D3 · AI postmortem** (§9.8) · Sonnet · 200-400 word essay · ~$0.04 per drill
+- **D4 · Verbal transcript grader** (Verbal mode) · Sonnet · reads Whisper transcript, grades communication · ~$0.02 per drill
+
+#### 15.3.5 Review mode
+
+- **R1 · Card generator** (lazy) · Haiku · generates 3-5 FSRS cards from any concept/problem the user has completed · ~$0.005 per generation
+- **R2 · Auto-grade open-ended cards** · Haiku · grades short-answer and cloze-ish cards · ~$0.001 per grade
+
+#### 15.3.6 Cross-module
+
+- **X1 · Dashboard Recommended** (Q39) · Sonnet · daily personalized recommendation · ~$0.01/day/user
+- **X2 · Study plan generator** (Q45 Crunch Mode) · Sonnet · 7-day schedule · ~$0.04 per generation
+- **X3 · Weekly digest email** (Q46) · Sonnet · per-user personalization · ~$0.01/week/user
+
+### 15.4 Total token budget estimate
+
+Per active user (3 sessions/week average):
+- Passive scans: ~100/week = $0.10
+- Interactive calls: ~25/week = $0.50-1.00
+- Drill-heavy users: ~30 drills/week = $2-4
+- Crunch Mode users: up to $10/week for 1 week
+
+Blended average: ~$0.50-1.50 per active user per week. Pro tier ($19/month) covers unlimited usage at this scale. Free tier caps at 30 AI calls / hour, sufficient for casual use.
+
+### 15.5 Interviewer persona system prompts
+
+Each of the 8 personas has a system prompt maintained by the content team. Rough shape:
+
+```
+You are {persona_name}, a {role} at {company_or_generic}. You are conducting
+a system-design interview for a {seniority} role.
+
+Voice rules:
+- {specific voice traits}
+- {what this persona pushes on}
+- {what they do NOT care about}
+
+Grading rubric emphasis:
+- Requirements & scope: {weight}
+- ...
+
+Rules of engagement:
+- Stay in persona throughout.
+- Speak in 1-3 sentence turns.
+- Ask follow-up questions. Do not lecture.
+- When the candidate asks a clarifying question, answer briefly and return
+  the conversational thread.
+- Never break character. You are not an AI assistant. You are the interviewer.
+```
+
+Each company-preset persona additionally includes company-specific evaluation criteria (e.g. Amazon: 16 leadership principles, with Simplicity and Bias for Action especially weighted for system design).
+
+### 15.6 Progress-aware context payload (Q40)
+
+Every non-trivial AI call ships with a structured user-state object:
+
+```typescript
+interface UserContext {
+  userId: string
+  personaGuess: "rookie" | "journeyman" | "architect"
+  masteredConcepts: string[]       // slugs
+  completedProblems: string[]
+  recentRubrics: Array<{ problem: string, axes: number[], ts: string }>
+  currentMode: SDMode
+  currentDesign?: CanvasSnapshot
+  currentProblem?: string
+  crunchMode?: { onsiteDate: string, company: string, daysRemaining: number }
+  preferences: {
+    voice: "eli5" | "standard" | "eli-senior"
+    coachQuiet: boolean
+  }
+}
+```
+
+The AI's output style calibrates on this. A Rookie asking about consistent hashing gets warmer prose and an analogy first. An Architect gets crisp technical depth and assumes context.
+
+### 15.7 Safety & abuse
+
+- Prompt injection defense: user-supplied text is always surrounded by a structured delimiter in system prompts. The canvas state is expressed as JSON.
+- Token-cost ceilings per user per day ($2 free, $10 pro). Grace limit 20% before hard-cap.
+- No PII in prompts: user id is hashed; user names and emails never enter Claude.
+- Transcript storage: AI conversations are retained for 30 days in an encrypted store, user-deletable.
+- Cost transparency: a `/settings/ai-usage` page shows token spend per week.
+
+---
+
+
 
 
 
