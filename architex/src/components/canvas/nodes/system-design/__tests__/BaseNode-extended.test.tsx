@@ -100,8 +100,11 @@ describe('BaseNode', () => {
       <BaseNode data={makeData({ label: 'Simplified Label' })} selected={false} icon={<span>IC</span>} />,
     );
     expect(screen.getByText('Simplified Label')).toBeInTheDocument();
-    // No handles should be rendered in simplified view
-    expect(screen.queryByTestId('handle-top')).not.toBeInTheDocument();
+    // Simplified view renders hidden handles (required by React Flow) but
+    // hides them visually via Tailwind `!opacity-0 !w-0 !h-0` utilities.
+    const handle = screen.getByTestId('handle-top');
+    // Handle stub from vi.mock doesn't render classes, but it exists.
+    expect(handle).toBeInTheDocument();
   });
 
   // -- LOD: dot view --
@@ -124,8 +127,12 @@ describe('BaseNode', () => {
     const { container } = render(
       <BaseNode data={makeData()} selected={true} icon={<span>IC</span>} />,
     );
-    const wrapper = container.firstElementChild as HTMLElement;
-    expect(wrapper.className).toContain('ring-2');
+    // The `ring-2` class lives on the inner motion.div that actually holds
+    // the border; the outer wrapper only carries the group/transition
+    // utilities for LOD crossfade. Search the tree for any element with
+    // the ring-2 class.
+    const ringEl = container.querySelector('.ring-2');
+    expect(ringEl).not.toBeNull();
   });
 
   // -- Category colors --
@@ -137,9 +144,15 @@ describe('BaseNode', () => {
       const { unmount, container } = render(
         <BaseNode data={makeData({ category })} selected={false} icon={<span>IC</span>} />,
       );
-      // The node border color should use a CSS variable
-      const outerDiv = container.firstElementChild as HTMLElement;
-      expect(outerDiv.style.borderColor).toContain('var(--node-');
+      // The node border color should use a CSS variable. It's applied to the
+      // motion.div (nested inside the LOD wrapper), so walk the tree.
+      const nodes = Array.from(
+        container.querySelectorAll<HTMLElement>('[style*="border-color"]'),
+      );
+      const withCssVar = nodes.find((el) =>
+        el.style.borderColor?.includes('var(--node-'),
+      );
+      expect(withCssVar).toBeDefined();
       unmount();
     }
   });
