@@ -597,3 +597,797 @@ EOF
 
 ---
 
+## Task 5: `drill-stages.ts` — 5-stage FSM with gate predicates
+
+**Files:**
+- Create: `architex/src/lib/lld/drill-stages.ts`
+- Test: `architex/src/lib/lld/__tests__/drill-stages.test.ts`
+
+The 5 stages are: `clarify` → `rubric` → `canvas` → `walkthrough` → `reflection`. Each stage has a gate predicate — the stage cannot be "completed" (and you cannot advance) until the predicate returns true. This mirrors a real interview loop: you don't start sketching until you've agreed on scope; you don't explain your design until you've actually built it.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/lld/__tests__/drill-stages.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  STAGE_ORDER,
+  nextStage,
+  previousStage,
+  canAdvance,
+  gatePredicateFor,
+  isTerminalStage,
+  type DrillStageProgress,
+} from "@/lib/lld/drill-stages";
+
+describe("drill-stages · ordering", () => {
+  it("enforces canonical stage order", () => {
+    expect(STAGE_ORDER).toEqual([
+      "clarify",
+      "rubric",
+      "canvas",
+      "walkthrough",
+      "reflection",
+    ]);
+  });
+
+  it("nextStage returns the next stage or null at the end", () => {
+    expect(nextStage("clarify")).toBe("rubric");
+    expect(nextStage("rubric")).toBe("canvas");
+    expect(nextStage("canvas")).toBe("walkthrough");
+    expect(nextStage("walkthrough")).toBe("reflection");
+    expect(nextStage("reflection")).toBeNull();
+  });
+
+  it("previousStage returns the previous stage or null at the start", () => {
+    expect(previousStage("clarify")).toBeNull();
+    expect(previousStage("rubric")).toBe("clarify");
+    expect(previousStage("reflection")).toBe("walkthrough");
+  });
+
+  it("isTerminalStage is true only for reflection", () => {
+    expect(isTerminalStage("reflection")).toBe(true);
+    expect(isTerminalStage("canvas")).toBe(false);
+  });
+});
+
+describe("drill-stages · clarify gate", () => {
+  const gate = gatePredicateFor("clarify");
+
+  it("blocks when fewer than 2 questions asked", () => {
+    const progress: DrillStageProgress = { questionsAsked: 1 };
+    expect(gate(progress)).toEqual({
+      satisfied: false,
+      reason: "Ask at least 2 clarifying questions.",
+    });
+  });
+
+  it("passes at 2 or more questions", () => {
+    const progress: DrillStageProgress = { questionsAsked: 2 };
+    expect(gate(progress).satisfied).toBe(true);
+  });
+});
+
+describe("drill-stages · rubric gate", () => {
+  const gate = gatePredicateFor("rubric");
+
+  it("blocks when rubric is not locked", () => {
+    const progress: DrillStageProgress = { rubricLocked: false };
+    expect(gate(progress).satisfied).toBe(false);
+  });
+
+  it("passes when rubric is locked", () => {
+    const progress: DrillStageProgress = { rubricLocked: true };
+    expect(gate(progress).satisfied).toBe(true);
+  });
+});
+
+describe("drill-stages · canvas gate", () => {
+  const gate = gatePredicateFor("canvas");
+
+  it("blocks when fewer than 3 classes on canvas", () => {
+    expect(gate({ canvasClassCount: 2 }).satisfied).toBe(false);
+  });
+
+  it("blocks when no edges exist even with classes", () => {
+    expect(gate({ canvasClassCount: 5, canvasEdgeCount: 0 }).satisfied).toBe(
+      false,
+    );
+  });
+
+  it("passes with >=3 classes and >=1 edge", () => {
+    expect(
+      gate({ canvasClassCount: 3, canvasEdgeCount: 1 }).satisfied,
+    ).toBe(true);
+  });
+});
+
+describe("drill-stages · walkthrough gate", () => {
+  const gate = gatePredicateFor("walkthrough");
+
+  it("blocks when walkthrough text under 120 chars", () => {
+    expect(gate({ walkthroughChars: 50 }).satisfied).toBe(false);
+  });
+
+  it("passes with >=120 chars", () => {
+    expect(gate({ walkthroughChars: 120 }).satisfied).toBe(true);
+  });
+});
+
+describe("drill-stages · reflection gate", () => {
+  const gate = gatePredicateFor("reflection");
+
+  it("blocks when no self-grade selection made", () => {
+    expect(gate({ selfGrade: null }).satisfied).toBe(false);
+  });
+
+  it("passes when self-grade is chosen", () => {
+    expect(gate({ selfGrade: 3 }).satisfied).toBe(true);
+  });
+});
+
+describe("drill-stages · canAdvance integration", () => {
+  it("false when gate fails", () => {
+    expect(canAdvance("clarify", { questionsAsked: 0 })).toBe(false);
+  });
+
+  it("true when gate passes", () => {
+    expect(canAdvance("clarify", { questionsAsked: 3 })).toBe(true);
+  });
+
+  it("false at terminal stage regardless of progress", () => {
+    expect(canAdvance("reflection", { selfGrade: 4 })).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd architex
+pnpm test:run -- drill-stages
+```
+Expected: FAIL with `Cannot find module '@/lib/lld/drill-stages'`.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/lld/drill-stages.ts`:
+
+```typescript
+/**
+ * LLD-018: Drill stage FSM
+ *
+ * 5-stage gated pipeline mirroring a real interview loop:
+ *
+ *   clarify → rubric → canvas → walkthrough → reflection
+ *
+ * Each stage has a "gate predicate". The gate must pass before the user
+ * can advance. This keeps Drill mode honest — no sketching before scope,
+ * no explaining before you've actually built, no grading until you've
+ * articulated the design.
+ */
+
+import type { DrillStage } from "@/db/schema/lld-drill-attempts";
+
+export { type DrillStage };
+
+export const STAGE_ORDER: readonly DrillStage[] = [
+  "clarify",
+  "rubric",
+  "canvas",
+  "walkthrough",
+  "reflection",
+] as const;
+
+export interface DrillStageProgress {
+  questionsAsked?: number;
+  rubricLocked?: boolean;
+  canvasClassCount?: number;
+  canvasEdgeCount?: number;
+  walkthroughChars?: number;
+  selfGrade?: number | null;
+}
+
+export interface GateResult {
+  satisfied: boolean;
+  reason?: string;
+}
+
+export type GatePredicate = (progress: DrillStageProgress) => GateResult;
+
+const GATES: Record<DrillStage, GatePredicate> = {
+  clarify: (p) => {
+    const n = p.questionsAsked ?? 0;
+    if (n < 2) {
+      return {
+        satisfied: false,
+        reason: "Ask at least 2 clarifying questions.",
+      };
+    }
+    return { satisfied: true };
+  },
+  rubric: (p) => {
+    if (!p.rubricLocked) {
+      return {
+        satisfied: false,
+        reason: "Confirm the scope and weights before moving on.",
+      };
+    }
+    return { satisfied: true };
+  },
+  canvas: (p) => {
+    const classes = p.canvasClassCount ?? 0;
+    const edges = p.canvasEdgeCount ?? 0;
+    if (classes < 3) {
+      return {
+        satisfied: false,
+        reason: "Canvas needs at least 3 classes before you can narrate.",
+      };
+    }
+    if (edges < 1) {
+      return {
+        satisfied: false,
+        reason: "Classes need at least one relationship between them.",
+      };
+    }
+    return { satisfied: true };
+  },
+  walkthrough: (p) => {
+    const chars = p.walkthroughChars ?? 0;
+    if (chars < 120) {
+      return {
+        satisfied: false,
+        reason:
+          "Narration is too short — walk through the flow in at least a few sentences.",
+      };
+    }
+    return { satisfied: true };
+  },
+  reflection: (p) => {
+    if (p.selfGrade === null || p.selfGrade === undefined) {
+      return {
+        satisfied: false,
+        reason: "Rate your own performance before submitting.",
+      };
+    }
+    return { satisfied: true };
+  },
+};
+
+export function gatePredicateFor(stage: DrillStage): GatePredicate {
+  return GATES[stage];
+}
+
+export function nextStage(stage: DrillStage): DrillStage | null {
+  const idx = STAGE_ORDER.indexOf(stage);
+  if (idx === -1 || idx === STAGE_ORDER.length - 1) return null;
+  return STAGE_ORDER[idx + 1] ?? null;
+}
+
+export function previousStage(stage: DrillStage): DrillStage | null {
+  const idx = STAGE_ORDER.indexOf(stage);
+  if (idx <= 0) return null;
+  return STAGE_ORDER[idx - 1] ?? null;
+}
+
+export function isTerminalStage(stage: DrillStage): boolean {
+  return stage === "reflection";
+}
+
+export function canAdvance(
+  stage: DrillStage,
+  progress: DrillStageProgress,
+): boolean {
+  if (isTerminalStage(stage)) return false;
+  return gatePredicateFor(stage)(progress).satisfied;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- drill-stages
+```
+Expected: PASS · all 15 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/lld/drill-stages.ts architex/src/lib/lld/__tests__/drill-stages.test.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): drill-stages FSM with gate predicates
+
+5-stage pipeline (clarify/rubric/canvas/walkthrough/reflection). Each
+stage has a gate predicate that must pass before advancing. Keeps Drill
+mode honest — no sketching before scope, no narration before build.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 6: `drill-variants.ts` — exam / timed-mock / study configs
+
+**Files:**
+- Create: `architex/src/lib/lld/drill-variants.ts`
+- Test: `architex/src/lib/lld/__tests__/drill-variants.test.ts`
+
+The three variants differ in timer behavior, hint availability, FSRS impact, and whether the interviewer persona can volunteer help. Encode them as pure-data configs so the UI, API, and grading engine all read the same source.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/lld/__tests__/drill-variants.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  VARIANT_CONFIG,
+  variantConfigFor,
+  hintsAllowedIn,
+  timerEnforcedIn,
+  affectsFSRSIn,
+  defaultDurationFor,
+  type DrillVariant,
+} from "@/lib/lld/drill-variants";
+
+describe("drill-variants · config shape", () => {
+  it("has exactly 3 variants", () => {
+    expect(Object.keys(VARIANT_CONFIG).sort()).toEqual([
+      "exam",
+      "study",
+      "timed-mock",
+    ]);
+  });
+
+  it("exam is the strictest (no hints, timer enforced, FSRS ON)", () => {
+    const cfg = variantConfigFor("exam");
+    expect(cfg.hintsAllowed).toBe(false);
+    expect(cfg.timerEnforced).toBe(true);
+    expect(cfg.affectsFSRS).toBe(true);
+    expect(cfg.interviewerMayOfferHelp).toBe(false);
+  });
+
+  it("timed-mock is realistic (hints allowed, timer enforced, FSRS ON)", () => {
+    const cfg = variantConfigFor("timed-mock");
+    expect(cfg.hintsAllowed).toBe(true);
+    expect(cfg.timerEnforced).toBe(true);
+    expect(cfg.affectsFSRS).toBe(true);
+  });
+
+  it("study is permissive (hints free, no timer, FSRS OFF)", () => {
+    const cfg = variantConfigFor("study");
+    expect(cfg.hintsAllowed).toBe(true);
+    expect(cfg.timerEnforced).toBe(false);
+    expect(cfg.affectsFSRS).toBe(false);
+    expect(cfg.interviewerMayOfferHelp).toBe(true);
+  });
+});
+
+describe("drill-variants · helpers", () => {
+  it("hintsAllowedIn matches config", () => {
+    expect(hintsAllowedIn("exam")).toBe(false);
+    expect(hintsAllowedIn("timed-mock")).toBe(true);
+    expect(hintsAllowedIn("study")).toBe(true);
+  });
+
+  it("timerEnforcedIn matches config", () => {
+    expect(timerEnforcedIn("exam")).toBe(true);
+    expect(timerEnforcedIn("study")).toBe(false);
+  });
+
+  it("affectsFSRSIn matches config", () => {
+    expect(affectsFSRSIn("study")).toBe(false);
+    expect(affectsFSRSIn("exam")).toBe(true);
+  });
+
+  it("defaultDurationFor returns sensible defaults", () => {
+    expect(defaultDurationFor("exam")).toBe(25 * 60 * 1000);
+    expect(defaultDurationFor("timed-mock")).toBe(30 * 60 * 1000);
+    expect(defaultDurationFor("study")).toBe(60 * 60 * 1000);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- drill-variants
+```
+Expected: FAIL with `Cannot find module`.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/lld/drill-variants.ts`:
+
+```typescript
+/**
+ * LLD-019: Drill session variants
+ *
+ * Three variants with orthogonal policy axes. The UI picks one at start;
+ * grading, timer, hints, and FSRS update paths all consult this config.
+ *
+ *   exam        — strict, no hints, timer enforced, FSRS ON
+ *   timed-mock  — realistic (default), hints allowed, timer enforced, FSRS ON
+ *   study       — permissive, hints free, no timer, FSRS OFF
+ */
+
+import type { DrillVariant } from "@/db/schema/lld-drill-attempts";
+
+export { type DrillVariant };
+
+export interface DrillVariantConfig {
+  label: string;
+  description: string;
+  hintsAllowed: boolean;
+  timerEnforced: boolean;
+  affectsFSRS: boolean;
+  interviewerMayOfferHelp: boolean;
+  defaultDurationMs: number;
+  /** Maximum hint-tier penalty allowed to accumulate before the drill
+   *  auto-ends (null = unlimited, study mode only). */
+  maxHintPenalty: number | null;
+}
+
+export const VARIANT_CONFIG: Record<DrillVariant, DrillVariantConfig> = {
+  exam: {
+    label: "Exam",
+    description: "Strictest loop. No hints. Timer enforced. FSRS counts.",
+    hintsAllowed: false,
+    timerEnforced: true,
+    affectsFSRS: true,
+    interviewerMayOfferHelp: false,
+    defaultDurationMs: 25 * 60 * 1000, // 25 min
+    maxHintPenalty: 0,
+  },
+  "timed-mock": {
+    label: "Timed Mock",
+    description: "Realistic interview. Hints cost points. FSRS counts.",
+    hintsAllowed: true,
+    timerEnforced: true,
+    affectsFSRS: true,
+    interviewerMayOfferHelp: false,
+    defaultDurationMs: 30 * 60 * 1000, // 30 min
+    maxHintPenalty: 30,
+  },
+  study: {
+    label: "Study",
+    description:
+      "No timer. Interviewer volunteers hints. Does not affect FSRS.",
+    hintsAllowed: true,
+    timerEnforced: false,
+    affectsFSRS: false,
+    interviewerMayOfferHelp: true,
+    defaultDurationMs: 60 * 60 * 1000, // 60 min soft target
+    maxHintPenalty: null,
+  },
+};
+
+export function variantConfigFor(v: DrillVariant): DrillVariantConfig {
+  return VARIANT_CONFIG[v];
+}
+
+export function hintsAllowedIn(v: DrillVariant): boolean {
+  return VARIANT_CONFIG[v].hintsAllowed;
+}
+
+export function timerEnforcedIn(v: DrillVariant): boolean {
+  return VARIANT_CONFIG[v].timerEnforced;
+}
+
+export function affectsFSRSIn(v: DrillVariant): boolean {
+  return VARIANT_CONFIG[v].affectsFSRS;
+}
+
+export function defaultDurationFor(v: DrillVariant): number {
+  return VARIANT_CONFIG[v].defaultDurationMs;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- drill-variants
+```
+Expected: PASS · all 10 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/lld/drill-variants.ts architex/src/lib/lld/__tests__/drill-variants.test.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): drill-variants configuration module
+
+Exam / timed-mock / study with explicit policy axes for hints, timer,
+FSRS impact, and interviewer helpfulness. Pure-data config consumed by
+UI, API, and grading engine.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 7: `drill-rubric.ts` — 6-axis rubric definitions + weight math
+
+**Files:**
+- Create: `architex/src/lib/lld/drill-rubric.ts`
+- Test: `architex/src/lib/lld/__tests__/drill-rubric.test.ts`
+
+Six axes (from spec §6 extended in the Phase 4 brief):
+
+1. **Clarification** — did they ask useful questions? (weight 10%)
+2. **Classes** — class decomposition, naming, responsibilities (weight 25%)
+3. **Relationships** — correct associations, cardinality, direction (weight 20%)
+4. **Pattern Fit** — chosen pattern correct + correctly applied (weight 20%)
+5. **Tradeoffs** — did they articulate real tradeoffs during walkthrough? (weight 15%)
+6. **Communication** — clarity, structure, interviewer-readability (weight 10%)
+
+Sum = 100%. Axis breakdown unlocks per-axis "good", "missing", "wrong" deltas in the post-drill report.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/lld/__tests__/drill-rubric.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  RUBRIC_AXES,
+  AXIS_WEIGHTS,
+  computeWeightedScore,
+  axisLabel,
+  RUBRIC_BANDS,
+  bandForScore,
+  type RubricBreakdown,
+} from "@/lib/lld/drill-rubric";
+
+describe("drill-rubric · axes + weights", () => {
+  it("has exactly 6 axes in canonical order", () => {
+    expect(RUBRIC_AXES).toEqual([
+      "clarification",
+      "classes",
+      "relationships",
+      "patternFit",
+      "tradeoffs",
+      "communication",
+    ]);
+  });
+
+  it("axis weights sum to exactly 1.0", () => {
+    const sum = RUBRIC_AXES.reduce((acc, a) => acc + AXIS_WEIGHTS[a], 0);
+    expect(sum).toBeCloseTo(1.0, 6);
+  });
+
+  it("axisLabel returns human-readable strings", () => {
+    expect(axisLabel("patternFit")).toBe("Pattern Fit");
+    expect(axisLabel("classes")).toBe("Classes");
+  });
+});
+
+describe("drill-rubric · computeWeightedScore", () => {
+  const perfect: RubricBreakdown = {
+    clarification: { score: 100, good: [], missing: [], wrong: [] },
+    classes: { score: 100, good: [], missing: [], wrong: [] },
+    relationships: { score: 100, good: [], missing: [], wrong: [] },
+    patternFit: { score: 100, good: [], missing: [], wrong: [] },
+    tradeoffs: { score: 100, good: [], missing: [], wrong: [] },
+    communication: { score: 100, good: [], missing: [], wrong: [] },
+  };
+
+  it("perfect breakdown yields 100", () => {
+    expect(computeWeightedScore(perfect)).toBe(100);
+  });
+
+  it("all zero yields 0", () => {
+    const zeros: RubricBreakdown = {
+      clarification: { score: 0, good: [], missing: [], wrong: [] },
+      classes: { score: 0, good: [], missing: [], wrong: [] },
+      relationships: { score: 0, good: [], missing: [], wrong: [] },
+      patternFit: { score: 0, good: [], missing: [], wrong: [] },
+      tradeoffs: { score: 0, good: [], missing: [], wrong: [] },
+      communication: { score: 0, good: [], missing: [], wrong: [] },
+    };
+    expect(computeWeightedScore(zeros)).toBe(0);
+  });
+
+  it("weights are applied correctly", () => {
+    const mixed: RubricBreakdown = {
+      clarification: { score: 100, good: [], missing: [], wrong: [] },
+      classes: { score: 0, good: [], missing: [], wrong: [] },
+      relationships: { score: 100, good: [], missing: [], wrong: [] },
+      patternFit: { score: 50, good: [], missing: [], wrong: [] },
+      tradeoffs: { score: 80, good: [], missing: [], wrong: [] },
+      communication: { score: 100, good: [], missing: [], wrong: [] },
+    };
+    // 100*0.10 + 0*0.25 + 100*0.20 + 50*0.20 + 80*0.15 + 100*0.10
+    // = 10 + 0 + 20 + 10 + 12 + 10 = 62
+    expect(computeWeightedScore(mixed)).toBe(62);
+  });
+});
+
+describe("drill-rubric · bands", () => {
+  it("90+ is stellar", () => {
+    expect(bandForScore(92).key).toBe("stellar");
+  });
+
+  it("70-89 is solid", () => {
+    expect(bandForScore(75).key).toBe("solid");
+  });
+
+  it("50-69 is coaching", () => {
+    expect(bandForScore(60).key).toBe("coaching");
+  });
+
+  it("<50 is redirect", () => {
+    expect(bandForScore(30).key).toBe("redirect");
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- drill-rubric
+```
+Expected: FAIL with `Cannot find module`.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/lld/drill-rubric.ts`:
+
+```typescript
+/**
+ * LLD-020: Drill rubric — 6-axis scoring definitions + weighted total
+ *
+ * Axes & weights (sum = 1.0):
+ *   clarification  10%
+ *   classes        25%
+ *   relationships  20%
+ *   patternFit     20%
+ *   tradeoffs      15%
+ *   communication  10%
+ */
+
+export type RubricAxis =
+  | "clarification"
+  | "classes"
+  | "relationships"
+  | "patternFit"
+  | "tradeoffs"
+  | "communication";
+
+export const RUBRIC_AXES: readonly RubricAxis[] = [
+  "clarification",
+  "classes",
+  "relationships",
+  "patternFit",
+  "tradeoffs",
+  "communication",
+] as const;
+
+export const AXIS_WEIGHTS: Record<RubricAxis, number> = {
+  clarification: 0.1,
+  classes: 0.25,
+  relationships: 0.2,
+  patternFit: 0.2,
+  tradeoffs: 0.15,
+  communication: 0.1,
+};
+
+const AXIS_LABELS: Record<RubricAxis, string> = {
+  clarification: "Clarification",
+  classes: "Classes",
+  relationships: "Relationships",
+  patternFit: "Pattern Fit",
+  tradeoffs: "Tradeoffs",
+  communication: "Communication",
+};
+
+export function axisLabel(axis: RubricAxis): string {
+  return AXIS_LABELS[axis];
+}
+
+export interface RubricAxisResult {
+  /** 0-100 inclusive. */
+  score: number;
+  /** Bullets the user did well on this axis. */
+  good: string[];
+  /** Bullets the user was expected to cover but didn't. */
+  missing: string[];
+  /** Bullets the user got wrong. */
+  wrong: string[];
+}
+
+export type RubricBreakdown = Record<RubricAxis, RubricAxisResult>;
+
+export function computeWeightedScore(breakdown: RubricBreakdown): number {
+  const raw = RUBRIC_AXES.reduce(
+    (acc, axis) => acc + breakdown[axis].score * AXIS_WEIGHTS[axis],
+    0,
+  );
+  return Math.round(raw);
+}
+
+// ── Celebration bands (Q10 tiered reveal) ────────────────────────────
+
+export interface RubricBand {
+  key: "stellar" | "solid" | "coaching" | "redirect";
+  label: string;
+  min: number; // inclusive lower bound
+  accent: string; // Tailwind color token
+  /** Default copy for the grade reveal. Overridden by Claude feedback. */
+  placeholder: string;
+}
+
+export const RUBRIC_BANDS: RubricBand[] = [
+  {
+    key: "stellar",
+    label: "⭐ Stellar",
+    min: 90,
+    accent: "text-emerald-300",
+    placeholder: "That was cleanly executed. Senior-level articulation.",
+  },
+  {
+    key: "solid",
+    label: "✓ Solid",
+    min: 70,
+    accent: "text-sky-300",
+    placeholder:
+      "Strong design, a few tune-ups and you're interview-ready for this problem.",
+  },
+  {
+    key: "coaching",
+    label: "◐ Coaching moment",
+    min: 50,
+    accent: "text-amber-300",
+    placeholder:
+      "The core idea is there. Let's walk through what to strengthen next.",
+  },
+  {
+    key: "redirect",
+    label: "○ Strategic redirect",
+    min: 0,
+    accent: "text-rose-300",
+    placeholder:
+      "This one's still cooking. We'll send you back to Learn for this pattern.",
+  },
+];
+
+export function bandForScore(score: number): RubricBand {
+  for (const band of RUBRIC_BANDS) {
+    if (score >= band.min) return band;
+  }
+  return RUBRIC_BANDS[RUBRIC_BANDS.length - 1]!;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- drill-rubric
+```
+Expected: PASS · all 10 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/lld/drill-rubric.ts architex/src/lib/lld/__tests__/drill-rubric.test.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): 6-axis drill rubric with weight math + bands
+
+clarification 10% · classes 25% · relationships 20% · patternFit 20%
+· tradeoffs 15% · communication 10%. computeWeightedScore returns 0-100
+integer. bandForScore maps to tiered reveal (stellar/solid/coaching/
+redirect) per spec Q10.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+
