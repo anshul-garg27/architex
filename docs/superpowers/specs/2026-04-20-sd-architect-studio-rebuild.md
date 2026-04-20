@@ -2422,6 +2422,274 @@ This is a craft bet. The brainstorm (B11·Q54) locked in *Option F · Both* expl
 
 ---
 
+## 21. Data Model Sketch
+
+SD-specific Postgres tables. Existing Architex tables (`users`, `user_preferences`, `progress`, `activityEvents`, `aiUsage`, `diagrams`) are extended; SD-specific tables are net-new.
+
+### 21.1 New tables
+
+```sql
+-- 40 concept records
+CREATE TABLE sd_concepts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug varchar(100) UNIQUE NOT NULL,
+  wave integer NOT NULL,              -- 1..8
+  wave_order integer NOT NULL,        -- position within wave
+  title varchar(200) NOT NULL,
+  short_description text NOT NULL,
+  body_mdx text NOT NULL,             -- the 8-section authored MDX
+  word_count integer,
+  reading_time_min integer,
+  voice_variant varchar(20) DEFAULT 'standard', -- 'eli5' | 'standard' | 'eli-senior'
+  content_quality varchar(20) DEFAULT 'polished',
+  generated_by varchar(20) DEFAULT 'hybrid',
+  source_year integer,
+  last_reviewed_at timestamp,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX sd_concepts_wave_idx ON sd_concepts(wave, wave_order);
+
+-- 30 problem records
+CREATE TABLE sd_problems (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug varchar(100) UNIQUE NOT NULL,
+  domain varchar(50) NOT NULL,        -- 'media-social' | 'location' | ...
+  difficulty varchar(20) NOT NULL,    -- 'easy' | 'mid' | 'staff' | 'principal'
+  title varchar(200) NOT NULL,
+  body_mdx text NOT NULL,             -- 6-pane authored MDX
+  canonical_solutions jsonb NOT NULL, -- array of { label, diagram_id, walkthrough_mdx }
+  rubric jsonb NOT NULL,              -- 6-axis rubric with threshold bands
+  recommended_chaos jsonb NOT NULL,   -- array of chaos event slugs
+  linked_concepts jsonb,              -- array of concept slugs (graph)
+  linked_lld_patterns jsonb,          -- array of LLD pattern slugs
+  companies_asking jsonb,             -- array of company names
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX sd_problems_domain_idx ON sd_problems(domain);
+
+-- 73 chaos events
+CREATE TABLE sd_chaos_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug varchar(100) UNIQUE NOT NULL,
+  family varchar(30) NOT NULL,        -- 'infra' | 'data' | 'network' | 'cascade' | 'external' | 'human' | 'load'
+  severity varchar(20) NOT NULL,      -- 'warning' | 'error' | 'cascade' | 'critical'
+  name varchar(200) NOT NULL,
+  description text NOT NULL,
+  narrative_template text NOT NULL,   -- serif prose template
+  simulation_model varchar(100),      -- reference key into failure-modes.ts
+  real_incident_slug varchar(100),    -- optional link to sd_real_incidents
+  protections jsonb,                  -- array of concept slugs that protect
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+-- 10 real incidents
+CREATE TABLE sd_real_incidents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug varchar(100) UNIQUE NOT NULL,
+  title varchar(200) NOT NULL,
+  date_occurred date NOT NULL,
+  company varchar(100) NOT NULL,
+  duration_minutes integer,
+  timeline_mdx text NOT NULL,
+  reference_diagram_id uuid,          -- points into sd_diagrams for replayable architecture
+  postmortem_link varchar(500),
+  postmortem_mdx text NOT NULL,
+  linked_concepts jsonb,
+  linked_chaos_events jsonb,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+-- Saved diagrams (SD-specific, extends existing diagrams table logic)
+CREATE TABLE sd_diagrams (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name varchar(200),
+  problem_slug varchar(100),          -- optional, if tied to a problem
+  diagram_type varchar(30) NOT NULL,  -- 1 of 10
+  canvas_state jsonb NOT NULL,        -- nodes + edges + overlays
+  provider varchar(20) NOT NULL DEFAULT 'aws',
+  render_mode varchar(30) DEFAULT 'default',
+  is_public boolean NOT NULL DEFAULT false,
+  public_share_id varchar(20) UNIQUE, -- populated when shared
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now(),
+  version integer NOT NULL DEFAULT 1
+);
+CREATE INDEX sd_diagrams_user_idx ON sd_diagrams(user_id, updated_at DESC);
+CREATE INDEX sd_diagrams_public_idx ON sd_diagrams(public_share_id) WHERE public_share_id IS NOT NULL;
+
+-- Simulation runs (one row per completed run)
+CREATE TABLE sd_simulation_runs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  diagram_id uuid REFERENCES sd_diagrams(id) ON DELETE SET NULL,
+  activity varchar(30) NOT NULL,      -- 'validate' | 'stress' | 'chaos' | 'compare' | 'forecast' | 'archaeology'
+  scale_dau varchar(10) NOT NULL,     -- '10k' | '1M' | '10M' | '100M' | '1B'
+  chaos_control_mode varchar(30),     -- if activity='chaos'
+  real_incident_slug varchar(100),    -- if activity='archaeology'
+  started_at timestamp NOT NULL DEFAULT now(),
+  completed_at timestamp,
+  duration_sim_seconds integer,
+  metrics jsonb NOT NULL,             -- p50/p95/p99/err/cost/slo/etc
+  events jsonb NOT NULL,              -- chaos + SLO events fired
+  coach_interventions jsonb,          -- list of coach turns
+  narrative_stream jsonb NOT NULL,    -- margin cards, ordered
+  public_share_id varchar(20) UNIQUE,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX sd_sim_runs_user_idx ON sd_simulation_runs(user_id, started_at DESC);
+
+-- Drill attempts
+CREATE TABLE sd_drill_attempts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  problem_slug varchar(100) NOT NULL,
+  mode varchar(30) NOT NULL,          -- 'study' | 'timed' | 'exam' | 'pair' | 'review' | 'full-stack' | 'verbal'
+  persona varchar(50),                -- persona slug
+  company_preset varchar(50),
+  started_at timestamp NOT NULL DEFAULT now(),
+  current_stage integer,              -- 1..5
+  stage_times jsonb,                  -- map: stage -> elapsed_ms
+  submitted_at timestamp,
+  abandoned_at timestamp,
+  last_activity_at timestamp NOT NULL DEFAULT now(),
+  canvas_state jsonb,
+  chat_transcript jsonb,              -- interviewer persona ↔ user
+  verbal_transcript text,             -- for verbal mode
+  hints_used jsonb NOT NULL DEFAULT '[]',
+  rubric jsonb,                       -- 6-axis final rubric
+  ai_postmortem text,
+  public_share_id varchar(20) UNIQUE,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+-- enforce one active drill per user (same as LLD pattern)
+CREATE UNIQUE INDEX one_active_sd_drill_per_user
+  ON sd_drill_attempts(user_id)
+  WHERE submitted_at IS NULL AND abandoned_at IS NULL;
+CREATE INDEX sd_drills_history_idx ON sd_drill_attempts(user_id, submitted_at DESC);
+
+-- Study plans (Crunch Mode)
+CREATE TABLE sd_study_plans (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  onsite_date date NOT NULL,
+  company varchar(100),
+  seniority varchar(20),
+  plan jsonb NOT NULL,                -- array of day-by-day tasks
+  day_index integer NOT NULL DEFAULT 0,
+  completed_items jsonb NOT NULL DEFAULT '[]',
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+
+-- Decade Saga state
+CREATE TABLE sd_saga_progress (
+  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  current_chapter integer NOT NULL DEFAULT 1,
+  decisions jsonb NOT NULL DEFAULT '{}', -- key decisions that carry forward
+  chapter_diagrams jsonb NOT NULL DEFAULT '{}',
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+
+-- User-authored content
+CREATE TABLE sd_user_problems (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  slug varchar(100) UNIQUE NOT NULL,
+  title varchar(200) NOT NULL,
+  body_mdx text NOT NULL,
+  is_public boolean NOT NULL DEFAULT false,
+  approved boolean DEFAULT false,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+-- Reflection entries (elaborative interrogation CS3)
+CREATE TABLE sd_concept_reflections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  concept_slug varchar(100) NOT NULL,
+  prompt text NOT NULL,
+  response text NOT NULL,
+  depth_grade integer,                 -- 1-5 rubric
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+-- Review cards (FSRS)
+CREATE TABLE sd_review_cards (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  concept_slug varchar(100),
+  problem_slug varchar(100),
+  card_type varchar(30) NOT NULL,      -- 'mcq' | 'name-primitive' | 'diagram-spot' | 'cloze'
+  prompt text NOT NULL,
+  choices jsonb,                       -- for MCQ
+  correct_answer text NOT NULL,
+  explanation text,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+-- Per-user FSRS state (mirrors LLD but separate records per card)
+CREATE TABLE sd_review_progress (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  card_id uuid NOT NULL REFERENCES sd_review_cards(id) ON DELETE CASCADE,
+  difficulty real NOT NULL,            -- FSRS-5 difficulty
+  stability real NOT NULL,             -- FSRS-5 stability
+  reps integer NOT NULL DEFAULT 0,
+  lapses integer NOT NULL DEFAULT 0,
+  state varchar(20) NOT NULL,          -- 'new' | 'learning' | 'review' | 'relearning'
+  due_at timestamp NOT NULL,
+  last_reviewed_at timestamp
+);
+CREATE INDEX sd_review_due_idx ON sd_review_progress(user_id, due_at);
+```
+
+### 21.2 Extended tables
+
+```sql
+-- extend user_preferences.preferences.sd JSONB
+{
+  sd: {
+    mode: "learn" | "build" | "simulate" | "drill" | "review",
+    welcomeBannerDismissed: boolean,
+    preferredProvider: "aws" | ... ,
+    renderMode: "default" | "blueprint" | "hand-drawn",
+    coachQuiet: boolean,
+    audioEnabled: boolean,
+    voiceVariant: "eli5" | "standard" | "eli-senior",
+    onboardingComplete: boolean,
+    panelWidths: { learn: [200, 420], build: [260, 360, 240], ... }
+  }
+}
+
+-- extend activityEvents with SD event types (see §17 analytics)
+```
+
+### 21.3 Graph edges table
+
+```sql
+CREATE TABLE sd_graph_edges (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_type varchar(30) NOT NULL,   -- 'sd_concept' | 'sd_problem' | 'lld_pattern' | 'sd_chaos'
+  source_slug varchar(100) NOT NULL,
+  target_type varchar(30) NOT NULL,
+  target_slug varchar(100) NOT NULL,
+  relation varchar(30) NOT NULL,      -- 'prerequisite' | 'uses' | 'related' | 'protects-from' | 'similar-to'
+  weight real NOT NULL DEFAULT 1.0,
+  bridge_text text                     -- optional hand-authored 1-2 sentence caption (Q35)
+);
+CREATE INDEX sd_graph_source_idx ON sd_graph_edges(source_type, source_slug);
+```
+
+### 21.4 Migrations
+
+All tables ship as a single migration `drizzle/migrations/0002_add_sd_module.sql` to keep schema changes atomic. The migration is additive — no destructive changes to LLD tables.
+
+---
+
+
 
 
 
