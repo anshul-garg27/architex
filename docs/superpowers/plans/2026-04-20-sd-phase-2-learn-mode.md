@@ -1424,5 +1424,677 @@ git commit -m "feat(sd): runtime loaders for compiled concepts + problems (Task 
 
 ---
 
+## Task 8: Create learn-progress API routes
+
+**Files:**
+- Create: `architex/src/app/api/sd/learn-progress/route.ts` (GET all for user)
+- Create: `architex/src/app/api/sd/learn-progress/[kind]/[slug]/route.ts` (GET/PATCH one)
+- Create: `architex/src/app/api/sd/__tests__/sd-learn-progress.test.ts`
+
+- [ ] **Step 1: Collection route**
+
+Create `architex/src/app/api/sd/learn-progress/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { db } from '@/db/client';
+import { sdLearnProgress } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
+
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const kind = req.nextUrl.searchParams.get('kind') as 'concept' | 'problem' | null;
+  const rows = await db.select().from(sdLearnProgress).where(
+    kind
+      ? and(eq(sdLearnProgress.userId, session.user.id), eq(sdLearnProgress.kind, kind))
+      : eq(sdLearnProgress.userId, session.user.id),
+  );
+  return NextResponse.json({ data: rows });
+}
+```
+
+- [ ] **Step 2: Per-slug route with upsert semantics**
+
+Create `architex/src/app/api/sd/learn-progress/[kind]/[slug]/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { db } from '@/db/client';
+import { sdLearnProgress } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { CONCEPT_SECTION_IDS, PROBLEM_PANE_IDS } from '@/lib/sd/content-types';
+
+const PatchBodySchema = z.object({
+  sectionState: z.record(z.string(), z.object({
+    visited: z.boolean().optional(),
+    scrollPct: z.number().min(0).max(100).optional(),
+    answered: z.boolean().optional(),
+    correct: z.boolean().optional(),
+    attempts: z.number().int().min(0).optional(),
+  })).optional(),
+  deepestScrollPct: z.number().int().min(0).max(100).optional(),
+  lastSectionId: z.string().optional(),
+  checkpointStats: z.object({
+    attempts: z.number().int().min(0),
+    correct: z.number().int().min(0),
+    revealed: z.number().int().min(0),
+  }).optional(),
+  completed: z.boolean().optional(),
+  tinkerCanvasState: z.any().optional(),
+});
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ kind: string; slug: string }> }) {
+  const { kind, slug } = await params;
+  if (kind !== 'concept' && kind !== 'problem') return NextResponse.json({ error: 'invalid kind' }, { status: 400 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const [row] = await db.select().from(sdLearnProgress).where(
+    and(eq(sdLearnProgress.userId, session.user.id),
+        eq(sdLearnProgress.kind, kind), eq(sdLearnProgress.slug, slug)),
+  ).limit(1);
+  return NextResponse.json({ data: row ?? null });
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ kind: string; slug: string }> }) {
+  const { kind, slug } = await params;
+  if (kind !== 'concept' && kind !== 'problem') return NextResponse.json({ error: 'invalid kind' }, { status: 400 });
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const parsed = PatchBodySchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+
+  const validIds = kind === 'concept' ? CONCEPT_SECTION_IDS : PROBLEM_PANE_IDS;
+  if (parsed.data.sectionState) {
+    for (const id of Object.keys(parsed.data.sectionState)) {
+      if (!validIds.includes(id as any) && id !== 'checkpoints') {
+        return NextResponse.json({ error: `invalid section id '${id}' for ${kind}` }, { status: 400 });
+      }
+    }
+  }
+  if (parsed.data.lastSectionId && !validIds.includes(parsed.data.lastSectionId as any) && parsed.data.lastSectionId !== 'checkpoints') {
+    return NextResponse.json({ error: `invalid lastSectionId` }, { status: 400 });
+  }
+
+  const body = parsed.data;
+  const now = new Date();
+  const [existing] = await db.select().from(sdLearnProgress).where(
+    and(eq(sdLearnProgress.userId, session.user.id),
+        eq(sdLearnProgress.kind, kind), eq(sdLearnProgress.slug, slug)),
+  ).limit(1);
+
+  if (!existing) {
+    const [inserted] = await db.insert(sdLearnProgress).values({
+      userId: session.user.id, kind, slug,
+      sectionState: body.sectionState ?? {},
+      deepestScrollPct: body.deepestScrollPct ?? 0,
+      lastSectionId: body.lastSectionId,
+      checkpointStats: body.checkpointStats ?? { attempts: 0, correct: 0, revealed: 0 },
+      completedAt: body.completed ? now : null,
+      tinkerCanvasState: body.tinkerCanvasState,
+      updatedAt: now,
+    }).returning();
+    return NextResponse.json({ data: inserted });
+  }
+
+  const merged = {
+    ...existing,
+    sectionState: body.sectionState ? { ...(existing.sectionState as object), ...body.sectionState } : existing.sectionState,
+    deepestScrollPct: body.deepestScrollPct !== undefined
+      ? Math.max(existing.deepestScrollPct, body.deepestScrollPct)
+      : existing.deepestScrollPct,
+    lastSectionId: body.lastSectionId ?? existing.lastSectionId,
+    checkpointStats: body.checkpointStats ?? existing.checkpointStats,
+    completedAt: body.completed && !existing.completedAt ? now : existing.completedAt,
+    tinkerCanvasState: body.tinkerCanvasState ?? existing.tinkerCanvasState,
+    updatedAt: now,
+  };
+  const [updated] = await db.update(sdLearnProgress).set(merged)
+    .where(eq(sdLearnProgress.id, existing.id)).returning();
+  return NextResponse.json({ data: updated });
+}
+```
+
+- [ ] **Step 3: Test both routes**
+
+Create `architex/src/app/api/sd/__tests__/sd-learn-progress.test.ts`. Cover:
+- 401 when unauthenticated
+- PATCH with new slug inserts a row
+- PATCH with existing slug merges sectionState + takes max of deepestScrollPct
+- PATCH with invalid section id → 400
+- GET ?kind=concept filters correctly
+- `completed: true` sets `completedAt` once and never overwrites it
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+pnpm typecheck
+pnpm test:run -- sd-learn-progress
+git add architex/src/app/api/sd/learn-progress \
+        architex/src/app/api/sd/__tests__/sd-learn-progress.test.ts
+git commit -m "feat(api): sd learn-progress GET/PATCH with section-id validation (Task 8/35)"
+```
+
+---
+
+## Task 9: Create `useSDLearnProgress` hook with debounced writes
+
+**Files:**
+- Create: `architex/src/hooks/useSDLearnProgress.ts`
+- Create: `architex/src/hooks/__tests__/useSDLearnProgress.test.tsx`
+
+- [ ] **Step 1: Write the hook**
+
+Create `architex/src/hooks/useSDLearnProgress.ts`:
+
+```typescript
+/**
+ * SD-038: Reads and mutates sd_learn_progress for a given (kind, slug).
+ * - GET via TanStack Query on mount with staleTime: 30s
+ * - PATCH debounced 1s on every mutation to protect the DB from
+ *   scroll-burst amplification
+ * - Optimistic local cache so the UI never waits on network
+ */
+'use client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
+import type { ConceptSectionId, ProblemPaneId } from '@/lib/sd/content-types';
+
+type LearnKind = 'concept' | 'problem';
+
+export interface SDLearnProgressRow {
+  id: string;
+  userId: string;
+  kind: LearnKind;
+  slug: string;
+  sectionState: Record<string, { visited?: boolean; scrollPct?: number; answered?: boolean; correct?: boolean; attempts?: number }>;
+  deepestScrollPct: number;
+  lastSectionId: string | null;
+  checkpointStats: { attempts: number; correct: number; revealed: number };
+  completedAt: string | null;
+  tinkerCanvasState: unknown;
+}
+
+export interface LearnPatch {
+  sectionState?: Record<string, SDLearnProgressRow['sectionState'][string]>;
+  deepestScrollPct?: number;
+  lastSectionId?: string;
+  checkpointStats?: SDLearnProgressRow['checkpointStats'];
+  completed?: boolean;
+  tinkerCanvasState?: unknown;
+}
+
+const key = (kind: LearnKind, slug: string) => ['sd', 'learn-progress', kind, slug];
+
+export function useSDLearnProgress(kind: LearnKind, slug: string) {
+  const qc = useQueryClient();
+  const pendingRef = useRef<LearnPatch>({});
+
+  const query = useQuery({
+    queryKey: key(kind, slug),
+    queryFn: async () => {
+      const r = await fetch(`/api/sd/learn-progress/${kind}/${slug}`);
+      if (!r.ok) throw new Error('failed to load progress');
+      const body = await r.json();
+      return body.data as SDLearnProgressRow | null;
+    },
+    staleTime: 30_000,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (patch: LearnPatch) => {
+      const r = await fetch(`/api/sd/learn-progress/${kind}/${slug}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!r.ok) throw new Error('patch failed');
+      return (await r.json()).data as SDLearnProgressRow;
+    },
+    onSuccess: (row) => qc.setQueryData(key(kind, slug), row),
+  });
+
+  const flush = useCallback(() => {
+    if (Object.keys(pendingRef.current).length === 0) return;
+    mutation.mutate(pendingRef.current);
+    pendingRef.current = {};
+  }, [mutation]);
+  const debouncedFlush = useDebouncedCallback(flush, 1000);
+
+  const patch = useCallback((p: LearnPatch) => {
+    pendingRef.current = {
+      ...pendingRef.current,
+      ...p,
+      sectionState: { ...(pendingRef.current.sectionState ?? {}), ...(p.sectionState ?? {}) },
+    };
+    // Optimistic local update
+    const current = qc.getQueryData<SDLearnProgressRow | null>(key(kind, slug)) ?? null;
+    qc.setQueryData(key(kind, slug), {
+      ...(current ?? { id: '', userId: '', kind, slug, sectionState: {}, deepestScrollPct: 0, lastSectionId: null, checkpointStats: { attempts: 0, correct: 0, revealed: 0 }, completedAt: null, tinkerCanvasState: null }),
+      sectionState: { ...(current?.sectionState ?? {}), ...(p.sectionState ?? {}) },
+      deepestScrollPct: Math.max(current?.deepestScrollPct ?? 0, p.deepestScrollPct ?? 0),
+      lastSectionId: p.lastSectionId ?? current?.lastSectionId ?? null,
+      checkpointStats: p.checkpointStats ?? current?.checkpointStats ?? { attempts: 0, correct: 0, revealed: 0 },
+      completedAt: p.completed && !current?.completedAt ? new Date().toISOString() : current?.completedAt ?? null,
+    });
+    debouncedFlush();
+  }, [kind, slug, qc, debouncedFlush]);
+
+  // Flush on unmount + on tab hide (beforeunload) to survive page unload
+  useEffect(() => {
+    const onHide = () => flush();
+    window.addEventListener('pagehide', onHide);
+    return () => { window.removeEventListener('pagehide', onHide); flush(); };
+  }, [flush]);
+
+  return { progress: query.data ?? null, isLoading: query.isLoading, patch, flush };
+}
+```
+
+- [ ] **Step 2: Test**
+
+Create `architex/src/hooks/__tests__/useSDLearnProgress.test.tsx`. Fake-timer tests:
+- `patch({ sectionState: { hook: { visited: true } } })` does not immediately call fetch
+- advancing 1000ms calls fetch with merged body
+- subsequent `patch({ sectionState: { analogy: { visited: true } } })` within 1000ms debounces and merges
+- unmounting flushes pending writes
+
+- [ ] **Step 3: Run + commit**
+
+```bash
+pnpm typecheck && pnpm test:run -- useSDLearnProgress
+git add architex/src/hooks/useSDLearnProgress.ts \
+        architex/src/hooks/__tests__/useSDLearnProgress.test.tsx
+git commit -m "feat(hooks): useSDLearnProgress with 1s debounced writes + pagehide flush (Task 9/35)"
+```
+
+---
+
+## Task 10: Create bookmarks API routes
+
+**Files:**
+- Create: `architex/src/app/api/sd/bookmarks/route.ts` (GET all, POST create)
+- Create: `architex/src/app/api/sd/bookmarks/[id]/route.ts` (DELETE)
+
+- [ ] **Step 1: Collection route**
+
+```typescript
+// src/app/api/sd/bookmarks/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { db } from '@/db/client';
+import { sdBookmarks } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
+import { z } from 'zod';
+
+const PostSchema = z.object({
+  kind: z.enum(['concept', 'problem']),
+  slug: z.string().min(1).max(100),
+  anchor: z.string().min(1).max(128),
+  label: z.string().min(1).max(200),
+  note: z.string().max(2000).optional(),
+});
+
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const kind = req.nextUrl.searchParams.get('kind') as 'concept' | 'problem' | null;
+  const slug = req.nextUrl.searchParams.get('slug');
+  const filter = [eq(sdBookmarks.userId, session.user.id)];
+  if (kind) filter.push(eq(sdBookmarks.kind, kind));
+  if (slug) filter.push(eq(sdBookmarks.slug, slug));
+  const rows = await db.select().from(sdBookmarks).where(and(...filter));
+  return NextResponse.json({ data: rows });
+}
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const parsed = PostSchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+  const [existing] = await db.select({ id: sdBookmarks.id }).from(sdBookmarks).where(
+    and(eq(sdBookmarks.userId, session.user.id),
+        eq(sdBookmarks.kind, parsed.data.kind),
+        eq(sdBookmarks.slug, parsed.data.slug),
+        eq(sdBookmarks.anchor, parsed.data.anchor)),
+  ).limit(1);
+  if (existing) return NextResponse.json({ data: existing, alreadyExists: true });
+  const [row] = await db.insert(sdBookmarks).values({ userId: session.user.id, ...parsed.data }).returning();
+  return NextResponse.json({ data: row }, { status: 201 });
+}
+```
+
+- [ ] **Step 2: DELETE route**
+
+```typescript
+// src/app/api/sd/bookmarks/[id]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { db } from '@/db/client';
+import { sdBookmarks } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const deleted = await db.delete(sdBookmarks).where(
+    and(eq(sdBookmarks.id, id), eq(sdBookmarks.userId, session.user.id)),
+  ).returning({ id: sdBookmarks.id });
+  if (deleted.length === 0) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  return NextResponse.json({ data: { id } });
+}
+```
+
+- [ ] **Step 3: Tests + commit**
+
+Test all four paths (GET / POST / dedup-on-repeat-POST / DELETE with wrong user → 404).
+
+```bash
+git commit -m "feat(api): sd bookmarks GET/POST/DELETE with idempotent create (Task 10/35)"
+```
+
+---
+
+## Task 11: Create `useSDBookmarks` hook
+
+**Files:**
+- Create: `architex/src/hooks/useSDBookmarks.ts`
+- Create: `architex/src/hooks/__tests__/useSDBookmarks.test.tsx`
+
+- [ ] **Step 1: Hook shape**
+
+```typescript
+// src/hooks/useSDBookmarks.ts
+'use client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+export interface SDBookmark {
+  id: string;
+  userId: string;
+  kind: 'concept' | 'problem';
+  slug: string;
+  anchor: string;
+  label: string;
+  note: string | null;
+  createdAt: string;
+}
+
+const key = (kind: string, slug: string) => ['sd', 'bookmarks', kind, slug];
+
+export function useSDBookmarks(kind: 'concept' | 'problem', slug: string) {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: key(kind, slug),
+    queryFn: async () => {
+      const r = await fetch(`/api/sd/bookmarks?kind=${kind}&slug=${slug}`);
+      return (await r.json()).data as SDBookmark[];
+    },
+  });
+  const create = useMutation({
+    mutationFn: async (v: { anchor: string; label: string; note?: string }) => {
+      const r = await fetch('/api/sd/bookmarks', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ kind, slug, ...v }),
+      });
+      return (await r.json()).data as SDBookmark;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key(kind, slug) }),
+  });
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/sd/bookmarks/${id}`, { method: 'DELETE' });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key(kind, slug) }),
+  });
+  const toggle = async (anchor: string, label: string, note?: string) => {
+    const existing = q.data?.find((b) => b.anchor === anchor);
+    if (existing) return remove.mutateAsync(existing.id);
+    return create.mutateAsync({ anchor, label, note });
+  };
+  return { bookmarks: q.data ?? [], isLoading: q.isLoading, create: create.mutate, remove: remove.mutate, toggle };
+}
+```
+
+- [ ] **Step 2: Test + commit**
+
+Cover: list → add → toggle (remove) → add-again (create). Expected: invalidate-refetch cycle keeps UI consistent.
+
+```bash
+git commit -m "feat(hooks): useSDBookmarks with optimistic toggle (Task 11/35)"
+```
+
+---
+
+## Task 12: Create `POST /api/sd/concept-reads` route
+
+**Files:**
+- Create: `architex/src/app/api/sd/concept-reads/route.ts`
+- Create: `architex/src/app/api/sd/__tests__/sd-concept-reads.test.ts`
+
+- [ ] **Step 1: Rate-limited POST**
+
+```typescript
+// src/app/api/sd/concept-reads/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { db } from '@/db/client';
+import { sdConceptReads } from '@/db/schema';
+import { and, eq, gt, desc } from 'drizzle-orm';
+import { z } from 'zod';
+
+const Schema = z.object({
+  conceptSlug: z.string().min(1).max(100),
+  source: z.enum(['scroll', 'click-popover', 'bridge-card', 'tour', 'quiz-result']),
+  contextSlug: z.string().max(100).optional(),
+  durationMs: z.object({
+    onPage: z.number().int().min(0),
+    active: z.number().int().min(0),
+    idle: z.number().int().min(0),
+  }).optional(),
+});
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const parsed = Schema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+
+  // 30-second rate limit per (user, concept)
+  const cutoff = new Date(Date.now() - 30_000);
+  const [recent] = await db.select({ id: sdConceptReads.id }).from(sdConceptReads).where(
+    and(eq(sdConceptReads.userId, session.user.id),
+        eq(sdConceptReads.conceptSlug, parsed.data.conceptSlug),
+        gt(sdConceptReads.readAt, cutoff)),
+  ).orderBy(desc(sdConceptReads.readAt)).limit(1);
+  if (recent) return NextResponse.json({ deduped: true });
+
+  const [row] = await db.insert(sdConceptReads).values({
+    userId: session.user.id,
+    conceptSlug: parsed.data.conceptSlug,
+    source: parsed.data.source,
+    contextSlug: parsed.data.contextSlug,
+    durationMs: parsed.data.durationMs,
+  }).returning();
+  return NextResponse.json({ data: row }, { status: 201 });
+}
+```
+
+- [ ] **Step 2: Test + commit**
+
+Tests: POST within 30s returns `{ deduped: true }` without inserting a second row; 31s later inserts; schema rejects unknown source; auth required.
+
+```bash
+git commit -m "feat(api): sd concept-reads with 30s rate limit per (user,concept) (Task 12/35)"
+```
+
+---
+
+## Task 13: Create scroll-sync and pane-sync hooks
+
+**Files:**
+- Create: `architex/src/hooks/useConceptScrollSync.ts`
+- Create: `architex/src/hooks/useProblemPaneSync.ts`
+- Create: `architex/src/hooks/__tests__/useConceptScrollSync.test.tsx`
+
+`useConceptScrollSync` is the heart of the Learn-mode Q7 feature: as the reader scrolls through an 8-section concept page, the `highlightedNodeIds` set changes to match the section currently in view, causing the canvas to pulse the relevant architecture nodes (spec §6.3, §18 renders). `useProblemPaneSync` is the problem-page analog: users click tabs / URL-hash anchors to switch active panes; when the pane is `canonicalDesign`, the hook additionally tracks the active solution (A/B/C) and swaps the canvas diagram.
+
+- [ ] **Step 1: Concept scroll-sync with IntersectionObserver**
+
+```typescript
+// src/hooks/useConceptScrollSync.ts
+'use client';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ConceptSectionId, ConceptFrontmatter } from '@/lib/sd/content-types';
+
+interface Opts {
+  anchorNodeIds: ConceptFrontmatter['anchorNodeIds'];
+  /** 0..1 · fraction of section visibility before it counts as "in view" */
+  threshold?: number;
+  /** Optional callback on every section change — used by useSDLearnProgress.patch() to mark visited */
+  onSectionEnter?: (id: ConceptSectionId) => void;
+}
+
+export function useConceptScrollSync(opts: Opts) {
+  const { anchorNodeIds, threshold = 0.35, onSectionEnter } = opts;
+  const sectionRefs = useRef<Map<ConceptSectionId, HTMLElement>>(new Map());
+  const [activeSection, setActiveSection] = useState<ConceptSectionId | null>(null);
+
+  const register = (id: ConceptSectionId) => (el: HTMLElement | null) => {
+    if (el) sectionRefs.current.set(id, el);
+    else sectionRefs.current.delete(id);
+  };
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      // Pick the entry with the highest intersectionRatio that is >= threshold
+      const winning = entries
+        .filter((e) => e.intersectionRatio >= threshold)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!winning) return;
+      const id = winning.target.getAttribute('data-section-id') as ConceptSectionId | null;
+      if (id && id !== activeSection) {
+        setActiveSection(id);
+        onSectionEnter?.(id);
+      }
+    }, { threshold: [threshold, 0.6, 0.9] });
+
+    for (const el of sectionRefs.current.values()) observer.observe(el);
+    return () => observer.disconnect();
+  }, [activeSection, threshold, onSectionEnter]);
+
+  const highlightedNodeIds = useMemo(() => {
+    if (!activeSection) return [];
+    return anchorNodeIds[activeSection] ?? [];
+  }, [activeSection, anchorNodeIds]);
+
+  /** Jump to section · used by TOC + popover jump-back */
+  const scrollToSection = (id: ConceptSectionId) => {
+    const el = sectionRefs.current.get(id);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  return { register, activeSection, highlightedNodeIds, scrollToSection };
+}
+```
+
+- [ ] **Step 2: Problem pane-sync with URL hash + tab-click**
+
+```typescript
+// src/hooks/useProblemPaneSync.ts
+'use client';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import type { ProblemPaneId, ProblemFrontmatter } from '@/lib/sd/content-types';
+
+interface Opts {
+  frontmatter: ProblemFrontmatter;
+  onPaneChange?: (id: ProblemPaneId) => void;
+}
+
+export function useProblemPaneSync({ frontmatter, onPaneChange }: Opts) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const hashPane = typeof window !== 'undefined'
+    ? (window.location.hash.replace('#', '') as ProblemPaneId | '')
+    : '';
+  const initialPane: ProblemPaneId = (hashPane as ProblemPaneId) || 'canonicalDesign';
+  const [activePane, setActivePane] = useState<ProblemPaneId>(initialPane);
+  const [activeSolutionIndex, setActiveSolutionIndex] = useState(
+    parseInt(searchParams.get('sol') ?? '0', 10) || 0,
+  );
+
+  useEffect(() => {
+    const onHash = () => {
+      const p = window.location.hash.replace('#', '') as ProblemPaneId;
+      if (p && p !== activePane) {
+        setActivePane(p);
+        onPaneChange?.(p);
+      }
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [activePane, onPaneChange]);
+
+  const setPane = (p: ProblemPaneId) => {
+    window.history.replaceState(null, '', `#${p}`);
+    setActivePane(p);
+    onPaneChange?.(p);
+  };
+
+  const setSolution = (i: number) => {
+    if (i < 0 || i >= frontmatter.canonicalSolutions.length) return;
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set('sol', String(i));
+    router.replace(`${pathname}?${sp.toString()}#${activePane}`);
+    setActiveSolutionIndex(i);
+  };
+
+  const activeCanvas = activePane === 'canonicalDesign'
+    ? frontmatter.canonicalSolutions[activeSolutionIndex]?.diagramJson ?? null
+    : null;
+
+  return { activePane, setPane, activeSolutionIndex, setSolution, activeCanvas };
+}
+```
+
+- [ ] **Step 3: Tests**
+
+Create `architex/src/hooks/__tests__/useConceptScrollSync.test.tsx`. Use a mock IntersectionObserver. Cover:
+- Registering 3 refs → triggering intersection entries → activeSection updates to highest-ratio id
+- `onSectionEnter` fires once per section change, not on every ratio change
+- `scrollToSection` invokes `Element.scrollIntoView`
+- `highlightedNodeIds` returns [] when no section matches
+
+Parallel test for `useProblemPaneSync` covers: hashchange → setState, setPane writes hash, setSolution writes `?sol=` query.
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+pnpm typecheck && pnpm test:run -- useConceptScrollSync useProblemPaneSync
+git commit -m "$(cat <<'EOF'
+feat(hooks): concept scroll-sync + problem pane-sync (Task 13/35)
+
+useConceptScrollSync: IntersectionObserver-driven section detection
+with threshold-sorted winner, returns highlightedNodeIds derived from
+frontmatter.anchorNodeIds, exposes scrollToSection for TOC/popover
+jumps, fires onSectionEnter for progress-patching.
+
+useProblemPaneSync: URL-hash-driven pane switching, ?sol= query for
+canonical-solution tab state (A/B/C), exposes activeCanvas so the
+shared SDCanvas can swap diagrams when users toggle solutions.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
 
 
