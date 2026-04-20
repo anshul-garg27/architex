@@ -1974,3 +1974,420 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
+
+- [ ] **Step 9: Add 8 External events**
+
+```typescript
+  // ===== External (8) =====
+  {
+    id: "third-party-api-down",
+    displayName: "Third-party API down",
+    family: "external",
+    severity: "critical",
+    narrativeTemplate:
+      "The {vendor_name} API returns 500 errors across every endpoint. Your design assumes {vendor_name} is available; requests that depend on it fail end-to-end.",
+    interpolationTokens: ["vendor_name"],
+    simModel: { engineHook: "chaos-engine.fireExternalOutage", params: { mode: "hard-down" } },
+    canvasFamilies: ["external-dependency"],
+    protectingConcept: "graceful-degradation",
+    defaultDurationMs: 900_000,
+  },
+  {
+    id: "third-party-api-slow",
+    displayName: "Third-party API slow",
+    family: "external",
+    severity: "high",
+    narrativeTemplate:
+      "The {vendor_name} API responds — but slowly. P99 latency from {vendor_name} rises from 200ms to 12 seconds. Your synchronous callers queue on its tail.",
+    interpolationTokens: ["vendor_name"],
+    simModel: { engineHook: "chaos-engine.fireExternalOutage", params: { mode: "slow" } },
+    canvasFamilies: ["external-dependency"],
+    protectingConcept: "timeouts-and-retries",
+    defaultDurationMs: 600_000,
+  },
+  {
+    id: "third-party-rate-limit",
+    displayName: "Third-party rate limit hit",
+    family: "external",
+    severity: "medium",
+    narrativeTemplate:
+      "{vendor_name} returns 429 Too Many Requests. Your integration had no backoff. The ratelimit window extends under sustained rejection.",
+    interpolationTokens: ["vendor_name"],
+    simModel: { engineHook: "chaos-engine.fireExternalOutage", params: { mode: "rate-limit" } },
+    canvasFamilies: ["external-dependency"],
+    protectingConcept: "retries-with-jitter",
+    defaultDurationMs: 300_000,
+  },
+  {
+    id: "saas-vendor-outage",
+    displayName: "SaaS vendor outage chain",
+    family: "external",
+    severity: "critical",
+    narrativeTemplate:
+      "A SaaS dependency you use — {vendor_name} — depends on a SaaS dependency of its own that is down. Your status page lights up. So does your vendor's. The root cause is two hops away.",
+    interpolationTokens: ["vendor_name"],
+    simModel: { engineHook: "chaos-engine.fireExternalOutage", params: { mode: "chained" } },
+    canvasFamilies: ["external-dependency"],
+    realIncidentSlug: "fastly-2021",
+    defaultDurationMs: 1200_000,
+  },
+  {
+    id: "dns-provider-outage",
+    displayName: "DNS provider outage",
+    family: "external",
+    severity: "critical",
+    narrativeTemplate:
+      "Your authoritative DNS provider goes down. {service_domain} is unresolvable globally. Users see DNS_PROBE_FINISHED_NXDOMAIN. Only your CDN's cached TTLs temporarily spare you.",
+    interpolationTokens: ["service_domain"],
+    simModel: { engineHook: "chaos-engine.fireExternalOutage", params: { mode: "dns-provider" } },
+    canvasFamilies: ["dns"],
+    protectingConcept: "dns-redundancy",
+    defaultDurationMs: 1800_000,
+  },
+  {
+    id: "tls-provider-outage",
+    displayName: "TLS provider outage",
+    family: "external",
+    severity: "high",
+    narrativeTemplate:
+      "The OCSP responder for your TLS provider goes down. Browsers that enforce OCSP stapling cannot validate {service_domain}; connections hang.",
+    interpolationTokens: ["service_domain"],
+    simModel: { engineHook: "chaos-engine.fireExternalOutage", params: { mode: "tls-ocsp" } },
+    canvasFamilies: ["api-gateway", "load-balancer"],
+    defaultDurationMs: 600_000,
+  },
+  {
+    id: "cdn-outage",
+    displayName: "CDN outage",
+    family: "external",
+    severity: "critical",
+    narrativeTemplate:
+      "{cdn_name} experiences a global edge failure. Static assets 404. The origin, which was never sized for 100% traffic, groans under the surge.",
+    interpolationTokens: ["cdn_name"],
+    simModel: { engineHook: "chaos-engine.fireExternalOutage", params: { mode: "cdn-down" } },
+    canvasFamilies: ["cdn", "object-store"],
+    realIncidentSlug: "fastly-2021",
+    protectingConcept: "cdn-fundamentals",
+    defaultDurationMs: 3600_000,
+  },
+  {
+    id: "cloud-api-throttle",
+    displayName: "Cloud-provider API throttle",
+    family: "external",
+    severity: "medium",
+    narrativeTemplate:
+      "The cloud provider rate-limits your control-plane API calls. Autoscale events are delayed; IAM key rotations time out; nothing user-facing fails — yet.",
+    interpolationTokens: [],
+    simModel: { engineHook: "chaos-engine.fireExternalOutage", params: { mode: "cloud-throttle" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    defaultDurationMs: 600_000,
+  },
+```
+
+- [ ] **Step 10: Add 10 Human events**
+
+```typescript
+  // ===== Human (10) =====
+  {
+    id: "bad-deploy",
+    displayName: "Bad deploy",
+    family: "human",
+    severity: "critical",
+    narrativeTemplate:
+      "A new version of {service_name} ships with a regression. Canary traffic is forwarded to v2; v2 panics on every request. The canary is healthy from the orchestrator's perspective because its health check is a TCP ping.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireHumanError", params: { mode: "bad-deploy" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    realIncidentSlug: "knight-capital-2012",
+    protectingConcept: "deployment-patterns",
+    defaultDurationMs: 900_000,
+  },
+  {
+    id: "config-push-error",
+    displayName: "Config push error",
+    family: "human",
+    severity: "critical",
+    narrativeTemplate:
+      "A malformed config is pushed globally to {service_name}. Every instance fails to boot. The config-push system has no canary; the blast radius is total.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireHumanError", params: { mode: "config-push" } },
+    canvasFamilies: ["stateless-service", "cdn", "api-gateway"],
+    realIncidentSlug: "fastly-2021",
+    protectingConcept: "deployment-patterns",
+    defaultDurationMs: 1800_000,
+  },
+  {
+    id: "credential-rotation-fail",
+    displayName: "Credential rotation failure",
+    family: "human",
+    severity: "high",
+    narrativeTemplate:
+      "A scheduled credential rotation for {service_name} fails mid-apply. Half the fleet has the new key; half have the old. Auth begins to fail at random.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireHumanError", params: { mode: "cred-rotation" } },
+    canvasFamilies: ["auth-service", "stateful-service"],
+    defaultDurationMs: 1200_000,
+  },
+  {
+    id: "runbook-misuse",
+    displayName: "Runbook misuse",
+    family: "human",
+    severity: "high",
+    narrativeTemplate:
+      "Under incident pressure, an operator runs the wrong runbook command against {service_name}. Instead of restarting a single pod, the whole namespace recycles. The outage widens.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireHumanError", params: { mode: "runbook" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    protectingConcept: "incident-response",
+    defaultDurationMs: 600_000,
+  },
+  {
+    id: "accidental-deletion",
+    displayName: "Accidental deletion",
+    family: "human",
+    severity: "critical",
+    narrativeTemplate:
+      "An operator accidentally deletes a critical resource belonging to {service_name}. Recovery requires a restore from backup, if a backup is current.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireHumanError", params: { mode: "deletion" } },
+    canvasFamilies: ["database", "object-store"],
+    defaultDurationMs: 3600_000,
+  },
+  {
+    id: "runaway-script",
+    displayName: "Runaway script",
+    family: "human",
+    severity: "high",
+    narrativeTemplate:
+      "A background script targeting {service_name} enters an infinite loop. CPU pegs at 100% on every instance. The script was supposed to run once and exit.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireHumanError", params: { mode: "runaway" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    defaultDurationMs: 180_000,
+  },
+  {
+    id: "test-traffic-in-prod",
+    displayName: "Test traffic in prod",
+    family: "human",
+    severity: "medium",
+    narrativeTemplate:
+      "A load-test script is accidentally pointed at the production {service_name}. Synthetic traffic masquerades as real traffic. The cost meter ticks. The capacity buffer drains.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "test-traffic" } },
+    canvasFamilies: ["stateless-service", "load-balancer"],
+    defaultDurationMs: 300_000,
+  },
+  {
+    id: "forgot-to-restart",
+    displayName: "Forgot to restart after config",
+    family: "human",
+    severity: "low",
+    narrativeTemplate:
+      "A config change for {service_name} is rolled out but the pods are never restarted. Half the fleet runs the new config, half the old. Bugs appear at random.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireHumanError", params: { mode: "stale-config" } },
+    canvasFamilies: ["stateless-service"],
+    defaultDurationMs: 1800_000,
+  },
+  {
+    id: "bad-cdn-purge",
+    displayName: "Bad CDN purge",
+    family: "human",
+    severity: "medium",
+    narrativeTemplate:
+      "A CDN cache purge for {cdn_name} is issued for the entire domain by accident. Every edge cache refills from the origin simultaneously. The origin was never sized for a 100% cold CDN.",
+    interpolationTokens: ["cdn_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "cdn-purge" } },
+    canvasFamilies: ["cdn", "object-store"],
+    protectingConcept: "caching-strategies",
+    defaultDurationMs: 600_000,
+  },
+  {
+    id: "insider-mistake",
+    displayName: "Insider mistake",
+    family: "human",
+    severity: "critical",
+    narrativeTemplate:
+      "A privileged user accidentally executes a destructive query against {service_name}. The blast radius is large; the audit log is the only evidence of what happened.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireHumanError", params: { mode: "insider" } },
+    canvasFamilies: ["database", "auth-service"],
+    defaultDurationMs: 1800_000,
+  },
+```
+
+- [ ] **Step 11: Add 11 Load events**
+
+```typescript
+  // ===== Load (11) =====
+  {
+    id: "traffic-spike-organic",
+    displayName: "Traffic spike (organic)",
+    family: "load",
+    severity: "medium",
+    narrativeTemplate:
+      "An organic traffic spike hits {service_name}. QPS rises to 3x steady-state over fifteen minutes. Autoscale begins adding capacity — after the spike has already peaked.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "organic" } },
+    canvasFamilies: ["stateless-service", "load-balancer"],
+    protectingConcept: "capacity-planning",
+    defaultDurationMs: 900_000,
+  },
+  {
+    id: "traffic-spike-viral",
+    displayName: "Traffic spike (viral)",
+    family: "load",
+    severity: "high",
+    narrativeTemplate:
+      "A piece of content on {service_name} goes viral. QPS jumps by 10x in two minutes. The autoscaler cannot provision fast enough; the load balancer sheds.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "viral" } },
+    canvasFamilies: ["stateless-service", "cdn", "load-balancer"],
+    protectingConcept: "caching-strategies",
+    defaultDurationMs: 600_000,
+  },
+  {
+    id: "slow-client-attack",
+    displayName: "Slow-client attack",
+    family: "load",
+    severity: "medium",
+    narrativeTemplate:
+      "A wave of slow clients connects to {service_name} and holds sockets open without sending complete requests. The socket pool fills; legitimate clients cannot connect.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "slowloris" } },
+    canvasFamilies: ["load-balancer", "api-gateway"],
+    protectingConcept: "rate-limiting",
+    defaultDurationMs: 300_000,
+  },
+  {
+    id: "ddos-amplification",
+    displayName: "DDoS amplification",
+    family: "load",
+    severity: "critical",
+    narrativeTemplate:
+      "An amplification DDoS floods the ingress to {service_name}. Legitimate traffic is drowned; the edge firewall struggles to distinguish good from bad.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "ddos" } },
+    canvasFamilies: ["load-balancer", "cdn"],
+    defaultDurationMs: 1800_000,
+  },
+  {
+    id: "scraper-flood",
+    displayName: "Scraper flood",
+    family: "load",
+    severity: "medium",
+    narrativeTemplate:
+      "An aggressive scraper hits {service_name} at 10x the API's intended rate. The API does not rate-limit by IP; the backend suffers.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "scraper" } },
+    canvasFamilies: ["api-gateway", "stateless-service"],
+    protectingConcept: "rate-limiting",
+    defaultDurationMs: 1200_000,
+  },
+  {
+    id: "celebrity-event",
+    displayName: "Celebrity event",
+    family: "load",
+    severity: "high",
+    narrativeTemplate:
+      "A celebrity account on {service_name} posts to fifty million followers. The fan-out queue backlogs. Timeline updates arrive in the next timezone's morning.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "celebrity" } },
+    canvasFamilies: ["message-broker", "queue"],
+    protectingConcept: "backpressure",
+    defaultDurationMs: 3600_000,
+  },
+  {
+    id: "product-launch",
+    displayName: "Product launch",
+    family: "load",
+    severity: "high",
+    narrativeTemplate:
+      "A product launch sends anticipated traffic at {service_name}. QPS follows the embargoed announcement time within seconds. The load shape is well-known; the pre-warm was insufficient.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "launch" } },
+    canvasFamilies: ["stateless-service", "cdn"],
+    defaultDurationMs: 3600_000,
+  },
+  {
+    id: "time-based-spike",
+    displayName: "Time-based spike (NYE)",
+    family: "load",
+    severity: "medium",
+    narrativeTemplate:
+      "At midnight in a major timezone, {service_name}'s messaging QPS spikes tenfold. The pattern repeats every year; capacity was not refreshed for this year's user growth.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "time-based" } },
+    canvasFamilies: ["stateless-service", "message-broker"],
+    defaultDurationMs: 1800_000,
+  },
+  {
+    id: "holiday-pattern-change",
+    displayName: "Holiday pattern change",
+    family: "load",
+    severity: "medium",
+    narrativeTemplate:
+      "Holiday traffic patterns hit {service_name}: longer sessions, larger cart sizes, more retries. The steady-state model was not calibrated for this mix.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "holiday" } },
+    canvasFamilies: ["stateless-service", "database"],
+    realIncidentSlug: "roblox-2021",
+    defaultDurationMs: 14400_000,
+  },
+  {
+    id: "demographic-shift",
+    displayName: "Demographic shift",
+    family: "load",
+    severity: "low",
+    narrativeTemplate:
+      "A new demographic adopts {service_name} and uses features in unusual proportions. The access pattern shifts; cache hit rates drop; P99 creeps up.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "demographic" } },
+    canvasFamilies: ["cache", "stateless-service"],
+    defaultDurationMs: 86400_000,
+  },
+  {
+    id: "sudden-geographic-shift",
+    displayName: "Sudden geographic shift",
+    family: "load",
+    severity: "medium",
+    narrativeTemplate:
+      "Traffic to {service_name} shifts abruptly toward a region where capacity is light. Cross-region latency climbs; users in the new region see degraded service.",
+    interpolationTokens: ["service_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "geo-shift" } },
+    canvasFamilies: ["cdn", "load-balancer"],
+    defaultDurationMs: 3600_000,
+  },
+];  // close CHAOS_TAXONOMY
+```
+
+- [ ] **Step 12: Run all taxonomy tests (green state)**
+
+```bash
+cd architex
+pnpm test:run -- chaos-taxonomy
+```
+Expected: all 9 tests pass. If the "family counts" test fails, count the entries in each family — one per family must match spec (14/11/10/9/8/10/11).
+
+- [ ] **Step 13: Final commit for Task 5**
+
+```bash
+git add architex/src/lib/chaos/chaos-taxonomy.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): complete 73-event taxonomy — external + human + load (29 events)
+
+External (8): third-party hard-down, slow, rate-limit; SaaS vendor
+chain (Fastly tie); DNS/TLS provider outages; CDN outage; cloud API
+throttle. Human (10): bad deploy (Knight Capital tie), config push
+(Fastly tie), credential rotation, runbook misuse, accidental deletion,
+runaway script, test traffic in prod, stale config, CDN purge, insider
+mistake. Load (11): organic/viral spikes, slow-client attack, DDoS,
+scraper flood, celebrity event, product launch, NYE, holiday (Roblox
+tie), demographic + geographic shifts. Taxonomy total: 73 events.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
