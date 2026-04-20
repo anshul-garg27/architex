@@ -1181,6 +1181,94 @@ When a user is in Crunch Mode (§4.6), Drill mode gets a special pinned header: 
 
 ---
 
+## 10. Mode Deep-Dive · Review
+
+> "A concept you learned once is a concept you will forget. A concept you re-learn at the right intervals is a concept you own."
+
+### 10.1 Purpose
+
+Review mode is the FSRS-5 daily retention habit. Short sessions (2-4 minutes). Mixes cards across modules — SD, LLD, Algorithms, OS&DB — in one unified queue (Q36). The goal is muscle-memory-level fluency on the 150+ fundamental concepts that carry the user through every interview and on-call.
+
+### 10.2 Layout (mobile-first)
+
+The same minimal single-card layout LLD uses. Big question, 3-4 options or a free-text prompt, rating row (Again / Hard / Good / Easy). Works identically on desktop and mobile.
+
+```
+┌──────────────────────────────────────┐
+│  Review · 12 cards due · streak 14d   │
+├──────────────────────────────────────┤
+│                                      │
+│   When would you prefer eventual     │
+│   consistency over strong?            │
+│                                      │
+│   ○ When reads must reflect last     │
+│     write immediately                │
+│   ○ When latency matters more than   │
+│     recency (caching, CDN)           │
+│   ○ For financial transactions        │
+│   ○ When the system is single-region │
+│                                      │
+│                       [ Reveal ▸ ]  │
+│                                      │
+├──────────────────────────────────────┤
+│   [ Again ] [ Hard ] [ Good ] [ Easy ]│
+└──────────────────────────────────────┘
+```
+
+### 10.3 Card types
+
+Four card types for SD:
+
+1. **MCQ** (4 choices) · most common · fast · binary scoring
+2. **Name-the-primitive** · short-answer (2-5 words) · autograde by fuzzy match
+3. **Diagram-spot** · the card shows a small diagram and asks "what's wrong?" or "identify the pattern". User picks from 3-4 options.
+4. **Cloze** · one sentence with a missing word. "The ___ protocol guarantees at-least-once delivery." Answer: "Kafka" or "queue".
+
+Cards are authored by Opus alongside each concept and problem page. Target: 3-5 cards per concept, 5-8 cards per problem. Total at launch: 200-300 SD cards.
+
+### 10.4 Session flow
+
+- FSRS-5 selects due cards across **all modules** (SD, LLD, Algorithms, OS&DB). Session defaults to 5 cards or 3 minutes, whichever comes first. User can continue if they want more.
+- Cards appear in shuffled order with a soft bias toward whatever the user has been working on in the last 48 hours (if they finished a SD Consistent Hashing concept yesterday, today's review leads with consistent-hashing cards).
+- User rates retention → FSRS updates → next card slides in with a 240ms left-out, right-in animation.
+
+### 10.5 Keyboard & swipe (Q14, B8)
+
+Desktop keyboard:
+- `1..4` answer options
+- `Space` reveal
+- `A/H/G/E` rate Again/Hard/Good/Easy
+- `↵` next
+
+Mobile swipe (B8 from LLD, reused):
+- Swipe **left** → Again
+- Swipe **down** → Hard
+- Swipe **up** → Good
+- Swipe **right** → Easy
+
+### 10.6 Streak & empty state
+
+- Current streak visible top-right. Don't-break-the-streak nudge after a 3-day streak.
+- Empty state: "All caught up — come back tomorrow." Streak icon warming up.
+- No guilt. A missed day breaks a streak but does not degrade SRS scheduling beyond FSRS-5's natural math. The product does not punish; it just tracks.
+
+### 10.7 Review-specific cognitive science features
+
+- **Confidence-weighted scoring** (CS1, optional toggle) · before revealing the answer, user rates confidence 1-5. Final score = accuracy × confidence. Overconfidence penalized.
+- **Cold recall** (CS6) · 10-min-after toasts. Overlaps with Learn mode's cold recall; Review mode can be the surface where the recall happens.
+- **Interleaved practice** (CS2) · Review already interleaves by default (mixing concepts across modules). This is effectively interleaved practice by construction.
+
+### 10.8 Review completion
+
+A 5-card session earns a small end-of-session card: "5 cards, 2 Again, 3 Good. Tomorrow: 9 cards due." Subtle. No celebration. Daily habit, not a victory.
+
+### 10.9 Review on mobile (Q42)
+
+Review is the primary mobile experience. First-run mobile experience is Review mode; the dashboard is the only other mobile surface with meaningful functionality. The mobile experience is tuned for one-handed use on the train.
+
+---
+
+
 
 
 
