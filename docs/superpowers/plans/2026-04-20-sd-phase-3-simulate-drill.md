@@ -4397,3 +4397,726 @@ EOF
 ```
 
 ---
+
+## Task 11: Author `red-team-ai.ts` — Sonnet adversary planner (gated)
+
+**Files:**
+- Create: `architex/src/lib/chaos/red-team-ai.ts`
+- Create: `architex/src/lib/chaos/__tests__/red-team-ai.test.ts`
+
+Red-team AI (§12.4.6) is the hardest chaos control mode. Sonnet plays an adversary who has "read" the user's canvas, knows its weak points, and fires events designed to compound. Gated: unlocked only after the user has completed 3 Chaos Drill runs in other modes.
+
+The function surface is thin: `planRedTeamAttack(canvas, opts) → ChaosScenarioDef`. Sonnet returns a JSON scenario (3-8 events); the scenario is then executed like a regular scripted scenario (Task 7 format).
+
+Deliverable: `red-team-ai.ts` wraps the Claude client, builds the prompt, parses the JSON response, validates against the taxonomy, and either returns a valid scenario or falls back to the hardest hand-authored advanced scenario from Task 7. See Task 18 for the prompt-authoring side of this feature (`red-team-chaos-planner.ts` in `src/lib/ai/`).
+
+- [ ] **Step 1: Red test · shape + validation**
+
+Create `architex/src/lib/chaos/__tests__/red-team-ai.test.ts`:
+
+```typescript
+import { describe, expect, it, vi } from "vitest";
+import {
+  buildRedTeamPrompt,
+  parseRedTeamResponse,
+  validateRedTeamScenario,
+  isRedTeamUnlocked,
+} from "../red-team-ai";
+import { CHAOS_TAXONOMY } from "../chaos-taxonomy";
+import type { CanvasSnapshot } from "../chaos-dice";
+
+const canvas: CanvasSnapshot = {
+  nodes: [
+    { id: "api", family: "stateless-service" },
+    { id: "cache", family: "cache" },
+    { id: "db", family: "database" },
+  ],
+  edges: [
+    { id: "e1", from: "api", to: "cache" },
+    { id: "e2", from: "cache", to: "db" },
+  ],
+};
+
+describe("red-team-ai", () => {
+  it("isRedTeamUnlocked requires 3+ chaos drills", () => {
+    expect(isRedTeamUnlocked({ completedChaosDrillCount: 0 })).toBe(false);
+    expect(isRedTeamUnlocked({ completedChaosDrillCount: 2 })).toBe(false);
+    expect(isRedTeamUnlocked({ completedChaosDrillCount: 3 })).toBe(true);
+  });
+
+  it("buildRedTeamPrompt includes the canvas shape", () => {
+    const prompt = buildRedTeamPrompt(canvas, { difficulty: "advanced" });
+    expect(prompt).toContain("stateless-service");
+    expect(prompt).toContain("cache");
+    expect(prompt).toContain("database");
+    expect(prompt).toMatch(/taxonomy/i);
+  });
+
+  it("parseRedTeamResponse rejects malformed JSON", () => {
+    expect(() => parseRedTeamResponse("not json")).toThrow();
+  });
+
+  it("parseRedTeamResponse parses a valid scenario", () => {
+    const json = JSON.stringify({
+      slug: "red-team-test",
+      displayName: "Red team test",
+      difficulty: "advanced",
+      summary: "Adversary attack.",
+      steps: [
+        { offsetSimSeconds: 0, eventId: "cache-stampede", params: {} },
+        { offsetSimSeconds: 60, eventId: "hot-partition", params: {} },
+      ],
+      problemTags: [],
+      durationSimSeconds: 300,
+    });
+    const parsed = parseRedTeamResponse(json);
+    expect(parsed.steps).toHaveLength(2);
+  });
+
+  it("validateRedTeamScenario rejects unknown event ids", () => {
+    const invalid = {
+      slug: "x",
+      displayName: "x",
+      difficulty: "advanced" as const,
+      summary: "x",
+      steps: [{ offsetSimSeconds: 0, eventId: "not-a-real-event", params: {} }],
+      problemTags: [],
+      durationSimSeconds: 100,
+    };
+    expect(() => validateRedTeamScenario(invalid)).toThrow(/Unknown event/);
+  });
+
+  it("validateRedTeamScenario accepts all-real events", () => {
+    const valid = {
+      slug: "ok",
+      displayName: "ok",
+      difficulty: "advanced" as const,
+      summary: "ok",
+      steps: [
+        { offsetSimSeconds: 0, eventId: CHAOS_TAXONOMY[0].id, params: {} },
+      ],
+      problemTags: [],
+      durationSimSeconds: 60,
+    };
+    expect(() => validateRedTeamScenario(valid)).not.toThrow();
+  });
+});
+```
+
+- [ ] **Step 2: Green · implement `red-team-ai.ts`**
+
+```typescript
+/**
+ * CHAOS-007: Red-team AI · Sonnet adversary planner (§12.4.6).
+ *
+ * Sonnet receives the canvas shape + a difficulty level and returns a
+ * ChaosScenarioDef. The scenario is validated against the 73-event
+ * taxonomy (Task 5) and executed like a regular scripted scenario.
+ *
+ * Gated: unlocked only after the user has completed 3 Chaos Drill runs
+ * in other control modes.
+ *
+ * This file owns validation + prompt-building; the Claude-client wiring
+ * lives in src/lib/ai/red-team-chaos-planner.ts (Task 18).
+ */
+
+import { CHAOS_TAXONOMY } from "./chaos-taxonomy";
+import type { ChaosScenarioDef, ChaosScenarioDifficulty } from "./chaos-scenarios";
+import type { CanvasSnapshot } from "./chaos-dice";
+
+export function isRedTeamUnlocked(
+  user: { completedChaosDrillCount: number },
+): boolean {
+  return user.completedChaosDrillCount >= 3;
+}
+
+export interface RedTeamOptions {
+  difficulty: ChaosScenarioDifficulty;
+}
+
+export function buildRedTeamPrompt(
+  canvas: CanvasSnapshot,
+  opts: RedTeamOptions,
+): string {
+  const familyCount = new Map<string, number>();
+  for (const n of canvas.nodes) {
+    familyCount.set(n.family, (familyCount.get(n.family) ?? 0) + 1);
+  }
+  const canvasShape = [...familyCount.entries()]
+    .map(([f, c]) => `  - ${c} × ${f}`)
+    .join("\n");
+
+  const taxonomyList = CHAOS_TAXONOMY.map(
+    (e) => `  - ${e.id} (${e.family}, ${e.severity})`,
+  ).join("\n");
+
+  return `You are the Red Team. Your job is to design an adversarial chaos scenario
+against a distributed system. You have read the system's canvas. Your
+scenario should target its weakest joints and compound failures so that
+the user learns where their design is brittle.
+
+CANVAS SHAPE (${canvas.nodes.length} nodes, ${canvas.edges.length} edges):
+${canvasShape}
+
+DIFFICULTY: ${opts.difficulty}
+
+TAXONOMY OF AVAILABLE EVENTS:
+${taxonomyList}
+
+RULES:
+1. Pick 3-8 events from the taxonomy. Each step must use an event id
+   exactly as listed above.
+2. Offset each step's simulation time in seconds. Steps must be
+   monotonically non-decreasing.
+3. Pick events that compound — a cache stampede followed by a retry
+   storm teaches more than two independent events.
+4. Prefer events whose canvasFamilies overlap with the canvas.
+5. Output VALID JSON matching this shape:
+   {
+     "slug": "red-team-<short>",
+     "displayName": "...",
+     "difficulty": "${opts.difficulty}",
+     "summary": "<1-2 sentences>",
+     "steps": [
+       { "offsetSimSeconds": 0, "eventId": "<id>", "params": {} },
+       ...
+     ],
+     "problemTags": [],
+     "durationSimSeconds": <positive int>
+   }
+
+Return only the JSON. No preamble, no explanation.`;
+}
+
+export function parseRedTeamResponse(raw: string): ChaosScenarioDef {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Red-team response is not valid JSON: ${raw.slice(0, 100)}`);
+  }
+  return parsed as ChaosScenarioDef;
+}
+
+export function validateRedTeamScenario(scenario: ChaosScenarioDef): void {
+  const ids = new Set(CHAOS_TAXONOMY.map((e) => e.id));
+  if (!scenario.steps || scenario.steps.length === 0) {
+    throw new Error("Red-team scenario has no steps");
+  }
+  for (const step of scenario.steps) {
+    if (!ids.has(step.eventId)) {
+      throw new Error(`Unknown event id in red-team scenario: ${step.eventId}`);
+    }
+    if (typeof step.offsetSimSeconds !== "number" || step.offsetSimSeconds < 0) {
+      throw new Error(`Bad offset in red-team scenario: ${step.offsetSimSeconds}`);
+    }
+  }
+  for (let i = 1; i < scenario.steps.length; i++) {
+    if (scenario.steps[i].offsetSimSeconds < scenario.steps[i - 1].offsetSimSeconds) {
+      throw new Error("Red-team scenario offsets must be monotonic");
+    }
+  }
+}
+```
+
+- [ ] **Step 3: Run tests (green) + commit**
+
+```bash
+cd architex
+pnpm test:run -- red-team-ai
+git add architex/src/lib/chaos/red-team-ai.ts architex/src/lib/chaos/__tests__/red-team-ai.test.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): red-team AI adversary planner (gated after 3 chaos drills)
+
+Validation + prompt-building for the red-team AI control mode (§12.4.6).
+Sonnet wiring lives in src/lib/ai/red-team-chaos-planner.ts (Task 18).
+isRedTeamUnlocked(user) gates the mode behind 3 completed chaos drills.
+buildRedTeamPrompt serializes the canvas + the full taxonomy into a
+structured prompt. parseRedTeamResponse + validateRedTeamScenario
+enforce valid-JSON + known-event-ids + monotonic offsets.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 12: Author load models · Uniform · Poisson · Diurnal · Burst + factory
+
+**Files:**
+- Create: `architex/src/lib/simulation/adapters/load-models/load-generator.ts`
+- Create: `architex/src/lib/simulation/adapters/load-models/uniform.ts`
+- Create: `architex/src/lib/simulation/adapters/load-models/poisson.ts`
+- Create: `architex/src/lib/simulation/adapters/load-models/diurnal.ts`
+- Create: `architex/src/lib/simulation/adapters/load-models/burst.ts`
+- Create: `architex/src/lib/simulation/adapters/load-models/__tests__/poisson.test.ts`
+- Create: `architex/src/lib/simulation/adapters/load-models/__tests__/diurnal.test.ts`
+- Create: `architex/src/lib/simulation/adapters/load-models/__tests__/burst.test.ts`
+
+Phase 3 ships 4 of 8 load models (§29.3). The remaining 4 (Zipfian · Segment-mix · Per-endpoint · Trace-replay) ship in Phase 4. Each model implements a common `LoadGenerator` interface. The traffic simulator (existing `src/lib/simulation/traffic-simulator.ts`) consumes a `LoadGenerator` to produce arrivals.
+
+- [ ] **Step 1: Shared interface file**
+
+Create `architex/src/lib/simulation/adapters/load-models/load-generator.ts`:
+
+```typescript
+/**
+ * SIM-010: Shared load-generator interface (§29.3).
+ *
+ * Each load model implements LoadGenerator. Models are swappable at
+ * run-start; some activities (Forecast, §8.3.5) may swap mid-run as
+ * simulated time advances through different phases (e.g., "diurnal
+ * then burst").
+ */
+
+export interface SyntheticRequest {
+  requestId: string;
+  endpoint: string;
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+  payloadBytes: number;
+  priority: "background" | "normal" | "high";
+}
+
+export interface LoadGeneratorConfig {
+  name: "uniform" | "poisson" | "diurnal" | "burst";
+  baseQps: number;
+  seed: number;
+  params?: Record<string, number>;
+}
+
+export interface LoadGenerator {
+  readonly name: LoadGeneratorConfig["name"];
+  /** Return the next arrival's time in sim-ms (absolute) + the request. */
+  nextArrival(
+    nowSimMs: number,
+  ): { arrivalMs: number; request: SyntheticRequest } | null;
+  reset(rngSeed: number): void;
+  serialize(): LoadGeneratorConfig;
+}
+
+// Shared Mulberry32 PRNG
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+let idCounter = 0;
+export function nextRequestId(): string {
+  return `req-${++idCounter}`;
+}
+
+export function createLoadGenerator(
+  cfg: LoadGeneratorConfig,
+): LoadGenerator {
+  // Factory — implementations import this file and register themselves via the switch below.
+  switch (cfg.name) {
+    case "uniform":
+      return new (require("./uniform").UniformLoad)(cfg);
+    case "poisson":
+      return new (require("./poisson").PoissonLoad)(cfg);
+    case "diurnal":
+      return new (require("./diurnal").DiurnalLoad)(cfg);
+    case "burst":
+      return new (require("./burst").BurstLoad)(cfg);
+    default:
+      throw new Error(`Unknown load model: ${(cfg as LoadGeneratorConfig).name}`);
+  }
+}
+```
+
+- [ ] **Step 2: Uniform load · `uniform.ts`**
+
+```typescript
+/**
+ * SIM-011: Uniform load model — constant QPS, constant payload.
+ *
+ * Baseline. Used for Validate activity (§8.3.1). Teaches steady state.
+ */
+
+import {
+  mulberry32,
+  nextRequestId,
+  type LoadGenerator,
+  type LoadGeneratorConfig,
+  type SyntheticRequest,
+} from "./load-generator";
+
+export class UniformLoad implements LoadGenerator {
+  readonly name = "uniform" as const;
+  private rng: () => number;
+  private intervalMs: number;
+  private nextMs: number;
+
+  constructor(private cfg: LoadGeneratorConfig) {
+    this.rng = mulberry32(cfg.seed);
+    this.intervalMs = 1000 / cfg.baseQps;
+    this.nextMs = 0;
+  }
+
+  nextArrival(nowSimMs: number) {
+    if (this.nextMs < nowSimMs) this.nextMs = nowSimMs;
+    const arrivalMs = this.nextMs;
+    this.nextMs += this.intervalMs;
+    const request: SyntheticRequest = {
+      requestId: nextRequestId(),
+      endpoint: "/",
+      method: "GET",
+      payloadBytes: 512,
+      priority: "normal",
+    };
+    return { arrivalMs, request };
+  }
+
+  reset(seed: number) {
+    this.rng = mulberry32(seed);
+    this.nextMs = 0;
+  }
+
+  serialize(): LoadGeneratorConfig {
+    return this.cfg;
+  }
+}
+```
+
+- [ ] **Step 3: Poisson load · `poisson.ts`**
+
+```typescript
+/**
+ * SIM-012: Poisson load model — exponential inter-arrival at rate λ.
+ *
+ * The real shape of most web traffic. Teaches burstiness: averaging
+ * QPS loses the shape that actually breaks systems.
+ */
+
+import {
+  mulberry32,
+  nextRequestId,
+  type LoadGenerator,
+  type LoadGeneratorConfig,
+} from "./load-generator";
+
+export class PoissonLoad implements LoadGenerator {
+  readonly name = "poisson" as const;
+  private rng: () => number;
+  private meanIntervalMs: number;
+  private nextMs: number;
+
+  constructor(private cfg: LoadGeneratorConfig) {
+    this.rng = mulberry32(cfg.seed);
+    this.meanIntervalMs = 1000 / cfg.baseQps;
+    this.nextMs = 0;
+  }
+
+  private exp(): number {
+    // -ln(U) * meanInterval
+    const u = 1 - this.rng();  // avoid 0
+    return -Math.log(u) * this.meanIntervalMs;
+  }
+
+  nextArrival(nowSimMs: number) {
+    if (this.nextMs < nowSimMs) this.nextMs = nowSimMs;
+    const arrivalMs = this.nextMs;
+    this.nextMs += this.exp();
+    return {
+      arrivalMs,
+      request: {
+        requestId: nextRequestId(),
+        endpoint: "/",
+        method: "GET" as const,
+        payloadBytes: 512,
+        priority: "normal" as const,
+      },
+    };
+  }
+
+  reset(seed: number) {
+    this.rng = mulberry32(seed);
+    this.nextMs = 0;
+  }
+
+  serialize(): LoadGeneratorConfig {
+    return this.cfg;
+  }
+}
+```
+
+- [ ] **Step 4: Diurnal load · `diurnal.ts`**
+
+```typescript
+/**
+ * SIM-013: Diurnal load model — sinusoidal curve over 24 sim-hours.
+ *
+ * Peak-of-day 4x the trough. Regional timezone shifts supported via
+ * a `peakHour` parameter (default = 14 for US afternoon peak).
+ * Teaches why 2am-local is when things break.
+ */
+
+import {
+  mulberry32,
+  nextRequestId,
+  type LoadGenerator,
+  type LoadGeneratorConfig,
+} from "./load-generator";
+
+export class DiurnalLoad implements LoadGenerator {
+  readonly name = "diurnal" as const;
+  private rng: () => number;
+  private nextMs: number;
+  private readonly peakHour: number;
+  private readonly amplitude: number;
+
+  constructor(private cfg: LoadGeneratorConfig) {
+    this.rng = mulberry32(cfg.seed);
+    this.peakHour = cfg.params?.peakHour ?? 14;
+    this.amplitude = cfg.params?.amplitude ?? 4;
+    this.nextMs = 0;
+  }
+
+  private qpsAt(simMs: number): number {
+    const hours = (simMs / 3600_000) % 24;
+    const offset = hours - this.peakHour;
+    const bell = Math.cos((offset * Math.PI) / 12);
+    // Normalize so cos=1 at peak → amplitude × baseQps; cos=-1 at trough → (2 - amplitude)/2 × baseQps
+    const factor = 1 + ((this.amplitude - 1) / 2) * bell;
+    return this.cfg.baseQps * Math.max(0.1, factor);
+  }
+
+  nextArrival(nowSimMs: number) {
+    if (this.nextMs < nowSimMs) this.nextMs = nowSimMs;
+    const arrivalMs = this.nextMs;
+    const qps = this.qpsAt(arrivalMs);
+    // Exponential inter-arrival with time-varying rate
+    const u = 1 - this.rng();
+    const interval = -Math.log(u) * (1000 / qps);
+    this.nextMs += interval;
+    return {
+      arrivalMs,
+      request: {
+        requestId: nextRequestId(),
+        endpoint: "/",
+        method: "GET" as const,
+        payloadBytes: 512,
+        priority: "normal" as const,
+      },
+    };
+  }
+
+  reset(seed: number) {
+    this.rng = mulberry32(seed);
+    this.nextMs = 0;
+  }
+
+  serialize(): LoadGeneratorConfig {
+    return this.cfg;
+  }
+}
+```
+
+- [ ] **Step 5: Burst load · `burst.ts`**
+
+```typescript
+/**
+ * SIM-014: Burst / flash-crowd model.
+ *
+ * Pareto-distributed burst magnitudes + exponential ramp between bursts.
+ * Hacker News front-page shape. Teaches tail-capacity thinking.
+ */
+
+import {
+  mulberry32,
+  nextRequestId,
+  type LoadGenerator,
+  type LoadGeneratorConfig,
+} from "./load-generator";
+
+export class BurstLoad implements LoadGenerator {
+  readonly name = "burst" as const;
+  private rng: () => number;
+  private nextMs: number;
+  private inBurst: boolean;
+  private burstEndsAtMs: number;
+  private currentIntervalMs: number;
+  private burstArrivalCount: number;
+  private readonly paretoAlpha: number;
+  private readonly burstPeakQps: number;
+
+  constructor(private cfg: LoadGeneratorConfig) {
+    this.rng = mulberry32(cfg.seed);
+    this.paretoAlpha = cfg.params?.paretoAlpha ?? 0.8;
+    this.burstPeakQps = cfg.params?.burstPeakQps ?? cfg.baseQps * 30;
+    this.nextMs = 0;
+    this.inBurst = false;
+    this.burstEndsAtMs = 0;
+    this.currentIntervalMs = 1000 / cfg.baseQps;
+    this.burstArrivalCount = 0;
+  }
+
+  private maybeTriggerBurst(nowMs: number) {
+    if (this.inBurst) return;
+    // Trigger a burst with probability 0.001 per second of idle time
+    const roll = this.rng();
+    if (roll < 0.001) {
+      this.inBurst = true;
+      // Pareto-distributed burst magnitude
+      const u = 1 - this.rng();
+      const magnitude = Math.pow(u, -1 / this.paretoAlpha);
+      const durationMs = Math.min(120_000, 2000 * magnitude);
+      this.burstEndsAtMs = nowMs + durationMs;
+      this.currentIntervalMs = 1000 / this.burstPeakQps;
+    }
+  }
+
+  nextArrival(nowSimMs: number) {
+    if (this.nextMs < nowSimMs) this.nextMs = nowSimMs;
+    this.maybeTriggerBurst(this.nextMs);
+    if (this.inBurst && this.nextMs >= this.burstEndsAtMs) {
+      this.inBurst = false;
+      this.currentIntervalMs = 1000 / this.cfg.baseQps;
+    }
+    const arrivalMs = this.nextMs;
+    this.nextMs += this.currentIntervalMs;
+    this.burstArrivalCount++;
+    return {
+      arrivalMs,
+      request: {
+        requestId: nextRequestId(),
+        endpoint: "/",
+        method: "GET" as const,
+        payloadBytes: 512,
+        priority: "normal" as const,
+      },
+    };
+  }
+
+  reset(seed: number) {
+    this.rng = mulberry32(seed);
+    this.nextMs = 0;
+    this.inBurst = false;
+  }
+
+  serialize(): LoadGeneratorConfig {
+    return this.cfg;
+  }
+}
+```
+
+- [ ] **Step 6: Tests for Poisson · Diurnal · Burst**
+
+Create `architex/src/lib/simulation/adapters/load-models/__tests__/poisson.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import { PoissonLoad } from "../poisson";
+
+describe("PoissonLoad", () => {
+  it("average interval over 1000 arrivals is close to 1000/λ", () => {
+    const lambda = 100;
+    const p = new PoissonLoad({ name: "poisson", baseQps: lambda, seed: 42 });
+    let total = 0;
+    let prev = 0;
+    for (let i = 0; i < 1000; i++) {
+      const { arrivalMs } = p.nextArrival(0)!;
+      if (i > 0) total += arrivalMs - prev;
+      prev = arrivalMs;
+    }
+    const avg = total / 999;
+    expect(Math.abs(avg - 1000 / lambda)).toBeLessThan(2);  // 2ms tolerance
+  });
+
+  it("reset re-seeds deterministically", () => {
+    const p = new PoissonLoad({ name: "poisson", baseQps: 100, seed: 42 });
+    const a1 = p.nextArrival(0)?.arrivalMs;
+    p.reset(42);
+    const a2 = p.nextArrival(0)?.arrivalMs;
+    expect(a1).toBe(a2);
+  });
+});
+```
+
+Create `architex/src/lib/simulation/adapters/load-models/__tests__/diurnal.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import { DiurnalLoad } from "../diurnal";
+
+describe("DiurnalLoad", () => {
+  it("peak-of-day QPS ≈ amplitude × baseQps", () => {
+    const d = new DiurnalLoad({
+      name: "diurnal",
+      baseQps: 100,
+      seed: 42,
+      params: { peakHour: 14, amplitude: 4 },
+    });
+    const peakMs = 14 * 3600_000;
+    // Count arrivals in 1 sim-minute around peak
+    let count = 0;
+    let cursor = peakMs;
+    while (cursor < peakMs + 60_000) {
+      const a = d.nextArrival(cursor);
+      if (!a) break;
+      count++;
+      cursor = a.arrivalMs + 1;
+      if (a.arrivalMs >= peakMs + 60_000) break;
+    }
+    // With amplitude 4 and baseQps 100, peak QPS ~ 250 · expect > 100 arrivals in 60s
+    expect(count).toBeGreaterThan(80);
+  });
+});
+```
+
+Create `architex/src/lib/simulation/adapters/load-models/__tests__/burst.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import { BurstLoad } from "../burst";
+
+describe("BurstLoad", () => {
+  it("baseline steady-state matches baseQps", () => {
+    const b = new BurstLoad({ name: "burst", baseQps: 10, seed: 99 });
+    // First 20 arrivals with no burst triggered (seed 99 + 0.001 prob shouldn't fire early)
+    let prev = 0;
+    let total = 0;
+    for (let i = 0; i < 20; i++) {
+      const a = b.nextArrival(0);
+      if (!a) break;
+      if (i > 0) total += a.arrivalMs - prev;
+      prev = a.arrivalMs;
+    }
+    const avg = total / 19;
+    // Steady-state interval ≈ 100ms; tolerate 30% drift
+    expect(Math.abs(avg - 100)).toBeLessThan(30);
+  });
+});
+```
+
+- [ ] **Step 7: Run + commit**
+
+```bash
+cd architex
+pnpm test:run -- load-models
+git add architex/src/lib/simulation/adapters/load-models/
+git commit -m "$(cat <<'EOF'
+feat(sim): Phase 3 load models · uniform + poisson + diurnal + burst
+
+4 of 8 load models from §29.3. Each implements LoadGenerator interface
+(nextArrival · reset · serialize). Poisson: exponential inter-arrival
+at rate λ. Diurnal: sinusoidal 24h curve, peak 4x trough, configurable
+peakHour. Burst: Pareto-distributed burst magnitudes + exponential
+steady-state. All 4 use Mulberry32 for deterministic replay.
+
+Remaining 4 (Zipfian · Segment-mix · Per-endpoint · Trace-replay) ship
+Phase 4.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
