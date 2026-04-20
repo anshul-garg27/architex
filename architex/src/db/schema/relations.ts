@@ -13,6 +13,7 @@ import { progress } from "./progress";
 import { templates } from "./templates";
 import { gallerySubmissions, galleryUpvotes } from "./gallery";
 import { aiUsage } from "./ai-usage";
+import { lldBookmarks } from "./lld-bookmarks";
 import { lldConceptReads } from "./lld-concept-reads";
 import { lldDrillAttempts } from "./lld-drill-attempts";
 import { lldLearnProgress } from "./lld-learn-progress";
@@ -27,6 +28,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   templates: many(templates),
   gallerySubmissions: many(gallerySubmissions),
   aiUsage: many(aiUsage),
+  lldBookmarks: many(lldBookmarks),
   lldConceptReads: many(lldConceptReads),
   lldDrillAttempts: many(lldDrillAttempts),
   lldLearnProgress: many(lldLearnProgress),
@@ -165,3 +167,12 @@ export const lldConceptReadsRelations = relations(
     }),
   }),
 );
+
+// ── LLD Bookmarks ─────────────────────────────────────────────
+
+export const lldBookmarksRelations = relations(lldBookmarks, ({ one }) => ({
+  user: one(users, {
+    fields: [lldBookmarks.userId],
+    references: [users.id],
+  }),
+}));
