@@ -15,7 +15,11 @@ interface ContextualExplainPopoverProps {
   state: SelectionExplainState;
   patternSlug: string;
   sectionId: LessonSectionId | null;
-  sectionRaw: string;
+  /**
+   * Raw section markdown — consumed upstream when building the explain
+   * request. Kept in the component props for prop-drilling coherence.
+   */
+  sectionRaw?: string;
   onRequest: () => void;
   onClose: () => void;
 }
@@ -24,7 +28,6 @@ export function ContextualExplainPopover({
   state,
   patternSlug,
   sectionId,
-  sectionRaw: _sectionRaw,
   onRequest,
   onClose,
 }: ContextualExplainPopoverProps) {

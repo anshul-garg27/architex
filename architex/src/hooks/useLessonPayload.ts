@@ -29,19 +29,32 @@ export function useLessonPayload(slug: string | null): UseLessonPayloadResult {
   useEffect(() => {
     let cancelled = false;
     if (!slug) {
-      setPayload(null);
-      setIsLoading(false);
-      setError(null);
-      return;
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setPayload(null);
+        setIsLoading(false);
+        setError(null);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     if (cache.has(slug)) {
-      setPayload(cache.get(slug) ?? null);
-      setIsLoading(false);
-      setError(null);
-      return;
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setPayload(cache.get(slug) ?? null);
+        setIsLoading(false);
+        setError(null);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
-    setIsLoading(true);
-    setError(null);
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setIsLoading(true);
+      setError(null);
+    });
     fetch(`/api/lld/lessons/${encodeURIComponent(slug)}`)
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

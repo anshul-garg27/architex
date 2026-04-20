@@ -12,7 +12,7 @@
  * The hook below handles both sync and async runners.
  */
 
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
 import type { CompiledMDX } from "@/lib/lld/lesson-types";
 
@@ -31,8 +31,7 @@ type MDXExports = {
  */
 async function evalMDX(code: string): Promise<MDXExports> {
   // The function body returns `{ default: MDXContent }`.
-  // Inject the jsx runtime via the `arguments` object.
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+  // Inject the jsx runtime via positional arguments.
   const fn = new Function(
     "Fragment",
     "jsx",
@@ -43,34 +42,49 @@ async function evalMDX(code: string): Promise<MDXExports> {
   return result instanceof Promise ? await result : result;
 }
 
+interface RenderState {
+  Content: React.ComponentType<Record<string, unknown>> | null;
+  error: string | null;
+}
+
 export function MDXRenderer({
   compiled,
   components,
 }: MDXRendererProps): ReactNode {
-  const [Content, setContent] = useState<
-    React.ComponentType<Record<string, unknown>> | null
-  >(null);
-  const [error, setError] = useState<string | null>(null);
+  // Reset state whenever the code string changes via a derived key.
+  const codeKey = compiled.code;
+  const initial = useMemo<RenderState>(
+    () => ({ Content: null, error: null }),
+    // Reset each time code changes:
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [codeKey],
+  );
+  const [state, setState] = useState<RenderState>(initial);
 
   useEffect(() => {
+    // Subscribe to the async eval as an external system and only
+    // call setState from the async callback (not synchronously).
     let cancelled = false;
-    setError(null);
-    setContent(null);
 
     evalMDX(compiled.code)
       .then((mod) => {
         if (cancelled) return;
-        setContent(() => mod.default);
+        setState({ Content: mod.default, error: null });
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : String(err));
+        setState({
+          Content: null,
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
 
     return () => {
       cancelled = true;
     };
   }, [compiled.code]);
+
+  const { Content, error } = state;
 
   if (error) {
     return (

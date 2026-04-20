@@ -68,23 +68,21 @@ export function useLearnProgress(patternSlug: string | null) {
   const pendingRef = useRef<PatchPayload>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Initial load
+  // Initial load — subscribe to the async fetch; only setState from callbacks.
   useEffect(() => {
     let cancelled = false;
-    if (!patternSlug) {
-      setRow(null);
-      return;
-    }
-    setIsLoading(true);
+    if (!patternSlug) return;
+    // Kick off async work immediately — loading flag flips in the callback.
+    queueMicrotask(() => {
+      if (!cancelled) setIsLoading(true);
+    });
     fetch(`/api/lld/learn-progress/${encodeURIComponent(patternSlug)}`)
       .then((r) => (r.ok ? r.json() : { progress: null }))
       .then((data) => {
         if (cancelled) return;
-        if (data?.progress) {
-          setRow(data.progress as LearnProgressRow);
-        } else {
-          setRow(null);
-        }
+        setRow(
+          data?.progress ? (data.progress as LearnProgressRow) : null,
+        );
       })
       .catch(() => {
         if (cancelled) return;
@@ -93,6 +91,20 @@ export function useLearnProgress(patternSlug: string | null) {
       .finally(() => {
         if (!cancelled) setIsLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [patternSlug]);
+
+  // When patternSlug becomes null, clear eagerly in a microtask (not sync).
+  useEffect(() => {
+    if (patternSlug !== null) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setRow(null);
+      setIsLoading(false);
+    });
     return () => {
       cancelled = true;
     };
