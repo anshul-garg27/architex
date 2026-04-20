@@ -7978,3 +7978,826 @@ EOF
 ```
 
 ---
+
+## Task 21: Margin narrative stream (§8.10)
+
+**Files:**
+- Create: `architex/src/hooks/useMarginNarrative.ts`
+- Create: `architex/src/components/modules/sd/simulate/MarginNarrativeStream.tsx`
+- Create: `architex/src/components/modules/sd/simulate/NarrativeCard.tsx`
+
+The right-panel narrative stream captures every chaos event, SLO breach, and recovery as a card. Serif type (IBM Plex Serif 13px, 1.6 line-height). Timestamp in mono. Click a card → scrub timeline. Copy stream → draft postmortem.
+
+- [ ] **Step 1: `useMarginNarrative` hook**
+
+```typescript
+// architex/src/hooks/useMarginNarrative.ts
+"use client";
+import { useCallback, useState } from "react";
+
+export type NarrativeCardKind =
+  | "chaos"
+  | "slo-breach"
+  | "recovery"
+  | "milestone"
+  | "warning";
+
+export interface NarrativeCard {
+  id: string;
+  simTimeMs: number;
+  kind: NarrativeCardKind;
+  text: string;
+  eventId?: string;
+  severity?: "low" | "medium" | "high" | "critical";
+}
+
+export function useMarginNarrative() {
+  const [cards, setCards] = useState<NarrativeCard[]>([]);
+
+  const add = useCallback((card: Omit<NarrativeCard, "id">) => {
+    setCards((prev) => [
+      ...prev,
+      { ...card, id: `n-${prev.length + 1}-${Date.now()}` },
+    ]);
+  }, []);
+
+  const clear = useCallback(() => setCards([]), []);
+
+  const copyAsMarkdown = useCallback(() => {
+    return cards
+      .map(
+        (c) =>
+          `**${formatSimTime(c.simTimeMs)}** ${c.text}${c.severity ? ` *${c.severity}*` : ""}`,
+      )
+      .join("\n\n");
+  }, [cards]);
+
+  return { cards, add, clear, copyAsMarkdown };
+}
+
+function formatSimTime(ms: number): string {
+  const sec = Math.floor(ms / 1000);
+  const hh = Math.floor(sec / 3600);
+  const mm = Math.floor((sec % 3600) / 60);
+  const ss = sec % 60;
+  if (hh > 0) return `${hh}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+```
+
+- [ ] **Step 2: `MarginNarrativeStream` + `NarrativeCard`**
+
+```tsx
+// architex/src/components/modules/sd/simulate/NarrativeCard.tsx
+"use client";
+import type { NarrativeCard as CardType } from "@/hooks/useMarginNarrative";
+
+const KIND_COLORS: Record<CardType["kind"], string> = {
+  chaos: "border-red-500 bg-red-500/5",
+  "slo-breach": "border-amber-500 bg-amber-500/5",
+  recovery: "border-emerald-500 bg-emerald-500/5",
+  milestone: "border-sky-500 bg-sky-500/5",
+  warning: "border-yellow-500 bg-yellow-500/5",
+};
+
+export function NarrativeCard({
+  card,
+  onClick,
+}: {
+  card: CardType;
+  onClick?: (simTimeMs: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick?.(card.simTimeMs)}
+      className={`w-full border-l-2 px-3 py-2 text-left transition hover:bg-white/5 ${KIND_COLORS[card.kind]}`}
+      data-testid="narrative-card"
+      data-kind={card.kind}
+    >
+      <time className="block font-mono text-[10px] uppercase tracking-wide text-neutral-500">
+        {formatSimTime(card.simTimeMs)}
+      </time>
+      <p className="mt-0.5 font-serif text-[13px] leading-[1.6] text-neutral-100">
+        {card.text}
+        {card.severity ? (
+          <span className="ml-1 italic text-neutral-400">— {card.severity}</span>
+        ) : null}
+      </p>
+    </button>
+  );
+}
+
+function formatSimTime(ms: number): string {
+  const sec = Math.floor(ms / 1000);
+  const mm = Math.floor(sec / 60);
+  const ss = sec % 60;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+// architex/src/components/modules/sd/simulate/MarginNarrativeStream.tsx
+"use client";
+import { useEffect, useRef } from "react";
+import { NarrativeCard } from "./NarrativeCard";
+import type { NarrativeCard as CardType } from "@/hooks/useMarginNarrative";
+
+export function MarginNarrativeStream({
+  cards,
+  onScrubTo,
+  onCopyMarkdown,
+}: {
+  cards: CardType[];
+  onScrubTo?: (simTimeMs: number) => void;
+  onCopyMarkdown?: () => void;
+}) {
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [cards.length]);
+
+  return (
+    <aside className="flex h-full flex-col border-l border-neutral-800 bg-neutral-950">
+      <header className="flex items-center justify-between border-b border-neutral-800 px-3 py-2">
+        <h2 className="font-serif text-sm text-neutral-300">Narrative</h2>
+        {onCopyMarkdown && cards.length > 0 && (
+          <button
+            type="button"
+            className="text-[10px] uppercase tracking-wide text-neutral-500 hover:text-neutral-300"
+            onClick={onCopyMarkdown}
+          >
+            Copy as MD
+          </button>
+        )}
+      </header>
+      <div className="flex-1 overflow-y-auto">
+        {cards.length === 0 ? (
+          <p className="p-3 font-serif text-sm italic text-neutral-600">
+            Events will land here as the simulation runs.
+          </p>
+        ) : (
+          <ul className="flex flex-col">
+            {cards.map((c) => (
+              <li key={c.id}>
+                <NarrativeCard card={c} onClick={onScrubTo} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <div ref={endRef} />
+      </div>
+    </aside>
+  );
+}
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+cd architex
+git add architex/src/hooks/useMarginNarrative.ts architex/src/components/modules/sd/simulate/NarrativeCard.tsx architex/src/components/modules/sd/simulate/MarginNarrativeStream.tsx
+git commit -m "$(cat <<'EOF'
+feat(sim-ui): margin narrative stream (§8.10) · serif cards + click-to-scrub
+
+Right-panel stream grows during a run. Kinds: chaos, slo-breach,
+recovery, milestone, warning. Each card: mono timestamp + serif text
+(IBM Plex Serif 13px/1.6) + optional severity tag. Click card →
+scrub timeline to that moment. Copy stream as markdown → seeds a
+draft postmortem (§9.8 artifact · wired in Task 31).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 22: Chaos control panel · 6 control modes dispatch
+
+**Files:**
+- Create: `architex/src/lib/simulation/adapters/chaos-control-mode.ts`
+- Create: `architex/src/hooks/useChaosControl.ts`
+- Create: `architex/src/components/modules/sd/simulate/ChaosControlPanel.tsx`
+- Create: `architex/src/components/modules/sd/simulate/ChaosDicePanel.tsx`
+- Create: `architex/src/components/modules/sd/simulate/ChaosBudgetPanel.tsx`
+- Create: `architex/src/components/modules/sd/simulate/ManualInjectionMenu.tsx`
+
+Per §12.4, 6 modes: scenario · dice · manual · budget · auto-escalation · red-team. The control panel is a left-side accordion with one section per mode. Switching modes is instant; only one mode fires events at a time.
+
+- [ ] **Step 1: Dispatcher module**
+
+```typescript
+// architex/src/lib/simulation/adapters/chaos-control-mode.ts
+
+import type { ChaosScenarioDef } from "@/lib/chaos/chaos-scenarios";
+import { rollChaosDice, type CanvasSnapshot } from "@/lib/chaos/chaos-dice";
+import {
+  createBudgetState,
+  pickNextBudgetEvent,
+  deductBudget,
+  isBudgetExhausted,
+  type BudgetState,
+} from "@/lib/chaos/chaos-budget-engine";
+import {
+  advanceState,
+  pickEventForState,
+  createEscalationState,
+  type EscalationState,
+} from "@/lib/chaos/auto-escalation";
+import { planRedTeamAttack } from "@/lib/ai/red-team-chaos-planner";
+import { CHAOS_SCENARIOS } from "@/lib/chaos/chaos-scenarios";
+
+export type ChaosMode =
+  | "scenario"
+  | "dice"
+  | "manual"
+  | "budget"
+  | "auto-escalation"
+  | "red-team"
+  | "none";
+
+export interface ChaosDispatcherState {
+  mode: ChaosMode;
+  scenario?: ChaosScenarioDef;
+  scenarioCursor: number;
+  budget: BudgetState;
+  escalation: EscalationState;
+  redTeamUnlocked: boolean;
+}
+
+export function createDispatcher(mode: ChaosMode): ChaosDispatcherState {
+  return {
+    mode,
+    scenarioCursor: 0,
+    budget: createBudgetState(5),
+    escalation: createEscalationState(),
+    redTeamUnlocked: false,
+  };
+}
+
+/** Return the next event to fire, or null if the dispatcher is idle. */
+export async function tick(
+  state: ChaosDispatcherState,
+  canvas: CanvasSnapshot,
+  nowSimSeconds: number,
+  seed: number,
+): Promise<{
+  state: ChaosDispatcherState;
+  event: { eventId: string; targetNodeId?: string | null; params?: Record<string, string> } | null;
+}> {
+  switch (state.mode) {
+    case "scenario": {
+      const s = state.scenario;
+      if (!s || state.scenarioCursor >= s.steps.length) return { state, event: null };
+      const next = s.steps[state.scenarioCursor];
+      if (next.offsetSimSeconds > nowSimSeconds) return { state, event: null };
+      return {
+        state: { ...state, scenarioCursor: state.scenarioCursor + 1 },
+        event: { eventId: next.eventId, params: next.params },
+      };
+    }
+    case "dice": {
+      const roll = rollChaosDice(canvas, { rookieMode: false, seed });
+      if (!roll) return { state, event: null };
+      return {
+        state,
+        event: { eventId: roll.eventId, targetNodeId: roll.targetNodeId },
+      };
+    }
+    case "budget": {
+      if (isBudgetExhausted(state.budget)) return { state, event: null };
+      const pick = pickNextBudgetEvent(state.budget, canvas, seed);
+      if (!pick) return { state, event: null };
+      const newBudget = deductBudget(state.budget, pick);
+      return {
+        state: { ...state, budget: newBudget },
+        event: { eventId: pick.eventId },
+      };
+    }
+    case "auto-escalation": {
+      if (state.escalation.phase === "saturated") return { state, event: null };
+      const ev = pickEventForState(state.escalation, canvas, seed);
+      if (!ev) return { state, event: null };
+      const nextEscalation = advanceState(state.escalation, { kind: "event-fired" });
+      return {
+        state: { ...state, escalation: nextEscalation },
+        event: { eventId: ev.id },
+      };
+    }
+    case "red-team": {
+      if (!state.redTeamUnlocked || state.scenario == null) return { state, event: null };
+      const s = state.scenario;
+      if (state.scenarioCursor >= s.steps.length) return { state, event: null };
+      const next = s.steps[state.scenarioCursor];
+      if (next.offsetSimSeconds > nowSimSeconds) return { state, event: null };
+      return {
+        state: { ...state, scenarioCursor: state.scenarioCursor + 1 },
+        event: { eventId: next.eventId, params: next.params },
+      };
+    }
+    case "manual":
+    case "none":
+      return { state, event: null };
+  }
+}
+
+export async function initializeRedTeam(
+  state: ChaosDispatcherState,
+  canvas: CanvasSnapshot,
+): Promise<ChaosDispatcherState> {
+  const { scenario } = await planRedTeamAttack(canvas, { difficulty: "advanced" });
+  return { ...state, scenario, scenarioCursor: 0, redTeamUnlocked: true };
+}
+
+export function loadScenarioBySlug(
+  state: ChaosDispatcherState,
+  slug: string,
+): ChaosDispatcherState {
+  const s = CHAOS_SCENARIOS.find((x) => x.slug === slug);
+  if (!s) throw new Error(`Unknown scenario: ${slug}`);
+  return { ...state, scenario: s, scenarioCursor: 0 };
+}
+```
+
+- [ ] **Step 2: `useChaosControl` hook**
+
+```typescript
+// architex/src/hooks/useChaosControl.ts
+"use client";
+
+import { useCallback, useState } from "react";
+import {
+  createDispatcher,
+  loadScenarioBySlug,
+  initializeRedTeam,
+  tick,
+  type ChaosDispatcherState,
+  type ChaosMode,
+} from "@/lib/simulation/adapters/chaos-control-mode";
+import type { CanvasSnapshot } from "@/lib/chaos/chaos-dice";
+
+export function useChaosControl(initialMode: ChaosMode = "none") {
+  const [dispatcher, setDispatcher] = useState<ChaosDispatcherState>(() =>
+    createDispatcher(initialMode),
+  );
+
+  const setMode = useCallback((mode: ChaosMode) => {
+    setDispatcher((d) => ({ ...d, mode }));
+  }, []);
+
+  const chooseScenario = useCallback((slug: string) => {
+    setDispatcher((d) => loadScenarioBySlug(d, slug));
+  }, []);
+
+  const unlockRedTeam = useCallback(async (canvas: CanvasSnapshot) => {
+    setDispatcher(await initializeRedTeam(dispatcher, canvas));
+  }, [dispatcher]);
+
+  const tickNow = useCallback(
+    async (canvas: CanvasSnapshot, nowSimSeconds: number, seed: number) => {
+      const { state: next, event } = await tick(dispatcher, canvas, nowSimSeconds, seed);
+      setDispatcher(next);
+      return event;
+    },
+    [dispatcher],
+  );
+
+  return {
+    mode: dispatcher.mode,
+    dispatcher,
+    setMode,
+    chooseScenario,
+    unlockRedTeam,
+    tickNow,
+  };
+}
+```
+
+- [ ] **Step 3: Control-panel UI components**
+
+```tsx
+// architex/src/components/modules/sd/simulate/ChaosControlPanel.tsx
+"use client";
+import type { ChaosMode } from "@/lib/simulation/adapters/chaos-control-mode";
+import { ChaosDicePanel } from "./ChaosDicePanel";
+import { ChaosBudgetPanel } from "./ChaosBudgetPanel";
+import { ManualInjectionMenu } from "./ManualInjectionMenu";
+import { CHAOS_SCENARIOS } from "@/lib/chaos/chaos-scenarios";
+
+export function ChaosControlPanel({
+  mode,
+  onModeChange,
+  onScenarioPick,
+  onManualFire,
+  redTeamUnlocked,
+  onUnlockRedTeam,
+}: {
+  mode: ChaosMode;
+  onModeChange: (m: ChaosMode) => void;
+  onScenarioPick: (slug: string) => void;
+  onManualFire: (eventId: string, nodeId?: string) => void;
+  redTeamUnlocked: boolean;
+  onUnlockRedTeam: () => void;
+}) {
+  const modes: { id: ChaosMode; label: string; locked?: boolean }[] = [
+    { id: "scenario", label: "Scenario" },
+    { id: "dice", label: "Dice" },
+    { id: "manual", label: "Manual" },
+    { id: "budget", label: "Budget" },
+    { id: "auto-escalation", label: "Escalate" },
+    { id: "red-team", label: "Red team", locked: !redTeamUnlocked },
+  ];
+
+  return (
+    <section
+      className="flex h-full flex-col border-r border-neutral-800 bg-neutral-950"
+      aria-label="Chaos control"
+    >
+      <div className="grid grid-cols-3 gap-1 border-b border-neutral-800 p-2">
+        {modes.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            disabled={m.locked}
+            onClick={() => (m.locked ? onUnlockRedTeam() : onModeChange(m.id))}
+            className={`rounded px-2 py-1 text-xs uppercase tracking-wide transition ${
+              mode === m.id
+                ? "bg-sky-500 text-white"
+                : m.locked
+                  ? "cursor-pointer bg-neutral-800 text-neutral-500"
+                  : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+            }`}
+            data-locked={m.locked ? "true" : undefined}
+          >
+            {m.label}
+            {m.locked ? " 🔒" : null}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto p-3">
+        {mode === "scenario" && (
+          <ul className="space-y-1">
+            {CHAOS_SCENARIOS.map((s) => (
+              <li key={s.slug}>
+                <button
+                  type="button"
+                  onClick={() => onScenarioPick(s.slug)}
+                  className="block w-full rounded px-2 py-1.5 text-left text-xs text-neutral-300 hover:bg-neutral-800"
+                >
+                  <span className="font-serif">{s.displayName}</span>
+                  <span className="ml-1 text-neutral-500">· {s.difficulty}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {mode === "dice" && <ChaosDicePanel />}
+        {mode === "budget" && <ChaosBudgetPanel />}
+        {mode === "manual" && <ManualInjectionMenu onFire={onManualFire} />}
+      </div>
+    </section>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/ChaosDicePanel.tsx
+"use client";
+export function ChaosDicePanel() {
+  return (
+    <div className="rounded-md border border-neutral-700 p-3">
+      <p className="mb-2 font-serif text-sm text-neutral-100">
+        Chaos dice
+      </p>
+      <p className="text-xs text-neutral-400">
+        Rolls a random event every 45 sim-seconds, weighted by your canvas's
+        surface area. Events with matching node families are favored.
+      </p>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/ChaosBudgetPanel.tsx
+"use client";
+import { useState } from "react";
+export function ChaosBudgetPanel({
+  onBudgetChange,
+}: {
+  onBudgetChange?: (minutes: number) => void;
+}) {
+  const [minutes, setMinutes] = useState(5);
+  return (
+    <div className="rounded-md border border-neutral-700 p-3">
+      <p className="mb-2 font-serif text-sm text-neutral-100">Error budget</p>
+      <label className="flex items-center gap-2 text-xs text-neutral-300">
+        <span>Minutes of SLO breach allowed:</span>
+        <input
+          type="number"
+          min={0.5}
+          step={0.5}
+          value={minutes}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setMinutes(v);
+            onBudgetChange?.(v);
+          }}
+          className="w-16 rounded bg-neutral-800 px-2 py-1 font-mono text-neutral-100"
+        />
+      </label>
+      <p className="mt-2 text-[10px] text-neutral-500">
+        Engine picks events whose total impact consumes this budget. Exhaustion
+        triggers a margin card and stops firing.
+      </p>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/ManualInjectionMenu.tsx
+"use client";
+import { CHAOS_TAXONOMY } from "@/lib/chaos/chaos-taxonomy";
+export function ManualInjectionMenu({
+  onFire,
+}: {
+  onFire: (eventId: string, nodeId?: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="mb-1 font-serif text-sm text-neutral-100">Manual injection</p>
+      <p className="mb-2 text-[10px] text-neutral-500">
+        Right-click any node on the canvas to fire an event targeted at it, or
+        pick an event from the list below to fire against the whole canvas.
+      </p>
+      <ul className="space-y-0.5 text-xs">
+        {CHAOS_TAXONOMY.slice(0, 20).map((e) => (
+          <li key={e.id}>
+            <button
+              type="button"
+              onClick={() => onFire(e.id)}
+              className="block w-full rounded px-2 py-1 text-left text-neutral-300 hover:bg-neutral-800"
+            >
+              <span className="font-mono text-[11px] text-neutral-500">{e.family}</span>{" "}
+              {e.displayName}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+cd architex
+git add architex/src/lib/simulation/adapters/chaos-control-mode.ts architex/src/hooks/useChaosControl.ts architex/src/components/modules/sd/simulate/ChaosControlPanel.tsx architex/src/components/modules/sd/simulate/ChaosDicePanel.tsx architex/src/components/modules/sd/simulate/ChaosBudgetPanel.tsx architex/src/components/modules/sd/simulate/ManualInjectionMenu.tsx
+git commit -m "$(cat <<'EOF'
+feat(sim-ui): 6-mode chaos control panel (§12.4)
+
+Dispatcher routes between scenario · dice · manual · budget ·
+auto-escalation · red-team. Red-team locked until user completes 3
+chaos drills. Scenario mode renders a filterable list from the 40
+scripted scenarios (Task 7). Budget mode UI accepts a minutes input;
+dispatcher deducts impact per fire and stops at exhaustion. Manual
+mode lists the first 20 taxonomy events + supports right-click on
+canvas nodes for targeted injection.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 23: 6 activity framings + activity picker
+
+**Files:**
+- Create: `architex/src/lib/simulation/adapters/activity-framing.ts`
+- Create: `architex/src/components/modules/sd/simulate/ActivityPicker.tsx`
+
+Per §8.3, six activities shape the UI, the coaching, and the post-run loop: **Validate · Stress Test · Chaos Drill · Compare A/B · Forecast · Archaeology**. Each one configures the top chrome (which controls are visible), the metric strip (which metrics to emphasize), the chaos control panel (which modes are available), and the post-run summarizer's focus.
+
+```typescript
+// architex/src/lib/simulation/adapters/activity-framing.ts
+
+/**
+ * SIM-032: Activity framings (§8.3) — per-activity UI + engine configuration.
+ */
+
+import type { SDActivityKind } from "@/db/schema/sd-simulation-runs";
+
+export interface ActivityFraming {
+  kind: SDActivityKind;
+  displayName: string;
+  tagline: string;
+  defaultDurationSimSeconds: number;
+  allowedChaosModes: Array<
+    "scenario" | "dice" | "manual" | "budget" | "auto-escalation" | "red-team" | "none"
+  >;
+  emphasisMetrics: Array<
+    "p50-latency" | "p95-latency" | "p99-latency" | "error-rate" | "throughput-attainment" | "cost-per-request"
+  >;
+  coachEnabled: boolean;
+  compareCanvas: boolean;
+  dilationFactor: number;
+  topChromeConfig: {
+    showScaleSlider: boolean;
+    showProviderPicker: boolean;
+    showSloThresholdEditor: boolean;
+    showGrowthCurveEditor: boolean;
+    showIncidentPicker: boolean;
+  };
+}
+
+export const ACTIVITY_FRAMINGS: Record<SDActivityKind, ActivityFraming> = {
+  validate: {
+    kind: "validate",
+    displayName: "Validate",
+    tagline: "Does it work?",
+    defaultDurationSimSeconds: 300,  // 5 min
+    allowedChaosModes: ["none"],
+    emphasisMetrics: ["p50-latency", "p99-latency", "error-rate", "throughput-attainment"],
+    coachEnabled: true,
+    compareCanvas: false,
+    dilationFactor: 5,  // compress 5 min of sim into 1 min real-time
+    topChromeConfig: {
+      showScaleSlider: true,
+      showProviderPicker: true,
+      showSloThresholdEditor: true,
+      showGrowthCurveEditor: false,
+      showIncidentPicker: false,
+    },
+  },
+  stress: {
+    kind: "stress",
+    displayName: "Stress test",
+    tagline: "Where does it break?",
+    defaultDurationSimSeconds: 600,  // 10 min, auto-stops on breaking threshold
+    allowedChaosModes: ["none"],
+    emphasisMetrics: ["p99-latency", "error-rate", "throughput-attainment"],
+    coachEnabled: true,
+    compareCanvas: false,
+    dilationFactor: 3,
+    topChromeConfig: {
+      showScaleSlider: true,
+      showProviderPicker: false,
+      showSloThresholdEditor: true,
+      showGrowthCurveEditor: false,
+      showIncidentPicker: false,
+    },
+  },
+  "chaos-drill": {
+    kind: "chaos-drill",
+    displayName: "Chaos drill",
+    tagline: "Can it survive?",
+    defaultDurationSimSeconds: 600,
+    allowedChaosModes: [
+      "scenario",
+      "dice",
+      "manual",
+      "budget",
+      "auto-escalation",
+      "red-team",
+    ],
+    emphasisMetrics: ["p99-latency", "error-rate", "throughput-attainment"],
+    coachEnabled: true,
+    compareCanvas: false,
+    dilationFactor: 1,  // chaos drills in real-time (§29.1)
+    topChromeConfig: {
+      showScaleSlider: true,
+      showProviderPicker: true,
+      showSloThresholdEditor: true,
+      showGrowthCurveEditor: false,
+      showIncidentPicker: false,
+    },
+  },
+  "compare-ab": {
+    kind: "compare-ab",
+    displayName: "Compare A/B",
+    tagline: "Which design is better?",
+    defaultDurationSimSeconds: 300,
+    allowedChaosModes: ["scenario", "manual", "none"],
+    emphasisMetrics: ["p50-latency", "p99-latency", "cost-per-request"],
+    coachEnabled: false,
+    compareCanvas: true,
+    dilationFactor: 5,
+    topChromeConfig: {
+      showScaleSlider: true,
+      showProviderPicker: true,
+      showSloThresholdEditor: true,
+      showGrowthCurveEditor: false,
+      showIncidentPicker: false,
+    },
+  },
+  forecast: {
+    kind: "forecast",
+    displayName: "Forecast",
+    tagline: "What happens in 12 months?",
+    defaultDurationSimSeconds: 1800,
+    allowedChaosModes: ["scenario", "none"],
+    emphasisMetrics: ["p99-latency", "error-rate", "cost-per-request"],
+    coachEnabled: true,
+    compareCanvas: false,
+    dilationFactor: 30 * 60,  // 30 days per real-minute (§29.1)
+    topChromeConfig: {
+      showScaleSlider: true,
+      showProviderPicker: true,
+      showSloThresholdEditor: true,
+      showGrowthCurveEditor: true,
+      showIncidentPicker: false,
+    },
+  },
+  archaeology: {
+    kind: "archaeology",
+    displayName: "Archaeology",
+    tagline: "Could your design have survived?",
+    defaultDurationSimSeconds: 3600,
+    allowedChaosModes: ["scenario"],
+    emphasisMetrics: ["p99-latency", "error-rate", "throughput-attainment"],
+    coachEnabled: true,
+    compareCanvas: false,
+    dilationFactor: 10,
+    topChromeConfig: {
+      showScaleSlider: false,
+      showProviderPicker: false,
+      showSloThresholdEditor: false,
+      showGrowthCurveEditor: false,
+      showIncidentPicker: true,
+    },
+  },
+};
+
+export function getActivityFraming(kind: SDActivityKind): ActivityFraming {
+  return ACTIVITY_FRAMINGS[kind];
+}
+```
+
+```tsx
+// architex/src/components/modules/sd/simulate/ActivityPicker.tsx
+"use client";
+import { ACTIVITY_FRAMINGS } from "@/lib/simulation/adapters/activity-framing";
+import type { SDActivityKind } from "@/db/schema/sd-simulation-runs";
+
+export function ActivityPicker({
+  current,
+  onPick,
+}: {
+  current: SDActivityKind;
+  onPick: (k: SDActivityKind) => void;
+}) {
+  const kinds: SDActivityKind[] = [
+    "validate",
+    "stress",
+    "chaos-drill",
+    "compare-ab",
+    "forecast",
+    "archaeology",
+  ];
+  return (
+    <div className="flex flex-wrap gap-2">
+      {kinds.map((k, i) => {
+        const f = ACTIVITY_FRAMINGS[k];
+        return (
+          <button
+            key={k}
+            type="button"
+            onClick={() => onPick(k)}
+            aria-pressed={current === k}
+            aria-label={`${f.displayName}: ${f.tagline}`}
+            className={`flex flex-col rounded-md border px-3 py-2 text-left transition ${
+              current === k
+                ? "border-sky-500 bg-sky-500/10 text-sky-100"
+                : "border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-neutral-500"
+            }`}
+          >
+            <span className="text-[10px] uppercase tracking-wide text-neutral-500">
+              {i + 1}. {f.kind}
+            </span>
+            <span className="font-serif text-sm">{f.displayName}</span>
+            <span className="text-[11px] italic text-neutral-400">{f.tagline}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 1: Commit**
+
+```bash
+cd architex
+git add architex/src/lib/simulation/adapters/activity-framing.ts architex/src/components/modules/sd/simulate/ActivityPicker.tsx
+git commit -m "$(cat <<'EOF'
+feat(sim-ui): 6 activity framings + picker (§8.3)
+
+ACTIVITY_FRAMINGS maps each of validate/stress/chaos-drill/compare-ab/
+forecast/archaeology to UI + engine config: allowed chaos modes,
+emphasis metrics, coach toggle, dilation factor (1 for chaos drill
+real-time; 30min/real-min for Forecast; 5x for Validate). Top-chrome
+config drives which pills render (scale slider, provider, SLO editor,
+growth curve, incident picker).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
