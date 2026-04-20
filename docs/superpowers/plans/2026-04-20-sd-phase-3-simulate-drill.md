@@ -9499,3 +9499,661 @@ EOF
 ```
 
 ---
+
+## Task 26: `SimulateModeLayout` composition + `PostRunResultsCard` (triple-loop CTA)
+
+**Files:**
+- Modify: `architex/src/components/modules/sd/modes/SimulateModeLayout.tsx`
+- Create: `architex/src/components/modules/sd/simulate/SimulateTopChrome.tsx`
+- Create: `architex/src/components/modules/sd/simulate/SimulateLeftControlRail.tsx`
+- Create: `architex/src/components/modules/sd/simulate/SimulateCanvasWrapper.tsx`
+- Create: `architex/src/components/modules/sd/simulate/ParticleLayer.tsx`
+- Create: `architex/src/components/modules/sd/simulate/WhisperCoachToast.tsx`
+- Create: `architex/src/components/modules/sd/simulate/CostMeter.tsx`
+- Create: `architex/src/components/modules/sd/simulate/ScaleSlider.tsx`
+- Create: `architex/src/components/modules/sd/simulate/PostRunResultsCard.tsx`
+- Create: `architex/src/hooks/useSimulateRun.ts`
+- Create: `architex/src/hooks/useCostMeter.ts`
+- Create: `architex/src/hooks/useScaleSlider.ts`
+- Create: `architex/src/stores/simulate-store.ts`
+- Create: `architex/src/components/modules/sd/simulate/__tests__/PostRunResultsCard.test.tsx`
+
+This task assembles every Simulate component from Tasks 19-25 into the 4-region layout of §8.2. The post-run results card is the §8.7 triple-loop CTA: Learn / Build / Drill.
+
+- [ ] **Step 1: `simulate-store.ts` (Zustand slice)**
+
+```typescript
+// architex/src/stores/simulate-store.ts
+import { create } from "zustand";
+import type { SDActivityKind, SDLoadModel, SDScaleSlider, SDProvider } from "@/db/schema/sd-simulation-runs";
+import type { ChaosMode } from "@/lib/simulation/adapters/chaos-control-mode";
+
+export interface SimulateState {
+  runId: string | null;
+  activityKind: SDActivityKind;
+  chaosMode: ChaosMode;
+  loadModel: SDLoadModel;
+  scaleSlider: SDScaleSlider;
+  provider: SDProvider;
+  running: boolean;
+  paused: boolean;
+  currentSimMs: number;
+  maxSimMs: number;
+  coachQuiet: boolean;
+  setRunId(id: string | null): void;
+  setActivity(k: SDActivityKind): void;
+  setChaosMode(m: ChaosMode): void;
+  setLoadModel(m: SDLoadModel): void;
+  setScale(s: SDScaleSlider): void;
+  setProvider(p: SDProvider): void;
+  setRunning(r: boolean): void;
+  setPaused(p: boolean): void;
+  setCurrentSimMs(ms: number): void;
+  setMaxSimMs(ms: number): void;
+  setCoachQuiet(q: boolean): void;
+  reset(): void;
+}
+
+export const useSimulateStore = create<SimulateState>((set) => ({
+  runId: null,
+  activityKind: "validate",
+  chaosMode: "none",
+  loadModel: "uniform",
+  scaleSlider: "1M",
+  provider: "aws",
+  running: false,
+  paused: true,
+  currentSimMs: 0,
+  maxSimMs: 300_000,
+  coachQuiet: false,
+  setRunId: (id) => set({ runId: id }),
+  setActivity: (k) => set({ activityKind: k }),
+  setChaosMode: (m) => set({ chaosMode: m }),
+  setLoadModel: (m) => set({ loadModel: m }),
+  setScale: (s) => set({ scaleSlider: s }),
+  setProvider: (p) => set({ provider: p }),
+  setRunning: (r) => set({ running: r }),
+  setPaused: (p) => set({ paused: p }),
+  setCurrentSimMs: (ms) => set({ currentSimMs: ms }),
+  setMaxSimMs: (ms) => set({ maxSimMs: ms }),
+  setCoachQuiet: (q) => set({ coachQuiet: q }),
+  reset: () =>
+    set({
+      runId: null,
+      running: false,
+      paused: true,
+      currentSimMs: 0,
+    }),
+}));
+```
+
+- [ ] **Step 2: `useSimulateRun`, `useCostMeter`, `useScaleSlider` hooks**
+
+```typescript
+// architex/src/hooks/useSimulateRun.ts
+"use client";
+import { useCallback } from "react";
+import { useSimulateStore } from "@/stores/simulate-store";
+
+export function useSimulateRun() {
+  const store = useSimulateStore();
+
+  const startRun = useCallback(async (designId: string) => {
+    const res = await fetch(`/api/sd/simulation-runs/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        designId,
+        activityKind: store.activityKind,
+        chaosControlMode: store.chaosMode === "none" ? null : store.chaosMode,
+        loadModel: store.loadModel,
+        scaleSlider: store.scaleSlider,
+        provider: store.provider,
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to start run");
+    const body = await res.json() as { runId: string; maxSimMs: number };
+    store.setRunId(body.runId);
+    store.setMaxSimMs(body.maxSimMs);
+    store.setRunning(true);
+    store.setPaused(false);
+    return body.runId;
+  }, [store]);
+
+  const completeRun = useCallback(async () => {
+    if (!store.runId) return;
+    const res = await fetch(`/api/sd/simulation-runs/${store.runId}/complete`, {
+      method: "POST",
+    });
+    store.setRunning(false);
+    store.setPaused(true);
+    return res.ok;
+  }, [store]);
+
+  return { startRun, completeRun, ...store };
+}
+
+// architex/src/hooks/useCostMeter.ts
+"use client";
+import { useEffect, useState } from "react";
+
+export interface CostMeterState {
+  dollarsPerHour: number;
+  dollarsPerMonth: number;
+  dollarsPerUser: number;
+  lastUpdatedAt: number;
+}
+
+export function useCostMeter(runId: string | null) {
+  const [state, setState] = useState<CostMeterState>({
+    dollarsPerHour: 0,
+    dollarsPerMonth: 0,
+    dollarsPerUser: 0,
+    lastUpdatedAt: 0,
+  });
+
+  useEffect(() => {
+    if (!runId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sd/simulation-runs/${runId}/heartbeat?metric=cost`);
+        if (!res.ok) return;
+        const body = await res.json() as CostMeterState;
+        setState({ ...body, lastUpdatedAt: Date.now() });
+      } catch { /* silent */ }
+    }, 1000); // 1Hz per plan open-question 6
+    return () => clearInterval(interval);
+  }, [runId]);
+
+  return state;
+}
+
+// architex/src/hooks/useScaleSlider.ts
+"use client";
+import { useSimulateStore } from "@/stores/simulate-store";
+import type { SDScaleSlider } from "@/db/schema/sd-simulation-runs";
+
+const SCALE_DAUS: Record<SDScaleSlider, number> = {
+  "10k": 10_000,
+  "1M": 1_000_000,
+  "10M": 10_000_000,
+  "100M": 100_000_000,
+  "1B": 1_000_000_000,
+};
+
+export function useScaleSlider() {
+  const { scaleSlider, setScale } = useSimulateStore();
+  return { scaleSlider, setScale, currentDau: SCALE_DAUS[scaleSlider] };
+}
+```
+
+- [ ] **Step 3: Top chrome + left rail + cost meter + scale slider + whisper toast + particle layer**
+
+```tsx
+// architex/src/components/modules/sd/simulate/ScaleSlider.tsx
+"use client";
+import { useScaleSlider } from "@/hooks/useScaleSlider";
+import type { SDScaleSlider } from "@/db/schema/sd-simulation-runs";
+
+const POSITIONS: SDScaleSlider[] = ["10k", "1M", "10M", "100M", "1B"];
+
+export function ScaleSlider() {
+  const { scaleSlider, setScale } = useScaleSlider();
+  return (
+    <div className="flex items-center gap-1" role="radiogroup" aria-label="DAU scale">
+      {POSITIONS.map((p) => (
+        <button
+          key={p}
+          type="button"
+          role="radio"
+          aria-checked={scaleSlider === p}
+          onClick={() => setScale(p)}
+          className={`rounded px-2 py-1 font-mono text-[11px] transition ${
+            scaleSlider === p
+              ? "bg-sky-500 text-white"
+              : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/CostMeter.tsx
+"use client";
+import { useCostMeter } from "@/hooks/useCostMeter";
+
+export function CostMeter({ runId }: { runId: string | null }) {
+  const { dollarsPerHour, dollarsPerMonth } = useCostMeter(runId);
+  return (
+    <div
+      className="fixed bottom-16 right-4 z-20 flex flex-col rounded-md border border-neutral-700 bg-neutral-950/90 px-3 py-2 font-mono text-xs text-neutral-200 shadow-lg"
+      data-testid="cost-meter"
+    >
+      <span className="text-[10px] uppercase tracking-wide text-neutral-500">cost</span>
+      <span className="text-sm">${dollarsPerHour.toFixed(2)}/hr</span>
+      <span className="text-[10px] text-neutral-400">
+        ${(dollarsPerMonth / 1000).toFixed(1)}k/mo
+      </span>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/SimulateTopChrome.tsx
+"use client";
+import { useSimulateStore } from "@/stores/simulate-store";
+import { ActivityPicker } from "./ActivityPicker";
+import { ScaleSlider } from "./ScaleSlider";
+import type { SDProvider } from "@/db/schema/sd-simulation-runs";
+
+const PROVIDERS: SDProvider[] = ["aws", "gcp", "azure", "abstract", "bare-metal"];
+
+export function SimulateTopChrome() {
+  const { activityKind, setActivity, provider, setProvider } = useSimulateStore();
+  return (
+    <header className="flex flex-wrap items-center gap-3 border-b border-neutral-800 bg-neutral-950 px-4 py-2">
+      <ActivityPicker current={activityKind} onPick={setActivity} />
+      <div className="h-6 w-px bg-neutral-800" />
+      <ScaleSlider />
+      <div className="h-6 w-px bg-neutral-800" />
+      <select
+        value={provider}
+        onChange={(e) => setProvider(e.target.value as SDProvider)}
+        className="rounded bg-neutral-800 px-2 py-1 font-mono text-xs text-neutral-200"
+        aria-label="Cloud provider"
+      >
+        {PROVIDERS.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+    </header>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/SimulateLeftControlRail.tsx
+"use client";
+import { useSimulateStore } from "@/stores/simulate-store";
+import { ChaosControlPanel } from "./ChaosControlPanel";
+import { WhatIfBranchButton } from "./WhatIfBranchButton";
+
+export function SimulateLeftControlRail({ runId }: { runId: string }) {
+  const { paused, currentSimMs, chaosMode, setChaosMode } = useSimulateStore();
+  return (
+    <nav className="flex w-64 flex-col border-r border-neutral-800 bg-neutral-950">
+      <ChaosControlPanel
+        mode={chaosMode}
+        onModeChange={setChaosMode}
+        onScenarioPick={() => {
+          /* wired by parent via useChaosControl */
+        }}
+        onManualFire={() => {
+          /* wired by parent */
+        }}
+        redTeamUnlocked={false}
+        onUnlockRedTeam={() => {
+          /* wired by parent */
+        }}
+      />
+      <div className="border-t border-neutral-800 p-3">
+        <WhatIfBranchButton
+          runId={runId}
+          paused={paused}
+          currentSimMs={currentSimMs}
+        />
+      </div>
+    </nav>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/ParticleLayer.tsx
+"use client";
+import { useEffect, useRef } from "react";
+
+export interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  lifeMs: number;
+}
+
+/**
+ * Canvas-based particle layer. Engine plumbs particle positions via a
+ * subscriber contract; this component renders them at 60fps.
+ *
+ * Phase-3 minimal implementation — full physics + 10k-particle target
+ * lands in the Phase-5 rendering polish.
+ */
+export function ParticleLayer({
+  width,
+  height,
+  particles,
+}: {
+  width: number;
+  height: number;
+  particles: Particle[];
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let rafId = 0;
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      for (const p of particles) {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      rafId = requestAnimationFrame(render);
+    };
+    rafId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(rafId);
+  }, [width, height, particles]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={width}
+      height={height}
+      className="pointer-events-none absolute inset-0"
+      style={{ width, height }}
+      data-testid="particle-layer"
+    />
+  );
+}
+
+// architex/src/components/modules/sd/simulate/WhisperCoachToast.tsx
+"use client";
+import { useEffect, useState } from "react";
+import type { WhisperIntervention } from "@/lib/simulation/adapters/whisper-coach";
+
+export function WhisperCoachToast({
+  intervention,
+}: {
+  intervention: WhisperIntervention | null;
+}) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!intervention) {
+      setVisible(false);
+      return;
+    }
+    setVisible(true);
+    const t = setTimeout(() => setVisible(false), 8_000);
+    return () => clearTimeout(t);
+  }, [intervention]);
+  if (!visible || !intervention) return null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-24 left-1/2 z-30 w-[360px] -translate-x-1/2 rounded-md border border-sky-500/30 bg-neutral-950/95 p-3 shadow-lg"
+      data-testid="whisper-toast"
+      data-shape={intervention.shape}
+    >
+      <span className="mb-1 block text-[10px] uppercase tracking-wide text-sky-400">
+        Coach · {intervention.shape}
+      </span>
+      <p className="font-serif text-sm leading-relaxed text-neutral-100">
+        {intervention.text}
+      </p>
+      {intervention.conceptSlug && (
+        <a
+          href={`/sd/learn/concepts/${intervention.conceptSlug}`}
+          className="mt-2 inline-block text-[11px] uppercase tracking-wide text-sky-400 underline"
+        >
+          Read the primer →
+        </a>
+      )}
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/SimulateCanvasWrapper.tsx
+"use client";
+import { ReactNode } from "react";
+import { ParticleLayer } from "./ParticleLayer";
+
+export function SimulateCanvasWrapper({ children }: { children: ReactNode }) {
+  return (
+    <section className="relative flex-1 overflow-hidden bg-[#0b0d11]">
+      {children}
+      {/*
+        Particle positions are populated via a useContext/Provider in
+        the engine wrapper (not shown here). Phase-3 passes an empty
+        particles[] when not live-streaming from the engine.
+      */}
+      <ParticleLayer width={1600} height={900} particles={[]} />
+    </section>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/PostRunResultsCard.tsx
+"use client";
+import type { PostRunSummary } from "@/lib/ai/sd-post-run-summarizer";
+
+export function PostRunResultsCard({
+  summary,
+  onLearn,
+  onBuild,
+  onDrill,
+}: {
+  summary: PostRunSummary;
+  onLearn: (conceptSlug: string) => void;
+  onBuild: (action: string) => void;
+  onDrill: (problemSlug: string, persona: string) => void;
+}) {
+  return (
+    <article
+      className="mx-auto max-w-3xl rounded-xl border border-neutral-700 bg-neutral-950 p-6 shadow-2xl"
+      aria-labelledby="post-run-heading"
+    >
+      <header className="mb-4">
+        <h2 id="post-run-heading" className="font-serif text-2xl text-neutral-100">
+          Run complete
+        </h2>
+        <p className="mt-2 font-serif text-sm italic text-neutral-400">
+          {summary.narrative}
+        </p>
+      </header>
+      <div className="grid gap-3 md:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => onLearn(summary.learnRec.conceptSlug)}
+          className="flex flex-col rounded-md border border-sky-500/40 bg-sky-500/5 p-4 text-left transition hover:bg-sky-500/10"
+        >
+          <span className="mb-1 text-[10px] uppercase tracking-wide text-sky-400">
+            Learn
+          </span>
+          <span className="font-serif text-base text-neutral-100">
+            {summary.learnRec.conceptSlug}
+          </span>
+          <span className="mt-2 font-serif text-xs text-neutral-400">
+            {summary.learnRec.reason}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onBuild(summary.buildRec.action)}
+          className="flex flex-col rounded-md border border-amber-500/40 bg-amber-500/5 p-4 text-left transition hover:bg-amber-500/10"
+        >
+          <span className="mb-1 text-[10px] uppercase tracking-wide text-amber-400">
+            Build
+          </span>
+          <span className="font-serif text-base text-neutral-100">
+            {summary.buildRec.action}
+          </span>
+          <span className="mt-2 font-serif text-xs text-neutral-400">
+            {summary.buildRec.reason}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onDrill(summary.drillRec.problemSlug, summary.drillRec.persona)}
+          className="flex flex-col rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-left transition hover:bg-emerald-500/10"
+        >
+          <span className="mb-1 text-[10px] uppercase tracking-wide text-emerald-400">
+            Drill
+          </span>
+          <span className="font-serif text-base text-neutral-100">
+            {summary.drillRec.problemSlug} · {summary.drillRec.persona}
+          </span>
+          <span className="mt-2 font-serif text-xs text-neutral-400">
+            {summary.drillRec.reason}
+          </span>
+        </button>
+      </div>
+      <footer className="mt-4 flex items-center justify-between text-[11px] text-neutral-500">
+        <span>Generated by {summary.generatedModel}</span>
+        <time dateTime={summary.generatedAt}>{summary.generatedAt}</time>
+      </footer>
+    </article>
+  );
+}
+```
+
+- [ ] **Step 4: Fill in `SimulateModeLayout.tsx`**
+
+```tsx
+// architex/src/components/modules/sd/modes/SimulateModeLayout.tsx
+"use client";
+
+import { useState } from "react";
+import { SimulateTopChrome } from "../simulate/SimulateTopChrome";
+import { SimulateLeftControlRail } from "../simulate/SimulateLeftControlRail";
+import { SimulateCanvasWrapper } from "../simulate/SimulateCanvasWrapper";
+import { MetricStrip } from "../simulate/MetricStrip";
+import { MarginNarrativeStream } from "../simulate/MarginNarrativeStream";
+import { TimelineScrubber } from "../simulate/TimelineScrubber";
+import { CostMeter } from "../simulate/CostMeter";
+import { CinematicChaosRibbon } from "../simulate/CinematicChaosRibbon";
+import { RedVignette } from "../simulate/RedVignette";
+import { WhisperCoachToast } from "../simulate/WhisperCoachToast";
+import { PostRunResultsCard } from "../simulate/PostRunResultsCard";
+import { useSimulateStore } from "@/stores/simulate-store";
+import { useCinematicChaos } from "@/hooks/useCinematicChaos";
+import { useMarginNarrative } from "@/hooks/useMarginNarrative";
+import type { PostRunSummary } from "@/lib/ai/sd-post-run-summarizer";
+import type { WhisperIntervention } from "@/lib/simulation/adapters/whisper-coach";
+
+export function SimulateModeLayout({
+  designId,
+}: {
+  designId: string;
+}) {
+  const { runId, running, maxSimMs } = useSimulateStore();
+  const { active: chaosActive, reducedMotion } = useCinematicChaos();
+  const { cards, copyAsMarkdown } = useMarginNarrative();
+  const [whisper] = useState<WhisperIntervention | null>(null);
+  const [postRun] = useState<PostRunSummary | null>(null);
+
+  return (
+    <div className="flex h-screen flex-col bg-black">
+      <SimulateTopChrome />
+      <div className="flex flex-1 overflow-hidden">
+        {runId && <SimulateLeftControlRail runId={runId} />}
+        <SimulateCanvasWrapper>
+          <CinematicChaosRibbon active={chaosActive} reducedMotion={reducedMotion} />
+          <RedVignette active={chaosActive != null} reducedMotion={reducedMotion} />
+        </SimulateCanvasWrapper>
+        <aside className="flex w-80 flex-col">
+          {runId && <MetricStrip runId={runId} />}
+          <div className="flex-1">
+            <MarginNarrativeStream cards={cards} onCopyMarkdown={copyAsMarkdown} />
+          </div>
+        </aside>
+      </div>
+      {runId && <TimelineScrubber maxSimMs={maxSimMs} />}
+      {runId && <CostMeter runId={runId} />}
+      <WhisperCoachToast intervention={whisper} />
+      {postRun && !running && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-8">
+          <PostRunResultsCard
+            summary={postRun}
+            onLearn={() => {}}
+            onBuild={() => {}}
+            onDrill={() => {}}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 5: `PostRunResultsCard` test**
+
+```tsx
+// architex/src/components/modules/sd/simulate/__tests__/PostRunResultsCard.test.tsx
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { PostRunResultsCard } from "../PostRunResultsCard";
+
+const summary = {
+  narrative: "Your design held SLOs but cost per request was high.",
+  learnRec: { conceptSlug: "caching-strategies", reason: "Reduce egress." },
+  buildRec: { action: "Add a CDN", reason: "Your origin is hot." },
+  drillRec: { problemSlug: "design-twitter", persona: "staff", reason: "Practice this at scale." },
+  generatedModel: "sonnet" as const,
+  generatedAt: "2026-04-20T12:00:00Z",
+};
+
+describe("PostRunResultsCard", () => {
+  it("renders triple-loop CTAs", () => {
+    const onLearn = vi.fn();
+    const onBuild = vi.fn();
+    const onDrill = vi.fn();
+    render(
+      <PostRunResultsCard
+        summary={summary}
+        onLearn={onLearn}
+        onBuild={onBuild}
+        onDrill={onDrill}
+      />,
+    );
+    expect(screen.getByText("Learn")).toBeInTheDocument();
+    expect(screen.getByText("Build")).toBeInTheDocument();
+    expect(screen.getByText("Drill")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("caching-strategies"));
+    expect(onLearn).toHaveBeenCalledWith("caching-strategies");
+  });
+});
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd architex
+pnpm test:run -- PostRunResultsCard
+git add architex/src/components/modules/sd/ architex/src/stores/simulate-store.ts architex/src/hooks/useSimulateRun.ts architex/src/hooks/useCostMeter.ts architex/src/hooks/useScaleSlider.ts
+git commit -m "$(cat <<'EOF'
+feat(sim-ui): SimulateModeLayout composition + PostRunResultsCard
+
+4-region layout per §8.2: top chrome (activity + scale + provider) ·
+left control rail (chaos + what-if) · center canvas + particles +
+cinematic ribbon + vignette · right metric strip + narrative stream ·
+bottom timeline scrubber. CostMeter fixed bottom-right at 1Hz.
+WhisperCoachToast center-bottom, 8s auto-dismiss.
+PostRunResultsCard: triple-loop Learn/Build/Drill CTAs consuming
+Sonnet-authored recommendations.
+
+simulate-store.ts Zustand slice owns runId, activity, chaosMode,
+loadModel, scale, provider, running/paused, sim time, coach-quiet.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
