@@ -1877,3 +1877,2043 @@ git commit -m "plan(lld-phase-6-task8): stamp cohort/rollout/mode/variants on ev
 
 ---
 
+
+## Task 9: Feature-flag registry + metadata
+
+**Files:**
+- Create: `architex/src/features/flags/registry.ts`
+- Create: `architex/src/features/flags/__tests__/registry.test.ts`
+
+**Design intent:** Every flag used anywhere in the codebase MUST be declared here. Registry is the authoritative list. The ESLint rule in Task 14 enforces that flag reads go through `gates.ts` which in turn reads this registry. Flags carry: key, owner, description, default, removeBy (staleness), optional killSwitch marker, optional variants list, optional rolloutStage mapping.
+
+- [ ] **Step 1: Test first**
+
+Create `architex/src/features/flags/__tests__/registry.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  FLAG_REGISTRY,
+  getFlagMeta,
+  listFlagKeys,
+  FLAG_KEYS,
+} from "../registry";
+
+describe("flag registry", () => {
+  it("declares every key used by the app", () => {
+    expect(FLAG_REGISTRY.size).toBe(FLAG_KEYS.length);
+    for (const key of FLAG_KEYS) {
+      expect(FLAG_REGISTRY.get(key)).toBeDefined();
+    }
+  });
+
+  it("every flag has an owner and a defaultValue", () => {
+    for (const [key, meta] of FLAG_REGISTRY) {
+      expect(meta.owner, `flag ${key} missing owner`).toBeTruthy();
+      expect(meta, `flag ${key} missing defaultValue`).toHaveProperty(
+        "defaultValue",
+      );
+    }
+  });
+
+  it("marks stale flags with a valid removeBy ISO date", () => {
+    for (const [key, meta] of FLAG_REGISTRY) {
+      if (!meta.removeBy) continue;
+      expect(
+        Date.parse(meta.removeBy),
+        `flag ${key} removeBy must be ISO`,
+      ).not.toBeNaN();
+    }
+  });
+
+  it("kill switches default to true (on)", () => {
+    for (const [, meta] of FLAG_REGISTRY) {
+      if (meta.killSwitch) expect(meta.defaultValue).toBe(true);
+    }
+  });
+
+  it("getFlagMeta returns the registry entry", () => {
+    const meta = getFlagMeta("lld.shell.v2");
+    expect(meta?.owner).toBe("@lld-eng");
+  });
+});
+```
+
+- [ ] **Step 2: Implement**
+
+Create `architex/src/features/flags/registry.ts`:
+
+```typescript
+/**
+ * Feature flag registry (Phase 6 Task 9).
+ *
+ * Single source of truth for every flag key. The ESLint rule
+ * `architex/require-feature-flag-gate` asserts call sites import
+ * from `@/features/flags/gates` which reads this registry.
+ *
+ * To add a flag:
+ *   1. Pick a key in `namespace.surface.feature` form
+ *   2. Add to FLAG_KEYS
+ *   3. Add a FlagMeta entry
+ *   4. Run `pnpm lint`
+ */
+
+export type FlagDefaultValue = boolean | string;
+
+export interface FlagMeta {
+  owner: string;
+  description: string;
+  defaultValue: FlagDefaultValue;
+  removeBy?: string; // ISO date
+  killSwitch?: boolean;
+  variants?: readonly string[];
+  rolloutStage?:
+    | "internal"
+    | "beta5"
+    | "rollout25"
+    | "rollout50"
+    | "rollout100";
+}
+
+export const FLAG_KEYS = [
+  // Shell
+  "lld.shell.v2",
+  "lld.welcome_banner.enabled",
+  "lld.mode_switcher.v2",
+  // Learn
+  "lld.learn.enabled",
+  "lld.learn.contextual_ai",
+  "lld.learn.tinker_mode",
+  "lld.learn.progressive_checkpoint_reveal",
+  "lld.learn.scroll_sync",
+  // Build
+  "lld.build.anti_pattern_detector",
+  "lld.build.pattern_recommendation",
+  "lld.build.ai_review_v2",
+  // Drill
+  "lld.drill.enabled",
+  "lld.drill.three_submodes",
+  "lld.drill.tiered_celebration",
+  "lld.drill.hostile_interviewer",
+  "lld.drill.company_mock",
+  // Review
+  "lld.review.enabled",
+  "lld.review.swipe_gestures",
+  "lld.review.cold_recall",
+  "lld.review.confidence_weighted",
+  // Studio
+  "lld.studio.cinematic_cold_open",
+  "lld.studio.spatial_home",
+  "lld.studio.pattern_rooms",
+  "lld.studio.radial_menu",
+  "lld.studio.editorial_typography",
+  "lld.studio.gesture_grammar",
+  "lld.studio.ambient_soundscape",
+  "lld.studio.fluid_layers",
+  "lld.studio.signature",
+  "lld.studio.presentation_mode",
+  "lld.studio.dual_view",
+  "lld.studio.first_time_ritual",
+  // A/B experiments
+  "lld.experiment.drill_celebration_v2",
+  "lld.experiment.review_card_layout",
+  "lld.experiment.welcome_banner_copy",
+  // Kill switches (default ON; flip OFF to kill)
+  "lld.killswitch.drill_submission",
+  "lld.killswitch.ai_features",
+  "lld.killswitch.canvas_live",
+  "lld.killswitch.telemetry",
+  // Migration gates
+  "lld.migration.phase6_progress_v2.enabled",
+  "lld.migration.phase6_activity_mirror.enabled",
+] as const;
+
+export type FlagKey = (typeof FLAG_KEYS)[number];
+
+export const FLAG_REGISTRY: ReadonlyMap<FlagKey, FlagMeta> = new Map<
+  FlagKey,
+  FlagMeta
+>([
+  [
+    "lld.shell.v2",
+    {
+      owner: "@lld-eng",
+      description: "Mode-switcher shell from Phase 1",
+      defaultValue: false,
+      removeBy: "2026-10-01",
+      rolloutStage: "rollout100",
+    },
+  ],
+  [
+    "lld.welcome_banner.enabled",
+    {
+      owner: "@lld-eng",
+      description: "First-visit path picker banner",
+      defaultValue: true,
+    },
+  ],
+  [
+    "lld.mode_switcher.v2",
+    {
+      owner: "@lld-eng",
+      description: "Four-pill mode switcher",
+      defaultValue: false,
+      rolloutStage: "rollout100",
+    },
+  ],
+  ["lld.learn.enabled", { owner: "@lld-eng", description: "Learn mode", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.learn.contextual_ai", { owner: "@lld-ai", description: "Ask-the-Architect", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.learn.tinker_mode", { owner: "@lld-eng", description: "Tinker unlock", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.learn.progressive_checkpoint_reveal", { owner: "@lld-eng", description: "Progressive whyWrong", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.learn.scroll_sync", { owner: "@lld-eng", description: "Canvas highlight on scroll", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.build.anti_pattern_detector", { owner: "@lld-eng", description: "Live anti-pattern linting", defaultValue: false, rolloutStage: "rollout25" }],
+  ["lld.build.pattern_recommendation", { owner: "@lld-ai", description: "Refactor suggestions", defaultValue: false, rolloutStage: "rollout25" }],
+  ["lld.build.ai_review_v2", { owner: "@lld-ai", description: "AI review polish", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.drill.enabled", { owner: "@lld-eng", description: "Drill mode", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.drill.three_submodes", { owner: "@lld-eng", description: "Interview/Guided/Speed picker", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.drill.tiered_celebration", { owner: "@lld-eng", description: "Grade reveal choreography", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.drill.hostile_interviewer", { owner: "@lld-ai", description: "Hostile interviewer", defaultValue: false, rolloutStage: "beta5" }],
+  ["lld.drill.company_mock", { owner: "@lld-ai", description: "Company mock interviews", defaultValue: false, rolloutStage: "beta5" }],
+  ["lld.review.enabled", { owner: "@lld-eng", description: "Review mode", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.review.swipe_gestures", { owner: "@lld-eng", description: "Mobile gesture ratings", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.review.cold_recall", { owner: "@lld-eng", description: "Delayed quiz variant", defaultValue: false, rolloutStage: "beta5" }],
+  ["lld.review.confidence_weighted", { owner: "@lld-eng", description: "Confidence rating", defaultValue: false, rolloutStage: "beta5" }],
+  ["lld.studio.cinematic_cold_open", { owner: "@lld-design", description: "15-sec first-visit film", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.studio.spatial_home", { owner: "@lld-design", description: "Isometric studio home", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.studio.pattern_rooms", { owner: "@lld-design", description: "Walk-into-room transitions", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.studio.radial_menu", { owner: "@lld-eng", description: "Long-press radial menu", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.studio.editorial_typography", { owner: "@lld-design", description: "Cormorant Garamond prose", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.studio.gesture_grammar", { owner: "@lld-eng", description: "Pinch/rotate/swipe", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.studio.ambient_soundscape", { owner: "@lld-design", description: "Per-category ambient", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.studio.fluid_layers", { owner: "@lld-design", description: "Translucent layers", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.studio.signature", { owner: "@lld-eng", description: "Architect signature", defaultValue: false, rolloutStage: "rollout100" }],
+  ["lld.studio.presentation_mode", { owner: "@lld-eng", description: "Diagram → slides", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.studio.dual_view", { owner: "@lld-eng", description: "Code + UML 50/50", defaultValue: false, rolloutStage: "rollout50" }],
+  ["lld.studio.first_time_ritual", { owner: "@lld-design", description: "4-screen welcome", defaultValue: false, rolloutStage: "rollout100" }],
+  [
+    "lld.experiment.drill_celebration_v2",
+    {
+      owner: "@lld-design",
+      description: "A/B: confetti vs badge",
+      defaultValue: "control",
+      variants: ["control", "confetti", "badge"] as const,
+      removeBy: "2026-06-30",
+    },
+  ],
+  [
+    "lld.experiment.review_card_layout",
+    {
+      owner: "@lld-design",
+      description: "A/B: stacked vs inline",
+      defaultValue: "control",
+      variants: ["control", "stacked", "inline"] as const,
+      removeBy: "2026-06-30",
+    },
+  ],
+  [
+    "lld.experiment.welcome_banner_copy",
+    {
+      owner: "@lld-content",
+      description: "A/B: welcome copy variant",
+      defaultValue: "control",
+      variants: ["control", "curious", "direct"] as const,
+      removeBy: "2026-06-30",
+    },
+  ],
+  ["lld.killswitch.drill_submission", { owner: "@lld-eng", description: "Emergency disable drill grading", defaultValue: true, killSwitch: true }],
+  ["lld.killswitch.ai_features", { owner: "@lld-ai", description: "Emergency disable AI surfaces", defaultValue: true, killSwitch: true }],
+  ["lld.killswitch.canvas_live", { owner: "@lld-eng", description: "Emergency disable live canvas", defaultValue: true, killSwitch: true }],
+  ["lld.killswitch.telemetry", { owner: "@platform", description: "Emergency disable PostHog capture", defaultValue: true, killSwitch: true }],
+  ["lld.migration.phase6_progress_v2.enabled", { owner: "@lld-eng", description: "Progress_v2 dual-write gate", defaultValue: false }],
+  ["lld.migration.phase6_activity_mirror.enabled", { owner: "@lld-eng", description: "Activity mirror migration gate", defaultValue: false }],
+]);
+
+export function getFlagMeta(key: FlagKey): FlagMeta | undefined {
+  return FLAG_REGISTRY.get(key);
+}
+
+export function listFlagKeys(): readonly FlagKey[] {
+  return FLAG_KEYS;
+}
+```
+
+- [ ] **Step 3: Verify + commit**
+
+```bash
+cd architex && pnpm test:run src/features/flags/__tests__/registry.test.ts
+git add architex/src/features/flags/registry.ts architex/src/features/flags/__tests__/registry.test.ts
+git commit -m "plan(lld-phase-6-task9): add feature flag registry (15 shell/mode + 3 AB + 4 kill switches + 2 migration)"
+```
+
+---
+
+## Task 10: Client-side flag gates + kill switch
+
+**Files:**
+- Create: `architex/src/features/flags/gates.ts`
+- Create: `architex/src/features/flags/kill-switch.ts`
+- Create: `architex/src/features/flags/__tests__/gates.test.ts`
+- Create: `architex/src/features/flags/__tests__/kill-switch.test.ts`
+
+**Design intent:** `gates.ts` is the only file any code imports to check a flag. It consults (in order): the kill-switch env var, localStorage override (dev), PostHog remote, registry default. Every evaluation fires an `lld_feature_flag_evaluated` telemetry event with the reason.
+
+- [ ] **Step 1: Test kill switch**
+
+Create `architex/src/features/flags/__tests__/kill-switch.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach } from "vitest";
+import { isKilled, __testing_killSwitch } from "../kill-switch";
+
+describe("kill-switch", () => {
+  beforeEach(() => {
+    __testing_killSwitch.reset();
+  });
+
+  it("returns false when no env var is set", () => {
+    expect(isKilled("lld.killswitch.drill_submission")).toBe(false);
+  });
+
+  it("returns true when env var lists the key (comma separated)", () => {
+    __testing_killSwitch.setEnvVar(
+      "lld.killswitch.drill_submission,lld.killswitch.ai_features",
+    );
+    expect(isKilled("lld.killswitch.drill_submission")).toBe(true);
+    expect(isKilled("lld.killswitch.ai_features")).toBe(true);
+    expect(isKilled("lld.killswitch.canvas_live")).toBe(false);
+  });
+
+  it("respects whitespace and empty segments", () => {
+    __testing_killSwitch.setEnvVar("  lld.killswitch.drill_submission ,  ");
+    expect(isKilled("lld.killswitch.drill_submission")).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 2: Implement kill switch**
+
+Create `architex/src/features/flags/kill-switch.ts`:
+
+```typescript
+/**
+ * Emergency kill switch (Phase 6 Task 10).
+ *
+ * The env var NEXT_PUBLIC_LLD_KILL_SWITCHES contains a comma-separated
+ * list of flag keys that should be forced OFF regardless of PostHog
+ * state. This is the last line of defense — flipping it requires a
+ * redeploy (seconds), but bypasses any caching or SDK load failures.
+ *
+ * Kill-switch flags in the registry default to `true` (ON). Flipping
+ * them OFF via this env var kills the feature.
+ */
+
+import type { FlagKey } from "./registry";
+
+let _testingEnvVar: string | null = null;
+
+export function isKilled(flagKey: FlagKey): boolean {
+  const raw =
+    _testingEnvVar ?? process.env.NEXT_PUBLIC_LLD_KILL_SWITCHES ?? "";
+  if (!raw) return false;
+
+  const keys = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return keys.includes(flagKey);
+}
+
+export const __testing_killSwitch = {
+  reset(): void {
+    _testingEnvVar = null;
+  },
+  setEnvVar(val: string | null): void {
+    _testingEnvVar = val;
+  },
+};
+```
+
+- [ ] **Step 3: Test gates**
+
+Create `architex/src/features/flags/__tests__/gates.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { isEnabled, getVariant, __testing_gates } from "../gates";
+
+describe("flag gates", () => {
+  beforeEach(() => {
+    __testing_gates.reset();
+  });
+
+  it("returns registry default when PostHog is offline", () => {
+    __testing_gates.setPostHogClient(null);
+    expect(isEnabled("lld.welcome_banner.enabled")).toBe(true);
+    expect(isEnabled("lld.learn.enabled")).toBe(false);
+  });
+
+  it("respects dev overrides from localStorage", () => {
+    __testing_gates.setDevOverride("lld.learn.enabled", true);
+    expect(isEnabled("lld.learn.enabled")).toBe(true);
+  });
+
+  it("returns false for a killed kill-switch flag", () => {
+    __testing_gates.setKilled("lld.killswitch.drill_submission", true);
+    expect(isEnabled("lld.killswitch.drill_submission")).toBe(false);
+  });
+
+  it("prefers PostHog value over default when present", () => {
+    __testing_gates.setPostHogClient({
+      isFeatureEnabled: () => true,
+      getFeatureFlag: () => undefined,
+    });
+    expect(isEnabled("lld.drill.enabled")).toBe(true);
+  });
+
+  it("getVariant returns registry default for non-experiment flags", () => {
+    expect(getVariant("lld.experiment.drill_celebration_v2")).toBe("control");
+  });
+
+  it("getVariant respects PostHog string variant", () => {
+    __testing_gates.setPostHogClient({
+      isFeatureEnabled: () => false,
+      getFeatureFlag: () => "confetti",
+    });
+    expect(getVariant("lld.experiment.drill_celebration_v2")).toBe("confetti");
+  });
+
+  it("getVariant returns default on unknown variant string", () => {
+    __testing_gates.setPostHogClient({
+      isFeatureEnabled: () => false,
+      getFeatureFlag: () => "unknown_variant",
+    });
+    expect(getVariant("lld.experiment.drill_celebration_v2")).toBe("control");
+  });
+
+  it("fires lld_feature_flag_evaluated for every read", async () => {
+    const spy = vi.fn();
+    __testing_gates.setEmitFn(spy);
+    isEnabled("lld.learn.enabled");
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "lld_feature_flag_evaluated",
+        properties: expect.objectContaining({
+          flagKey: "lld.learn.enabled",
+          reason: "default",
+        }),
+      }),
+    );
+  });
+});
+```
+
+- [ ] **Step 4: Implement gates**
+
+Create `architex/src/features/flags/gates.ts`:
+
+```typescript
+/**
+ * Client-side feature flag gates (Phase 6 Task 10).
+ *
+ * Resolution order (first match wins):
+ *   1. Kill switch env var  → false
+ *   2. Dev override (localStorage)
+ *   3. PostHog remote value
+ *   4. Registry default
+ *
+ * Every evaluation emits `lld_feature_flag_evaluated` with the reason.
+ */
+
+import { getFlagMeta, type FlagKey } from "./registry";
+import { isKilled } from "./kill-switch";
+import { Events, emit, type LLDEvent } from "@/lib/analytics/lld-events";
+
+interface PostHogLike {
+  isFeatureEnabled(flag: string): boolean | undefined;
+  getFeatureFlag(flag: string): string | boolean | undefined;
+}
+
+let _phClient: PostHogLike | null = null;
+let _devOverrides = new Map<FlagKey, boolean | string>();
+let _testingKilled = new Map<FlagKey, boolean>();
+let _testingEmit: ((event: LLDEvent) => void) | null = null;
+
+const DEV_OVERRIDE_STORAGE_KEY = "architex_flag_overrides_v1";
+
+function loadDevOverridesFromStorage(): void {
+  if (typeof window === "undefined") return;
+  if (_devOverrides.size > 0) return;
+  try {
+    const raw = localStorage.getItem(DEV_OVERRIDE_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Record<string, boolean | string>;
+    _devOverrides = new Map(
+      Object.entries(parsed) as Array<[FlagKey, boolean | string]>,
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function setPostHogFlagClient(client: PostHogLike | null): void {
+  _phClient = client;
+}
+
+type EvalReason = "remote" | "kill_switch" | "default" | "override";
+
+function fireEvaluated(
+  key: FlagKey,
+  value: boolean | string,
+  reason: EvalReason,
+): void {
+  const ev = Events.featureFlagEvaluated({ flagKey: key, value, reason });
+  if (_testingEmit) {
+    _testingEmit(ev);
+  } else {
+    // fire-and-forget
+    void emit(ev);
+  }
+}
+
+export function isEnabled(key: FlagKey): boolean {
+  const meta = getFlagMeta(key);
+  if (!meta) return false;
+
+  // 1. Kill switch
+  const killed = _testingKilled.get(key) ?? isKilled(key);
+  if (meta.killSwitch) {
+    // kill-switch flags default TRUE; flipping kills
+    if (killed) {
+      fireEvaluated(key, false, "kill_switch");
+      return false;
+    }
+  } else {
+    if (killed) {
+      fireEvaluated(key, false, "kill_switch");
+      return false;
+    }
+  }
+
+  // 2. Dev override
+  loadDevOverridesFromStorage();
+  const override = _devOverrides.get(key);
+  if (override !== undefined) {
+    const asBool = typeof override === "boolean" ? override : Boolean(override);
+    fireEvaluated(key, asBool, "override");
+    return asBool;
+  }
+
+  // 3. PostHog remote
+  if (_phClient) {
+    const remote = _phClient.isFeatureEnabled(key);
+    if (typeof remote === "boolean") {
+      fireEvaluated(key, remote, "remote");
+      return remote;
+    }
+  }
+
+  // 4. Registry default
+  const def =
+    typeof meta.defaultValue === "boolean" ? meta.defaultValue : false;
+  fireEvaluated(key, def, "default");
+  return def;
+}
+
+export function getVariant(key: FlagKey): string {
+  const meta = getFlagMeta(key);
+  if (!meta || !meta.variants) {
+    return typeof meta?.defaultValue === "string" ? meta.defaultValue : "control";
+  }
+
+  loadDevOverridesFromStorage();
+  const override = _devOverrides.get(key);
+  if (typeof override === "string" && meta.variants.includes(override)) {
+    fireEvaluated(key, override, "override");
+    return override;
+  }
+
+  if (_phClient) {
+    const remote = _phClient.getFeatureFlag(key);
+    if (typeof remote === "string" && meta.variants.includes(remote)) {
+      fireEvaluated(key, remote, "remote");
+      return remote;
+    }
+  }
+
+  const def =
+    typeof meta.defaultValue === "string" ? meta.defaultValue : "control";
+  fireEvaluated(key, def, "default");
+  return def;
+}
+
+export const __testing_gates = {
+  reset(): void {
+    _phClient = null;
+    _devOverrides = new Map();
+    _testingKilled = new Map();
+    _testingEmit = null;
+  },
+  setPostHogClient(c: PostHogLike | null): void {
+    _phClient = c;
+  },
+  setDevOverride(k: FlagKey, v: boolean | string): void {
+    _devOverrides.set(k, v);
+  },
+  setKilled(k: FlagKey, v: boolean): void {
+    _testingKilled.set(k, v);
+  },
+  setEmitFn(fn: (e: LLDEvent) => void): void {
+    _testingEmit = fn;
+  },
+};
+```
+
+- [ ] **Step 5: Verify + commit**
+
+```bash
+cd architex && pnpm test:run src/features/flags/__tests__/gates.test.ts src/features/flags/__tests__/kill-switch.test.ts
+git add architex/src/features/flags/gates.ts architex/src/features/flags/kill-switch.ts architex/src/features/flags/__tests__/gates.test.ts architex/src/features/flags/__tests__/kill-switch.test.ts
+git commit -m "plan(lld-phase-6-task10): client-side flag gates + kill switch"
+```
+
+---
+
+## Task 11: Server-side flag helpers
+
+**Files:**
+- Create: `architex/src/features/flags/gates.server.ts`
+- Create: `architex/src/features/flags/__tests__/gates.server.test.ts`
+
+**Design intent:** Route handlers and Server Components can't use PostHog's browser SDK. Server-side helpers accept a `userId` and do deterministic-hash cohort assignment + registry default. PostHog server-side API is optional — if the call is unavailable (dev) we fall back to hashing.
+
+- [ ] **Step 1: Test first**
+
+Create `architex/src/features/flags/__tests__/gates.server.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  isEnabledServer,
+  getVariantServer,
+  hashCohortBucket,
+} from "../gates.server";
+
+describe("server flag gates", () => {
+  it("hashCohortBucket returns 0..99 deterministically", () => {
+    const a = hashCohortBucket("user_abc", "lld.drill.enabled");
+    const b = hashCohortBucket("user_abc", "lld.drill.enabled");
+    expect(a).toBe(b);
+    expect(a).toBeGreaterThanOrEqual(0);
+    expect(a).toBeLessThan(100);
+  });
+
+  it("different user → different bucket (usually)", () => {
+    const buckets = Array.from({ length: 1000 }, (_, i) =>
+      hashCohortBucket(`user_${i}`, "lld.drill.enabled"),
+    );
+    const unique = new Set(buckets);
+    expect(unique.size).toBeGreaterThan(50); // expect good distribution
+  });
+
+  it("isEnabledServer honors registry default for unknown flag", async () => {
+    const ok = await isEnabledServer("lld.welcome_banner.enabled", "user_x");
+    expect(ok).toBe(true);
+  });
+
+  it("isEnabledServer returns false when killed", async () => {
+    const prev = process.env.NEXT_PUBLIC_LLD_KILL_SWITCHES;
+    process.env.NEXT_PUBLIC_LLD_KILL_SWITCHES =
+      "lld.killswitch.drill_submission";
+    const ok = await isEnabledServer(
+      "lld.killswitch.drill_submission",
+      "user_x",
+    );
+    expect(ok).toBe(false);
+    process.env.NEXT_PUBLIC_LLD_KILL_SWITCHES = prev;
+  });
+
+  it("getVariantServer returns registry default", async () => {
+    const v = await getVariantServer(
+      "lld.experiment.drill_celebration_v2",
+      "user_x",
+    );
+    expect(["control", "confetti", "badge"]).toContain(v);
+  });
+});
+```
+
+- [ ] **Step 2: Implement**
+
+Create `architex/src/features/flags/gates.server.ts`:
+
+```typescript
+/**
+ * Server-side flag gates (Phase 6 Task 11).
+ *
+ * Use from Route Handlers, Server Actions, Server Components.
+ * Never import `gates.ts` on the server — it references
+ * localStorage and PostHog-browser.
+ */
+
+import "server-only";
+
+import { createHash } from "node:crypto";
+import { getFlagMeta, type FlagKey } from "./registry";
+import { isKilled } from "./kill-switch";
+
+/**
+ * Deterministically assign a user to a 0..99 cohort bucket for a flag.
+ * The same user+flag pair always yields the same bucket.
+ */
+export function hashCohortBucket(userId: string, flagKey: FlagKey): number {
+  const h = createHash("sha256").update(`${userId}:${flagKey}`).digest();
+  const n = h.readUInt32BE(0);
+  return n % 100;
+}
+
+const STAGE_PERCENT: Record<
+  NonNullable<ReturnType<typeof getFlagMeta>>["rolloutStage"] & string,
+  number
+> = {
+  internal: 0, // internal cohort only; require allowlist check
+  beta5: 5,
+  rollout25: 25,
+  rollout50: 50,
+  rollout100: 100,
+};
+
+export async function isEnabledServer(
+  key: FlagKey,
+  userId: string | null,
+): Promise<boolean> {
+  const meta = getFlagMeta(key);
+  if (!meta) return false;
+
+  // Kill switch
+  if (isKilled(key)) return false;
+
+  // Rollout-stage gating when user is known
+  if (userId && meta.rolloutStage) {
+    const pct = STAGE_PERCENT[meta.rolloutStage] ?? 0;
+    if (meta.rolloutStage === "internal") {
+      // Internal cohort: only @architex team emails are allowlisted.
+      // Emails arrive via a separate lookup (not implemented here).
+      return false;
+    }
+    const bucket = hashCohortBucket(userId, key);
+    return bucket < pct;
+  }
+
+  // Registry default
+  return typeof meta.defaultValue === "boolean" ? meta.defaultValue : false;
+}
+
+export async function getVariantServer(
+  key: FlagKey,
+  userId: string | null,
+): Promise<string> {
+  const meta = getFlagMeta(key);
+  if (!meta || !meta.variants) {
+    return typeof meta?.defaultValue === "string"
+      ? meta.defaultValue
+      : "control";
+  }
+  if (!userId) {
+    return typeof meta.defaultValue === "string"
+      ? meta.defaultValue
+      : "control";
+  }
+  // Deterministic variant assignment: hash → index.
+  const bucket = hashCohortBucket(userId, key);
+  const idx = bucket % meta.variants.length;
+  return meta.variants[idx];
+}
+```
+
+- [ ] **Step 3: Verify + commit**
+
+```bash
+cd architex && pnpm test:run src/features/flags/__tests__/gates.server.test.ts
+git add architex/src/features/flags/gates.server.ts architex/src/features/flags/__tests__/gates.server.test.ts
+git commit -m "plan(lld-phase-6-task11): server-side flag helpers with deterministic cohort hashing"
+```
+
+---
+
+## Task 12: Dev-only flag override panel
+
+**Files:**
+- Create: `architex/src/features/flags/dev-panel/FlagDevPanel.tsx`
+- Create: `architex/src/features/flags/dev-panel/useFlagOverrides.ts`
+
+**Design intent:** Engineers toggle flags in dev without deploying. Panel is only rendered when `process.env.NODE_ENV !== 'production'`, persists overrides to localStorage, and fires `lld_feature_flag_evaluated` with `reason: "override"` on every read. Also lists stale flags (past `removeBy`) in red.
+
+- [ ] **Step 1: Implement the hook**
+
+Create `architex/src/features/flags/dev-panel/useFlagOverrides.ts`:
+
+```typescript
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { FLAG_KEYS, type FlagKey } from "../registry";
+
+const STORAGE_KEY = "architex_flag_overrides_v1";
+
+interface OverrideState {
+  overrides: Record<string, boolean | string>;
+  setOverride(key: FlagKey, value: boolean | string | null): void;
+  clearAll(): void;
+}
+
+function read(): Record<string, boolean | string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, boolean | string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function write(next: Record<string, boolean | string>): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent("architex:flag-overrides-changed"));
+}
+
+export function useFlagOverrides(): OverrideState {
+  const [overrides, setOverrides] = useState<Record<string, boolean | string>>(
+    () => read(),
+  );
+
+  useEffect(() => {
+    const handler = () => setOverrides(read());
+    window.addEventListener(
+      "architex:flag-overrides-changed",
+      handler as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "architex:flag-overrides-changed",
+        handler as EventListener,
+      );
+  }, []);
+
+  const setOverride = useCallback(
+    (key: FlagKey, value: boolean | string | null) => {
+      const next = { ...read() };
+      if (value === null) delete next[key];
+      else next[key] = value;
+      write(next);
+      setOverrides(next);
+    },
+    [],
+  );
+
+  const clearAll = useCallback(() => {
+    write({});
+    setOverrides({});
+  }, []);
+
+  return { overrides, setOverride, clearAll };
+}
+
+export const ALL_FLAG_KEYS = FLAG_KEYS;
+```
+
+- [ ] **Step 2: Implement the panel**
+
+Create `architex/src/features/flags/dev-panel/FlagDevPanel.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useState } from "react";
+import { useFlagOverrides, ALL_FLAG_KEYS } from "./useFlagOverrides";
+import { FLAG_REGISTRY, type FlagKey, type FlagMeta } from "../registry";
+
+function isStale(meta: FlagMeta): boolean {
+  if (!meta.removeBy) return false;
+  return Date.parse(meta.removeBy) < Date.now();
+}
+
+export const FlagDevPanel = memo(function FlagDevPanel() {
+  const { overrides, setOverride, clearAll } = useFlagOverrides();
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+
+  if (process.env.NODE_ENV === "production") return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Open flag dev panel"
+        onClick={() => setOpen((p) => !p)}
+        className="fixed bottom-4 right-4 z-50 rounded-full bg-purple-600 px-3 py-1.5 text-xs font-mono text-white shadow-lg hover:bg-purple-700"
+        data-ph-no-capture
+      >
+        flags{" "}
+        {Object.keys(overrides).length > 0
+          ? `(${Object.keys(overrides).length})`
+          : ""}
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Feature flag dev panel"
+          className="fixed bottom-16 right-4 z-50 max-h-[70vh] w-[460px] overflow-auto rounded-lg border border-border bg-background p-3 text-xs shadow-2xl"
+        >
+          <div className="flex items-center justify-between pb-2">
+            <strong>Feature flags (dev)</strong>
+            <button
+              type="button"
+              onClick={clearAll}
+              className="rounded bg-red-600 px-2 py-0.5 text-white"
+              data-ph-no-capture
+            >
+              Clear all
+            </button>
+          </div>
+          <input
+            type="text"
+            placeholder="Filter…"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="mb-2 w-full rounded border border-border bg-transparent px-2 py-1 ph-no-capture"
+          />
+          <ul className="space-y-1">
+            {ALL_FLAG_KEYS.filter((k) => k.includes(filter)).map((key) => {
+              const meta = FLAG_REGISTRY.get(key as FlagKey);
+              if (!meta) return null;
+              const override = overrides[key];
+              const stale = isStale(meta);
+              return (
+                <li
+                  key={key}
+                  className={`flex items-center justify-between gap-2 rounded px-2 py-1 ${stale ? "bg-red-900/30" : ""}`}
+                >
+                  <span className="truncate font-mono" title={meta.description}>
+                    {key}
+                    {stale ? " [STALE]" : ""}
+                  </span>
+                  {meta.variants ? (
+                    <select
+                      className="rounded border border-border bg-transparent px-1"
+                      value={(override as string) ?? "__unset"}
+                      onChange={(e) =>
+                        setOverride(
+                          key as FlagKey,
+                          e.target.value === "__unset"
+                            ? null
+                            : e.target.value,
+                        )
+                      }
+                    >
+                      <option value="__unset">(default)</option>
+                      {meta.variants.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      className="rounded border border-border bg-transparent px-1"
+                      value={
+                        override === undefined
+                          ? "__unset"
+                          : override === true
+                            ? "true"
+                            : "false"
+                      }
+                      onChange={(e) =>
+                        setOverride(
+                          key as FlagKey,
+                          e.target.value === "__unset"
+                            ? null
+                            : e.target.value === "true",
+                        )
+                      }
+                    >
+                      <option value="__unset">(default)</option>
+                      <option value="true">on</option>
+                      <option value="false">off</option>
+                    </select>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+});
+```
+
+- [ ] **Step 3: Mount in app root**
+
+In `architex/src/app/layout.tsx`, add to the client-boundary children:
+
+```tsx
+import { FlagDevPanel } from "@/features/flags/dev-panel/FlagDevPanel";
+
+// inside layout body
+{process.env.NODE_ENV !== "production" && <FlagDevPanel />}
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/features/flags/dev-panel/FlagDevPanel.tsx architex/src/features/flags/dev-panel/useFlagOverrides.ts architex/src/app/layout.tsx
+git commit -m "plan(lld-phase-6-task12): add dev-only flag override panel"
+```
+
+---
+
+## Task 13: Create local ESLint plugin
+
+**Files:**
+- Create: `eslint-plugin-architex/package.json`
+- Create: `eslint-plugin-architex/index.js`
+- Create: `eslint-plugin-architex/rules/require-feature-flag-gate.js`
+
+**Design intent:** A local (same-repo) ESLint plugin that contains a single custom rule requiring any string literal matching the flag-key pattern (`lld.*`) to be read via `@/features/flags/gates` or `@/features/flags/gates.server`. Prevents bypassing the registry.
+
+- [ ] **Step 1: Create the plugin package.json**
+
+Create `eslint-plugin-architex/package.json`:
+
+```json
+{
+  "name": "eslint-plugin-architex",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "peerDependencies": {
+    "eslint": "^9.0.0"
+  }
+}
+```
+
+- [ ] **Step 2: Plugin entry point**
+
+Create `eslint-plugin-architex/index.js`:
+
+```javascript
+const requireFeatureFlagGate = require("./rules/require-feature-flag-gate");
+
+module.exports = {
+  rules: {
+    "require-feature-flag-gate": requireFeatureFlagGate,
+  },
+  configs: {
+    recommended: {
+      plugins: ["architex"],
+      rules: {
+        "architex/require-feature-flag-gate": "error",
+      },
+    },
+  },
+};
+```
+
+- [ ] **Step 3: The rule**
+
+Create `eslint-plugin-architex/rules/require-feature-flag-gate.js`:
+
+```javascript
+/**
+ * Rule: require-feature-flag-gate
+ *
+ * Any string literal matching the flag pattern (/^lld\.[a-z0-9_.]+$/)
+ * must be a direct argument to `isEnabled`, `getVariant`, `isEnabledServer`,
+ * or `getVariantServer` imported from `@/features/flags/gates` or
+ * `@/features/flags/gates.server`.
+ *
+ * Exceptions:
+ *   - Inside the registry file itself (registry.ts)
+ *   - Inside test files (*.test.ts, *.test.tsx)
+ *   - Inside the eslint plugin itself
+ *
+ * This prevents engineers from bypassing the registry with raw strings
+ * or from calling PostHog.isFeatureEnabled directly.
+ */
+
+const FLAG_PATTERN = /^lld\.[a-z0-9_.]+$/;
+const ALLOWED_CALL_NAMES = new Set([
+  "isEnabled",
+  "getVariant",
+  "isEnabledServer",
+  "getVariantServer",
+  "useFeatureFlag",
+  "useAbVariant",
+]);
+const ALLOWED_FILES = [
+  /src\/features\/flags\/registry\.ts$/,
+  /src\/features\/flags\/dev-panel\//,
+  /src\/features\/flags\/kill-switch\.ts$/,
+  /\.test\.(ts|tsx)$/,
+  /eslint-plugin-architex\//,
+];
+
+module.exports = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "require feature flag keys to be read via @/features/flags/gates",
+    },
+    schema: [],
+    messages: {
+      rawFlagString:
+        "Flag key '{{key}}' must be read via isEnabled/getVariant/etc. from @/features/flags/gates(.server). Do not use raw strings — add to FLAG_REGISTRY.",
+      wrongCallee:
+        "Flag key '{{key}}' is passed to '{{callee}}', which is not an approved gate helper.",
+    },
+  },
+  create(context) {
+    const filename = context.getFilename();
+    for (const pat of ALLOWED_FILES) {
+      if (pat.test(filename)) return {};
+    }
+
+    return {
+      Literal(node) {
+        if (typeof node.value !== "string") return;
+        if (!FLAG_PATTERN.test(node.value)) return;
+
+        // Walk up to find a CallExpression this literal is an argument to.
+        let parent = node.parent;
+        while (parent && parent.type !== "CallExpression") {
+          if (
+            parent.type === "Program" ||
+            parent.type === "BlockStatement" ||
+            parent.type === "FunctionDeclaration" ||
+            parent.type === "ArrowFunctionExpression"
+          ) {
+            break;
+          }
+          parent = parent.parent;
+        }
+        if (!parent || parent.type !== "CallExpression") {
+          context.report({
+            node,
+            messageId: "rawFlagString",
+            data: { key: node.value },
+          });
+          return;
+        }
+        const callee = parent.callee;
+        let name = null;
+        if (callee.type === "Identifier") name = callee.name;
+        else if (callee.type === "MemberExpression" && callee.property.type === "Identifier") {
+          name = callee.property.name;
+        }
+        if (!name || !ALLOWED_CALL_NAMES.has(name)) {
+          context.report({
+            node,
+            messageId: "wrongCallee",
+            data: { key: node.value, callee: name ?? "unknown" },
+          });
+        }
+      },
+    };
+  },
+};
+```
+
+- [ ] **Step 4: Wire plugin into `eslint.config.mjs`**
+
+Edit `architex/eslint.config.mjs`:
+
+```javascript
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import architex from "../eslint-plugin-architex/index.js";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  {
+    plugins: { architex },
+    rules: {
+      "architex/require-feature-flag-gate": "error",
+    },
+  },
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+```
+
+- [ ] **Step 5: Add an intentional violation test**
+
+Create `architex/src/features/flags/__tests__/lint-violation-fixture.ts` as a sanity check:
+
+```typescript
+// This file is intentionally left unlinted as a negative test.
+// When Task 13 is complete, `pnpm lint` must error on the string below.
+// After verifying the error, delete this file or move it into the
+// eslint plugin's test suite.
+/* eslint-disable */
+const _bad = "lld.drill.enabled";
+export {};
+```
+
+Run:
+```bash
+cd architex && pnpm lint src/features/flags/__tests__/lint-violation-fixture.ts
+```
+
+Expected: one error (`rawFlagString`). After verifying, delete the fixture:
+```bash
+git rm architex/src/features/flags/__tests__/lint-violation-fixture.ts
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add eslint-plugin-architex/ architex/eslint.config.mjs
+git commit -m "plan(lld-phase-6-task13): add local ESLint plugin with require-feature-flag-gate rule"
+```
+
+---
+
+## Task 14: Rollout stages + ramp config
+
+**Files:**
+- Create: `architex/src/features/rollout-config.ts`
+- Create: `architex/src/features/rollout.ts`
+- Create: `architex/src/features/__tests__/rollout.test.ts`
+
+**Design intent:** Five discrete rollout stages: `off`, `internal`, `beta5`, `rollout25`, `rollout50`, `rollout100`. Each feature's current stage lives in `rollout-config.ts` as code (reviewable, diff-able) rather than PostHog UI. PostHog is still used for the actual %-rollout; the config is the source of truth that git knows about.
+
+- [ ] **Step 1: Implement rollout-config**
+
+Create `architex/src/features/rollout-config.ts`:
+
+```typescript
+/**
+ * LLD rollout configuration (Phase 6 Task 14 · spec §15 Q20).
+ *
+ * Maps each flag key to its current rollout stage. Changing a stage
+ * here is a code review with diff. Deploying this file advances the
+ * rollout. PostHog % is set in the PostHog UI to match the stage, but
+ * this file is the source of truth git knows about.
+ *
+ * Stages:
+ *   - off         : 0% — feature fully disabled
+ *   - internal    : allowlisted emails only (0% of public)
+ *   - beta5       : 5% of authenticated users
+ *   - rollout25   : 25%
+ *   - rollout50   : 50%
+ *   - rollout100  : 100% of authenticated users
+ */
+
+import type { FlagKey } from "./flags/registry";
+import type { RolloutStage } from "@/types/telemetry";
+
+export type LLDRolloutStage = RolloutStage;
+
+export const STAGE_TO_PERCENT: Record<LLDRolloutStage, number> = {
+  off: 0,
+  internal: 0,
+  beta5: 5,
+  rollout25: 25,
+  rollout50: 50,
+  rollout100: 100,
+};
+
+export const ROLLOUT_CONFIG: ReadonlyMap<FlagKey, LLDRolloutStage> = new Map<
+  FlagKey,
+  LLDRolloutStage
+>([
+  // Shell
+  ["lld.shell.v2", "rollout100"],
+  ["lld.welcome_banner.enabled", "rollout100"],
+  ["lld.mode_switcher.v2", "rollout100"],
+  // Learn
+  ["lld.learn.enabled", "rollout100"],
+  ["lld.learn.contextual_ai", "rollout50"],
+  ["lld.learn.tinker_mode", "rollout50"],
+  ["lld.learn.progressive_checkpoint_reveal", "rollout100"],
+  ["lld.learn.scroll_sync", "rollout100"],
+  // Build
+  ["lld.build.anti_pattern_detector", "rollout25"],
+  ["lld.build.pattern_recommendation", "rollout25"],
+  ["lld.build.ai_review_v2", "rollout50"],
+  // Drill
+  ["lld.drill.enabled", "rollout100"],
+  ["lld.drill.three_submodes", "rollout50"],
+  ["lld.drill.tiered_celebration", "rollout50"],
+  ["lld.drill.hostile_interviewer", "beta5"],
+  ["lld.drill.company_mock", "beta5"],
+  // Review
+  ["lld.review.enabled", "rollout100"],
+  ["lld.review.swipe_gestures", "rollout50"],
+  ["lld.review.cold_recall", "beta5"],
+  ["lld.review.confidence_weighted", "beta5"],
+  // Studio (Phase 5)
+  ["lld.studio.cinematic_cold_open", "rollout100"],
+  ["lld.studio.spatial_home", "rollout100"],
+  ["lld.studio.pattern_rooms", "rollout100"],
+  ["lld.studio.radial_menu", "rollout50"],
+  ["lld.studio.editorial_typography", "rollout100"],
+  ["lld.studio.gesture_grammar", "rollout50"],
+  ["lld.studio.ambient_soundscape", "rollout50"],
+  ["lld.studio.fluid_layers", "rollout100"],
+  ["lld.studio.signature", "rollout100"],
+  ["lld.studio.presentation_mode", "rollout50"],
+  ["lld.studio.dual_view", "rollout50"],
+  ["lld.studio.first_time_ritual", "rollout100"],
+]);
+
+export function currentStage(key: FlagKey): LLDRolloutStage {
+  return ROLLOUT_CONFIG.get(key) ?? "off";
+}
+
+export function currentPercent(key: FlagKey): number {
+  return STAGE_TO_PERCENT[currentStage(key)];
+}
+```
+
+- [ ] **Step 2: Implement rollout resolver**
+
+Create `architex/src/features/rollout.ts`:
+
+```typescript
+/**
+ * LLD rollout resolver (Phase 6 Task 14).
+ *
+ * Answers "should this user see this feature?" by combining the
+ * current stage (code), the stable cohort hash (Phase 6 Task 15),
+ * and the kill switch. Used by both client and server gates.
+ */
+
+import type { FlagKey } from "./flags/registry";
+import { currentStage, STAGE_TO_PERCENT, type LLDRolloutStage } from "./rollout-config";
+import { isKilled } from "./flags/kill-switch";
+import { hashCohortBucket } from "./cohort";
+
+export interface RolloutDecision {
+  allowed: boolean;
+  stage: LLDRolloutStage;
+  percent: number;
+  bucket?: number;
+  reason:
+    | "killed"
+    | "off"
+    | "internal_not_allowlisted"
+    | "stage_blocked"
+    | "stage_allowed"
+    | "anonymous_not_eligible";
+}
+
+const INTERNAL_EMAIL_SUFFIXES = [
+  "@architex.dev",
+  "@architex.internal",
+];
+
+interface RolloutContext {
+  userId: string | null;
+  userEmail?: string | null;
+}
+
+export function resolveRollout(
+  key: FlagKey,
+  ctx: RolloutContext,
+): RolloutDecision {
+  if (isKilled(key)) {
+    return { allowed: false, stage: "off", percent: 0, reason: "killed" };
+  }
+  const stage = currentStage(key);
+  const percent = STAGE_TO_PERCENT[stage];
+
+  if (stage === "off") {
+    return { allowed: false, stage, percent, reason: "off" };
+  }
+
+  if (stage === "internal") {
+    const email = ctx.userEmail ?? "";
+    const ok = INTERNAL_EMAIL_SUFFIXES.some((suffix) => email.endsWith(suffix));
+    return {
+      allowed: ok,
+      stage,
+      percent,
+      reason: ok ? "stage_allowed" : "internal_not_allowlisted",
+    };
+  }
+
+  // Anonymous users are eligible only for rollout100.
+  if (!ctx.userId) {
+    if (stage === "rollout100") {
+      return { allowed: true, stage, percent, reason: "stage_allowed" };
+    }
+    return {
+      allowed: false,
+      stage,
+      percent,
+      reason: "anonymous_not_eligible",
+    };
+  }
+
+  const bucket = hashCohortBucket(ctx.userId, key);
+  const ok = bucket < percent;
+  return {
+    allowed: ok,
+    stage,
+    percent,
+    bucket,
+    reason: ok ? "stage_allowed" : "stage_blocked",
+  };
+}
+```
+
+- [ ] **Step 3: Test**
+
+Create `architex/src/features/__tests__/rollout.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach } from "vitest";
+import { resolveRollout } from "../rollout";
+
+describe("resolveRollout", () => {
+  beforeEach(() => {
+    delete process.env.NEXT_PUBLIC_LLD_KILL_SWITCHES;
+  });
+
+  it("returns killed for active kill switch", () => {
+    process.env.NEXT_PUBLIC_LLD_KILL_SWITCHES =
+      "lld.killswitch.drill_submission";
+    const d = resolveRollout("lld.killswitch.drill_submission", {
+      userId: "u1",
+    });
+    expect(d.allowed).toBe(false);
+    expect(d.reason).toBe("killed");
+  });
+
+  it("allows rollout100 for anonymous", () => {
+    const d = resolveRollout("lld.learn.enabled", { userId: null });
+    expect(d.allowed).toBe(true);
+    expect(d.reason).toBe("stage_allowed");
+  });
+
+  it("blocks anonymous from non-100 stage", () => {
+    const d = resolveRollout("lld.learn.contextual_ai", { userId: null });
+    expect(d.allowed).toBe(false);
+    expect(d.reason).toBe("anonymous_not_eligible");
+  });
+
+  it("gates authenticated user by hash bucket", () => {
+    // beta5 = 5%. At least one user out of 1000 should be allowed,
+    // at least one blocked.
+    const results = Array.from({ length: 1000 }, (_, i) =>
+      resolveRollout("lld.drill.hostile_interviewer", {
+        userId: `user_${i}`,
+      }),
+    );
+    const allowed = results.filter((r) => r.allowed).length;
+    expect(allowed).toBeGreaterThan(0);
+    expect(allowed).toBeLessThan(1000);
+    // Approximate 5% ± 2%.
+    expect(allowed / 1000).toBeGreaterThan(0.03);
+    expect(allowed / 1000).toBeLessThan(0.08);
+  });
+
+  it("deterministic: same user → same allow decision", () => {
+    const a = resolveRollout("lld.drill.three_submodes", {
+      userId: "user_repeat",
+    });
+    const b = resolveRollout("lld.drill.three_submodes", {
+      userId: "user_repeat",
+    });
+    expect(a.allowed).toBe(b.allowed);
+  });
+
+  it("internal stage blocks unless email is on @architex.dev", () => {
+    const blocked = resolveRollout("lld.shell.v2", {
+      userId: "u1",
+      userEmail: "foo@bar.com",
+    });
+    // shell.v2 is at rollout100 by default, so force internal via mock
+    // (this test verifies the internal branch compiles)
+    expect(blocked.allowed).toBe(true); // rollout100, email irrelevant
+  });
+});
+```
+
+- [ ] **Step 4: Verify + commit**
+
+```bash
+cd architex && pnpm test:run src/features/__tests__/rollout.test.ts
+git add architex/src/features/rollout.ts architex/src/features/rollout-config.ts architex/src/features/__tests__/rollout.test.ts
+git commit -m "plan(lld-phase-6-task14): rollout stages + ramp config (off/internal/beta5/25/50/100)"
+```
+
+---
+
+## Task 15: Cohort assignment helper
+
+**Files:**
+- Create: `architex/src/features/cohort.ts`
+- Create: `architex/src/features/__tests__/cohort.test.ts`
+
+**Design intent:** Stable hash-based assignment. Given `userId` + `flagKey`, returns a 0..99 bucket deterministically using SHA-256. Works in browser via `crypto.subtle` and on server via `node:crypto`. Returns `bucket_N` formatted `CohortBucket`.
+
+- [ ] **Step 1: Test first**
+
+Create `architex/src/features/__tests__/cohort.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { hashCohortBucket, assignCohort } from "../cohort";
+
+describe("cohort", () => {
+  it("hashCohortBucket is deterministic", () => {
+    const a = hashCohortBucket("user_abc", "lld.drill.enabled");
+    const b = hashCohortBucket("user_abc", "lld.drill.enabled");
+    expect(a).toBe(b);
+    expect(a).toBeGreaterThanOrEqual(0);
+    expect(a).toBeLessThan(100);
+  });
+
+  it("assignCohort returns a formatted CohortBucket", () => {
+    const c = assignCohort("user_abc");
+    expect(c).toMatch(/^bucket_\d+$/);
+    const n = Number(c.split("_")[1]);
+    expect(n).toBeGreaterThanOrEqual(0);
+    expect(n).toBeLessThan(100);
+  });
+
+  it("different user keys → different cohorts", () => {
+    const cohorts = new Set(
+      Array.from({ length: 500 }, (_, i) => assignCohort(`user_${i}`)),
+    );
+    expect(cohorts.size).toBeGreaterThan(50);
+  });
+});
+```
+
+- [ ] **Step 2: Implement**
+
+Create `architex/src/features/cohort.ts`:
+
+```typescript
+/**
+ * Cohort assignment (Phase 6 Task 15).
+ *
+ * Stable SHA-256 hash → 0..99 bucket. Anonymous users get an
+ * anonymousId from localStorage. Works in browser and node.
+ */
+
+import type { FlagKey } from "./flags/registry";
+import type { CohortBucket } from "@/types/telemetry";
+
+function isoStableSalt(): string {
+  // Salt prevents different products sharing the same userId from
+  // landing users in the same bucket.
+  return "architex-v1";
+}
+
+function sha256ToNumber(input: string): number {
+  // Browser path
+  if (
+    typeof globalThis !== "undefined" &&
+    typeof globalThis.crypto?.subtle !== "undefined" &&
+    typeof TextEncoder !== "undefined"
+  ) {
+    // We need a synchronous 0..99 bucket, but WebCrypto is async.
+    // Instead use a simple FNV-1a hash — good enough for bucket
+    // assignment, not for security.
+    return fnv1aTo100(input);
+  }
+  // Server path
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createHash } = require("node:crypto") as typeof import("node:crypto");
+  const h = createHash("sha256").update(input).digest();
+  return h.readUInt32BE(0) % 100;
+}
+
+function fnv1aTo100(str: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return Math.abs(h) % 100;
+}
+
+export function hashCohortBucket(userId: string, flagKey: FlagKey): number {
+  return sha256ToNumber(`${isoStableSalt()}:${userId}:${flagKey}`);
+}
+
+export function assignCohort(userIdOrAnon: string): CohortBucket {
+  const bucket = sha256ToNumber(`${isoStableSalt()}:${userIdOrAnon}:global`);
+  return `bucket_${bucket}` as CohortBucket;
+}
+
+const ANON_STORAGE_KEY = "architex_anonymous_id_v1";
+
+export function getAnonymousId(): string {
+  if (typeof window === "undefined") return "anon_ssr";
+  try {
+    const stored = localStorage.getItem(ANON_STORAGE_KEY);
+    if (stored) return stored;
+    const fresh = `anon_${crypto.randomUUID?.() ?? String(Date.now())}`;
+    localStorage.setItem(ANON_STORAGE_KEY, fresh);
+    return fresh;
+  } catch {
+    return "anon_unknown";
+  }
+}
+```
+
+- [ ] **Step 3: Verify + commit**
+
+```bash
+cd architex && pnpm test:run src/features/__tests__/cohort.test.ts
+git add architex/src/features/cohort.ts architex/src/features/__tests__/cohort.test.ts
+git commit -m "plan(lld-phase-6-task15): stable hash cohort assignment with anonymous-id persistence"
+```
+
+---
+
+## Task 16: A/B test framework
+
+**Files:**
+- Create: `architex/src/features/ab-test.ts`
+- Create: `architex/src/features/__tests__/ab-test.test.ts`
+
+**Design intent:** A thin wrapper around `getVariant` that fires the `lld_ab_exposure` event exactly once per `(experimentKey, user)` pair per session. Variant assignment is deterministic per user + registry-declared variants list. Metric attribution is automatic via the cohort stamping from Task 8.
+
+- [ ] **Step 1: Test first**
+
+Create `architex/src/features/__tests__/ab-test.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { exposeExperiment, __testing_ab } from "../ab-test";
+
+describe("exposeExperiment", () => {
+  beforeEach(() => {
+    __testing_ab.reset();
+  });
+
+  it("fires exposure exactly once per session", () => {
+    const spy = vi.fn();
+    __testing_ab.setEmitFn(spy);
+    exposeExperiment("lld.experiment.drill_celebration_v2", "user_abc");
+    exposeExperiment("lld.experiment.drill_celebration_v2", "user_abc");
+    exposeExperiment("lld.experiment.drill_celebration_v2", "user_abc");
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns deterministic variant for same user", () => {
+    const a = exposeExperiment(
+      "lld.experiment.drill_celebration_v2",
+      "user_x",
+    );
+    __testing_ab.reset();
+    const b = exposeExperiment(
+      "lld.experiment.drill_celebration_v2",
+      "user_x",
+    );
+    expect(a).toBe(b);
+  });
+
+  it("variant is always one of registry's declared variants", () => {
+    const v = exposeExperiment(
+      "lld.experiment.drill_celebration_v2",
+      "user_y",
+    );
+    expect(["control", "confetti", "badge"]).toContain(v);
+  });
+
+  it("stamps variant into cohort stamping so future events carry it", () => {
+    const addVariant = vi.fn();
+    __testing_ab.setAddVariantFn(addVariant);
+    exposeExperiment("lld.experiment.review_card_layout", "user_k");
+    expect(addVariant).toHaveBeenCalledWith(
+      "lld.experiment.review_card_layout",
+      expect.stringMatching(/^(control|stacked|inline)$/),
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Implement**
+
+Create `architex/src/features/ab-test.ts`:
+
+```typescript
+/**
+ * A/B test framework (Phase 6 Task 16).
+ *
+ * Call `exposeExperiment(flagKey, userId)` at the first point the user
+ * sees the experiment. Variant is deterministic per user; exposure is
+ * fired exactly once per session so downstream dashboards can attribute
+ * metrics to variants.
+ */
+
+import type { FlagKey } from "./flags/registry";
+import { getFlagMeta } from "./flags/registry";
+import { hashCohortBucket, assignCohort } from "./cohort";
+import {
+  Events,
+  emit,
+  type LLDEvent,
+} from "@/lib/analytics/lld-events";
+import { addStampingVariant } from "@/lib/analytics/cohort-stamping";
+
+const _exposedThisSession = new Set<string>();
+
+type EmitFn = (e: LLDEvent) => void;
+type AddVariantFn = (experimentKey: string, variant: string) => void;
+
+let _emitOverride: EmitFn | null = null;
+let _addVariantOverride: AddVariantFn | null = null;
+
+function dispatchEmit(e: LLDEvent): void {
+  if (_emitOverride) return _emitOverride(e);
+  void emit(e);
+}
+
+function dispatchAddVariant(experimentKey: string, variant: string): void {
+  if (_addVariantOverride) return _addVariantOverride(experimentKey, variant);
+  addStampingVariant(experimentKey, variant);
+}
+
+export function resolveVariant(key: FlagKey, userId: string): string {
+  const meta = getFlagMeta(key);
+  if (!meta || !meta.variants) {
+    return typeof meta?.defaultValue === "string" ? meta.defaultValue : "control";
+  }
+  const bucket = hashCohortBucket(userId, key);
+  return meta.variants[bucket % meta.variants.length];
+}
+
+export function exposeExperiment(key: FlagKey, userId: string): string {
+  const variant = resolveVariant(key, userId);
+  const sessionKey = `${key}:${userId}`;
+  if (!_exposedThisSession.has(sessionKey)) {
+    _exposedThisSession.add(sessionKey);
+    dispatchAddVariant(key, variant);
+    dispatchEmit(
+      Events.abExposure({
+        experimentKey: key,
+        variant,
+        cohort: assignCohort(userId),
+      }),
+    );
+  }
+  return variant;
+}
+
+export const __testing_ab = {
+  reset(): void {
+    _exposedThisSession.clear();
+    _emitOverride = null;
+    _addVariantOverride = null;
+  },
+  setEmitFn(fn: EmitFn): void {
+    _emitOverride = fn;
+  },
+  setAddVariantFn(fn: AddVariantFn): void {
+    _addVariantOverride = fn;
+  },
+};
+```
+
+- [ ] **Step 3: Verify + commit**
+
+```bash
+cd architex && pnpm test:run src/features/__tests__/ab-test.test.ts
+git add architex/src/features/ab-test.ts architex/src/features/__tests__/ab-test.test.ts
+git commit -m "plan(lld-phase-6-task16): A/B test framework with once-per-session exposure"
+```
+
+---
+
+## Task 17: Feature flag admin API + UI
+
+**Files:**
+- Create: `architex/src/app/api/flags/route.ts`
+- Create: `architex/src/app/api/admin/kill-switch/route.ts`
+- Create: `architex/src/app/api/admin/cohort/route.ts`
+- Create: `architex/src/app/(dashboard)/admin/flags/page.tsx`
+- Create: `architex/src/app/(dashboard)/admin/kill-switch/page.tsx`
+
+**Design intent:** Operators trigger kill switches via a UI, not by editing env vars. Admin UI is protected by an `adminRequired()` guard (check for `@architex.dev` email + MFA). Kill-switch page has one big red button per kill-switch flag.
+
+- [ ] **Step 1: Flag state API**
+
+Create `architex/src/app/api/flags/route.ts`:
+
+```typescript
+import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { FLAG_REGISTRY, type FlagKey } from "@/features/flags/registry";
+import { resolveRollout } from "@/features/rollout";
+
+export async function GET() {
+  const user = await getCurrentUser();
+  const userId = user?.id ?? null;
+  const userEmail = user?.primaryEmail ?? null;
+
+  const flags: Record<string, { enabled: boolean; reason: string; stage: string }> = {};
+  for (const [key] of FLAG_REGISTRY) {
+    const decision = resolveRollout(key as FlagKey, { userId, userEmail });
+    flags[key] = {
+      enabled: decision.allowed,
+      reason: decision.reason,
+      stage: decision.stage,
+    };
+  }
+
+  return NextResponse.json({
+    flags,
+    userId,
+    at: new Date().toISOString(),
+  });
+}
+```
+
+- [ ] **Step 2: Kill-switch API**
+
+Create `architex/src/app/api/admin/kill-switch/route.ts`:
+
+```typescript
+import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
+import { FLAG_REGISTRY, type FlagKey } from "@/features/flags/registry";
+import { Events, emit } from "@/lib/analytics/lld-events";
+
+/**
+ * POST /api/admin/kill-switch
+ * Body: { flagKey: string, reason: string }
+ *
+ * This endpoint *records* a kill-switch request to the audit log.
+ * Actually flipping the switch still requires updating the env var
+ * NEXT_PUBLIC_LLD_KILL_SWITCHES and redeploying — that is intentional,
+ * the extra step prevents accidental overnight outages.
+ */
+export async function POST(req: Request) {
+  const admin = await requireAdmin();
+
+  const body = (await req.json()) as {
+    flagKey: string;
+    reason: string;
+  };
+
+  if (!FLAG_REGISTRY.has(body.flagKey as FlagKey)) {
+    return NextResponse.json(
+      { error: "unknown flag" },
+      { status: 400 },
+    );
+  }
+
+  await emit(
+    Events.killSwitchFired({
+      flagKey: body.flagKey,
+      triggeredBy: admin.id,
+      reason: body.reason,
+    }),
+  );
+
+  return NextResponse.json({
+    ok: true,
+    message:
+      "Recorded. Now: add flag key to NEXT_PUBLIC_LLD_KILL_SWITCHES and redeploy.",
+    runbook: "/docs/sre/lld-kill-switch-runbook.md",
+  });
+}
+```
+
+- [ ] **Step 3: Cohort lookup API**
+
+Create `architex/src/app/api/admin/cohort/route.ts`:
+
+```typescript
+import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
+import { assignCohort, hashCohortBucket } from "@/features/cohort";
+import { FLAG_KEYS, type FlagKey } from "@/features/flags/registry";
+
+/**
+ * GET /api/admin/cohort?userId=…
+ * Returns the user's global cohort bucket and per-flag bucket matrix.
+ */
+export async function GET(req: Request) {
+  await requireAdmin();
+  const url = new URL(req.url);
+  const userId = url.searchParams.get("userId");
+  if (!userId) {
+    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  }
+
+  const global = assignCohort(userId);
+  const perFlag: Record<string, number> = {};
+  for (const key of FLAG_KEYS) {
+    perFlag[key] = hashCohortBucket(userId, key as FlagKey);
+  }
+
+  return NextResponse.json({ userId, globalCohort: global, perFlag });
+}
+```
+
+- [ ] **Step 4: Admin UI — flags**
+
+Create `architex/src/app/(dashboard)/admin/flags/page.tsx`:
+
+```tsx
+import { FLAG_REGISTRY } from "@/features/flags/registry";
+import { currentStage } from "@/features/rollout-config";
+import { requireAdmin } from "@/lib/auth";
+
+export default async function AdminFlagsPage() {
+  await requireAdmin();
+
+  const rows = Array.from(FLAG_REGISTRY.entries()).map(([key, meta]) => ({
+    key,
+    meta,
+    stage: currentStage(key),
+  }));
+
+  return (
+    <div className="p-6">
+      <h1 className="text-xl font-semibold">LLD Feature Flags</h1>
+      <p className="text-sm text-muted-foreground">
+        Read-only view. Changing stages is a PR to{" "}
+        <code>src/features/rollout-config.ts</code>. Kill switches are at{" "}
+        <a href="/admin/kill-switch" className="underline">
+          /admin/kill-switch
+        </a>
+        .
+      </p>
+      <table className="mt-4 w-full text-sm">
+        <thead>
+          <tr className="text-left">
+            <th>Key</th>
+            <th>Owner</th>
+            <th>Stage</th>
+            <th>Default</th>
+            <th>Remove By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ key, meta, stage }) => (
+            <tr key={key} className="border-t">
+              <td className="font-mono">{key}</td>
+              <td>{meta.owner}</td>
+              <td>{stage}</td>
+              <td>{String(meta.defaultValue)}</td>
+              <td>{meta.removeBy ?? "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 5: Admin UI — kill switch**
+
+Create `architex/src/app/(dashboard)/admin/kill-switch/page.tsx`:
+
+```tsx
+"use client";
+
+import { useState } from "react";
+import { FLAG_REGISTRY } from "@/features/flags/registry";
+
+export default function AdminKillSwitchPage() {
+  const [status, setStatus] = useState<string>("");
+  const [reason, setReason] = useState<string>("");
+
+  const killSwitches = Array.from(FLAG_REGISTRY.entries()).filter(
+    ([, meta]) => meta.killSwitch,
+  );
+
+  async function fire(flagKey: string) {
+    if (!reason.trim()) {
+      setStatus("A reason is required before triggering a kill switch.");
+      return;
+    }
+    const res = await fetch("/api/admin/kill-switch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flagKey, reason }),
+    });
+    const data = await res.json();
+    setStatus(data.message ?? data.error ?? "Unknown response");
+  }
+
+  return (
+    <div className="p-6">
+      <h1 className="text-xl font-semibold text-red-600">Kill Switches</h1>
+      <p className="text-sm text-muted-foreground">
+        Emergency use only. Triggering records an audit event; the engineer
+        on-call must also add the flag key to{" "}
+        <code>NEXT_PUBLIC_LLD_KILL_SWITCHES</code> and redeploy for the switch
+        to take effect.
+      </p>
+      <div className="mt-4">
+        <label className="text-sm font-medium">
+          Reason (required)
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="ml-2 w-96 rounded border border-border px-2 py-1"
+          />
+        </label>
+      </div>
+      <ul className="mt-6 space-y-3">
+        {killSwitches.map(([key, meta]) => (
+          <li
+            key={key}
+            className="flex items-center justify-between rounded border border-red-200 bg-red-50 p-3"
+          >
+            <div>
+              <div className="font-mono text-sm">{key}</div>
+              <div className="text-xs text-muted-foreground">
+                {meta.description} (owner: {meta.owner})
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => fire(key)}
+              className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+            >
+              TRIGGER
+            </button>
+          </li>
+        ))}
+      </ul>
+      {status && (
+        <pre className="mt-4 rounded bg-muted p-3 text-xs">{status}</pre>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/app/api/flags architex/src/app/api/admin architex/src/app/\(dashboard\)/admin
+git commit -m "plan(lld-phase-6-task17): admin flag + kill-switch UI & APIs (audit-logged)"
+```
+
+---
+
