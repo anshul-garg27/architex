@@ -178,3 +178,51 @@ No single product on the market today combines **Opus-grade content** + **a real
 
 ---
 
+## 2. Target Personas
+
+The module must serve all three at once. The 5-mode shell is shaped so a first-visit *Rookie* lands in Learn, a *Journeyman* lands in Build or Simulate, and an *Architect* lands in Drill — but nothing is locked, and the welcome banner gives an explicit choice on day one.
+
+These personas are the SD versions of LLD's A-B-C-D personas. The names are changed because the stakes are higher and the titles more ambitious: reading distributed-systems theory is not the same shape of work as reading a GoF pattern. A chess analogy: *Rookie* has learned the moves, *Journeyman* has played the middlegame, *Architect* has played tournaments.
+
+### Rookie · "I have built backends; I have never designed one."
+
+- **Who:** 1-3 years of shipping. Comfortable with a single service, REST, a PostgreSQL. Has heard of sharding, Kafka, Raft; cannot confidently draw any of them.
+- **% traffic:** ~35%
+- **Primary mode:** Learn
+- **Entry experience:** diagnostic quiz (Q46, 10 questions, 4 minutes) → guided 8-concept "Foundations" track → first Build project (URL Shortener) with rails on → first guided Simulate run ("what does 1k QPS look like?"). Threshold coaching is verbose on purpose. The whisper coach speaks slightly more often (cap 5 interventions instead of 3) in the first two weeks.
+- **What success looks like:** at week 4, the Rookie can draw a 3-tier web app from memory, name the four caching layers, and explain what "consistent hashing" is without opening a tab. The knowledge graph shows ~15 concepts Completed, 3 Mastered.
+- **Failure modes to design around:** too many acronyms in first session; the tool must feel **warm**, not cold. The diagnostic quiz must surface as *placement*, not *gatekeeping*. The first Simulate run must succeed visibly — no runaway cascade on day one.
+
+### Journeyman · "I have been on-call. I have read the postmortems."
+
+- **Who:** 3-7 years. Owns a service in production. Has debugged a cache stampede, a database migration, a queue backup. Knows there are patterns, does not yet have them catalogued.
+- **% traffic:** ~45%
+- **Primary mode:** Build, Simulate, and Drill (all three in rotation)
+- **Entry experience:** skips the diagnostic; browses the 30 problem library; picks "Design Twitter" or "Design Uber" based on taste; attempts from blank canvas; hits Simulate; watches chaos events break their first attempt; rebuilds; reads the concept page inline when confused. Whisper coach is default (cap 3).
+- **What success looks like:** week 8, the Journeyman has completed 12 problems at Mastered tier, survived 5 chaos drills with p99 under budget, can explain 4 hidden-cost categories. Starts appearing in the interview library's "you may be ready for Google Staff" band.
+- **Failure modes:** this user will hate being condescended to. If the coach explains Little's Law to someone who clearly already knows it, the product dies. The whisper coach must have a **muted** default for Journeymen with a proven concept graph.
+
+### Architect · "I'm interviewing at Staff or Principal in 6 weeks."
+
+- **Who:** 7+ years. Has designed production systems end to end. Needs *interview fluency* — the specific rhythm of Clarify → Estimate → Design → Deep Dive → Q&A — not the concepts.
+- **% traffic:** ~20%
+- **Primary mode:** Drill (hard gate) + Simulate (for intuition) + Review (daily FSRS mix)
+- **Entry experience:** skips everything; goes to the interview library; picks "Google Staff 45-min" preset; submits design under the 5-stage clock; gets the 6-axis rubric back. Optionally enters Crunch Mode (Q45) with an onsite date — system schedules a 7-day path.
+- **What success looks like:** Architect completes 20+ mock interviews across 5+ company presets, average rubric score >= 4/5 on all axes, zero rubric "1" grades. Full-Stack Loop (SD+LLD) completed on at least 3 problems.
+- **Failure modes:** the rubric must be *honest*. A 4/5 rubric score cannot be given for a vague design. Architects sniff out grade inflation in 30 seconds and never come back. The AI postmortem (Q21) must be willing to say "your design fails under geographic partition" when it does. The Skeptic persona (Q19) must actually push back.
+
+### Cross-persona rules
+
+- **Default first-visit** is Learn mode + a dismissable welcome banner that explicitly offers *"Start with concepts"*, *"Start with a problem"*, *"Just let me draw"*, and *"I'm interviewing soon"*. The fourth option triggers Crunch Mode directly.
+- **Returning users land on their last-used mode**, same rule as LLD. State is DB-first so this survives a device switch (Q38).
+- **Placement affects pacing, not permission.** No content is gated. A Rookie can open a Principal-level problem; they will see a "difficulty: hard" badge and a one-line warning, but they can enter. Gating on ambition is product suicide.
+- **The diagnostic quiz (Q46) is optional**, appears as a welcome card, takes 4 minutes, and feeds the study-plan generator. Skippable with "I'll figure out my level".
+- **Mobile (Q42):** Rookies and Journeymen get mobile Learn + Review. Architects get a mobile-viewable rubric + PDF recap. Build, Simulate, and Drill remain desktop-only with an honest "open on desktop" nudge. This is a tradeoff; see §19.
+
+### One persona pattern the spec will use repeatedly
+
+Throughout this spec, decisions are frequently annotated "**R / J / A**" to indicate which personas benefit most. When R and A pull in opposite directions (e.g. the coach should explain vs. the coach should stay silent), the decision is resolved by personalizing on user state — the Whisper Coach Cap (§15) is a function of `user.masteredConceptCount`, not a global constant.
+
+---
+
+
