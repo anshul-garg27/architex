@@ -3538,3 +3538,924 @@ export function deriveMastery(cards: Array<{ stability: number; reps: number; la
 - [ ] **Step 1-3**: Endpoint returns `{ retentionCurve: Array<{daysAgo: number, retained: number, total: number}>, perWaveMastery: Array<{wave: number, tier: MasteryTier, conceptsMastered: number, conceptsTotal: number}> }`. Chart components wired to the response. Commit.
 
 ---
+
+## Task Group D · Mobile Learn Responsive
+
+*The Learn mode was desktop-only at Phase 2 launch. Phase 4 makes it the primary mobile surface alongside Review. The approach is CSS-only (Tailwind breakpoints + container queries), never a RN fork.*
+
+---
+
+## Task D1: Viewport & breakpoint audit
+
+**Files:** `architex/src/hooks/useMobileViewport.ts`, `architex/src/lib/ui/breakpoints.ts`, test
+
+Tailwind breakpoints the SD module uses: `sm: 640 · md: 768 · lg: 1024 · xl: 1280 · 2xl: 1536`. Mobile Learn renders stacked below `md`, hybrid `md-lg`, full 3-column at `lg+`.
+
+- [ ] **Step 1**: Create `useMobileViewport`:
+
+```typescript
+"use client";
+import { useEffect, useState } from "react";
+
+export function useMobileViewport() {
+  const [v, setV] = useState({ isMobile: false, isTablet: false, isDesktop: true });
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      setV({ isMobile: w < 768, isTablet: w >= 768 && w < 1024, isDesktop: w >= 1024 });
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return v;
+}
+```
+
+- [ ] **Step 2**: Ship with SSR-safe default (desktop). Test via Vitest + Testing Library jsdom.
+
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task D2: `LearnModeLayout.tsx` mobile breakpoints
+
+**Files:** `architex/src/components/modules/sd/modes/LearnModeLayout.tsx` (MODIFY)
+
+Below `md`: hide the left sidebar (collapsed behind a hamburger) and the right AI panel (collapsed behind a bottom-sheet). Center column takes full width.
+
+- [ ] **Step 1**: Wrap the existing 3-column layout in a container-query class; add mobile overrides that stack vertically.
+- [ ] **Step 2**: Extract left sidebar into `<MobileDrawer>` and right AI panel into `<MobileAIChatSheet>` (Task D6).
+- [ ] **Step 3**: Smoke-test on Chrome DevTools mobile emulation (iPhone 15, iPad Mini). Commit.
+
+---
+
+## Task D3: Concept page stacked layout
+
+**Files:** `architex/src/components/modules/sd/learn/MobileConceptPage.tsx`
+
+The 8 concept sections stack vertically on mobile with sticky section headers. Scroll-snap per section for thumb-friendly navigation.
+
+- [ ] **Step 1-3**: Component + test + commit.
+
+---
+
+## Task D4: Problem page stacked layout with pane accordion
+
+**Files:** `architex/src/components/modules/sd/learn/MobileProblemPage.tsx`
+
+The 6 problem panes collapse into an accordion on mobile. Default: first pane (Problem statement) open, rest closed. Tap to expand.
+
+- [ ] **Step 1**: Use Radix Accordion (already in project).
+- [ ] **Step 2**: Preserve scroll position per pane (when collapsing then expanding).
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task D5: Canvas → inline SVG on mobile (read-only)
+
+**Files:** `architex/src/components/modules/sd/learn/MobileCanvas.tsx`
+
+React Flow is heavy on mobile (DnD, pan-zoom gestures conflict with scroll). For concept / problem pages, we render a static SVG snapshot of the canonical diagram instead — read-only, ~50KB per diagram vs. ~400KB for the Flow graph.
+
+- [ ] **Step 1**: Extract an `exportToSVG(reactFlowInstance)` helper (already exists at `src/lib/canvas/export-svg.ts` from Phase 3). Call it at build time for each canonical diagram and cache the SVG in `moduleContent.metadata.canonicalDiagramSVG`.
+- [ ] **Step 2**: `MobileCanvas` renders the cached SVG inline. Pinch-zoom via CSS `touch-action: pinch-zoom`.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task D6: AI chat → bottom sheet on mobile
+
+**Files:** `architex/src/components/modules/sd/learn/MobileAIChatSheet.tsx`, use `vaul` library (new dep)
+
+The Ask-AI panel is a right-sidebar on desktop. On mobile it becomes a bottom-sheet (drags up from bottom) to match iOS app conventions.
+
+- [ ] **Step 1**: `pnpm add vaul` (shadcn's bottom-sheet primitive, built on Radix Dialog).
+- [ ] **Step 2**: Wire the existing AI chat component into a `<Drawer>` with a "Ask AI" pill trigger bottom-right.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task D7: Checkpoints touch-optimized
+
+**Files:** `architex/src/components/modules/sd/learn/checkpoints/*.tsx` (MODIFY)
+
+- [ ] **Step 1**: Buttons `min-h-[44px]` (iOS HIG tap-target). Long-press context menus replaced by tap-and-hold tooltips.
+- [ ] **Step 2**: Test on real device via Playwright mobile profile.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task D8: Mobile nav — bottom-bar mode switcher
+
+**Files:** `architex/src/components/shared/MobileBottomBar.tsx`
+
+5 pills fixed at bottom: Learn · Build · Sim · Drill · Review. Build/Sim/Drill tap opens the "Open on desktop" card (Task D10). Learn/Review open normally.
+
+- [ ] **Step 1**: Component with active-state indicator (the cobalt dot underline).
+- [ ] **Step 2**: Hide below keyboard (use `visualViewport` API).
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task D9: Mobile first-run experience → Review mode default
+
+**Files:** `architex/src/components/shared/FirstRunRouter.tsx` (MODIFY)
+
+Per spec §10.9: first visit on mobile lands on Review mode. Detect via `useMobileViewport` + `searchParams.firstRun === "true"`.
+
+- [ ] **Step 1**: In the SD landing route (`/modules/sd`), check if mobile + no prior activity events. If true, redirect to `/modules/sd?mode=review&firstRun=true`.
+- [ ] **Step 2**: Review mode mobile shows an onboarding card: "Welcome back. 5 cards due. Swipe right if easy, left if you forgot."
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task D10: "Open on desktop" QR card
+
+**Files:** `architex/src/components/shared/OpenOnDesktopCard.tsx`, `qrcode` dependency
+
+When a mobile user hits Build / Simulate / Drill, show a friendly card: "Build and Simulate work best on desktop. Scan this QR on your laptop to continue." Card includes the current URL as a QR.
+
+- [ ] **Step 1**: `pnpm add qrcode`
+- [ ] **Step 2**: Generate the QR with the full URL including a one-time handoff token (`?handoff=<jwt>`) so the desktop session can resume signed-in.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task D11: Mobile smoke — Lighthouse Perf ≥80, a11y ≥95
+
+**Files:** `architex/tests/e2e/mobile-lighthouse.spec.ts`
+
+- [ ] **Step 1**: Playwright test that runs Lighthouse against `/modules/sd?mode=learn` and `/modules/sd?mode=review` on mobile profile.
+- [ ] **Step 2**: Assert perf ≥80 and a11y ≥95. Fail CI below thresholds.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task Group E · Portfolio Public Profile Page
+
+*A user's portfolio is the viral surface. It's how an interviewer or a recruiter first encounters Architex. The page must load fast, look great on LinkedIn previews, and be LinkedIn-grade shareable.*
+
+---
+
+## Task E1: `profile_pages` schema
+
+**Files:** `architex/src/db/schema/profile-pages.ts`
+
+```typescript
+import { pgTable, uuid, varchar, boolean, jsonb, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { users } from "./users";
+
+export const profilePages = pgTable(
+  "profile_pages",
+  {
+    userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+    username: varchar("username", { length: 30 }).notNull(),
+    displayName: varchar("display_name", { length: 60 }).notNull(),
+    bio: varchar("bio", { length: 280 }),
+    isPublic: boolean("is_public").notNull().default(false),
+    featuredDiagramIds: jsonb("featured_diagram_ids").$type<string[]>().default([]),
+    // Presentation preferences
+    theme: varchar("theme", { length: 20 }).notNull().default("midnight"),
+    showStreak: boolean("show_streak").notNull().default(true),
+    showMastery: boolean("show_mastery").notNull().default(true),
+    showDrills: boolean("show_drills").notNull().default(true),
+    showBadges: boolean("show_badges").notNull().default(true),
+    // LinkedIn / GitHub / Notion connection markers (booleans; tokens live in user_integrations)
+    linkedinHandle: varchar("linkedin_handle", { length: 80 }),
+    githubHandle: varchar("github_handle", { length: 80 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex("profile_pages_username_idx").on(t.username),
+    index("profile_pages_public_idx").on(t.isPublic),
+  ],
+);
+
+export type ProfilePage = InferSelectModel<typeof profilePages>;
+export type NewProfilePage = InferInsertModel<typeof profilePages>;
+```
+
+- [ ] **Step 1-3**: Create schema, add relations, migration, commit.
+
+---
+
+## Task E2: Profile privacy settings UI
+
+**Files:** `architex/src/app/profile/settings/page.tsx`
+
+Toggle per-block visibility: streak · mastery · drills · badges · diagrams. Public-vs-private switch at top. Save to `profile_pages`.
+
+- [ ] **Step 1-3**: Form + server action + commit.
+
+---
+
+## Task E3: Public route `/profile/[username]` static-first + ISR
+
+**Files:** `architex/src/app/profile/[username]/page.tsx`, `loading.tsx`, `not-found.tsx`
+
+- [ ] **Step 1**: `generateStaticParams()` returns the top-1000 most-active public users. Everyone else is on-demand ISR with `revalidate: 900`.
+- [ ] **Step 2**: Resolve `params.username` → `profile_pages` row → if `isPublic` false, 404.
+- [ ] **Step 3**: Compose blocks from Task E4-E7. Pass the theme from `profile_pages.theme`.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task E4: Designs gallery block
+
+**Files:** `architex/src/components/modules/sd/portfolio/DesignsGallery.tsx`
+
+- [ ] **Step 1**: Query user's top 6 public diagrams (`diagrams.userId = X AND diagrams.isPublic = true`, ordered by views DESC). Support manual `featuredDiagramIds` override.
+- [ ] **Step 2**: Masonry grid, each card shows the diagram's auto-rendered PNG (generated via existing OG-image pipeline from §19.1), the title, the problem it solves, and a "View design" button.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task E5: Wave-progress rings block
+
+**Files:** `architex/src/components/modules/sd/portfolio/WaveProgressRings.tsx`
+
+Shared with C17 stats page. 8 rings (Wave 1-8) showing `conceptsMastered / conceptsTotal` with cobalt fill. Hover reveals the list of mastered concepts in a tooltip.
+
+- [ ] **Step 1-3**: SVG circle per ring, computed via `/api/sd/stats`. Commit.
+
+---
+
+## Task E6: Completed-drills block with rubric badges
+
+**Files:** `architex/src/components/modules/sd/portfolio/CompletedDrillsList.tsx`
+
+- [ ] **Step 1**: Query `sd_drill_runs WHERE userId = X AND status = 'completed' AND isPublic = true` LIMIT 5 ordered by score DESC.
+- [ ] **Step 2**: Each row: problem title, overall rubric score out of 5, 6-axis radar pill, "View recap" link.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task E7: Streak + FSRS cards mastery block
+
+**Files:** `architex/src/components/modules/sd/portfolio/StreakBlock.tsx`
+
+- [ ] **Step 1**: Show current unified streak (same source as dashboard). Show FSRS cards mastered count.
+- [ ] **Step 2**: Subtle GitHub-style contribution grid for last 30 days of activity.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task E8: LinkedIn-ready OG image generator
+
+**Files:** `architex/src/app/profile/[username]/opengraph-image.tsx`
+
+Next.js App Router's `opengraph-image.tsx` convention generates per-route OG images at build + runtime.
+
+- [ ] **Step 1**: Use `next/og` (ImageResponse). Compose a 1200x630 image: cobalt border, user display name + bio, streak pill, wave-progress 8-ring strip, and the Architex wordmark lower-right.
+- [ ] **Step 2**: Test with LinkedIn Post Inspector & Twitter Card Validator.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task E9: Portfolio share button in Build + Drill modes
+
+**Files:** `architex/src/components/modules/sd/build/ShareDiagramModal.tsx` (MODIFY)
+
+- [ ] **Step 1**: Existing share modal adds a "Add to my portfolio" checkbox. On check, the diagram's `isPublic = true` and `userId`'s portfolio `featuredDiagramIds` prepends the ID.
+- [ ] **Step 2**: Same for Drill completion modal.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task E10: Username reservation & validation
+
+**Files:** `architex/src/app/api/profile/username-check/route.ts`, `architex/src/lib/profile/username-validator.ts`
+
+Reserved list: `admin · architex · api · staff · verified · profile · settings · about · team · help · login · signup · docs · blog`. Minimum 3 chars. Alphanumeric + dash. Case-insensitive unique.
+
+- [ ] **Step 1**: Validator function + test.
+- [ ] **Step 2**: API route returns `{ available: boolean, reason?: string }`.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task Group F · Weekly Digest Email
+
+*The digest is a low-touch retention mechanic. Sent Monday 8am user-local. Includes 1 incident · 1 concept · 1 recommended drill · 5-minute read total.*
+
+---
+
+## Task F1: `weekly_digest_sends` schema + unsubscribe token
+
+**Files:** `architex/src/db/schema/weekly-digest-sends.ts`
+
+```typescript
+import { pgTable, uuid, varchar, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { users } from "./users";
+
+export const weeklyDigestSends = pgTable(
+  "weekly_digest_sends",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+    /** "scheduled" | "user-requested" | "onboarding" */
+    kind: varchar("kind", { length: 30 }).notNull(),
+    /** Resend message id for open/click tracking */
+    providerMessageId: varchar("provider_message_id", { length: 120 }),
+    /** ISO week number — used for dedupe */
+    isoWeek: varchar("iso_week", { length: 10 }).notNull(),
+    /** slugs selected for this digest (incident/concept/drill) */
+    selection: jsonb("selection").$type<{ incident: string; concept: string; drill: string }>(),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    clickedAt: timestamp("clicked_at", { withTimezone: true }),
+    unsubscribeToken: varchar("unsubscribe_token", { length: 64 }).notNull(),
+  },
+  (t) => [
+    index("digest_user_week_idx").on(t.userId, t.isoWeek),
+    index("digest_user_sent_idx").on(t.userId, t.sentAt),
+  ],
+);
+
+export type WeeklyDigestSend = InferSelectModel<typeof weeklyDigestSends>;
+export type NewWeeklyDigestSend = InferInsertModel<typeof weeklyDigestSends>;
+```
+
+- [ ] **Step 1-3**: Schema + relations + migration + commit.
+
+---
+
+## Task F2: Digest content selector
+
+**Files:** `architex/src/lib/sd/digest/content-selector.ts`, test
+
+Pick 3 pieces for a given user + week, respecting tier (Task F8) and avoiding repeats in the last 8 weeks.
+
+- [ ] **Step 1**: Pure function:
+
+```typescript
+export async function selectDigestContent(args: {
+  userId: string;
+  tier: "rookie" | "journeyman" | "architect";
+  excludeSlugs: string[];
+}): Promise<{ incident: string; concept: string; drill: string } | null> {
+  // ... SQL queries over moduleContent + sd_drill_runs
+  // Return null if not enough fresh content.
+}
+```
+
+- [ ] **Step 2-3**: Test + commit.
+
+---
+
+## Task F3: Resend client wrapper + from-address sender
+
+**Files:** `architex/src/lib/email/resend-client.ts`, env `RESEND_API_KEY`, `DIGEST_FROM_ADDRESS`
+
+- [ ] **Step 1**: `pnpm add resend@^4`
+- [ ] **Step 2**: Singleton client:
+
+```typescript
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY!);
+
+export async function sendDigest(to: string, subject: string, react: React.ReactElement) {
+  return resend.emails.send({
+    from: process.env.DIGEST_FROM_ADDRESS ?? "digest@architex.dev",
+    to, subject, react,
+  });
+}
+```
+
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task F4: Digest React-email template
+
+**Files:** `architex/src/emails/weekly-digest.tsx`
+
+Use `@react-email/components` (new dep) for a responsive email:
+
+- [ ] **Step 1**: `pnpm add @react-email/components`
+- [ ] **Step 2**: Template with 4 sections: Hero ("Your week in distributed systems"), Incident card, Concept card, Drill card, Footer (unsubscribe link).
+- [ ] **Step 3**: Inline CSS (email-safe). Test rendering with `@react-email/render`.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task F5: Cron job — Monday 8am user-local timezone
+
+**Files:** `architex/src/app/api/cron/weekly-digest/route.ts`, `vercel.json`
+
+Vercel Cron runs UTC. Strategy: dispatch every hour of Monday UTC, each hour picks the users whose local-time is currently 08:00 based on `users.timezone`.
+
+- [ ] **Step 1**: Cron hits route every hour on Monday.
+- [ ] **Step 2**: Route queries users whose `users.timezone` maps to 08:00 at current UTC hour, AND who don't have a `weekly_digest_sends` row for this ISO week.
+- [ ] **Step 3**: For each, call F2 + F3 + F4, insert a `weekly_digest_sends` row.
+- [ ] **Step 4**: Add `CRON_SECRET` auth check.
+- [ ] **Step 5**: Commit.
+
+---
+
+## Task F6: Unsubscribe flow + preference toggle
+
+**Files:** `architex/src/app/unsubscribe/[token]/page.tsx`, preference UI in profile settings
+
+- [ ] **Step 1**: `/unsubscribe/{token}` looks up the `weekly_digest_sends` row, flips `users.preferencesDigestEnabled = false`, shows a "You're unsubscribed. Change your mind?" card.
+- [ ] **Step 2**: In settings, a toggle flips `users.preferencesDigestEnabled`.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task F7: Preview route `/admin/digest/preview`
+
+**Files:** `architex/src/app/admin/digest/preview/page.tsx`
+
+Authed admins can preview a digest for any user. Renders the React-email template inline.
+
+- [ ] **Step 1-3**: Form input for userId + rendered preview. Commit.
+
+---
+
+## Task F8: Tier-aware content selection
+
+**Files:** `architex/src/lib/sd/digest/tier-aware.ts`
+
+Rookie: pick from Wave 1-3 concepts, warmup problems. Journeyman: Wave 4-6, intermediate problems. Architect: Wave 7-8, principal problems.
+
+- [ ] **Step 1-3**: Extend F2 with tier filter. Commit.
+
+---
+
+## Task F9: Send-limit guard (no resend within 6 days)
+
+- [ ] **Step 1**: Before send, query `weekly_digest_sends WHERE userId = X AND sentAt > now() - 6d`. Abort if found.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task F10: Digest analytics (open · click · CTR per block)
+
+**Files:** `architex/src/app/api/webhooks/resend-bounces/route.ts` (reuse for opens), `src/lib/analytics/sd-events.ts` (MODIFY)
+
+- [ ] **Step 1**: Resend webhook on `email.opened` → update `weekly_digest_sends.openedAt`.
+- [ ] **Step 2**: Link clicks carry `?utm_source=digest&utm_campaign=weekly&utm_content={block}` → middleware tracks → update `clickedAt`.
+- [ ] **Step 3**: Dashboard query `/admin/digest/metrics`: CTR = clickedAt / sentAt, per week.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task Group G · LinkedIn Profile Badge
+
+*Earned by completing the FAANG-Ready path. Adds an "Architex Verified — FAANG-Ready" certification to the user's LinkedIn profile via LinkedIn's Certification API.*
+
+---
+
+## Task G1: LinkedIn OAuth via Clerk social connection
+
+**Files:** `architex/.env.local` (CLIENT_ID, CLIENT_SECRET), Clerk dashboard
+
+- [ ] **Step 1**: Enable LinkedIn as a social connection in Clerk (LinkedIn OpenID Connect).
+- [ ] **Step 2**: Scope: `openid profile email w_member_social` (required for Certification API).
+- [ ] **Step 3**: Commit (env vars) + a setup-guide note.
+
+---
+
+## Task G2: Badge earning rule
+
+**Files:** `architex/src/lib/sd/badges/faang-ready-rule.ts`, test
+
+Definition: earned when user has (a) completed ≥15 concepts across Waves 1-5 AND (b) passed ≥3 drills at rubric ≥4/5 AND (c) completed ≥1 chaos drill AND (d) completed any ≥7-day Crunch plan.
+
+- [ ] **Step 1**: Pure function `isFAANGReady(user): Promise<boolean>` reading from activity + rubric tables.
+- [ ] **Step 2**: Test with 4 fixtures (meets all, meets 3-of-4, 2-of-4, 1-of-4).
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task G3: Badge issuance endpoint + signed claim URL
+
+**Files:** `architex/src/app/api/sd/integrations/linkedin/claim/route.ts`
+
+- [ ] **Step 1**: POST endpoint checks `isFAANGReady(user)`. If yes, generate a JWT-signed claim: `{ userId, claimId, issuedAt, badgeSlug: "faang-ready" }`.
+- [ ] **Step 2**: Persist to `user_badges` table (new — `id, userId, badgeSlug, claimJwt, issuedAt, revokedAt`).
+- [ ] **Step 3**: Return `{ claimUrl: "https://architex.dev/badge/verify/<claimId>" }`.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task G4: LinkedIn Certification API integration
+
+**Files:** `architex/src/lib/shared/integrations/linkedin.ts`
+
+- [ ] **Step 1**: Implement `postCertification(accessToken, certification)` hitting `https://api.linkedin.com/v2/certifications`.
+- [ ] **Step 2**: Payload: `{ name: "Architex Verified — FAANG-Ready System Design", issuingOrganization: { urn: "urn:li:organization:architex" }, url: claimUrl, issuedOn: { year, month } }`.
+- [ ] **Step 3**: Handle LinkedIn's 429 + retry with jitter.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task G5: Revocation flow
+
+- [ ] **Step 1**: If user resets progress or falls below threshold, set `user_badges.revokedAt = now()`. Call LinkedIn DELETE API if possible (best-effort).
+- [ ] **Step 2**: The public verify endpoint (G7) returns revoked status.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task G6: Badge preview on profile page
+
+**Files:** `architex/src/components/modules/sd/portfolio/LinkedInBadge.tsx`
+
+- [ ] **Step 1**: Show badge icon + "Architex Verified — FAANG-Ready" + issued date on the user's portfolio if earned + opted-in.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task G7: Badge verification public endpoint
+
+**Files:** `architex/src/app/badge/verify/[claimId]/page.tsx`
+
+- [ ] **Step 1**: Public route (no auth) that renders the badge, its claim criteria, the user's display name, and a signed-timestamp proof.
+- [ ] **Step 2**: Anyone following the LinkedIn badge link lands here.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task Group H · GitHub Save + Publish Integration
+
+*OAuth. Users save diagrams + auto-artifacts (ADR, Runbook) to a chosen repo. Marked public = discoverable by the portfolio crawler.*
+
+---
+
+## Task H1: GitHub OAuth via Clerk social connection
+
+- [ ] **Step 1**: Enable GitHub in Clerk with scope `repo` (for private repo write access — users get a consent screen).
+- [ ] **Step 2**: Alternative: narrow to `public_repo` for low-risk users; offer the wider scope on first save-to-private-repo request.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task H2: `user_integrations` schema
+
+**Files:** `architex/src/db/schema/user-integrations.ts`
+
+```typescript
+import { pgTable, uuid, varchar, jsonb, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { users } from "./users";
+
+export const userIntegrations = pgTable(
+  "user_integrations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    /** "github" | "notion" | "linkedin" | "google" */
+    provider: varchar("provider", { length: 30 }).notNull(),
+    /** AES-GCM-encrypted via ENCRYPTION_KEY_V{n} */
+    tokenCiphertext: varchar("token_ciphertext", { length: 2048 }).notNull(),
+    /** e.g. GitHub login, Notion workspace id, LinkedIn urn */
+    providerAccountId: varchar("provider_account_id", { length: 200 }).notNull(),
+    /** key version for rotation */
+    keyVersion: varchar("key_version", { length: 10 }).notNull().default("v1"),
+    /** provider-specific config: chosen repo/branch/pageId */
+    config: jsonb("config").$type<Record<string, unknown>>().default({}),
+    scopes: jsonb("scopes").$type<string[]>().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("user_integrations_user_provider_idx").on(t.userId, t.provider),
+    uniqueIndex("user_integrations_unique_idx").on(t.userId, t.provider, t.providerAccountId),
+  ],
+);
+
+export type UserIntegration = InferSelectModel<typeof userIntegrations>;
+export type NewUserIntegration = InferInsertModel<typeof userIntegrations>;
+```
+
+- [ ] **Step 1-3**: Schema + relations + migration + commit.
+
+---
+
+## Task H3: Repo picker UI in Build mode
+
+**Files:** `architex/src/components/modules/sd/integrations/GitHubRepoPicker.tsx`
+
+- [ ] **Step 1**: On click, call `GET /api/sd/integrations/github/repos` (new endpoint that lists user's repos via Octokit).
+- [ ] **Step 2**: Combobox with search. User selects repo + branch + folder path (default `architex/`).
+- [ ] **Step 3**: Persist choice to `user_integrations.config`.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task H4: Save diagram as JSON
+
+**Files:** `architex/src/app/api/sd/integrations/github/save/route.ts`
+
+- [ ] **Step 1**: POST takes `{ diagramId, commitMessage? }`. Fetches the diagram JSON, uses Octokit to `PUT /repos/{owner}/{repo}/contents/{path}`.
+- [ ] **Step 2**: Content: `architex/{diagramId}/diagram.json` plus `diagram.md` (rendered description). Commit message: "architex: save {diagramTitle}".
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task H5: Save auto-artifacts (ADR + Runbook) as MDX
+
+- [ ] **Step 1**: Generate ADR + Runbook from the current diagram (auto-artifact generators from Phase 3).
+- [ ] **Step 2**: Commit both to the same `architex/{diagramId}/` folder as `adr.mdx` and `runbook.mdx`.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task H6: Publish toggle → discoverable
+
+- [ ] **Step 1**: Add a `PUBLISHED.md` root file with `architex_public: true` YAML frontmatter and a link back to the user's Architex profile.
+- [ ] **Step 2**: The portfolio discovery crawler (H9) looks for this marker.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task H7: Pull latest diagram from repo on load
+
+**Files:** `architex/src/app/api/sd/integrations/github/pull/route.ts`
+
+- [ ] **Step 1**: GET takes `{ diagramId }`. Reads the latest commit for `architex/{diagramId}/diagram.json` and returns it.
+- [ ] **Step 2**: Caller merges back into Architex DB only on explicit user confirmation (conflict dialog).
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task H8: Conflict resolution
+
+- [ ] **Step 1**: Drizzle's `diagrams.updatedAt` vs. the GitHub commit's timestamp.
+- [ ] **Step 2**: If diverged, show a 3-way-merge dialog: `Local (Architex) · Remote (GitHub) · Keep both`.
+- [ ] **Step 3**: Default: local wins; user must explicitly pull.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task H9: Portfolio discovery — crawl users' public repos for `architex` tag
+
+**Files:** `architex/src/app/api/cron/github-portfolio-discovery/route.ts`
+
+- [ ] **Step 1**: Weekly cron. For each user with GitHub connected + public profile, query `GET /users/{login}/repos` and check for `PUBLISHED.md` with `architex_public: true`.
+- [ ] **Step 2**: Add discovered diagrams to `profile_pages.featuredDiagramIds` if the user opted-in.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task Group I · Notion Sync Integration
+
+*Learn bookmarks + drill rubrics → Notion page. OAuth, bidirectional pull optional.*
+
+---
+
+## Task I1: Notion OAuth
+
+**Files:** `architex/src/app/api/sd/integrations/notion/oauth/route.ts`, `architex/.env.local`
+
+Notion is not a Clerk-native provider. Wire manually.
+
+- [ ] **Step 1**: `pnpm add @notionhq/client@^3`
+- [ ] **Step 2**: Start OAuth: redirect to `https://api.notion.com/v1/oauth/authorize?client_id=...&response_type=code&redirect_uri=...`
+- [ ] **Step 3**: Callback exchanges code for access token; persist to `user_integrations` with provider `"notion"`.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task I2: `user_integrations.notion` schema
+
+Already covered by H2's generic schema. Config shape for Notion:
+
+```typescript
+interface NotionConfig {
+  workspaceId: string;
+  workspaceName: string;
+  pageId: string | null; // user-picked target page
+  databaseId: string | null; // user-picked database for drill rubrics
+}
+```
+
+- [ ] **Step 1**: Type the config. Commit.
+
+---
+
+## Task I3: Settings UI — "Pick a Notion page"
+
+**Files:** `architex/src/components/modules/sd/integrations/NotionPagePicker.tsx`
+
+- [ ] **Step 1**: List pages from `notion.search({ filter: { value: "page" } })`.
+- [ ] **Step 2**: User picks one; persist to config.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task I4: Sync job — Learn bookmarks → Notion bullet list
+
+**Files:** `architex/src/app/api/sd/integrations/notion/sync/route.ts`
+
+- [ ] **Step 1**: Query user's Learn bookmarks (`progress` + `moduleContent`).
+- [ ] **Step 2**: For each, `blocks.children.append(pageId, [{bullet_list_item: "..."}])` — or update existing if marker exists.
+- [ ] **Step 3**: Idempotent — use a marker block `"architex-bookmarks-v1"` to find/replace.
+- [ ] **Step 4**: Commit.
+
+---
+
+## Task I5: Sync job — Drill rubrics → Notion table
+
+- [ ] **Step 1**: Write drill results into a Notion database (user-picked via I3). Row = one drill attempt.
+- [ ] **Step 2**: Columns: Problem · Date · Overall Score · Clarity · Structure · Depth · Communication · Edge Cases · Tradeoffs.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task I6: Manual "Sync now" button
+
+**Files:** `architex/src/components/modules/sd/integrations/NotionSyncNowButton.tsx`
+
+- [ ] **Step 1**: Button in settings triggers a manual sync. Shows spinner + last-synced timestamp.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task I7: Nightly scheduled sync
+
+**Files:** `architex/src/app/api/cron/notion-sync/route.ts`, `vercel.json`
+
+- [ ] **Step 1**: Cron runs 02:00 UTC daily. For each user with Notion connected, queue a sync.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task I8: Rate-limit guard (Notion API 3 req/s)
+
+**Files:** `architex/src/lib/shared/integrations/notion.ts`
+
+- [ ] **Step 1**: Wrap Notion client in a `p-limit(3)` concurrency gate. All writes go through the gate.
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task Group J · Crunch Mode 7-Day Path Generator
+
+*Given an onsite date + target company, generate a calendar-aware 7-day plan. The generator is deterministic with an AI-adjusted difficulty knob.*
+
+---
+
+## Task J1: `crunch_plans` schema
+
+**Files:** `architex/src/db/schema/crunch-plans.ts`
+
+```typescript
+import { pgTable, uuid, varchar, date, jsonb, timestamp, index } from "drizzle-orm/pg-core";
+import { type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { users } from "./users";
+
+export const crunchPlans = pgTable(
+  "crunch_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    onsiteDate: date("onsite_date").notNull(),
+    targetCompany: varchar("target_company", { length: 60 }).notNull(),
+    tier: varchar("tier", { length: 30 }).notNull(),
+    /** Array of 7 DayPlan objects */
+    plan: jsonb("plan").$type<Array<{
+      dayIndex: number;
+      date: string;
+      activities: Array<{ kind: string; slug: string; estimateMinutes: number; completed: boolean }>;
+    }>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+    status: varchar("status", { length: 20 }).notNull().default("active"), // active | completed | abandoned
+  },
+  (t) => [
+    index("crunch_user_active_idx").on(t.userId, t.status),
+  ],
+);
+
+export type CrunchPlan = InferSelectModel<typeof crunchPlans>;
+export type NewCrunchPlan = InferInsertModel<typeof crunchPlans>;
+```
+
+- [ ] **Step 1-3**: Schema + migration + commit.
+
+---
+
+## Task J2: Crunch-Mode entry UI
+
+**Files:** `architex/src/app/crunch/new/page.tsx`, `components/modules/sd/crunch/CrunchEntryForm.tsx`
+
+- [ ] **Step 1**: Form: onsite date picker (must be 7-30 days out) + company preset selector (Task J3) + tier radio.
+- [ ] **Step 2**: Submit → POST `/api/sd/crunch/create` → redirect to day 0.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task J3: Company preset library
+
+**Files:** `architex/src/lib/sd/crunch/company-presets.ts`
+
+```typescript
+export const COMPANY_PRESETS = {
+  "google": { tier: "principal", focus: ["search", "maps", "youtube"], interviewerPersona: "skeptic" },
+  "meta": { tier: "principal", focus: ["feed", "chat", "live-video"], interviewerPersona: "pragmatic" },
+  "amazon": { tier: "principal", focus: ["commerce", "payments", "inventory"], interviewerPersona: "bar-raiser" },
+  "apple": { tier: "principal", focus: ["storage-sync", "privacy", "consistency"], interviewerPersona: "quiet-depth" },
+  "netflix": { tier: "principal", focus: ["streaming", "personalization", "chaos"], interviewerPersona: "pragmatic" },
+  "stripe": { tier: "principal", focus: ["idempotency", "payments", "resilience"], interviewerPersona: "skeptic" },
+  "databricks": { tier: "staff", focus: ["streaming", "distributed-systems"], interviewerPersona: "collegial" },
+  "anthropic": { tier: "staff", focus: ["ai-as-component", "reliability"], interviewerPersona: "curious" },
+  // ... 20+ presets
+} as const;
+```
+
+- [ ] **Step 1-3**: Seed 20+ companies. Type + test. Commit.
+
+---
+
+## Task J4: 7-day plan generator (deterministic + AI-adjusted)
+
+**Files:** `architex/src/lib/sd/crunch/plan-generator.ts`, test
+
+Per spec §19.5:
+- Day 0: diagnostic + 1 drill
+- Day 1: 2 concepts (on weak areas) + 1 warm-up drill
+- Day 2: 2 Build-Along problems + 1 Stress Test sim
+- Day 3: 2 Guided Derivation problems + 1 drill under company preset
+- Day 4: 1 Chaos Drill + 1 concept + 1 drill with Skeptic persona
+- Day 5: 2 drills + rubric review
+- Day 6: 1 Full-Stack Loop (SD+LLD) + rest
+- Day 7 (onsite day -0): 1 mock under full Exam mode + confidence calibration
+
+Adjustments:
+- Pick concepts from the user's weakest waves (derived via `deriveMastery`).
+- Pick problems from `companyPreset.focus` domains.
+
+- [ ] **Step 1**: Pure function `generatePlan(user, onsiteDate, companyPreset): DayPlan[]`. Test with 3 user fixtures (weak-on-Wave-4, strong-all-around, Rookie).
+
+- [ ] **Step 2-3**: Commit.
+
+---
+
+## Task J5: Calendar-aware reshuffling
+
+**Files:** `architex/src/lib/sd/crunch/reshuffler.ts`
+
+If the user has a Google Calendar "busy" block on a given day, redistribute that day's activities. We don't deep-integrate with Google Calendar in Phase 4 (Phase 6); but we accept `userBusyDays: Date[]` as an input and plan around them.
+
+- [ ] **Step 1**: Pure function. Test with a fixture that has "Day 3 is busy".
+- [ ] **Step 2**: Commit.
+
+---
+
+## Task J6: Day-detail view + daily checklist
+
+**Files:** `architex/src/app/crunch/[id]/page.tsx`, `components/modules/sd/crunch/CrunchPlanDayCard.tsx`
+
+- [ ] **Step 1**: Show all 7 days at once (accordion); today's day is expanded + highlighted.
+- [ ] **Step 2**: Each activity is a checklist item; marking complete updates `crunch_plans.plan[dayIndex].activities[i].completed`.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task J7: Per-day difficulty auto-tuner
+
+**Files:** `architex/src/lib/sd/crunch/plan-generator.ts` (EXTEND)
+
+If user scored >4/5 on communication yesterday, today's plan drops the Verbal drill and adds a Deep Dive specialist drill. Same for other axes.
+
+- [ ] **Step 1**: After each day's completion, recompute tomorrow's plan based on yesterday's rubric.
+- [ ] **Step 2**: Test + commit.
+
+---
+
+## Task J8: ICS export for calendar apps
+
+**Files:** `architex/src/app/api/sd/crunch/[id]/ics/route.ts`, `architex/src/lib/sd/crunch/ics-export.ts`
+
+- [ ] **Step 1**: Generate an RFC-5545 `.ics` file with one VEVENT per activity, using the user's timezone.
+- [ ] **Step 2**: `Content-Type: text/calendar; charset=utf-8` and a `.ics` filename.
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task J9: Crunch-Mode completion certificate
+
+**Files:** `architex/src/components/modules/sd/crunch/CrunchCompletionCertificate.tsx`
+
+- [ ] **Step 1**: When all 7 days show `completed`, render a certificate (sharable OG image via `next/og`).
+- [ ] **Step 2**: Contributes to FAANG-Ready badge criterion (Task G2).
+- [ ] **Step 3**: Commit.
+
+---
+
+## Task J10: Mid-plan recalculation if user falls behind
+
+- [ ] **Step 1**: If ≥2 activities are overdue across any 2-day window, re-run the generator with the remaining days + completed activity history.
+- [ ] **Step 2**: Show a "Plan updated — you missed Day 3; we redistributed" card with a "Keep original" opt-out.
+- [ ] **Step 3**: Commit.
+
+---
