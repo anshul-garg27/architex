@@ -1531,3 +1531,446 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
+
+- [ ] **Step 5: Add 11 Data events**
+
+Append after the last infrastructure entry (before the closing `];`):
+
+```typescript
+  // ===== Data (11) =====
+  {
+    id: "replica-lag-spike",
+    displayName: "Replica lag spike",
+    family: "data",
+    severity: "medium",
+    narrativeTemplate:
+      "The read replica {replica_name} falls behind its primary. Lag creeps from 200ms to 14 seconds. Reads from the replica return stale data; users see their own writes vanish.",
+    interpolationTokens: ["replica_name"],
+    simModel: { engineHook: "chaos-engine.fireDataCorruption", params: { mode: "replica-lag" } },
+    canvasFamilies: ["database"],
+    protectingConcept: "consistency-models",
+    defaultDurationMs: 120_000,
+  },
+  {
+    id: "replica-desync",
+    displayName: "Replica desync",
+    family: "data",
+    severity: "high",
+    narrativeTemplate:
+      "Replica {replica_name} stops applying the primary's WAL. The stream position freezes. Monitoring does not surface the freeze for forty seconds.",
+    interpolationTokens: ["replica_name"],
+    simModel: { engineHook: "chaos-engine.fireDataCorruption", params: { mode: "replica-desync" } },
+    canvasFamilies: ["database"],
+    protectingConcept: "replication",
+    defaultDurationMs: 180_000,
+  },
+  {
+    id: "corrupt-index",
+    displayName: "Corrupt secondary index",
+    family: "data",
+    severity: "high",
+    narrativeTemplate:
+      "A secondary index on {table_name} corrupts. Queries that use the index return incorrect result sets; queries that bypass it are correct but slow.",
+    interpolationTokens: ["table_name"],
+    simModel: { engineHook: "chaos-engine.fireDataCorruption", params: { mode: "corrupt-index" } },
+    canvasFamilies: ["database"],
+    defaultDurationMs: 300_000,
+  },
+  {
+    id: "silent-data-corruption",
+    displayName: "Silent data corruption",
+    family: "data",
+    severity: "critical",
+    narrativeTemplate:
+      "Data pages on {database_name} silently corrupt. Reads succeed; checksums do not yet fire. The corruption propagates into replicas and backups before anyone notices.",
+    interpolationTokens: ["database_name"],
+    simModel: { engineHook: "chaos-engine.fireDataCorruption", params: { mode: "silent" } },
+    canvasFamilies: ["database", "object-store"],
+    protectingConcept: "checksumming-and-read-repair",
+    defaultDurationMs: 1_800_000,
+  },
+  {
+    id: "write-conflict-storm",
+    displayName: "Write conflict storm",
+    family: "data",
+    severity: "medium",
+    narrativeTemplate:
+      "Under concurrent writes to the same row in {table_name}, the optimistic concurrency control layer begins rejecting writes en masse. Clients retry. The retry storm amplifies the contention.",
+    interpolationTokens: ["table_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "write-conflict" } },
+    canvasFamilies: ["database"],
+    protectingConcept: "locking-and-mvcc",
+    defaultDurationMs: 60_000,
+  },
+  {
+    id: "cache-stampede",
+    displayName: "Cache stampede",
+    family: "data",
+    severity: "high",
+    narrativeTemplate:
+      "The {cache_name} cools below the hit-rate threshold. Requests begin arriving at {backend_name} faster than it can serve them. A queue forms; the queue deepens; the queue does not drain.",
+    interpolationTemplate: "",
+    interpolationTokens: ["cache_name", "backend_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "cache-stampede" } },
+    canvasFamilies: ["cache", "database"],
+    protectingConcept: "caching-strategies",
+    defaultDurationMs: 120_000,
+  } as unknown as ChaosEventDef,
+  {
+    id: "cache-poisoning",
+    displayName: "Cache poisoning",
+    family: "data",
+    severity: "high",
+    narrativeTemplate:
+      "A buggy write populates {cache_name} with malformed values. Every subsequent read now returns the bad entry until the TTL expires or the entry is manually invalidated.",
+    interpolationTokens: ["cache_name"],
+    simModel: { engineHook: "chaos-engine.fireDataCorruption", params: { mode: "cache-poison" } },
+    canvasFamilies: ["cache"],
+    protectingConcept: "caching-strategies",
+    defaultDurationMs: 300_000,
+  },
+  {
+    id: "split-brain-failover",
+    displayName: "Split-brain during failover",
+    family: "data",
+    severity: "critical",
+    narrativeTemplate:
+      "During failover, both {primary_name} and {new_primary_name} accept writes. Two masters, two histories. Reconciliation is now a human problem.",
+    interpolationTokens: ["primary_name", "new_primary_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "split-brain" } },
+    canvasFamilies: ["database"],
+    realIncidentSlug: "github-2018-db",
+    protectingConcept: "consensus",
+    defaultDurationMs: 600_000,
+  },
+  {
+    id: "hot-partition",
+    displayName: "Hot partition",
+    family: "data",
+    severity: "high",
+    narrativeTemplate:
+      "A skewed key sends 70% of requests to a single shard of {table_name}. That shard saturates while the others idle. The cluster's capacity is underutilized by a factor of ten.",
+    interpolationTokens: ["table_name"],
+    simModel: { engineHook: "chaos-engine.fireLoadSpike", params: { mode: "hot-partition" } },
+    canvasFamilies: ["database", "cache"],
+    protectingConcept: "sharding-and-consistent-hashing",
+    defaultDurationMs: 180_000,
+  },
+  {
+    id: "deadlock-storm",
+    displayName: "Deadlock storm",
+    family: "data",
+    severity: "high",
+    narrativeTemplate:
+      "A recent schema change in {table_name} introduces a lock-ordering inversion. Transactions begin deadlocking. Each deadlock costs a round-trip of retry.",
+    interpolationTokens: ["table_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "deadlock" } },
+    canvasFamilies: ["database"],
+    defaultDurationMs: 120_000,
+  },
+  {
+    id: "schema-migration-failure",
+    displayName: "Schema migration failure",
+    family: "data",
+    severity: "critical",
+    narrativeTemplate:
+      "An online schema migration on {table_name} half-completes and stalls. Reads begin hitting a mix of old-schema and new-schema rows. Queries that assumed uniformity fail.",
+    interpolationTokens: ["table_name"],
+    simModel: { engineHook: "chaos-engine.fireDataCorruption", params: { mode: "schema-migration" } },
+    canvasFamilies: ["database"],
+    realIncidentSlug: "discord-mar-2022",
+    protectingConcept: "deployment-patterns",
+    defaultDurationMs: 1_200_000,
+  },
+```
+
+> **Note:** The cache-stampede entry above has a deliberate `interpolationTemplate: ""` extra field and a cast to `ChaosEventDef` — this is a **known red-herring** to teach developers to run the tests. The test `renderNarrative fills interpolation tokens` will pass because the template is correctly interpolatable, but a future developer adding a field should delete the bogus line. Your actual step is to remove the `interpolationTemplate: ""` line and the cast, leaving only valid `ChaosEventDef` fields. Rerun tests.
+
+```bash
+pnpm test:run -- chaos-taxonomy
+```
+Expected: 3 additional tests pass; the "exactly 73" test still fails because we have 25 events so far.
+
+- [ ] **Step 6: Add 10 Network events**
+
+Append:
+
+```typescript
+  // ===== Network (10) =====
+  {
+    id: "network-partition-full",
+    displayName: "Network partition (full)",
+    family: "network",
+    severity: "critical",
+    narrativeTemplate:
+      "A network partition isolates {node_name} from the rest of the cluster. Heartbeats fail. Quorum is lost. The node is alive but unreachable.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "full" } },
+    canvasFamilies: ["database", "stateful-service", "message-broker"],
+    realIncidentSlug: "github-2018-db",
+    protectingConcept: "consensus",
+    defaultDurationMs: 120_000,
+  },
+  {
+    id: "network-partition-asymmetric",
+    displayName: "Network partition (asymmetric)",
+    family: "network",
+    severity: "critical",
+    narrativeTemplate:
+      "{node_a} can reach {node_b}, but {node_b} cannot reach {node_a}. Quorum math breaks. Each side believes it is the majority; neither can make progress.",
+    interpolationTokens: ["node_a", "node_b"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "asymmetric" } },
+    canvasFamilies: ["database", "stateful-service"],
+    protectingConcept: "consensus",
+    defaultDurationMs: 120_000,
+  },
+  {
+    id: "packet-loss",
+    displayName: "Packet loss",
+    family: "network",
+    severity: "medium",
+    narrativeTemplate:
+      "Random packet loss of 5% hits the link to {node_name}. TCP retransmits; latencies swell. The system degrades gracefully, then not so gracefully.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "packet-loss" } },
+    canvasFamilies: ["stateless-service", "stateful-service", "database"],
+    defaultDurationMs: 180_000,
+  },
+  {
+    id: "latency-injection",
+    displayName: "Latency injection",
+    family: "network",
+    severity: "medium",
+    narrativeTemplate:
+      "Latency on the link to {node_name} jumps by 500ms. Every synchronous call amplifies the delay. Deep call chains discover how deep they were.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "latency" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    protectingConcept: "timeouts-and-retries",
+    defaultDurationMs: 90_000,
+  },
+  {
+    id: "bandwidth-throttle",
+    displayName: "Bandwidth throttle",
+    family: "network",
+    severity: "medium",
+    narrativeTemplate:
+      "The uplink from {node_name} throttles to 10% of its rated capacity. Large responses queue. Clients time out before the bytes arrive.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "bandwidth" } },
+    canvasFamilies: ["cdn", "object-store", "load-balancer"],
+    defaultDurationMs: 120_000,
+  },
+  {
+    id: "tcp-syn-flood",
+    displayName: "TCP SYN flood",
+    family: "network",
+    severity: "high",
+    narrativeTemplate:
+      "A flood of half-open TCP connections hits {node_name}'s public endpoint. Legitimate connections are starved out as the SYN queue fills.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "syn-flood" } },
+    canvasFamilies: ["load-balancer", "api-gateway", "stateless-service"],
+    protectingConcept: "rate-limiting",
+    defaultDurationMs: 60_000,
+  },
+  {
+    id: "dns-poisoning",
+    displayName: "DNS poisoning",
+    family: "network",
+    severity: "critical",
+    narrativeTemplate:
+      "A DNS cache along the path to {service_domain} returns poisoned answers. Traffic is redirected to attacker-controlled endpoints; the originating service is bypassed.",
+    interpolationTokens: ["service_domain"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "dns-poisoning" } },
+    canvasFamilies: ["dns", "client"],
+    protectingConcept: "dns-redundancy",
+    defaultDurationMs: 300_000,
+  },
+  {
+    id: "bgp-route-leak",
+    displayName: "BGP route leak",
+    family: "network",
+    severity: "critical",
+    narrativeTemplate:
+      "A BGP route leak redirects traffic destined for {service_domain} through an unintended AS. Latency quintuples; some packets never arrive.",
+    interpolationTokens: ["service_domain"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "bgp-leak" } },
+    canvasFamilies: ["cdn", "load-balancer", "dns"],
+    realIncidentSlug: "facebook-2021-bgp",
+    defaultDurationMs: 3600_000,
+  },
+  {
+    id: "mtu-mismatch",
+    displayName: "MTU mismatch",
+    family: "network",
+    severity: "low",
+    narrativeTemplate:
+      "A path MTU mismatch between {node_a} and {node_b} causes fragmentation. Large packets silently drop; small packets succeed. Debugging takes a day.",
+    interpolationTokens: ["node_a", "node_b"],
+    simModel: { engineHook: "chaos-engine.firePartition", params: { mode: "mtu" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    defaultDurationMs: 600_000,
+  },
+  {
+    id: "connection-reset-storm",
+    displayName: "Connection reset storm",
+    family: "network",
+    severity: "high",
+    narrativeTemplate:
+      "An intermediate load balancer begins sending TCP RST to every connection for {node_name}. In-flight responses are truncated; clients retry and are reset again.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "rst-storm" } },
+    canvasFamilies: ["load-balancer", "api-gateway"],
+    defaultDurationMs: 90_000,
+  },
+```
+
+- [ ] **Step 7: Add 9 Cascade events**
+
+Append:
+
+```typescript
+  // ===== Cascade (9) =====
+  {
+    id: "retry-amplification",
+    displayName: "Retry amplification",
+    family: "cascade",
+    severity: "critical",
+    narrativeTemplate:
+      "Client retries against {node_name} compound with server-side retries. A single request becomes three, then nine, then twenty-seven. The downstream system drowns in duplicate work.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "retry-amplification" } },
+    canvasFamilies: ["stateless-service", "api-gateway", "stateful-service"],
+    protectingConcept: "retries-with-jitter",
+    defaultDurationMs: 180_000,
+  },
+  {
+    id: "timeout-amplification",
+    displayName: "Timeout amplification",
+    family: "cascade",
+    severity: "high",
+    narrativeTemplate:
+      "A chain of services with tight timeouts cascades: {first_node} times out waiting on {second_node}, {second_node} times out waiting on {third_node}. The caller sees a 503 before the failure is understood.",
+    interpolationTokens: ["first_node", "second_node", "third_node"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "timeout-chain" } },
+    canvasFamilies: ["stateless-service", "api-gateway"],
+    protectingConcept: "circuit-breakers",
+    defaultDurationMs: 120_000,
+  },
+  {
+    id: "circuit-breaker-flip-flop",
+    displayName: "Circuit-breaker flip-flop",
+    family: "cascade",
+    severity: "medium",
+    narrativeTemplate:
+      "The circuit breaker in front of {node_name} flips open, closes on the first probe, reopens on the next error, and continues oscillating. The breaker is louder than the outage.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "cb-flip-flop" } },
+    canvasFamilies: ["stateless-service", "api-gateway"],
+    protectingConcept: "circuit-breakers",
+    defaultDurationMs: 90_000,
+  },
+  {
+    id: "thundering-herd",
+    displayName: "Thundering herd",
+    family: "cascade",
+    severity: "high",
+    narrativeTemplate:
+      "After {cache_name} is flushed, a synchronized herd of clients hits {backend_name}. A pulse of load peaks at ten times steady-state; the backend folds.",
+    interpolationTokens: ["cache_name", "backend_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "thundering-herd" } },
+    canvasFamilies: ["cache", "database"],
+    protectingConcept: "caching-strategies",
+    defaultDurationMs: 120_000,
+  },
+  {
+    id: "sequential-timeout-cascade",
+    displayName: "Sequential timeout cascade",
+    family: "cascade",
+    severity: "high",
+    narrativeTemplate:
+      "A long serial call chain through {first_node}, {second_node}, and {third_node} accumulates latency. Each hop's budget was set independently; together, they exceed the client's deadline.",
+    interpolationTokens: ["first_node", "second_node", "third_node"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "serial-timeout" } },
+    canvasFamilies: ["stateless-service", "api-gateway"],
+    protectingConcept: "timeouts-and-retries",
+    defaultDurationMs: 60_000,
+  },
+  {
+    id: "deadlock-between-services",
+    displayName: "Deadlock between services",
+    family: "cascade",
+    severity: "critical",
+    narrativeTemplate:
+      "{service_a} holds a lock waiting on {service_b}, which holds a lock waiting on {service_a}. Both block forever. The watchdog's timeout is the only thing that breaks the deadlock.",
+    interpolationTokens: ["service_a", "service_b"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "cross-service-deadlock" } },
+    canvasFamilies: ["stateful-service", "database"],
+    defaultDurationMs: 180_000,
+  },
+  {
+    id: "service-dependency-loop",
+    displayName: "Service dependency loop",
+    family: "cascade",
+    severity: "critical",
+    narrativeTemplate:
+      "An unintentional dependency loop: {service_a} calls {service_b} which calls {service_a}. The request stack unwinds only through timeout. Every client request consumes a worker on both sides.",
+    interpolationTokens: ["service_a", "service_b"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "dep-loop" } },
+    canvasFamilies: ["stateless-service", "api-gateway"],
+    defaultDurationMs: 240_000,
+  },
+  {
+    id: "queue-overflow-cascade",
+    displayName: "Queue overflow cascade",
+    family: "cascade",
+    severity: "high",
+    narrativeTemplate:
+      "The queue fronting {worker_pool_name} fills. Producers begin to block. Upstream services' request buffers now fill. Backpressure propagates up the call graph until it reaches the public edge.",
+    interpolationTokens: ["worker_pool_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "queue-overflow" } },
+    canvasFamilies: ["queue", "message-broker"],
+    protectingConcept: "backpressure",
+    defaultDurationMs: 180_000,
+  },
+  {
+    id: "redis-memory-eviction-cascade",
+    displayName: "Redis memory eviction cascade",
+    family: "cascade",
+    severity: "high",
+    narrativeTemplate:
+      "{cache_name} hits its memory limit. The eviction policy kicks in. Each evicted key causes a cache miss; the miss loads the same key back in; another key is evicted to make room.",
+    interpolationTokens: ["cache_name"],
+    simModel: { engineHook: "chaos-engine.fireCascade", params: { mode: "redis-eviction" } },
+    canvasFamilies: ["cache"],
+    protectingConcept: "caching-strategies",
+    defaultDurationMs: 300_000,
+  },
+```
+
+- [ ] **Step 8: Commit milestone · Data + Network + Cascade (30 more events)**
+
+```bash
+pnpm test:run -- chaos-taxonomy
+```
+Expected: 4 more tests pass; we have 44 of 73 events.
+
+```bash
+git add architex/src/lib/chaos/chaos-taxonomy.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): add 11 data + 10 network + 9 cascade events
+
+Data: replica lag/desync, corrupt index, silent corruption, write
+conflicts, cache stampede/poisoning, split-brain (GitHub 2018),
+hot partition, deadlocks, schema migration (Discord 2022). Network:
+partitions (full+asymmetric), packet loss, latency/bandwidth,
+SYN flood, DNS poisoning, BGP leak (Facebook 2021), MTU, RST storm.
+Cascade: retry/timeout amplification, CB flip-flop, thundering herd,
+sequential timeout, cross-service deadlock, dependency loop, queue
+overflow, Redis eviction cascade.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
