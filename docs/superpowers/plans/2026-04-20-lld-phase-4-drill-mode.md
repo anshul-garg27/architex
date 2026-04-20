@@ -4478,6 +4478,632 @@ EOF
 
 ---
 
+## Task 20: API route — `PATCH /api/lld/drill-attempts/[id]/stage`
+
+**Files:**
+- Create: `architex/src/app/api/lld/drill-attempts/[id]/stage/route.ts`
+
+Advances a drill to the next stage on the server. Validates the gate predicate using the submitted progress bag, updates `current_stage`, `started_stage_at`, and records the outgoing stage's duration under `stages` JSONB. Returns 409 if the gate is not satisfied.
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/drill-attempts/[id]/stage/route.ts`:
+
+```typescript
+/**
+ * PATCH /api/lld/drill-attempts/[id]/stage
+ *
+ * Body: { targetStage: DrillStage, progress: DrillStageProgress }
+ *
+ * Advances the drill to `targetStage` if:
+ *   - targetStage == nextStage(current)
+ *   - gate predicate on current stage is satisfied by `progress`
+ *
+ * Also supports retreat (targetStage == previousStage).
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq, isNull } from "drizzle-orm";
+import { getDb, lldDrillAttempts } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+import {
+  STAGE_ORDER,
+  canAdvance,
+  nextStage,
+  previousStage,
+  type DrillStage,
+  type DrillStageProgress,
+} from "@/lib/lld/drill-stages";
+
+const STAGE_SET = new Set(STAGE_ORDER);
+
+function isStage(v: unknown): v is DrillStage {
+  return typeof v === "string" && STAGE_SET.has(v as DrillStage);
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { id } = await params;
+
+    const body = (await request.json().catch(() => ({}))) as {
+      targetStage?: unknown;
+      progress?: DrillStageProgress;
+    };
+
+    if (!isStage(body.targetStage)) {
+      return NextResponse.json(
+        { error: "targetStage must be a valid DrillStage" },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+    const [attempt] = await db
+      .select()
+      .from(lldDrillAttempts)
+      .where(
+        and(
+          eq(lldDrillAttempts.id, id),
+          eq(lldDrillAttempts.userId, userId),
+          isNull(lldDrillAttempts.submittedAt),
+          isNull(lldDrillAttempts.abandonedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!attempt) {
+      return NextResponse.json(
+        { error: "Active drill not found" },
+        { status: 404 },
+      );
+    }
+
+    const current = attempt.currentStage as DrillStage;
+    const target = body.targetStage;
+    const progress = body.progress ?? {};
+
+    // Determine direction.
+    const isAdvance = target === nextStage(current);
+    const isRetreat = target === previousStage(current);
+
+    if (!isAdvance && !isRetreat) {
+      return NextResponse.json(
+        {
+          error: `Cannot jump from ${current} to ${target}`,
+          code: "INVALID_STAGE_TRANSITION",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (isAdvance && !canAdvance(current, progress)) {
+      return NextResponse.json(
+        {
+          error: "Gate predicate failed — stage not complete",
+          code: "GATE_UNSATISFIED",
+        },
+        { status: 409 },
+      );
+    }
+
+    const now = new Date();
+    const spentMs =
+      now.getTime() - new Date(attempt.startedStageAt).getTime();
+
+    const existingStages =
+      (attempt.stages as Record<string, { durationMs?: number; progress?: unknown }>) ??
+      {};
+    const updatedStages = {
+      ...existingStages,
+      [current]: {
+        ...(existingStages[current] ?? {}),
+        durationMs: (existingStages[current]?.durationMs ?? 0) + spentMs,
+        progress,
+      },
+    };
+
+    await db
+      .update(lldDrillAttempts)
+      .set({
+        currentStage: target,
+        startedStageAt: now,
+        lastActivityAt: now,
+        stages: updatedStages,
+      })
+      .where(eq(lldDrillAttempts.id, id));
+
+    return NextResponse.json({
+      ok: true,
+      currentStage: target,
+      stages: updatedStages,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/drill-attempts/:id/stage] PATCH error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 3: Smoke test with curl**
+
+With dev server running + a drill attempt started:
+
+```bash
+curl -i -X PATCH http://localhost:3000/api/lld/drill-attempts/$ATTEMPT_ID/stage \
+  -H "Content-Type: application/json" \
+  -d '{"targetStage":"rubric","progress":{"questionsAsked":3}}'
+```
+Expected: `200` with `{ ok: true, currentStage: "rubric" }`. If `401`, add auth headers appropriately for your local dev setup.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/app/api/lld/drill-attempts/[id]/stage/route.ts
+git commit -m "$(cat <<'EOF'
+feat(api): PATCH /api/lld/drill-attempts/:id/stage
+
+Advances or retreats a drill's current stage. Advance requires gate
+predicate to pass (returns 409 GATE_UNSATISFIED if not). Records outgoing
+stage duration in the stages JSONB. Stamps lastActivityAt so the
+heartbeat logic stays consistent.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 21: API route — `POST /api/lld/drill-attempts/[id]/hint`
+
+**Files:**
+- Create: `architex/src/app/api/lld/drill-attempts/[id]/hint/route.ts`
+
+Consumes a hint tier. Server-side validates:
+
+1. Variant allows hints (not `exam`).
+2. Tier ladder is respected (nudge before guided before full-explanation).
+3. Remaining budget covers the tier's penalty.
+4. Calls `hint-system.ts` to generate the actual content (AI or fallback).
+
+Records entry into the `hint_log` JSONB column.
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/drill-attempts/[id]/hint/route.ts`:
+
+```typescript
+/**
+ * POST /api/lld/drill-attempts/[id]/hint
+ *
+ * Body: { tier: HintTier, stage: DrillStage }
+ *
+ * Generates and records a hint. Returns the hint content + updated
+ * hint log + new penalty total.
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { getDb, lldDrillAttempts } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+import { variantConfigFor, type DrillVariant } from "@/lib/lld/drill-variants";
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import {
+  TIER_CREDIT_COST,
+  TIER_ORDER,
+  type HintTier,
+} from "@/lib/ai/hint-system";
+
+interface StoredHintLogEntry {
+  tier: HintTier;
+  stage: DrillStage;
+  penalty: number;
+  usedAt: number;
+  content?: string;
+}
+
+// Map engine credit cost to drill "penalty" points. Penalties are
+// subtracted from the final score and capped by variantConfig.
+const TIER_PENALTY_POINTS: Record<HintTier, number> = {
+  nudge: 3,
+  guided: 10,
+  "full-explanation": 20,
+};
+
+const TIER_SET = new Set<HintTier>(TIER_ORDER);
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { id } = await params;
+    const body = (await request.json().catch(() => ({}))) as {
+      tier?: unknown;
+      stage?: unknown;
+    };
+
+    if (!TIER_SET.has(body.tier as HintTier)) {
+      return NextResponse.json(
+        {
+          error: `tier must be one of ${Array.from(TIER_SET).join(", ")}`,
+        },
+        { status: 400 },
+      );
+    }
+    const tier = body.tier as HintTier;
+    const stage = (body.stage ?? "canvas") as DrillStage;
+
+    const db = getDb();
+    const [attempt] = await db
+      .select()
+      .from(lldDrillAttempts)
+      .where(
+        and(
+          eq(lldDrillAttempts.id, id),
+          eq(lldDrillAttempts.userId, userId),
+          isNull(lldDrillAttempts.submittedAt),
+          isNull(lldDrillAttempts.abandonedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!attempt) {
+      return NextResponse.json(
+        { error: "Active drill not found" },
+        { status: 404 },
+      );
+    }
+
+    const variant = attempt.variant as DrillVariant;
+    const cfg = variantConfigFor(variant);
+    if (!cfg.hintsAllowed) {
+      return NextResponse.json(
+        { error: "Hints are not allowed in this variant", code: "EXAM_MODE" },
+        { status: 403 },
+      );
+    }
+
+    // Ladder order check (scoped to current stage).
+    const hintLog = (attempt.hintLog as StoredHintLogEntry[]) ?? [];
+    const stageLog = hintLog.filter((h) => h.stage === stage);
+    const highestIdx = stageLog.reduce(
+      (max, h) => Math.max(max, TIER_ORDER.indexOf(h.tier)),
+      -1,
+    );
+    if (TIER_ORDER.indexOf(tier) !== highestIdx + 1) {
+      return NextResponse.json(
+        {
+          error: "Tier ladder violation — must consume tiers in order",
+          code: "TIER_LADDER",
+        },
+        { status: 409 },
+      );
+    }
+
+    // Budget check.
+    const penalty = variant === "study" ? 0 : TIER_PENALTY_POINTS[tier];
+    if (cfg.maxHintPenalty !== null) {
+      const total = hintLog.reduce((acc, h) => acc + h.penalty, 0);
+      if (total + penalty > cfg.maxHintPenalty) {
+        return NextResponse.json(
+          { error: "Hint budget exhausted", code: "BUDGET_EXHAUSTED" },
+          { status: 409 },
+        );
+      }
+    }
+
+    // Generate the hint content. We lazily import hint-system so the
+    // fallback mock set kicks in when no API key is configured. The
+    // challengeId + challengeTitle are pulled from the drill's problemId.
+    const { getHint } = await import("@/lib/ai/hint-system");
+    const hint = await getHint({
+      challengeId: attempt.problemId,
+      challengeTitle: attempt.problemId, // problems store holds the title; we pass id as a safe fallback
+      category: "general",
+      currentDesign: JSON.stringify(attempt.canvasState ?? {}),
+      tier,
+    });
+
+    const newEntry: StoredHintLogEntry = {
+      tier,
+      stage,
+      penalty,
+      usedAt: Date.now(),
+      content: hint.content,
+    };
+
+    // Append atomically via jsonb concatenation.
+    await db
+      .update(lldDrillAttempts)
+      .set({
+        hintLog: sql`
+          COALESCE(${lldDrillAttempts.hintLog}, '[]'::jsonb) || ${JSON.stringify([newEntry])}::jsonb
+        `,
+        lastActivityAt: new Date(),
+      })
+      .where(eq(lldDrillAttempts.id, id));
+
+    return NextResponse.json({
+      content: hint.content,
+      followUp: hint.followUp,
+      tier,
+      penalty,
+      creditCost: TIER_CREDIT_COST[tier],
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/drill-attempts/:id/hint] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+Note: `@/lib/ai/hint-system` must expose a `getHint()` function. If the existing module exports under a different name, adjust the import to match (e.g. `generateHint`, `requestHint`). The existing hint-system-3-tier module is reused verbatim.
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/app/api/lld/drill-attempts/[id]/hint/route.ts
+git commit -m "$(cat <<'EOF'
+feat(api): POST /api/lld/drill-attempts/:id/hint
+
+Consumes a hint tier with server-side validation: variant allows hints,
+ladder order respected, budget not exhausted. Delegates to existing
+hint-system.ts for content generation. Appends entry to hint_log JSONB
+atomically with jsonb concatenation.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 22: API route — `POST /api/lld/drill-attempts/[id]/grade`
+
+**Files:**
+- Create: `architex/src/app/api/lld/drill-attempts/[id]/grade/route.ts`
+
+Grades a drill attempt. Composes `grading-engine-v2` (deterministic + heuristic) with an optional Haiku qualitative refinement pass. Writes `rubric_breakdown`, `grade_score`, `grade_breakdown`, and `submitted_at`. Returns the full grade for immediate client-side reveal.
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/drill-attempts/[id]/grade/route.ts`:
+
+```typescript
+/**
+ * POST /api/lld/drill-attempts/[id]/grade
+ *
+ * Grades and submits the drill. Idempotent: once submitted_at is set,
+ * returns the stored rubric and does NOT re-grade.
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq, isNull } from "drizzle-orm";
+import { getDb, lldDrillAttempts } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+import { gradeDrillAttempt } from "@/lib/lld/grading-engine-v2";
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import type { DrillVariant } from "@/lib/lld/drill-variants";
+import { variantConfigFor } from "@/lib/lld/drill-variants";
+import {
+  bandForScore,
+  computeWeightedScore,
+  type RubricBreakdown,
+} from "@/lib/lld/drill-rubric";
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { id } = await params;
+
+    const body = (await request.json().catch(() => ({}))) as {
+      walkthroughText?: string;
+      selfGrade?: number;
+    };
+
+    const db = getDb();
+    const [attempt] = await db
+      .select()
+      .from(lldDrillAttempts)
+      .where(
+        and(
+          eq(lldDrillAttempts.id, id),
+          eq(lldDrillAttempts.userId, userId),
+        ),
+      )
+      .limit(1);
+
+    if (!attempt) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Idempotency: if already submitted, return stored.
+    if (attempt.submittedAt) {
+      return NextResponse.json({
+        alreadyGraded: true,
+        rubric: attempt.rubricBreakdown,
+        finalScore: attempt.gradeScore,
+        band: bandForScore((attempt.gradeScore as number) ?? 0).key,
+      });
+    }
+
+    if (attempt.abandonedAt) {
+      return NextResponse.json(
+        { error: "Cannot grade an abandoned drill" },
+        { status: 409 },
+      );
+    }
+
+    // Shape inputs for the grader.
+    const stages = (attempt.stages as Record<
+      string,
+      { durationMs?: number; progress?: unknown }
+    >) ?? {};
+    const stageDurationsMs: Record<DrillStage, number> = {
+      clarify: stages.clarify?.durationMs ?? 0,
+      rubric: stages.rubric?.durationMs ?? 0,
+      canvas: stages.canvas?.durationMs ?? 0,
+      walkthrough: stages.walkthrough?.durationMs ?? 0,
+      reflection: stages.reflection?.durationMs ?? 0,
+    };
+
+    // Load interviewer turns for qualitative axes.
+    const { lldDrillInterviewerTurns } = await import("@/db/schema");
+    const turns = await db
+      .select({
+        role: lldDrillInterviewerTurns.role,
+        stage: lldDrillInterviewerTurns.stage,
+        content: lldDrillInterviewerTurns.content,
+      })
+      .from(lldDrillInterviewerTurns)
+      .where(eq(lldDrillInterviewerTurns.attemptId, id));
+
+    const gradeInput = {
+      problemId: attempt.problemId,
+      canvasState: (attempt.canvasState as {
+        nodes: Array<{ id: string; data?: unknown }>;
+        edges: unknown[];
+      }) ?? { nodes: [], edges: [] },
+      interviewerTurns: turns.map((t) => ({
+        role: t.role as "user" | "interviewer" | "system",
+        stage: t.stage as DrillStage,
+        content: t.content,
+      })),
+      walkthroughText: body.walkthroughText ?? "",
+      selfGrade: body.selfGrade ?? 3,
+      stageDurationsMs,
+    };
+
+    const result = await gradeDrillAttempt(gradeInput, {
+      mode: "ai-preferred",
+    });
+
+    // Apply hint penalty.
+    const hintLog =
+      (attempt.hintLog as Array<{ penalty: number }>) ?? [];
+    const hintPenalty = hintLog.reduce((acc, h) => acc + (h.penalty ?? 0), 0);
+    const variant = attempt.variant as DrillVariant;
+    const cfg = variantConfigFor(variant);
+    const effectivePenalty = cfg.affectsFSRS ? hintPenalty : 0;
+
+    const rawWeighted = computeWeightedScore(result.rubric);
+    const finalScore = Math.max(0, rawWeighted - effectivePenalty);
+    const band = bandForScore(finalScore).key;
+
+    const now = new Date();
+    await db
+      .update(lldDrillAttempts)
+      .set({
+        submittedAt: now,
+        lastActivityAt: now,
+        gradeScore: finalScore,
+        gradeBreakdown: {
+          ...(result.rubric as unknown as Record<string, unknown>),
+          hintPenalty: effectivePenalty,
+        } as RubricBreakdown & { hintPenalty: number },
+        rubricBreakdown: result.rubric,
+      })
+      .where(eq(lldDrillAttempts.id, id));
+
+    return NextResponse.json({
+      rubric: result.rubric,
+      finalScore,
+      hintPenalty: effectivePenalty,
+      band,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/drill-attempts/:id/grade] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/app/api/lld/drill-attempts/[id]/grade/route.ts
+git commit -m "$(cat <<'EOF'
+feat(api): POST /api/lld/drill-attempts/:id/grade
+
+Idempotent submit + grade. Composes grading-engine-v2 over canvas +
+chat turns + walkthrough. Deducts hint penalty (study variant ignores
+penalty per config). Writes rubric_breakdown + grade_score + band.
+Returns full grade for immediate client reveal.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+
 
 
 
