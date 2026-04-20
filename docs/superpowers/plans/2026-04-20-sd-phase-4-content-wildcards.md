@@ -1018,3 +1018,579 @@ EOF
 ```
 
 ---
+
+## Task A5: Editor checklist + rubric
+
+**Files:** `content/prompts/editor-rubric.md`
+
+- [ ] **Step 1: Write the rubric**
+
+Create `content/prompts/editor-rubric.md`:
+
+```markdown
+# SD Content Editor Rubric
+
+Every concept, problem, or chaos scenario authored by Opus passes
+through a human editor before seed. This rubric is the editor's
+checklist. Content fails the editorial pass if any required item is
+missing.
+
+## Structural checks (required — auto-enforced by `validate-sd-content.ts`)
+
+- [ ] Frontmatter matches schema (see prompt template)
+- [ ] All 8 concept sections present (or all 6 problem panes)
+- [ ] Word count per section within ±20% of target
+- [ ] Three voice variants stacked at bottom (Standard / ELI5 / ELI-Senior)
+- [ ] Every `<!-- NEEDS-SOURCE -->` flag resolved
+- [ ] Slug in frontmatter matches filename
+- [ ] `prerequisites` slugs exist in seeded content OR flag `waveGap: true`
+- [ ] `bridgesOut` array has ≥3 entries for concepts, ≥5 for problems
+
+## Voice checks (required — human judgment)
+
+- [ ] No banned clichés (leverages, utilizes, paradigm shift, etc.)
+- [ ] No self-reference ("in this section", "as we discussed")
+- [ ] No "obviously" or "of course"
+- [ ] Numbers have citations with year
+- [ ] Tradeoffs paragraph names the cost explicitly
+- [ ] Bridges have 1-2 sentence relevance captions (not bare links)
+
+## Technical checks (required — human + CI)
+
+- [ ] Every code snippet is syntactically correct (lint passes)
+- [ ] Every Mermaid diagram renders (CI validates)
+- [ ] Every cited number has a source link with year stamp
+- [ ] At least one tradeoff names a specific anti-case
+- [ ] "Seen in the wild" has one named company + blog URL + year
+
+## Content-specific checks
+
+### Concept
+
+- [ ] Hook is concrete and scenario-based
+- [ ] Analogy is a specific imagined scene, not generic
+- [ ] Numbers strip has at least 3 rows
+- [ ] Bridges include at least 1 LLD pattern + 1 chaos event
+
+### Problem
+
+- [ ] 2-3 canonical solutions (Solution C optional for warmup tier)
+- [ ] Napkin math shows arithmetic (not just final numbers)
+- [ ] Each canonical solution has one diagram
+- [ ] Failure modes link to chaos event slugs (actionable)
+- [ ] Real-world references include year stamps
+
+### Chaos scenario
+
+- [ ] YAML trigger block is sim-engine-parseable (run `pnpm validate:chaos-yaml <slug>`)
+- [ ] Three narrative variants present
+- [ ] Cascade depth ≤5
+- [ ] Recovery is either automatic or requires a named action
+- [ ] If `basedOnIncident`, the real incident slug exists in §5.6
+
+## Discretionary (editor's call — flag, don't block)
+
+- [ ] Does this pull its weight against the 150k-word moat target? (If an editor would skip this page reading another module's page, revise.)
+- [ ] Is there a better analogy?
+- [ ] Is the humor variant tasteful? (Chaos scenarios only.)
+- [ ] Does the ELI5 version add new understanding or just repeat?
+
+## Sign-off
+
+Editor stamps `editorialStatus: "approved"` in frontmatter and merges the PR. CI blocks merge if `editorialStatus` is missing or set to `draft`/`in-review`.
+
+## Target throughput
+
+- 1.5 pieces/day baseline (1 editor, asynchronous)
+- 2.5 pieces/day surge (1 editor + 1 Opus session per draft)
+- Phase 4 requires 100 pieces ÷ 30 working days = 3.3 pieces/day. We scale to 2 editors for Phase 4 only.
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add content/prompts/editor-rubric.md
+git commit -m "$(cat <<'EOF'
+feat(sd-phase-4): add editor rubric for Opus-authored content
+
+Three-tier checklist: structural (auto-enforced), voice (human),
+technical (human + CI). Per-type sections for concept / problem /
+chaos. Phase 4 scales to 2 editors to hit 100-piece target.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task A6: Seed script `scripts/seed-sd-content.ts`
+
+**Files:** `architex/scripts/seed-sd-content.ts`, `package.json` (add `db:seed:sd`)
+
+- [ ] **Step 1: Write the failing test** — `architex/scripts/__tests__/seed-sd-content.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { parseContentFile } from "../seed-sd-content";
+
+describe("seed-sd-content · parseContentFile", () => {
+  it("parses a concept MDX with full frontmatter", () => {
+    const mdx = `---
+slug: "idempotency"
+title: "Idempotency"
+wave: 1
+waveLabel: "Foundations"
+waveOrder: 4
+contentType: "concept"
+estimatedReadingMinutes: 7
+prerequisites: ["request-response"]
+bridgesOut:
+  - kind: "concept"
+    slug: "retries"
+    relevance: "idempotent retries are safe"
+sourceYear: 2026
+contentQuality: "polished"
+generatedBy: "hybrid"
+editorialStatus: "approved"
+---
+## Hook
+Body.
+`;
+    const parsed = parseContentFile(mdx, "content/sd/concepts/wave-1-foundations/idempotency.mdx");
+    expect(parsed.slug).toBe("idempotency");
+    expect(parsed.contentType).toBe("concept");
+    expect(parsed.wave).toBe(1);
+    expect(parsed.bridgesOut).toHaveLength(1);
+  });
+
+  it("throws if frontmatter missing required field", () => {
+    const mdx = `---
+slug: "foo"
+---
+Body.
+`;
+    expect(() => parseContentFile(mdx, "x.mdx")).toThrow(/contentType/i);
+  });
+
+  it("throws if editorialStatus is not 'approved'", () => {
+    const mdx = `---
+slug: "foo"
+title: "Foo"
+wave: 1
+waveLabel: "Foundations"
+waveOrder: 1
+contentType: "concept"
+estimatedReadingMinutes: 5
+prerequisites: []
+bridgesOut: []
+sourceYear: 2026
+contentQuality: "polished"
+generatedBy: "hybrid"
+editorialStatus: "draft"
+---
+`;
+    expect(() => parseContentFile(mdx, "x.mdx")).toThrow(/editorial/i);
+  });
+
+  it("throws if slug in frontmatter does not match filename", () => {
+    const mdx = `---
+slug: "mismatched"
+title: "Foo"
+wave: 1
+waveLabel: "Foundations"
+waveOrder: 1
+contentType: "concept"
+estimatedReadingMinutes: 5
+prerequisites: []
+bridgesOut: []
+sourceYear: 2026
+contentQuality: "polished"
+generatedBy: "hybrid"
+editorialStatus: "approved"
+---
+`;
+    expect(() => parseContentFile(mdx, "content/sd/concepts/wave-1-foundations/different.mdx"))
+      .toThrow(/slug.*mismatch/i);
+  });
+});
+```
+
+Run: FAIL (module missing).
+
+- [ ] **Step 2: Create the seed script**
+
+Create `architex/scripts/seed-sd-content.ts`:
+
+```typescript
+#!/usr/bin/env tsx
+/**
+ * SD content seed script.
+ * Walks content/sd/**, parses MDX + frontmatter, upserts into module_content.
+ * Idempotent: re-running with unchanged content is a no-op.
+ */
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import matter from "gray-matter";
+import { db } from "../src/db/client";
+import { moduleContent } from "../src/db/schema";
+import { sql } from "drizzle-orm";
+
+const CONTENT_ROOT = path.resolve(__dirname, "..", "..", "content", "sd");
+
+export interface ParsedContent {
+  slug: string;
+  title: string;
+  contentType: "concept" | "problem" | "chaos-scenario" | "incident";
+  moduleId: "sd";
+  wave?: number;
+  waveLabel?: string;
+  waveOrder?: number;
+  domain?: number;
+  domainLabel?: string;
+  domainOrder?: number;
+  estimatedReadingMinutes: number;
+  prerequisites: string[];
+  bridgesOut: Array<{ kind: string; slug: string; relevance: string }>;
+  sourceYear: number;
+  contentQuality: "draft" | "polished" | "published";
+  generatedBy: "human" | "ai" | "hybrid";
+  editorialStatus: "draft" | "in-review" | "approved";
+  body: string;
+  frontmatter: Record<string, unknown>;
+}
+
+const REQUIRED_FIELDS = [
+  "slug", "title", "contentType", "estimatedReadingMinutes",
+  "prerequisites", "bridgesOut", "sourceYear", "contentQuality",
+  "generatedBy", "editorialStatus",
+] as const;
+
+export function parseContentFile(source: string, filePath: string): ParsedContent {
+  const { data, content } = matter(source);
+  for (const field of REQUIRED_FIELDS) {
+    if (!(field in data)) {
+      throw new Error(`[${filePath}] missing required frontmatter: ${field}`);
+    }
+  }
+  const slug = String(data.slug);
+  const expectedSlug = path.basename(filePath, ".mdx");
+  if (slug !== expectedSlug) {
+    throw new Error(`[${filePath}] slug mismatch: frontmatter=${slug} filename=${expectedSlug}`);
+  }
+  if (data.editorialStatus !== "approved") {
+    throw new Error(`[${filePath}] editorialStatus is '${data.editorialStatus}', must be 'approved'`);
+  }
+  return {
+    slug,
+    title: String(data.title),
+    contentType: data.contentType as ParsedContent["contentType"],
+    moduleId: "sd",
+    wave: data.wave as number | undefined,
+    waveLabel: data.waveLabel as string | undefined,
+    waveOrder: data.waveOrder as number | undefined,
+    domain: data.domain as number | undefined,
+    domainLabel: data.domainLabel as string | undefined,
+    domainOrder: data.domainOrder as number | undefined,
+    estimatedReadingMinutes: Number(data.estimatedReadingMinutes),
+    prerequisites: (data.prerequisites as string[]) ?? [],
+    bridgesOut: (data.bridgesOut as ParsedContent["bridgesOut"]) ?? [],
+    sourceYear: Number(data.sourceYear),
+    contentQuality: data.contentQuality as ParsedContent["contentQuality"],
+    generatedBy: data.generatedBy as ParsedContent["generatedBy"],
+    editorialStatus: data.editorialStatus as ParsedContent["editorialStatus"],
+    body: content,
+    frontmatter: data as Record<string, unknown>,
+  };
+}
+
+async function walk(dir: string): Promise<string[]> {
+  const out: string[] = [];
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...(await walk(full)));
+    else if (e.isFile() && full.endsWith(".mdx")) out.push(full);
+  }
+  return out;
+}
+
+async function main() {
+  const files = await walk(CONTENT_ROOT);
+  console.log(`[seed-sd-content] found ${files.length} MDX files`);
+  const parsed = await Promise.all(files.map(async (f) => {
+    const raw = await fs.readFile(f, "utf8");
+    return parseContentFile(raw, f);
+  }));
+  let upserted = 0;
+  for (const p of parsed) {
+    await db.insert(moduleContent).values({
+      moduleId: p.moduleId,
+      slug: p.slug,
+      title: p.title,
+      contentType: p.contentType,
+      body: p.body,
+      metadata: p.frontmatter as never,
+      estimatedReadingMinutes: p.estimatedReadingMinutes,
+      sourceYear: p.sourceYear,
+      contentQuality: p.contentQuality,
+      generatedBy: p.generatedBy,
+    }).onConflictDoUpdate({
+      target: [moduleContent.moduleId, moduleContent.slug],
+      set: {
+        title: p.title,
+        body: p.body,
+        metadata: p.frontmatter as never,
+        estimatedReadingMinutes: p.estimatedReadingMinutes,
+        sourceYear: p.sourceYear,
+        contentQuality: p.contentQuality,
+        generatedBy: p.generatedBy,
+        updatedAt: sql`now()`,
+      },
+    });
+    upserted += 1;
+  }
+  console.log(`[seed-sd-content] upserted ${upserted} rows`);
+}
+
+if (require.main === module) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}
+```
+
+- [ ] **Step 3: Install `gray-matter`**
+
+```bash
+cd architex && pnpm add gray-matter
+```
+
+- [ ] **Step 4: Add script to `package.json`**
+
+```json
+"db:seed:sd": "tsx scripts/seed-sd-content.ts",
+```
+
+Run: `pnpm test:run -- seed-sd-content` → PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/scripts/seed-sd-content.ts architex/scripts/__tests__/seed-sd-content.test.ts architex/package.json
+git commit -m "$(cat <<'EOF'
+feat(sd-phase-4): add idempotent seed script for SD content
+
+Walks content/sd/**.mdx, parses frontmatter with gray-matter, enforces
+schema + editorialStatus=approved, upserts into module_content keyed
+on (moduleId, slug). Four test cases cover happy + three failure modes.
+Runnable via pnpm db:seed:sd.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task A7: CI check — every content file passes schema + rubric
+
+**Files:** `architex/scripts/validate-sd-content.ts`, `.github/workflows/content-validation.yml`, `package.json`
+
+- [ ] **Step 1: Write the failing test** — `architex/scripts/__tests__/validate-sd-content.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { validateWordCount, validateBannedWords, validateMermaidBlocks } from "../validate-sd-content";
+
+describe("validate-sd-content", () => {
+  it("validates word count within ±20% of target", () => {
+    const body = "## Hook\n" + "word ".repeat(50).trim();
+    const res = validateWordCount(body, { hook: 60 });
+    expect(res.ok).toBe(true); // 50 is within 48-72 band
+  });
+
+  it("flags word count outside ±20%", () => {
+    const body = "## Hook\n" + "word ".repeat(30);
+    const res = validateWordCount(body, { hook: 60 });
+    expect(res.ok).toBe(false);
+    expect(res.errors).toContainEqual(expect.stringMatching(/hook.*30/i));
+  });
+
+  it("flags banned clichés", () => {
+    const res = validateBannedWords("This leverages a paradigm shift");
+    expect(res.ok).toBe(false);
+    expect(res.errors.length).toBeGreaterThan(0);
+  });
+
+  it("validates mermaid blocks are well-formed", () => {
+    const body = "```mermaid\nflowchart TB\n  A-->B\n```";
+    const res = validateMermaidBlocks(body);
+    expect(res.ok).toBe(true);
+  });
+
+  it("flags malformed mermaid blocks", () => {
+    const body = "```mermaid\nBROKEN\n```";
+    const res = validateMermaidBlocks(body);
+    expect(res.ok).toBe(false);
+  });
+});
+```
+
+Run: FAIL (module missing).
+
+- [ ] **Step 2: Create the validator** — `architex/scripts/validate-sd-content.ts`:
+
+```typescript
+#!/usr/bin/env tsx
+/**
+ * SD content validator. Three layers:
+ *  1. Frontmatter schema (shared with seed script)
+ *  2. Word-count bands (±20% per section)
+ *  3. Banned-word list + Mermaid block syntax sanity
+ */
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import matter from "gray-matter";
+
+const CONTENT_ROOT = path.resolve(__dirname, "..", "..", "content", "sd");
+
+const BANNED_WORDS = [
+  "leverages", "utilizes", "paradigm shift", "industry-leading",
+  "best-in-class", "cutting-edge", "next-generation", "synergy",
+  "robust", "seamless", "world-class", "revolutionary",
+];
+
+export interface ValidationResult { ok: boolean; errors: string[] }
+
+export function validateWordCount(body: string, targets: Record<string, number>): ValidationResult {
+  const errors: string[] = [];
+  for (const [section, target] of Object.entries(targets)) {
+    const heading = section.replace(/([A-Z])/g, " $1").trim();
+    const re = new RegExp(`##\\s+${heading}\\b[\\s\\S]*?(?=##\\s+|$)`, "i");
+    const match = body.match(re);
+    if (!match) continue;
+    const words = match[0].replace(/^##\s+[^\n]+/, "").trim().split(/\s+/).filter(Boolean).length;
+    const lo = Math.floor(target * 0.8);
+    const hi = Math.ceil(target * 1.2);
+    if (words < lo || words > hi) {
+      errors.push(`${section}: ${words} words, expected ${lo}-${hi} (target ${target})`);
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+export function validateBannedWords(body: string): ValidationResult {
+  const errors: string[] = [];
+  for (const w of BANNED_WORDS) {
+    const re = new RegExp(`\\b${w}\\b`, "i");
+    if (re.test(body)) errors.push(`banned word: "${w}"`);
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+export function validateMermaidBlocks(body: string): ValidationResult {
+  const errors: string[] = [];
+  const blocks = body.match(/```mermaid[\s\S]*?```/g) ?? [];
+  for (const [i, block] of blocks.entries()) {
+    const inner = block.replace(/```mermaid\n?/, "").replace(/```$/, "");
+    if (!/^\s*(flowchart|graph|sequenceDiagram|stateDiagram|erDiagram|classDiagram|journey)/.test(inner)) {
+      errors.push(`mermaid block ${i + 1}: missing diagram-type directive`);
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+async function walk(dir: string): Promise<string[]> {
+  const out: string[] = [];
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...(await walk(full)));
+    else if (e.isFile() && full.endsWith(".mdx")) out.push(full);
+  }
+  return out;
+}
+
+async function main() {
+  const files = await walk(CONTENT_ROOT);
+  let failed = 0;
+  for (const f of files) {
+    const raw = await fs.readFile(f, "utf8");
+    const { data, content } = matter(raw);
+    const targets = (data.wordTargetBySection ?? data.wordTargetByPane ?? {}) as Record<string, number>;
+    const results = [
+      validateWordCount(content, targets),
+      validateBannedWords(content),
+      validateMermaidBlocks(content),
+    ];
+    const errs = results.flatMap((r) => r.errors);
+    if (errs.length) {
+      console.error(`\n✗ ${path.relative(process.cwd(), f)}`);
+      for (const e of errs) console.error(`  ${e}`);
+      failed += 1;
+    }
+  }
+  if (failed > 0) {
+    console.error(`\n${failed} file(s) failed validation.`);
+    process.exit(1);
+  }
+  console.log(`\n✓ all ${files.length} files passed validation`);
+}
+
+if (require.main === module) main();
+```
+
+- [ ] **Step 3: Add CI workflow** — `.github/workflows/content-validation.yml`:
+
+```yaml
+name: content-validation
+on:
+  pull_request:
+    paths:
+      - "content/sd/**"
+      - "architex/scripts/validate-sd-content.ts"
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v5
+        with: { node-version: "22", cache: "pnpm" }
+      - run: cd architex && pnpm install --frozen-lockfile
+      - run: cd architex && pnpm tsx scripts/validate-sd-content.ts
+```
+
+- [ ] **Step 4: Add `validate:content` script**
+
+```json
+"validate:content": "tsx scripts/validate-sd-content.ts",
+```
+
+Run: `pnpm test:run -- validate-sd-content` → PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/scripts/validate-sd-content.ts architex/scripts/__tests__/validate-sd-content.test.ts .github/workflows/content-validation.yml architex/package.json
+git commit -m "$(cat <<'EOF'
+feat(sd-phase-4): add CI validator for Opus-authored content
+
+Three layers: word-count bands (±20%), banned-word scanner (12
+clichés), Mermaid block syntax sanity. Runs on every content/sd/**
+PR. Blocks merge on failure. Five test cases.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task Group B · Content Authoring (23 Concepts + 17 Problems + 60 Chaos Scenarios)
+
+*These tasks are authoring, not coding. Each task names the piece, passes Opus the correct inputs via the prompt templates from A2-A4, and the editor runs the rubric. Engineering does not block on authoring, but Tasks C4-C8 (card generators) need seeded content before they can produce test fixtures. We run content authoring in parallel with engineering throughout Phase 4.*
+
+*The task bodies below are **prescriptive authoring briefs** — each one includes the concept/problem's `slug`, `title`, `wave/domain`, 3-5 reference numbers Opus must hit, the 3-5 prerequisite concept slugs, and the 5-8 bridge slugs. Opus then fills the 8-section or 6-pane format. This is how the content scales from template to 100 pieces without losing editorial direction.*
+
+---
