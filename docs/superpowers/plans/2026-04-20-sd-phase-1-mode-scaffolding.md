@@ -2779,3 +2779,958 @@ EOF
 
 ---
 
+## Task 12: Create `useSDPreferencesSync` hook (debounced DB write-through)
+
+**Files:**
+- Create: `architex/src/hooks/useSDPreferencesSync.ts`
+
+- [ ] **Step 1: Create the hook**
+
+Create `architex/src/hooks/useSDPreferencesSync.ts`:
+
+```typescript
+"use client";
+
+import { useEffect, useRef } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useUIStore } from "@/stores/ui-store";
+
+interface SDPreferencesPatch {
+  mode?: string;
+  welcomeBannerDismissed?: boolean;
+  onboardingComplete?: boolean;
+  preferredProvider?: "aws" | "gcp" | "azure" | "generic";
+  renderMode?: "default" | "blueprint" | "hand-drawn";
+  coachQuiet?: boolean;
+  audioEnabled?: boolean;
+  voiceVariant?: "eli5" | "standard" | "eli-senior";
+}
+
+async function patchSDPreferences(patch: SDPreferencesPatch) {
+  const res = await fetch("/api/user-preferences/sd", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`Failed to patch SD preferences: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Write-through sync of SD preferences to the DB. Local store is the
+ * optimistic truth; this hook fires a debounced PATCH to persist.
+ * Debounce: 1000ms after last change (matches LLD). Anonymous users
+ * no-op silently — migration on sign-in captures local state.
+ *
+ * Only the three slices known at Phase 1 are synced: mode,
+ * welcomeBannerDismissed, onboardingComplete. The remaining fields
+ * (provider, renderMode, coachQuiet, audioEnabled, voiceVariant) become
+ * trackable in Phase 2+ when their UI surfaces land.
+ */
+export function useSDPreferencesSync(): void {
+  const mode = useUIStore((s) => s.sdMode);
+  const bannerDismissed = useUIStore((s) => s.sdWelcomeBannerDismissed);
+  const onboardingComplete = useUIStore((s) => s.sdOnboardingComplete);
+
+  const mutation = useMutation({
+    mutationFn: patchSDPreferences,
+    networkMode: "offlineFirst",
+    retry: 2,
+  });
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSync = useRef<{
+    mode: string | null;
+    bannerDismissed: boolean;
+    onboardingComplete: boolean;
+  }>({ mode: null, bannerDismissed: false, onboardingComplete: false });
+
+  useEffect(() => {
+    const changed =
+      mode !== lastSync.current.mode ||
+      bannerDismissed !== lastSync.current.bannerDismissed ||
+      onboardingComplete !== lastSync.current.onboardingComplete;
+    if (!changed) return;
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      const patch: SDPreferencesPatch = {};
+      if (mode !== lastSync.current.mode && mode !== null) patch.mode = mode;
+      if (bannerDismissed !== lastSync.current.bannerDismissed) {
+        patch.welcomeBannerDismissed = bannerDismissed;
+      }
+      if (onboardingComplete !== lastSync.current.onboardingComplete) {
+        patch.onboardingComplete = onboardingComplete;
+      }
+      if (Object.keys(patch).length > 0) {
+        mutation.mutate(patch);
+        lastSync.current = { mode, bannerDismissed, onboardingComplete };
+      }
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [mode, bannerDismissed, onboardingComplete, mutation]);
+}
+```
+
+- [ ] **Step 2: Verify typecheck passes**
+
+```bash
+cd architex
+pnpm typecheck
+```
+
+Expected: no errors. This hook is tested indirectly via the integration test in Task 25 — we don't unit-test debounce + mutation here because that gets brittle, per the LLD precedent.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/hooks/useSDPreferencesSync.ts
+git commit -m "$(cat <<'EOF'
+feat(hooks): add useSDPreferencesSync for DB write-through
+
+Debounced 1s write-through to /api/user-preferences/sd. Uses TanStack
+Query offlineFirst mode so mutations queue when offline. Skips sync
+until values change from last-synced state.
+
+Phase 1 syncs three fields (mode, welcomeBannerDismissed,
+onboardingComplete); remaining fields (provider, renderMode, audio,
+voice, coachQuiet) become trackable in Phase 2+.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 13: Create `useSDDrillSync` hook (heartbeat every 10s)
+
+**Files:**
+- Create: `architex/src/hooks/useSDDrillSync.ts`
+- Test: `architex/src/hooks/__tests__/useSDDrillSync.test.tsx`
+
+Mirror of `useLLDDrillSync`: pings `/api/sd/drill-attempts/:id` every 10s while the drill is running to update `last_activity_at` server-side. Enables the auto-abandon after 30-min idle logic in `/api/sd/drill-attempts/active`.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useSDDrillSync.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { useSDStore } from "@/stores/sd-store";
+import { useSDDrillSync } from "@/hooks/useSDDrillSync";
+
+function wrapper(queryClient: QueryClient) {
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
+describe("useSDDrillSync · heartbeat", () => {
+  let queryClient: QueryClient;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    }) as typeof fetch;
+    useSDStore.setState({ activeSDDrill: null });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("does not fire heartbeat when no active drill", () => {
+    renderHook(() => useSDDrillSync("fake-drill-id"), {
+      wrapper: wrapper(queryClient),
+    });
+    vi.advanceTimersByTime(15_000);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("fires heartbeat every 10 seconds while drill is running", () => {
+    useSDStore.getState().startSDDrill({
+      id: "drill-abc",
+      problemSlug: "url-shortener",
+      mode: "timed",
+      persona: null,
+      companyPreset: null,
+      durationLimitMs: 45 * 60 * 1000,
+    });
+    renderHook(() => useSDDrillSync("drill-abc"), {
+      wrapper: wrapper(queryClient),
+    });
+    vi.advanceTimersByTime(10_000);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/sd/drill-attempts/drill-abc",
+      expect.objectContaining({ method: "PATCH" }),
+    );
+    vi.advanceTimersByTime(10_000);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops heartbeat when drill is paused", () => {
+    useSDStore.getState().startSDDrill({
+      id: "drill-abc",
+      problemSlug: "x",
+      mode: "timed",
+      persona: null,
+      companyPreset: null,
+      durationLimitMs: 45 * 60 * 1000,
+    });
+    renderHook(() => useSDDrillSync("drill-abc"), {
+      wrapper: wrapper(queryClient),
+    });
+    vi.advanceTimersByTime(10_000);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    useSDStore.getState().pauseSDDrill();
+    vi.advanceTimersByTime(20_000);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useSDDrillSync
+```
+
+Expected: FAIL with `Cannot find module '@/hooks/useSDDrillSync'`.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useSDDrillSync.ts`:
+
+```typescript
+"use client";
+
+import { useEffect } from "react";
+import { useSDStore } from "@/stores/sd-store";
+
+const HEARTBEAT_MS = 10_000;
+
+async function sendHeartbeat(drillId: string): Promise<void> {
+  await fetch(`/api/sd/drill-attempts/${drillId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "heartbeat" }),
+  });
+}
+
+/**
+ * Pings the server every 10s while an SD drill is running (not paused).
+ * Updates `last_activity_at` server-side so stale-drill detection
+ * (>30min idle) correctly auto-abandons inactive attempts.
+ *
+ * Parallel to useLLDDrillSync but scoped to SD.
+ */
+export function useSDDrillSync(drillId: string | null): void {
+  const activeDrill = useSDStore((s) => s.activeSDDrill);
+  const isRunning = activeDrill !== null && activeDrill.pausedAt === null;
+
+  useEffect(() => {
+    if (!drillId || !isRunning) return;
+    const interval = setInterval(() => {
+      sendHeartbeat(drillId).catch((err) => {
+        console.warn("[useSDDrillSync] heartbeat failed:", err);
+      });
+    }, HEARTBEAT_MS);
+    return () => clearInterval(interval);
+  }, [drillId, isRunning]);
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useSDDrillSync
+```
+
+Expected: PASS · all 3 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useSDDrillSync.ts \
+        architex/src/hooks/__tests__/useSDDrillSync.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): add useSDDrillSync heartbeat
+
+Sends PATCH /api/sd/drill-attempts/:id every 10s while drill is running.
+Stops when drill is paused, submitted, or abandoned. Enables server-side
+stale-drill detection (>30min idle auto-abandon).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 14: Create API shells for concepts + problems (4 routes)
+
+**Files:**
+- Create: `architex/src/app/api/sd/concepts/route.ts`
+- Create: `architex/src/app/api/sd/concepts/[id]/route.ts`
+- Create: `architex/src/app/api/sd/problems/route.ts`
+- Create: `architex/src/app/api/sd/problems/[id]/route.ts`
+
+**Pattern:** GET endpoints read from DB and return real data as soon as the tables are seeded. POST/PATCH/DELETE endpoints return **501 Not Implemented** in Phase 1 — no content yet, no admin UI yet. Auth guard at the top of every handler so unauthenticated reads get 401 before any DB hit.
+
+> **Reminder:** Read `node_modules/next/dist/docs/` for the current App Router route-handler signature before writing these. The installed fork may differ from the public Next.js 16 release.
+
+- [ ] **Step 1: Create GET /api/sd/concepts (list)**
+
+Create `architex/src/app/api/sd/concepts/route.ts`:
+
+```typescript
+/**
+ * GET  /api/sd/concepts          — list concepts (filtered by wave, voice variant)
+ * POST /api/sd/concepts          — 501 (admin authoring ships in Phase 2)
+ */
+
+import { NextResponse } from "next/server";
+import { and, asc, eq } from "drizzle-orm";
+import { getDb, sdConcepts } from "@/db";
+import { requireAuth } from "@/lib/auth";
+
+export async function GET(request: Request) {
+  try {
+    // Concepts are public-readable for anonymous users (spec §4.8).
+    // We still call requireAuth optionally; on failure we fall through
+    // to anonymous mode with public-safe data only.
+    await requireAuth().catch(() => null);
+
+    const url = new URL(request.url);
+    const waveParam = url.searchParams.get("wave");
+    const voiceParam = url.searchParams.get("voice");
+
+    const conditions = [];
+    if (waveParam) {
+      const wave = Number(waveParam);
+      if (!Number.isFinite(wave) || wave < 1 || wave > 8) {
+        return NextResponse.json({ error: "Invalid wave (must be 1-8)" }, { status: 400 });
+      }
+      conditions.push(eq(sdConcepts.wave, wave));
+    }
+    if (voiceParam) {
+      const allowed = new Set(["eli5", "standard", "eli-senior"]);
+      if (!allowed.has(voiceParam)) {
+        return NextResponse.json({ error: "Invalid voice variant" }, { status: 400 });
+      }
+      conditions.push(eq(sdConcepts.voiceVariant, voiceParam));
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: sdConcepts.id,
+        slug: sdConcepts.slug,
+        wave: sdConcepts.wave,
+        waveOrder: sdConcepts.waveOrder,
+        title: sdConcepts.title,
+        shortDescription: sdConcepts.shortDescription,
+        readingTimeMin: sdConcepts.readingTimeMin,
+        voiceVariant: sdConcepts.voiceVariant,
+      })
+      .from(sdConcepts)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(asc(sdConcepts.wave), asc(sdConcepts.waveOrder));
+
+    return NextResponse.json({ concepts: rows });
+  } catch (error) {
+    console.error("[api/sd/concepts] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST() {
+  return NextResponse.json(
+    { error: "Admin authoring ships in Phase 2" },
+    { status: 501 },
+  );
+}
+```
+
+- [ ] **Step 2: Create GET /api/sd/concepts/[id] (detail)**
+
+Create `architex/src/app/api/sd/concepts/[id]/route.ts`:
+
+```typescript
+/**
+ * GET   /api/sd/concepts/[id]   — fetch full MDX body by id or slug
+ * PATCH /api/sd/concepts/[id]   — 501 (admin authoring ships in Phase 2)
+ */
+
+import { NextResponse } from "next/server";
+import { eq, or } from "drizzle-orm";
+import { getDb, sdConcepts } from "@/db";
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ error: "id required" }, { status: 400 });
+    }
+
+    const db = getDb();
+    // Allow either UUID or slug lookup.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const where = UUID_RE.test(id)
+      ? eq(sdConcepts.id, id)
+      : eq(sdConcepts.slug, id);
+
+    const [row] = await db.select().from(sdConcepts).where(where).limit(1);
+    if (!row) {
+      return NextResponse.json({ error: "Concept not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ concept: row });
+  } catch (error) {
+    console.error("[api/sd/concepts/:id] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH() {
+  return NextResponse.json(
+    { error: "Admin authoring ships in Phase 2" },
+    { status: 501 },
+  );
+}
+```
+
+- [ ] **Step 3: Create GET /api/sd/problems (list)**
+
+Create `architex/src/app/api/sd/problems/route.ts`:
+
+```typescript
+/**
+ * GET  /api/sd/problems          — list problems (filtered by domain/difficulty/company)
+ * POST /api/sd/problems          — 501
+ */
+
+import { NextResponse } from "next/server";
+import { and, asc, eq, sql } from "drizzle-orm";
+import { getDb, sdProblems } from "@/db";
+
+const VALID_DIFFICULTY = new Set(["easy", "mid", "staff", "principal"]);
+
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const domain = url.searchParams.get("domain");
+    const difficulty = url.searchParams.get("difficulty");
+    const company = url.searchParams.get("company");
+
+    const conditions = [];
+    if (domain) conditions.push(eq(sdProblems.domain, domain));
+    if (difficulty) {
+      if (!VALID_DIFFICULTY.has(difficulty)) {
+        return NextResponse.json(
+          { error: "Invalid difficulty (easy|mid|staff|principal)" },
+          { status: 400 },
+        );
+      }
+      conditions.push(eq(sdProblems.difficulty, difficulty));
+    }
+    if (company) {
+      // companies_asking is JSONB array of strings
+      conditions.push(sql`${sdProblems.companiesAsking} @> ${JSON.stringify([company])}::jsonb`);
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: sdProblems.id,
+        slug: sdProblems.slug,
+        domain: sdProblems.domain,
+        difficulty: sdProblems.difficulty,
+        title: sdProblems.title,
+        companiesAsking: sdProblems.companiesAsking,
+      })
+      .from(sdProblems)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(asc(sdProblems.difficulty), asc(sdProblems.title));
+
+    return NextResponse.json({ problems: rows });
+  } catch (error) {
+    console.error("[api/sd/problems] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST() {
+  return NextResponse.json(
+    { error: "Admin authoring ships in Phase 2" },
+    { status: 501 },
+  );
+}
+```
+
+- [ ] **Step 4: Create GET /api/sd/problems/[id] (detail)**
+
+Create `architex/src/app/api/sd/problems/[id]/route.ts`:
+
+```typescript
+/**
+ * GET   /api/sd/problems/[id]   — fetch full problem body (MDX + canonical solutions + rubric)
+ * PATCH /api/sd/problems/[id]   — 501
+ */
+
+import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { getDb, sdProblems } from "@/db";
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ error: "id required" }, { status: 400 });
+    }
+
+    const db = getDb();
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const where = UUID_RE.test(id)
+      ? eq(sdProblems.id, id)
+      : eq(sdProblems.slug, id);
+
+    const [row] = await db.select().from(sdProblems).where(where).limit(1);
+    if (!row) {
+      return NextResponse.json({ error: "Problem not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ problem: row });
+  } catch (error) {
+    console.error("[api/sd/problems/:id] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH() {
+  return NextResponse.json(
+    { error: "Admin authoring ships in Phase 2" },
+    { status: 501 },
+  );
+}
+```
+
+- [ ] **Step 5: Verify typecheck + smoke test**
+
+```bash
+pnpm typecheck
+pnpm dev &
+sleep 5
+curl -s http://localhost:3000/api/sd/concepts | head -c 200
+curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/sd/concepts
+```
+
+Expected:
+- Typecheck: no errors.
+- GET /api/sd/concepts: returns `{"concepts":[]}` (empty because content ships in Phase 2).
+- POST: returns `501`.
+
+Kill the dev server: `kill %1`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/app/api/sd/concepts/ architex/src/app/api/sd/problems/
+git commit -m "$(cat <<'EOF'
+feat(api): add /api/sd/concepts + /api/sd/problems shells
+
+GET endpoints ready to serve content when Phase 2 lands. Filter params:
+- Concepts: ?wave=1..8, ?voice=eli5|standard|eli-senior
+- Problems: ?domain=, ?difficulty=easy|mid|staff|principal, ?company=
+POST/PATCH return 501 until the admin authoring UI ships in Phase 2.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 15: Create API shells for designs + snapshot (3 routes)
+
+**Files:**
+- Create: `architex/src/app/api/sd/designs/route.ts`
+- Create: `architex/src/app/api/sd/designs/[id]/route.ts`
+- Create: `architex/src/app/api/sd/designs/[id]/snapshot/route.ts`
+
+- [ ] **Step 1: Create POST+GET /api/sd/designs**
+
+Create `architex/src/app/api/sd/designs/route.ts`:
+
+```typescript
+/**
+ * POST /api/sd/designs          — create a new design (empty canvas or from template)
+ * GET  /api/sd/designs          — list the authenticated user's designs
+ */
+
+import { NextResponse } from "next/server";
+import { desc, eq } from "drizzle-orm";
+import { getDb, sdDesigns } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_PROVIDERS = new Set(["aws", "gcp", "azure", "generic"]);
+const VALID_RENDER_MODES = new Set(["default", "blueprint", "hand-drawn"]);
+
+export async function POST(request: Request) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      name?: string | null;
+      problemSlug?: string | null;
+      diagramType?: string;
+      canvasState?: unknown;
+      provider?: string;
+      renderMode?: string;
+    };
+
+    const { name, problemSlug, diagramType, canvasState } = body;
+    if (!diagramType || typeof diagramType !== "string") {
+      return NextResponse.json({ error: "diagramType required" }, { status: 400 });
+    }
+    if (canvasState === undefined) {
+      return NextResponse.json({ error: "canvasState required" }, { status: 400 });
+    }
+    if (body.provider && !VALID_PROVIDERS.has(body.provider)) {
+      return NextResponse.json(
+        { error: `provider must be one of: ${Array.from(VALID_PROVIDERS).join(", ")}` },
+        { status: 400 },
+      );
+    }
+    if (body.renderMode && !VALID_RENDER_MODES.has(body.renderMode)) {
+      return NextResponse.json(
+        { error: `renderMode must be one of: ${Array.from(VALID_RENDER_MODES).join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+    const [created] = await db
+      .insert(sdDesigns)
+      .values({
+        userId,
+        name: name ?? null,
+        problemSlug: problemSlug ?? null,
+        diagramType,
+        canvasState: canvasState as Record<string, unknown>,
+        provider: body.provider ?? "aws",
+        renderMode: body.renderMode ?? "default",
+      })
+      .returning();
+
+    return NextResponse.json({ design: created }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/designs] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET() {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(sdDesigns)
+      .where(eq(sdDesigns.userId, userId))
+      .orderBy(desc(sdDesigns.updatedAt))
+      .limit(100);
+
+    return NextResponse.json({ designs: rows });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/designs] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create PATCH/GET /api/sd/designs/[id]**
+
+Create `architex/src/app/api/sd/designs/[id]/route.ts`:
+
+```typescript
+/**
+ * GET    /api/sd/designs/[id]    — fetch single design (owner only)
+ * PATCH  /api/sd/designs/[id]    — update design fields (canvas_state, name, publicity)
+ * DELETE /api/sd/designs/[id]    — 501 (soft-delete lands in Phase 2)
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { getDb, sdDesigns } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const [row] = await db
+      .select()
+      .from(sdDesigns)
+      .where(and(eq(sdDesigns.id, id), eq(sdDesigns.userId, userId)))
+      .limit(1);
+
+    if (!row) {
+      return NextResponse.json({ error: "Design not found" }, { status: 404 });
+    }
+    return NextResponse.json({ design: row });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/designs/:id] GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      name?: string | null;
+      canvasState?: unknown;
+      isPublic?: boolean;
+    };
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.canvasState !== undefined) updates.canvasState = body.canvasState;
+    if (body.isPublic !== undefined) updates.isPublic = body.isPublic;
+
+    const db = getDb();
+    const [updated] = await db
+      .update(sdDesigns)
+      .set(updates)
+      .where(and(eq(sdDesigns.id, id), eq(sdDesigns.userId, userId)))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Design not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ design: updated });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/designs/:id] PATCH error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE() {
+  return NextResponse.json(
+    { error: "Soft-delete lands in Phase 2" },
+    { status: 501 },
+  );
+}
+```
+
+- [ ] **Step 3: Create POST /api/sd/designs/[id]/snapshot**
+
+Create `architex/src/app/api/sd/designs/[id]/snapshot/route.ts`:
+
+```typescript
+/**
+ * POST /api/sd/designs/[id]/snapshot
+ *
+ * Create an immutable version snapshot. Body accepts:
+ *   - reason: 'manual' | 'auto' | 'pre-simulate' | 'restore'
+ *
+ * Server computes next version as max(version)+1 for this design.
+ */
+
+import { NextResponse } from "next/server";
+import { and, desc, eq } from "drizzle-orm";
+import { getDb, sdDesigns, sdDesignSnapshots } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+const VALID_REASONS = new Set(["manual", "auto", "pre-simulate", "restore"]);
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      reason?: string;
+    };
+    const reason = body.reason ?? "manual";
+    if (!VALID_REASONS.has(reason)) {
+      return NextResponse.json(
+        { error: `reason must be one of: ${Array.from(VALID_REASONS).join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+    // Verify ownership and fetch current canvas_state.
+    const [design] = await db
+      .select()
+      .from(sdDesigns)
+      .where(and(eq(sdDesigns.id, id), eq(sdDesigns.userId, userId)))
+      .limit(1);
+    if (!design) {
+      return NextResponse.json({ error: "Design not found" }, { status: 404 });
+    }
+
+    // Determine next version.
+    const [latest] = await db
+      .select({ version: sdDesignSnapshots.version })
+      .from(sdDesignSnapshots)
+      .where(eq(sdDesignSnapshots.designId, id))
+      .orderBy(desc(sdDesignSnapshots.version))
+      .limit(1);
+    const nextVersion = (latest?.version ?? 0) + 1;
+
+    const [snapshot] = await db
+      .insert(sdDesignSnapshots)
+      .values({
+        designId: id,
+        version: nextVersion,
+        canvasState: design.canvasState,
+        authorUserId: userId,
+        reason,
+      })
+      .returning();
+
+    // Also bump the design.version column so clients can optimistic-diff.
+    await db
+      .update(sdDesigns)
+      .set({ version: nextVersion, updatedAt: new Date() })
+      .where(eq(sdDesigns.id, id));
+
+    return NextResponse.json({ snapshot }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/sd/designs/:id/snapshot] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+
+Expected: no errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/app/api/sd/designs/
+git commit -m "$(cat <<'EOF'
+feat(api): add /api/sd/designs CRUD + snapshot shells
+
+POST /api/sd/designs                      — create new design
+GET  /api/sd/designs                      — list user's designs
+GET  /api/sd/designs/[id]                 — fetch one (owner-scoped)
+PATCH /api/sd/designs/[id]                — update name/canvas/publicity
+POST /api/sd/designs/[id]/snapshot        — immutable version snapshot
+DELETE /api/sd/designs/[id]               — 501 (soft-delete Phase 2)
+
+All routes scope queries to authenticated owner. Snapshot endpoint
+computes monotonic version and bumps design.version atomically.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
