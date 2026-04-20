@@ -48,6 +48,11 @@ export {
   type DiagramTemplate,
   type NewDiagramTemplate,
 } from "./diagram-templates";
+export {
+  lldDrillAttempts,
+  type LLDDrillAttempt,
+  type NewLLDDrillAttempt,
+} from "./lld-drill-attempts";
 
 // Relations (defined in a single file to avoid circular imports)
 export {
@@ -59,4 +64,5 @@ export {
   gallerySubmissionsRelations,
   galleryUpvotesRelations,
   aiUsageRelations,
+  lldDrillAttemptsRelations,
 } from "./relations";

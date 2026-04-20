@@ -13,6 +13,7 @@ import { progress } from "./progress";
 import { templates } from "./templates";
 import { gallerySubmissions, galleryUpvotes } from "./gallery";
 import { aiUsage } from "./ai-usage";
+import { lldDrillAttempts } from "./lld-drill-attempts";
 
 // ── Users ──────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   templates: many(templates),
   gallerySubmissions: many(gallerySubmissions),
   aiUsage: many(aiUsage),
+  lldDrillAttempts: many(lldDrillAttempts),
 }));
 
 // ── Diagrams ───────────────────────────────────────────────────
@@ -106,3 +108,15 @@ export const aiUsageRelations = relations(aiUsage, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// ── LLD Drill Attempts ─────────────────────────────────────────
+
+export const lldDrillAttemptsRelations = relations(
+  lldDrillAttempts,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [lldDrillAttempts.userId],
+      references: [users.id],
+    }),
+  }),
+);
