@@ -1,0 +1,200 @@
+---
+subtitle: "One object, globally accessed"
+estimatedMinutes: 14
+conceptIds:
+  - global-state
+  - lazy-init
+  - thread-safety
+  - monostate
+sections:
+  itch:
+    scenario: "Your app spins up three database pools, two Redis clients, and a metrics collector — and your memory is exploding."
+    keywords: ["connection pool", "global state", "initialization"]
+  definition:
+    oneLiner: "Singleton ensures a class has only one instance and provides a global point of access to it."
+    canonicalSource: "Gang of Four, Design Patterns (1994), p.127."
+  mechanism:
+    steps:
+      - index: 1
+        title: "Hide the constructor"
+        markdown: "Make the constructor private or protected so callers cannot use `new`."
+      - index: 2
+        title: "Keep a static slot"
+        markdown: "Store the one allowed instance on a static field of the class."
+      - index: 3
+        title: "Expose via static accessor"
+        markdown: "Provide `getInstance()` that returns the slot, creating it on first call."
+      - index: 4
+        title: "Guard creation"
+        markdown: "In multi-threaded runtimes, lock around creation or pre-initialize at load time."
+  anatomy:
+    classes:
+      - classId: singleton-class
+        role: Singleton
+        responsibility: Owns the single instance and exposes it.
+        keyMethod: "getInstance(): Singleton"
+  numbers:
+    headline:
+      - label: "JDK instances"
+        value: "1"
+      - label: "Lookup cost"
+        value: "O(1)"
+      - label: "Footprint"
+        value: "~80"
+        unit: "B"
+  uses:
+    cases:
+      - company: "Oracle"
+        system: "Runtime.getRuntime()"
+        whyThisPattern: "Process-wide resource used by every thread; duplicating it would invalidate its invariants."
+      - company: "Kafka"
+        system: "KafkaConsumer group coordinator"
+        whyThisPattern: "Group coordinator per consumer group — exactly-one semantics required for offset commits."
+      - company: "Gradle"
+        system: "Project registry"
+        whyThisPattern: "Single project graph shared across every task — builders cannot disagree about dependencies."
+  failure_modes:
+    modes:
+      - title: "Hidden global state"
+        whatGoesWrong: "Tests mutate the singleton and bleed state into each other."
+        howToAvoid: "Provide a testable reset method or inject via constructor for test builds."
+        severity: "high"
+      - title: "Unsafe lazy init"
+        whatGoesWrong: "Two threads race on first-use and both allocate an instance."
+        howToAvoid: "Use eager init, double-checked locking with `volatile`, or Bill Pugh initialization-on-demand."
+        severity: "medium"
+      - title: "Serialization duplicates the instance"
+        whatGoesWrong: "Deserializing a singleton creates a second instance."
+        howToAvoid: "Implement readResolve() or use an enum-based singleton."
+        severity: "medium"
+checkpoints:
+  - kind: recall
+    id: r1
+    prompt: "Why is Singleton considered a smell by many teams?"
+    options:
+      - id: a
+        label: "It disallows subclassing"
+        isCorrect: false
+        whyWrong: "That's a language limitation, not the core complaint."
+      - id: b
+        label: "It hides global state behind a static accessor"
+        isCorrect: true
+      - id: c
+        label: "It always requires synchronization"
+        isCorrect: false
+        whyWrong: "Only when lazy-initialized in multi-threaded runtimes."
+    explanation: "Global state is the headline complaint: state reachable from anywhere makes reasoning about code hard."
+  - kind: apply
+    id: a1
+    scenario: "You need to design a ConfigLoader. Which classes belong to the Singleton form?"
+    correctClassIds: ["ConfigLoader"]
+    distractorClassIds: ["ConfigRepository", "Logger", "ThreadPool"]
+    explanation: "Only ConfigLoader owns the single instance; ConfigRepository is a collaborator, not part of the Singleton structure."
+  - kind: compare
+    id: cp1
+    prompt: "Which traits apply to Singleton vs. Monostate?"
+    left:
+      patternSlug: "singleton"
+      label: "Singleton"
+    right:
+      patternSlug: "monostate"
+      label: "Monostate"
+    statements:
+      - id: s1
+        text: "Enforces one and only one instance"
+        correct: "left"
+      - id: s2
+        text: "All instances share the same static state"
+        correct: "right"
+      - id: s3
+        text: "Can be tested by resetting state between tests"
+        correct: "both"
+    explanation: "Both share state globally; only Singleton restricts instantiation."
+  - kind: create
+    id: cr1
+    prompt: "Draft a thread-safe Singleton for a connection pool. Name the class(es) you'd use."
+    starterCanvas:
+      classes: []
+    rubric:
+      - criterion: "Has a class owning a single instance"
+        points: 2
+      - criterion: "Uses a private constructor"
+        points: 1
+      - criterion: "Provides a thread-safe accessor"
+        points: 2
+    referenceSolution:
+      classes:
+        - id: cp
+          name: "ConnectionPool"
+    explanation: "A minimal thread-safe Singleton is one class with a private constructor and a synchronized or lazily-initialized accessor."
+---
+
+<!-- Section: itch -->
+## The Itch
+
+You start your service and it boots three database pools, two Redis clients, and a metrics collector. Each one allocates its own socket pool and each thread you spin up has to know which pool to grab. By the time your traffic doubles, your memory graph is full of copies of things that should be singular. You need a way to say — at the class level, not just the documentation level — *exactly one of this*.
+
+Singleton is the GoF pattern for that guarantee.
+
+<!-- Section: definition -->
+## Definition
+
+A Singleton makes a class responsible for *both* its single instance and the means of access to it. Creation is hidden; lookup is explicit.
+
+Two parts must both be true:
+
+1. No caller may construct the class from outside.
+2. A well-known static accessor returns the same reference every time.
+
+Everything else — lazy vs. eager, locking strategy, serialization — is variation on those two rules.
+
+<!-- Section: mechanism -->
+## Mechanism
+
+The dance is short. Each step exists for one reason.
+
+1. The constructor is hidden so nobody can slip a `new` in. Most languages mark it `private`.
+2. The class keeps a static slot — the one place the instance will ever live.
+3. A public static accessor — `getInstance` by convention — returns the slot.
+4. If creation is lazy, the accessor has to synchronize or otherwise guarantee that two callers can't both win the race.
+
+In Java, that last step is almost always either eager static initialization or a nested *holder* class that lazy-loads on first call without locking.
+
+<!-- Section: anatomy -->
+## Anatomy
+
+Only one class is strictly required — <Class id="Singleton" /> itself. In practice it carries:
+
+- A private or protected constructor
+- A private static field holding the instance
+- A public static `getInstance` method
+
+Some variants extract the state into a separate class to enable mocking, but the pattern is still a single stable identity.
+
+<!-- Section: numbers -->
+## Numbers
+
+A reference lookup is O(1). The instance's footprint is whatever state it carries; the Singleton wrapper itself costs a reference.
+
+On the JVM, eager-initialized class-holder idiom is free — the class is loaded exactly once and the holder runs under the class loader's built-in lock. Double-checked locking costs a `volatile` read per access, which is a single memory fence.
+
+<!-- Section: uses -->
+## Uses
+
+The JDK's `Runtime.getRuntime()` is the canonical Singleton. Kafka's consumer-group coordinator must be process-wide for exactly-once offset commits. Gradle's project graph is the single source of truth during a build.
+
+All three share a property: *multiple copies would be wrong*, not just wasteful.
+
+<!-- Section: failure_modes -->
+## Failure Modes
+
+The most common failure isn't technical — it's testability. Tests mutate the instance and bleed state between cases. Give your Singleton a `reset()` for tests or inject it via constructor.
+
+The second common failure is unsafe lazy initialization. Without `volatile` (or equivalent), a partially-constructed object can leak to a concurrent reader.
+
+The third is serialization: deserializing a Singleton quietly creates a second instance unless you override `readResolve()`.
+
+<!-- Section: checkpoints -->
+## Checkpoints
+
+Four short checkpoints follow. Work through them — getting them wrong is fine; each wrong answer reveals more context.

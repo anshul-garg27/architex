@@ -1,0 +1,157 @@
+---
+subtitle: "One-to-many notification of state changes"
+estimatedMinutes: 12
+conceptIds:
+  - push-vs-pull-update
+  - notification-order
+  - subscription-leak
+  - reentrancy
+sections:
+  definition:
+    oneLiner: "Observer defines a one-to-many dependency between objects so that when one object changes state, all its dependents are notified and updated automatically."
+    canonicalSource: "Gang of Four, Design Patterns (1994), p.293."
+  anatomy:
+    classes:
+      - classId: Subject
+        role: Subject
+        responsibility: Maintains a list of observers and notifies them on change.
+        keyMethod: "notify()"
+      - classId: ConcreteSubject
+        role: ConcreteSubject
+        responsibility: Holds the state that observers care about.
+      - classId: Observer
+        role: Observer
+        responsibility: Declares update(); implementors react to subject changes.
+        keyMethod: "update(subject)"
+      - classId: ConcreteObserver
+        role: ConcreteObserver
+        responsibility: Implements update() for a specific reaction.
+  numbers:
+    headline:
+      - label: "Classes"
+        value: "4"
+      - label: "Notify cost"
+        value: "O(k)"
+        unit: "observers"
+  failure_modes:
+    modes:
+      - title: "Leaked subscriptions"
+        whatGoesWrong: "Observer never unsubscribes; subject retains it; GC can't reclaim either."
+        howToAvoid: "Return an unsubscribe handle, use WeakRef, or subscribe via a scoped container."
+        severity: "high"
+      - title: "Notification order"
+        whatGoesWrong: "Observers assume they're called in registration order; subtle state corruption when they aren't."
+        howToAvoid: "Document the order explicitly or make observers order-independent."
+        severity: "medium"
+      - title: "Reentrancy"
+        whatGoesWrong: "Observer triggers another state change mid-notify; list is mutated during iteration."
+        howToAvoid: "Copy the observer list before iterating, or defer the triggering call to the next tick."
+        severity: "high"
+checkpoints:
+  - kind: recall
+    id: r1
+    prompt: "What guarantees does Observer *not* provide by default?"
+    options:
+      - id: a
+        label: "Ordered notification"
+        isCorrect: true
+      - id: b
+        label: "Late-binding of observers"
+        isCorrect: false
+        whyWrong: "That's the whole point — late binding is the feature."
+      - id: c
+        label: "Async delivery"
+        isCorrect: false
+        whyWrong: "Can be either. The default spec is synchronous, but async is a valid variant."
+    explanation: "Registration order is not a GoF guarantee. If you need it, document and enforce it."
+  - kind: apply
+    id: a1
+    scenario: "Which classes make up a stock-ticker Observer structure?"
+    correctClassIds: ["Ticker", "Widget"]
+    distractorClassIds: ["WebSocket", "Chart"]
+    explanation: "Ticker (Subject) + Widget (Observer) are the pattern. WebSocket is the input source; Chart is a Widget."
+  - kind: compare
+    id: cp1
+    prompt: "Which apply to Observer vs Pub-Sub?"
+    left:
+      patternSlug: "observer"
+      label: "Observer"
+    right:
+      patternSlug: "pub-sub"
+      label: "Pub-Sub"
+    statements:
+      - id: s1
+        text: "Direct reference from subject to observer"
+        correct: "left"
+      - id: s2
+        text: "Broker in the middle"
+        correct: "right"
+      - id: s3
+        text: "One-to-many update notification"
+        correct: "both"
+    explanation: "Observer is direct, Pub-Sub decouples via a broker."
+  - kind: create
+    id: cr1
+    prompt: "Design a typed EventEmitter following the Observer pattern."
+    starterCanvas:
+      classes: []
+    rubric:
+      - criterion: "Has a Subject with on/off/emit"
+        points: 3
+      - criterion: "Uses a typed Observer interface"
+        points: 2
+    referenceSolution:
+      classes:
+        - id: ee
+          name: "EventEmitter"
+        - id: l
+          name: "Listener"
+    explanation: "Two classes are enough. Make the emit method copy the listener array before iteration to avoid reentrancy bugs."
+---
+
+<!-- Section: itch -->
+## The Itch
+
+You have a stock-ticker app. Five widgets on screen — chart, sidebar, alert, trade form, history — all need the current price. Option A: hardwire each widget to the data source. Option B: let the data source broadcast, widgets subscribe. Option B scales; Option A rewrites the data source every time a widget is added.
+
+<!-- Section: definition -->
+## Definition
+
+Observer declares a one-to-many relationship: one <Class id="Subject" />, many <Class id="Observer" />s. The Subject notifies observers when its state changes; observers decide how to react.
+
+<!-- Section: mechanism -->
+## Mechanism
+
+1. Observers call `subject.attach(this)`.
+2. When state changes, Subject calls `observer.update(this)` on each attached observer.
+3. Observers may call `subject.getState()` to pull details (pull model), or Subject may pass the delta as a parameter (push model).
+4. Observers call `subject.detach(this)` to stop receiving updates.
+
+<!-- Section: anatomy -->
+## Anatomy
+
+Four roles form the classic structure. In practice the Subject and Observer are often interfaces with multiple concrete implementations.
+
+<!-- Section: numbers -->
+## Numbers
+
+Notify cost is O(k) in the number of observers. Subscribe/unsubscribe is O(1) with a hash set, O(n) with a list.
+
+<!-- Section: uses -->
+## Uses
+
+Java's `PropertyChangeSupport`. Node.js's `EventEmitter`. Rx/React signals. Git hooks are a Subject notifying filesystem-level observers.
+
+<!-- Section: failure_modes -->
+## Failure Modes
+
+Leaked subscriptions are the #1 Observer bug — long-lived subjects retain observers past their lifetime. Return an unsubscribe handle from attach().
+
+Notification order is not guaranteed by the GoF spec. If order matters, document it and enforce it in tests.
+
+Reentrancy — an observer that triggers another state change mid-notify — will blow up if you iterate the observer list in place. Copy before iterating.
+
+<!-- Section: checkpoints -->
+## Checkpoints
+
+Four checkpoints below.

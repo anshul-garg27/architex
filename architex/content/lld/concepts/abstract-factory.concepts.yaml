@@ -1,0 +1,23 @@
+pattern: abstract-factory
+concepts:
+  - id: product-family
+    label: Product Family
+    summary: A coordinated set of products that must work together.
+    introducedIn:
+      - itch
+  - id: kit-consistency
+    label: Kit Consistency
+    summary: Guarantee that products come from a single family.
+  - id: factory-of-factories
+    label: Factory of Factories
+    summary: Resolving which ConcreteFactory to use — often a Simple Factory itself.
+  - id: cross-cutting-dependency
+    label: Cross-cutting Dependency
+    summary: Products in a family share an invisible dependency (same theme, OS, tenant).
+confusedWith:
+  - patternSlug: factory-method
+    reason: Factory Method creates one product; Abstract Factory creates a family.
+  - patternSlug: builder
+    reason: Builder assembles parts of one product; Abstract Factory returns multiple whole products.
+  - patternSlug: prototype
+    reason: Prototype clones; Abstract Factory constructs.

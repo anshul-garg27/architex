@@ -1,0 +1,31 @@
+pattern: factory-method
+concepts:
+  - id: open-closed-principle
+    label: Open-Closed Principle
+    summary: Code should be open for extension, closed for modification.
+    relatedPatterns:
+      - factory-method
+      - strategy
+    introducedIn:
+      - itch
+  - id: polymorphism
+    label: Polymorphism
+    summary: One interface, many implementations resolved at runtime.
+    relatedPatterns:
+      - strategy
+      - template-method
+  - id: class-explosion
+    label: Class Explosion
+    summary: Symptom of over-applying Factory Method — each product requires a parallel creator hierarchy.
+    introducedIn:
+      - failure_modes
+  - id: parametrized-factory
+    label: Parameterized Factory
+    summary: A single factory that switches on a type argument instead of subclassing.
+confusedWith:
+  - patternSlug: abstract-factory
+    reason: Abstract Factory makes a family of products; Factory Method makes one.
+  - patternSlug: builder
+    reason: Builder assembles from parts; Factory Method returns a whole object in one call.
+  - patternSlug: prototype
+    reason: Prototype clones; Factory Method constructs fresh.

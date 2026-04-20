@@ -1,0 +1,157 @@
+---
+subtitle: "Create families of related products without naming concretes"
+estimatedMinutes: 12
+conceptIds:
+  - product-family
+  - kit-consistency
+  - factory-of-factories
+  - cross-cutting-dependency
+sections:
+  definition:
+    oneLiner: "Abstract Factory provides an interface for creating families of related or dependent objects without specifying their concrete classes."
+    canonicalSource: "Gang of Four, Design Patterns (1994), p.87."
+  anatomy:
+    classes:
+      - classId: AbstractFactory
+        role: AbstractFactory
+        responsibility: Declares creation methods for each product in the family.
+      - classId: ConcreteFactory
+        role: ConcreteFactory
+        responsibility: Implements creation for one specific family.
+      - classId: AbstractProduct
+        role: AbstractProduct
+        responsibility: Interface each product type shares.
+      - classId: ConcreteProduct
+        role: ConcreteProduct
+        responsibility: Family-specific implementation.
+  numbers:
+    headline:
+      - label: "Min classes"
+        value: "4+"
+      - label: "Families"
+        value: "N"
+  failure_modes:
+    modes:
+      - title: "Product-family rigidity"
+        whatGoesWrong: "Adding a new product to the family breaks every ConcreteFactory."
+        howToAvoid: "Use default methods on AbstractFactory, or split families along stable axes."
+        severity: "high"
+      - title: "Kit mismatch"
+        whatGoesWrong: "Caller mixes products from different ConcreteFactories and hits runtime incompatibility."
+        howToAvoid: "Enforce family typing via generics or a single Factory instance per scope."
+        severity: "medium"
+checkpoints:
+  - kind: recall
+    id: r1
+    prompt: "What makes Abstract Factory different from Factory Method?"
+    options:
+      - id: a
+        label: "It uses composition instead of inheritance"
+        isCorrect: false
+        whyWrong: "Both use inheritance."
+      - id: b
+        label: "It creates families of related products"
+        isCorrect: true
+      - id: c
+        label: "It supports stepwise construction"
+        isCorrect: false
+        whyWrong: "That's Builder."
+    explanation: "Abstract Factory produces coordinated families (MacButton + MacWindow) via a single factory interface."
+  - kind: apply
+    id: a1
+    scenario: "Which classes belong to a cross-platform UI Abstract Factory?"
+    correctClassIds: ["UIFactory", "MacFactory", "Button", "Window"]
+    distractorClassIds: ["EventBus", "Logger"]
+    explanation: "Factory + concrete factory + abstract products are the structure."
+  - kind: compare
+    id: cp1
+    prompt: "Trait is from Abstract Factory, Factory Method, or both?"
+    left:
+      patternSlug: "abstract-factory"
+      label: "Abstract Factory"
+    right:
+      patternSlug: "factory-method"
+      label: "Factory Method"
+    statements:
+      - id: s1
+        text: "Creates a set of products that must work together"
+        correct: "left"
+      - id: s2
+        text: "One method per product type"
+        correct: "right"
+      - id: s3
+        text: "Concrete types chosen at runtime"
+        correct: "both"
+    explanation: "Both defer to runtime concretes; only Abstract Factory coordinates families."
+  - kind: create
+    id: cr1
+    prompt: "Design an Abstract Factory for theming (light vs dark) that produces Button, Input, Card."
+    starterCanvas:
+      classes: []
+    rubric:
+      - criterion: "One AbstractFactory interface"
+        points: 2
+      - criterion: "Two ConcreteFactories (light, dark)"
+        points: 2
+      - criterion: "Three abstract products"
+        points: 3
+    referenceSolution:
+      classes:
+        - id: tf
+          name: "ThemeFactory"
+        - id: lt
+          name: "LightFactory"
+        - id: dt
+          name: "DarkFactory"
+        - id: b
+          name: "Button"
+        - id: i
+          name: "Input"
+        - id: c
+          name: "Card"
+    explanation: "Six classes: one factory interface + two concretes + three product interfaces."
+---
+
+<!-- Section: itch -->
+## The Itch
+
+You ship a cross-platform app. On macOS you need a MacButton + MacWindow + MacMenu; on Windows a WinButton + WinWindow + WinMenu. They must match — a MacButton inside a WinWindow is visually broken. You need a way to hand callers a *set* of matching components.
+
+<!-- Section: definition -->
+## Definition
+
+Abstract Factory packages related creation operations into a single interface. Callers ask the <Class id="AbstractFactory" /> for products; each <Class id="ConcreteFactory" /> returns products from one coherent family.
+
+<!-- Section: mechanism -->
+## Mechanism
+
+1. Resolve which <Class id="ConcreteFactory" /> is active (typically at startup).
+2. Store it somewhere callers can reach.
+3. Callers use factory methods on the interface; concrete types are invisible.
+
+<!-- Section: anatomy -->
+## Anatomy
+
+Four roles: <Class id="AbstractFactory" />, <Class id="ConcreteFactory" />, <Class id="AbstractProduct" />, <Class id="ConcreteProduct" />. Each family has its own ConcreteFactory + a parallel set of ConcreteProducts.
+
+<!-- Section: numbers -->
+## Numbers
+
+Minimum four classes; typically more as product count grows. Memory is one factory instance per scope.
+
+<!-- Section: uses -->
+## Uses
+
+Java AWT Toolkit (Swing, SWT). Cross-platform test doubles (MemoryStorage vs SqlStorage). Dependency injection frameworks use Abstract Factory under the hood for scoped object graphs.
+
+<!-- Section: failure_modes -->
+## Failure Modes
+
+Product-family rigidity is the biggest risk — adding a new product to the family requires updating every ConcreteFactory. Counter with default methods where possible.
+
+The second is kit mismatch: callers accidentally pull products from different factories and wire them together. Generics or factory-per-scope prevent this.
+
+<!-- Section: checkpoints -->
+## Checkpoints
+
+Four checkpoints below.
