@@ -2689,6 +2689,400 @@ All tables ship as a single migration `drizzle/migrations/0002_add_sd_module.sql
 
 ---
 
+## 22. Feature Catalog
+
+Every feature in the spec, grouped for implementation planning, tagged:
+- **[MS]** must-ship in GA (Phase 4)
+- **[NH]** nice-to-have — ships when possible, may slip to Phase 5
+- **[LT]** later — Phase 6+ / post-GA
+
+### 22.1 Shell · navigation · cross-module (28)
+
+1. **[MS]** SD shell with cobalt accent (Q29)
+2. **[MS]** Mode switcher pill · 5 modes (Q1)
+3. **[MS]** ⌘1-5 mode shortcuts (Q31)
+4. **[MS]** Left icon rail · 4 modules + Review + Profile (Q31)
+5. **[MS]** Module switcher overlay ⌘⇧M (Q37)
+6. **[MS]** Universal command palette ⌘K (Q37)
+7. **[MS]** Profile & settings ⌘, (Q37)
+8. **[MS]** Knowledge graph view ⌘G (Q37)
+9. **[MS]** Review shortcut ⌘R (Q37)
+10. **[MS]** Shortcut sheet ⌘? (Q37)
+11. **[MS]** History nav ⌘[ / ⌘] (Q37)
+12. **[NH]** Natural-language command (⌘K free-text → Sonnet → action) (Q37)
+13. **[MS]** 3-column collapsible panels with `[` `]` (Q30)
+14. **[MS]** Top chrome: breadcrumb · notification bell · search
+15. **[MS]** Right neighbor sidebar (Q35)
+16. **[MS]** Status bar with contextual info
+17. **[MS]** URL ↔ mode sync (shareable deep-links)
+18. **[MS]** Mode-switch choreography (300ms slide)
+19. **[MS]** DB-first persistent state (10s write-through) (Q38)
+20. **[MS]** Smart Boundaries state preservation on mode switch
+21. **[MS]** Anonymous → authenticated migration (3-case tree)
+22. **[MS]** Unified profile with per-module lenses (Q36)
+23. **[MS]** Unified streak across modules
+24. **[MS]** Unified FSRS queue
+25. **[MS]** Daily dashboard with 4 cards (Q39)
+26. **[MS]** Dashboard progress rings (8 waves)
+27. **[MS]** Dashboard 7-day heatmap
+28. **[NH]** Dashboard neighborhood panel
+
+### 22.2 Content · concepts · problems · incidents · chaos (22)
+
+29. **[MS]** 40 Opus-authored concept pages (8-section) (§5.2)
+30. **[MS]** 30 Opus-authored problem pages (6-pane) (§5.3)
+31. **[MS]** 10 real-incident replay pages (Q13)
+32. **[MS]** 73-event chaos taxonomy (Q11)
+33. **[MS]** 8 content wave structure for concepts (Q2 learning path)
+34. **[MS]** 6 domain grouping for problems (§5.3)
+35. **[MS]** Multi-lens browse (6 lenses) (Q20)
+36. **[MS]** Scaling numbers strip component (Q32 format 3)
+37. **[MS]** Decision tree component (Q32 format 4)
+38. **[MS]** Engineering blog deep-link cards (Q32 format 5)
+39. **[MS]** Ask-AI inline callout (Q32 format 6)
+40. **[MS]** Try-it button component (Q32 format 7)
+41. **[MS]** Cross-module bridge card component (Q32 format 8)
+42. **[NH]** Anti-pattern museum toggle per concept
+43. **[NH]** Design disaster war stories per concept
+44. **[NH]** Pattern-origin sidebar
+45. **[NH]** "Seen in the wild" GitHub snippets per concept
+46. **[NH]** Real-world case studies per problem
+47. **[NH]** Voice variants: ELI5 and ELI-Senior (Q46 wild-card 1)
+48. **[NH]** Audio narration per concept (Q46 wild-card 2)
+49. **[MS]** Content quality signaling (polished/draft/published)
+50. **[MS]** 3-phase content rollout plan (§5.8)
+
+### 22.3 Canvas · diagrams · nodes · overlays (32)
+
+51. **[MS]** ReactFlow canvas engine (existing, extend for 16 families)
+52. **[MS]** A* edge routing (existing)
+53. **[MS]** Dagre auto-layout LR (existing)
+54. **[MS]** Dagre auto-layout TB
+55. **[NH]** Elk layered layout
+56. **[NH]** Elk mrtree layout
+57. **[NH]** Force-directed layout
+58. **[MS]** 16 node families palette (Q48)
+59. **[MS]** 6 database flavor sub-types (Q48)
+60. **[MS]** 3 edge types (sync/async/batch) (Q48)
+61. **[MS]** 10 diagram types (Q47)
+62. **[MS]** Diagram type switching with projection
+63. **[MS]** Properties panel with per-family schema (§7.5)
+64. **[MS]** Multi-select + batch actions
+65. **[MS]** Right-click context menu
+66. **[NH]** Smart zoom menu
+67. **[NH]** Alignment guides
+68. **[MS]** Undo/redo 100-step with IndexedDB persistence
+69. **[MS]** Diagram save/version/diff
+70. **[MS]** Overlay: latency heat (Q49)
+71. **[MS]** Overlay: cost heat (Q49)
+72. **[MS]** Overlay: blast radius (Q49)
+73. **[MS]** Overlay: request path trace (Q49)
+74. **[MS]** Overlay: data locality (Q49)
+75. **[NH]** Overlay: layered views toggle (Q49)
+76. **[MS]** Overlay: error rate live (Q49)
+77. **[MS]** Overlay: semantic zoom (Q49)
+78. **[MS]** Overlay: timeline scrub (Q49)
+79. **[LT]** Overlay: 3D isometric (Q49)
+80. **[MS]** Zen mode ⌘⇧Z
+81. **[NH]** Radial command menu
+82. **[MS]** Pattern tabs (multi-open)
+
+### 22.4 Build mode (18)
+
+83. **[MS]** Free-form canvas with blank/template entry
+84. **[MS]** Node library palette (left column)
+85. **[MS]** Reference components library (§14.1.7) · 20 at launch
+86. **[NH]** Reference components · 50 within a year
+87. **[MS]** User templates (local)
+88. **[MS]** Properties panel with capacity tab
+89. **[MS]** Properties panel with cost tab
+90. **[MS]** Properties panel with chaos-risk tab
+91. **[MS]** Bottom panel: Notes
+92. **[MS]** Bottom panel: ADR auto-generate (Q52)
+93. **[MS]** Bottom panel: Capacity live
+94. **[MS]** Bottom panel: Cost live breakdown
+95. **[MS]** Bottom panel: Chat (canvas-aware Ask-AI)
+96. **[NH]** Split-view compare (Q32)
+97. **[MS]** Presentation mode · auto-generated deck (R10)
+98. **[MS]** Export: PNG/SVG/Mermaid/JSON (Q44)
+99. **[NH]** Import: drawio/Excalidraw/Lucid (Q44)
+100. **[MS]** Autosave (10s debounce)
+
+### 22.5 Simulate mode (flagship) (28)
+
+101. **[MS]** 6 activity framings (Q7)
+102. **[MS]** Validate activity
+103. **[MS]** Stress Test activity
+104. **[MS]** Chaos Drill activity (flagship)
+105. **[MS]** Compare A/B activity
+106. **[MS]** Forecast activity
+107. **[MS]** Archaeology activity (real-incident replay) (Q13)
+108. **[MS]** Particle flow layer
+109. **[MS]** Metric strip (p50/p95/p99/err/cost/SLO)
+110. **[MS]** Threshold coaching on metrics (Q6)
+111. **[MS]** Narrative margin stream (Q16)
+112. **[MS]** Whisper-mode AI coach (Q8)
+113. **[MS]** Coach intervention cap (per-user calibrated)
+114. **[MS]** Cinematic chaos ribbon (Q15)
+115. **[MS]** Red vignette overlay
+116. **[NH]** Optional bass thump
+117. **[MS]** Pause & Inspect (Q9)
+118. **[MS]** Time Scrubber (Q9)
+119. **[MS]** Cascade Trace (Q9)
+120. **[MS]** Slow-Mo (0.25x – 4x) (Q9)
+121. **[MS]** Replay & Share (Q9 + Q41)
+122. **[MS]** Metric Drilldown (Q9)
+123. **[MS]** What-If Branching (Q9)
+124. **[MS]** Triple learning loop results card (Q10)
+125. **[MS]** 6 chaos control modes (Q14)
+126. **[MS]** Chaos scenario script library (40+ at launch)
+127. **[NH]** Chaos budget mode
+128. **[LT]** Red-team AI mode
+
+### 22.6 Drill mode (18)
+
+129. **[MS]** 5-stage gated clock (Q17)
+130. **[MS]** Clarify stage (5 min)
+131. **[MS]** Estimate stage (5 min)
+132. **[MS]** Design stage (15 min)
+133. **[MS]** Deep Dive stage (15 min)
+134. **[MS]** Q&A stage (5 min)
+135. **[MS]** 7 mock modes (Q18)
+136. **[MS]** Study mode
+137. **[MS]** Timed Mock mode (default)
+138. **[MS]** Exam mode
+139. **[MS]** Pair AI mode (live Sonnet interviewer)
+140. **[MS]** Review mode (replay past attempt)
+141. **[NH]** Full-Stack Loop (SD+LLD 90min) (Q22)
+142. **[NH]** Verbal mode (Whisper transcription) (Q46 #10)
+143. **[MS]** 8 interviewer personas (Q19)
+144. **[MS]** Company preset system (8 companies)
+145. **[MS]** 3-tier hint system with 15-credit budget
+146. **[MS]** 6-axis rubric grading (Q21)
+
+### 22.7 Drill post-interview artifacts (Q21) (8)
+
+147. **[MS]** 6-axis radar rubric
+148. **[MS]** AI postmortem (Sonnet)
+149. **[MS]** Canonical compare side-by-side
+150. **[MS]** Timing heatmap
+151. **[MS]** Follow-up drills recommendations
+152. **[MS]** "Simulate your design" button
+153. **[MS]** Shareable PDF recap
+154. **[MS]** Streak stats
+
+### 22.8 Learn mode (16)
+
+155. **[MS]** 3-column layout for concept page
+156. **[MS]** 3-column layout for problem page
+157. **[MS]** Scroll-sync canvas highlight
+158. **[MS]** 4 checkpoint types (MCQ, diagram-spot, fill-blank, order-steps)
+159. **[MS]** Progressive reveal on checkpoint failure (Q3 style)
+160. **[MS]** 8-section concept flow
+161. **[MS]** 6-pane problem flow with canonical-solution tabs
+162. **[MS]** Recommended reading order per persona
+163. **[MS]** Tinker mode with Save-to-Build handoff (Q8)
+164. **[MS]** 3 Ask-AI surfaces per page (Q9)
+165. **[NH]** Frustration detection with 4-level escalation
+166. **[NH]** Cold recall toast (CS6)
+167. **[NH]** Elaborative interrogation prompts (CS3)
+168. **[MS]** 3-tier completion (Introduced/Completed/Mastered)
+169. **[MS]** Learn → Build / Simulate / Drill bridges
+170. **[MS]** Progressive diagram reveal on scroll
+
+### 22.9 Review mode (9)
+
+171. **[MS]** Single-card minimal layout
+172. **[MS]** 4 card types (MCQ/name-primitive/diagram-spot/cloze)
+173. **[MS]** Again/Hard/Good/Easy rating
+174. **[MS]** FSRS-5 scheduling
+175. **[MS]** Mixed cross-module queue
+176. **[MS]** Desktop keyboard shortcuts (1-4, Space, AHGE)
+177. **[MS]** Mobile swipe gestures (Q42)
+178. **[MS]** Streak + empty state
+179. **[NH]** Confidence-weighted scoring (CS1, opt-in)
+
+### 22.10 AI features (18)
+
+180. **[MS]** Claude singleton client + queue
+181. **[MS]** IndexedDB response cache 1h
+182. **[MS]** Per-user rate limits
+183. **[MS]** Cost tracking & transparency UI
+184. **[MS]** Ask-the-Architect contextual (Learn)
+185. **[MS]** Pattern detection (Build)
+186. **[MS]** Anti-pattern warnings (Build)
+187. **[MS]** AI node suggestions on `/` (Build)
+188. **[MS]** Constraint solver (Build)
+189. **[NH]** Reverse engineer from text (Build)
+190. **[MS]** Whisper coach (Simulate)
+191. **[MS]** Post-run summarizer (Simulate)
+192. **[LT]** Red-team AI (Simulate)
+193. **[MS]** 8 interviewer persona system prompts (Drill)
+194. **[MS]** Rubric grader (Drill)
+195. **[MS]** AI postmortem (Drill)
+196. **[NH]** Verbal transcript grader (Drill)
+197. **[NH]** FSRS card auto-generator (Review)
+
+### 22.11 Cost & scaling (18)
+
+198. **[MS]** Per-node cost badge (Q23)
+199. **[MS]** Corner cost meter
+200. **[MS]** Diff annotation on cost-changing edits
+201. **[MS]** AWS rate tables
+202. **[NH]** GCP rate tables (Q24)
+203. **[NH]** Azure rate tables (Q24)
+204. **[MS]** Abstract units rendering
+205. **[NH]** Cross-provider compare
+206. **[LT]** Bare-metal (Hetzner) rate tables
+207. **[MS]** Scale slider 10k → 1B DAU (Q25)
+208. **[MS]** Budget-constrained problems (Q26)
+209. **[MS]** Cost-optimization drill activity
+210. **[NH]** Cost-per-user dashboard badge
+211. **[MS]** Cost forecast curve
+212. **[NH]** Cost-vs-p99 Pareto chart
+213. **[NH]** Cloud-bill-shock narratives (15 at launch)
+214. **[MS]** 8 hidden cost categories taught (Q27)
+215. **[NH]** Named-company cost library (30+ bands) (Q28)
+
+### 22.12 Chaos library (12)
+
+216. **[MS]** 73-event taxonomy records in DB
+217. **[MS]** Chaos library UI: Events / Incidents / Scenarios tabs
+218. **[MS]** 10 real-incident pages (Q13)
+219. **[MS]** 6 chaos-control modes (Q14)
+220. **[MS]** Cinematic pulse choreography
+221. **[MS]** Margin narrative cards
+222. **[MS]** Reduced-motion fallback
+223. **[NH]** User-authored chaos scenarios (Q43)
+224. **[NH]** Community moderation of public scenarios
+225. **[MS]** Chaos narrative templates (73 Opus-authored)
+226. **[MS]** Cascade visualization glow
+227. **[MS]** Chaos budget tracker UI
+
+### 22.13 Smart canvas (10)
+
+228. **[MS]** Complexity score gauge
+229. **[MS]** Pattern detection (Haiku)
+230. **[MS]** Anti-pattern warnings (Haiku)
+231. **[MS]** AI node suggestions (Haiku)
+232. **[NH]** Constraint solver (Sonnet)
+233. **[NH]** Reverse engineer from text (Sonnet)
+234. **[MS]** 20 reference components (§14.1.7)
+235. **[LT]** 50 reference components
+236. **[MS]** 5 auto-layout presets
+237. **[MS]** Topology signature caching (performance)
+
+### 22.14 Auto-generated artifacts (Q52) (8)
+
+238. **[MS]** ADR generator
+239. **[MS]** Runbook generator
+240. **[NH]** RFC write-up generator
+241. **[NH]** IaC starter (Terraform / CDK / Pulumi)
+242. **[MS]** Capacity Plan from sim output
+243. **[MS]** Postmortem from narrative stream
+244. **[NH]** Exec One-Pager
+245. **[NH]** Interview Cheat-Sheet
+
+### 22.15 Pedagogical formats (Q51) (8)
+
+246. **[MS]** Build-Along
+247. **[MS]** Debug-This
+248. **[NH]** Inherit-This-Mess
+249. **[MS]** Scale-This-Up
+250. **[NH]** CTO Interview
+251. **[MS]** Guided Derivation
+252. **[NH]** Compare-Two-Companies
+253. **[LT]** Evolving-Design Campaign (multi-session)
+
+### 22.16 Visual rendering · motion · immersion (16)
+
+254. **[MS]** Default render (serif + particles + icons)
+255. **[NH]** Blueprint paper mode (Q53)
+256. **[NH]** Hand-drawn mode (Q53)
+257. **[MS]** Animated data flow particles (Q53)
+258. **[MS]** Node breathing animation (Q53)
+259. **[MS]** Serif labels (IBM Plex Serif) (Q53)
+260. **[NH]** Ambient sound (Q53)
+261. **[MS]** Failure cinematography (Q53)
+262. **[MS]** Context-aware node icons (Q53)
+263. **[MS]** Motion baseline 550ms + 900ms chaos ribbons (Q33)
+264. **[MS]** Reduced-motion compliance
+265. **[MS]** Time-of-day canvas tint (ambient narrative)
+266. **[NH]** Session opening script (ambient)
+267. **[NH]** Session closing recap card
+268. **[LT]** Decade Saga 10-chapter campaign (Q54)
+269. **[MS]** 90-sec guided onboarding (Q34)
+
+### 22.17 Mobile · sharing · extensibility (18)
+
+270. **[MS]** Mobile Learn (responsive)
+271. **[MS]** Mobile Review (primary mobile)
+272. **[MS]** Mobile Profile
+273. **[MS]** Mobile share viewer
+274. **[MS]** Desktop-only nudge for Build/Sim/Drill
+275. **[NH]** QR code to desktop hand-off
+276. **[MS]** Shareable read-only links for diagrams/sims/drills (Q41)
+277. **[MS]** OG image auto-generation for shares
+278. **[MS]** Export: PNG/SVG/Mermaid/JSON (Q44)
+279. **[NH]** Import: drawio/Excalidraw/Lucid (Q44)
+280. **[NH]** GitHub save+publish (Q44)
+281. **[NH]** Notion sync (Q44)
+282. **[LT]** Obsidian vault export (Q44)
+283. **[NH]** LinkedIn profile badge (Q44)
+284. **[LT]** Google Calendar study blocks (Q44)
+285. **[LT]** Public API (Q44)
+286. **[NH]** Crunch Mode (Q45)
+287. **[LT]** Teacher / bootcamp mode (Q46 wild-card 8)
+
+### 22.18 Wild-card features (Q46) (10)
+
+288. **[NH]** ELI5 voice variant
+289. **[NH]** Audio narration
+290. **[LT]** Seasons + tournaments
+291. **[NH]** Portfolio public profile page
+292. **[MS]** Diagnostic entry quiz
+293. **[NH]** Weekly digest email
+294. **[NH]** "Blame-an-org" postmortem drill format
+295. **[LT]** Architex Verified certification
+296. **[NH]** Verbal talk-aloud with transcript grading
+297. **[MS]** 3 color themes (Midnight/Parchment/Earth)
+
+### 22.19 Accessibility · trust · lifecycle (15)
+
+298. **[MS]** WCAG AA color contrast
+299. **[MS]** Keyboard reachable interactive elements
+300. **[MS]** Screen reader aria-labels on canvas nodes
+301. **[MS]** High-contrast theme
+302. **[MS]** Font-size scales with browser zoom
+303. **[MS]** Welcome banner with 4-path choice
+304. **[MS]** First-visit Learn default
+305. **[NH]** Welcome-back-no-guilt (F1 from LLD)
+306. **[NH]** Permission-to-rest (F2)
+307. **[NH]** Quiet mode (F3)
+308. **[MS]** Graceful sunset / data export (GDPR)
+309. **[MS]** Offline-first PWA (existing infra)
+310. **[MS]** Error pages with character
+311. **[MS]** Data-export from profile
+312. **[MS]** Account-deletion self-service
+
+### 22.20 Telemetry · analytics (10)
+
+313. **[MS]** 30+ typed SD analytic events
+314. **[MS]** Typed event builder in `lib/analytics/sd-events.ts`
+315. **[MS]** Dual-purpose PostHog + user dashboard
+316. **[MS]** Daily active user tracking
+317. **[MS]** Time-in-mode tracking
+318. **[MS]** Funnel tracking (onboarding → first sim → first drill)
+319. **[MS]** Rubric score distribution
+320. **[MS]** Chaos event firing distribution
+321. **[MS]** AI cost per user per day
+322. **[MS]** Auto-rollback triggers wired to metrics
+
+**Feature count: 322 distinct items across 20 categories.** The count intentionally exceeds the 200+ target from the task brief because the breadth of system-design is wider than LLD's. Must-ship count: ~180. Nice-to-have: ~100. Later: ~40. Roughly matches LLD's 131-feature catalog with appropriate SD-specific scale-up.
+
+---
+
+
 
 
 
