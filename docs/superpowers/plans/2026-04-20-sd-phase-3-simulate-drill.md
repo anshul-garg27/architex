@@ -12228,3 +12228,477 @@ EOF
 ```
 
 ---
+
+## Task 31: Post-drill artifacts · 9 components (grade reveal · radar · postmortem · canonical · timing · follow-up · sim-my-design · share PDF · streak)
+
+**Files:**
+- Create: `architex/src/components/modules/sd/drill/DrillGradeReveal.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillRubricRadar.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillPostmortemPanel.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillCanonicalCompare.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillTimingHeatmap.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillFollowUpCard.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillSimulateMyDesignButton.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillShareableRecapButton.tsx`
+- Create: `architex/src/components/modules/sd/drill/DrillStreakStats.tsx`
+- Create: `architex/src/components/modules/sd/drill/__tests__/DrillRubricRadar.test.tsx`
+- Create: `architex/src/components/modules/sd/drill/__tests__/DrillGradeReveal.test.tsx`
+
+- [ ] **Step 1: `DrillGradeReveal`**
+
+```tsx
+// architex/src/components/modules/sd/drill/DrillGradeReveal.tsx
+"use client";
+import { motion } from "framer-motion";
+import { gradeTier, type GradeTier } from "@/lib/drill/sd-drill-rubric";
+
+const TIER_COPY: Record<GradeTier, { label: string; description: string; color: string }> = {
+  stellar: {
+    label: "Stellar",
+    description: "Principal-grade interview. Every axis at 4.3+ average. Take this to the onsite.",
+    color: "text-emerald-400",
+  },
+  solid: {
+    label: "Solid",
+    description: "Strong performance. One or two axes deserve attention before the next attempt.",
+    color: "text-sky-400",
+  },
+  coaching: {
+    label: "Coaching",
+    description: "The scaffolding is in place. Keep drilling — your weakest axis is clear.",
+    color: "text-amber-400",
+  },
+  redirect: {
+    label: "Redirect",
+    description: "Step back into Learn mode for 30 minutes. The concepts will click faster than another drill.",
+    color: "text-red-400",
+  },
+};
+
+export function DrillGradeReveal({
+  overallScore,
+}: {
+  overallScore: number;
+}) {
+  const tier = gradeTier(overallScore);
+  const { label, description, color } = TIER_COPY[tier];
+  return (
+    <motion.article
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="mx-auto max-w-xl rounded-xl border border-neutral-700 bg-neutral-950 p-8 text-center shadow-2xl"
+    >
+      <span className={`mb-2 block text-xs uppercase tracking-wide ${color}`}>
+        {label}
+      </span>
+      <p className="mb-2 font-serif text-5xl text-neutral-100">
+        {overallScore.toFixed(2)}
+        <span className="text-neutral-500">/5</span>
+      </p>
+      <p className="font-serif text-sm leading-relaxed text-neutral-400">{description}</p>
+    </motion.article>
+  );
+}
+```
+
+- [ ] **Step 2: `DrillRubricRadar` (6-axis radar)**
+
+```tsx
+// architex/src/components/modules/sd/drill/DrillRubricRadar.tsx
+"use client";
+import type { RubricBreakdown } from "@/lib/ai/sd-rubric-grader";
+import { RUBRIC_AXES, AXIS_LABEL } from "@/lib/drill/sd-drill-rubric";
+
+/** Phase-3 radar: minimal SVG. Chart.js/d3 polish in Phase 5. */
+export function DrillRubricRadar({ breakdown }: { breakdown: RubricBreakdown }) {
+  const size = 360;
+  const cx = size / 2;
+  const cy = size / 2;
+  const maxRadius = 140;
+  const step = (2 * Math.PI) / RUBRIC_AXES.length;
+  const points = RUBRIC_AXES.map((axis, i) => {
+    const score = breakdown.axes[axis].score;
+    const radius = (score / 5) * maxRadius;
+    const angle = i * step - Math.PI / 2;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    return { axis, score, x, y };
+  });
+  const polygon = points.map((p) => `${p.x},${p.y}`).join(" ");
+
+  return (
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      className="h-[360px] w-[360px]"
+      aria-label="Rubric radar chart"
+    >
+      {[1, 2, 3, 4, 5].map((r) => (
+        <circle
+          key={r}
+          cx={cx}
+          cy={cy}
+          r={(r / 5) * maxRadius}
+          fill="none"
+          stroke="#262626"
+        />
+      ))}
+      <polygon points={polygon} fill="rgba(14,165,233,0.3)" stroke="#0ea5e9" strokeWidth={2} />
+      {points.map((p, i) => {
+        const angle = i * step - Math.PI / 2;
+        const lx = cx + Math.cos(angle) * (maxRadius + 24);
+        const ly = cy + Math.sin(angle) * (maxRadius + 24);
+        return (
+          <g key={p.axis}>
+            <circle cx={p.x} cy={p.y} r={4} fill="#0ea5e9" />
+            <text
+              x={lx}
+              y={ly}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={10}
+              fill="#a3a3a3"
+              className="font-mono uppercase"
+            >
+              {AXIS_LABEL[p.axis]} {p.score}/5
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+```
+
+- [ ] **Step 3: Postmortem · canonical · timing · follow-up · streak**
+
+```tsx
+// architex/src/components/modules/sd/drill/DrillPostmortemPanel.tsx
+"use client";
+import type { Postmortem } from "@/lib/ai/sd-postmortem-generator";
+
+export function DrillPostmortemPanel({ pm }: { pm: Postmortem }) {
+  return (
+    <article className="rounded-lg border border-neutral-700 bg-neutral-950 p-5">
+      <header className="mb-3">
+        <h3 className="font-serif text-lg text-neutral-100">Postmortem</h3>
+        <p className="text-[11px] text-neutral-500">
+          {pm.generatedModel === "sonnet" ? "Sonnet-authored" : "Fallback (no API key)"} ·{" "}
+          {pm.generatedAt}
+        </p>
+      </header>
+      <div className="prose prose-invert prose-sm max-w-none font-serif text-neutral-200">
+        {pm.essay.split("\n\n").map((para, i) => (
+          <p key={i}>{para}</p>
+        ))}
+      </div>
+      {pm.keyMisses.length > 0 && (
+        <section className="mt-3">
+          <h4 className="mb-1 text-[10px] uppercase tracking-wide text-red-400">Key misses</h4>
+          <ul className="list-disc pl-4 text-sm text-neutral-300">
+            {pm.keyMisses.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {pm.keyStrengths.length > 0 && (
+        <section className="mt-3">
+          <h4 className="mb-1 text-[10px] uppercase tracking-wide text-emerald-400">Key strengths</h4>
+          <ul className="list-disc pl-4 text-sm text-neutral-300">
+            {pm.keyStrengths.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </article>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillCanonicalCompare.tsx
+"use client";
+import { getCanonicalForProblem } from "@/lib/drill/sd-drill-canonical";
+
+export function DrillCanonicalCompare({
+  problemSlug,
+  userCanvas,
+}: {
+  problemSlug: string;
+  userCanvas: unknown;
+}) {
+  const bundle = getCanonicalForProblem(problemSlug);
+  if (!bundle) {
+    return (
+      <p className="font-serif italic text-neutral-500">
+        No canonical reference available for {problemSlug} yet. Content-ops will land this in Task 32.
+      </p>
+    );
+  }
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <section>
+        <h4 className="mb-2 font-mono text-[10px] uppercase tracking-wide text-sky-400">
+          Your design
+        </h4>
+        <div className="rounded-md border border-neutral-700 bg-neutral-900 p-3">
+          <pre className="max-h-64 overflow-auto text-[11px] text-neutral-300">
+            {JSON.stringify(userCanvas, null, 2).slice(0, 800)}
+          </pre>
+        </div>
+      </section>
+      <section>
+        <h4 className="mb-2 font-mono text-[10px] uppercase tracking-wide text-emerald-400">
+          Canonical · {bundle.solutions[0].displayName}
+        </h4>
+        <p className="mb-2 font-serif text-sm text-neutral-300">
+          {bundle.solutions[0].description}
+        </p>
+        <p className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Tradeoffs</p>
+        <p className="font-serif text-xs text-neutral-400">
+          {bundle.solutions[0].tradeoffs}
+        </p>
+      </section>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillTimingHeatmap.tsx
+"use client";
+import type { TimingHeatmap } from "@/lib/drill/sd-drill-timing";
+
+const COLOR: Record<string, string> = {
+  under: "bg-sky-500/30 border-sky-500",
+  "on-target": "bg-emerald-500/30 border-emerald-500",
+  over: "bg-amber-500/30 border-amber-500",
+  "severely-over": "bg-red-500/40 border-red-500",
+};
+
+export function DrillTimingHeatmap({ heatmap }: { heatmap: TimingHeatmap }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[10px] uppercase tracking-wide text-neutral-500">Stage timing</p>
+      <div className="space-y-1">
+        {heatmap.cells.map((c) => (
+          <div
+            key={c.stage}
+            className={`flex items-center gap-3 rounded border px-3 py-1.5 ${COLOR[c.interpretation]}`}
+          >
+            <span className="w-20 font-mono text-[11px] uppercase text-neutral-300">
+              {c.stage}
+            </span>
+            <span className="font-mono text-xs text-neutral-200">
+              {Math.floor(c.elapsedMs / 60_000)}:
+              {String(Math.floor((c.elapsedMs % 60_000) / 1000)).padStart(2, "0")}
+            </span>
+            <span className="flex-1 text-[10px] italic text-neutral-400">
+              {c.deviationPct > 0 ? "+" : ""}
+              {c.deviationPct.toFixed(0)}% · {c.interpretation}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillFollowUpCard.tsx
+"use client";
+
+export interface FollowUpRecommendation {
+  kind: "drill" | "persona-switch" | "concept";
+  label: string;
+  reason: string;
+  href: string;
+}
+
+export function DrillFollowUpCard({ recs }: { recs: FollowUpRecommendation[] }) {
+  return (
+    <section className="rounded-lg border border-neutral-700 bg-neutral-950 p-4">
+      <h3 className="mb-2 font-serif text-sm text-neutral-100">Follow-up</h3>
+      <ul className="space-y-2">
+        {recs.map((r, i) => (
+          <li key={i}>
+            <a
+              href={r.href}
+              className="flex flex-col rounded border border-neutral-800 p-3 transition hover:border-sky-500"
+            >
+              <span className="mb-1 text-[10px] uppercase tracking-wide text-sky-400">
+                {r.kind}
+              </span>
+              <span className="font-serif text-sm text-neutral-200">{r.label}</span>
+              <span className="font-serif text-xs italic text-neutral-500">{r.reason}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillSimulateMyDesignButton.tsx
+"use client";
+import { useRouter } from "next/navigation";
+
+export function DrillSimulateMyDesignButton({ designId }: { designId: string }) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        router.push(`/sd/simulate?designId=${designId}&activityKind=chaos-drill`)
+      }
+      className="rounded-md border border-red-500/40 bg-red-500/5 px-4 py-2 text-sm text-red-100 transition hover:bg-red-500/10"
+    >
+      Does your design survive chaos? Run it →
+    </button>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillShareableRecapButton.tsx
+"use client";
+import { useState } from "react";
+
+/**
+ * Phase 3 ships client-side react-pdf rendering per plan open-question 7.
+ * Lazy-import keeps the react-pdf bundle out of the drill layout's critical
+ * path until the user clicks.
+ */
+export function DrillShareableRecapButton({ attemptId }: { attemptId: string }) {
+  const [generating, setGenerating] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/sd/drill-attempts/${attemptId}/recap-pdf`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const { pdf } = await import("@react-pdf/renderer");
+      const { DrillRecapDocument } = await import("./DrillRecapDocument");
+      const blob = await pdf(<DrillRecapDocument data={data} />).toBlob();
+      setPdfUrl(URL.createObjectURL(blob));
+    } finally {
+      setGenerating(false);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={generate}
+        disabled={generating}
+        className="rounded bg-sky-500 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+      >
+        {generating ? "Rendering…" : "Generate shareable PDF"}
+      </button>
+      {pdfUrl && (
+        <a
+          href={pdfUrl}
+          download={`architex-drill-${attemptId}.pdf`}
+          className="text-xs uppercase tracking-wide text-sky-400 underline"
+        >
+          Download recap PDF
+        </a>
+      )}
+    </div>
+  );
+}
+
+// architex/src/components/modules/sd/drill/DrillStreakStats.tsx
+"use client";
+
+export interface StreakStats {
+  totalDrills: number;
+  currentStreakDays: number;
+  personalBest: { score: number; persona: string; problemSlug: string };
+}
+
+export function DrillStreakStats({ stats }: { stats: StreakStats }) {
+  return (
+    <dl className="grid grid-cols-3 gap-2 text-center">
+      <div className="rounded border border-neutral-700 bg-neutral-900 p-3">
+        <dt className="text-[10px] uppercase tracking-wide text-neutral-500">total drills</dt>
+        <dd className="font-mono text-xl text-neutral-100">{stats.totalDrills}</dd>
+      </div>
+      <div className="rounded border border-neutral-700 bg-neutral-900 p-3">
+        <dt className="text-[10px] uppercase tracking-wide text-neutral-500">streak days</dt>
+        <dd className="font-mono text-xl text-neutral-100">{stats.currentStreakDays}</dd>
+      </div>
+      <div className="rounded border border-neutral-700 bg-neutral-900 p-3">
+        <dt className="text-[10px] uppercase tracking-wide text-neutral-500">personal best</dt>
+        <dd className="font-mono text-xl text-neutral-100">
+          {stats.personalBest.score.toFixed(2)}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+```
+
+- [ ] **Step 4: Rubric radar + grade-reveal tests**
+
+```tsx
+// architex/src/components/modules/sd/drill/__tests__/DrillRubricRadar.test.tsx
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { DrillRubricRadar } from "../DrillRubricRadar";
+import { RUBRIC_AXES } from "@/lib/drill/sd-drill-rubric";
+
+describe("DrillRubricRadar", () => {
+  it("renders 6 axis labels", () => {
+    const breakdown = {
+      axes: Object.fromEntries(
+        RUBRIC_AXES.map((a) => [a, { score: 3 as const, rationale: "" }]),
+      ) as any,
+      overallScore: 3,
+      graderModel: "sonnet" as const,
+      graderVersion: "v1",
+      gradedAt: "2026-04-20",
+    };
+    const { container } = render(<DrillRubricRadar breakdown={breakdown} />);
+    const texts = container.querySelectorAll("text");
+    expect(texts.length).toBe(6);
+  });
+});
+
+// architex/src/components/modules/sd/drill/__tests__/DrillGradeReveal.test.tsx
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { DrillGradeReveal } from "../DrillGradeReveal";
+
+describe("DrillGradeReveal", () => {
+  it("maps 4.5 → Stellar", () => {
+    render(<DrillGradeReveal overallScore={4.5} />);
+    expect(screen.getByText(/Stellar/)).toBeInTheDocument();
+  });
+  it("maps 2.0 → Redirect", () => {
+    render(<DrillGradeReveal overallScore={2.0} />);
+    expect(screen.getByText(/Redirect/)).toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd architex
+pnpm test:run -- DrillRubricRadar DrillGradeReveal
+git add architex/src/components/modules/sd/drill/
+git commit -m "$(cat <<'EOF'
+feat(drill-ui): post-drill artifacts · grade reveal · rubric radar · postmortem · canonical · timing · follow-up · sim-my-design · share PDF · streak stats
+
+9 components rendered together on drill completion. Grade reveal maps
+overallScore to tier (stellar/solid/coaching/redirect). Rubric radar:
+6-axis SVG polygon with per-axis labels. Postmortem panel: essay +
+misses + strengths. Canonical compare: user canvas vs. closest
+canonical (problem-registry lookup). Timing heatmap: per-stage
+deviation bands. Follow-up: 3 next-step cards. Sim-my-design: one-
+click bridge to Simulate. Share PDF: lazy-imported react-pdf
+renderer. Streak stats: total drills, streak days, personal best.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
