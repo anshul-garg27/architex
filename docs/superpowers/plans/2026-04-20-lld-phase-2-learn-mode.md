@@ -7033,3 +7033,534 @@ EOF
 ```
 
 ---
+
+## Task 24: Author `singleton.mdx` + concepts YAML (content authoring template)
+
+**Files:**
+- Create: `architex/content/lld/lessons/singleton.mdx`
+- Create: `architex/content/lld/concepts/singleton.concepts.yaml`
+- Modify: `architex/src/lib/lld/__tests__/concept-graph.test.ts` (re-enable skipped tests)
+
+This task is the full authoring template. Tasks 25-29 reuse the same shape with pattern-specific content. All MDX bodies follow spec §8 (Opus voice, 6-step pedagogy adapted into 8 sections). Each file is ~600-1200 words total, ~80-150 lines.
+
+**Authoring voice checklist (from `docs/CONTENT_STRATEGY.md`):**
+
+- Clarity beats cleverness · Confidence without arrogance · Respect reader's time
+- Every analogy: concrete nouns, memorable, technically accurate
+- Every tradeoff: "You gain X. You pay Y." phrasing
+- No filler words ("basically", "actually", "really")
+- No hype ("AMAZING!", "game-changing"), no condescension ("don't worry champ")
+
+- [ ] **Step 1: Write `singleton.mdx`**
+
+Create `architex/content/lld/lessons/singleton.mdx`. Full structure; fill prose based on the voice rules:
+
+```mdx
+---
+subtitle: One instance, globally accessible, for good and ill.
+estimatedMinutes: 9
+conceptIds:
+  - lazy-init
+  - thread-safety-double-check
+  - global-state
+  - dependency-injection-alternative
+sections:
+  itch:
+    scenario: "Your app connects to a database. How many connection pools should exist?"
+    keywords: [database-pool, logger, config]
+  definition:
+    oneLiner: "Singleton restricts a class to one instance and provides a global access point to it."
+    canonicalSource: "Gamma, Helm, Johnson, Vlissides · Design Patterns (1995), p.127"
+  mechanism:
+    steps:
+      - { index: 1, title: "Private constructor", markdown: "Outside code cannot construct new instances directly." }
+      - { index: 2, title: "Static holder field", markdown: "The class itself owns the one permitted instance." }
+      - { index: 3, title: "Public getInstance() accessor", markdown: "First call creates; subsequent calls return the same reference." }
+      - { index: 4, title: "Thread-safe first-call", markdown: "Under concurrent callers, use double-checked locking or eager init to avoid two instances." }
+  anatomy:
+    classes:
+      - { classId: Singleton, role: "The one class", responsibility: "Holds its own instance and serves it.", keyMethod: "getInstance()" }
+  numbers:
+    headline:
+      - { label: "Construction cost", value: "1×", unit: "per process" }
+      - { label: "Access cost", value: "O(1)" }
+      - { label: "Typical footprint", value: "hundreds of bytes to a few MB" }
+  uses:
+    cases:
+      - { company: "PostgreSQL JDBC", system: "Connection pool singleton", whyThisPattern: "Only one pool should govern limited socket budget." }
+      - { company: "Slf4j / Log4j", system: "LoggerContext", whyThisPattern: "Every class's logger shares a single sink." }
+      - { company: "Spring Framework", system: "ApplicationContext (by default)", whyThisPattern: "One container owns lifecycles; violating it breaks reflection lookup." }
+  failure_modes:
+    modes:
+      - { title: "Hidden global state", whatGoesWrong: "Tests that create a Singleton leave behind state that poisons the next test.", howToAvoid: "Prefer dependency injection; reserve Singleton for process-wide resources that have no alternative.", severity: high }
+      - { title: "Broken thread-safety", whatGoesWrong: "Naive lazy init creates two instances under a race.", howToAvoid: "Use eager static init, double-checked locking with `volatile`, or the Initialization-on-demand Holder idiom.", severity: medium }
+      - { title: "Serializable Singleton", whatGoesWrong: "Deserialization creates a second instance, breaking invariants.", howToAvoid: "Implement `readResolve()` to return the existing instance.", severity: low }
+checkpoints:
+  - kind: recall
+    id: sr1
+    prompt: "Which statement is TRUE about Singleton?"
+    options:
+      - { id: a, label: "Singleton and a static class are interchangeable.", isCorrect: false, whyWrong: "Static classes can't implement interfaces or be passed as arguments; Singleton can." }
+      - { id: b, label: "Singleton restricts a class to one instance and gives global access.", isCorrect: true }
+      - { id: c, label: "Singleton requires synchronized getInstance() in all languages.", isCorrect: false, whyWrong: "Eager init avoids the synchronized cost entirely." }
+      - { id: d, label: "Singleton improves testability.", isCorrect: false, whyWrong: "It harms testability — global state leaks across tests." }
+    explanation: "Singleton's contract is two-part: one instance and global access. Everything else — thread-safety approach, lazy vs eager, serialization guard — is an implementation detail."
+  - kind: apply
+    id: sa1
+    scenario: "Given these classes, which belong to the Singleton pattern for a DB connection pool?"
+    correctClassIds: [DatabaseConnectionPool]
+    distractorClassIds: [Connection, Query, TransactionManager]
+    explanation: "Only DatabaseConnectionPool plays the Singleton role. Connection and Query are created freely; TransactionManager may be Singleton or scoped — here it's not shown as one."
+  - kind: compare
+    id: sc1
+    prompt: "Which statements describe Singleton vs Monostate?"
+    left: { patternSlug: singleton, label: Singleton }
+    right: { patternSlug: monostate, label: Monostate }
+    statements:
+      - { id: s1, text: "All state is static, but any number of instances may exist.", correct: right }
+      - { id: s2, text: "getInstance() returns the one permitted instance.", correct: left }
+      - { id: s3, text: "Callers see shared state regardless of how many `new` calls happen.", correct: both }
+    explanation: "Monostate shares state via static fields without restricting instance count. Singleton restricts instance count as its primary mechanism. Both end up with effectively shared state from the caller's perspective."
+  - kind: create
+    id: scr1
+    prompt: "Design a thread-safe Config class that loads config once at startup."
+    starterCanvas:
+      classes: []
+    rubric:
+      - { criterion: "Config class with private constructor", points: 2 }
+      - { criterion: "Static holder field + public accessor", points: 2 }
+      - { criterion: "Thread-safe initialization", points: 1 }
+    referenceSolution:
+      classes:
+        - { id: Config, name: Config }
+    explanation: "Eager static init is simplest when the construction cost is acceptable at class-load. For expensive init, use the Initialization-on-demand Holder idiom: a private static holder class whose class-load triggers lazy init with zero synchronization cost."
+---
+
+<!-- Section: itch -->
+
+## The Itch
+
+Your app opens a database connection. The first query works. You write a helper, ship a feature, and two weeks later your staging environment runs out of sockets. Somebody — maybe you — is calling `new ConnectionPool()` inside a service class every time a request lands.
+
+This is the itch. Some resources physically permit only one living instance per process: a connection pool, a file-system lock, a UI theme engine. When the language gives you `new`, it's too generous. You need to *restrict creation*.
+
+<!-- Section: definition -->
+
+## Definition
+
+The pattern's contract is short and unforgiving. Exactly one instance exists per process. Any caller can reach it. Everything else — how you hide the constructor, how you guard the first call, whether you initialize eagerly or lazily — is how you *enforce* the contract. It is not the contract itself.
+
+<!-- Section: mechanism -->
+
+## Mechanism
+
+Four pieces make the contract hold:
+
+1. A **private constructor** stops outside code from saying `new`.
+2. A **static holder field** owns the one permitted instance.
+3. A **public accessor** (`getInstance()`, `instance()`, depends on language) returns the holder.
+4. A **first-call guard** ensures a concurrent race doesn't create two instances.
+
+The guard is where most production bugs live. Eager static initialization (create at class-load) eliminates the race entirely but runs even when the Singleton is never used. Double-checked locking with a `volatile` holder defers construction until the first call but costs a memory barrier read per access. Pick the trade that matches your construction cost.
+
+<!-- Section: anatomy -->
+
+## Anatomy
+
+One class plays one role.
+
+<Class id="Singleton" />
+
+Every method that modifies state must be safe to call from any thread, because "global access" means every thread calls it.
+
+<!-- Section: numbers -->
+
+## Numbers
+
+The numbers are boring and that's the point.
+
+Construction runs once per process, typically during startup, taking whatever the underlying resource takes — a few ms for a logger, a few hundred ms for a connection pool. Access afterward is O(1): a static field read is one memory load on modern CPUs. Footprint is dominated by whatever the Singleton wraps.
+
+Watch for *one* non-obvious cost: if `getInstance()` uses synchronized or volatile reads on a hot path, you pay a barrier on every access. Measure before optimizing, but know the axis on which it shows up.
+
+<!-- Section: uses -->
+
+## Uses
+
+JDBC drivers expose a DriverManager Singleton because only one driver registry makes sense per JVM. Slf4j resolves all `getLogger()` calls through a single `LoggerFactory` — the logging pipeline is global by nature. Spring's default bean scope is singleton for exactly the same reason: the container is a resource authority, not a data object.
+
+These are *good* Singletons. They own infrastructure, not domain state.
+
+<!-- Section: failure_modes -->
+
+## Failure Modes
+
+Three ways this pattern kills you, in descending frequency:
+
+First, *hidden global state*. Your unit test runs a feature; the Singleton accumulates state; the next test in the same JVM inherits it. Test isolation becomes a nightmare. The fix is uncomfortable: prefer dependency injection, and reserve Singleton for genuine process-wide resources.
+
+Second, *broken thread-safety*. A `public static SomeClass getInstance()` that checks-then-constructs without a guard will, under load, create two instances. Use eager init, double-checked locking with `volatile`, or in Java, the Holder idiom — all of which are rigorously thread-safe.
+
+Third, *unwanted duplication via serialization*. If your Singleton implements `Serializable`, deserializing creates a second instance. Add `readResolve()` to redirect deserialization to the existing instance.
+
+<!-- Section: checkpoints -->
+
+## Checkpoints
+
+See frontmatter.
+```
+
+- [ ] **Step 2: Write `singleton.concepts.yaml`**
+
+Create `architex/content/lld/concepts/singleton.concepts.yaml`:
+
+```yaml
+pattern: singleton
+concepts:
+  - id: lazy-init
+    label: Lazy Initialization
+    summary: Defer construction until first use to save startup cost — at the price of a first-call race.
+    relatedConcepts: [thread-safety-double-check]
+    relatedPatterns: [factory-method, flyweight]
+    introducedIn: [mechanism]
+  - id: thread-safety-double-check
+    label: Double-Checked Locking
+    summary: Volatile read + synchronized block to make lazy init safe under races.
+    relatedConcepts: [lazy-init]
+    relatedPatterns: [observer]
+    introducedIn: [mechanism, failure_modes]
+  - id: global-state
+    label: Global State
+    summary: State that any code can read or mutate without passing it explicitly — convenient and treacherous.
+    relatedConcepts: [dependency-injection-alternative]
+    relatedPatterns: [observer, facade]
+    introducedIn: [definition, failure_modes]
+  - id: dependency-injection-alternative
+    label: Dependency Injection (as alternative)
+    summary: Pass shared resources as parameters rather than reaching for a Singleton accessor.
+    relatedConcepts: [global-state]
+    relatedPatterns: [factory-method, abstract-factory, builder]
+    introducedIn: [failure_modes]
+confusedWith:
+  - patternSlug: monostate
+    reason: "Monostate shares state via static fields without enforcing single-instance. Singleton enforces instance count; Monostate enforces state uniformity."
+  - patternSlug: factory-method
+    reason: "Factory Method decides which concrete product to instantiate per call; Singleton restricts instantiation to one. A Factory Method could return a Singleton — they're orthogonal."
+```
+
+- [ ] **Step 3: Re-enable concept-graph tests**
+
+Open `architex/src/lib/lld/__tests__/concept-graph.test.ts`. Remove any `.skip` suffixes added in Task 16.
+
+- [ ] **Step 4: Compile + seed**
+
+```bash
+cd architex
+pnpm build:concept-graph
+pnpm compile:lld-lessons --slug=singleton
+pnpm test:run -- concept-graph
+```
+Expected: concept-graph.ts now shows ≥4 concepts + 1 pattern. Tests pass. `module_content` has a row for `(lld, lesson, singleton)`.
+
+- [ ] **Step 5: Verify lesson renders**
+
+```bash
+pnpm dev
+```
+Open `http://localhost:3000/modules/lld?mode=learn&pattern=singleton`. Expected: full 8-section lesson renders, sidebar shows singleton highlighted, TOC populated, progress bar at 0%, scroll highlights classes on canvas.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/content/lld/lessons/singleton.mdx architex/content/lld/concepts/singleton.concepts.yaml architex/src/lib/lld/concept-graph.ts architex/src/lib/lld/__tests__/concept-graph.test.ts
+git commit -m "$(cat <<'EOF'
+content(lld): author Singleton lesson (Wave 1 · pattern 1/5)
+
+Full 8-section Opus-voice MDX lesson: itch (db pool sockets
+exhaustion) → definition (GoF canonical) → mechanism (4-step enforce)
+→ anatomy (1 class) → numbers (boring-by-design) → uses (JDBC, Slf4j,
+Spring) → failure_modes (global state, thread-safety, serialization)
+→ 4 checkpoints.
+
+Concepts YAML introduces lazy-init, thread-safety-double-check,
+global-state, dependency-injection-alternative. Confused-with entries
+point to Monostate and Factory Method with differentiation copy.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Tasks 25-29: Author remaining 5 lessons
+
+Each task below uses the exact template from Task 24 with pattern-specific content. The content authoring budget is 3-4 hours per pattern (drafting, human review, Opus polish loop).
+
+### Task 25: `factory-method.mdx` + concepts
+
+- [ ] Create `architex/content/lld/lessons/factory-method.mdx` following Task 24 structure. Key ingredients:
+  - **Itch**: "Your checkout page needs to handle Stripe today, and Adyen next quarter, and Razorpay next year." (payment-processor interface)
+  - **Definition**: "Factory Method defines an interface for creating an object but lets subclasses decide which class to instantiate." (GoF p.107)
+  - **Anatomy**: Creator (abstract), ConcreteCreator, Product (interface), ConcreteProduct — 4 classes
+  - **Failure modes**: class explosion, factory-of-factories, over-parameterized create()
+  - **Confused-with**: Abstract Factory (family vs. one), Simple Factory (not a GoF pattern), Builder (step-by-step construction)
+
+- [ ] Create `architex/content/lld/concepts/factory-method.concepts.yaml` with concepts: `open-closed-principle`, `polymorphism`, `class-explosion`, `parametrized-factory`.
+
+- [ ] Run `pnpm compile:lld-lessons --slug=factory-method && pnpm build:concept-graph`.
+
+- [ ] Smoke-test in browser.
+
+- [ ] Commit with message `content(lld): author Factory Method lesson (Wave 1 · 2/5)`.
+
+### Task 26: `builder.mdx` + concepts
+
+- [ ] Create MDX per Task 24 template. Key ingredients:
+  - **Itch**: HTTP request builders — "new Request(url, headers, body, timeout, retries, backoff, …)" constructor-parameter explosion
+  - **Definition**: "Builder separates the construction of a complex object from its representation so the same construction can create different representations." (GoF p.97)
+  - **Anatomy**: Builder (interface), ConcreteBuilder, Director (optional), Product — 4 classes
+  - **Failure modes**: forgotten `.build()`, mutable builder reused across products, builder fluent-chain confusion with method chaining
+  - **Confused-with**: Factory Method (one call vs. stepwise), Fluent API (style not structure), Prototype (clone vs. compose)
+
+- [ ] Create concepts YAML with: `fluent-api`, `telescoping-constructor`, `immutable-product`, `staged-construction`.
+
+- [ ] Compile, concept graph, smoke.
+
+- [ ] Commit with message `content(lld): author Builder lesson (Wave 1 · 3/5)`.
+
+### Task 27: `abstract-factory.mdx` + concepts
+
+- [ ] Create MDX per Task 24 template. Key ingredients:
+  - **Itch**: cross-platform UI kits — "On macOS I need a MacButton + MacWindow; on Windows a WinButton + WinWindow, and they must match."
+  - **Definition**: "Abstract Factory provides an interface for creating families of related or dependent objects without specifying their concrete classes." (GoF p.87)
+  - **Anatomy**: AbstractFactory, ConcreteFactory, AbstractProduct (multiple), ConcreteProduct (multiple) — 4-6+ classes depending on family size
+  - **Failure modes**: adding a new product to the family breaks every ConcreteFactory, kit-family mismatch, over-abstraction for 1-family cases
+  - **Confused-with**: Factory Method (one method vs. an interface of methods), Builder (related products vs. parts of one product), Prototype (clone vs. create)
+
+- [ ] Create concepts YAML with: `product-family`, `kit-consistency`, `factory-of-factories`, `cross-cutting-dependency`.
+
+- [ ] Compile, concept graph, smoke.
+
+- [ ] Commit with message `content(lld): author Abstract Factory lesson (Wave 1 · 4/5)`.
+
+### Task 28: `prototype.mdx` + concepts
+
+- [ ] Create MDX per Task 24 template. Key ingredients:
+  - **Itch**: game objects with identical base config but per-instance tweaks; or UI theme variants copied from a master theme
+  - **Definition**: "Prototype specifies the kinds of objects to create using a prototypical instance and creates new objects by copying this prototype." (GoF p.117)
+  - **Anatomy**: Prototype (interface), ConcretePrototype, Client — 3 classes
+  - **Failure modes**: shallow vs. deep clone bugs, circular refs blowing the stack, clone() drift (fields added to class but not to clone())
+  - **Confused-with**: Factory Method (construct vs. copy), Builder (assemble parts vs. copy whole), Memento (snapshot vs. reuse)
+
+- [ ] Create concepts YAML with: `shallow-clone`, `deep-clone`, `registry-of-prototypes`, `mutable-state-copy`.
+
+- [ ] Compile, concept graph, smoke.
+
+- [ ] Commit with message `content(lld): author Prototype lesson (Wave 1 · 5/5)`.
+
+### Task 29: `observer.mdx` + concepts
+
+- [ ] Create MDX per Task 24 template. Key ingredients:
+  - **Itch**: a stock-ticker app where five widgets need the same price update without coupling the data source to any one widget
+  - **Definition**: "Observer defines a one-to-many dependency between objects so that when one object changes state, all its dependents are notified and updated automatically." (GoF p.293)
+  - **Anatomy**: Subject (interface), ConcreteSubject, Observer (interface), ConcreteObserver — 4 classes
+  - **Failure modes**: leaked subscriptions, notification ordering assumptions, nested-update reentrancy, fan-out cost on hot-path subjects
+  - **Confused-with**: Publish-Subscribe (broker in the middle), Mediator (one hub coordinates many), Event Emitter (concrete implementation style)
+
+- [ ] Create concepts YAML with: `push-vs-pull-update`, `notification-order`, `subscription-leak`, `reentrancy`.
+
+- [ ] Compile, concept graph, smoke.
+
+- [ ] Commit with message `content(lld): author Observer lesson (Wave 1 bonus · cross-category link)`.
+
+**Authoring playbook (applies to all content-only PRs for the remaining 30 patterns):**
+
+1. Copy `singleton.mdx` as the template. Replace frontmatter values.
+2. Write sections in order: itch → definition → mechanism → anatomy → numbers → uses → failure_modes → checkpoints.
+3. For each checkpoint, verify `whyWrong` is pattern-specific (not generic).
+4. Write `<slug>.concepts.yaml` with 3-5 concepts + 2-4 confused-with entries.
+5. Run `pnpm compile:lld-lessons --slug=<slug>` → fix any schema validation errors.
+6. Run `pnpm build:concept-graph` → verify new concepts appear.
+7. Open `/modules/lld?mode=learn&pattern=<slug>` → smoke the 8 sections render and all 4 checkpoints work.
+8. Open one PR per pattern. Title format: `content(lld): author <pattern name> lesson`.
+
+**No engineering required to add patterns #7-36.** The pipeline in Tasks 5-7 and 14-23 is sufficient.
+
+---
+
+## Task 30: End-to-end smoke test + phase commit
+
+- [ ] **Step 1: Run full verification suite**
+
+```bash
+cd architex
+pnpm typecheck
+pnpm lint
+pnpm test:run
+pnpm build
+```
+All four must pass.
+
+- [ ] **Step 2: Seed-compile all 6 patterns**
+
+```bash
+pnpm build:concept-graph
+pnpm compile:lld-lessons
+```
+Expected: 6 lessons compiled, concept-graph bundles ≥20 concepts.
+
+- [ ] **Step 3: Manual E2E walk-through (~10 min)**
+
+Open `http://localhost:3000` → sign in → click LLD → press `⌘1` (Learn mode).
+
+1. Welcome is not shown (Phase 1 banner was dismissed). Sidebar lists all 36 patterns with 6 of them in "not started" state.
+2. Click `singleton`. Lesson loads: progress bar at 0%, TOC populated on the right, `ConfusedWithPanel` below TOC with Monostate + Factory Method entries.
+3. Scroll through the 8 sections. Watch the canvas: `Singleton` class highlights when the Mechanism and Anatomy sections are in view; all classes dim to 40% otherwise. Progress bar fills as sections cross 95%.
+4. Click the `Singleton` class on the canvas → `ClassPopover` opens with role, responsibility, and jump links to Anatomy and Mechanism.
+5. Highlight a paragraph in the Definition section → "Explain this ✨" button appears above the selection → click → Haiku renders 2-3 paragraphs in the bottom-right popover.
+6. Click a bookmark icon in the Mechanism header → bookmark strip opens at the top with 1 entry → click it → scrolls back to Mechanism.
+7. Scroll to Checkpoints. Answer Recall wrong once → `whyWrong` shows. Answer again wrong → second `whyWrong`. Answer again → full reveal. Advance to Apply. Select one correct + one distractor → feedback shows missing + extra → submit correctly → advance. Advance through Compare + Create.
+8. Refresh the page. Scroll position restored, completed sections retain ticks, checkpoint stats intact.
+9. Press `⌘2` (Build) → existing canvas unchanged. Press `⌘1` → back to Learn, same pattern, same scroll position.
+10. Click another pattern (e.g. `observer`). Verify it loads; concepts differ; confused-with differs.
+11. Open DevTools → Network. Verify:
+    - `PATCH /api/lld/learn-progress/singleton` fires ~1s after each scroll burst
+    - `POST /api/lld/explain-inline` returns 200 + explanation
+    - `POST /api/lld/concept-reads` fires for concept refs with 30s rate limit
+    - `POST /api/lld/bookmarks` on bookmark create, `DELETE` on toggle-off
+
+If any step fails, fix before calling Phase 2 complete.
+
+- [ ] **Step 4: Accessibility smoke**
+
+- Tab through the lesson column: focus lands on bookmark buttons, checkpoint options, explain-button, popover close.
+- Verify each checkpoint's selected-option state is conveyed via `aria-selected` or `aria-pressed`.
+- Run Lighthouse → Accessibility → confirm ≥95 score on the Learn route.
+
+- [ ] **Step 5: Create `.progress-phase-2.md` tracker**
+
+Create `docs/superpowers/plans/.progress-phase-2.md`:
+
+```markdown
+# Phase 2 Progress Tracker
+
+- [x] Phase 1.5 pre-flight audit complete
+- [x] Task 1: lld_learn_progress schema
+- [x] Task 2: lld_concept_reads schema
+- [x] Task 3: lld_bookmarks schema
+- [x] Task 4: migrations generated + applied + cascade-verified
+- [x] Task 5: lesson-types.ts + MDX deps
+- [x] Task 6: compile-lld-lessons script
+- [x] Task 7: lesson-loader
+- [x] Task 8: learn-progress API routes
+- [x] Task 9: useLearnProgress hook
+- [x] Task 10: bookmarks API routes
+- [x] Task 11: useBookmarks hook
+- [x] Task 12: concept-reads API route
+- [x] Task 13: useLessonScrollSync hook
+- [x] Task 14: 8 lesson section components + LessonColumn + MDXRenderer
+- [x] Task 15: ClassPopover
+- [x] Task 16: concept-graph generator + prebuild hook
+- [x] Task 17: ConfusedWithPanel
+- [x] Task 18: 4 checkpoint components + grading engine
+- [x] Task 19: explain-inline API route (Haiku)
+- [x] Task 20: useSelectionExplain hook
+- [x] Task 21: ContextualExplainPopover
+- [x] Task 22: Reading aids (sidebar, progress, TOC, bookmarks strip)
+- [x] Task 23: LearnModeLayout rewrite
+- [x] Task 24: singleton lesson
+- [x] Task 25: factory-method lesson
+- [x] Task 26: builder lesson
+- [x] Task 27: abstract-factory lesson
+- [x] Task 28: prototype lesson
+- [x] Task 29: observer lesson
+- [x] Task 30: E2E smoke + phase commit
+
+Phase 2 complete on: <YYYY-MM-DD>
+Ready to start Phase 3: Review mode + Drill mode.
+```
+
+- [ ] **Step 6: Final commit + tag**
+
+```bash
+git add docs/superpowers/plans/.progress-phase-2.md
+git commit -m "$(cat <<'EOF'
+chore: Phase 2 complete — LLD Learn mode
+
+- DB: 3 new tables (lld_learn_progress / lld_concept_reads / lld_bookmarks)
+- Pipeline: MDX compile script + concept-graph generator (prebuild)
+- Hooks: useLearnProgress, useBookmarks, useLessonScrollSync,
+  useTableOfContents, useSelectionExplain
+- API: 7 new routes (learn-progress × 2, bookmarks × 2, concept-reads,
+  explain-inline, lessons)
+- UI: LearnModeLayout composes sidebar + canvas + lesson column + TOC
+  + bookmark strip + progress bar + class popover + confused-with
+  panel + contextual explain popover; 8 section components; 4
+  checkpoint kinds with progressive reveal and FSRS rating derivation
+- Content: 6 foundation patterns authored end-to-end
+  (singleton, factory-method, builder, abstract-factory, prototype,
+   observer); pipeline allows the remaining 30 to ship by content-only
+   PRs with zero engineering work
+
+Ready for Phase 3: Review + Drill modes.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+
+git tag phase-2-complete
+```
+
+---
+
+## Self-review checklist
+
+Before declaring Phase 2 shipped:
+
+**Spec coverage (§6 Learn, §7 persistence, §8 content, §9 cognitive, §12 AI, §14 components, §15 Phase 2):**
+- [x] 8-section lesson renderer — Task 14
+- [x] Scroll-sync highlight on canvas — Task 13 + Task 23
+- [x] Click class → popover with section jump links (Q7) — Task 15 + Task 23
+- [x] 4 checkpoint types with progressive reveal (Q3) — Task 18
+- [x] FSRS rating derivation (easy/good/hard/again) — Task 18
+- [x] AI explain-inline (Haiku, contextual) — Tasks 19-21
+- [x] Confused-With panel (Q9 surface 3) — Task 17 + Task 23
+- [x] Reading aids (sidebar, progress, TOC, bookmarks) — Task 22
+- [x] Content pipeline for 36 patterns — Tasks 5-7 + 16
+- [x] 6 seeded foundation patterns — Tasks 24-29
+- [x] DB-first persistence (learn_progress, concept_reads, bookmarks) — Tasks 1-4
+- [x] Analytics events for Learn mode — Task 23
+- [x] Zero regression for Build mode — no Build file modified in any task
+
+**Explicitly out of scope for Phase 2 (don't implement):**
+- Tinker mode (Q8) — deferred to Phase 2.5 or Phase 3
+- Drill-mode checkpoints (Phase 3)
+- Review-mode FSRS surface (Phase 3)
+- Pattern-room transitions (R3) — Phase 5
+- Editorial typography rollout (R5) — Phase 5 introduces the serif formally; this phase uses Tailwind `font-serif` as placeholder
+- Audio narration (C8) — Phase 4
+- Pattern mascot illustrations (V4) — Phase 4
+
+**Placeholder check:** No TBDs, no "implement later". Every step has exact code. Task 29 is the only content-authoring task with template references; all other code is complete. ✓
+
+**Type consistency:** `LessonPayload`, `LessonSectionId`, `Checkpoint`, `CompiledMDX`, `CheckpointResult`, `SectionState`, `SidebarEntry`, `Bookmark` all defined once (lesson-types.ts, lld-learn-progress.ts, checkpoint-types.ts, useBookmarks.ts, LessonSidebar.tsx) and imported consistently. ✓
+
+**Open questions flagged:**
+
+1. **React 19 `run()` API shape** — `@mdx-js/mdx`'s `run()` may return a Promise in the installed version. `MDXRenderer` has a synchronous path; if the installed version is async-only, Task 14 Step 1 has a `React.use()` fallback noted in-line. If the test harness still breaks, pre-evaluate MDX at compile time instead of runtime (Task 6 emits compiled JSX already; change lesson-loader to ship an MDX component instead of raw code).
+2. **Sidebar category source** — Task 23 `SidebarEntry` uses `p.category ?? "Other"`. If the pattern catalog doesn't expose `.category`, add a map of `slug → category` in `src/lib/lld/patterns.ts` before Task 23 ships, or fall back to "Patterns" (single group).
+3. **Haiku `cacheKey` support** — if the installed Claude client doesn't accept a `cacheKey` parameter, Task 19 will still work but loses the "repeat-selection returns cached" behavior. Add an IndexedDB-side cache with the key hash as a quick follow-up.
+4. **Canvas `readonly` + `highlightedClassIds` props** — Task 23 Step 2 flags this as conditional work. If `LLDCanvas` proves too invasive to modify, write `HighlightableLLDCanvas` wrapper (estimated +2h) and defer full integration to a polish PR.
+
+---
+
+## Execution Handoff
+
+Plan complete and saved to `docs/superpowers/plans/2026-04-20-lld-phase-2-learn-mode.md`. Two execution options:
+
+**1. Subagent-Driven (recommended)** — dispatch a fresh subagent per task, review between tasks. Content-authoring tasks (24-29) are especially well-suited to parallel subagents since each pattern is independent.
+
+**2. Inline Execution** — executing-plans, batch with checkpoints. Recommended if the Claude Haiku pre-flight (Task 19) needs more than one back-and-forth to land.
+
+Which approach?
