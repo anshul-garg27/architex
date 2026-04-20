@@ -2022,3 +2022,760 @@ EOF
 
 ---
 
+## Task 8: Generate and apply migration `0002_add_sd_module.sql`
+
+**Files:**
+- Generated: `architex/drizzle/0002_add_sd_module.sql`
+
+- [ ] **Step 1: Generate migration**
+
+```bash
+cd architex
+pnpm db:generate
+```
+
+Expected: creates `architex/drizzle/0002_<auto-name>.sql`. Drizzle picks up all 13 new tables in one migration. Rename it to the canonical spec name so humans can find it:
+
+```bash
+mv architex/drizzle/0002_<auto-name>.sql architex/drizzle/0002_add_sd_module.sql
+# Drizzle also maintains a meta file with the snapshot — keep in sync:
+# Update architex/drizzle/meta/_journal.json entry to point at the new tag if present.
+```
+
+- [ ] **Step 2: Review the SQL**
+
+Open `architex/drizzle/0002_add_sd_module.sql`. Confirm it includes all 13 `CREATE TABLE` statements (in dependency order):
+
+1. `sd_concepts`
+2. `sd_problems`
+3. `sd_concept_reads`
+4. `sd_concept_bookmarks`
+5. `sd_designs`
+6. `sd_design_snapshots`
+7. `sd_design_annotations`
+8. `sd_simulations`
+9. `sd_simulation_events`
+10. `sd_drill_attempts`
+11. `sd_drill_interviewer_turns`
+12. `sd_shares`
+13. `sd_fsrs_cards`
+
+And all the partial unique indexes:
+
+- `one_active_sim_per_user_design` on sd_simulations
+- `one_active_sd_drill_per_user` on sd_drill_attempts
+- `sd_designs_public_share_uq` partial
+- `sd_simulations_public_share_uq` partial
+- `sd_drills_public_share_uq` partial
+
+If any index is missing or wrong, delete the generated file and re-run `pnpm db:generate`. If Drizzle generates the indexes without `WHERE` clauses, you have a schema bug in Tasks 1-7 — fix the offending file and regenerate.
+
+- [ ] **Step 3: Apply migration to dev DB**
+
+```bash
+pnpm db:push
+```
+
+Expected: migration applies cleanly. If an error mentions "relation users does not exist", confirm your local DB has been seeded with prior migrations (`pnpm db:push` from baseline, or check `drizzle/meta/_journal.json`).
+
+- [ ] **Step 4: Verify tables exist via Drizzle Studio**
+
+```bash
+pnpm db:studio
+```
+
+Opens at <https://local.drizzle.studio>. Confirm all 13 `sd_*` tables appear in the sidebar. Spot-check `sd_designs` — its columns should match the schema file, and the sidebar should show 0 rows.
+
+- [ ] **Step 5: Sanity-check partial unique index by attempting a violation**
+
+In Drizzle Studio (or `psql`), run:
+
+```sql
+-- Insert two designs for the same user sharing a (null) public_slug — should succeed
+INSERT INTO sd_designs (user_id, diagram_type, canvas_state)
+VALUES ('<user_uuid>', 'system', '{}'::jsonb), ('<user_uuid>', 'system', '{}'::jsonb);
+-- Expected: ok (both rows, public_share_id is null, partial index excludes null)
+
+-- Now give them matching public_share_ids — should fail on second insert
+UPDATE sd_designs SET public_share_id = 'abc123' WHERE id = '<first-uuid>';
+UPDATE sd_designs SET public_share_id = 'abc123' WHERE id = '<second-uuid>';
+-- Expected: ERROR: duplicate key value violates unique constraint "sd_designs_public_share_uq"
+```
+
+If the second UPDATE succeeds, the partial index is misspelled. Fix the schema file and re-run `pnpm db:generate && pnpm db:push`.
+
+Clean up the test rows:
+
+```sql
+DELETE FROM sd_designs WHERE user_id = '<user_uuid>';
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/drizzle/0002_add_sd_module.sql architex/drizzle/meta/
+git commit -m "$(cat <<'EOF'
+feat(db): generate and apply 0002_add_sd_module migration
+
+All 13 SD tables + 5 partial unique indexes land in one atomic migration.
+Additive-only — no changes to LLD or core tables. Verified against dev
+DB via Drizzle Studio and a manual unique-violation smoke test.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 9: Extend `ui-store` with `sdMode` + welcome banner slice
+
+**Files:**
+- Modify: `architex/src/stores/ui-store.ts`
+- Test: `architex/src/stores/__tests__/ui-store.sd.test.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/stores/__tests__/ui-store.sd.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach } from "vitest";
+import { useUIStore } from "@/stores/ui-store";
+
+describe("ui-store · sd slice", () => {
+  beforeEach(() => {
+    useUIStore.setState({
+      sdMode: null,
+      sdWelcomeBannerDismissed: false,
+      sdOnboardingComplete: false,
+    });
+  });
+
+  it("has null sdMode by default (first visit)", () => {
+    expect(useUIStore.getState().sdMode).toBeNull();
+  });
+
+  it("setSDMode updates mode", () => {
+    useUIStore.getState().setSDMode("learn");
+    expect(useUIStore.getState().sdMode).toBe("learn");
+  });
+
+  it("setSDMode persists across calls", () => {
+    useUIStore.getState().setSDMode("simulate");
+    useUIStore.getState().setSDMode("drill");
+    expect(useUIStore.getState().sdMode).toBe("drill");
+  });
+
+  it("dismissSDWelcomeBanner sets flag", () => {
+    expect(useUIStore.getState().sdWelcomeBannerDismissed).toBe(false);
+    useUIStore.getState().dismissSDWelcomeBanner();
+    expect(useUIStore.getState().sdWelcomeBannerDismissed).toBe(true);
+  });
+
+  it("completeSDOnboarding sets flag", () => {
+    useUIStore.getState().completeSDOnboarding();
+    expect(useUIStore.getState().sdOnboardingComplete).toBe(true);
+  });
+
+  it("accepts all five mode values", () => {
+    const modes = ["learn", "build", "simulate", "drill", "review"] as const;
+    for (const m of modes) {
+      useUIStore.getState().setSDMode(m);
+      expect(useUIStore.getState().sdMode).toBe(m);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd architex
+pnpm test:run -- ui-store.sd
+```
+
+Expected: FAIL with `TypeError: useUIStore.getState().setSDMode is not a function`.
+
+- [ ] **Step 3: Extend the store**
+
+Open `architex/src/stores/ui-store.ts`. Add the type export near the top (under `AnimationSpeed`):
+
+```typescript
+export type SDMode = "learn" | "build" | "simulate" | "drill" | "review";
+```
+
+In the `UIState` interface, add the new fields alongside the existing LLD slice:
+
+```typescript
+  // SD mode state
+  sdMode: SDMode | null;              // null = first visit
+  sdWelcomeBannerDismissed: boolean;
+  sdOnboardingComplete: boolean;      // 90-sec guided tour shown (spec §18.6)
+
+  setSDMode: (mode: SDMode) => void;
+  dismissSDWelcomeBanner: () => void;
+  completeSDOnboarding: () => void;
+```
+
+In the store creator (inside `create<UIState>()((set) => ({` or similar), add initial values and action implementations:
+
+```typescript
+      sdMode: null,
+      sdWelcomeBannerDismissed: false,
+      sdOnboardingComplete: false,
+
+      setSDMode: (mode) => set({ sdMode: mode }),
+      dismissSDWelcomeBanner: () => set({ sdWelcomeBannerDismissed: true }),
+      completeSDOnboarding: () => set({ sdOnboardingComplete: true }),
+```
+
+Extend the `persist` middleware's `partialize` to include the three new fields:
+
+```typescript
+      partialize: (state) => ({
+        activeModule: state.activeModule,
+        recentModules: state.recentModules,
+        recentlyStudied: state.recentlyStudied,
+        sidebarOpen: state.sidebarOpen,
+        propertiesPanelOpen: state.propertiesPanelOpen,
+        bottomPanelOpen: state.bottomPanelOpen,
+        bottomPanelTab: state.bottomPanelTab,
+        theme: state.theme,
+        animationSpeed: state.animationSpeed,
+        timelineVisible: state.timelineVisible,
+        minimapVisible: state.minimapVisible,
+        // SD slice
+        sdMode: state.sdMode,
+        sdWelcomeBannerDismissed: state.sdWelcomeBannerDismissed,
+        sdOnboardingComplete: state.sdOnboardingComplete,
+      }),
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- ui-store.sd
+```
+
+Expected: PASS · all 6 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/stores/ui-store.ts \
+        architex/src/stores/__tests__/ui-store.sd.test.ts
+git commit -m "$(cat <<'EOF'
+feat(stores): add sdMode slice to ui-store
+
+Adds sdMode state + setSDMode action to support 5-mode SD shell
+(Learn / Build / Simulate / Drill / Review). Null default = first
+visit. Also tracks welcome-banner dismissal and 90-sec onboarding
+completion. All three fields persist to localStorage via the
+existing persist middleware.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 10: Create new `sd-store` with `activeSDDrill` + `activeSDSim` slices
+
+**Files:**
+- Create: `architex/src/stores/sd-store.ts`
+- Test: `architex/src/stores/__tests__/sd-store.test.ts`
+
+The `sd-store` holds **transient** SD state that should not persist to localStorage (server is the source of truth). Active drill and active simulation rows come from the DB at page load; this store mirrors them for fast UI access and pause/resume accounting.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/stores/__tests__/sd-store.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { useSDStore } from "@/stores/sd-store";
+
+describe("sd-store · drill + sim slices", () => {
+  beforeEach(() => {
+    useSDStore.setState({ activeSDDrill: null, activeSDSim: null });
+  });
+
+  it("has null activeSDDrill by default", () => {
+    expect(useSDStore.getState().activeSDDrill).toBeNull();
+  });
+
+  it("has null activeSDSim by default", () => {
+    expect(useSDStore.getState().activeSDSim).toBeNull();
+  });
+
+  it("startSDDrill creates an active drill record", () => {
+    useSDStore
+      .getState()
+      .startSDDrill({
+        id: "drill-1",
+        problemSlug: "url-shortener",
+        mode: "timed",
+        persona: "senior-staff-google",
+        companyPreset: "google",
+        durationLimitMs: 45 * 60 * 1000,
+      });
+    const drill = useSDStore.getState().activeSDDrill;
+    expect(drill?.id).toBe("drill-1");
+    expect(drill?.mode).toBe("timed");
+    expect(drill?.currentStage).toBe(1);
+    expect(drill?.pausedAt).toBeNull();
+  });
+
+  it("advanceStage increments currentStage and records stage time", () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    useSDStore.getState().startSDDrill({
+      id: "drill-1",
+      problemSlug: "url-shortener",
+      mode: "timed",
+      persona: "s",
+      companyPreset: null,
+      durationLimitMs: 45 * 60 * 1000,
+    });
+    vi.spyOn(Date, "now").mockReturnValue(1_000_000 + 90_000);
+    useSDStore.getState().advanceStage();
+    const drill = useSDStore.getState().activeSDDrill;
+    expect(drill?.currentStage).toBe(2);
+    expect(drill?.stageTimes[1]).toBe(90_000);
+    vi.restoreAllMocks();
+  });
+
+  it("abandonSDDrill clears the active drill", () => {
+    useSDStore.getState().startSDDrill({
+      id: "drill-1",
+      problemSlug: "x",
+      mode: "timed",
+      persona: "s",
+      companyPreset: null,
+      durationLimitMs: 45 * 60 * 1000,
+    });
+    useSDStore.getState().abandonSDDrill();
+    expect(useSDStore.getState().activeSDDrill).toBeNull();
+  });
+
+  it("startSDSim creates an active sim record", () => {
+    useSDStore.getState().startSDSim({
+      id: "sim-1",
+      designId: "design-1",
+      activity: "stress",
+      scaleDau: "1M",
+    });
+    const sim = useSDStore.getState().activeSDSim;
+    expect(sim?.id).toBe("sim-1");
+    expect(sim?.activity).toBe("stress");
+    expect(sim?.startedAt).toBeGreaterThan(0);
+  });
+
+  it("completeSDSim clears the active sim", () => {
+    useSDStore.getState().startSDSim({
+      id: "sim-1",
+      designId: "d1",
+      activity: "validate",
+      scaleDau: "100k",
+    });
+    useSDStore.getState().completeSDSim();
+    expect(useSDStore.getState().activeSDSim).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- sd-store
+```
+
+Expected: FAIL with `Cannot find module '@/stores/sd-store'`.
+
+- [ ] **Step 3: Create the store**
+
+Create `architex/src/stores/sd-store.ts`:
+
+```typescript
+import { create } from "zustand";
+
+export type SDDrillMode =
+  | "study"
+  | "timed"
+  | "exam"
+  | "pair"
+  | "review"
+  | "full-stack"
+  | "verbal";
+
+export type SDSimActivity =
+  | "validate"
+  | "stress"
+  | "chaos"
+  | "compare"
+  | "forecast"
+  | "archaeology";
+
+export type SDScaleDau = "10k" | "100k" | "1M" | "10M" | "100M" | "1B";
+
+export interface ActiveSDDrill {
+  id: string; // sd_drill_attempts.id
+  problemSlug: string;
+  mode: SDDrillMode;
+  persona: string | null;
+  companyPreset: string | null;
+  startedAt: number; // epoch ms
+  pausedAt: number | null;
+  currentStage: 1 | 2 | 3 | 4 | 5;
+  stageTimes: Partial<Record<1 | 2 | 3 | 4 | 5, number>>;
+  durationLimitMs: number;
+  hintsUsed: Array<{ tier: "nudge" | "guided" | "full"; usedAt: number }>;
+}
+
+export interface ActiveSDSim {
+  id: string; // sd_simulations.id
+  designId: string | null;
+  activity: SDSimActivity;
+  scaleDau: SDScaleDau;
+  startedAt: number; // epoch ms
+  simTickMs: number; // sim clock, starts at 0
+  pausedAt: number | null;
+}
+
+interface SDState {
+  activeSDDrill: ActiveSDDrill | null;
+  activeSDSim: ActiveSDSim | null;
+
+  // Drill actions
+  startSDDrill: (args: {
+    id: string;
+    problemSlug: string;
+    mode: SDDrillMode;
+    persona: string | null;
+    companyPreset: string | null;
+    durationLimitMs: number;
+  }) => void;
+  advanceStage: () => void;
+  pauseSDDrill: () => void;
+  resumeSDDrill: () => void;
+  submitSDDrill: () => void;
+  abandonSDDrill: () => void;
+  useSDHint: (tier: "nudge" | "guided" | "full") => void;
+
+  // Sim actions
+  startSDSim: (args: {
+    id: string;
+    designId: string | null;
+    activity: SDSimActivity;
+    scaleDau: SDScaleDau;
+  }) => void;
+  tickSDSim: (simTickMs: number) => void;
+  pauseSDSim: () => void;
+  resumeSDSim: () => void;
+  completeSDSim: () => void;
+  abandonSDSim: () => void;
+}
+
+export const useSDStore = create<SDState>()((set, get) => ({
+  activeSDDrill: null,
+  activeSDSim: null,
+
+  startSDDrill: ({ id, problemSlug, mode, persona, companyPreset, durationLimitMs }) => {
+    set({
+      activeSDDrill: {
+        id,
+        problemSlug,
+        mode,
+        persona,
+        companyPreset,
+        startedAt: Date.now(),
+        pausedAt: null,
+        currentStage: 1,
+        stageTimes: {},
+        durationLimitMs,
+        hintsUsed: [],
+      },
+    });
+  },
+
+  advanceStage: () => {
+    const current = get().activeSDDrill;
+    if (!current) return;
+    const now = Date.now();
+    const stageStart = current.startedAt + Object.values(current.stageTimes)
+      .reduce((a, b) => a + b, 0);
+    const stageElapsed = now - stageStart;
+    const nextStage = (current.currentStage + 1) as 1 | 2 | 3 | 4 | 5;
+    if (nextStage > 5) return;
+    set({
+      activeSDDrill: {
+        ...current,
+        currentStage: nextStage,
+        stageTimes: {
+          ...current.stageTimes,
+          [current.currentStage]: stageElapsed,
+        },
+      },
+    });
+  },
+
+  pauseSDDrill: () => {
+    const current = get().activeSDDrill;
+    if (!current || current.pausedAt !== null) return;
+    set({ activeSDDrill: { ...current, pausedAt: Date.now() } });
+  },
+
+  resumeSDDrill: () => {
+    const current = get().activeSDDrill;
+    if (!current || current.pausedAt === null) return;
+    set({ activeSDDrill: { ...current, pausedAt: null } });
+  },
+
+  submitSDDrill: () => set({ activeSDDrill: null }),
+  abandonSDDrill: () => set({ activeSDDrill: null }),
+
+  useSDHint: (tier) => {
+    const current = get().activeSDDrill;
+    if (!current) return;
+    set({
+      activeSDDrill: {
+        ...current,
+        hintsUsed: [...current.hintsUsed, { tier, usedAt: Date.now() }],
+      },
+    });
+  },
+
+  startSDSim: ({ id, designId, activity, scaleDau }) => {
+    set({
+      activeSDSim: {
+        id,
+        designId,
+        activity,
+        scaleDau,
+        startedAt: Date.now(),
+        simTickMs: 0,
+        pausedAt: null,
+      },
+    });
+  },
+
+  tickSDSim: (simTickMs) => {
+    const current = get().activeSDSim;
+    if (!current) return;
+    set({ activeSDSim: { ...current, simTickMs } });
+  },
+
+  pauseSDSim: () => {
+    const current = get().activeSDSim;
+    if (!current || current.pausedAt !== null) return;
+    set({ activeSDSim: { ...current, pausedAt: Date.now() } });
+  },
+
+  resumeSDSim: () => {
+    const current = get().activeSDSim;
+    if (!current || current.pausedAt === null) return;
+    set({ activeSDSim: { ...current, pausedAt: null } });
+  },
+
+  completeSDSim: () => set({ activeSDSim: null }),
+  abandonSDSim: () => set({ activeSDSim: null }),
+}));
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- sd-store
+```
+
+Expected: PASS · all 7 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/stores/sd-store.ts architex/src/stores/__tests__/sd-store.test.ts
+git commit -m "$(cat <<'EOF'
+feat(stores): add sd-store with activeSDDrill + activeSDSim slices
+
+Transient store — NOT persisted to localStorage. Server is source of
+truth for drill and sim rows; store mirrors them for fast UI access
+and pause/resume time accounting.
+
+- activeSDDrill: tracks 5-stage progression with stage_times map,
+  pause/resume, hint usage.
+- activeSDSim: tracks sim-tick clock, activity, scale, pause/resume.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 11: Create `useSDModeSync` hook (URL ↔ store)
+
+**Files:**
+- Create: `architex/src/hooks/useSDModeSync.ts`
+- Test: `architex/src/hooks/__tests__/useSDModeSync.test.tsx`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useSDModeSync.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+
+const { replaceMock, searchParamsMock } = vi.hoisted(() => ({
+  replaceMock: vi.fn(),
+  searchParamsMock: new URLSearchParams(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: replaceMock }),
+  useSearchParams: () => searchParamsMock,
+}));
+
+import { useSDModeSync } from "@/hooks/useSDModeSync";
+import { useUIStore } from "@/stores/ui-store";
+
+describe("useSDModeSync", () => {
+  beforeEach(() => {
+    useUIStore.setState({ sdMode: null });
+    replaceMock.mockClear();
+    Array.from(searchParamsMock.keys()).forEach((k) => searchParamsMock.delete(k));
+  });
+
+  it("reads mode from URL param on mount", () => {
+    searchParamsMock.set("mode", "learn");
+    renderHook(() => useSDModeSync());
+    expect(useUIStore.getState().sdMode).toBe("learn");
+  });
+
+  it("accepts all five modes", () => {
+    for (const m of ["learn", "build", "simulate", "drill", "review"] as const) {
+      useUIStore.setState({ sdMode: null });
+      searchParamsMock.set("mode", m);
+      renderHook(() => useSDModeSync());
+      expect(useUIStore.getState().sdMode).toBe(m);
+    }
+  });
+
+  it("ignores invalid mode values", () => {
+    searchParamsMock.set("mode", "garbage");
+    renderHook(() => useSDModeSync());
+    expect(useUIStore.getState().sdMode).toBeNull();
+  });
+
+  it("does not overwrite store if URL has no mode param", () => {
+    useUIStore.getState().setSDMode("build");
+    renderHook(() => useSDModeSync());
+    expect(useUIStore.getState().sdMode).toBe("build");
+  });
+
+  it("updates URL when store mode changes", () => {
+    renderHook(() => useSDModeSync());
+    useUIStore.getState().setSDMode("simulate");
+    expect(replaceMock).toHaveBeenCalledWith(
+      expect.stringContaining("mode=simulate"),
+      expect.objectContaining({ scroll: false }),
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useSDModeSync
+```
+
+Expected: FAIL with `Cannot find module '@/hooks/useSDModeSync'`.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useSDModeSync.ts`:
+
+```typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useUIStore, type SDMode } from "@/stores/ui-store";
+
+const VALID_SD_MODES: readonly SDMode[] = [
+  "learn",
+  "build",
+  "simulate",
+  "drill",
+  "review",
+] as const;
+
+function isValidSDMode(value: unknown): value is SDMode {
+  return (
+    typeof value === "string" &&
+    (VALID_SD_MODES as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Bidirectional sync between the `?mode=` URL query param and
+ * `ui-store.sdMode`. Uses `router.replace` (not push) so mode switching
+ * does not pollute browser history.
+ *
+ * Parallel to `useLLDModeSync` but scoped to the SD module.
+ */
+export function useSDModeSync(): void {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = useUIStore((s) => s.sdMode);
+  const setSDMode = useUIStore((s) => s.setSDMode);
+
+  // URL → store
+  useEffect(() => {
+    const urlMode = searchParams.get("mode");
+    if (isValidSDMode(urlMode) && urlMode !== mode) {
+      setSDMode(urlMode);
+    }
+    // First-mount URL wins, then store is authoritative.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, setSDMode]);
+
+  // store → URL
+  useEffect(() => {
+    if (!mode) return;
+    if (searchParams.get("mode") === mode) return;
+    const params = new URLSearchParams(searchParams);
+    params.set("mode", mode);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [mode, router, searchParams]);
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useSDModeSync
+```
+
+Expected: PASS · all 5 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useSDModeSync.ts \
+        architex/src/hooks/__tests__/useSDModeSync.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): add useSDModeSync for URL ↔ store sync
+
+Bidirectional sync between ?mode= and ui-store.sdMode. Accepts all
+five modes (learn/build/simulate/drill/review). Uses router.replace
+to avoid polluting browser history. Validates mode against allowlist.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
