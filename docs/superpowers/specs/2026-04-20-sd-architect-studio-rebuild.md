@@ -3684,6 +3684,203 @@ These are the formulas captured in the brainstorm. They produce realistic-lookin
 
 ---
 
+### 29.6 Edge Routing · six algorithms, one per diagram type (B12·Q60 → all)
+
+**The decision.** Architex SD ships **six edge-routing algorithms**. The routing algorithm is selected automatically per diagram type (§11.1); the user can override per-edge if they want a non-default look. Algorithm-per-diagram-type is the shipping contract, not "pick one algorithm and make it work everywhere" (the LLD approach that fails at SD scale).
+
+| # | Algorithm | Used for | Why this diagram type |
+|---|---|---|---|
+| 1 | **A\* with container penalty** | Architecture (boxes) | Default. Routes around nested groups (VPCs, clusters). Penalizes edges that cut through containers. |
+| 2 | **Orthogonal (Manhattan) routing** | Deployment topology, Network topology | Physical / logical placement benefits from right-angle edges — the eye reads them as rack cables, not call paths. |
+| 3 | **Bezier curves** | Async / streaming edges (all diagram types where dashed or dotted edge kind is used — §11.3) | Visually distinguishes sync from async. Bezier curve for async; straight / orthogonal for sync. |
+| 4 | **Force-directed edges** | Service mesh, Cascade / blast-radius | The canvas is already force-laid-out (§29.7 · d3-force); edge routing that respects force gradients keeps the view consistent. |
+| 5 | **Edge bundling** | Architecture with heavy inter-service traffic; Service mesh | Parallel edges between the same pair of nodes (or the same pair of subgraphs) collapse into a single stroke with a thickness ∝ edge count. Reduces visual noise. |
+| 6 | **Crossing minimization (incremental OSage-style)** | Sequence, Swimlanes | Minimizes edge crossings after each edit. Incremental so the diagram doesn't jitter on keystroke. |
+
+**Options considered.**
+
+- **Option A · One algorithm (A*).** Simple. Works for Architecture. Fails on Service Mesh (A* treats nodes as obstacles and Service Mesh has many overlapping nodes by design). Fails on Sequence (sequence diagrams want Manhattan routing by convention). Rejected because diagram types have conventions and violating them breaks pedagogy.
+- **Option B · All 6, one per type (chosen).** Each algorithm ships and each diagram type has a defined default.
+- **Option C · User picks per-edge.** Power-user flexibility; friction for 95% of users. Rejected as default; supported as an override.
+
+**Why ship all 6.** The canvas is **vocabulary** (§11 quote). Routing is part of that vocabulary. A Sequence diagram with Bezier edges reads as an architecture diagram; a Service Mesh with Manhattan edges reads as a deployment topology. Routing is not cosmetic; it is semantic. We cannot teach 10 diagram types with one routing algorithm and claim our vocabulary is rich.
+
+**Implementation notes.**
+
+- A* implementation: grid-based with 8-way connectivity, container-penalty weight = 10 (edges prefer to go around containers), priority-queue cost = Manhattan distance.
+- Orthogonal routing: flat-segment algorithm with 3 bends max per edge; collision-avoid by routing through channel corridors between nodes.
+- Bezier: quadratic Bezier with control point offset 30% of the edge length perpendicular to the midpoint; direction alternates for parallel edges to avoid overlap.
+- Force-directed edges: edge lengths are springs with rest length = ideal-edge-length, stiffness = f(edge.kind).
+- Edge bundling: adapted from Holten's hierarchical edge bundling; bundles computed after auto-layout (§29.7) so they respect the tree structure.
+- Crossing minimization: layer-by-layer barycenter heuristic; incremental mode moves at most the 2-hop neighborhood of the edited node.
+- All six algorithms run **client-side**, off the main thread where possible (ELK + crossing-minimization are WebWorker-backed; A* is main-thread for interactivity).
+- Performance budget: routing computation < 100ms for 150 edges on the 2020 MacBook Air baseline. Past that, the UI shows a "computing layout" spinner and blocks edits.
+
+**Pedagogical subtlety.** Edge routing teaches **diagram literacy**. A user who watches their Architecture diagram auto-convert to an orthogonal Deployment Topology diagram — with edges re-routing as rack cables — learns that the two diagrams are **the same information in two conventions**. That is a first-principles lesson about communication, not just rendering.
+
+**Open question (29.11).** Is "all 6 routing" too much for initial phases? Candidate cut: edge bundling (algorithm 5). It is the most algorithmically involved and the least pedagogically critical (an Architecture diagram is readable without bundling; just busier). **Recommendation:** ship algorithms 1, 2, 3, 4, 6 in Phase 3; add 5 in Phase 5 as a polish pass. This is flagged in §29.11.
+
+---
+
+### 29.7 Auto-Layout · six algorithms, diagram-driven defaults (B12·Q61 → all)
+
+**The decision.** Architex SD ships **six auto-layout algorithms**. Like routing (§29.6), the layout is selected per diagram type; users can override. Auto-layout runs on diagram load, on diagram-type switch, and on user-requested re-layout (⌘L). It does **not** run on every edit — edit-time layout causes jitter; edits use incremental re-layout (§29.7 · algorithm 6) by default.
+
+| # | Algorithm | Used for | Library |
+|---|---|---|---|
+| 1 | **Dagre (layered, hierarchical)** | Architecture, Data flow | `dagre` npm package |
+| 2 | **ELK (Eclipse Layout Kernel)** | Deployment topology, Network topology | `elkjs` (WebWorker) |
+| 3 | **d3-force (force-directed)** | Service mesh, Cascade / blast-radius, State machine | `d3-force` npm package |
+| 4 | **Swimlane (columnar)** | Conway's Law / ownership, Sequence | Custom implementation (~300 lines) |
+| 5 | **Radial** | Blast-radius views in Simulate | Custom (~200 lines) |
+| 6 | **Incremental re-layout** | Every edit | Wraps 1-5 with diff-aware dispatch |
+
+**Options considered.**
+
+- **Option A · Dagre only.** Covers Architecture and Data flow well. Fails on Service Mesh (Dagre produces a line; we want a concentric layout). Fails on Sequence (Dagre produces layers; we want swimlanes). Rejected.
+- **Option B · All 6 (chosen).** Each diagram type gets a layout that matches its convention.
+- **Option C · User picks.** Rejected as default; supported as override.
+
+**Why ship all 6.** Same argument as §29.6 — layout is part of the vocabulary. A Service Mesh laid out with Dagre reads as an Architecture; a Sequence laid out with d3-force is unreadable. We are teaching **10 conventions** and layout is half of each convention.
+
+**Implementation notes.**
+
+- **Dagre** handles layered graphs cleanly. Parameters: `rankdir: 'LR'` for Architecture (left-to-right: client → edge → app → data), `rankdir: 'TB'` for Data flow, node separation = 80px, rank separation = 160px.
+- **ELK** runs in a WebWorker because its layered algorithm is O(n²) on edge-count and would block the main thread for > 100ms past 100 nodes. Parameters: `layered` with `spacing.nodeNode: 80`, `layered.spacing.edgeNode: 40`, `hierarchyHandling: INCLUDE_CHILDREN` (this is what makes nested containers work — VPCs, clusters, AZs).
+- **d3-force** simulates a physics system — nodes repel each other, edges are springs, the system settles. Parameters: `forceLink` with distance proportional to edge length; `forceManyBody` with strength = -200; `forceCenter` to keep the graph centered. Settles in < 200 ticks for < 200 nodes.
+- **Swimlane** is custom. Columns are teams (Conway's Law) or message sources (Sequence). Within a column, nodes stack vertically in message-order (Sequence) or responsibility-order (Conway's). Column width auto-scales to the widest node in the column.
+- **Radial** places a selected focus node at center; nodes at graph-distance k are placed on a circle of radius k·120px; angles are assigned by a golden-angle spiral to maximize visual separation.
+- **Incremental re-layout** is the subtle one. On node add, it runs the diagram's default layout only on the **1-hop neighborhood** of the added node and freezes the rest. On node delete, it runs the default layout on the 1-hop neighborhood of the deleted node (to fill the gap smoothly). On edge add/delete, it runs incremental edge routing (§29.6) only. This is the difference between a canvas that feels alive and a canvas that jitters — the living-lab principle applied to layout.
+
+**Jitter budget (from §29.0 acceptance test).** Adding a node must move the surrounding graph by less than 40 pixels at steady state. Adding an edge must not move any node. Deleting a node must not produce visible motion in nodes > 2 hops away.
+
+**Pedagogical subtlety.** Auto-layout teaches **taste**. A well-laid-out diagram is a readable diagram. If the user relies on auto-layout for their first week, they develop an intuition for what "good" looks like — left-to-right for pipelines, swimlanes for teams, concentric for service meshes. Then, as they customize, they customize from a correct foundation. This is the same mechanism by which Prettier taught a generation of JavaScript developers to format their code.
+
+**Cross-module consistency.** LLD uses Dagre (algorithm 1) only, because LLD diagrams are always class-diagrams or sequence-diagrams and Dagre handles both. SD inherits the Dagre integration and adds five more.
+
+---
+
+### 29.8 Deterministic Replay · seeded RNG + event log + keyframes (B12·Q62 → Option B)
+
+**The decision.** Simulations are **deterministic and replayable**. Each run carries a seeded RNG, a timestamped event log, and periodic **keyframe snapshots** (every 30 sim-seconds). Replay to time `t` = load the keyframe at `floor(t/30s)` + replay events from there to `t`. Fast scrubbing (§8.6.2 Time Scrubber). What-If branching (§8.6.7) = fork the keyframe at `t`, change the seed or the config, diverge.
+
+**Options considered.**
+
+- **Option A · Re-run from scratch.** Simple. Slow — scrubbing to minute 30 means 30 minutes of recomputation (even at 30x dilation, 1 real-minute). Unusable for scrubbing.
+- **Option B · Seeded RNG + event log + keyframe snapshots every 30s (chosen).** Scrub cost is at most 30 sim-seconds of replay from the nearest keyframe. Fast (sub-100ms) for scrub; fast for fork.
+- **Option C · Record every frame.** Memory-heavy. A 30-minute sim at 30fps with 200 nodes and full metric state = ~5 GB. Rejected.
+
+**Why Option B wins.** Three requirements make this the only correct answer. (1) **Scrubbing (§8.6.2)** must be sub-second to feel like scrubbing. (2) **What-If branching (§8.6.7)** must be forkable from any point, cheap. (3) **Replay-sharing (Q41)** must produce a read-only URL that plays back bit-identically on another machine. The keyframe+event-log pattern is standard in game engines (Quake, CSGO, Overwatch), streaming video (HLS keyframes every 2s), and database replication (WAL + snapshot). Well-trodden ground.
+
+**Implementation notes.**
+
+```typescript
+interface SimState {
+  rngSeed: number
+  simTimeMs: number
+  nodes: Record<string, NodeState>
+  edges: Record<string, EdgeState>
+  // metrics, chaos events, etc.
+}
+
+interface SimRun {
+  config: SimConfig             // load model, chaos scenario, node configs
+  rngSeed: number               // top-level; per-node RNGs are derived
+  eventLog: TimestampedEvent[]  // every arrival, every chaos event, every user action
+  snapshots: SimState[]         // every 30 sim-seconds
+  finalState: SimState
+}
+
+function replay(run: SimRun, atSimTimeMs: number): SimState {
+  const kfIndex = Math.floor(atSimTimeMs / 30_000)
+  let state = structuredClone(run.snapshots[kfIndex])
+  const startMs = kfIndex * 30_000
+  for (const ev of run.eventLog) {
+    if (ev.simTimeMs > startMs && ev.simTimeMs <= atSimTimeMs) {
+      state = applyEvent(state, ev)
+    }
+  }
+  return state
+}
+
+function fork(run: SimRun, atSimTimeMs: number, mutation: Partial<SimConfig>): SimRun {
+  const forkedState = replay(run, atSimTimeMs)
+  return createRun({
+    ...run.config,
+    ...mutation,
+    startingState: forkedState,
+    rngSeed: hash(run.rngSeed, atSimTimeMs),  // divergent seed
+  })
+}
+```
+
+- Snapshot size: ~20 KB per snapshot for a 200-node run. 30-minute run = 60 snapshots = 1.2 MB. Compresses to ~200 KB gzipped. Fits in a `SDSimulationRun` row blob.
+- Event log size: ~50 events/sim-second × 1800 sim-seconds = ~90k events × 50 bytes = ~4.5 MB raw; ~300 KB compressed.
+- All RNG uses a single deterministic PRNG (Mulberry32 or similar — <1KB of code; acceptable randomness). Per-node RNGs are derived: `nodeSeed = hash(runSeed, nodeId)`. This guarantees that changing one node's config does not cascade-change every other node's noise.
+- **Cross-machine replay.** Because the state is fully captured in the `SimRun` JSON, replay on a different machine produces bit-identical state. This is the shareable-drill property (§19.1 · Q41) made technically honest.
+- **Replay + chaos.** Chaos events are in the event log like any other event. Replaying a run produces the same cascade. Forking a run at the moment before a chaos event and disabling it is how "what-if I had had a circuit breaker here" questions are answered.
+- **Replay + coach.** Whisper-mode coach interventions (§15) are not in the event log — they are re-derived from state, so a replay of the same run will produce the same coaching, but a fork will produce new coaching appropriate to the divergent state. This is intentional.
+
+**Engineering cost.** This is the single largest new infrastructure investment in §29. Roughly 1.5 KLOC of new code in `architex/src/lib/simulation/replay/` covering the snapshot serializer, event log writer, deterministic PRNG, fork manager, and integration with `time-travel.ts` and `what-if-engine.ts` (existing files). Expected Phase 5 delivery (§29.11).
+
+---
+
+### 29.9 Request Tracing · Span Tree Waterfall (B12·Q63 → Option B)
+
+**The decision.** When the user clicks a request (or the whisper-coach points at one), the UI shows a **Jaeger / Honeycomb-style waterfall** — a span tree where each bar is one service span, horizontally positioned by start time and sized by duration. Parallel spans stack vertically; serialized spans run left-to-right. Clicking a span zooms to the corresponding service on the canvas.
+
+**Options considered.**
+
+- **Option A · Numeric latency breakdown table.** "Gateway: 12ms, Auth: 4ms, DB: 47ms". Accurate; unreadable at scale. Teaches arithmetic, not architecture. Rejected.
+- **Option B · Span-tree waterfall (chosen).** Visual; standard; teaches parallelism-vs-serialization at a glance.
+- **Option C · Call graph with latency labels.** Useful for dependency-debugging; not useful for latency pedagogy (the call graph hides timing). Supported in Build mode via the blast-radius overlay (§11.4) but not the primary tracing UI.
+
+**Why Option B wins.** Distributed-systems latency is a **tree**, not a sum. A request that fans out to 5 parallel services and then awaits all takes max(them), not sum(them). A request that serializes them takes sum(them). The difference between these two architectures is **the difference between p99 = 80ms and p99 = 400ms**. That difference is invisible in a table and obvious in a waterfall. The waterfall teaches the amdahl's-law intuition that most junior engineers are missing.
+
+**Implementation notes.**
+
+- Span model follows OpenTelemetry: `{ spanId, parentSpanId, traceId, serviceName, operationName, startMs, endMs, attributes, events[] }`.
+- Spans are emitted by the simulation engine as a by-product of request processing. Each node's `handleRequest` returns a span contribution; the engine stitches them into a tree by parentSpanId.
+- Trace capture is sampled: default 1% of requests captured; 100% during chaos events; 100% when the user clicks "Trace this request". Sampling decisions are in the seeded RNG so replay is deterministic.
+- Waterfall rendering: D3 scale linear on start time; each span = a `<div>` with `width = duration × pxPerMs` and `left = (startMs − traceStart) × pxPerMs`. Hierarchical indentation for parent/child.
+- Span colors match node-family colors (§11.2) so a glance at the waterfall tells the user "this trace spent 200ms in databases, 50ms in caches, 10ms in app code" without reading labels.
+- Hover on a span: canvas highlights the corresponding node with a cobalt glow, edges leading to/from that span are animated briefly. Click: zoom-to-node.
+- Max spans per trace: 200. Past that, the waterfall collapses deep sub-trees into "compressed" bars with a click-to-expand.
+- **Pedagogical surface.** Every real-incident replay (§12.5) ships with a canonical trace. The user can compare their design's trace to the real incident's trace side-by-side (Compare A/B mechanic, §8.3.4). This is how we teach "why was the Fastly 2021 outage different from the Slack 2021 outage" — the traces tell the story.
+
+**Cross-module note.** Tracing is SD-specific. LLD has call-graph visualization but not cross-service waterfalls (LLD is single-program). This is one of the few SD features with no LLD analog.
+
+---
+
+### 29.10 Multiplayer Simulation · Co-op Pair via CRDT (B12·Q64 → Option B)
+
+**The decision.** Simulate mode supports **two-user co-operative simulation** — two engineers, one canvas, one shared engine. State sync is CRDT-based (Yjs). Cursor presence. WebSocket transport. This is a **Phase 6 shipment** (§29.11); it is not V1 scope. It pairs with the forthcoming "Live Pair Session" feature (see Open Questions below).
+
+**Options considered.**
+
+- **Option A · Single-user only.** Simpler. Aligns with the existing Non-Goal in §26 ("Real-time multiplayer simulation"). Leaves the Pair AI mode (§9.4.4) as the only pair experience.
+- **Option B · Co-op pair with CRDT sync (chosen, Phase 6).** Two users, one canvas, one engine. Cursor presence; name labels; colored selection outlines; shared simulation state.
+- **Option C · N-user classroom mode (3+).** Teacher-mode extension. Too large; deferred.
+
+**Why Option B wins (as a Phase 6 deliverable).** The Non-Goal in §26 excludes real-time multiplayer **simulation in V1**. §29.10 does not contradict that — it schedules it for Phase 6 (the post-launch ecosystem phase) and specifies the engineering approach so the V1 architecture does not foreclose it. CRDT-based state (Yjs) is battle-tested (Linear, Figma's multiplayer used a similar approach before they built their own). WebSocket transport is standard.
+
+**Tension with existing spec.** §26 Non-Goals line: *"Real-time multiplayer simulation — two users simulating the same design simultaneously (infra investment too large)."* §29.10 says this is a Phase 6 deliverable, which means it is deferred but not killed — aligned with the §26 clarifying line "Most are deferred, not killed forever." **This reconciliation is explicit:** V1 does not ship multiplayer; V1 architecture does not preclude multiplayer; Phase 6 ships multiplayer via CRDT. Flagged in §29.11.
+
+**Implementation notes.**
+
+- **CRDT library:** Yjs. Mature, performant, well-maintained, TypeScript-first. Alternatives (Automerge, Loro) considered and rejected on bundle size + ecosystem.
+- **Transport:** y-websocket with a lightweight Node.js relay. Each session = one WebSocket room. Presence = Y.Map of user-id → { cursorPos, selection, name, color }.
+- **Shared state surface:** the canvas graph (nodes, edges, positions, configs). **Not** shared: the simulation engine itself. One user is the "simulation host" (the tab running the engine); their metric stream is broadcast to the other user. This avoids double-computing physics and keeps the source of truth unambiguous.
+- **Handoff protocol:** either user can click "Take Simulation Control" to become the host. Handoff is a 1-second pause + state transfer + resume. Sim-time pauses during handoff; real-time does not.
+- **Conflict resolution:** CRDT handles concurrent edits on different nodes cleanly. Concurrent edits on the same node resolve via Yjs's last-write-wins on field granularity — if user A renames a node and user B changes its region, both changes land. If both rename, last-write wins and the overwritten user gets a notification.
+- **Session scope:** sessions are ephemeral by default (disappear when both users leave). Persistence = user clicks "Save as Design" which saves the graph to one user's account (or both, via a "Fork to my account" action).
+- **Pair AI mode (§9.4.4) and Co-op Pair interact cleanly.** A Co-op Pair can share an AI interviewer. Two humans + one AI = a tutoring trio. Out of scope for V1; desired for Phase 6.
+- **Live Pair Session cross-reference.** The task instructions reference a "Live Pair Session" feature from §19 (B10·Q41). The current §19 / B10·Q41 is **Shareability** (read-only share links for completed drills/sims). There is no Live Pair Session feature currently documented in §19. §29.10 anticipates that Live Pair Session may be added to §19 as part of the Phase 6 shipment. Flagged in §29.11 as a reconciliation task.
+
+**Engineering cost.** Estimated ~800 hours over Phase 6. The lift is mostly in the relay server, handoff UX, conflict UX, and session management. The CRDT layer itself is a thin wrapper on Yjs.
+
+---
+
 
 
 
