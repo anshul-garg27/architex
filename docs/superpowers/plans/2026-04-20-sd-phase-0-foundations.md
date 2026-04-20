@@ -433,3 +433,450 @@ architex/
   ```
 
 ---
+
+## Task 3: Record bundle-size baseline
+
+**Files:**
+- Create: `architex/scripts/capture-bundle-size.ts`
+- Modify: `docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md` (Section C)
+
+**Design intent:** A tsx script that parses `.next/analyze/*.html` via regex, extracts the "Stat size" and "Parsed size" totals, and prints them as JSON. Runs after `pnpm analyze`. Stored as a script so Phase 1+ can diff with one shared tool.
+
+- [ ] **Step 1: Write the capture script**
+
+  Create `architex/scripts/capture-bundle-size.ts`:
+
+  ```typescript
+  /**
+   * SD Phase 0 · Bundle-size capture (Task 3).
+   *
+   * Reads .next/analyze/{client,nodejs,edge}.html, extracts the two total-size
+   * numbers rendered by webpack-bundle-analyzer, and prints JSON for the
+   * baseline doc.
+   *
+   * Usage: `pnpm tsx scripts/capture-bundle-size.ts`
+   */
+
+  import { readFileSync, existsSync } from "node:fs";
+  import { resolve } from "node:path";
+
+  const ANALYZE_DIR = resolve(process.cwd(), ".next/analyze");
+  const REPORTS = ["client", "nodejs", "edge"] as const;
+
+  type BundleSize = {
+    name: string;
+    statSize: string | null;
+    parsedSize: string | null;
+  };
+
+  function extract(html: string): {
+    statSize: string | null;
+    parsedSize: string | null;
+  } {
+    // webpack-bundle-analyzer embeds a window.chartData JSON blob.
+    const chartMatch = html.match(
+      /window\.chartData\s*=\s*(\[[\s\S]*?\]);/m,
+    );
+    if (!chartMatch?.[1]) return { statSize: null, parsedSize: null };
+    try {
+      const data = JSON.parse(chartMatch[1]) as Array<{
+        statSize: number;
+        parsedSize: number;
+      }>;
+      const stat = data.reduce((a, b) => a + b.statSize, 0);
+      const parsed = data.reduce((a, b) => a + b.parsedSize, 0);
+      return {
+        statSize: `${(stat / 1024).toFixed(1)} KB`,
+        parsedSize: `${(parsed / 1024).toFixed(1)} KB`,
+      };
+    } catch {
+      return { statSize: null, parsedSize: null };
+    }
+  }
+
+  const results: BundleSize[] = REPORTS.map((name) => {
+    const path = resolve(ANALYZE_DIR, `${name}.html`);
+    if (!existsSync(path)) {
+      return { name, statSize: null, parsedSize: null };
+    }
+    const html = readFileSync(path, "utf8");
+    return { name, ...extract(html) };
+  });
+
+  console.log(JSON.stringify(results, null, 2));
+
+  if (results.some((r) => r.statSize === null)) {
+    process.exit(1);
+  }
+  ```
+
+- [ ] **Step 2: Run the analyzer + capture script**
+
+  ```bash
+  cd architex
+  pnpm analyze
+  pnpm tsx scripts/capture-bundle-size.ts > /tmp/sd-phase0-bundle.json
+  cat /tmp/sd-phase0-bundle.json
+  ```
+  Expected: JSON array with three entries, each with non-null `statSize` and `parsedSize`. If any entry is null, the analyze build didn't emit that report — re-run `pnpm analyze`.
+
+- [ ] **Step 3: Transcribe into Section C of the baseline doc**
+
+  Open `docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md`. Replace each `TODO` in Section C with the corresponding entry from the JSON. Save.
+
+- [ ] **Step 4: Commit**
+
+  ```bash
+  git add architex/scripts/capture-bundle-size.ts docs/superpowers/baselines/2026-04-20-sd-phase-0-baseline.md
+  git commit -m "$(cat <<'EOF'
+  perf(sd-phase-0): capture bundle-size baseline for client, nodejs, edge
+
+  Script reuses webpack-bundle-analyzer output and emits JSON. Section C
+  of the Phase 0 baseline now has the three bundle totals. Phase 1+ will
+  re-run this script and diff against Section C.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
+
+## Task 4: Add sliding-window rate-limit primitive
+
+**Files:**
+- Modify: `architex/src/lib/security/rate-limiter.ts`
+- Create: `architex/src/lib/security/__tests__/rate-limiter-sliding.test.ts`
+
+**Design intent:** Existing rate limiter is a token-bucket keyed by IP. SD routes need a sliding-window limiter keyed by composite `ip|userId`, because drill-attempt POSTs are bursty (one burst at submit time) but we want to allow one burst per user without letting a single IP abuse the endpoint across many users. Add the primitive here; Task 5 wires it.
+
+- [ ] **Step 1: Write the failing test**
+
+  Create `architex/src/lib/security/__tests__/rate-limiter-sliding.test.ts`:
+
+  ```typescript
+  import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+  import { createSlidingWindowLimiter } from "@/lib/security/rate-limiter";
+
+  describe("sliding-window rate limiter", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it("allows up to maxRequests inside the window", () => {
+      const limiter = createSlidingWindowLimiter({
+        maxRequests: 3,
+        windowMs: 1000,
+      });
+      expect(limiter.checkLimit("k").allowed).toBe(true);
+      expect(limiter.checkLimit("k").allowed).toBe(true);
+      expect(limiter.checkLimit("k").allowed).toBe(true);
+      expect(limiter.checkLimit("k").allowed).toBe(false);
+    });
+
+    it("recovers capacity as the window slides", () => {
+      const limiter = createSlidingWindowLimiter({
+        maxRequests: 2,
+        windowMs: 1000,
+      });
+      limiter.checkLimit("k"); // t=0
+      limiter.checkLimit("k"); // t=0
+      expect(limiter.checkLimit("k").allowed).toBe(false);
+
+      vi.advanceTimersByTime(1001);
+      expect(limiter.checkLimit("k").allowed).toBe(true);
+    });
+
+    it("isolates keys", () => {
+      const limiter = createSlidingWindowLimiter({
+        maxRequests: 1,
+        windowMs: 1000,
+      });
+      expect(limiter.checkLimit("a").allowed).toBe(true);
+      expect(limiter.checkLimit("b").allowed).toBe(true);
+      expect(limiter.checkLimit("a").allowed).toBe(false);
+    });
+
+    it("exposes remaining and resetAt", () => {
+      const limiter = createSlidingWindowLimiter({
+        maxRequests: 5,
+        windowMs: 1000,
+      });
+      const r1 = limiter.checkLimit("k");
+      expect(r1.remaining).toBe(4);
+      expect(r1.resetAt).toBeGreaterThan(Date.now());
+    });
+  });
+  ```
+
+- [ ] **Step 2: Run — verify failure**
+
+  ```bash
+  pnpm test:run -- rate-limiter-sliding
+  ```
+  Expected: FAIL with `createSlidingWindowLimiter is not a function`.
+
+- [ ] **Step 3: Implement the primitive**
+
+  Open `architex/src/lib/security/rate-limiter.ts`. At the bottom, append:
+
+  ```typescript
+  // ─────────────────────────────────────────────────────────────
+  // Sliding-window limiter (SD Phase 0 Task 4)
+  // ─────────────────────────────────────────────────────────────
+
+  export interface SlidingWindowOptions {
+    maxRequests: number;
+    windowMs: number;
+  }
+
+  interface WindowRecord {
+    timestamps: number[];
+  }
+
+  export function createSlidingWindowLimiter(
+    options: SlidingWindowOptions,
+  ): RateLimiter {
+    const { maxRequests, windowMs } = options;
+    const windows = new Map<string, WindowRecord>();
+
+    const CLEANUP_INTERVAL_MS = 60_000;
+    const cleanupTimer = setInterval(() => {
+      const cutoff = Date.now() - windowMs;
+      for (const [key, record] of windows) {
+        const kept = record.timestamps.filter((t) => t >= cutoff);
+        if (kept.length === 0) windows.delete(key);
+        else record.timestamps = kept;
+      }
+    }, CLEANUP_INTERVAL_MS);
+
+    if (typeof cleanupTimer === "object" && "unref" in cleanupTimer) {
+      (cleanupTimer as { unref: () => void }).unref();
+    }
+
+    return {
+      checkLimit: (key: string): RateLimitResult => {
+        const now = Date.now();
+        const cutoff = now - windowMs;
+        const record = windows.get(key) ?? { timestamps: [] };
+        record.timestamps = record.timestamps.filter((t) => t >= cutoff);
+
+        if (record.timestamps.length >= maxRequests) {
+          const oldest = record.timestamps[0] ?? now;
+          return {
+            allowed: false,
+            remaining: 0,
+            resetAt: oldest + windowMs,
+          };
+        }
+
+        record.timestamps.push(now);
+        windows.set(key, record);
+        return {
+          allowed: true,
+          remaining: Math.max(0, maxRequests - record.timestamps.length),
+          resetAt: now + windowMs,
+        };
+      },
+      reset: (key: string) => {
+        windows.delete(key);
+      },
+      destroy: () => {
+        clearInterval(cleanupTimer);
+        windows.clear();
+      },
+      size: () => windows.size,
+    };
+  }
+  ```
+
+- [ ] **Step 4: Run — expect PASS**
+
+  ```bash
+  pnpm test:run -- rate-limiter-sliding
+  ```
+  Expected: PASS · 4 assertions.
+
+- [ ] **Step 5: Commit**
+
+  ```bash
+  git add architex/src/lib/security/rate-limiter.ts architex/src/lib/security/__tests__/rate-limiter-sliding.test.ts
+  git commit -m "$(cat <<'EOF'
+  feat(security): add sliding-window rate-limit primitive
+
+  Complements the existing token-bucket limiter. SD route shells (Task 5)
+  will key this by composite ip|userId so bursty per-user traffic doesn't
+  starve a shared IP pool.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
+
+## Task 5: Wire composite (IP + userId) rate-limit key for `/api/sd/*`
+
+**Files:**
+- Modify: `architex/src/middleware.ts`
+- Create: `architex/src/lib/security/__tests__/middleware-sd-rate-limit.test.ts`
+
+**Design intent:** Existing middleware applies the IP-keyed token-bucket to every `/api/*`. For `/api/sd/*` specifically, we layer a second check using the new sliding-window limiter with key = `sd:{ip}|{userId}` so that each (IP, user) pair gets its own quota. This lets us set a stricter per-user quota (e.g. 30/min) without strangling IPs that serve many users.
+
+- [ ] **Step 1: Write the failing test**
+
+  Create `architex/src/lib/security/__tests__/middleware-sd-rate-limit.test.ts`:
+
+  ```typescript
+  import { describe, it, expect, beforeEach, vi } from "vitest";
+  import { NextRequest } from "next/server";
+
+  // We test the helper extracted in Step 3 directly — middleware.ts itself is
+  // tested via integration, not unit, to avoid Clerk mocking drift.
+  import { buildSDCompositeKey } from "@/lib/security/sd-rate-limit";
+
+  describe("buildSDCompositeKey", () => {
+    it("combines ip and userId with a pipe", () => {
+      expect(buildSDCompositeKey("1.2.3.4", "user_abc")).toBe(
+        "sd:1.2.3.4|user_abc",
+      );
+    });
+
+    it("falls back to anon when userId is null", () => {
+      expect(buildSDCompositeKey("1.2.3.4", null)).toBe(
+        "sd:1.2.3.4|anon",
+      );
+    });
+
+    it("lowercases the userId to avoid Clerk-case drift", () => {
+      expect(buildSDCompositeKey("1.2.3.4", "User_ABC")).toBe(
+        "sd:1.2.3.4|user_abc",
+      );
+    });
+  });
+  ```
+
+- [ ] **Step 2: Run — verify failure**
+
+  ```bash
+  pnpm test:run -- middleware-sd-rate-limit
+  ```
+  Expected: FAIL `Cannot find module '@/lib/security/sd-rate-limit'`.
+
+- [ ] **Step 3: Extract the helper + limiter singleton**
+
+  Create `architex/src/lib/security/sd-rate-limit.ts`:
+
+  ```typescript
+  /**
+   * SD Phase 0 · Composite rate-limit key for /api/sd/*.
+   *
+   * Key shape: `sd:{ip}|{userId}` or `sd:{ip}|anon` when unauthenticated.
+   * Limiter is a sliding-window at 30 requests per 60 seconds (tunable via
+   * SD_RATE_LIMIT_MAX / SD_RATE_LIMIT_WINDOW_MS env vars).
+   */
+
+  import { createSlidingWindowLimiter } from "./rate-limiter";
+
+  const DEFAULT_MAX = 30;
+  const DEFAULT_WINDOW_MS = 60_000;
+
+  let singleton: ReturnType<typeof createSlidingWindowLimiter> | null = null;
+
+  export function getSDRateLimiter() {
+    if (!singleton) {
+      const max = Number(process.env.SD_RATE_LIMIT_MAX ?? DEFAULT_MAX);
+      const windowMs = Number(
+        process.env.SD_RATE_LIMIT_WINDOW_MS ?? DEFAULT_WINDOW_MS,
+      );
+      singleton = createSlidingWindowLimiter({
+        maxRequests: max,
+        windowMs,
+      });
+    }
+    return singleton;
+  }
+
+  export function buildSDCompositeKey(
+    ip: string,
+    userId: string | null,
+  ): string {
+    const normalizedUser = userId?.toLowerCase() ?? "anon";
+    return `sd:${ip}|${normalizedUser}`;
+  }
+  ```
+
+- [ ] **Step 4: Wire the helper into middleware**
+
+  Open `architex/src/middleware.ts`. Directly **below** the existing rate-limit block (the `if (isApi) { ... }` block that uses `getApiRateLimiter()`), insert:
+
+  ```typescript
+  // ── SD-specific per-(ip,userId) rate limit ────────────────
+  if (isApi && pathname.startsWith("/api/sd/")) {
+    const { getSDRateLimiter, buildSDCompositeKey } = await import(
+      "@/lib/security/sd-rate-limit"
+    );
+    // auth() is imported from @clerk/nextjs at the top; reuse.
+    const { userId: clerkUserId } = await (
+      auth as unknown as () => Promise<{ userId: string | null }>
+    )();
+    const compositeKey = buildSDCompositeKey(getClientIP(req), clerkUserId);
+    const sdLimiter = getSDRateLimiter();
+    const sdResult = sdLimiter.checkLimit(compositeKey);
+    if (!sdResult.allowed) {
+      const retryAfter = Math.ceil((sdResult.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: "Too many SD requests", retryAfter },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(retryAfter),
+            "X-SD-RateLimit-Remaining": "0",
+          },
+        },
+      );
+    }
+  }
+  ```
+
+  Make sure `auth` from `@clerk/nextjs/server` is imported at the top of the file (it's not currently — the file uses `clerkMiddleware`'s injected `auth` parameter, not the server helper). Add to the imports:
+
+  ```typescript
+  // @ts-expect-error -- Clerk v7 conditional exports resolve at runtime only
+  import { auth } from "@clerk/nextjs/server";
+  ```
+
+- [ ] **Step 5: Run unit test — expect PASS**
+
+  ```bash
+  pnpm test:run -- middleware-sd-rate-limit
+  ```
+  Expected: PASS · 3 assertions.
+
+- [ ] **Step 6: Smoke-test the middleware locally**
+
+  ```bash
+  pnpm dev &
+  sleep 5
+  for i in {1..35}; do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/api/sd/concepts; done | sort | uniq -c
+  kill %1
+  ```
+  Expected: ~30 × `501` (route not implemented — Task 7 adds these shells; if they don't exist yet, accept `404` as "route not wired" and continue) followed by 5 × `429` (rate-limit kicks in). If every line is `429`, the limiter is mis-configured; if none are, the key is wrong.
+
+- [ ] **Step 7: Commit**
+
+  ```bash
+  git add architex/src/middleware.ts architex/src/lib/security/sd-rate-limit.ts architex/src/lib/security/__tests__/middleware-sd-rate-limit.test.ts
+  git commit -m "$(cat <<'EOF'
+  feat(security): composite (ip,userId) rate-limit key for /api/sd/*
+
+  Sliding-window at 30 req / 60s per (ip, userId) pair. Falls back to
+  sd:{ip}|anon for unauthenticated requests, letting Phase 1's public
+  content endpoints (GET /api/sd/concepts) still function. Tunable via
+  SD_RATE_LIMIT_MAX and SD_RATE_LIMIT_WINDOW_MS env vars.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
