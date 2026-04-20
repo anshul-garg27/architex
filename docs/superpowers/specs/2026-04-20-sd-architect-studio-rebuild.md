@@ -1656,6 +1656,131 @@ Quarterly refresh job refreshes rate tables from provider public pricing pages.
 
 ---
 
+## 14. Smart Canvas Features
+
+> "The canvas should know something about what you are drawing."
+
+### 14.1 Eight smart-canvas features (Q50)
+
+Expanded from §7.9. Each is implemented as a background process in Build and Simulate. None interrupt the flow of work; all surface as subtle passive indicators.
+
+#### 14.1.1 Pattern detection
+
+A passive scanner (Haiku, ~$0.001 per scan, debounced 10s idle) reads the canvas state and identifies named patterns in use:
+
+- **Write-through cache** = cache between client and database with synchronous write edges to both
+- **Cache-aside** = cache beside database with conditional read/write
+- **Fan-out on write** = message queue between producer and multiple consumer fanout
+- **Hexagonal / ports & adapters** = a service surrounded by adapter nodes
+- **CQRS** = separate read and write paths with distinct datastores
+- **Event sourcing** = append-only event log + projections
+- **Circuit breaker** = breaker node between client and unreliable dependency
+- **Bulkhead** = isolated resource pools per tenant or feature
+
+Detected patterns appear as a passive tag row in a corner ("Pattern: cache-aside + circuit breaker + fan-out"). Click a tag → concept page opens in a side drawer.
+
+#### 14.1.2 Anti-pattern warnings
+
+A complementary scan identifies red flags:
+
+- **Single point of failure** · a critical node with no replication
+- **Synchronous chain too deep** · 5+ synchronous hops in a request path
+- **Missing rate limiter** · public endpoint with no throttle
+- **Missing retry** · cross-region call with no retry semantics
+- **Missing idempotency** · payment-like node without idempotency key
+- **Cache without invalidation** · cache that is written but never invalidated
+- **God service** · a service with >15 dependencies
+- **Circular dependency** · A → B → A
+- **Shared database across services** · tight coupling
+- **No observability** · no monitor node in the design
+
+Warnings appear as subtle amber pulses on implicated nodes. Hover → explanation. Dismissible per-warning per-diagram (user might know they're building an anti-pattern on purpose for pedagogy).
+
+#### 14.1.3 AI node suggestions
+
+Type `/` anywhere on canvas → autocomplete-style suggestions appear ghostly. Each suggestion shows what Sonnet thinks is missing: "Add rate limiter", "Add auth gateway", "Add replication to this DB", "Add queue between these services". Ghost-preview the placement. Accept with Tab; reject with Escape. Cost: ~$0.01 per session.
+
+#### 14.1.4 Complexity score
+
+A rolling 0-100 gauge in the status bar. Formula:
+
+```
+complexity = (0.2 × nodeCount) + (0.3 × edgeCount) + (8 × cycleCount) + (12 × syncChainDepth)
+```
+
+Capped at 100. Above 60 = "heavy" (amber gauge), above 80 = "over-engineered" (red gauge). This guards against the common interview failure mode: drawing every possible subsystem for a problem that needs 5 boxes.
+
+#### 14.1.5 Constraint solver
+
+User writes a constraint in the Chat tab: *"p99 < 200ms at 10k QPS, cost under $1000/month, must survive single-region failure"*. Sonnet reads the current canvas + the constraint, and returns:
+
+1. Does the current canvas meet the constraint? (Yes/no/partial with which specific axis fails)
+2. Suggested edits ranked by (impact, cost)
+3. "Show me the Pareto" → opens Compare A/B with 2-3 candidate redesigns
+
+Bounded: Sonnet will not redraw the whole canvas. It edits a bounded number of nodes/edges and leaves the rest alone.
+
+#### 14.1.6 Reverse engineering from text
+
+User pastes a free-form description into the Chat tab:
+
+> *"We have a web app that serves 10M DAU. Users post tweets which are fanned out to follower timelines. Timelines are cached in Redis. Background workers write to Postgres for durability. We use Kafka for fan-out. CDN fronts the static assets."*
+
+Sonnet generates a candidate canvas. Ghost-preview. User accepts or refines. ~$0.05 per generation. The reverse engineer is the on-ramp for team members who come with prose, not diagrams.
+
+#### 14.1.7 Reference components (drag-in)
+
+Enumerated in §7.4. These are pre-built, Opus-reviewed sub-architectures:
+
+- **Netflix CDN stack** · 8 nodes: origin shield, regional caches, edge caches, client SDKs, analytics feed
+- **Uber dispatch core** · 12 nodes: driver index, rider matcher, dispatch coordinator, event log
+- **Stripe idempotency layer** · 6 nodes: idempotency store, dedup, webhook replay, status reconciler
+- **Twitter timeline fan-out** · 10 nodes
+- **Discord voice edge** · 7 nodes
+- **Slack real-time presence** · 5 nodes
+- **Dropbox block storage** · 8 nodes
+- **Kafka cluster with exactly-once** · 6 nodes
+
+~20 at launch, ~50 within a year as content team produces them. Each is a curated teaching asset.
+
+#### 14.1.8 Auto-layout presets
+
+Five one-click presets:
+- **Dagre LR** (default for architecture)
+- **Dagre TB** (top-bottom, for pipelines)
+- **Elk layered** (cleaner for large diagrams)
+- **Elk mrtree** (for hierarchical node family)
+- **Force-directed** (for service mesh or network topology)
+
+Undo is always available after auto-layout (Dagre sometimes moves things in surprising ways).
+
+### 14.2 Implementation notes
+
+- Pattern detection & anti-pattern detection: Haiku calls with 1-hour IndexedDB cache keyed by `topology-signature.ts` output. Detects whether any topological change has occurred before spending tokens.
+- Constraint solver & reverse-engineer: Sonnet (higher quality needed).
+- Complexity score: client-side, no LLM needed.
+- Auto-layout: existing Dagre/Elk integration in `dagre-layout.ts`.
+
+### 14.3 Auto-generated artifacts (Q52)
+
+Eight one-click artifact generators. All produce editable Markdown or JSON that can be exported.
+
+| Artifact | What it is | Generator |
+|---|---|---|
+| **ADR** (Architecture Decision Record) | Standard ADR format: Context · Decision · Consequences · Alternatives | Sonnet + canvas state |
+| **Runbook** | On-call procedures: symptoms, pages, first-response steps | Sonnet + chaos-event map |
+| **RFC write-up** | Formal design proposal doc | Sonnet + canvas state + problem context |
+| **IaC starter** | Terraform / CDK / Pulumi (user picks) | Template-based with canvas config filled in; imperfect but a starting point |
+| **Capacity Plan** | Per-component load, utilization, headroom, growth runway | Calculated from canvas + simulation output |
+| **Postmortem** | Filled from a completed chaos-drill narrative stream | Takes the margin narrative as raw, formats per-company template |
+| **Exec One-Pager** | 1-page non-technical summary with diagram and 3 key tradeoffs | Sonnet, audience tag "executive" |
+| **Interview Cheat-Sheet** | 1-page bullet summary for recall | Sonnet, recall-optimized |
+
+Each artifact can be exported as Markdown, PDF, or pushed to GitHub / Notion / Obsidian (Q44).
+
+---
+
+
 
 
 
