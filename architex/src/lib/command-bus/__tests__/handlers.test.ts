@@ -175,6 +175,14 @@ beforeEach(() => {
     pause: mockPause,
     reset: mockReset,
   });
+  // handleLoadTemplate defers setEdges into requestAnimationFrame. In jsdom
+  // the default RAF fires on the next macrotask, which happens after each
+  // test's synchronous assertions. Run RAF callbacks synchronously so the
+  // deferred setEdges call is observable in `then`-less assertions below.
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    cb(0);
+    return 0;
+  });
 });
 
 describe('Template handler', () => {
