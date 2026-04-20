@@ -7230,3 +7230,751 @@ EOF
 ```
 
 ---
+
+## Group D · Simulate mode UI + behavior (Tasks 19-26)
+
+> Group D wraps the existing 27-file simulation engine with the Simulate mode UX. Every component consumes hooks; hooks consume engine adapters (Group B) and stores. No engine files are edited.
+
+---
+
+## Task 19: Cinematic chaos choreography · ribbon + vignette + 900ms dock
+
+**Files:**
+- Create: `architex/src/hooks/useCinematicChaos.ts`
+- Create: `architex/src/components/modules/sd/simulate/CinematicChaosRibbon.tsx`
+- Create: `architex/src/components/modules/sd/simulate/RedVignette.tsx`
+- Create: `architex/src/hooks/__tests__/useCinematicChaos.test.tsx`
+
+Per §8.9, each chaos event triggers a 900ms choreography:
+
+- `t=0ms`: full-width 8vh ribbon slides in from top in IBM Plex Serif; text is the taxonomy's `renderNarrative(event, params)`.
+- `t=50ms`: red vignette (radial gradient from edges, 22% opacity at edges → 0% at center) fades in over 300ms.
+- `t=0ms`: optional WebAudio 80+40Hz bass thump (300ms decay). Off by default.
+- `t=600ms`: ribbon holds.
+- `t=900ms`: ribbon slides up and docks to the right-side margin stream (Task 21).
+
+Reduced-motion (`prefers-reduced-motion: reduce`): no animation, no sound. Static red-bordered banner in the top-right, text unchanged.
+
+- [ ] **Step 1: `useCinematicChaos` hook**
+
+```typescript
+// architex/src/hooks/useCinematicChaos.ts
+
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { renderNarrative } from "@/lib/chaos/chaos-taxonomy";
+import { getEventById } from "@/lib/chaos/chaos-taxonomy";
+
+export interface CinematicEvent {
+  id: string;
+  eventId: string;
+  narrative: string;
+  severity: "low" | "medium" | "high" | "critical";
+  firedAtRealMs: number;
+  params: Record<string, string>;
+}
+
+export interface UseCinematicChaosResult {
+  active: CinematicEvent | null;
+  fire: (eventId: string, params: Record<string, string>) => void;
+  dismiss: () => void;
+  soundEnabled: boolean;
+  setSoundEnabled: (b: boolean) => void;
+  reducedMotion: boolean;
+}
+
+const RIBBON_HOLD_MS = 900;
+
+export function useCinematicChaos(): UseCinematicChaosResult {
+  const [active, setActive] = useState<CinematicEvent | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
+  const [reducedMotion, setReducedMotion] = useState<boolean>(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const handler = () => setReducedMotion(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const dismiss = useCallback(() => {
+    setActive(null);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const fire = useCallback(
+    (eventId: string, params: Record<string, string>) => {
+      const ev = getEventById(eventId);
+      const narrative = renderNarrative(ev, params);
+      const id = `${eventId}-${Date.now()}`;
+      setActive({
+        id,
+        eventId,
+        narrative,
+        severity: ev.severity,
+        firedAtRealMs: Date.now(),
+        params,
+      });
+      if (soundEnabled && !reducedMotion) {
+        playBassThump();
+      }
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        setActive(null);
+      }, reducedMotion ? 2500 : RIBBON_HOLD_MS);
+    },
+    [soundEnabled, reducedMotion],
+  );
+
+  return {
+    active,
+    fire,
+    dismiss,
+    soundEnabled,
+    setSoundEnabled,
+    reducedMotion,
+  };
+}
+
+function playBassThump() {
+  try {
+    const ctx = new ((window as unknown as { AudioContext?: typeof AudioContext }).AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)!();
+    const o1 = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    o1.frequency.value = 80;
+    o2.frequency.value = 40;
+    gain.gain.value = 0.2;
+    o1.connect(gain);
+    o2.connect(gain);
+    gain.connect(ctx.destination);
+    o1.start();
+    o2.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    setTimeout(() => {
+      o1.stop();
+      o2.stop();
+      ctx.close();
+    }, 320);
+  } catch {
+    /* silent */
+  }
+}
+```
+
+- [ ] **Step 2: `CinematicChaosRibbon` component**
+
+```tsx
+// architex/src/components/modules/sd/simulate/CinematicChaosRibbon.tsx
+
+"use client";
+
+import { motion, AnimatePresence } from "framer-motion";
+import type { CinematicEvent } from "@/hooks/useCinematicChaos";
+
+export function CinematicChaosRibbon({
+  active,
+  reducedMotion,
+}: {
+  active: CinematicEvent | null;
+  reducedMotion: boolean;
+}) {
+  if (reducedMotion) {
+    return active ? (
+      <div
+        role="alert"
+        aria-live="assertive"
+        className="fixed right-4 top-4 z-40 max-w-sm rounded-md border-2 border-red-500 bg-black/90 px-4 py-3 font-serif text-sm text-white shadow-xl"
+      >
+        <span className="mb-1 block text-xs uppercase tracking-wide text-red-400">
+          Chaos event · {active.severity}
+        </span>
+        {active.narrative}
+      </div>
+    ) : null;
+  }
+
+  return (
+    <AnimatePresence>
+      {active && (
+        <motion.div
+          key={active.id}
+          role="alert"
+          aria-live="assertive"
+          initial={{ y: "-100%", opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: "-100%", opacity: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="pointer-events-none fixed inset-x-0 top-0 z-40 flex h-[8vh] items-center bg-black/85 px-8 font-serif text-[15px] leading-relaxed text-white shadow-2xl backdrop-blur-sm"
+          data-testid="cinematic-chaos-ribbon"
+          data-severity={active.severity}
+        >
+          <span className="mr-4 text-xs uppercase tracking-wider text-red-400">
+            Chaos · {active.severity}
+          </span>
+          <span className="line-clamp-2">{active.narrative}</span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+```
+
+- [ ] **Step 3: `RedVignette` component**
+
+```tsx
+// architex/src/components/modules/sd/simulate/RedVignette.tsx
+
+"use client";
+
+import { motion, AnimatePresence } from "framer-motion";
+
+export function RedVignette({
+  active,
+  reducedMotion,
+}: {
+  active: boolean;
+  reducedMotion: boolean;
+}) {
+  if (reducedMotion) return null;
+  return (
+    <AnimatePresence>
+      {active && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="pointer-events-none fixed inset-0 z-30"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 20%, rgba(220,38,38,0.22) 100%)",
+          }}
+          data-testid="red-vignette"
+        />
+      )}
+    </AnimatePresence>
+  );
+}
+```
+
+- [ ] **Step 4: Hook test**
+
+```tsx
+// architex/src/hooks/__tests__/useCinematicChaos.test.tsx
+
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, beforeEach, vi } from "vitest";
+import { useCinematicChaos } from "../useCinematicChaos";
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  // Default matchMedia: no reduced motion
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
+
+describe("useCinematicChaos", () => {
+  it("fire() sets an active event", () => {
+    const { result } = renderHook(() => useCinematicChaos());
+    act(() => {
+      result.current.fire("cache-stampede", {
+        cache_name: "Redis",
+        backend_name: "Postgres",
+      });
+    });
+    expect(result.current.active).not.toBeNull();
+    expect(result.current.active?.narrative).toContain("Redis");
+    expect(result.current.active?.narrative).toContain("Postgres");
+  });
+
+  it("auto-dismisses after 900ms", () => {
+    const { result } = renderHook(() => useCinematicChaos());
+    act(() => {
+      result.current.fire("cache-stampede", {
+        cache_name: "c",
+        backend_name: "b",
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(result.current.active).toBeNull();
+  });
+
+  it("respects reduced-motion preference (longer dismiss)", () => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+    const { result } = renderHook(() => useCinematicChaos());
+    expect(result.current.reducedMotion).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd architex
+pnpm test:run -- useCinematicChaos
+git add architex/src/hooks/useCinematicChaos.ts architex/src/hooks/__tests__/useCinematicChaos.test.tsx architex/src/components/modules/sd/simulate/CinematicChaosRibbon.tsx architex/src/components/modules/sd/simulate/RedVignette.tsx
+git commit -m "$(cat <<'EOF'
+feat(sim-ui): cinematic chaos choreography · ribbon + vignette + 900ms dock
+
+8vh full-width serif ribbon + radial red vignette (22% alpha at edges).
+Optional WebAudio 80+40Hz bass thump, 300ms decay. Reduced-motion fallback:
+static red-bordered banner top-right, no animation, no sound. 900ms
+auto-dismiss feeds into margin narrative stream (Task 21). useCinematicChaos
+exposes fire/dismiss/soundEnabled state.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 20: Metric strip with threshold coaching
+
+**Files:**
+- Create: `architex/src/lib/simulation/adapters/threshold-coaching.ts`
+- Create: `architex/src/hooks/useThresholdCoaching.ts`
+- Create: `architex/src/hooks/useMetricStrip.ts`
+- Create: `architex/src/components/modules/sd/simulate/MetricStrip.tsx`
+- Create: `architex/src/components/modules/sd/simulate/MetricStripCell.tsx`
+- Create: `architex/src/components/modules/sd/simulate/MetricDrilldownDialog.tsx`
+- Create: `architex/src/components/modules/sd/simulate/__tests__/MetricStrip.test.tsx`
+
+Per §8.5, every metric has threshold bands + coaching copy. The strip renders 6 cells: p50, p95, p99, error rate, throughput attainment, cost/request. Each cell shows the raw number, a colored threshold pill (excellent/good/concerning/broken), and (on hover/click) a coaching sentence.
+
+- [ ] **Step 1: Threshold-coaching module**
+
+```typescript
+// architex/src/lib/simulation/adapters/threshold-coaching.ts
+
+/**
+ * SIM-031: Threshold-coaching bands + coaching-copy templates (§8.5).
+ */
+
+export type MetricKind =
+  | "p50-latency"
+  | "p95-latency"
+  | "p99-latency"
+  | "error-rate"
+  | "throughput-attainment"
+  | "cost-per-request"
+  | "recovery-time";
+
+export type ThresholdBand = "excellent" | "good" | "concerning" | "broken";
+
+export interface BandConfig {
+  excellent: number;
+  good: number;
+  concerning: number;
+  // >= concerning threshold → broken
+}
+
+export const DEFAULT_BANDS: Record<MetricKind, BandConfig> = {
+  "p50-latency": { excellent: 50, good: 150, concerning: 500 },
+  "p95-latency": { excellent: 150, good: 500, concerning: 1500 },
+  "p99-latency": { excellent: 200, good: 1000, concerning: 3000 },
+  "error-rate": { excellent: 0.001, good: 0.01, concerning: 0.05 },
+  "throughput-attainment": { excellent: 0.95, good: 0.8, concerning: 0.5 },
+  "cost-per-request": { excellent: 0.0001, good: 0.001, concerning: 0.01 },
+  "recovery-time": { excellent: 30_000, good: 120_000, concerning: 600_000 },
+};
+
+export function classifyMetric(
+  kind: MetricKind,
+  value: number,
+  bands: BandConfig = DEFAULT_BANDS[kind],
+): ThresholdBand {
+  // "Lower is better" metrics
+  if (
+    kind === "p50-latency" ||
+    kind === "p95-latency" ||
+    kind === "p99-latency" ||
+    kind === "error-rate" ||
+    kind === "cost-per-request" ||
+    kind === "recovery-time"
+  ) {
+    if (value <= bands.excellent) return "excellent";
+    if (value <= bands.good) return "good";
+    if (value <= bands.concerning) return "concerning";
+    return "broken";
+  }
+  // "Higher is better" metrics (throughput attainment)
+  if (value >= bands.excellent) return "excellent";
+  if (value >= bands.good) return "good";
+  if (value >= bands.concerning) return "concerning";
+  return "broken";
+}
+
+export function coachingCopy(
+  kind: MetricKind,
+  value: number,
+  band: ThresholdBand,
+  context: { bottleneckNode?: string } = {},
+): string {
+  const node = context.bottleneckNode ? ` Bottleneck: ${context.bottleneckNode}.` : "";
+  switch (kind) {
+    case "p50-latency":
+      if (band === "broken") return `p50 of ${value.toFixed(0)}ms is broken territory. Typical web p50 is under 150ms.${node}`;
+      if (band === "concerning") return `p50 of ${value.toFixed(0)}ms is concerning. Medians above 150ms feel sluggish to users.${node}`;
+      if (band === "good") return `p50 of ${value.toFixed(0)}ms is good. Healthy web p50 range.`;
+      return `p50 of ${value.toFixed(0)}ms is excellent. Your median user is having a fast experience.`;
+    case "p99-latency":
+      if (band === "broken") return `p99 of ${value.toFixed(0)}ms is broken. One user in a hundred is waiting far too long.${node}`;
+      if (band === "concerning") return `p99 of ${value.toFixed(0)}ms is concerning. Tail latency this high affects perceived reliability.${node}`;
+      if (band === "good") return `p99 of ${value.toFixed(0)}ms is good. Your tail is well-managed.`;
+      return `p99 of ${value.toFixed(0)}ms is excellent. Tight tails like this are rare.`;
+    case "error-rate":
+      const pct = (value * 100).toFixed(2);
+      if (band === "broken") return `${pct}% error rate is broken territory. Users are seeing failures routinely.${node}`;
+      if (band === "concerning") return `${pct}% error rate is concerning. Typical healthy web services stay under 1%.${node}`;
+      if (band === "good") return `${pct}% error rate is within a healthy band.`;
+      return `${pct}% error rate is excellent. Very few users see failures.`;
+    case "throughput-attainment":
+      const tp = (value * 100).toFixed(0);
+      if (band === "broken") return `You are only serving ${tp}% of target throughput. The limiter is somewhere — likely ${context.bottleneckNode ?? "your slowest call"}.`;
+      if (band === "concerning") return `${tp}% of target throughput is concerning. Investigate the saturation point.${node}`;
+      if (band === "good") return `${tp}% of target throughput is good. Some headroom remains.`;
+      return `${tp}% of target throughput is excellent. Capacity is comfortable.`;
+    case "cost-per-request":
+      const c = value.toFixed(4);
+      if (band === "broken") return `$${c} per request is broken territory at scale.${node}`;
+      if (band === "concerning") return `$${c} per request is expensive. Top offenders likely include egress + idle capacity.${node}`;
+      if (band === "good") return `$${c} per request is in a good band.`;
+      return `$${c} per request is excellent. Your cost model is tight.`;
+    case "recovery-time":
+      const sec = (value / 1000).toFixed(0);
+      if (band === "broken") return `Recovery took ${sec}s — broken. Compare: Netflix averages 40s for circuit-breaker events.`;
+      if (band === "concerning") return `Recovery took ${sec}s. Consider adding a circuit breaker or a more aggressive retry policy.`;
+      if (band === "good") return `Recovery took ${sec}s — good.`;
+      return `Recovery took ${sec}s — excellent.`;
+    case "p95-latency":
+      if (band === "broken") return `p95 of ${value.toFixed(0)}ms is broken.${node}`;
+      if (band === "concerning") return `p95 of ${value.toFixed(0)}ms is concerning.${node}`;
+      if (band === "good") return `p95 of ${value.toFixed(0)}ms is good.`;
+      return `p95 of ${value.toFixed(0)}ms is excellent.`;
+  }
+}
+```
+
+- [ ] **Step 2: `useThresholdCoaching` + `useMetricStrip` hooks**
+
+```typescript
+// architex/src/hooks/useThresholdCoaching.ts
+"use client";
+import { useMemo } from "react";
+import {
+  classifyMetric,
+  coachingCopy,
+  type MetricKind,
+  type ThresholdBand,
+} from "@/lib/simulation/adapters/threshold-coaching";
+
+export function useThresholdCoaching(
+  kind: MetricKind,
+  value: number,
+  context: { bottleneckNode?: string } = {},
+) {
+  const band = useMemo<ThresholdBand>(
+    () => classifyMetric(kind, value),
+    [kind, value],
+  );
+  const copy = useMemo(
+    () => coachingCopy(kind, value, band, context),
+    [kind, value, band, context],
+  );
+  return { band, copy };
+}
+
+// architex/src/hooks/useMetricStrip.ts
+"use client";
+import { useEffect, useState } from "react";
+import type { MetricsSnapshot } from "@/lib/simulation/adapters/hdr-metrics";
+
+export interface MetricStripState {
+  p50: number;
+  p95: number;
+  p99: number;
+  errorRate: number;
+  throughputAttainment: number;
+  costPerRequest: number;
+  bottleneckNode?: string;
+  snapshot: MetricsSnapshot | null;
+}
+
+export function useMetricStrip(runId: string): MetricStripState {
+  const [state, setState] = useState<MetricStripState>({
+    p50: 0,
+    p95: 0,
+    p99: 0,
+    errorRate: 0,
+    throughputAttainment: 1,
+    costPerRequest: 0,
+    snapshot: null,
+  });
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sd/simulation-runs/${runId}/heartbeat`);
+        if (!res.ok) return;
+        const body = await res.json() as MetricStripState;
+        setState(body);
+      } catch {
+        // silent · network failures in Simulate should not crash the UI
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [runId]);
+
+  return state;
+}
+```
+
+- [ ] **Step 3: `MetricStrip` + `MetricStripCell` components**
+
+```tsx
+// architex/src/components/modules/sd/simulate/MetricStripCell.tsx
+"use client";
+import { useThresholdCoaching } from "@/hooks/useThresholdCoaching";
+import type { MetricKind } from "@/lib/simulation/adapters/threshold-coaching";
+
+const BAND_CLASS: Record<string, string> = {
+  excellent: "bg-emerald-500/15 border-emerald-500 text-emerald-100",
+  good: "bg-sky-500/15 border-sky-500 text-sky-100",
+  concerning: "bg-amber-500/15 border-amber-500 text-amber-100",
+  broken: "bg-red-500/20 border-red-500 text-red-100",
+};
+
+export function MetricStripCell({
+  label,
+  kind,
+  value,
+  format,
+  bottleneckNode,
+  onClick,
+}: {
+  label: string;
+  kind: MetricKind;
+  value: number;
+  format: (v: number) => string;
+  bottleneckNode?: string;
+  onClick?: () => void;
+}) {
+  const { band, copy } = useThresholdCoaching(kind, value, { bottleneckNode });
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={copy}
+      className={`flex min-w-[120px] flex-col rounded-md border px-3 py-2 text-left transition hover:brightness-110 ${BAND_CLASS[band]}`}
+      data-band={band}
+      data-metric={kind}
+    >
+      <span className="text-[10px] uppercase tracking-wide opacity-70">{label}</span>
+      <span className="font-mono text-lg font-semibold">{format(value)}</span>
+      <span className="mt-1 text-[10px] uppercase tracking-wide">{band}</span>
+    </button>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/MetricStrip.tsx
+"use client";
+import { useState } from "react";
+import { useMetricStrip } from "@/hooks/useMetricStrip";
+import { MetricStripCell } from "./MetricStripCell";
+import { MetricDrilldownDialog } from "./MetricDrilldownDialog";
+import type { MetricKind } from "@/lib/simulation/adapters/threshold-coaching";
+
+export function MetricStrip({ runId }: { runId: string }) {
+  const s = useMetricStrip(runId);
+  const [drilldown, setDrilldown] = useState<MetricKind | null>(null);
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2 p-3">
+        <MetricStripCell
+          label="p50"
+          kind="p50-latency"
+          value={s.p50}
+          format={(v) => `${v.toFixed(0)}ms`}
+          bottleneckNode={s.bottleneckNode}
+          onClick={() => setDrilldown("p50-latency")}
+        />
+        <MetricStripCell
+          label="p95"
+          kind="p95-latency"
+          value={s.p95}
+          format={(v) => `${v.toFixed(0)}ms`}
+          onClick={() => setDrilldown("p95-latency")}
+        />
+        <MetricStripCell
+          label="p99"
+          kind="p99-latency"
+          value={s.p99}
+          format={(v) => `${v.toFixed(0)}ms`}
+          bottleneckNode={s.bottleneckNode}
+          onClick={() => setDrilldown("p99-latency")}
+        />
+        <MetricStripCell
+          label="errors"
+          kind="error-rate"
+          value={s.errorRate}
+          format={(v) => `${(v * 100).toFixed(2)}%`}
+          onClick={() => setDrilldown("error-rate")}
+        />
+        <MetricStripCell
+          label="throughput"
+          kind="throughput-attainment"
+          value={s.throughputAttainment}
+          format={(v) => `${(v * 100).toFixed(0)}%`}
+          onClick={() => setDrilldown("throughput-attainment")}
+        />
+        <MetricStripCell
+          label="$/req"
+          kind="cost-per-request"
+          value={s.costPerRequest}
+          format={(v) => `$${v.toFixed(4)}`}
+          onClick={() => setDrilldown("cost-per-request")}
+        />
+      </div>
+      {drilldown && (
+        <MetricDrilldownDialog
+          kind={drilldown}
+          runId={runId}
+          onClose={() => setDrilldown(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// architex/src/components/modules/sd/simulate/MetricDrilldownDialog.tsx
+"use client";
+import type { MetricKind } from "@/lib/simulation/adapters/threshold-coaching";
+
+export function MetricDrilldownDialog({
+  kind,
+  runId,
+  onClose,
+}: {
+  kind: MetricKind;
+  runId: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="max-w-2xl rounded-lg bg-neutral-900 p-6 font-serif text-neutral-100 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="mb-2 text-xl">Metric drilldown · {kind}</h2>
+        <p className="mb-4 text-sm text-neutral-400">
+          Time-series for run {runId}. Click on the timeline to scrub to the moment
+          of interest. Overlays per-node to isolate the bottleneck.
+        </p>
+        {/* Phase-3 placeholder: series chart renders in Phase-5 polish pass */}
+        <div className="mb-4 h-48 rounded-md border border-neutral-700 bg-neutral-800" />
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded bg-neutral-700 px-3 py-2 text-sm"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: `MetricStrip` test**
+
+```tsx
+// architex/src/components/modules/sd/simulate/__tests__/MetricStrip.test.tsx
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { MetricStrip } from "../MetricStrip";
+
+beforeEach(() => {
+  global.fetch = vi.fn(async () =>
+    ({
+      ok: true,
+      json: async () => ({
+        p50: 120,
+        p95: 500,
+        p99: 2500,
+        errorRate: 0.04,
+        throughputAttainment: 0.6,
+        costPerRequest: 0.008,
+      }),
+    } as unknown as Response),
+  );
+});
+
+describe("MetricStrip", () => {
+  it("renders 6 metric cells", () => {
+    render(<MetricStrip runId="r-1" />);
+    expect(screen.getByText("p50")).toBeInTheDocument();
+    expect(screen.getByText("p95")).toBeInTheDocument();
+    expect(screen.getByText("p99")).toBeInTheDocument();
+    expect(screen.getByText("errors")).toBeInTheDocument();
+    expect(screen.getByText("throughput")).toBeInTheDocument();
+    expect(screen.getByText("$/req")).toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd architex
+pnpm test:run -- MetricStrip
+git add architex/src/lib/simulation/adapters/threshold-coaching.ts architex/src/hooks/useThresholdCoaching.ts architex/src/hooks/useMetricStrip.ts architex/src/components/modules/sd/simulate/MetricStrip.tsx architex/src/components/modules/sd/simulate/MetricStripCell.tsx architex/src/components/modules/sd/simulate/MetricDrilldownDialog.tsx architex/src/components/modules/sd/simulate/__tests__/MetricStrip.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(sim-ui): metric strip with threshold coaching (§8.5)
+
+6 cells: p50 · p95 · p99 · error rate · throughput attainment · $/req.
+Each cell classifies into 4 bands (excellent/good/concerning/broken)
+with per-metric coaching copy. Click opens MetricDrilldownDialog for
+time-series view (charting body lands in Phase 5 polish). MetricStrip
+polls /api/sd/simulation-runs/[id]/heartbeat at 500ms.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
