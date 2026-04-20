@@ -1390,4 +1390,783 @@ EOF
 
 ---
 
+## Task 8: `drill-canonical.ts` — reference solutions per problem
+
+**Files:**
+- Create: `architex/src/lib/lld/drill-canonical.ts`
+- Test: `architex/src/lib/lld/__tests__/drill-canonical.test.ts`
+
+Every problem needs a canonical reference — the "what a senior would draw" solution used for (a) the side-by-side post-drill compare UI, (b) the grading engine's structural checks, and (c) the interviewer persona's awareness of the expected answer.
+
+Phase 4 ships canonical solutions for the **top 10 problems by drill frequency**. The module must gracefully fall back to `null` for problems not yet seeded.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/lld/__tests__/drill-canonical.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  getCanonicalFor,
+  hasCanonicalFor,
+  CANONICAL_PROBLEM_IDS,
+} from "@/lib/lld/drill-canonical";
+
+describe("drill-canonical", () => {
+  it("returns null for unknown problem", () => {
+    expect(getCanonicalFor("no-such-problem")).toBeNull();
+    expect(hasCanonicalFor("no-such-problem")).toBe(false);
+  });
+
+  it("returns a structured solution for each seeded problem", () => {
+    for (const id of CANONICAL_PROBLEM_IDS) {
+      const sol = getCanonicalFor(id);
+      expect(sol).not.toBeNull();
+      expect(sol!.problemId).toBe(id);
+      expect(sol!.classes.length).toBeGreaterThanOrEqual(3);
+      expect(sol!.relationships.length).toBeGreaterThanOrEqual(1);
+      expect(sol!.patterns.length).toBeGreaterThanOrEqual(1);
+      expect(sol!.keyTradeoffs.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("parking-lot is seeded", () => {
+    expect(hasCanonicalFor("parking-lot")).toBe(true);
+  });
+
+  it("elevator-system is seeded", () => {
+    expect(hasCanonicalFor("elevator-system")).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- drill-canonical
+```
+Expected: FAIL with `Cannot find module`.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/lld/drill-canonical.ts`:
+
+```typescript
+/**
+ * LLD-021: Canonical reference solutions for drill problems.
+ *
+ * Phase 4 seeds the 10 most-drilled problems. Unseeded problems fall
+ * through to `null`; the post-drill UI degrades gracefully (hides the
+ * canonical-compare panel).
+ */
+
+export interface CanonicalClass {
+  name: string;
+  stereotype?: "interface" | "abstract" | "enum";
+  attributes?: string[];
+  methods?: string[];
+  /** One-line reason this class exists in the canonical solution. */
+  justification: string;
+}
+
+export interface CanonicalRelationship {
+  from: string;
+  to: string;
+  /** UML relationship kind. */
+  kind:
+    | "inherits"
+    | "implements"
+    | "composes"
+    | "aggregates"
+    | "associates"
+    | "depends";
+  label?: string;
+}
+
+export interface CanonicalSolution {
+  problemId: string;
+  title: string;
+  summary: string;
+  classes: CanonicalClass[];
+  relationships: CanonicalRelationship[];
+  patterns: string[]; // e.g. ["strategy", "state"]
+  keyTradeoffs: string[];
+  antiPatternsToAvoid: string[];
+}
+
+const SOLUTIONS: Record<string, CanonicalSolution> = {
+  "parking-lot": {
+    problemId: "parking-lot",
+    title: "Parking Lot",
+    summary:
+      "Variable-size lot with tiered spot types, vehicle-to-spot matching, and per-session billing.",
+    classes: [
+      {
+        name: "ParkingLot",
+        methods: ["assignSpot(v)", "releaseSpot(t)", "availableSpots()"],
+        justification: "Facade + source of truth for capacity.",
+      },
+      {
+        name: "ParkingSpot",
+        stereotype: "abstract",
+        attributes: ["id", "level", "isAvailable"],
+        justification: "Polymorphism base for spot types.",
+      },
+      {
+        name: "Vehicle",
+        stereotype: "abstract",
+        methods: ["size()"],
+        justification: "Drives spot-matching logic.",
+      },
+      {
+        name: "Ticket",
+        attributes: ["issuedAt", "spotId", "vehicleId"],
+        justification: "Session record for billing + release.",
+      },
+      {
+        name: "PricingStrategy",
+        stereotype: "interface",
+        methods: ["price(durationMin)"],
+        justification: "Pluggable pricing (flat / tiered / surge).",
+      },
+    ],
+    relationships: [
+      {
+        from: "ParkingLot",
+        to: "ParkingSpot",
+        kind: "composes",
+        label: "owns",
+      },
+      { from: "ParkingLot", to: "Ticket", kind: "composes", label: "issues" },
+      {
+        from: "CarSpot",
+        to: "ParkingSpot",
+        kind: "inherits",
+      },
+      {
+        from: "ParkingLot",
+        to: "PricingStrategy",
+        kind: "depends",
+        label: "uses",
+      },
+    ],
+    patterns: ["strategy", "factory-method"],
+    keyTradeoffs: [
+      "Polymorphism over if-else makes spot types extensible at the cost of boilerplate.",
+      "Strategy for pricing adds a type at the cost of dependency injection overhead.",
+      "Composite-style spot hierarchy simplifies traversal but inflates class count.",
+    ],
+    antiPatternsToAvoid: [
+      "Switch statements over vehicle type — that's what polymorphism is for.",
+      "Singleton ParkingLot without dependency injection (makes tests painful).",
+    ],
+  },
+
+  "elevator-system": {
+    problemId: "elevator-system",
+    title: "Elevator System",
+    summary:
+      "Multi-elevator building with directional scheduling, floor requests, and idle/moving/emergency states.",
+    classes: [
+      {
+        name: "ElevatorController",
+        justification: "Scheduler + request dispatcher.",
+      },
+      {
+        name: "Elevator",
+        methods: ["moveTo(floor)", "openDoor()"],
+        justification: "Physical car with state machine.",
+      },
+      {
+        name: "ElevatorState",
+        stereotype: "interface",
+        methods: ["handleRequest(r)", "handleArrival(f)"],
+        justification: "State pattern — idle/moving-up/moving-down/emergency.",
+      },
+      {
+        name: "Request",
+        attributes: ["floor", "direction", "timestamp"],
+        justification: "Request object for queueing.",
+      },
+      {
+        name: "SchedulingStrategy",
+        stereotype: "interface",
+        methods: ["pickElevator(req, cars)"],
+        justification: "Pluggable scheduler (nearest / scan / LOOK).",
+      },
+    ],
+    relationships: [
+      {
+        from: "ElevatorController",
+        to: "Elevator",
+        kind: "composes",
+        label: "manages",
+      },
+      { from: "Elevator", to: "ElevatorState", kind: "depends", label: "has" },
+      {
+        from: "ElevatorController",
+        to: "SchedulingStrategy",
+        kind: "depends",
+      },
+    ],
+    patterns: ["state", "strategy", "command"],
+    keyTradeoffs: [
+      "State pattern per-car avoids sprawling if-else but adds classes.",
+      "Centralized scheduler simplifies global optimization; decentralized helps fault tolerance.",
+      "Command objects enable request replay/logging at the cost of allocation.",
+    ],
+    antiPatternsToAvoid: [
+      "Boolean flags for elevator state (isMoving, isGoingUp, isEmergency...) → use State.",
+      "Scheduler as God class — extract the picking policy.",
+    ],
+  },
+
+  "chess-game": {
+    problemId: "chess-game",
+    title: "Chess Game",
+    summary:
+      "Two-player turn-based game with piece polymorphism, move validation, and check/checkmate detection.",
+    classes: [
+      { name: "Game", justification: "Turn orchestrator." },
+      {
+        name: "Board",
+        methods: ["getPiece(pos)", "applyMove(m)"],
+        justification: "8×8 grid abstraction.",
+      },
+      {
+        name: "Piece",
+        stereotype: "abstract",
+        methods: ["legalMoves(board)"],
+        justification: "Polymorphism over 6 piece types.",
+      },
+      {
+        name: "Move",
+        attributes: ["from", "to", "captured?"],
+        justification: "Value object for history + undo.",
+      },
+      {
+        name: "MoveValidator",
+        justification: "Pulls check/pin/castling rules out of Piece.",
+      },
+    ],
+    relationships: [
+      { from: "Game", to: "Board", kind: "composes" },
+      { from: "Board", to: "Piece", kind: "composes" },
+      { from: "Pawn", to: "Piece", kind: "inherits" },
+      { from: "Game", to: "MoveValidator", kind: "depends" },
+    ],
+    patterns: ["command", "strategy", "memento"],
+    keyTradeoffs: [
+      "One class per piece = clear; one table of move-vectors = compact.",
+      "Command Move enables undo/replay but bloats memory for long games.",
+      "Validator separation improves testability at the cost of an extra hop.",
+    ],
+    antiPatternsToAvoid: [
+      "Piece class with isKing/isQueen booleans.",
+      "Move validation inside the Game God class.",
+    ],
+  },
+};
+
+export const CANONICAL_PROBLEM_IDS = Object.keys(SOLUTIONS);
+
+export function getCanonicalFor(problemId: string): CanonicalSolution | null {
+  return SOLUTIONS[problemId] ?? null;
+}
+
+export function hasCanonicalFor(problemId: string): boolean {
+  return problemId in SOLUTIONS;
+}
+```
+
+Note: Task 8 seeds **3 canonical solutions** as a proof-of-concept; the remaining 7 are seeded in a follow-up task during content authoring (or done incrementally via PRs). The `CANONICAL_PROBLEM_IDS` export lets the post-drill UI detect whether to render the canonical-compare panel.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- drill-canonical
+```
+Expected: PASS — the test iterates the 3 seeded IDs.
+
+Update the test's `parking-lot` and `elevator-system` assertions to reflect what the module actually seeds if you add more later.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/lld/drill-canonical.ts architex/src/lib/lld/__tests__/drill-canonical.test.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): canonical solutions for drill problems
+
+Seeds parking-lot, elevator-system, chess-game. getCanonicalFor returns
+null for unseeded problems so the post-drill UI can degrade gracefully.
+Each solution encodes classes (with justifications), relationships,
+patterns, key tradeoffs, and anti-patterns.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 9: `drill-timing.ts` — stage-duration heatmap + outlier detection
+
+**Files:**
+- Create: `architex/src/lib/lld/drill-timing.ts`
+- Test: `architex/src/lib/lld/__tests__/drill-timing.test.ts`
+
+The post-drill timing heatmap shows where the user spent their time per stage and flags over/under-use relative to an "ideal" envelope.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/lld/__tests__/drill-timing.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  idealStageDurations,
+  buildTimingHeatmap,
+  type StageTiming,
+} from "@/lib/lld/drill-timing";
+
+describe("drill-timing · idealStageDurations", () => {
+  it("sums to the total budget", () => {
+    const total = 30 * 60 * 1000;
+    const ideal = idealStageDurations(total);
+    const sum =
+      ideal.clarify +
+      ideal.rubric +
+      ideal.canvas +
+      ideal.walkthrough +
+      ideal.reflection;
+    expect(sum).toBe(total);
+  });
+
+  it("canvas is the largest share", () => {
+    const ideal = idealStageDurations(30 * 60 * 1000);
+    expect(ideal.canvas).toBeGreaterThan(ideal.clarify);
+    expect(ideal.canvas).toBeGreaterThan(ideal.walkthrough);
+  });
+});
+
+describe("drill-timing · buildTimingHeatmap", () => {
+  it("classifies within-envelope as ok", () => {
+    const actual = {
+      clarify: 3 * 60 * 1000,
+      rubric: 2 * 60 * 1000,
+      canvas: 18 * 60 * 1000,
+      walkthrough: 5 * 60 * 1000,
+      reflection: 2 * 60 * 1000,
+    };
+    const heatmap = buildTimingHeatmap(actual, 30 * 60 * 1000);
+    expect(heatmap.overall).toBe("on-pace");
+  });
+
+  it("flags canvas as over when user spent 90% on sketching", () => {
+    const actual = {
+      clarify: 30 * 1000,
+      rubric: 30 * 1000,
+      canvas: 25 * 60 * 1000,
+      walkthrough: 2 * 60 * 1000,
+      reflection: 2 * 60 * 1000,
+    };
+    const heatmap = buildTimingHeatmap(actual, 30 * 60 * 1000);
+    const canvas = heatmap.stages.find((s) => s.stage === "canvas")!;
+    expect(canvas.classification).toBe("over");
+  });
+
+  it("flags clarify as under when user skipped clarification", () => {
+    const actual = {
+      clarify: 10 * 1000,
+      rubric: 60 * 1000,
+      canvas: 20 * 60 * 1000,
+      walkthrough: 5 * 60 * 1000,
+      reflection: 3 * 60 * 1000,
+    };
+    const heatmap = buildTimingHeatmap(actual, 30 * 60 * 1000);
+    const clarify = heatmap.stages.find((s) => s.stage === "clarify")!;
+    expect(clarify.classification).toBe("under");
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- drill-timing
+```
+Expected: FAIL.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/lld/drill-timing.ts`:
+
+```typescript
+/**
+ * LLD-022: Drill timing heatmap
+ *
+ * Given per-stage actual durations + total budget, classifies each stage
+ * vs an ideal envelope (±30% of the recommended share).
+ */
+
+import { STAGE_ORDER, type DrillStage } from "@/lib/lld/drill-stages";
+
+export type StageClassification = "under" | "ok" | "over";
+
+/**
+ * Recommended share of the total budget per stage. Rough guidance based
+ * on how senior engineers actually spend a 30-min whiteboard loop:
+ *
+ *   clarify       ~12%  —  ~4 min of a 30-min session
+ *   rubric         ~6%  —  1.5 min to lock scope
+ *   canvas        ~55%  —  the bulk of the time
+ *   walkthrough   ~20%  —  6 min explaining
+ *   reflection     ~7%  —  2 min self-grade
+ */
+const IDEAL_SHARES: Record<DrillStage, number> = {
+  clarify: 0.12,
+  rubric: 0.06,
+  canvas: 0.55,
+  walkthrough: 0.2,
+  reflection: 0.07,
+};
+
+export interface StageTiming {
+  stage: DrillStage;
+  actualMs: number;
+  idealMs: number;
+  deltaMs: number;
+  /** (actual - ideal) / ideal — positive = over, negative = under */
+  deltaRatio: number;
+  classification: StageClassification;
+}
+
+export interface TimingHeatmap {
+  totalBudgetMs: number;
+  actualTotalMs: number;
+  stages: StageTiming[];
+  overall: "on-pace" | "slow-start" | "sketch-heavy" | "rushed-end";
+}
+
+export function idealStageDurations(
+  totalBudgetMs: number,
+): Record<DrillStage, number> {
+  // Distribute using shares; round to ms; fix any rounding drift so the
+  // sum equals totalBudgetMs exactly.
+  const raw = {
+    clarify: Math.round(totalBudgetMs * IDEAL_SHARES.clarify),
+    rubric: Math.round(totalBudgetMs * IDEAL_SHARES.rubric),
+    canvas: Math.round(totalBudgetMs * IDEAL_SHARES.canvas),
+    walkthrough: Math.round(totalBudgetMs * IDEAL_SHARES.walkthrough),
+    reflection: Math.round(totalBudgetMs * IDEAL_SHARES.reflection),
+  };
+  const sum =
+    raw.clarify + raw.rubric + raw.canvas + raw.walkthrough + raw.reflection;
+  // Drop the rounding drift into canvas (largest bucket).
+  raw.canvas += totalBudgetMs - sum;
+  return raw;
+}
+
+const OVER_THRESHOLD = 0.3; // +30%
+const UNDER_THRESHOLD = -0.5; // -50% (people under-clarify more than over)
+
+function classify(deltaRatio: number): StageClassification {
+  if (deltaRatio > OVER_THRESHOLD) return "over";
+  if (deltaRatio < UNDER_THRESHOLD) return "under";
+  return "ok";
+}
+
+export function buildTimingHeatmap(
+  actual: Record<DrillStage, number>,
+  totalBudgetMs: number,
+): TimingHeatmap {
+  const ideal = idealStageDurations(totalBudgetMs);
+  const stages: StageTiming[] = STAGE_ORDER.map((stage) => {
+    const actualMs = actual[stage];
+    const idealMs = ideal[stage];
+    const deltaMs = actualMs - idealMs;
+    const deltaRatio = idealMs > 0 ? deltaMs / idealMs : 0;
+    return {
+      stage,
+      actualMs,
+      idealMs,
+      deltaMs,
+      deltaRatio,
+      classification: classify(deltaRatio),
+    };
+  });
+
+  const actualTotalMs = stages.reduce((acc, s) => acc + s.actualMs, 0);
+
+  // Overall classification — pick the dominant signal.
+  const canvas = stages.find((s) => s.stage === "canvas")!;
+  const clarify = stages.find((s) => s.stage === "clarify")!;
+  const reflection = stages.find((s) => s.stage === "reflection")!;
+
+  let overall: TimingHeatmap["overall"] = "on-pace";
+  if (canvas.classification === "over" && reflection.classification === "under") {
+    overall = "sketch-heavy";
+  } else if (clarify.classification === "under" && canvas.actualMs > canvas.idealMs) {
+    overall = "slow-start";
+  } else if (
+    reflection.classification === "under" &&
+    actualTotalMs > 0.95 * totalBudgetMs
+  ) {
+    overall = "rushed-end";
+  }
+
+  return { totalBudgetMs, actualTotalMs, stages, overall };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- drill-timing
+```
+Expected: PASS · 4 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/lld/drill-timing.ts architex/src/lib/lld/__tests__/drill-timing.test.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): drill-timing heatmap + outlier detection
+
+Per-stage actual-vs-ideal classification (under/ok/over) against a
+recommended 12%/6%/55%/20%/7% envelope. Rounds drift into canvas so
+totals match exactly. Exposes an overall pattern label (on-pace /
+slow-start / sketch-heavy / rushed-end) for the post-drill narrative.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 10: `interviewer-prompts.ts` — 5 persona system prompts
+
+**Files:**
+- Create: `architex/src/lib/ai/interviewer-prompts.ts`
+- Test: `architex/src/lib/ai/__tests__/interviewer-prompts.test.ts`
+
+Five personas (from spec §12 A7): **generic**, **amazon** (bar-raise simplicity), **google** (algorithmic rigor), **meta** (scale), **stripe** (idempotency / correctness), **uber** (microservices). Each is a static system-prompt bank; the persona is chosen when the drill starts and remains constant for the session.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/ai/__tests__/interviewer-prompts.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  INTERVIEWER_PERSONAS,
+  systemPromptFor,
+  stageOpenerFor,
+  type InterviewerPersona,
+} from "@/lib/ai/interviewer-prompts";
+
+describe("interviewer-prompts · personas", () => {
+  it("exposes all 6 personas", () => {
+    expect(INTERVIEWER_PERSONAS.sort()).toEqual([
+      "amazon",
+      "generic",
+      "google",
+      "meta",
+      "stripe",
+      "uber",
+    ]);
+  });
+
+  it("each persona has a non-empty system prompt", () => {
+    for (const p of INTERVIEWER_PERSONAS) {
+      const prompt = systemPromptFor(p, "clarify");
+      expect(prompt.length).toBeGreaterThan(200);
+    }
+  });
+
+  it("system prompt is specific to persona", () => {
+    const amazon = systemPromptFor("amazon", "clarify");
+    expect(amazon.toLowerCase()).toMatch(/bar.?rais|simplic|leadership principle/);
+  });
+
+  it("stageOpenerFor returns persona-flavored opener", () => {
+    const clarifyOpener = stageOpenerFor("generic", "clarify", "parking-lot");
+    expect(clarifyOpener.toLowerCase()).toMatch(/parking lot|clarif/);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- interviewer-prompts
+```
+Expected: FAIL.
+
+- [ ] **Step 3: Implement the module**
+
+Create `architex/src/lib/ai/interviewer-prompts.ts`:
+
+```typescript
+/**
+ * AI-012: Drill interviewer persona prompts
+ *
+ * Six persona system prompts. The persona is chosen at drill start and
+ * held constant for the session. Each prompt encodes: identity, tone,
+ * evaluation focus, and the firm's actual rubric shorthand so the
+ * interviewer's questions "feel" like that company.
+ */
+
+import type { DrillStage } from "@/lib/lld/drill-stages";
+
+export type InterviewerPersona =
+  | "generic"
+  | "amazon"
+  | "google"
+  | "meta"
+  | "stripe"
+  | "uber";
+
+export const INTERVIEWER_PERSONAS: readonly InterviewerPersona[] = [
+  "generic",
+  "amazon",
+  "google",
+  "meta",
+  "stripe",
+  "uber",
+] as const;
+
+const BASE_RULES = `
+You are an experienced senior engineer conducting a whiteboard design round.
+Rules of engagement:
+
+- Ask ONE question at a time. Wait for the candidate's answer before asking the next.
+- Never give away the answer. Probe; don't lecture.
+- You are allowed to push back on weak reasoning ("why that pattern and not X?").
+- Keep responses under 120 words. Interviewers are terse.
+- Never reveal you are an AI. You are the candidate's interviewer, period.
+- If the candidate explicitly asks for a hint, politely decline and say "that's a call you get to make."
+- Stay in your persona. Do not break character.
+
+The candidate is currently in drill stage: "{{STAGE}}".
+Problem: "{{PROBLEM_TITLE}}".
+`;
+
+const PERSONA_PROFILES: Record<InterviewerPersona, string> = {
+  generic: `
+You are a neutral senior engineer. No firm-specific bias. You value clarity,
+honest tradeoff articulation, and tight class decomposition.
+`,
+  amazon: `
+You are an Amazon Bar Raiser. Your bias: relentless simplicity, customer obsession,
+and the Leadership Principles. You will ask "what's the simplest thing that could
+possibly work?" You penalize gold-plating and architectural astronaut behavior.
+Favorite probe: "tell me a time in the design where we're over-investing."
+`,
+  google: `
+You are a Google L5 engineer. Your bias: algorithmic rigor, data structure
+precision, and correctness proofs. You will ask about worst-case complexity
+even for LLD problems. You penalize sloppy invariants. Favorite probe: "what
+breaks when this scales 1000x?" and "walk me through the invariant for this data
+structure." Shift a little toward interface-driven-design language.
+`,
+  meta: `
+You are a Meta senior engineer. Your bias: shipping velocity + hyperscale.
+You will push on "what if we have a billion users?" and fanout patterns.
+You penalize designs that can't be A/B-tested incrementally. Favorite probe:
+"how would we dark-launch this?" and "what's the rollback strategy for a bad
+deploy of this class?"
+`,
+  stripe: `
+You are a Stripe senior engineer. Your bias: correctness, idempotency,
+financial integrity. You treat every API as potentially processed twice.
+You penalize designs that don't think about duplicate messages, partial
+failure, or reconciliation. Favorite probe: "what happens if this method
+runs twice with the same input?" and "where's the source of truth?"
+`,
+  uber: `
+You are an Uber senior engineer. Your bias: microservice boundaries,
+geo-aware state, real-time consistency tradeoffs. You penalize monolithic
+thinking. Favorite probe: "where's the service boundary here?" and "what's
+the blast radius when the closest datacenter dies?"
+`,
+};
+
+export function systemPromptFor(
+  persona: InterviewerPersona,
+  stage: DrillStage,
+): string {
+  return (
+    PERSONA_PROFILES[persona].trim() +
+    "\n\n" +
+    BASE_RULES.trim().replace("{{STAGE}}", stage).replace(
+      "{{PROBLEM_TITLE}}",
+      "<< see next user message >>",
+    )
+  );
+}
+
+// ── Stage openers ────────────────────────────────────────────────────
+// Lightweight canned openers for each (persona, stage) that the UI
+// shows instantly before the streaming response kicks in, giving the
+// chat a snappy feel even on slow networks.
+
+const STAGE_OPENERS: Record<DrillStage, string> = {
+  clarify:
+    "Let's take a moment on scope. What do you want to clarify about {{PROBLEM}} before you start drawing?",
+  rubric:
+    "Good. Before we sketch, what are the top 3 dimensions you'll get graded on here?",
+  canvas:
+    "Okay, canvas time. Walk me through the classes as you drop them in.",
+  walkthrough:
+    "Now narrate the happy path end to end. A user shows up — what happens?",
+  reflection:
+    "Last thing. If you were me, what grade would you give this design and why?",
+};
+
+export function stageOpenerFor(
+  persona: InterviewerPersona,
+  stage: DrillStage,
+  problemTitle: string,
+): string {
+  const opener = STAGE_OPENERS[stage].replace("{{PROBLEM}}", problemTitle);
+  // A tiny persona inflection on the opener.
+  if (persona === "amazon" && stage === "clarify") {
+    return `${opener} Keep it tight — we don't have all day.`;
+  }
+  if (persona === "stripe" && stage === "clarify") {
+    return `${opener} Correctness first — what edge cases are you already worried about?`;
+  }
+  return opener;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- interviewer-prompts
+```
+Expected: PASS · 4 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/ai/interviewer-prompts.ts architex/src/lib/ai/__tests__/interviewer-prompts.test.ts
+git commit -m "$(cat <<'EOF'
+feat(ai): 5-persona interviewer system prompts
+
+generic / amazon / google / meta / stripe / uber — each with a distinctive
+evaluation bias encoded in the system prompt. BASE_RULES enforces "one
+question at a time", "<120 words", "never break character", "don't give
+hints". Stage openers give the chat a snappy feel before streaming kicks in.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+
 
