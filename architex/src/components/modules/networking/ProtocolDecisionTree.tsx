@@ -263,7 +263,8 @@ export default function ProtocolDecisionTree() {
         <div className="flex flex-wrap gap-1 text-xs" style={{ color: 'var(--text-secondary, #94a3b8)' }}>
           {path.map((nodeId, i) => {
             const node = DECISION_TREE[nodeId];
-            const label = node.protocol ?? node.question?.slice(0, 30) + '...' ?? nodeId;
+            const questionLabel = node.question ? `${node.question.slice(0, 30)}...` : undefined;
+            const label = node.protocol ?? questionLabel ?? nodeId;
             return (
               <span key={nodeId} className="flex items-center gap-1">
                 {i > 0 && <span style={{ color: 'var(--border, #334155)' }}>/</span>}

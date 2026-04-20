@@ -162,7 +162,7 @@ export const SettingsPanel = memo(function SettingsPanel() {
                 <button
                   onClick={() => {
                     localStorage.removeItem('architex-first-encounter-algorithm-module');
-                    useUIStore.getState().setActiveModule("algorithm");
+                    useUIStore.getState().setActiveModule("algorithms");
                     setOpen(false);
                   }}
                   className="flex w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent/50"

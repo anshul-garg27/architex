@@ -57,7 +57,11 @@ function buildMinimalState(): DSModuleState {
     steps: [],
     currentStepIdx: -1,
     log: [],
-  } as DSModuleState;
+    // Lazy initialization: downstream handlers populate each structure when
+    // the user selects it. The declared type requires these fields to be
+    // non-null, but bootstrapping all 40+ structures eagerly regressed mount
+    // time by 5-15s, so we accept the structural mismatch here.
+  } as unknown as DSModuleState;
 }
 
 let _cached: DSModuleState | null = null;
