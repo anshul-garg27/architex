@@ -13322,3 +13322,50 @@ git tag -a sd-phase-3-complete -m "SD Phase 3 · Simulate + Drill flagship · co
 On completion: monitor the dashboards listed in §25 Success Metrics of the spec for the first 72 hours post-rollout. Expected leading indicators: (a) simulate-run completion rate ≥ 60% within first week; (b) drill completion rate ≥ 50%; (c) triple-loop CTA clickthrough ≥ 25%; (d) whisper-coach acceptance ≥ 40%; (e) real-incident Archaeology views ≥ 15% of all sim runs. Any sustained miss by >20% is a Phase-4 retro input.
 
 ---
+
+## Phase 3 closeout — what ships, what's deferred, what's flagged
+
+**Ships in Phase 3 (Weeks 11-16, ~280 engineering hours):**
+
+- **DB:** 4 migrations · `sd_simulation_runs` extended · new `sd_chaos_event_log` · `sd_drill_attempts` extended · new `sd_drill_interviewer_turns`.
+- **Engine adapters (read-only on engine):** 73-event chaos taxonomy · 10 real-incident timelines · 40 scripted scenarios · chaos dice · chaos budget · auto-escalation · red-team AI validation · 4 load models (Uniform · Poisson · Diurnal · Burst) · HDR-histogram metrics + ring buffer · replay scaffolding (seeded RNG + event log + 30s keyframes).
+- **AI:** whisper-mode Haiku coach (3-interventions per 5-min cap) · 8 interviewer personas + streaming Sonnet SSE + scripted fallback · 6-axis rubric grader · Sonnet postmortem generator · Simulate post-run summarizer (triple-loop CTA) · red-team chaos planner.
+- **Simulate UI:** cinematic chaos ribbon + red vignette + WebAudio thump + reduced-motion fallback · 6-cell metric strip with 4-band threshold coaching · margin narrative stream · 6-mode chaos control panel · 6 activity framings · Archaeology incident picker + verdict card · 7 drill-ins (Pause/Inspect · Time Scrubber · Cascade Trace · Slow-Mo · Metric Drilldown · What-If Branching · Replay/Share) · SimulateModeLayout composition · PostRunResultsCard.
+- **Drill UI:** 5-stage FSM with gate predicates · 7-variant config (3 fully wired) · 8-persona picker · rubric definitions · canonical solutions registry · timing heatmap · 3-tier hint ladder · drill-store · 4 drill hooks · 6 API routes · DrillModeLayout composition · 9 post-drill artifact components.
+- **Content:** 12 Wave-2/3 concepts + 10 problems + 10 real-incidents shells; Opus fills bodies across the phase.
+- **Analytics:** 36 new typed events (22 Simulate + 14 Drill).
+- **Rollout:** Wave 3 flipped to 100% anonymous; auto-rollback guard on abandoned-rate > 35%.
+
+**Deferred to Phase 4:**
+
+- 4 more load models (Zipfian · Segment-mix · Per-endpoint · Trace-replay).
+- Cascade physics scream-test tuning against real-incident replay timelines (Phase 3 ships best-effort; Phase 4 tunes amplification constants).
+- Drill variants: `exam` (ships enum; UI polish in Phase 4), `full-stack-loop` (90-min SD+LLD combo), `verbal` (Whisper mic), `review` (past-attempt replay).
+- Remaining 7 company presets in persona-preset (Google · Meta · Stripe · Netflix · Uber · Airbnb · generic-FAANG; Phase 3 ships Amazon).
+- Edge routing algorithm 4 (force-directed) · auto-layout ELK + radial (needed for Service Mesh + blast-radius diagrams in Phase-4 content drop).
+
+**Deferred to Phase 5:**
+
+- Full deterministic replay UI (Phase 3 captures the format; Phase 5 ships the replay).
+- Span-tree waterfall tracing.
+- Edge bundling (routing algorithm 5) — plan open-question 2.
+
+**Flagged for mid-phase resolution (repeated from header):**
+
+1. Cascade amplification constants need empirical tuning against real-incident timelines — flag if > 30% deviation.
+2. Whisper-coach 3-per-window is hard ceiling (not per-event reset).
+3. Reduced-motion replaces ribbon (doesn't shorten).
+4. Real-incident narratives ship in Phase 3 (Task 32); physics tuning in Phase 4.
+5. Drill persona streaming + scripted fallback both ship.
+6. Cost meter 1Hz refresh (tunable).
+7. Shareable PDF client-side via react-pdf.
+8. 73-event taxonomy as TS constant; user-authored scenarios get a DB table in Phase 4.
+
+**Commit cadence.** This plan is structured for ~85-95 commits across 32 tasks. Each task commits 1-5 times; some (Task 5 taxonomy, Task 16 personas) commit more frequently because their scope is broader. Frequent commits keep the agentic watchdog alive and make bisecting easy if a mid-phase regression ships.
+
+**Acceptance criteria for Phase 3 done.** (1) All 32 tasks checked off. (2) `pnpm typecheck && pnpm lint && pnpm test:run && pnpm build` green. (3) 6 Playwright E2Es green. (4) Engine-file checksum matches pre-flight snapshot. (5) `pnpm verify:sd-content` green. (6) Wave-3 flag flipped and auto-rollback guard wired. (7) `.progress` file updated with "SD Phase 3 · DONE · <date>". (8) User approval to proceed to Phase 4.
+
+---
+
+*End of SD Phase-3 implementation plan.*
+
