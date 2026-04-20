@@ -10798,3 +10798,706 @@ EOF
 ```
 
 ---
+
+## Task 28: `drill-store.ts` + 4 drill hooks
+
+**Files:**
+- Create: `architex/src/stores/drill-store.ts`
+- Create: `architex/src/stores/__tests__/drill-store.test.ts`
+- Create: `architex/src/hooks/useDrillStage.ts`
+- Create: `architex/src/hooks/useDrillInterviewer.ts`
+- Create: `architex/src/hooks/useDrillHintLadder.ts`
+- Create: `architex/src/hooks/useDrillTimingHeatmap.ts`
+- Create: `architex/src/hooks/__tests__/useDrillStage.test.tsx`
+- Create: `architex/src/hooks/__tests__/useDrillHintLadder.test.tsx`
+
+- [ ] **Step 1: `drill-store.ts` Zustand slice**
+
+```typescript
+// architex/src/stores/drill-store.ts
+import { create } from "zustand";
+import type {
+  SDDrillStage,
+  SDDrillVariant,
+  SDPersona,
+  SDCompanyPreset,
+} from "@/db/schema/sd-drill-attempts";
+
+export interface DrillState {
+  attemptId: string | null;
+  problemSlug: string | null;
+  variant: SDDrillVariant;
+  persona: SDPersona;
+  companyPreset: SDCompanyPreset | null;
+  currentStage: SDDrillStage;
+  startedAt: number | null;
+  stageStartedAt: number | null;
+  hintsRemaining: number;
+  paused: boolean;
+  submitted: boolean;
+  setAttempt(
+    id: string,
+    meta: { problemSlug: string; variant: SDDrillVariant; persona: SDPersona; companyPreset?: SDCompanyPreset | null },
+  ): void;
+  advanceStage(next: SDDrillStage): void;
+  consumeHintCredits(n: number): void;
+  pause(): void;
+  resume(): void;
+  submit(): void;
+  reset(): void;
+}
+
+export const useDrillStore = create<DrillState>((set) => ({
+  attemptId: null,
+  problemSlug: null,
+  variant: "timed-mock",
+  persona: "staff",
+  companyPreset: null,
+  currentStage: "clarify",
+  startedAt: null,
+  stageStartedAt: null,
+  hintsRemaining: 15,
+  paused: false,
+  submitted: false,
+  setAttempt: (id, meta) =>
+    set({
+      attemptId: id,
+      problemSlug: meta.problemSlug,
+      variant: meta.variant,
+      persona: meta.persona,
+      companyPreset: meta.companyPreset ?? null,
+      currentStage: "clarify",
+      startedAt: Date.now(),
+      stageStartedAt: Date.now(),
+      hintsRemaining: 15,
+      paused: false,
+      submitted: false,
+    }),
+  advanceStage: (next) =>
+    set({ currentStage: next, stageStartedAt: Date.now() }),
+  consumeHintCredits: (n) =>
+    set((s) => ({ hintsRemaining: Math.max(0, s.hintsRemaining - n) })),
+  pause: () => set({ paused: true }),
+  resume: () => set({ paused: false }),
+  submit: () => set({ submitted: true, paused: true }),
+  reset: () =>
+    set({
+      attemptId: null,
+      problemSlug: null,
+      currentStage: "clarify",
+      startedAt: null,
+      stageStartedAt: null,
+      hintsRemaining: 15,
+      paused: false,
+      submitted: false,
+    }),
+}));
+```
+
+```typescript
+// architex/src/stores/__tests__/drill-store.test.ts
+import { describe, expect, it, beforeEach } from "vitest";
+import { useDrillStore } from "../drill-store";
+
+beforeEach(() => {
+  useDrillStore.getState().reset();
+});
+
+describe("drill-store", () => {
+  it("setAttempt seeds stage + credits", () => {
+    useDrillStore.getState().setAttempt("a1", {
+      problemSlug: "design-twitter",
+      variant: "timed-mock",
+      persona: "staff",
+    });
+    const s = useDrillStore.getState();
+    expect(s.attemptId).toBe("a1");
+    expect(s.currentStage).toBe("clarify");
+    expect(s.hintsRemaining).toBe(15);
+  });
+  it("advanceStage updates currentStage + resets stageStartedAt", async () => {
+    const store = useDrillStore.getState();
+    store.setAttempt("a1", { problemSlug: "x", variant: "timed-mock", persona: "staff" });
+    const before = useDrillStore.getState().stageStartedAt!;
+    await new Promise((r) => setTimeout(r, 10));
+    store.advanceStage("estimate");
+    const s = useDrillStore.getState();
+    expect(s.currentStage).toBe("estimate");
+    expect(s.stageStartedAt).toBeGreaterThan(before);
+  });
+  it("consumeHintCredits floors at 0", () => {
+    const store = useDrillStore.getState();
+    store.setAttempt("a1", { problemSlug: "x", variant: "timed-mock", persona: "staff" });
+    store.consumeHintCredits(5);
+    store.consumeHintCredits(100);
+    expect(useDrillStore.getState().hintsRemaining).toBe(0);
+  });
+});
+```
+
+- [ ] **Step 2: `useDrillStage` hook**
+
+```typescript
+// architex/src/hooks/useDrillStage.ts
+"use client";
+import { useCallback } from "react";
+import { useDrillStore } from "@/stores/drill-store";
+import {
+  canAdvanceStage,
+  nextStage,
+  type StageGateInput,
+} from "@/lib/drill/sd-drill-stages";
+
+export function useDrillStage() {
+  const { attemptId, currentStage, advanceStage } = useDrillStore();
+
+  const tryAdvance = useCallback(
+    async (
+      gateInput: Omit<StageGateInput, "stage">,
+    ): Promise<{ ok: boolean; reason?: string; next?: string }> => {
+      if (!attemptId) return { ok: false, reason: "No attempt" };
+      const input: StageGateInput = { stage: currentStage, ...gateInput };
+      if (!canAdvanceStage(input)) {
+        return { ok: false, reason: "Gate predicate not satisfied" };
+      }
+      const next = nextStage(currentStage);
+      if (!next) return { ok: false, reason: "Already at final stage" };
+      const res = await fetch(`/api/sd/drill-attempts/${attemptId}/stage`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nextStage: next }),
+      });
+      if (!res.ok) return { ok: false, reason: "Server rejected stage advance" };
+      advanceStage(next);
+      return { ok: true, next };
+    },
+    [attemptId, currentStage, advanceStage],
+  );
+
+  return { currentStage, tryAdvance };
+}
+```
+
+- [ ] **Step 3: `useDrillInterviewer` hook (SSE consumer)**
+
+```typescript
+// architex/src/hooks/useDrillInterviewer.ts
+"use client";
+import { useCallback, useRef, useState } from "react";
+import type { DrillTurn } from "@/lib/ai/sd-interviewer-persona";
+
+export function useDrillInterviewer(attemptId: string) {
+  const [turns, setTurns] = useState<DrillTurn[]>([]);
+  const [streaming, setStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const sendTurn = useCallback(
+    async (userContent: string, stage: DrillTurn["stage"]) => {
+      setTurns((t) => [...t, { role: "user", content: userContent, stage }]);
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setStreaming(true);
+
+      const res = await fetch(`/api/sd/drill-interviewer/${attemptId}/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({ stage, userContent, history: turns }),
+        signal: controller.signal,
+      });
+      if (!res.body) {
+        setStreaming(false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let assistantText = "";
+      setTurns((t) => [...t, { role: "assistant", content: "", stage }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+        for (const ev of events) {
+          const dataMatch = ev.match(/^event: delta\ndata: (.*)$/m);
+          if (!dataMatch) continue;
+          try {
+            const parsed = JSON.parse(dataMatch[1]);
+            assistantText += parsed.delta ?? "";
+            setTurns((t) => {
+              const clone = [...t];
+              clone[clone.length - 1] = { ...clone[clone.length - 1], content: assistantText };
+              return clone;
+            });
+          } catch {
+            /* skip malformed frame */
+          }
+        }
+      }
+      setStreaming(false);
+    },
+    [attemptId, turns],
+  );
+
+  const abort = useCallback(() => {
+    abortRef.current?.abort();
+    setStreaming(false);
+  }, []);
+
+  return { turns, streaming, sendTurn, abort };
+}
+```
+
+- [ ] **Step 4: `useDrillHintLadder` hook**
+
+```typescript
+// architex/src/hooks/useDrillHintLadder.ts
+"use client";
+import { useCallback, useState } from "react";
+import { useDrillStore } from "@/stores/drill-store";
+import {
+  HINT_CREDIT_COST,
+  createHintLedger,
+  requestHint,
+  type HintTier,
+  type HintLedger,
+} from "@/lib/drill/sd-drill-hint-ladder";
+
+export function useDrillHintLadder(free: boolean) {
+  const { attemptId, hintsRemaining, consumeHintCredits, currentStage } = useDrillStore();
+  const [ledger, setLedger] = useState<HintLedger>(() =>
+    createHintLedger(hintsRemaining, free),
+  );
+
+  const requestTier = useCallback(
+    async (tier: HintTier): Promise<{ ok: boolean; reason?: string; text?: string }> => {
+      if (!attemptId) return { ok: false, reason: "No attempt" };
+      const res = await fetch(`/api/sd/drill-attempts/${attemptId}/hint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier, stage: currentStage }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ reason: "Hint failed" }));
+        return { ok: false, reason: body.reason ?? "Hint failed" };
+      }
+      const { text } = (await res.json()) as { text: string };
+      const { ledger: next, ok } = requestHint(
+        ledger,
+        tier,
+        currentStage,
+        text,
+        Date.now(),
+      );
+      if (ok) {
+        setLedger(next);
+        consumeHintCredits(HINT_CREDIT_COST[tier]);
+      }
+      return { ok, text };
+    },
+    [attemptId, ledger, currentStage, consumeHintCredits],
+  );
+
+  return { ledger, requestTier };
+}
+```
+
+- [ ] **Step 5: `useDrillTimingHeatmap` hook**
+
+```typescript
+// architex/src/hooks/useDrillTimingHeatmap.ts
+"use client";
+import { useMemo } from "react";
+import { useDrillStore } from "@/stores/drill-store";
+import { buildTimingHeatmap } from "@/lib/drill/sd-drill-timing";
+import type { SDDrillStage } from "@/db/schema/sd-drill-attempts";
+
+export function useDrillTimingHeatmap(
+  perStageMs: Partial<Record<SDDrillStage, number>>,
+) {
+  const { startedAt, stageStartedAt, currentStage } = useDrillStore();
+  return useMemo(() => {
+    const live: Partial<Record<SDDrillStage, number>> = { ...perStageMs };
+    if (stageStartedAt && currentStage) {
+      live[currentStage] = (live[currentStage] ?? 0) + (Date.now() - stageStartedAt);
+    }
+    return { heatmap: buildTimingHeatmap(live), startedAt };
+  }, [perStageMs, stageStartedAt, currentStage, startedAt]);
+}
+```
+
+- [ ] **Step 6: Hook tests**
+
+```tsx
+// architex/src/hooks/__tests__/useDrillStage.test.tsx
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { useDrillStage } from "../useDrillStage";
+import { useDrillStore } from "@/stores/drill-store";
+
+beforeEach(() => {
+  useDrillStore.getState().reset();
+  global.fetch = vi.fn(async () => ({ ok: true } as Response));
+});
+
+describe("useDrillStage", () => {
+  it("tryAdvance rejects when gate fails", async () => {
+    useDrillStore.getState().setAttempt("a1", {
+      problemSlug: "x",
+      variant: "timed-mock",
+      persona: "staff",
+    });
+    const { result } = renderHook(() => useDrillStage());
+    const res = await act(async () =>
+      await result.current.tryAdvance({
+        clarifyTurnCount: 1,
+        hasNapkinMath: false,
+        canvasNodeCount: 0,
+        canvasEdgeCount: 0,
+        deepDiveTurnCount: 0,
+        qnaTurnCount: 0,
+      }),
+    );
+    expect(res.ok).toBe(false);
+  });
+  it("tryAdvance succeeds when gate passes", async () => {
+    useDrillStore.getState().setAttempt("a1", {
+      problemSlug: "x",
+      variant: "timed-mock",
+      persona: "staff",
+    });
+    const { result } = renderHook(() => useDrillStage());
+    const res = await act(async () =>
+      await result.current.tryAdvance({
+        clarifyTurnCount: 3,
+        hasNapkinMath: false,
+        canvasNodeCount: 0,
+        canvasEdgeCount: 0,
+        deepDiveTurnCount: 0,
+        qnaTurnCount: 0,
+      }),
+    );
+    expect(res.ok).toBe(true);
+    expect(res.next).toBe("estimate");
+  });
+});
+
+// architex/src/hooks/__tests__/useDrillHintLadder.test.tsx
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { useDrillHintLadder } from "../useDrillHintLadder";
+import { useDrillStore } from "@/stores/drill-store";
+
+beforeEach(() => {
+  useDrillStore.getState().reset();
+  useDrillStore.getState().setAttempt("a1", {
+    problemSlug: "x",
+    variant: "timed-mock",
+    persona: "staff",
+  });
+  global.fetch = vi.fn(async () =>
+    ({ ok: true, json: async () => ({ text: "Think about writes." }) } as Response),
+  );
+});
+
+describe("useDrillHintLadder", () => {
+  it("requestTier deducts credits on success", async () => {
+    const { result } = renderHook(() => useDrillHintLadder(false));
+    await act(async () => {
+      await result.current.requestTier("guided");
+    });
+    expect(useDrillStore.getState().hintsRemaining).toBe(15 - 3);
+  });
+});
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd architex
+pnpm test:run -- drill-store useDrillStage useDrillHintLadder
+git add architex/src/stores/drill-store.ts architex/src/stores/__tests__/drill-store.test.ts architex/src/hooks/useDrillStage.ts architex/src/hooks/useDrillInterviewer.ts architex/src/hooks/useDrillHintLadder.ts architex/src/hooks/useDrillTimingHeatmap.ts architex/src/hooks/__tests__/useDrillStage.test.tsx architex/src/hooks/__tests__/useDrillHintLadder.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(drill): drill-store + 4 hooks (useDrillStage · interviewer · hint ladder · timing)
+
+Zustand slice: attemptId, problemSlug, variant, persona, currentStage,
+hints remaining, paused, submitted. useDrillStage: gate-checked
+advance + PATCH API. useDrillInterviewer: SSE consumer with streaming
+assistant turns. useDrillHintLadder: 3-tier credit deduction via POST.
+useDrillTimingHeatmap: live per-stage elapsed + outlier flags.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 29: Drill API routes · stage · hint · grade · postmortem · recap-pdf · resume
+
+**Files:**
+- Create: `architex/src/app/api/sd/drill-attempts/[id]/stage/route.ts`
+- Create: `architex/src/app/api/sd/drill-attempts/[id]/hint/route.ts`
+- Create: `architex/src/app/api/sd/drill-attempts/[id]/grade/route.ts`
+- Create: `architex/src/app/api/sd/drill-attempts/[id]/postmortem/route.ts`
+- Create: `architex/src/app/api/sd/drill-attempts/[id]/recap-pdf/route.ts`
+- Create: `architex/src/app/api/sd/drill-attempts/[id]/resume/route.ts`
+
+Six thin handlers. Each follows the same shape: validate session → load attempt → perform action → update DB → return JSON. Fallbacks (no API key) are encoded in the grader/postmortem library files.
+
+- [ ] **Step 1: Advance-stage PATCH**
+
+```typescript
+// architex/src/app/api/sd/drill-attempts/[id]/stage/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db/client";
+import { sdDrillAttempts } from "@/db/schema/sd-drill-attempts";
+import { eq } from "drizzle-orm";
+import { STAGE_ORDER } from "@/lib/drill/sd-drill-stages";
+import type { SDDrillStage } from "@/db/schema/sd-drill-attempts";
+
+export const dynamic = "force-dynamic";
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const body = (await req.json()) as { nextStage: SDDrillStage };
+  if (!STAGE_ORDER.includes(body.nextStage)) {
+    return NextResponse.json({ error: "Invalid stage" }, { status: 400 });
+  }
+  const [updated] = await db
+    .update(sdDrillAttempts)
+    .set({
+      currentStage: body.nextStage,
+      startedStageAt: new Date(),
+      lastActivityAt: new Date(),
+    })
+    .where(eq(sdDrillAttempts.id, params.id))
+    .returning();
+  return NextResponse.json({ ok: true, attempt: updated });
+}
+```
+
+- [ ] **Step 2: Consume hint POST**
+
+```typescript
+// architex/src/app/api/sd/drill-attempts/[id]/hint/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db/client";
+import { sdDrillAttempts } from "@/db/schema/sd-drill-attempts";
+import { eq } from "drizzle-orm";
+import { HINT_CREDIT_COST, type HintTier } from "@/lib/drill/sd-drill-hint-ladder";
+import { getVariantConfig } from "@/lib/drill/sd-drill-variants";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const body = (await req.json()) as { tier: HintTier; stage: string };
+  const [attempt] = await db
+    .select()
+    .from(sdDrillAttempts)
+    .where(eq(sdDrillAttempts.id, params.id));
+  if (!attempt) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const variant = getVariantConfig(attempt.variant as "study" | "timed-mock" | "exam" | "pair-ai" | "full-stack-loop" | "verbal" | "review");
+  if (!variant.hintsAllowed) {
+    return NextResponse.json({ error: "Hints disabled for this variant" }, { status: 403 });
+  }
+  const cost = variant.hintsFree ? 0 : HINT_CREDIT_COST[body.tier];
+  if (!variant.hintsFree && attempt.hintCreditsRemaining < cost) {
+    return NextResponse.json({ error: "Insufficient credits" }, { status: 402 });
+  }
+
+  // Phase 3 uses a canned hint bank; Phase 4 wires Sonnet for contextual hints.
+  const text = `[${body.tier}] Consider how ${body.stage} shapes your next decision.`;
+  const hintLog = Array.isArray(attempt.hintLog) ? attempt.hintLog : [];
+  await db
+    .update(sdDrillAttempts)
+    .set({
+      hintCreditsRemaining: attempt.hintCreditsRemaining - cost,
+      hintLog: [
+        ...hintLog,
+        {
+          tier: body.tier,
+          creditsDeducted: cost,
+          requestedAtMs: Date.now(),
+          stage: body.stage,
+          textShown: text,
+        },
+      ],
+      lastActivityAt: new Date(),
+    })
+    .where(eq(sdDrillAttempts.id, params.id));
+  return NextResponse.json({ text, creditsRemaining: attempt.hintCreditsRemaining - cost });
+}
+```
+
+- [ ] **Step 3: Grade POST**
+
+```typescript
+// architex/src/app/api/sd/drill-attempts/[id]/grade/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db/client";
+import { sdDrillAttempts } from "@/db/schema/sd-drill-attempts";
+import { eq } from "drizzle-orm";
+import { gradeRubric, type GraderInput } from "@/lib/ai/sd-rubric-grader";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const body = (await req.json()) as GraderInput;
+  const rubric = await gradeRubric(body);
+  await db
+    .update(sdDrillAttempts)
+    .set({
+      rubricBreakdown: rubric,
+      gradeScore: rubric.overallScore,
+      submittedAt: new Date(),
+      lastActivityAt: new Date(),
+    })
+    .where(eq(sdDrillAttempts.id, params.id));
+  return NextResponse.json(rubric);
+}
+```
+
+- [ ] **Step 4: Postmortem POST**
+
+```typescript
+// architex/src/app/api/sd/drill-attempts/[id]/postmortem/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db/client";
+import { sdDrillAttempts } from "@/db/schema/sd-drill-attempts";
+import { eq } from "drizzle-orm";
+import { generatePostmortem } from "@/lib/ai/sd-postmortem-generator";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const body = await req.json();
+  const pm = await generatePostmortem(body.graderInput, body.rubric);
+  await db
+    .update(sdDrillAttempts)
+    .set({ postmortem: pm, lastActivityAt: new Date() })
+    .where(eq(sdDrillAttempts.id, params.id));
+  return NextResponse.json(pm);
+}
+```
+
+- [ ] **Step 5: Recap PDF GET (client-rendered React-PDF)**
+
+```typescript
+// architex/src/app/api/sd/drill-attempts/[id]/recap-pdf/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db/client";
+import { sdDrillAttempts } from "@/db/schema/sd-drill-attempts";
+import { eq } from "drizzle-orm";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * Per plan open-question 7, Phase 3 ships client-side PDF via react-pdf.
+ * This route returns the *input data* needed for client rendering, not the PDF itself.
+ * Phase-5 optimization: switch to server-side Puppeteer if client cold-starts too slowly.
+ */
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const [attempt] = await db
+    .select()
+    .from(sdDrillAttempts)
+    .where(eq(sdDrillAttempts.id, params.id));
+  if (!attempt) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json({
+    problemSlug: attempt.problemSlug,
+    persona: attempt.persona,
+    variant: attempt.variant,
+    submittedAt: attempt.submittedAt,
+    canvasState: attempt.canvasState,
+    rubric: attempt.rubricBreakdown,
+    postmortem: attempt.postmortem,
+    timingHeatmap: attempt.timingHeatmap,
+  });
+}
+```
+
+- [ ] **Step 6: Resume POST**
+
+```typescript
+// architex/src/app/api/sd/drill-attempts/[id]/resume/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db/client";
+import { sdDrillAttempts } from "@/db/schema/sd-drill-attempts";
+import { eq, and, isNull } from "drizzle-orm";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * Resume a paused drill. Uses Phase-1's one-active-drill-per-user partial
+ * unique index to reject a stale resume when a newer active drill exists.
+ */
+export async function POST(
+  _req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const [attempt] = await db
+    .select()
+    .from(sdDrillAttempts)
+    .where(
+      and(
+        eq(sdDrillAttempts.id, params.id),
+        isNull(sdDrillAttempts.submittedAt),
+        isNull(sdDrillAttempts.abandonedAt),
+      ),
+    );
+  if (!attempt) {
+    return NextResponse.json({ error: "No resumable drill" }, { status: 404 });
+  }
+  const resumedAttempt = await db
+    .update(sdDrillAttempts)
+    .set({ lastActivityAt: new Date(), pausedAt: null })
+    .where(eq(sdDrillAttempts.id, params.id))
+    .returning();
+  return NextResponse.json({ ok: true, attempt: resumedAttempt[0] });
+}
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd architex
+git add architex/src/app/api/sd/drill-attempts/
+git commit -m "$(cat <<'EOF'
+feat(drill-api): 6 API routes · stage · hint · grade · postmortem · recap-pdf · resume
+
+PATCH stage: validates next-stage is in STAGE_ORDER. POST hint: checks
+variant.hintsAllowed, deducts credits by tier cost, logs into hintLog
+JSONB. POST grade: delegates to gradeRubric (Task 17) and persists to
+rubricBreakdown + gradeScore. POST postmortem: delegates to
+generatePostmortem. GET recap-pdf: returns structured data for
+client-side React-PDF rendering (plan open-question 7). POST resume:
+re-activates a paused drill, leveraging Phase-1's partial unique index.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
