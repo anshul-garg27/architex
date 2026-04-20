@@ -301,4 +301,368 @@ architex/
 
 ---
 
-<!-- TASKS 1-35 follow in subsequent appends per incremental-write protocol -->
+## Task 1: Create `sd_learn_progress` DB schema
+
+**Files:**
+- Create: `architex/src/db/schema/sd-learn-progress.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+- [ ] **Step 1: Write the schema file**
+
+Create `architex/src/db/schema/sd-learn-progress.ts`:
+
+```typescript
+/**
+ * DB-030: SD learn progress — per (user, kind, slug) concept/problem reading state.
+ *
+ * Stores which sections the user has scrolled through, their deepest
+ * scroll offset per section, and whether each section's checkpoint has
+ * been answered. A unique (userId, kind, slug) constraint ensures one
+ * row per user+kind+slug.
+ *
+ * kind ∈ {concept, problem}. Concepts have 8 sections, problems have 6
+ * panes — the sectionState JSONB shape differs by kind but the table is
+ * shared to keep the query surface flat.
+ *
+ * FSRS seed data — the `completedAt` of this row is what the SD Review
+ * mode (Phase 4) uses to schedule the first spaced-repetition card.
+ */
+import { pgTable, uuid, varchar, timestamp, jsonb, integer, boolean, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { users } from './users';
+
+export const sdLearnProgress = pgTable(
+  'sd_learn_progress',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    kind: varchar('kind', { length: 16 }).notNull(), // 'concept' | 'problem'
+    slug: varchar('slug', { length: 100 }).notNull(),
+    // sectionState shape for concepts:
+    //   { hook: {visited,scrollPct,checkpointId?,answered?,correct?,attempts},
+    //     analogy: {...}, primitive: {...}, anatomy: {...},
+    //     numbersThatMatter: {...}, tradeoffs: {...},
+    //     antiCases: {...}, seenInWild: {...}, bridges: {...},
+    //     checkpoints: {...} }  // 10 keys
+    // sectionState shape for problems:
+    //   { problemStatement: {...}, requirements: {...}, scaleNumbers: {...},
+    //     canonicalDesign: {activeSolutionIndex: 0..2, ...},
+    //     failureModesChaos: {...}, conceptsUsed: {...} }  // 6 keys
+    sectionState: jsonb('section_state').notNull().default('{}'),
+    deepestScrollPct: integer('deepest_scroll_pct').notNull().default(0), // 0..100
+    lastSectionId: varchar('last_section_id', { length: 64 }),
+    checkpointStats: jsonb('checkpoint_stats').notNull().default('{"attempts":0,"correct":0,"revealed":0}'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    tinkerCanvasState: jsonb('tinker_canvas_state'), // optional snapshot if user tinkered
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userKindSlugUnique: uniqueIndex('sd_learn_progress_user_kind_slug_idx').on(t.userId, t.kind, t.slug),
+    userRecentIdx: index('sd_learn_progress_user_recent_idx').on(t.userId, t.updatedAt),
+  })
+);
+
+export type SDLearnProgress = typeof sdLearnProgress.$inferSelect;
+export type NewSDLearnProgress = typeof sdLearnProgress.$inferInsert;
+```
+
+- [ ] **Step 2: Re-export from schema index**
+
+Edit `architex/src/db/schema/index.ts` to add:
+
+```typescript
+export * from './sd-learn-progress';
+```
+
+- [ ] **Step 3: Add the relation**
+
+Edit `architex/src/db/schema/relations.ts`:
+
+```typescript
+import { sdLearnProgress } from './sd-learn-progress';
+
+export const sdLearnProgressRelations = relations(sdLearnProgress, ({ one }) => ({
+  user: one(users, { fields: [sdLearnProgress.userId], references: [users.id] }),
+}));
+```
+
+Also append `sdLearnProgress: many(sdLearnProgress),` to the existing `usersRelations`.
+
+- [ ] **Step 4: Write the unit test**
+
+Create `architex/src/db/schema/__tests__/sd-learn-progress.test.ts`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { sdLearnProgress } from '../sd-learn-progress';
+
+describe('sdLearnProgress schema', () => {
+  it('exposes the required columns', () => {
+    const cols = Object.keys(sdLearnProgress);
+    expect(cols).toEqual(
+      expect.arrayContaining([
+        'id', 'userId', 'kind', 'slug', 'sectionState',
+        'deepestScrollPct', 'lastSectionId', 'checkpointStats',
+        'completedAt', 'tinkerCanvasState', 'createdAt', 'updatedAt',
+      ])
+    );
+  });
+  it('narrows kind to concept|problem at type level', () => {
+    // type-only assertion — compile-time proof
+    const row: { kind: 'concept' | 'problem' } = { kind: 'concept' };
+    expect(row.kind).toBe('concept');
+  });
+});
+```
+
+- [ ] **Step 5: Run tests + typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+pnpm test:run -- sd-learn-progress
+```
+Expected: typecheck clean, 2/2 tests pass.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/src/db/schema/sd-learn-progress.ts \
+        architex/src/db/schema/index.ts \
+        architex/src/db/schema/relations.ts \
+        architex/src/db/schema/__tests__/sd-learn-progress.test.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add sd_learn_progress table (Task 1/35)
+
+Stores per (user, kind, slug) concept/problem reading state: section
+visit map, deepest scroll %, last section id, checkpoint stats, an
+optional tinker-canvas snapshot, and a completedAt that seeds FSRS.
+Unique on (userId, kind, slug).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 2: Create `sd_concept_reads` DB schema
+
+**Files:**
+- Create: `architex/src/db/schema/sd-concept-reads.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+- [ ] **Step 1: Write the schema file**
+
+Create `architex/src/db/schema/sd-concept-reads.ts`:
+
+```typescript
+/**
+ * DB-031: SD concept reads — thin log of concept-page view events for
+ * FSRS seeding, analytics, and "recently viewed" sidebars.
+ *
+ * Rate-limited at the API layer: one row per (userId, conceptSlug) per
+ * 30-second window. The low-write-rate invariant lets this table be
+ * append-only; no updates after insert.
+ */
+import { pgTable, uuid, varchar, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { users } from './users';
+
+export const sdConceptReads = pgTable(
+  'sd_concept_reads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    conceptSlug: varchar('concept_slug', { length: 100 }).notNull(),
+    source: varchar('source', { length: 32 }).notNull(), // 'scroll' | 'click-popover' | 'bridge-card' | 'tour' | 'quiz-result'
+    contextSlug: varchar('context_slug', { length: 100 }), // e.g. problem-slug that surfaced this concept
+    durationMs: jsonb('duration_ms'), // optional: { onPage, active, idle }
+    readAt: timestamp('read_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userConceptIdx: index('sd_concept_reads_user_concept_idx').on(t.userId, t.conceptSlug, t.readAt),
+    userRecentIdx: index('sd_concept_reads_user_recent_idx').on(t.userId, t.readAt),
+  })
+);
+
+export type SDConceptRead = typeof sdConceptReads.$inferSelect;
+export type NewSDConceptRead = typeof sdConceptReads.$inferInsert;
+```
+
+- [ ] **Step 2: Re-export from schema index + add relation (same pattern as Task 1 Steps 2-3)**
+
+- [ ] **Step 3: Unit test**
+
+Create `architex/src/db/schema/__tests__/sd-concept-reads.test.ts` with a shape assertion matching Task 1 Step 4. Expected columns: `id, userId, conceptSlug, source, contextSlug, durationMs, readAt`.
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+pnpm typecheck && pnpm test:run -- sd-concept-reads
+git add architex/src/db/schema/sd-concept-reads.ts \
+        architex/src/db/schema/index.ts \
+        architex/src/db/schema/relations.ts \
+        architex/src/db/schema/__tests__/sd-concept-reads.test.ts
+git commit -m "feat(db): add sd_concept_reads table (Task 2/35)"
+```
+
+---
+
+## Task 3: Create `sd_bookmarks` DB schema
+
+**Files:**
+- Create: `architex/src/db/schema/sd-bookmarks.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+- [ ] **Step 1: Write the schema file**
+
+Create `architex/src/db/schema/sd-bookmarks.ts`:
+
+```typescript
+/**
+ * DB-032: SD bookmarks — user-authored anchors within concept/problem
+ * pages. Distinct from learn_progress: bookmarks are explicit user
+ * intent ("I want to come back to this paragraph"), progress is
+ * implicit scroll state.
+ *
+ * Unique on (userId, kind, slug, anchor) so toggling a bookmark is
+ * idempotent.
+ */
+import { pgTable, uuid, varchar, timestamp, text, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { users } from './users';
+
+export const sdBookmarks = pgTable(
+  'sd_bookmarks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    kind: varchar('kind', { length: 16 }).notNull(), // 'concept' | 'problem'
+    slug: varchar('slug', { length: 100 }).notNull(),
+    anchor: varchar('anchor', { length: 128 }).notNull(), // section id ('mechanism', 'canonical-design-b', etc.)
+    label: varchar('label', { length: 200 }).notNull(), // e.g. "Double-checked locking pitfall"
+    note: text('note'), // optional free-form
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userKindSlugAnchorUnique: uniqueIndex('sd_bookmarks_user_kind_slug_anchor_idx').on(
+      t.userId, t.kind, t.slug, t.anchor
+    ),
+    userRecentIdx: index('sd_bookmarks_user_recent_idx').on(t.userId, t.createdAt),
+  })
+);
+
+export type SDBookmark = typeof sdBookmarks.$inferSelect;
+export type NewSDBookmark = typeof sdBookmarks.$inferInsert;
+```
+
+- [ ] **Step 2-4: Re-export, relation, unit test, commit** (same pattern as Task 1-2)
+
+```bash
+git commit -m "feat(db): add sd_bookmarks table (Task 3/35)"
+```
+
+---
+
+## Task 4: Generate and apply 5 migrations
+
+**Files:**
+- Create: `architex/drizzle/NNNN_add_sd_learn_progress.sql`
+- Create: `architex/drizzle/NNNN_add_sd_concept_reads.sql`
+- Create: `architex/drizzle/NNNN_add_sd_bookmarks.sql`
+- Create: `architex/drizzle/NNNN_add_sd_diagnostic_results.sql` (stub for Task 33; full schema lands in Task 33)
+- Create: `architex/drizzle/NNNN_extend_sd_graph_edges_bridge_text.sql`
+
+The fifth migration adds a `bridge_text` column to `sd_graph_edges` if it was not already included in the SD Phase 1 migration. Per spec §17.2, bridge cards carry a 1-2 sentence hand-authored caption per edge. Phase 1 shipped the table without the column; this migration backfills.
+
+- [ ] **Step 1: Generate migrations with drizzle-kit**
+
+```bash
+cd architex
+pnpm db:generate
+```
+Expected: five new `drizzle/NNNN_*.sql` files appear for the four new tables plus the bridge_text addition. Inspect each — ensure:
+- No `DROP` statements on existing SD Phase 1 tables
+- Foreign keys reference `users(id)` with `ON DELETE CASCADE`
+- Unique indexes use the exact column orders from Tasks 1-3
+
+- [ ] **Step 2: Dry-run against a branch DB**
+
+```bash
+export DATABASE_URL=$NEON_BRANCH_URL
+pnpm db:migrate
+```
+Expected: "Migrations applied." Verify via `pnpm db:studio` that the 4 new tables appear and `sd_graph_edges.bridge_text` is a nullable `text` column.
+
+- [ ] **Step 3: Write the cascade-delete test**
+
+Create `architex/src/db/__tests__/sd-learn-cascade.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { db } from '@/db/client';
+import { users } from '@/db/schema/users';
+import { sdLearnProgress, sdConceptReads, sdBookmarks } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+
+describe('sd learn tables · cascade delete', () => {
+  let userId: string;
+
+  beforeAll(async () => {
+    const [u] = await db.insert(users).values({ email: 'cascade-test@example.com' }).returning();
+    userId = u.id;
+    await db.insert(sdLearnProgress).values({ userId, kind: 'concept', slug: 'client-server', sectionState: {} });
+    await db.insert(sdConceptReads).values({ userId, conceptSlug: 'client-server', source: 'scroll' });
+    await db.insert(sdBookmarks).values({ userId, kind: 'concept', slug: 'client-server', anchor: 'mechanism', label: 'pin-1' });
+  });
+
+  afterEach(async () => {
+    await db.delete(users).where(eq(users.id, userId));
+  });
+
+  it('deletes learn rows when user is deleted', async () => {
+    await db.delete(users).where(eq(users.id, userId));
+    const progress = await db.select().from(sdLearnProgress).where(eq(sdLearnProgress.userId, userId));
+    const reads = await db.select().from(sdConceptReads).where(eq(sdConceptReads.userId, userId));
+    const bookmarks = await db.select().from(sdBookmarks).where(eq(sdBookmarks.userId, userId));
+    expect(progress).toHaveLength(0);
+    expect(reads).toHaveLength(0);
+    expect(bookmarks).toHaveLength(0);
+  });
+});
+```
+
+- [ ] **Step 4: Run the cascade test + full typecheck**
+
+```bash
+pnpm test:run -- sd-learn-cascade
+pnpm typecheck
+```
+Expected: 1/1 passes, typecheck clean.
+
+- [ ] **Step 5: Commit migrations + test**
+
+```bash
+git add architex/drizzle/ architex/src/db/__tests__/sd-learn-cascade.test.ts
+git commit -m "$(cat <<'EOF'
+feat(db): generate + apply sd learn phase 2 migrations (Task 4/35)
+
+Five migrations:
+- sd_learn_progress (per user+kind+slug section state + checkpoints)
+- sd_concept_reads (thin FSRS-seed log)
+- sd_bookmarks (user-authored anchors)
+- sd_diagnostic_results (stub, Task 33 fills)
+- sd_graph_edges.bridge_text (backfill for spec §17.2)
+
+Cascade-delete test verifies all 3 live tables purge on user deletion.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+
