@@ -551,6 +551,135 @@ Each phase has a content-ops track running in parallel with engineering. Target:
 
 ---
 
+## 6. Mode Deep-Dive · Learn
+
+> "A concept is where you draft a primitive. A problem is where you draft a machine." — brand voice doc, extended
+
+### 6.1 Purpose
+
+Learn mode teaches either a **concept** (one primitive, one atom) or a **problem** (one molecule, a named design). The two entry routes converge on the same shell but use slightly different lesson shapes: concepts use the 8-section format, problems use the 6-pane format. Learn's measurable success criterion is: the user finishes the page with one Mastered concept or one read-through problem in their graph, and can explain it aloud 10 minutes later without a reference.
+
+### 6.2 Layout (desktop)
+
+3-column collapsible (Q30). Default widths: 200px + center + 420px. Both sides collapsible with `[` and `]`.
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│  Top chrome · module switch · mode pill · search · user           │
+├───┬───────────────────────────────────────┬───────────────────────┤
+│ L │  Center pane:                          │  Right pane:           │
+│ i │   · concept pages: read-only canvas   │   · 8-section or       │
+│ b │     + 8-section scrolling prose below │     6-pane lesson      │
+│ r │   · problem pages: read-only canvas    │   · checkpoints inline │
+│ a │     per canonical solution, tabs top  │   · Ask AI button      │
+│ r │                                        │   · Tinker toggle      │
+│ y │                                        │                       │
+├───┴───────────────────────────────────────┴───────────────────────┤
+│  Status bar · scroll progress · time-on-page · streak · ⌘? hints  │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+Mobile (Q42): center canvas is replaced by an inline SVG; lesson prose stacks below. No side rails. Tinker disabled. Read-only.
+
+### 6.3 Concept page (8-section) interaction
+
+The eight sections scroll vertically. As the user scrolls, the center canvas **highlights the diagram parts being discussed** — the LLD scroll-sync pattern, applied to architecture diagrams. Scrolling past the "Consistent hashing ring" section lights the ring overlay on the canvas. Clicking a node in the canvas pops a scroll-target back to the section where it is discussed.
+
+Checkpoint placement:
+- End of Section 3 (**Primitive**): one MCQ checkpoint to confirm the technical mechanic was absorbed
+- End of Section 5 (**Tradeoffs**): one "rank these tradeoffs" drag-to-order checkpoint
+- End of Section 8 (**Bridges**): one "match concept → problem" checkpoint
+
+Three checkpoints per concept. FSRS writes on each attempt. Same progressive reveal on failure as LLD (Q3): attempt 1-2 = targeted why-wrong, attempt 3 = reveal. Skip always available.
+
+### 6.4 Problem page (6-pane) interaction
+
+Problem pages are more complex. Six panes, but users rarely read all six linearly — most jump to **Canonical Design** first, then read backward for context, then read forward for failure modes. The UI respects this:
+
+- Tabs across the top of the center pane for the 6 panes. Active tab highlights.
+- A "recommended reading order" pill ("for Rookies: 1→2→3→4→5→6; for Journeymen: 4→5→3→2→6; for Architects: 4→5→2→3→6") visible but dismissable.
+- Solution tabs inside **Canonical Design** for A/B/C solutions. Clicking switches the canvas diagram. Each solution has its own walkthrough.
+- **Simulate this design** button appears after Canonical Design is read. One click → opens Simulate mode with the solution canvas preloaded. This is the *triple loop* (Q10) entering its first arc.
+
+Checkpoint placement for problems:
+- One "estimate this" Fermi checkpoint inside the Napkin Math pane (tests estimate fluency)
+- One "pick the failure mode" checkpoint at the end of Failure Modes
+- One "which chaos event would break this?" checkpoint that opens a chaos-event picker
+
+### 6.5 Tinker (Q8 ported from LLD)
+
+On any Learn page, a floating **"✏️ Tinker"** button unlocks the canvas temporarily. The read-only lesson canvas becomes editable. Toolbar appears: `Reset · Save to Build · Done · ⎋`. Scroll-sync pauses during tinker.
+
+When the user tinkers, the lesson column greys slightly, conveying "you're in sandbox time". If they accumulate non-trivial edits (>3 node or edge changes), the Done button becomes "Save to Build". Confirming opens Build mode with the tinkered canvas as a new unnamed diagram, ready to save.
+
+### 6.6 Ask-AI contextual surfaces (Q40, Q32)
+
+Three specific surfaces per page (same structure as LLD §6):
+
+1. **End of each section**: "Questions about this section? [Ask the Architect →]". Opens a right-side drawer with a contextual prompt preseeded (section title, concept slug, user's progress state). Sonnet answers with references to diagrams and code samples on-page.
+2. **After 3 failed checkpoint attempts**: "Want a deeper explanation? [Ask →]" with the specific checkpoint answer in context.
+3. **On a "Confused with" card**: if the concept or problem page has a "commonly confused with" callout (e.g. "Consistent hashing ≠ hash-based sharding"), the Ask card on that callout is pre-loaded with the compare-prompt.
+
+Token cost ~$0.015 per Learn page session at baseline, ~$0.06 for heavy askers. Per-user rate limit: 30 calls/hour via existing `aiUsage` table.
+
+### 6.7 Frustration escalation (Q15 from LLD, reused)
+
+Four levels:
+- **Calm**: silent
+- **Mild** (time-on-section > 2x median, 1 failed checkpoint): inline nudge — "Stuck? The analogy in section 2 might help here."
+- **Frustrated** (2 failed checkpoints + scroll thrashing): AI offer — "Want a 1-on-1 walkthrough? [Ask the Architect →]"
+- **Very-Frustrated** (3 failed + back-scroll twice): easier-path card — "This concept often clicks after a related one. Try [Foundations: Caching strategies] first?"
+
+Learn mode is where frustration detection matters most. Drill never intervenes (simulation integrity). Simulate uses a different mechanism (the whisper coach, §15).
+
+### 6.8 Cold recall & elaborative interrogation (CS3, CS6 from LLD)
+
+Both cognitive-science features ship in SD Learn:
+
+- **Cold recall** · 10 minutes after a concept session ends, a toast appears: "You finished Consistent Hashing 10 minutes ago. 30-second recall quiz?". Opt-in, skippable. If taken, three quick Q's. Results feed FSRS.
+- **Elaborative interrogation** · after each concept page, one "Why?" prompt appears at the bottom: "In your own words, why does consistent hashing reduce the number of keys that move when a node is added?" Free-text. Haiku grades for depth (1-5 rubric). Writes a `concept_reflection` record.
+
+### 6.9 Learn → Build / Learn → Simulate bridges
+
+At the bottom of every concept page:
+- "Draft this yourself in Build →" · opens Build with an empty canvas pre-filled with the concept's reference diagram
+- "See it run in Simulate →" · opens Simulate with the canonical example and a default stress test
+- "Try a problem that uses this →" · shows 2-3 problem cards (from the graph)
+
+At the bottom of every problem page, additional bridges:
+- "Run the chaos drill on this →" · opens Simulate with Chaos Drill activity on this problem's canonical design
+- "Do this under the 5-stage clock →" · opens Drill
+- "Pair with LLD: [linked pattern] →" · cross-module bridge (Q5, Q35)
+
+### 6.10 Motion & visuals (Q33, Q53)
+
+All motion inherits from LLD's motion.ts with the cobalt accent (Q29). New Learn-specific:
+
+- **Progressive diagram reveal** (M3-analog): as the user scrolls through a concept's 8 sections, diagram nodes fade in + scale up at the moment they are discussed. The first time the user scrolls into section 3 of Consistent Hashing, the ring materializes.
+- **Breathing canvas** when idle (M8-analog): on 10s idle, all canvas nodes begin a 4-second breathing pulse. Subtle. Designed to be ignorable.
+- **Serif labels on canvas** (Q53): concept pages use IBM Plex Serif for callout labels over the canvas. The diagrams feel like pages from a textbook, not screenshots of a SaaS.
+
+### 6.11 Learn-mode-specific keyboard (Q14 extension)
+
+- `J` / `K` · scroll down / up by one section
+- `Enter` on a checkpoint · submit
+- `Space` · reveal answer (after 2 failed attempts)
+- `T` · toggle Tinker
+- `[` / `]` · collapse left / right pane
+- `?` · surface all shortcuts
+
+### 6.12 Completion criteria (3-tier, Q4 from LLD)
+
+Same tier model:
+- **Introduced ◐** · first scroll past Section 3
+- **Completed ◉** · all 3 checkpoints answered, regardless of grade
+- **Mastered ★** · all 3 checkpoints answered correctly first-try + 1 follow-up FSRS review passed at Good or Easy
+
+Mastered decays to Completed if a Review rating of Hard or Again is given within 90 days (FSRS-5 handles the schedule). This is honest — distributed systems knowledge is not static; re-earning mastery matters.
+
+---
+
+
 
 
 
