@@ -3046,3 +3046,1760 @@ EOF
 ```
 
 ---
+
+## Task 13: Create `useLessonScrollSync` hook
+
+**Files:**
+- Create: `architex/src/hooks/useLessonScrollSync.ts`
+- Test: `architex/src/hooks/__tests__/useLessonScrollSync.test.tsx`
+
+Scroll-sync observes the lesson column, computes which section is in view, which classes are referenced by that section, and emits callbacks so `LearnModeLayout` can (a) highlight those classes on the canvas, (b) call `patchActiveSection` + `patchSectionProgress` on the progress hook, (c) fire `lldLessonSectionViewed` analytics.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useLessonScrollSync.test.tsx`:
+
+```tsx
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, act } from "@testing-library/react";
+import { useRef } from "react";
+import { useLessonScrollSync } from "@/hooks/useLessonScrollSync";
+import type { LessonPayload } from "@/lib/lld/lesson-types";
+
+function fakePayload(): LessonPayload {
+  const emptyMDX = { code: "", raw: "", anchors: [], conceptIds: [], classIds: [] };
+  const classIds = (...ids: string[]) => ({ ...emptyMDX, classIds: ids });
+  return {
+    schemaVersion: 1,
+    patternSlug: "singleton",
+    subtitle: "x",
+    estimatedMinutes: 5,
+    conceptIds: [],
+    sections: {
+      itch: { ...emptyMDX, scenario: "s", keywords: [] },
+      definition: { ...emptyMDX, oneLiner: "o", canonicalSource: "c" },
+      mechanism: { ...classIds("SingletonClass"), steps: [] },
+      anatomy: { ...classIds("SingletonClass"), classes: [] },
+      numbers: { ...emptyMDX, headline: [] },
+      uses: { ...emptyMDX, cases: [] },
+      failure_modes: { ...emptyMDX, modes: [] },
+      checkpoints: { ...emptyMDX, checkpoints: [] as never },
+    },
+  };
+}
+
+const observeCallbacks: Array<(entries: IntersectionObserverEntry[]) => void> = [];
+class FakeIO {
+  constructor(cb: (entries: IntersectionObserverEntry[]) => void) {
+    observeCallbacks.push(cb);
+  }
+  observe() {}
+  disconnect() {}
+  unobserve() {}
+  takeRecords(): IntersectionObserverEntry[] { return []; }
+  root = null;
+  rootMargin = "";
+  thresholds = [];
+}
+
+function Harness({
+  onActive,
+  onHighlight,
+}: {
+  onActive: (id: string | null) => void;
+  onHighlight: (ids: string[]) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useLessonScrollSync({
+    containerRef,
+    payload: fakePayload(),
+    onActiveSectionChange: onActive,
+    onHighlightedClassesChange: onHighlight,
+  });
+  return (
+    <div ref={containerRef}>
+      <section data-section-id="itch">itch</section>
+      <section data-section-id="mechanism">mechanism</section>
+      <section data-section-id="anatomy">anatomy</section>
+    </div>
+  );
+}
+
+describe("useLessonScrollSync", () => {
+  beforeEach(() => {
+    observeCallbacks.length = 0;
+    globalThis.IntersectionObserver = FakeIO as unknown as typeof IntersectionObserver;
+  });
+
+  it("calls onActiveSectionChange with the most visible section", () => {
+    const onActive = vi.fn();
+    const onHighlight = vi.fn();
+    render(<Harness onActive={onActive} onHighlight={onHighlight} />);
+
+    const mechanism = screen.getByText("mechanism");
+    const entry = {
+      target: mechanism,
+      isIntersecting: true,
+      intersectionRatio: 0.9,
+    } as unknown as IntersectionObserverEntry;
+
+    act(() => {
+      observeCallbacks[0]([entry]);
+    });
+    expect(onActive).toHaveBeenCalledWith("mechanism");
+    expect(onHighlight).toHaveBeenCalledWith(["SingletonClass"]);
+  });
+
+  it("emits empty highlight when no classIds in active section", () => {
+    const onActive = vi.fn();
+    const onHighlight = vi.fn();
+    render(<Harness onActive={onActive} onHighlight={onHighlight} />);
+    const itch = screen.getByText("itch");
+    const entry = {
+      target: itch,
+      isIntersecting: true,
+      intersectionRatio: 0.8,
+    } as unknown as IntersectionObserverEntry;
+    act(() => {
+      observeCallbacks[0]([entry]);
+    });
+    expect(onActive).toHaveBeenCalledWith("itch");
+    expect(onHighlight).toHaveBeenCalledWith([]);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useLessonScrollSync
+```
+Expected: FAIL — module missing.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useLessonScrollSync.ts`:
+
+```typescript
+"use client";
+
+import { useEffect, useRef, type RefObject } from "react";
+import type { LessonPayload, LessonSectionId } from "@/lib/lld/lesson-types";
+
+const SECTION_IDS: LessonSectionId[] = [
+  "itch",
+  "definition",
+  "mechanism",
+  "anatomy",
+  "numbers",
+  "uses",
+  "failure_modes",
+  "checkpoints",
+];
+
+interface Options {
+  /** Ref to the scrollable lesson container. */
+  containerRef: RefObject<HTMLElement | null>;
+  /** Compiled lesson payload. */
+  payload: LessonPayload | null;
+  /** Fires when the most-visible section changes. */
+  onActiveSectionChange?: (id: LessonSectionId | null) => void;
+  /** Fires with the set of class ids the active section references. */
+  onHighlightedClassesChange?: (classIds: string[]) => void;
+  /** Fires with per-section scroll depth (0..1) on every update. */
+  onSectionProgress?: (
+    id: LessonSectionId,
+    state: { scrollDepth: number; firstSeenAt: number; completedAt: number | null },
+  ) => void;
+}
+
+/**
+ * Observes the 8 lesson sections and emits (a) which is currently active
+ * (biggest intersection ratio), (b) which classes that section references
+ * (for canvas highlighting), and (c) per-section scroll depth.
+ *
+ * Each `<section data-section-id="itch|…|checkpoints">` inside the
+ * container is observed. Thresholds of 0, 0.25, 0.5, 0.75, 0.95 give us
+ * enough granularity for scroll-depth without paying for 100 thresholds.
+ */
+export function useLessonScrollSync({
+  containerRef,
+  payload,
+  onActiveSectionChange,
+  onHighlightedClassesChange,
+  onSectionProgress,
+}: Options): void {
+  const activeRef = useRef<LessonSectionId | null>(null);
+  const highlightRef = useRef<string>("");
+  const seenRef = useRef<Set<LessonSectionId>>(new Set());
+  const depthRef = useRef<Record<LessonSectionId, number>>(
+    Object.fromEntries(SECTION_IDS.map((id) => [id, 0])) as Record<
+      LessonSectionId,
+      number
+    >,
+  );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !payload) return;
+
+    const sections = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-section-id]"),
+    );
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Update per-section depth based on this batch
+        for (const entry of entries) {
+          const id = entry.target.getAttribute(
+            "data-section-id",
+          ) as LessonSectionId | null;
+          if (!id || !SECTION_IDS.includes(id)) continue;
+
+          const ratio = entry.intersectionRatio;
+          if (ratio > depthRef.current[id]) {
+            depthRef.current[id] = ratio;
+            const now = Date.now();
+            if (!seenRef.current.has(id)) {
+              seenRef.current.add(id);
+            }
+            onSectionProgress?.(id, {
+              scrollDepth: ratio,
+              firstSeenAt: now,
+              completedAt: ratio >= 0.95 ? now : null,
+            });
+          }
+        }
+
+        // Pick the most visible section among intersecting
+        let best: { id: LessonSectionId | null; ratio: number } = {
+          id: null,
+          ratio: 0,
+        };
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const id = entry.target.getAttribute(
+            "data-section-id",
+          ) as LessonSectionId | null;
+          if (!id || !SECTION_IDS.includes(id)) continue;
+          if (entry.intersectionRatio > best.ratio) {
+            best = { id, ratio: entry.intersectionRatio };
+          }
+        }
+
+        if (best.id && best.id !== activeRef.current) {
+          activeRef.current = best.id;
+          onActiveSectionChange?.(best.id);
+
+          const classIds = payload.sections[best.id].classIds;
+          const key = classIds.join("|");
+          if (key !== highlightRef.current) {
+            highlightRef.current = key;
+            onHighlightedClassesChange?.(classIds);
+          }
+        }
+      },
+      {
+        root: container,
+        threshold: [0, 0.25, 0.5, 0.75, 0.95],
+      },
+    );
+
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, [
+    containerRef,
+    payload,
+    onActiveSectionChange,
+    onHighlightedClassesChange,
+    onSectionProgress,
+  ]);
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useLessonScrollSync
+```
+Expected: PASS · 2 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useLessonScrollSync.ts architex/src/hooks/__tests__/useLessonScrollSync.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): add useLessonScrollSync for section visibility + class highlight
+
+Observes [data-section-id] nodes with 5 thresholds, tracks monotonic
+deepest-scroll per section, emits (active section id, highlighted class
+ids, per-section progress) via callbacks. Callers compose: canvas prop,
+progress hook, analytics.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 14: Build 8 section components + `LessonColumn`
+
+**Files:**
+- Create: `architex/src/components/modules/lld/learn/sections/ItchSection.tsx`
+- Create: `architex/src/components/modules/lld/learn/sections/DefinitionSection.tsx`
+- Create: `architex/src/components/modules/lld/learn/sections/MechanismSection.tsx`
+- Create: `architex/src/components/modules/lld/learn/sections/AnatomySection.tsx`
+- Create: `architex/src/components/modules/lld/learn/sections/NumbersSection.tsx`
+- Create: `architex/src/components/modules/lld/learn/sections/UsesSection.tsx`
+- Create: `architex/src/components/modules/lld/learn/sections/FailureModesSection.tsx`
+- Create: `architex/src/components/modules/lld/learn/sections/CheckpointSection.tsx`
+- Create: `architex/src/components/modules/lld/learn/LessonColumn.tsx`
+
+Every section component receives `{ payload, patternSlug, onBookmarkToggle, isBookmarked }` and renders in the same `<section data-section-id="...">` shape (required for scroll-sync). MDX `code` is rendered via the shared `useMDXComponent` client helper.
+
+- [ ] **Step 1: Create a shared MDX renderer helper**
+
+Create `architex/src/components/modules/lld/learn/MDXRenderer.tsx`:
+
+```tsx
+"use client";
+
+import { useMemo } from "react";
+import * as runtime from "react/jsx-runtime";
+import { run } from "@mdx-js/mdx";
+import { MDXProvider } from "@mdx-js/react";
+
+/**
+ * Renders MDX compiled to function-body (see compile-lld-lessons.ts).
+ * The `code` string is executed once and cached via useMemo.
+ *
+ * `components` prop lets callers override built-in tags — used here to
+ * inject <Class>, <Concept>, and <Callout> components for cross-linking.
+ */
+export function MDXRenderer({
+  code,
+  components,
+}: {
+  code: string;
+  components?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}) {
+  const MDX = useMemo(() => {
+    // `run` is async; we execute synchronously by wrapping.
+    // For production use, move to build-time pre-evaluation.
+    try {
+      // @ts-expect-error - runtime import shape
+      const mod = run(code, runtime);
+      return mod.default as React.ComponentType;
+    } catch (err) {
+      console.error("[MDXRenderer] compile failed:", err);
+      return () => <div>Content failed to render.</div>;
+    }
+  }, [code]);
+  return (
+    <MDXProvider components={components ?? {}}>
+      <MDX />
+    </MDXProvider>
+  );
+}
+```
+
+Note: `@mdx-js/mdx.run` is documented as async in some versions. If your installed version returns a Promise, wrap via `React.use(promise)` (React 19). Check the build output — if `MDX` is `undefined`, switch to the async path below:
+
+```tsx
+import { use } from "react";
+const MDX = use(useMemo(() => run(code, runtime).then((m) => m.default as React.ComponentType), [code]));
+```
+
+- [ ] **Step 2: Create `ItchSection`**
+
+Create `architex/src/components/modules/lld/learn/sections/ItchSection.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import type { ItchSectionPayload } from "@/lib/lld/lesson-types";
+import { MDXRenderer } from "../MDXRenderer";
+import { BookmarkIcon } from "lucide-react";
+
+interface Props {
+  payload: ItchSectionPayload;
+  isBookmarked: (anchorId: string) => boolean;
+  onBookmarkToggle: (anchorId: string, anchorLabel: string) => void;
+  mdxComponents?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}
+
+export const ItchSection = memo(function ItchSection({
+  payload,
+  isBookmarked,
+  onBookmarkToggle,
+  mdxComponents,
+}: Props) {
+  const rootAnchor = "the-itch";
+  return (
+    <section
+      data-section-id="itch"
+      id="section-itch"
+      aria-labelledby={`${rootAnchor}-heading`}
+      className="px-6 py-10 border-b border-border/20"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs uppercase tracking-wider text-foreground-muted">
+            1 · The Itch
+          </span>
+        </div>
+        <button
+          onClick={() => onBookmarkToggle(rootAnchor, "The Itch")}
+          aria-label="Toggle bookmark"
+          aria-pressed={isBookmarked(rootAnchor)}
+          className="text-foreground-muted hover:text-foreground transition-colors"
+        >
+          <BookmarkIcon
+            className="h-4 w-4"
+            fill={isBookmarked(rootAnchor) ? "currentColor" : "none"}
+          />
+        </button>
+      </div>
+
+      <h2
+        id={`${rootAnchor}-heading`}
+        className="text-editorial-display font-serif text-foreground"
+      >
+        {payload.scenario}
+      </h2>
+
+      <div className="prose prose-invert prose-sm max-w-none mt-4 font-serif leading-relaxed">
+        <MDXRenderer code={payload.code} components={mdxComponents} />
+      </div>
+    </section>
+  );
+});
+```
+
+- [ ] **Step 3: Create `DefinitionSection`**
+
+Create `architex/src/components/modules/lld/learn/sections/DefinitionSection.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import type { DefinitionSectionPayload } from "@/lib/lld/lesson-types";
+import { MDXRenderer } from "../MDXRenderer";
+import { BookmarkIcon } from "lucide-react";
+
+interface Props {
+  payload: DefinitionSectionPayload;
+  isBookmarked: (anchorId: string) => boolean;
+  onBookmarkToggle: (anchorId: string, anchorLabel: string) => void;
+  mdxComponents?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}
+
+export const DefinitionSection = memo(function DefinitionSection({
+  payload,
+  isBookmarked,
+  onBookmarkToggle,
+  mdxComponents,
+}: Props) {
+  const rootAnchor = "definition";
+  return (
+    <section
+      data-section-id="definition"
+      id="section-definition"
+      className="px-6 py-10 border-b border-border/20"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-xs uppercase tracking-wider text-foreground-muted">
+          2 · Definition
+        </span>
+        <button
+          onClick={() => onBookmarkToggle(rootAnchor, "Definition")}
+          aria-label="Toggle bookmark"
+          aria-pressed={isBookmarked(rootAnchor)}
+          className="text-foreground-muted hover:text-foreground transition-colors"
+        >
+          <BookmarkIcon
+            className="h-4 w-4"
+            fill={isBookmarked(rootAnchor) ? "currentColor" : "none"}
+          />
+        </button>
+      </div>
+
+      <blockquote className="border-l-4 border-primary/60 pl-4 italic font-serif text-lg leading-relaxed text-foreground">
+        {payload.oneLiner}
+      </blockquote>
+      <p className="text-xs text-foreground-muted mt-2 font-mono">
+        — {payload.canonicalSource}
+      </p>
+
+      <div className="prose prose-invert prose-sm max-w-none mt-6 font-serif leading-relaxed">
+        <MDXRenderer code={payload.code} components={mdxComponents} />
+      </div>
+    </section>
+  );
+});
+```
+
+- [ ] **Step 4: Create `MechanismSection`**
+
+Create `architex/src/components/modules/lld/learn/sections/MechanismSection.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import type { MechanismSectionPayload } from "@/lib/lld/lesson-types";
+import { MDXRenderer } from "../MDXRenderer";
+import { BookmarkIcon } from "lucide-react";
+
+interface Props {
+  payload: MechanismSectionPayload;
+  isBookmarked: (anchorId: string) => boolean;
+  onBookmarkToggle: (anchorId: string, anchorLabel: string) => void;
+  mdxComponents?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}
+
+export const MechanismSection = memo(function MechanismSection({
+  payload,
+  isBookmarked,
+  onBookmarkToggle,
+  mdxComponents,
+}: Props) {
+  return (
+    <section
+      data-section-id="mechanism"
+      id="section-mechanism"
+      className="px-6 py-10 border-b border-border/20"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-xs uppercase tracking-wider text-foreground-muted">
+          3 · Mechanism
+        </span>
+        <button
+          onClick={() => onBookmarkToggle("mechanism", "Mechanism")}
+          aria-label="Toggle bookmark"
+          aria-pressed={isBookmarked("mechanism")}
+          className="text-foreground-muted hover:text-foreground transition-colors"
+        >
+          <BookmarkIcon
+            className="h-4 w-4"
+            fill={isBookmarked("mechanism") ? "currentColor" : "none"}
+          />
+        </button>
+      </div>
+
+      {payload.steps.length > 0 && (
+        <ol className="space-y-3 mt-4">
+          {payload.steps.map((step) => (
+            <li
+              key={step.index}
+              className="flex items-start gap-3 rounded-lg border border-border/20 bg-elevated/30 p-3"
+            >
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-mono font-medium text-primary">
+                {step.index}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-foreground">
+                  {step.title}
+                </div>
+                <p className="text-xs text-foreground-muted mt-1 font-serif leading-relaxed">
+                  {step.markdown}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <div className="prose prose-invert prose-sm max-w-none mt-6 font-serif leading-relaxed">
+        <MDXRenderer code={payload.code} components={mdxComponents} />
+      </div>
+    </section>
+  );
+});
+```
+
+- [ ] **Step 5: Create `AnatomySection`**
+
+Create `architex/src/components/modules/lld/learn/sections/AnatomySection.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import type { AnatomySectionPayload } from "@/lib/lld/lesson-types";
+import { MDXRenderer } from "../MDXRenderer";
+import { BookmarkIcon } from "lucide-react";
+
+interface Props {
+  payload: AnatomySectionPayload;
+  isBookmarked: (anchorId: string) => boolean;
+  onBookmarkToggle: (anchorId: string, anchorLabel: string) => void;
+  mdxComponents?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}
+
+export const AnatomySection = memo(function AnatomySection({
+  payload,
+  isBookmarked,
+  onBookmarkToggle,
+  mdxComponents,
+}: Props) {
+  return (
+    <section
+      data-section-id="anatomy"
+      id="section-anatomy"
+      className="px-6 py-10 border-b border-border/20"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-xs uppercase tracking-wider text-foreground-muted">
+          4 · Anatomy
+        </span>
+        <button
+          onClick={() => onBookmarkToggle("anatomy", "Anatomy")}
+          aria-label="Toggle bookmark"
+          aria-pressed={isBookmarked("anatomy")}
+          className="text-foreground-muted hover:text-foreground transition-colors"
+        >
+          <BookmarkIcon
+            className="h-4 w-4"
+            fill={isBookmarked("anatomy") ? "currentColor" : "none"}
+          />
+        </button>
+      </div>
+
+      {payload.classes.length > 0 && (
+        <div className="grid grid-cols-1 gap-2 mt-4">
+          {payload.classes.map((c) => (
+            <div
+              key={c.classId}
+              className="rounded-lg border border-border/20 bg-elevated/30 p-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="font-mono text-sm font-semibold text-foreground">
+                  {c.classId}
+                </div>
+                <div className="text-xs uppercase tracking-wide text-primary">
+                  {c.role}
+                </div>
+              </div>
+              <p className="text-xs text-foreground-muted mt-1.5 font-serif">
+                {c.responsibility}
+              </p>
+              {c.keyMethod && (
+                <code className="text-[11px] text-foreground-muted mt-1 block font-mono">
+                  key method · {c.keyMethod}
+                </code>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="prose prose-invert prose-sm max-w-none mt-6 font-serif leading-relaxed">
+        <MDXRenderer code={payload.code} components={mdxComponents} />
+      </div>
+    </section>
+  );
+});
+```
+
+- [ ] **Step 6: Create `NumbersSection`**
+
+Create `architex/src/components/modules/lld/learn/sections/NumbersSection.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import type { NumbersSectionPayload } from "@/lib/lld/lesson-types";
+import { MDXRenderer } from "../MDXRenderer";
+import { BookmarkIcon } from "lucide-react";
+
+interface Props {
+  payload: NumbersSectionPayload;
+  isBookmarked: (anchorId: string) => boolean;
+  onBookmarkToggle: (anchorId: string, anchorLabel: string) => void;
+  mdxComponents?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}
+
+export const NumbersSection = memo(function NumbersSection({
+  payload,
+  isBookmarked,
+  onBookmarkToggle,
+  mdxComponents,
+}: Props) {
+  return (
+    <section
+      data-section-id="numbers"
+      id="section-numbers"
+      className="px-6 py-10 border-b border-border/20"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-xs uppercase tracking-wider text-foreground-muted">
+          5 · Numbers
+        </span>
+        <button
+          onClick={() => onBookmarkToggle("numbers", "Numbers")}
+          aria-label="Toggle bookmark"
+          aria-pressed={isBookmarked("numbers")}
+          className="text-foreground-muted hover:text-foreground transition-colors"
+        >
+          <BookmarkIcon
+            className="h-4 w-4"
+            fill={isBookmarked("numbers") ? "currentColor" : "none"}
+          />
+        </button>
+      </div>
+
+      {payload.headline.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-4">
+          {payload.headline.map((h) => (
+            <div
+              key={h.label}
+              className="rounded-lg border border-border/20 bg-gradient-to-br from-primary/5 to-transparent p-3"
+            >
+              <div className="text-xs text-foreground-muted uppercase tracking-wider">
+                {h.label}
+              </div>
+              <div className="text-2xl font-mono font-semibold text-foreground mt-1">
+                {h.value}
+                {h.unit && (
+                  <span className="text-xs text-foreground-muted ml-1">
+                    {h.unit}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="prose prose-invert prose-sm max-w-none mt-6 font-serif leading-relaxed">
+        <MDXRenderer code={payload.code} components={mdxComponents} />
+      </div>
+    </section>
+  );
+});
+```
+
+- [ ] **Step 7: Create `UsesSection`**
+
+Create `architex/src/components/modules/lld/learn/sections/UsesSection.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import type { UsesSectionPayload } from "@/lib/lld/lesson-types";
+import { MDXRenderer } from "../MDXRenderer";
+import { BookmarkIcon, ExternalLink } from "lucide-react";
+
+interface Props {
+  payload: UsesSectionPayload;
+  isBookmarked: (anchorId: string) => boolean;
+  onBookmarkToggle: (anchorId: string, anchorLabel: string) => void;
+  mdxComponents?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}
+
+export const UsesSection = memo(function UsesSection({
+  payload,
+  isBookmarked,
+  onBookmarkToggle,
+  mdxComponents,
+}: Props) {
+  return (
+    <section
+      data-section-id="uses"
+      id="section-uses"
+      className="px-6 py-10 border-b border-border/20"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-xs uppercase tracking-wider text-foreground-muted">
+          6 · Uses
+        </span>
+        <button
+          onClick={() => onBookmarkToggle("uses", "Uses")}
+          aria-label="Toggle bookmark"
+          aria-pressed={isBookmarked("uses")}
+          className="text-foreground-muted hover:text-foreground transition-colors"
+        >
+          <BookmarkIcon
+            className="h-4 w-4"
+            fill={isBookmarked("uses") ? "currentColor" : "none"}
+          />
+        </button>
+      </div>
+
+      {payload.cases.length > 0 && (
+        <div className="space-y-2 mt-4">
+          {payload.cases.map((c) => (
+            <div
+              key={`${c.company}-${c.system}`}
+              className="rounded-lg border border-border/20 bg-elevated/30 p-3"
+            >
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <span>{c.company}</span>
+                <span className="text-foreground-muted">·</span>
+                <span className="font-mono text-xs text-foreground-muted">
+                  {c.system}
+                </span>
+                {c.sourceUrl && (
+                  <a
+                    href={c.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-auto text-foreground-muted hover:text-primary"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+              <p className="text-xs text-foreground-muted mt-1 font-serif leading-relaxed">
+                {c.whyThisPattern}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="prose prose-invert prose-sm max-w-none mt-6 font-serif leading-relaxed">
+        <MDXRenderer code={payload.code} components={mdxComponents} />
+      </div>
+    </section>
+  );
+});
+```
+
+- [ ] **Step 8: Create `FailureModesSection`**
+
+Create `architex/src/components/modules/lld/learn/sections/FailureModesSection.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import type { FailureModesSectionPayload } from "@/lib/lld/lesson-types";
+import { MDXRenderer } from "../MDXRenderer";
+import { AlertTriangle, BookmarkIcon } from "lucide-react";
+
+interface Props {
+  payload: FailureModesSectionPayload;
+  isBookmarked: (anchorId: string) => boolean;
+  onBookmarkToggle: (anchorId: string, anchorLabel: string) => void;
+  mdxComponents?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}
+
+const severityColor = {
+  low: "border-yellow-500/30 bg-yellow-500/5 text-yellow-200",
+  medium: "border-orange-500/30 bg-orange-500/5 text-orange-200",
+  high: "border-red-500/30 bg-red-500/5 text-red-200",
+} as const;
+
+export const FailureModesSection = memo(function FailureModesSection({
+  payload,
+  isBookmarked,
+  onBookmarkToggle,
+  mdxComponents,
+}: Props) {
+  return (
+    <section
+      data-section-id="failure_modes"
+      id="section-failure_modes"
+      className="px-6 py-10 border-b border-border/20"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-xs uppercase tracking-wider text-foreground-muted">
+          7 · Failure Modes
+        </span>
+        <button
+          onClick={() => onBookmarkToggle("failure_modes", "Failure Modes")}
+          aria-label="Toggle bookmark"
+          aria-pressed={isBookmarked("failure_modes")}
+          className="text-foreground-muted hover:text-foreground transition-colors"
+        >
+          <BookmarkIcon
+            className="h-4 w-4"
+            fill={isBookmarked("failure_modes") ? "currentColor" : "none"}
+          />
+        </button>
+      </div>
+
+      {payload.modes.length > 0 && (
+        <div className="space-y-2 mt-4">
+          {payload.modes.map((m) => (
+            <div
+              key={m.title}
+              className={`rounded-lg border p-3 ${severityColor[m.severity]}`}
+            >
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>{m.title}</span>
+              </div>
+              <p className="text-xs mt-1 font-serif leading-relaxed opacity-90">
+                <strong>What goes wrong:</strong> {m.whatGoesWrong}
+              </p>
+              <p className="text-xs mt-1 font-serif leading-relaxed opacity-90">
+                <strong>How to avoid:</strong> {m.howToAvoid}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="prose prose-invert prose-sm max-w-none mt-6 font-serif leading-relaxed">
+        <MDXRenderer code={payload.code} components={mdxComponents} />
+      </div>
+    </section>
+  );
+});
+```
+
+- [ ] **Step 9: Create `CheckpointSection` (container for 4 checkpoint components — implemented in Task 18)**
+
+Create `architex/src/components/modules/lld/learn/sections/CheckpointSection.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useState } from "react";
+import type { CheckpointsSectionPayload } from "@/lib/lld/lesson-types";
+import { RecallCheckpoint } from "../checkpoints/RecallCheckpoint";
+import { ApplyCheckpoint } from "../checkpoints/ApplyCheckpoint";
+import { CompareCheckpoint } from "../checkpoints/CompareCheckpoint";
+import { CreateCheckpoint } from "../checkpoints/CreateCheckpoint";
+
+interface Props {
+  payload: CheckpointsSectionPayload;
+  patternSlug: string;
+  onCheckpointResult: (
+    kind: "recall" | "apply" | "compare" | "create",
+    attempts: number,
+    correct: boolean,
+  ) => void;
+}
+
+export const CheckpointSection = memo(function CheckpointSection({
+  payload,
+  patternSlug,
+  onCheckpointResult,
+}: Props) {
+  const [step, setStep] = useState(0);
+  const checkpoints = payload.checkpoints;
+
+  const next = () => setStep((s) => Math.min(s + 1, checkpoints.length - 1));
+
+  const current = checkpoints[step];
+
+  return (
+    <section
+      data-section-id="checkpoints"
+      id="section-checkpoints"
+      className="px-6 py-10"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs uppercase tracking-wider text-foreground-muted">
+          8 · Checkpoints · {step + 1} / {checkpoints.length}
+        </span>
+        <div className="flex gap-1">
+          {checkpoints.map((cp, i) => (
+            <span
+              key={cp.id}
+              className={`h-1 w-6 rounded-full ${
+                i <= step ? "bg-primary" : "bg-border/40"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {current.kind === "recall" && (
+        <RecallCheckpoint
+          checkpoint={current}
+          onResult={(attempts, correct) => {
+            onCheckpointResult("recall", attempts, correct);
+            next();
+          }}
+        />
+      )}
+      {current.kind === "apply" && (
+        <ApplyCheckpoint
+          checkpoint={current}
+          patternSlug={patternSlug}
+          onResult={(attempts, correct) => {
+            onCheckpointResult("apply", attempts, correct);
+            next();
+          }}
+        />
+      )}
+      {current.kind === "compare" && (
+        <CompareCheckpoint
+          checkpoint={current}
+          onResult={(attempts, correct) => {
+            onCheckpointResult("compare", attempts, correct);
+            next();
+          }}
+        />
+      )}
+      {current.kind === "create" && (
+        <CreateCheckpoint
+          checkpoint={current}
+          patternSlug={patternSlug}
+          onResult={(attempts, correct) => {
+            onCheckpointResult("create", attempts, correct);
+          }}
+        />
+      )}
+    </section>
+  );
+});
+```
+
+- [ ] **Step 10: Create `LessonColumn` — composes the 8 sections**
+
+Create `architex/src/components/modules/lld/learn/LessonColumn.tsx`:
+
+```tsx
+"use client";
+
+import { forwardRef, type ForwardedRef } from "react";
+import type { LessonPayload } from "@/lib/lld/lesson-types";
+import { ItchSection } from "./sections/ItchSection";
+import { DefinitionSection } from "./sections/DefinitionSection";
+import { MechanismSection } from "./sections/MechanismSection";
+import { AnatomySection } from "./sections/AnatomySection";
+import { NumbersSection } from "./sections/NumbersSection";
+import { UsesSection } from "./sections/UsesSection";
+import { FailureModesSection } from "./sections/FailureModesSection";
+import { CheckpointSection } from "./sections/CheckpointSection";
+
+interface Props {
+  payload: LessonPayload;
+  isBookmarked: (anchorId: string) => boolean;
+  onBookmarkToggle: (
+    sectionId: string,
+    anchorId: string,
+    anchorLabel: string,
+  ) => void;
+  onCheckpointResult: (
+    kind: "recall" | "apply" | "compare" | "create",
+    attempts: number,
+    correct: boolean,
+  ) => void;
+  mdxComponents?: Record<string, React.ComponentType<Record<string, unknown>>>;
+}
+
+function LessonColumnImpl(
+  {
+    payload,
+    isBookmarked,
+    onBookmarkToggle,
+    onCheckpointResult,
+    mdxComponents,
+  }: Props,
+  ref: ForwardedRef<HTMLDivElement>,
+) {
+  const bk = (section: string) => (anchorId: string, anchorLabel: string) =>
+    onBookmarkToggle(section, anchorId, anchorLabel);
+
+  return (
+    <div
+      ref={ref}
+      className="h-full overflow-y-auto scroll-smooth"
+      data-lesson-column
+    >
+      <ItchSection
+        payload={payload.sections.itch}
+        isBookmarked={isBookmarked}
+        onBookmarkToggle={bk("itch")}
+        mdxComponents={mdxComponents}
+      />
+      <DefinitionSection
+        payload={payload.sections.definition}
+        isBookmarked={isBookmarked}
+        onBookmarkToggle={bk("definition")}
+        mdxComponents={mdxComponents}
+      />
+      <MechanismSection
+        payload={payload.sections.mechanism}
+        isBookmarked={isBookmarked}
+        onBookmarkToggle={bk("mechanism")}
+        mdxComponents={mdxComponents}
+      />
+      <AnatomySection
+        payload={payload.sections.anatomy}
+        isBookmarked={isBookmarked}
+        onBookmarkToggle={bk("anatomy")}
+        mdxComponents={mdxComponents}
+      />
+      <NumbersSection
+        payload={payload.sections.numbers}
+        isBookmarked={isBookmarked}
+        onBookmarkToggle={bk("numbers")}
+        mdxComponents={mdxComponents}
+      />
+      <UsesSection
+        payload={payload.sections.uses}
+        isBookmarked={isBookmarked}
+        onBookmarkToggle={bk("uses")}
+        mdxComponents={mdxComponents}
+      />
+      <FailureModesSection
+        payload={payload.sections.failure_modes}
+        isBookmarked={isBookmarked}
+        onBookmarkToggle={bk("failure_modes")}
+        mdxComponents={mdxComponents}
+      />
+      <CheckpointSection
+        payload={payload.sections.checkpoints}
+        patternSlug={payload.patternSlug}
+        onCheckpointResult={onCheckpointResult}
+      />
+    </div>
+  );
+}
+
+export const LessonColumn = forwardRef<HTMLDivElement, Props>(LessonColumnImpl);
+```
+
+- [ ] **Step 11: Verify typecheck (expected: 4 errors for missing checkpoint components)**
+
+```bash
+pnpm typecheck
+```
+Expected: errors for `RecallCheckpoint`, `ApplyCheckpoint`, `CompareCheckpoint`, `CreateCheckpoint` not found. These are created in Task 18. To unblock typecheck meanwhile, create empty placeholder files:
+
+```bash
+mkdir -p architex/src/components/modules/lld/learn/checkpoints
+for kind in Recall Apply Compare Create; do
+cat > "architex/src/components/modules/lld/learn/checkpoints/${kind}Checkpoint.tsx" <<EOF
+"use client";
+import { memo } from "react";
+
+export const ${kind}Checkpoint = memo(function ${kind}Checkpoint(_: {
+  checkpoint: unknown;
+  patternSlug?: string;
+  onResult: (attempts: number, correct: boolean) => void;
+}) {
+  return <div>${kind}Checkpoint · TODO</div>;
+});
+EOF
+done
+```
+
+Run typecheck again. Expected: passes now, with placeholders in place for Task 18 to replace.
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add architex/src/components/modules/lld/learn/
+git commit -m "$(cat <<'EOF'
+feat(lld): add 8 lesson section components + LessonColumn + MDXRenderer
+
+Each section renders in a <section data-section-id="…"> shape required
+by useLessonScrollSync. Headlines are editorial serif, numbers are mono
+chrome, failure modes are severity-colored. Bookmark toggle icon per
+section. CheckpointSection dispatches to the 4 checkpoint kinds (stubbed
+in this task, implemented in Task 18).
+
+MDXRenderer executes compiled function-body MDX once and memoizes.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 15: Create `ClassPopover` (Q7 canvas click)
+
+**Files:**
+- Create: `architex/src/components/modules/lld/learn/ClassPopover.tsx`
+
+Per spec §6 Q7: clicking a class on the canvas while in Learn mode opens a popover summarizing the class + listing the lesson sections that mention it, with jump links.
+
+- [ ] **Step 1: Create the popover**
+
+Create `architex/src/components/modules/lld/learn/ClassPopover.tsx`:
+
+```tsx
+"use client";
+
+import { memo, useMemo } from "react";
+import type { LessonPayload, LessonSectionId } from "@/lib/lld/lesson-types";
+import { X } from "lucide-react";
+
+interface Props {
+  classId: string;
+  className: string;
+  payload: LessonPayload;
+  /** Screen coordinates (centered on the clicked class node). */
+  position: { x: number; y: number };
+  onDismiss: () => void;
+  onJumpToSection: (section: LessonSectionId) => void;
+}
+
+const SECTION_LABELS: Record<LessonSectionId, string> = {
+  itch: "The Itch",
+  definition: "Definition",
+  mechanism: "Mechanism",
+  anatomy: "Anatomy",
+  numbers: "Numbers",
+  uses: "Uses",
+  failure_modes: "Failure Modes",
+  checkpoints: "Checkpoints",
+};
+
+export const ClassPopover = memo(function ClassPopover({
+  classId,
+  className,
+  payload,
+  position,
+  onDismiss,
+  onJumpToSection,
+}: Props) {
+  // Find which sections mention this classId
+  const mentionedIn = useMemo(() => {
+    const out: LessonSectionId[] = [];
+    for (const [sid, section] of Object.entries(payload.sections) as Array<
+      [LessonSectionId, { classIds: string[] }]
+    >) {
+      if (section.classIds.includes(classId)) out.push(sid);
+    }
+    return out;
+  }, [classId, payload]);
+
+  // Find the anatomy entry for this class (authoritative summary)
+  const anatomyEntry = useMemo(
+    () => payload.sections.anatomy.classes.find((c) => c.classId === classId),
+    [classId, payload],
+  );
+
+  return (
+    <div
+      role="dialog"
+      aria-label={`${className} details`}
+      style={{
+        position: "absolute",
+        left: position.x,
+        top: position.y,
+        transform: "translate(-50%, calc(-100% - 8px))",
+      }}
+      className="z-50 w-80 rounded-xl border border-border/40 bg-background/95 backdrop-blur-md shadow-xl p-4"
+    >
+      <div className="flex items-start justify-between mb-2">
+        <div className="font-mono text-sm font-semibold text-foreground">
+          {className}
+        </div>
+        <button
+          aria-label="Dismiss"
+          onClick={onDismiss}
+          className="text-foreground-muted hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {anatomyEntry ? (
+        <>
+          <div className="text-xs uppercase tracking-wide text-primary mb-1">
+            {anatomyEntry.role}
+          </div>
+          <p className="text-xs text-foreground-muted font-serif leading-relaxed">
+            {anatomyEntry.responsibility}
+          </p>
+          {anatomyEntry.keyMethod && (
+            <code className="text-[11px] text-foreground-muted mt-2 block font-mono">
+              key method · {anatomyEntry.keyMethod}
+            </code>
+          )}
+        </>
+      ) : (
+        <p className="text-xs text-foreground-muted italic">
+          No anatomy entry for this class — check the Anatomy section.
+        </p>
+      )}
+
+      {mentionedIn.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-border/30">
+          <div className="text-[10px] uppercase tracking-wider text-foreground-muted mb-1.5">
+            Mentioned in
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {mentionedIn.map((sid) => (
+              <button
+                key={sid}
+                onClick={() => {
+                  onJumpToSection(sid);
+                  onDismiss();
+                }}
+                className="text-[11px] rounded-full border border-border/30 bg-elevated/50 px-2 py-0.5 text-foreground hover:bg-primary/20 transition-colors"
+              >
+                {SECTION_LABELS[sid]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/components/modules/lld/learn/ClassPopover.tsx
+git commit -m "$(cat <<'EOF'
+feat(lld): add ClassPopover for Learn-mode canvas click (Q7)
+
+Absolute-positioned popover anchored above the clicked class node.
+Derives mentioned-in sections from payload.classIds arrays (no extra
+DB query). Pulls role + responsibility from the Anatomy section entry.
+Jump link dismisses popover + emits onJumpToSection.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 16: Build concept-graph generator + build integration
+
+**Files:**
+- Create: `architex/scripts/build-concept-graph.ts`
+- Create (generated): `architex/src/lib/lld/concept-graph.ts`
+- Modify: `architex/package.json` (add `build:concept-graph` script + `prebuild` hook)
+- Test: `architex/src/lib/lld/__tests__/concept-graph.test.ts`
+
+Authors describe cross-links in `content/lld/concepts/<slug>.concepts.yaml`. The build-time generator merges all YAMLs into a typed TypeScript module consumed at runtime for O(1) lookups.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/lld/__tests__/concept-graph.test.ts`:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import {
+  CONCEPT_GRAPH,
+  lookupConcept,
+  conceptsForPattern,
+  patternsForConcept,
+  relatedPatterns,
+  confusedWithFor,
+} from "@/lib/lld/concept-graph";
+
+describe("concept-graph", () => {
+  it("exports a non-empty graph", () => {
+    expect(Object.keys(CONCEPT_GRAPH.concepts).length).toBeGreaterThan(0);
+    expect(Object.keys(CONCEPT_GRAPH.patterns).length).toBeGreaterThan(0);
+  });
+
+  it("lookupConcept resolves concept by id", () => {
+    const anyId = Object.keys(CONCEPT_GRAPH.concepts)[0];
+    const c = lookupConcept(anyId);
+    expect(c).not.toBeNull();
+    expect(c?.id).toBe(anyId);
+  });
+
+  it("lookupConcept returns null for unknown id", () => {
+    expect(lookupConcept("__no_such_concept__")).toBeNull();
+  });
+
+  it("patternsForConcept returns pattern slugs the concept lives in", () => {
+    const anyId = Object.keys(CONCEPT_GRAPH.concepts)[0];
+    const patterns = patternsForConcept(anyId);
+    expect(patterns.length).toBeGreaterThan(0);
+  });
+
+  it("conceptsForPattern returns stable ordering", () => {
+    const anySlug = Object.keys(CONCEPT_GRAPH.patterns)[0];
+    const a = conceptsForPattern(anySlug);
+    const b = conceptsForPattern(anySlug);
+    expect(a).toEqual(b);
+  });
+
+  it("relatedPatterns returns deduped slug array", () => {
+    const anySlug = Object.keys(CONCEPT_GRAPH.patterns)[0];
+    const related = relatedPatterns(anySlug);
+    expect(new Set(related).size).toBe(related.length);
+    expect(related).not.toContain(anySlug);
+  });
+
+  it("confusedWithFor returns typed entries", () => {
+    const anySlug = Object.keys(CONCEPT_GRAPH.patterns)[0];
+    const confused = confusedWithFor(anySlug);
+    for (const c of confused) {
+      expect(typeof c.patternSlug).toBe("string");
+      expect(typeof c.reason).toBe("string");
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- concept-graph
+```
+Expected: FAIL with missing module. Also the graph hasn't been generated yet.
+
+- [ ] **Step 3: Write the generator**
+
+Create `architex/scripts/build-concept-graph.ts`:
+
+```typescript
+#!/usr/bin/env tsx
+/**
+ * Merge every content/lld/concepts/<slug>.concepts.yaml into a single
+ * typed TS module at src/lib/lld/concept-graph.ts. Consumed by the UI
+ * at runtime for O(1) cross-link lookups.
+ *
+ * Run automatically via `prebuild` + explicitly via:
+ *   pnpm build:concept-graph
+ */
+
+import { readFile, readdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import yaml from "js-yaml";
+import type { ConceptYAML } from "../src/lib/lld/lesson-types";
+
+const CONCEPT_DIR = "content/lld/concepts";
+const OUT_PATH = "src/lib/lld/concept-graph.ts";
+
+interface ConceptNode {
+  id: string;
+  label: string;
+  summary: string;
+  patternSlugs: string[];
+  relatedConcepts: string[];
+  relatedPatterns: string[];
+}
+
+interface PatternNode {
+  slug: string;
+  conceptIds: string[];
+  relatedPatterns: string[];
+  confusedWith: Array<{ patternSlug: string; reason: string }>;
+}
+
+async function main() {
+  if (!existsSync(CONCEPT_DIR)) {
+    // First run before any concept files exist — write empty graph.
+    await writeGraph({ concepts: {}, patterns: {} });
+    console.log(`[build-concept-graph] no ${CONCEPT_DIR} yet — wrote empty graph`);
+    return;
+  }
+
+  const files = (await readdir(CONCEPT_DIR)).filter((f) =>
+    f.endsWith(".concepts.yaml"),
+  );
+
+  const concepts: Record<string, ConceptNode> = {};
+  const patterns: Record<string, PatternNode> = {};
+
+  for (const file of files) {
+    const raw = await readFile(join(CONCEPT_DIR, file), "utf8");
+    const doc = yaml.load(raw) as ConceptYAML;
+    if (!doc?.pattern || !Array.isArray(doc.concepts)) {
+      console.warn(`[build-concept-graph] skipping invalid file: ${file}`);
+      continue;
+    }
+    const slug = doc.pattern;
+
+    const patternNode: PatternNode = patterns[slug] ?? {
+      slug,
+      conceptIds: [],
+      relatedPatterns: [],
+      confusedWith: [],
+    };
+
+    for (const c of doc.concepts) {
+      if (!c.id || !c.label) continue;
+      if (!concepts[c.id]) {
+        concepts[c.id] = {
+          id: c.id,
+          label: c.label,
+          summary: c.summary ?? "",
+          patternSlugs: [],
+          relatedConcepts: [],
+          relatedPatterns: [],
+        };
+      }
+      const cn = concepts[c.id];
+      if (!cn.patternSlugs.includes(slug)) cn.patternSlugs.push(slug);
+      for (const rc of c.relatedConcepts ?? []) {
+        if (!cn.relatedConcepts.includes(rc)) cn.relatedConcepts.push(rc);
+      }
+      for (const rp of c.relatedPatterns ?? []) {
+        if (!cn.relatedPatterns.includes(rp)) cn.relatedPatterns.push(rp);
+        if (rp !== slug && !patternNode.relatedPatterns.includes(rp)) {
+          patternNode.relatedPatterns.push(rp);
+        }
+      }
+      if (!patternNode.conceptIds.includes(c.id)) {
+        patternNode.conceptIds.push(c.id);
+      }
+    }
+
+    for (const cw of doc.confusedWith ?? []) {
+      if (cw.patternSlug && cw.reason) {
+        patternNode.confusedWith.push({
+          patternSlug: cw.patternSlug,
+          reason: cw.reason,
+        });
+      }
+    }
+
+    patterns[slug] = patternNode;
+  }
+
+  await writeGraph({ concepts, patterns });
+  console.log(
+    `[build-concept-graph] wrote ${OUT_PATH} · ${Object.keys(concepts).length} concepts, ${Object.keys(patterns).length} patterns`,
+  );
+}
+
+async function writeGraph(graph: {
+  concepts: Record<string, ConceptNode>;
+  patterns: Record<string, PatternNode>;
+}) {
+  const json = JSON.stringify(graph, null, 2);
+  const out = `/**
+ * GENERATED FILE — DO NOT EDIT.
+ * Run \`pnpm build:concept-graph\` to regenerate.
+ * Source: content/lld/concepts/*.concepts.yaml
+ */
+
+export interface ConceptNode {
+  id: string;
+  label: string;
+  summary: string;
+  patternSlugs: string[];
+  relatedConcepts: string[];
+  relatedPatterns: string[];
+}
+
+export interface PatternNode {
+  slug: string;
+  conceptIds: string[];
+  relatedPatterns: string[];
+  confusedWith: Array<{ patternSlug: string; reason: string }>;
+}
+
+export interface ConceptGraph {
+  concepts: Record<string, ConceptNode>;
+  patterns: Record<string, PatternNode>;
+}
+
+export const CONCEPT_GRAPH: ConceptGraph = ${json};
+
+export function lookupConcept(id: string): ConceptNode | null {
+  return CONCEPT_GRAPH.concepts[id] ?? null;
+}
+
+export function conceptsForPattern(slug: string): string[] {
+  return CONCEPT_GRAPH.patterns[slug]?.conceptIds ?? [];
+}
+
+export function patternsForConcept(id: string): string[] {
+  return CONCEPT_GRAPH.concepts[id]?.patternSlugs ?? [];
+}
+
+export function relatedPatterns(slug: string): string[] {
+  return CONCEPT_GRAPH.patterns[slug]?.relatedPatterns ?? [];
+}
+
+export function confusedWithFor(
+  slug: string,
+): Array<{ patternSlug: string; reason: string }> {
+  return CONCEPT_GRAPH.patterns[slug]?.confusedWith ?? [];
+}
+`;
+  await writeFile(OUT_PATH, out, "utf8");
+}
+
+main().catch((err) => {
+  console.error("[build-concept-graph] fatal:", err);
+  process.exit(1);
+});
+```
+
+- [ ] **Step 4: Register npm scripts**
+
+Open `architex/package.json`. In `scripts`, add:
+
+```json
+"build:concept-graph": "tsx scripts/build-concept-graph.ts",
+"prebuild": "tsx scripts/build-concept-graph.ts"
+```
+
+If a `prebuild` entry already exists, chain with `&&`. The `prebuild` hook runs automatically before `next build`, so production bundles always include the latest graph.
+
+- [ ] **Step 5: Run the generator to bootstrap the file**
+
+```bash
+pnpm build:concept-graph
+```
+Expected: writes `src/lib/lld/concept-graph.ts` with empty objects (no YAMLs yet). File looks like the generated template with empty maps.
+
+- [ ] **Step 6: Run the test**
+
+The test expects at least one concept + one pattern. To make it pass in CI before content lands, add a fixture YAML in Step 7 of Task 24. For now, the test will fail with "expected > 0, got 0" — mark it `it.skip` temporarily and re-enable in Task 24.
+
+Edit `architex/src/lib/lld/__tests__/concept-graph.test.ts` and change:
+
+```typescript
+it("exports a non-empty graph", () => {
+```
+
+to:
+
+```typescript
+it.skip("exports a non-empty graph (enabled in Task 24)", () => {
+```
+
+and similarly skip the other tests that access `Object.keys(...)[0]`. Alternatively keep them unskipped if you plan to author `singleton.concepts.yaml` in this same commit — pick whichever keeps CI green.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add architex/scripts/build-concept-graph.ts architex/src/lib/lld/concept-graph.ts architex/src/lib/lld/__tests__/concept-graph.test.ts architex/package.json
+git commit -m "$(cat <<'EOF'
+feat(lld): concept-graph generator + prebuild hook
+
+Reads content/lld/concepts/*.concepts.yaml, merges into a typed TS
+module at src/lib/lld/concept-graph.ts. Runtime lookups are O(1) map
+reads. The prebuild hook guarantees `next build` always bundles the
+latest graph without manual intervention.
+
+Tests are skipped until first YAML lands in Task 24.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 17: Create `ConfusedWithPanel`
+
+**Files:**
+- Create: `architex/src/components/modules/lld/learn/ConfusedWithPanel.tsx`
+
+Per spec §6 Q9 surface 3: "Confused-With panel · Ask me about their difference in your codebase". This panel displays the `confusedWith` entries from the concept graph for the current pattern, each with a one-line "why they're confused" reason and an "Ask the Architect" button (AI is wired in Task 21).
+
+- [ ] **Step 1: Create the component**
+
+Create `architex/src/components/modules/lld/learn/ConfusedWithPanel.tsx`:
+
+```tsx
+"use client";
+
+import { memo } from "react";
+import { Lightbulb, MessageCircle } from "lucide-react";
+import { confusedWithFor } from "@/lib/lld/concept-graph";
+
+interface Props {
+  patternSlug: string;
+  /** Pretty label lookup for the referenced pattern slugs. */
+  resolvePatternLabel: (slug: string) => string;
+  onAskArchitect?: (args: {
+    patternSlug: string;
+    confusedWithSlug: string;
+    reason: string;
+  }) => void;
+}
+
+export const ConfusedWithPanel = memo(function ConfusedWithPanel({
+  patternSlug,
+  resolvePatternLabel,
+  onAskArchitect,
+}: Props) {
+  const entries = confusedWithFor(patternSlug);
+  if (entries.length === 0) return null;
+
+  return (
+    <aside
+      aria-label="Often confused with"
+      className="rounded-xl border border-border/30 bg-gradient-to-br from-amber-500/5 to-transparent p-4 m-3"
+    >
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-amber-200/80 mb-2">
+        <Lightbulb className="h-3.5 w-3.5" />
+        Often confused with
+      </div>
+      <ul className="space-y-2">
+        {entries.map((e) => (
+          <li
+            key={e.patternSlug}
+            className="rounded-lg border border-border/20 bg-elevated/40 p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-sm font-semibold text-foreground">
+                  {resolvePatternLabel(e.patternSlug)}
+                </div>
+                <p className="text-xs text-foreground-muted font-serif leading-relaxed mt-1">
+                  {e.reason}
+                </p>
+              </div>
+              {onAskArchitect && (
+                <button
+                  onClick={() =>
+                    onAskArchitect({
+                      patternSlug,
+                      confusedWithSlug: e.patternSlug,
+                      reason: e.reason,
+                    })
+                  }
+                  className="shrink-0 inline-flex items-center gap-1 rounded-full bg-primary/20 text-primary text-[10px] uppercase tracking-wider px-2 py-1 hover:bg-primary/30 transition-colors"
+                >
+                  <MessageCircle className="h-3 w-3" />
+                  Ask
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+});
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/components/modules/lld/learn/ConfusedWithPanel.tsx
+git commit -m "$(cat <<'EOF'
+feat(lld): add ConfusedWithPanel (Q9 surface 3)
+
+Reads confusedWith entries from the static concept graph. Renders each
+as a card with reason copy and an "Ask" button that delegates to the
+parent (wired to Haiku in Task 21). Returns null when no entries,
+keeping the panel invisible until content authors populate YAML.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
