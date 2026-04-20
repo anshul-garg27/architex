@@ -2979,6 +2979,1022 @@ git commit -m "feat(sd-learn): ConfusedWithPanel + CrossModuleBridgeCard (Task 1
 
 ---
 
+## Task 18: Four checkpoint components + grading engine extension
+
+**Files:**
+- Create: `architex/src/lib/sd/checkpoint-types.ts`
+- Create: `architex/src/components/modules/sd/learn/checkpoints/RecallCheckpoint.tsx`
+- Create: `architex/src/components/modules/sd/learn/checkpoints/ApplyCheckpoint.tsx`
+- Create: `architex/src/components/modules/sd/learn/checkpoints/CompareCheckpoint.tsx`
+- Create: `architex/src/components/modules/sd/learn/checkpoints/CreateCheckpoint.tsx`
+- Create: `architex/src/lib/sd/__tests__/checkpoint-grading.test.ts`
+
+Per spec §6.3 (concepts: MCQ + rank-tradeoffs + match-to-problem; exactly 3 per concept page) and §6.4 (problems: Fermi estimate + pick-the-failure-mode + chaos-match; exactly 3 per problem page). Plus a Create checkpoint available to any page type for the "design this" interaction.
+
+Progressive-reveal on failure mirrors LLD Phase 2 Task 18: attempts 1-2 show a `whyWrong` targeted hint, attempt 3 reveals the correct answer with full explanation. FSRS rating is derived: first-try correct = Easy, second-try correct = Good, third-try correct = Hard, reveal = Again.
+
+- [ ] **Step 1: Shared checkpoint types + grading engine**
+
+```typescript
+// src/lib/sd/checkpoint-types.ts
+export type CheckpointKind = 'recall' | 'apply' | 'compare' | 'create';
+export type FsrsRating = 'again' | 'hard' | 'good' | 'easy';
+
+export interface CheckpointAttempt {
+  checkpointId: string;
+  attempts: number;        // 1..N
+  correct: boolean;
+  revealed: boolean;       // user asked for reveal
+  firstTryCorrect: boolean;
+}
+
+export function deriveFsrsRating(a: CheckpointAttempt): FsrsRating {
+  if (a.revealed) return 'again';
+  if (a.firstTryCorrect) return 'easy';
+  if (a.attempts === 2 && a.correct) return 'good';
+  if (a.attempts === 3 && a.correct) return 'hard';
+  return 'again';
+}
+
+/** RecallCheckpoint grading — single-select MCQ */
+export function gradeRecall(options: { id: string; isCorrect: boolean }[], selectedId: string) {
+  return !!options.find((o) => o.id === selectedId && o.isCorrect);
+}
+
+/** ApplyCheckpoint grading — set-matching (selected == correctNodeIds, no distractors) */
+export function gradeApply(selected: string[], correct: string[], distractors: string[]) {
+  const selSet = new Set(selected);
+  const correctSet = new Set(correct);
+  const missing = [...correctSet].filter((id) => !selSet.has(id));
+  const extra = selected.filter((id) => !correctSet.has(id));
+  return { correct: missing.length === 0 && extra.length === 0, missing, extra };
+}
+
+/** CompareCheckpoint grading — each statement has a label (left|right|both|neither) */
+export function gradeCompare(statements: { id: string; correct: 'left' | 'right' | 'both' | 'neither' }[], answers: Record<string, 'left' | 'right' | 'both' | 'neither'>) {
+  let correct = 0;
+  const wrong: string[] = [];
+  for (const s of statements) {
+    if (answers[s.id] === s.correct) correct++;
+    else wrong.push(s.id);
+  }
+  return { correct: correct === statements.length, score: correct, total: statements.length, wrong };
+}
+
+/** CreateCheckpoint grading — rubric-based; user canvas is compared criterion-by-criterion via deterministic heuristics. */
+export interface CreateSubmission { nodes: Array<{ id: string; familyId?: string; subtype?: string }>; edges: Array<{ source: string; target: string }> }
+export function gradeCreate(submission: CreateSubmission, rubric: Array<{ criterion: string; points: number }>): { total: number; max: number; perCriterion: Array<{ criterion: string; earned: number; max: number }> } {
+  const max = rubric.reduce((n, r) => n + r.points, 0);
+  // Heuristic: for Phase 2, every criterion is worth either 0 or its points.
+  // Real grading (Phase 3 Drill mode) uses Sonnet rubric grader; this is a
+  // local-heuristic fallback that matches the spec's "lenient first draft"
+  // stance — marking presence of familyIds named in the criterion string.
+  const perCriterion = rubric.map((r) => {
+    const keywords = r.criterion.toLowerCase().split(/[\s,·]+/).filter((w) => w.length > 3);
+    const hit = keywords.some((kw) => submission.nodes.some((n) => (n.familyId ?? '').toLowerCase().includes(kw) || (n.subtype ?? '').toLowerCase().includes(kw)));
+    return { criterion: r.criterion, earned: hit ? r.points : 0, max: r.points };
+  });
+  return { total: perCriterion.reduce((n, c) => n + c.earned, 0), max, perCriterion };
+}
+```
+
+- [ ] **Step 2: `RecallCheckpoint` with progressive reveal**
+
+```typescript
+// src/components/modules/sd/learn/checkpoints/RecallCheckpoint.tsx
+'use client';
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { deriveFsrsRating, gradeRecall, type CheckpointAttempt, type FsrsRating } from '@/lib/sd/checkpoint-types';
+
+export interface RecallCheckpointProps {
+  checkpoint: {
+    id: string;
+    prompt: string;
+    options: Array<{ id: string; label: string; isCorrect: boolean; whyWrong?: string }>;
+    explanation: string;
+  };
+  onResult: (result: { attempt: CheckpointAttempt; fsrs: FsrsRating }) => void;
+}
+
+export function RecallCheckpoint({ checkpoint, onResult }: RecallCheckpointProps) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [solved, setSolved] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [lastWrongId, setLastWrongId] = useState<string | null>(null);
+
+  const submit = () => {
+    if (!selected || solved) return;
+    const correct = gradeRecall(checkpoint.options, selected);
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+    if (correct) {
+      setSolved(true);
+      const a: CheckpointAttempt = { checkpointId: checkpoint.id, attempts: nextAttempts, correct: true, revealed: false, firstTryCorrect: nextAttempts === 1 };
+      onResult({ attempt: a, fsrs: deriveFsrsRating(a) });
+    } else {
+      setLastWrongId(selected);
+      if (nextAttempts >= 3) {
+        setRevealed(true);
+        setSolved(true);
+        const a: CheckpointAttempt = { checkpointId: checkpoint.id, attempts: nextAttempts, correct: false, revealed: true, firstTryCorrect: false };
+        onResult({ attempt: a, fsrs: 'again' });
+      }
+    }
+  };
+
+  const wrongOption = checkpoint.options.find((o) => o.id === lastWrongId);
+
+  return (
+    <div className="my-6 rounded-lg border border-cobalt/30 p-4">
+      <p className="font-serif text-lg">{checkpoint.prompt}</p>
+      <ul className="mt-3 space-y-1">
+        {checkpoint.options.map((o) => (
+          <li key={o.id}>
+            <label
+              className={cn(
+                'block cursor-pointer rounded-md border border-transparent px-3 py-2 transition',
+                selected === o.id && !solved && 'border-cobalt/40 bg-cobalt/10',
+                solved && o.isCorrect && 'border-emerald-500/40 bg-emerald-500/10',
+                solved && revealed && !o.isCorrect && 'opacity-60',
+              )}
+            >
+              <input type="radio" name={checkpoint.id} value={o.id} disabled={solved}
+                     checked={selected === o.id} onChange={() => setSelected(o.id)} className="mr-2" />
+              {o.label}
+            </label>
+          </li>
+        ))}
+      </ul>
+      {!solved && (
+        <button onClick={submit} disabled={!selected}
+                className="mt-3 rounded-md bg-cobalt/20 px-4 py-1.5 text-sm hover:bg-cobalt/30 disabled:opacity-50">
+          Submit {attempts > 0 ? `(attempt ${attempts + 1})` : ''}
+        </button>
+      )}
+      {!solved && wrongOption?.whyWrong && (
+        <p className="mt-3 rounded-md bg-amber-500/10 p-2 text-sm font-serif italic text-amber-200">
+          Not quite. {wrongOption.whyWrong}
+        </p>
+      )}
+      {solved && (
+        <p className="mt-3 rounded-md bg-emerald-500/10 p-2 text-sm font-serif italic">
+          {revealed ? 'Revealed. ' : attempts === 1 ? 'First-try correct. ' : ''}
+          {checkpoint.explanation}
+        </p>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 3: `ApplyCheckpoint` — multi-select node picker**
+
+Renders the architecture mini-canvas from `frontmatter.anchorNodeIds` or a provided subset. User toggles nodes; submit computes `gradeApply(selected, correct, distractors)`. On attempt 2, the `missing`/`extra` hint surfaces: "Missing: `DatabaseConnectionPool`. Extra: `Query`." Attempt 3 reveals.
+
+```typescript
+// src/components/modules/sd/learn/checkpoints/ApplyCheckpoint.tsx
+'use client';
+import { useState } from 'react';
+import { gradeApply, deriveFsrsRating } from '@/lib/sd/checkpoint-types';
+
+export interface ApplyCheckpointProps {
+  checkpoint: {
+    id: string; scenario: string;
+    correctNodeIds: string[]; distractorNodeIds: string[];
+    explanation: string;
+  };
+  onResult: (r: { attempt: any; fsrs: any }) => void;
+}
+
+export function ApplyCheckpoint({ checkpoint, onResult }: ApplyCheckpointProps) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [attempts, setAttempts] = useState(0);
+  const [solved, setSolved] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [lastGrade, setLastGrade] = useState<{ missing: string[]; extra: string[] } | null>(null);
+
+  const all = [...checkpoint.correctNodeIds, ...checkpoint.distractorNodeIds];
+  const toggle = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const submit = () => {
+    const g = gradeApply([...selected], checkpoint.correctNodeIds, checkpoint.distractorNodeIds);
+    const next = attempts + 1;
+    setAttempts(next);
+    if (g.correct) {
+      setSolved(true);
+      const a = { checkpointId: checkpoint.id, attempts: next, correct: true, revealed: false, firstTryCorrect: next === 1 };
+      onResult({ attempt: a, fsrs: deriveFsrsRating(a) });
+    } else {
+      setLastGrade({ missing: g.missing, extra: g.extra });
+      if (next >= 3) { setRevealed(true); setSolved(true); onResult({ attempt: { checkpointId: checkpoint.id, attempts: next, correct: false, revealed: true, firstTryCorrect: false }, fsrs: 'again' }); }
+    }
+  };
+
+  return (
+    <div className="my-6 rounded-lg border border-cobalt/30 p-4">
+      <p className="font-serif">{checkpoint.scenario}</p>
+      <p className="mt-1 text-xs text-foreground-muted">Pick the nodes that belong to this pattern.</p>
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {all.map((id) => (
+          <li key={id}>
+            <button
+              type="button"
+              onClick={() => !solved && toggle(id)}
+              className={`rounded-md border px-2 py-1 text-sm transition
+                ${selected.has(id) ? 'border-cobalt/60 bg-cobalt/20' : 'border-border'}
+                ${revealed && checkpoint.correctNodeIds.includes(id) ? 'border-emerald-500/60 bg-emerald-500/10' : ''}`}
+            >
+              {id}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {!solved && <button onClick={submit} className="mt-3 rounded-md bg-cobalt/20 px-4 py-1.5 text-sm hover:bg-cobalt/30">Submit</button>}
+      {!solved && lastGrade && (
+        <p className="mt-3 rounded-md bg-amber-500/10 p-2 text-sm font-serif italic">
+          {lastGrade.missing.length > 0 && <>Missing: <code>{lastGrade.missing.join(', ')}</code>. </>}
+          {lastGrade.extra.length > 0 && <>Extra: <code>{lastGrade.extra.join(', ')}</code>.</>}
+        </p>
+      )}
+      {solved && (
+        <p className="mt-3 rounded-md bg-emerald-500/10 p-2 text-sm font-serif italic">{checkpoint.explanation}</p>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: `CompareCheckpoint` — per-statement left/right/both/neither**
+
+Renders one table with a row per statement and radio buttons in each column. Progressive reveal on failure: attempt 2 marks wrong rows; attempt 3 reveals all correct answers.
+
+- [ ] **Step 5: `CreateCheckpoint` — embedded canvas picker + rubric feedback**
+
+Renders a small editable canvas (re-uses `LLDCanvas` in edit-mode) pre-filled with `starterCanvas`. User adds nodes/edges. Submit invokes `gradeCreate(submission, rubric)` and shows per-criterion earned/max breakdown. "Show reference solution" button reveals `referenceSolution` on a read-only canvas next to the user's.
+
+- [ ] **Step 6: Tests**
+
+```typescript
+// src/lib/sd/__tests__/checkpoint-grading.test.ts
+import { describe, it, expect } from 'vitest';
+import { gradeRecall, gradeApply, gradeCompare, gradeCreate, deriveFsrsRating } from '../checkpoint-types';
+
+describe('gradeRecall', () => {
+  it('is correct only when the selected option is isCorrect:true', () => {
+    const opts = [{ id: 'a', isCorrect: false }, { id: 'b', isCorrect: true }];
+    expect(gradeRecall(opts, 'b')).toBe(true);
+    expect(gradeRecall(opts, 'a')).toBe(false);
+  });
+});
+
+describe('gradeApply', () => {
+  it('surfaces missing and extra sets', () => {
+    const g = gradeApply(['a', 'c'], ['a', 'b'], ['c', 'd']);
+    expect(g.correct).toBe(false);
+    expect(g.missing).toEqual(['b']);
+    expect(g.extra).toEqual(['c']);
+  });
+});
+
+describe('gradeCompare', () => {
+  it('counts exact matches across statements', () => {
+    const r = gradeCompare(
+      [{ id: 's1', correct: 'left' }, { id: 's2', correct: 'both' }],
+      { s1: 'left', s2: 'right' }
+    );
+    expect(r.score).toBe(1);
+    expect(r.correct).toBe(false);
+  });
+});
+
+describe('gradeCreate', () => {
+  it('awards points when the submission contains a matching familyId keyword', () => {
+    const r = gradeCreate(
+      { nodes: [{ id: 'n1', familyId: 'cache' }], edges: [] },
+      [{ criterion: 'Cache layer present', points: 2 }],
+    );
+    expect(r.total).toBe(2);
+    expect(r.perCriterion[0].earned).toBe(2);
+  });
+});
+
+describe('deriveFsrsRating', () => {
+  it('Easy on first-try correct', () => {
+    expect(deriveFsrsRating({ checkpointId:'x', attempts:1, correct:true, revealed:false, firstTryCorrect:true })).toBe('easy');
+  });
+  it('Again on reveal', () => {
+    expect(deriveFsrsRating({ checkpointId:'x', attempts:3, correct:false, revealed:true, firstTryCorrect:false })).toBe('again');
+  });
+  it('Good on second-try correct', () => {
+    expect(deriveFsrsRating({ checkpointId:'x', attempts:2, correct:true, revealed:false, firstTryCorrect:false })).toBe('good');
+  });
+  it('Hard on third-try correct', () => {
+    expect(deriveFsrsRating({ checkpointId:'x', attempts:3, correct:true, revealed:false, firstTryCorrect:false })).toBe('hard');
+  });
+});
+```
+
+- [ ] **Step 7: Run + commit**
+
+```bash
+pnpm typecheck && pnpm test:run -- checkpoint-grading
+git add architex/src/lib/sd/checkpoint-types.ts \
+        architex/src/lib/sd/__tests__/checkpoint-grading.test.ts \
+        architex/src/components/modules/sd/learn/checkpoints/
+git commit -m "$(cat <<'EOF'
+feat(sd-learn): 4 checkpoint kinds + grading engine (Task 18/35)
+
+RecallCheckpoint (MCQ · progressive reveal on attempts 1-2-3),
+ApplyCheckpoint (multi-select node picker with missing/extra hints),
+CompareCheckpoint (left/right/both/neither per statement),
+CreateCheckpoint (canvas submission · keyword-heuristic rubric grading
+for Phase 2; Sonnet rubric grader arrives in Phase 3 Drill mode).
+deriveFsrsRating: first-try=Easy · 2nd=Good · 3rd=Hard · reveal=Again
+matching LLD Phase 2 contract.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 19: 3 AI API routes (explain-inline · suggest-analogy · show-at-scale)
+
+**Files:**
+- Create: `architex/src/app/api/sd/explain-inline/route.ts`
+- Create: `architex/src/app/api/sd/suggest-analogy/route.ts`
+- Create: `architex/src/app/api/sd/show-at-scale/route.ts`
+- Create: `architex/src/app/api/sd/__tests__/sd-ai-surfaces.test.ts`
+
+Per spec §6.6 (three contextual Ask-AI surfaces per page) and §15.3.1 Learn features L1-L3:
+- **L1 · Ask-the-Architect (explain-inline)** — Sonnet · ~$0.015/session · selected paragraph + section context
+- **L2 · Elaborative interrogation grader** — Haiku · 1-5 rubric for free-text "why?" answers · not in Phase 2 scope (deferred to Phase 4)
+- **L3 · Concept explainer (suggest-analogy)** — Sonnet · "explain this differently" on a selected paragraph · ~$0.01
+
+Plus one SD-Phase-2-specific surface requested in the task brief:
+- **show-me-at-scale** — Sonnet · reader selects a concept or napkin-math section and the AI projects "what does this look like at 10k DAU vs 1M vs 100M" · ~$0.04/call, cached with IndexedDB
+
+Each route:
+1. Extracts `userId` via `auth()`, 401s if missing
+2. Validates body via Zod
+3. Checks `aiUsage` table for daily cap (~$2 free, ~$10 pro per spec §15.7)
+4. Calls Anthropic via the singleton client with progress-aware `UserContext` payload (§15.6)
+5. Writes the usage row and returns the reply
+
+- [ ] **Step 1: Shared request helper**
+
+```typescript
+// src/lib/sd/ai-user-context.ts
+import { db } from '@/db/client';
+import { sdLearnProgress } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
+
+export interface UserContext {
+  userId: string;
+  personaGuess: 'rookie' | 'journeyman' | 'architect';
+  masteredConceptSlugs: string[];
+  currentConceptSlug?: string;
+  currentProblemSlug?: string;
+  voiceVariant: 'eli5' | 'standard' | 'eli-senior';
+}
+
+export async function buildUserContext(opts: {
+  userId: string;
+  currentKind?: 'concept' | 'problem';
+  currentSlug?: string;
+  voiceVariant?: 'eli5' | 'standard' | 'eli-senior';
+}): Promise<UserContext> {
+  const completed = await db.select().from(sdLearnProgress).where(
+    and(eq(sdLearnProgress.userId, opts.userId), eq(sdLearnProgress.kind, 'concept')),
+  );
+  const mastered = completed.filter((r) => r.completedAt !== null).map((r) => r.slug);
+  const personaGuess: UserContext['personaGuess'] =
+    mastered.length >= 20 ? 'architect' : mastered.length >= 8 ? 'journeyman' : 'rookie';
+  return {
+    userId: opts.userId,
+    personaGuess,
+    masteredConceptSlugs: mastered,
+    currentConceptSlug: opts.currentKind === 'concept' ? opts.currentSlug : undefined,
+    currentProblemSlug: opts.currentKind === 'problem' ? opts.currentSlug : undefined,
+    voiceVariant: opts.voiceVariant ?? 'standard',
+  };
+}
+```
+
+- [ ] **Step 2: `POST /api/sd/explain-inline` (Haiku)**
+
+```typescript
+// src/app/api/sd/explain-inline/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { claudeClient } from '@/lib/ai/claude-client';
+import { recordAiUsage, checkDailyCap } from '@/lib/ai/usage';
+import { buildUserContext } from '@/lib/sd/ai-user-context';
+import { z } from 'zod';
+
+const Schema = z.object({
+  kind: z.enum(['concept', 'problem']),
+  slug: z.string(),
+  sectionId: z.string(),
+  selection: z.string().min(4).max(2000),
+  voiceVariant: z.enum(['eli5', 'standard', 'eli-senior']).optional(),
+});
+
+const SYSTEM = (voice: string) => `You are the Architex contextual assistant — the reader's more-experienced
+engineer in the next chair. Explain the selected paragraph in 3-5
+short paragraphs (not bullets). Voice: ${voice}. Do not invent facts;
+stay within the material provided in context. Prefer one concrete
+analogy and one "you gain X, you pay Y" tradeoff. No greetings.`;
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+
+  const parsed = Schema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+
+  const cap = await checkDailyCap(session.user.id, 'haiku');
+  if (!cap.allowed) return NextResponse.json({ error: 'daily cap reached', resetAt: cap.resetAt }, { status: 429 });
+
+  const ctx = await buildUserContext({
+    userId: session.user.id,
+    currentKind: parsed.data.kind,
+    currentSlug: parsed.data.slug,
+    voiceVariant: parsed.data.voiceVariant,
+  });
+
+  const res = await claudeClient.generateWithHaiku({
+    system: SYSTEM(ctx.voiceVariant),
+    messages: [
+      { role: 'user', content: [
+        { type: 'text', text: `<user-context>${JSON.stringify(ctx)}</user-context>` },
+        { type: 'text', text: `<section-id>${parsed.data.sectionId}</section-id>` },
+        { type: 'text', text: `<selection>${parsed.data.selection}</selection>` },
+      ] },
+    ],
+    maxTokens: 600,
+    cacheKey: `sd-explain:${parsed.data.slug}:${parsed.data.sectionId}:${hash(parsed.data.selection)}`,
+  });
+  await recordAiUsage({ userId: session.user.id, model: 'haiku', surface: 'sd-explain-inline', inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens });
+
+  return NextResponse.json({ explanation: res.text });
+}
+
+function hash(s: string) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h.toString(36); }
+```
+
+- [ ] **Step 3: `POST /api/sd/suggest-analogy` (Haiku)**
+
+Same structure; system prompt: *"Write one concrete physical analogy for the selected paragraph. Prefer everyday objects (mail, water, doors, vehicles). Avoid programming-specific analogies. 2-4 sentences. No preamble."*
+
+- [ ] **Step 4: `POST /api/sd/show-at-scale` (Sonnet)**
+
+```typescript
+// src/app/api/sd/show-at-scale/route.ts
+// ... body schema:
+const Schema = z.object({
+  kind: z.enum(['concept', 'problem']),
+  slug: z.string(),
+  scales: z.array(z.enum(['10k', '1M', '10M', '100M', '1B'])).min(2).max(5).default(['10k', '1M', '100M']),
+  focus: z.enum(['latency', 'cost', 'throughput', 'failure-surface']).default('cost'),
+});
+
+const SYSTEM = `You are the Architex scale-projection oracle. Given the
+concept or problem the reader is viewing, project typical numbers at
+three or more scales. Return a JSON array of objects:
+  [{ scale: "10k", value: "...", explanation: "one sentence", tradeoff: "one sentence" }, ...]
+Use realistic benchmarks from published engineering blogs (cite year in
+the explanation when possible). Match the reader's persona for
+technical depth.`;
+```
+
+Returns structured JSON, rendered by `AskAISurface` (Task 21) as a 3-column comparison.
+
+- [ ] **Step 5: Tests + commit**
+
+```bash
+pnpm typecheck && pnpm test:run -- sd-ai-surfaces
+git add architex/src/app/api/sd/explain-inline \
+        architex/src/app/api/sd/suggest-analogy \
+        architex/src/app/api/sd/show-at-scale \
+        architex/src/lib/sd/ai-user-context.ts \
+        architex/src/app/api/sd/__tests__/sd-ai-surfaces.test.ts
+git commit -m "$(cat <<'EOF'
+feat(api): 3 sd learn ai surfaces · explain-inline · suggest-analogy · show-at-scale (Task 19/35)
+
+- explain-inline (Haiku, ~$0.015/call): 3-5 paragraph contextual
+  explanation of a reader-selected excerpt with progress-aware voice
+  variant.
+- suggest-analogy (Haiku, ~$0.01): physical-world analogy generator.
+- show-at-scale (Sonnet, ~$0.04): structured JSON projection across
+  2-5 scale tiers (10k/1M/10M/100M/1B), focused on latency/cost/
+  throughput/failure-surface.
+
+All routes enforce auth + daily cap, build progress-aware UserContext
+from sd_learn_progress, record usage per surface, and cache via the
+Haiku cacheKey.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 20: 3 AI hooks
+
+**Files:**
+- Create: `architex/src/hooks/useSDSelectionExplain.ts`
+- Create: `architex/src/hooks/useSDSuggestAnalogy.ts`
+- Create: `architex/src/hooks/useSDShowAtScale.ts`
+- Create: `architex/src/hooks/__tests__/useSDSelectionExplain.test.tsx`
+
+- [ ] **Step 1: `useSDSelectionExplain`**
+
+```typescript
+// src/hooks/useSDSelectionExplain.ts
+'use client';
+import { useEffect, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+
+export function useSDSelectionExplain(kind: 'concept' | 'problem', slug: string) {
+  const [selection, setSelection] = useState<{ text: string; sectionId: string; anchorPos: { x: number; y: number } } | null>(null);
+  const mutation = useMutation({
+    mutationFn: async (s: { text: string; sectionId: string }) => {
+      const r = await fetch('/api/sd/explain-inline', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ kind, slug, sectionId: s.sectionId, selection: s.text }),
+      });
+      if (!r.ok) {
+        const body = await r.json();
+        throw new Error(body.error ?? 'explain failed');
+      }
+      return (await r.json()).explanation as string;
+    },
+  });
+
+  useEffect(() => {
+    const onSelect = () => {
+      const sel = window.getSelection();
+      const text = sel?.toString().trim() ?? '';
+      if (text.length < 10) { setSelection(null); return; }
+      const range = sel!.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const sectionEl = (range.commonAncestorContainer as HTMLElement).closest?.('[data-section-id]');
+      const sectionId = sectionEl?.getAttribute('data-section-id') ?? '';
+      setSelection({ text, sectionId, anchorPos: { x: rect.left + rect.width / 2, y: rect.top } });
+    };
+    document.addEventListener('mouseup', onSelect);
+    document.addEventListener('touchend', onSelect);
+    return () => {
+      document.removeEventListener('mouseup', onSelect);
+      document.removeEventListener('touchend', onSelect);
+    };
+  }, []);
+
+  const explain = () => {
+    if (!selection) return;
+    mutation.mutate({ text: selection.text, sectionId: selection.sectionId });
+  };
+
+  const clear = () => { setSelection(null); mutation.reset(); };
+
+  return {
+    selection,
+    explain,
+    clear,
+    explanation: mutation.data,
+    isLoading: mutation.isPending,
+    error: mutation.error,
+  };
+}
+```
+
+- [ ] **Step 2: `useSDSuggestAnalogy` (same shape, different endpoint)** — same selection source, POST to `/api/sd/suggest-analogy`.
+
+- [ ] **Step 3: `useSDShowAtScale`** — invoked explicitly via a button on the Numbers section; takes `{ scales, focus }` args; returns structured JSON.
+
+- [ ] **Step 4: Tests + commit**
+
+```bash
+git commit -m "feat(hooks): 3 sd ai hooks · selection explain · suggest analogy · show at scale (Task 20/35)"
+```
+
+---
+
+## Task 21: `AskAISurface` component with 3-tab drawer
+
+**Files:**
+- Create: `architex/src/components/modules/sd/learn/AskAISurface.tsx`
+- Create: `architex/src/components/modules/sd/learn/AskAIFloatingButton.tsx`
+
+Per spec §6.6, three surfaces compose one drawer:
+1. End-of-section "Questions about this section? [Ask →]"
+2. After 3 failed checkpoint attempts "Want a deeper explanation?"
+3. On "Confused with" cards "Compare →"
+
+One drawer, three tabs: Explain · Analogy · At Scale.
+
+```typescript
+// src/components/modules/sd/learn/AskAISurface.tsx
+'use client';
+import { useState } from 'react';
+import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useSDSelectionExplain } from '@/hooks/useSDSelectionExplain';
+import { useSDSuggestAnalogy } from '@/hooks/useSDSuggestAnalogy';
+import { useSDShowAtScale } from '@/hooks/useSDShowAtScale';
+
+export interface AskAISurfaceProps {
+  kind: 'concept' | 'problem';
+  slug: string;
+  defaultTab?: 'explain' | 'analogy' | 'scale';
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}
+
+export function AskAISurface({ kind, slug, defaultTab = 'explain', open, onOpenChange }: AskAISurfaceProps) {
+  const [tab, setTab] = useState(defaultTab);
+  const explain = useSDSelectionExplain(kind, slug);
+  const analogy = useSDSuggestAnalogy(kind, slug);
+  const scale   = useSDShowAtScale(kind, slug);
+
+  if (!open) return null;
+  return (
+    <aside
+      role="dialog"
+      aria-labelledby="ask-ai-title"
+      className="fixed bottom-4 right-4 z-40 w-96 max-h-[70vh] overflow-auto rounded-xl border border-cobalt/30 bg-background p-4 shadow-2xl"
+    >
+      <div className="flex items-center justify-between">
+        <h3 id="ask-ai-title" className="font-serif text-lg text-cobalt-200">Ask the Architect</h3>
+        <button onClick={() => onOpenChange(false)} aria-label="Close">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div role="tablist" aria-label="Ask AI mode" className="mt-2 flex gap-1 border-b border-border">
+        {(['explain', 'analogy', 'scale'] as const).map((t) => (
+          <button
+            key={t}
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={cn('rounded-t-md px-3 py-1.5 text-sm capitalize', tab === t ? 'bg-cobalt/20 text-cobalt-200' : 'text-foreground-muted')}
+          >
+            {t === 'scale' ? 'At scale' : t}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'explain' && (
+        <div className="mt-3">
+          {!explain.selection && <p className="text-sm text-foreground-muted">Select a paragraph in the lesson to explain it.</p>}
+          {explain.selection && !explain.explanation && (
+            <>
+              <blockquote className="border-l-2 border-cobalt/40 pl-3 text-sm font-serif italic">
+                {explain.selection.text.slice(0, 180)}{explain.selection.text.length > 180 && '…'}
+              </blockquote>
+              <button onClick={explain.explain} disabled={explain.isLoading}
+                      className="mt-2 rounded-md bg-cobalt/20 px-3 py-1 text-sm hover:bg-cobalt/30 disabled:opacity-50">
+                {explain.isLoading ? 'Thinking…' : 'Explain this'}
+              </button>
+            </>
+          )}
+          {explain.explanation && (
+            <article className="prose-sd mt-2 max-h-64 overflow-auto font-serif text-sm leading-relaxed">
+              {explain.explanation}
+            </article>
+          )}
+        </div>
+      )}
+
+      {tab === 'analogy' && (
+        <div className="mt-3">
+          {/* same pattern, analogy.* instead of explain.* */}
+        </div>
+      )}
+
+      {tab === 'scale' && (
+        <div className="mt-3">
+          <button
+            onClick={() => scale.run({ scales: ['10k', '1M', '100M', '1B'], focus: 'cost' })}
+            disabled={scale.isLoading}
+            className="rounded-md bg-cobalt/20 px-3 py-1 text-sm hover:bg-cobalt/30 disabled:opacity-50"
+          >
+            {scale.isLoading ? 'Projecting…' : 'Project across 10k → 1B DAU'}
+          </button>
+          {scale.data && (
+            <table className="mt-3 w-full text-xs">
+              <thead>
+                <tr className="text-left"><th>Scale</th><th>Value</th><th>Trade-off</th></tr>
+              </thead>
+              <tbody>
+                {scale.data.map((row, i) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="py-1 font-mono">{row.scale}</td>
+                    <td className="py-1 font-mono">{row.value}</td>
+                    <td className="py-1 font-serif italic">{row.tradeoff}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </aside>
+  );
+}
+```
+
+The floating button (`AskAIFloatingButton`) renders at the bottom-right of `SDLearnModeLayout` and opens the drawer. Three auto-open hooks (end-of-section + 3-fail + confused-with) are wired inside Task 23.
+
+- [ ] **Step 2: Tests + commit**
+
+Cover: drawer opens on `AskAIFloatingButton` click, tab-switching, explain path renders loading + result.
+
+```bash
+git commit -m "feat(sd-learn): AskAISurface 3-tab drawer + floating entry button (Task 21/35)"
+```
+
+---
+
+## Task 22: Reading aids — sidebar (wave/domain filter), progress bar, TOC, bookmarks strip
+
+**Files:**
+- Create: `architex/src/components/modules/sd/learn/SDLearnSidebar.tsx`
+- Create: `architex/src/components/modules/sd/learn/SDLessonProgressBar.tsx`
+- Create: `architex/src/components/modules/sd/learn/SDTableOfContents.tsx`
+- Create: `architex/src/components/modules/sd/learn/SDBookmarkStrip.tsx`
+- Create: `architex/src/hooks/useSDTableOfContents.ts`
+
+- [ ] **Step 1: `SDLearnSidebar` — wave/domain filter with 8 waves + 6 domains**
+
+Shows a vertical nav: "Waves" group for 40 concepts by wave (8 collapsible groups, 5 concepts each), "Problems" group by domain. Active slug highlighted in cobalt; completed slugs marked with ◉, mastered with ★ (Q4 tier model). The sidebar queries:
+- `listConceptSlugsByWave()` (Task 7) for concept tree
+- `listProblemsByDomain()` for problem tree
+- `GET /api/sd/learn-progress` for all progress rows → derive completion state
+
+Left 200px column per §6.2 baseline.
+
+- [ ] **Step 2: `SDLessonProgressBar`**
+
+```typescript
+// src/components/modules/sd/learn/SDLessonProgressBar.tsx
+'use client';
+import { motion } from 'motion/react';
+
+export function SDLessonProgressBar({ percent, label }: { percent: number; label?: string }) {
+  return (
+    <div className="sticky top-0 z-20 w-full bg-background/90 backdrop-blur">
+      <motion.div
+        className="h-0.5 bg-cobalt-400"
+        initial={false}
+        animate={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+      />
+      {label && <span className="sr-only">{label}</span>}
+    </div>
+  );
+}
+```
+
+Wired to `useSDLearnProgress().progress.deepestScrollPct`.
+
+- [ ] **Step 3: `SDTableOfContents` + `useSDTableOfContents`**
+
+Right-column 240px inner section of the 420px right pane (§6.2). Shows the 10 section anchors (for concept) or 7 pane anchors (for problem). Click → `scrollToSection(id)`. Active anchor highlighted in cobalt.
+
+```typescript
+// src/hooks/useSDTableOfContents.ts
+'use client';
+import { useMemo } from 'react';
+import type { ConceptPayload, ProblemPayload, ConceptSectionId, ProblemPaneId } from '@/lib/sd/content-types';
+
+export function useSDTableOfContents<T extends 'concept' | 'problem'>(
+  kind: T,
+  payload: T extends 'concept' ? ConceptPayload : ProblemPayload,
+  activeId: string | null,
+) {
+  const items = useMemo(() => {
+    if (kind === 'concept') {
+      return [
+        { id: 'hook',              label: 'The Itch' },
+        { id: 'analogy',           label: 'Analogy' },
+        { id: 'primitive',         label: 'The Primitive' },
+        { id: 'anatomy',           label: 'Anatomy' },
+        { id: 'numbersThatMatter', label: 'Numbers' },
+        { id: 'tradeoffs',         label: 'Tradeoffs' },
+        { id: 'antiCases',         label: 'When Not To Use' },
+        { id: 'seenInWild',        label: 'Seen in the Wild' },
+        { id: 'bridges',           label: 'Bridges' },
+        { id: 'checkpoints',       label: 'Checkpoints' },
+      ] satisfies Array<{ id: ConceptSectionId; label: string }>;
+    }
+    return [
+      { id: 'problemStatement',  label: 'Problem' },
+      { id: 'requirements',      label: 'Requirements' },
+      { id: 'scaleNumbers',      label: 'Napkin Math' },
+      { id: 'canonicalDesign',   label: 'Canonical Design' },
+      { id: 'failureModesChaos', label: 'Failure & Chaos' },
+      { id: 'conceptsUsed',      label: 'Concepts Used' },
+      { id: 'checkpoints',       label: 'Checkpoints' },
+    ] satisfies Array<{ id: ProblemPaneId; label: string }>;
+  }, [kind]);
+
+  return { items, activeId };
+}
+```
+
+- [ ] **Step 4: `SDBookmarkStrip`**
+
+A horizontal strip above the lesson column listing user-created bookmarks for the current page. Each is a pill with label; clicking jumps to the section via `scrollToSection`. Rendered from `useSDBookmarks(kind, slug)`.
+
+- [ ] **Step 5: Tests + commit**
+
+Cover: sidebar groups render correctly when progress list is empty vs populated, progress bar updates with motion, TOC active state follows `activeSection`.
+
+```bash
+git commit -m "feat(sd-learn): sidebar + progress bar + TOC + bookmark strip (Task 22/35)"
+```
+
+---
+
+## Task 23: Rewrite `SDLearnModeLayout` to compose everything
+
+**Files:**
+- Modify: `architex/src/components/modules/sd/modes/SDLearnModeLayout.tsx`
+
+The Phase 1 stub becomes a real 3-column layout composing sidebar + center column + right pane. Two route shapes:
+- `/sd/learn/concepts/[slug]` — server component pre-fetches concept via `loadConcept`, renders `ConceptColumn`
+- `/sd/learn/problems/[slug]` — same for `ProblemColumn`
+
+When `slug` is absent, show the Learn library grid (cards for concepts + problems).
+
+- [ ] **Step 1: Server-side concept route**
+
+Create `architex/src/app/sd/learn/concepts/[slug]/page.tsx`:
+
+```typescript
+import { notFound } from 'next/navigation';
+import { ConceptLearnView } from '@/components/modules/sd/modes/SDLearnModeLayout';
+import { loadConcept, ConceptNotFoundError } from '@/lib/sd/concept-loader';
+
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  try {
+    const payload = await loadConcept(slug);
+    return <ConceptLearnView payload={payload} />;
+  } catch (e) {
+    if (e instanceof ConceptNotFoundError) notFound();
+    throw e;
+  }
+}
+```
+
+Parallel `architex/src/app/sd/learn/problems/[slug]/page.tsx` with `ProblemLearnView`.
+
+- [ ] **Step 2: Client-side composition in `SDLearnModeLayout`**
+
+```typescript
+// src/components/modules/sd/modes/SDLearnModeLayout.tsx
+'use client';
+import { useMemo, useState } from 'react';
+import { ConceptColumn } from '@/components/modules/sd/learn/ConceptColumn';
+import { ProblemColumn } from '@/components/modules/sd/learn/ProblemColumn';
+import { SDLearnSidebar } from '@/components/modules/sd/learn/SDLearnSidebar';
+import { SDTableOfContents } from '@/components/modules/sd/learn/SDTableOfContents';
+import { SDBookmarkStrip } from '@/components/modules/sd/learn/SDBookmarkStrip';
+import { SDLessonProgressBar } from '@/components/modules/sd/learn/SDLessonProgressBar';
+import { SDCanvasReadonly } from '@/components/modules/sd/learn/SDCanvasReadonly';
+import { ConfusedWithPanel } from '@/components/modules/sd/learn/ConfusedWithPanel';
+import { AskAISurface } from '@/components/modules/sd/learn/AskAISurface';
+import { useSDLearnProgress } from '@/hooks/useSDLearnProgress';
+import { useConceptScrollSync } from '@/hooks/useConceptScrollSync';
+import { useSDTableOfContents } from '@/hooks/useSDTableOfContents';
+import { useUIStore } from '@/stores/ui-store';
+import type { ConceptPayload, ProblemPayload } from '@/lib/sd/content-types';
+
+export function ConceptLearnView({ payload }: { payload: ConceptPayload }) {
+  const { frontmatter } = payload;
+  const sidebarCollapsed = useUIStore((s) => s.sdLearnSidebarCollapsed);
+  const tocCollapsed     = useUIStore((s) => s.sdLearnTocCollapsed);
+  const { progress } = useSDLearnProgress('concept', frontmatter.slug);
+  const [askOpen, setAskOpen] = useState(false);
+  const [askTab, setAskTab] = useState<'explain' | 'analogy' | 'scale'>('explain');
+
+  const scroll = useConceptScrollSync({
+    anchorNodeIds: frontmatter.anchorNodeIds,
+    onSectionEnter: () => {}, // handled inside ConceptColumn via its own hook instance
+  });
+
+  const toc = useSDTableOfContents('concept', payload, scroll.activeSection);
+
+  return (
+    <div className="grid h-[calc(100vh-var(--top-chrome))] grid-cols-[auto_1fr_auto] gap-0 overflow-hidden">
+      <aside className={sidebarCollapsed ? 'w-0' : 'w-[200px] shrink-0 border-r border-border overflow-y-auto'}>
+        {!sidebarCollapsed && <SDLearnSidebar activeKind="concept" activeSlug={frontmatter.slug} />}
+      </aside>
+
+      <main className="relative flex flex-col overflow-hidden">
+        <SDLessonProgressBar percent={progress?.deepestScrollPct ?? 0} />
+        <SDBookmarkStrip kind="concept" slug={frontmatter.slug} onJump={scroll.scrollToSection} />
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-[55%_45%]">
+            <div className="overflow-x-hidden">
+              <ConceptColumn payload={payload} />
+            </div>
+            <div className="sticky top-0 h-[calc(100vh-var(--top-chrome))] border-l border-border">
+              <SDCanvasReadonly
+                canvas={/* concept anatomy canvas JSON sourced from frontmatter */ null}
+                highlightedNodeIds={scroll.highlightedNodeIds}
+                onJumpToSection={scroll.scrollToSection}
+              />
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setAskOpen(true)}
+          className="absolute bottom-6 right-6 rounded-full bg-cobalt-500 px-4 py-2 text-sm text-white shadow-lg hover:bg-cobalt-400"
+          aria-label="Ask the Architect"
+        >
+          Ask ✨
+        </button>
+        <AskAISurface kind="concept" slug={frontmatter.slug} defaultTab={askTab} open={askOpen} onOpenChange={setAskOpen} />
+      </main>
+
+      <aside className={tocCollapsed ? 'w-0' : 'w-[240px] shrink-0 border-l border-border overflow-y-auto px-4 py-6'}>
+        {!tocCollapsed && (
+          <>
+            <SDTableOfContents items={toc.items} activeId={toc.activeId} onJump={scroll.scrollToSection} />
+            <div className="mt-6"><ConfusedWithPanel kind="concept" slug={frontmatter.slug} /></div>
+          </>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+export function ProblemLearnView({ payload }: { payload: ProblemPayload }) {
+  // Same shape with ProblemColumn + CanonicalDesign canvas swap on setSolution.
+  // Sidebar reuses SDLearnSidebar with activeKind='problem'.
+  // ... (mirrors ConceptLearnView)
+  return null as any;
+}
+
+export function SDLearnModeLayout() {
+  // Library grid when no slug is selected — fallback route
+  return <div />; // stub: Phase 2 library UI deferred to Phase 3 if not needed by end of phase
+}
+```
+
+- [ ] **Step 3: Add keyboard shortcuts (§6.11)**
+
+- `J` / `K` — scrollToSection(prev)/next
+- `T` — toggle tinker (out of scope Phase 2; logs a console hint "Tinker ships Phase 2.5")
+- `[` — toggle sidebar collapsed via `useUIStore().toggleSdLearnSidebar()`
+- `]` — toggle TOC collapsed
+- `?` — dispatch existing shortcuts sheet
+
+Implement via a single `useEffect` keybinding handler mounted by `SDLearnModeLayout`.
+
+- [ ] **Step 4: Auto-open Ask-AI on 3-fail (Spec §6.6 surface 2)**
+
+Pass `onCheckpointFail` into `ConceptCheckpointsSection`; when attempts ≥ 3 and incorrect, `setAskTab('explain'); setAskOpen(true);` with a pre-seeded explainer prompt.
+
+- [ ] **Step 5: Tests + commit**
+
+Snapshot test renders `<ConceptLearnView payload={fixture} />` and asserts:
+- Sidebar, main, right pane are all present
+- Progress bar width matches fixture progress
+- Ask button is rendered; clicking opens drawer
+
+```bash
+git add architex/src/components/modules/sd/modes/SDLearnModeLayout.tsx \
+        architex/src/app/sd/learn/concepts/[slug]/page.tsx \
+        architex/src/app/sd/learn/problems/[slug]/page.tsx \
+        architex/src/stores/ui-store.ts
+git commit -m "$(cat <<'EOF'
+feat(sd-learn): SDLearnModeLayout composition + concept/problem routes (Task 23/35)
+
+3-column layout (200px sidebar · center column · 240px TOC/Confused)
+with collapse toggles (`[`/`]`), sticky progress bar, floating Ask-AI
+button that opens the 3-tab drawer, anchor-tracked TOC, ConfusedWith
+panel, and scroll-sync canvas on the right half of the center pane.
+Routes for /sd/learn/concepts/[slug] and /sd/learn/problems/[slug] use
+server-side loaders; missing slugs hit notFound().
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
 
 
 
