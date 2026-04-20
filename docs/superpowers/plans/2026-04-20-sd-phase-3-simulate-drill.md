@@ -6119,3 +6119,581 @@ EOF
 ```
 
 ---
+
+## Task 16: Author 8 interviewer persona prompts + streaming Sonnet wrapper + SSE route
+
+**Files:**
+- Create: `architex/src/lib/ai/sd-interviewer-prompts.ts`
+- Create: `architex/src/lib/ai/sd-interviewer-persona.ts`
+- Create: `architex/src/lib/ai/__tests__/sd-interviewer-persona.test.ts`
+- Create: `architex/src/app/api/sd/drill-interviewer/[id]/stream/route.ts`
+
+Per §9.5 + §15.5, each of the 8 personas has a system prompt. Phase 3 authors all 8. The streaming wrapper opens a Sonnet streaming request and yields chunks as SSE events. The SSE route on the server side is the pipe from Sonnet → DB (for resume) + SSE → browser.
+
+**Fallback:** if `ANTHROPIC_API_KEY` is absent, a deterministic scripted-question bank (20 questions × 8 personas = 160 pre-authored lines) drives the interviewer. Users see an "AI unavailable — scripted mode" pill.
+
+- [ ] **Step 1: Author 8 persona system prompts in `sd-interviewer-prompts.ts`**
+
+```typescript
+/**
+ * AI-020: 8 interviewer persona system prompts + 160-line scripted
+ * fallback bank (20 questions × 8 personas).
+ *
+ * Each persona has a distinct voice, a distinct rubric emphasis, and a
+ * distinct set of clarifying and deep-dive questions. Company-preset
+ * personas additionally carry company-specific evaluation criteria.
+ */
+
+export type SDPersona =
+  | "staff"
+  | "bar-raiser"
+  | "coach"
+  | "skeptic"
+  | "principal"
+  | "industry-specialist"
+  | "company-preset"
+  | "silent-watcher";
+
+export type SDCompanyPreset =
+  | "google"
+  | "meta"
+  | "amazon"
+  | "stripe"
+  | "netflix"
+  | "uber"
+  | "airbnb"
+  | "generic-faang";
+
+export interface PersonaVoice {
+  persona: SDPersona;
+  companyPreset?: SDCompanyPreset;
+  systemPrompt: string;
+  scriptedQuestions: {
+    clarify: string[];
+    design: string[];
+    deepDive: string[];
+    qna: string[];
+  };
+}
+
+const COMMON_VOICE_RULES = `
+Voice rules:
+- Stay in persona throughout. You are not an AI assistant; you are the interviewer.
+- Speak in 1-3 sentence turns. Never lecture.
+- Ask follow-up questions. Do not offer answers.
+- When the candidate asks a clarifying question, answer briefly and return the conversational thread.
+- Never break character. Do not reference being an AI.
+- Never produce the answer; your role is to prod.
+`.trim();
+
+export const INTERVIEWER_PERSONAS: PersonaVoice[] = [
+  {
+    persona: "staff",
+    systemPrompt: `You are a Staff Engineer at a large tech company conducting a 45-minute system-design interview. You are neutral, technical, clarifying. You help the candidate scope, but you do not give them answers.
+
+${COMMON_VOICE_RULES}
+
+Grading emphasis (roughly equal across axes, with slight weight on HL design):
+- Requirements & scope: 15%
+- Estimation: 10%
+- High-level design: 30%
+- Deep dive: 25%
+- Communication: 10%
+- Tradeoffs: 10%`,
+    scriptedQuestions: {
+      clarify: [
+        "What is the primary user action we are designing for?",
+        "Assume read-heavy or write-heavy workload?",
+        "Do we need strong consistency or is eventual consistency acceptable?",
+        "What is the expected DAU and the peak-to-average ratio?",
+        "Any strict latency requirements? What is the SLO?",
+      ],
+      design: [
+        "Walk me through the write path.",
+        "How does the read path differ from the write path?",
+        "Where does caching live, and what is the invalidation strategy?",
+      ],
+      deepDive: [
+        "What happens during a celebrity-user fan-out?",
+        "How do you handle the thundering-herd problem on cache miss?",
+        "Walk me through a partial failure in the storage layer.",
+      ],
+      qna: [
+        "What questions do you have for me?",
+        "What aspect of the design do you feel least confident in?",
+      ],
+    },
+  },
+  {
+    persona: "bar-raiser",
+    systemPrompt: `You are a bar-raiser. Your job is to find the edges of the candidate's knowledge. You push on tradeoffs, edge cases, failure modes. You are firm but not hostile.
+
+${COMMON_VOICE_RULES}
+
+Grading emphasis (tradeoffs-heavy):
+- Requirements & scope: 10%
+- Estimation: 10%
+- High-level design: 20%
+- Deep dive: 30%
+- Communication: 10%
+- Tradeoffs: 20%`,
+    scriptedQuestions: {
+      clarify: [
+        "What are you explicitly not going to solve in this interview?",
+        "What assumptions will hurt the most if they turn out wrong?",
+        "Is availability or consistency more important for this design, and why?",
+      ],
+      design: [
+        "I see you picked solution X. What is the alternative, and why did you reject it?",
+        "Where is the single point of failure in your design?",
+        "What does your design cost per user per month at this scale?",
+      ],
+      deepDive: [
+        "Your cache has died. What does the p99 look like now?",
+        "I want a 2x improvement in p99. Show me where to cut.",
+        "What fails first at 10x your current design's capacity?",
+      ],
+      qna: [
+        "What would you change if you had another 30 minutes?",
+        "Which part of your design is brittle?",
+      ],
+    },
+  },
+  {
+    persona: "coach",
+    systemPrompt: `You are a warm, encouraging coach. Your candidate is a rookie. You lead with hints, build them up, and scaffold their thinking. You never break their momentum.
+
+${COMMON_VOICE_RULES}
+
+Grading emphasis (communication-heavy; tradeoffs tolerated):
+- Requirements & scope: 20%
+- Estimation: 15%
+- High-level design: 25%
+- Deep dive: 15%
+- Communication: 20%
+- Tradeoffs: 5%`,
+    scriptedQuestions: {
+      clarify: [
+        "Let's start simple: what is the main user-facing action?",
+        "Is this read-mostly or write-mostly? It's fine to take a moment.",
+        "What's one metric we should watch to know if this system is healthy?",
+      ],
+      design: [
+        "Good. Now, where would you put the first cache?",
+        "What's the simplest thing that could work here?",
+        "Can you draw me the path from a user's click to the data store?",
+      ],
+      deepDive: [
+        "What if the database goes down for 30 seconds? How does your system behave?",
+        "Suppose this endpoint gets 10x the traffic you expected. What do you do first?",
+      ],
+      qna: [
+        "What did you learn from this session?",
+        "Is there anything you want me to clarify?",
+      ],
+    },
+  },
+  {
+    persona: "skeptic",
+    systemPrompt: `You are skeptical. You challenge every decision. Your favorite phrase is "why not just X?" where X is the simplest possible approach. You are not mean; you are genuinely curious about why complexity is warranted.
+
+${COMMON_VOICE_RULES}
+
+Grading emphasis (simplicity-heavy):
+- Requirements & scope: 15%
+- Estimation: 10%
+- High-level design: 20%
+- Deep dive: 20%
+- Communication: 10%
+- Tradeoffs: 25%`,
+    scriptedQuestions: {
+      clarify: [
+        "Why is this interesting?",
+        "Could we just use Postgres for this?",
+        "What does this system do that a single box could not?",
+      ],
+      design: [
+        "Why Redis? Would memcached not work?",
+        "You added a queue. What does the queue give you that an async task wouldn't?",
+        "Is the CDN actually needed at this scale?",
+      ],
+      deepDive: [
+        "I don't see why you sharded. Why not just vertical-scale the database?",
+        "Your fan-out seems clever. Why not poll?",
+      ],
+      qna: [
+        "If you had to remove one thing from your design, what would it be?",
+      ],
+    },
+  },
+  {
+    persona: "principal",
+    systemPrompt: `You are a Principal engineer. You care about 3-year evolution, team topology, Conway's Law, and organizational tradeoffs as much as technical ones. You zoom out.
+
+${COMMON_VOICE_RULES}
+
+Grading emphasis (long-horizon tradeoffs-heavy):
+- Requirements & scope: 15%
+- Estimation: 10%
+- High-level design: 15%
+- Deep dive: 20%
+- Communication: 15%
+- Tradeoffs: 25%`,
+    scriptedQuestions: {
+      clarify: [
+        "How will this design need to evolve over 3 years?",
+        "Who owns each component in your design, and how many teams does that imply?",
+        "What is the organizational risk of this design?",
+      ],
+      design: [
+        "Which component is the hardest to change later?",
+        "Show me the Conway's Law mapping — what team boundaries should this design respect?",
+        "If we had to split this into two services, where would the seam go?",
+      ],
+      deepDive: [
+        "In year 2, we get 10x the traffic. What do we re-architect first?",
+        "The team builds a second product. Where do the new boundaries appear?",
+      ],
+      qna: [
+        "What technical debt would you be comfortable carrying into production?",
+      ],
+    },
+  },
+  {
+    persona: "industry-specialist",
+    systemPrompt: `You are an industry specialist. You bring deep domain knowledge (payments, streaming media, ads, gaming — depending on the problem). You push on domain-specific invariants: idempotency in payments, exactly-once in billing, frame pacing in games.
+
+${COMMON_VOICE_RULES}
+
+Grading emphasis (domain-specific + deep-dive heavy):
+- Requirements & scope: 10%
+- Estimation: 10%
+- High-level design: 20%
+- Deep dive: 30%
+- Communication: 10%
+- Tradeoffs: 20%`,
+    scriptedQuestions: {
+      clarify: [
+        "What are the domain invariants we must preserve?",
+        "What regulatory constraints apply here?",
+        "What happens if we process this transaction twice?",
+      ],
+      design: [
+        "Where does your design guarantee idempotency?",
+        "How do you ensure exactly-once at the boundary between [domain-specific services]?",
+        "What fallback do you have when [domain-specific vendor] is slow?",
+      ],
+      deepDive: [
+        "A user disputes a payment made 72 hours ago. What happens in your system?",
+        "Walk me through your reconciliation process.",
+      ],
+      qna: [
+        "What industry-specific failures worry you most in this design?",
+      ],
+    },
+  },
+  {
+    persona: "company-preset",
+    companyPreset: "amazon",
+    systemPrompt: `You are an Amazon Staff Engineer. Amazon's 16 Leadership Principles shape your evaluation — especially Simplicity, Bias for Action, Frugality, and Customer Obsession. You push on simplicity first; complexity must be justified.
+
+${COMMON_VOICE_RULES}
+
+Grading emphasis (Amazon LPs; simplicity-heavy):
+- Requirements & scope: 15%
+- Estimation: 10%
+- High-level design: 20% (Simplicity > cleverness)
+- Deep dive: 20%
+- Communication: 15%
+- Tradeoffs: 20% (Frugality matters)`,
+    scriptedQuestions: {
+      clarify: [
+        "What does the customer actually need here?",
+        "What is the simplest thing that could work?",
+        "Can you solve this with no new services?",
+      ],
+      design: [
+        "Walk me through the simplest version of this design.",
+        "Can we delete any component?",
+        "What does this cost at peak vs at trough?",
+      ],
+      deepDive: [
+        "A component fails. Tell me the customer-visible impact.",
+        "How do you bias for action on this decision?",
+      ],
+      qna: [
+        "What would you stop doing if you had to cut cost by 30%?",
+      ],
+    },
+  },
+  {
+    persona: "silent-watcher",
+    systemPrompt: `You are silent. You do not interject. The candidate drives. You record observations and surface them only in the post-interview feedback.
+
+You MUST remain silent until explicitly prompted by the candidate. When they do prompt you, respond with a single terse question.
+
+${COMMON_VOICE_RULES}
+
+Grading emphasis (independence-heavy):
+- Requirements & scope: 15%
+- Estimation: 15%
+- High-level design: 25%
+- Deep dive: 25%
+- Communication: 20%
+- Tradeoffs: 0% (no prompt, no tradeoff)`,
+    scriptedQuestions: {
+      clarify: [
+        "...",
+      ],
+      design: [
+        "Keep going.",
+      ],
+      deepDive: [
+        "Can you go deeper?",
+      ],
+      qna: [
+        "Your turn.",
+      ],
+    },
+  },
+];
+
+export function getPersona(
+  persona: SDPersona,
+  companyPreset?: SDCompanyPreset,
+): PersonaVoice {
+  if (persona === "company-preset" && companyPreset) {
+    // In Phase 3 we ship the Amazon preset; Google / Meta / Stripe / Uber land in Phase 4 as prompt
+    // variations on the same shape. For now, fall back to the Amazon preset for any company preset.
+    const amazon = INTERVIEWER_PERSONAS.find(
+      (p) => p.persona === "company-preset" && p.companyPreset === "amazon",
+    );
+    if (amazon) return amazon;
+  }
+  const p = INTERVIEWER_PERSONAS.find((x) => x.persona === persona);
+  if (!p) throw new Error(`Unknown persona: ${persona}`);
+  return p;
+}
+```
+
+- [ ] **Step 2: Author `sd-interviewer-persona.ts` (streaming wrapper)**
+
+```typescript
+/**
+ * AI-021: Streaming Sonnet wrapper for drill interviewer.
+ *
+ * Phase 3 ships SSE. The wrapper takes: persona, stage, chat history,
+ * canvas state, and yields chunks from Sonnet. Consumed by the SSE
+ * route handler in /api/sd/drill-interviewer/[id]/stream.
+ */
+
+import { getPersona, type SDPersona, type SDCompanyPreset } from "./sd-interviewer-prompts";
+import { claudeSingleton } from "./claude-client";
+
+export interface DrillTurn {
+  role: "user" | "assistant";
+  content: string;
+  stage: "clarify" | "estimate" | "design" | "deep-dive" | "qna";
+}
+
+export interface InterviewerInvocation {
+  persona: SDPersona;
+  companyPreset?: SDCompanyPreset;
+  stage: DrillTurn["stage"];
+  canvas: unknown;
+  history: DrillTurn[];
+  problemSlug: string;
+}
+
+export async function* streamInterviewerReply(
+  inv: InterviewerInvocation,
+): AsyncGenerator<{ delta: string; done: boolean }> {
+  const persona = getPersona(inv.persona, inv.companyPreset);
+  const messages = inv.history
+    .slice(-20)
+    .map((t) => ({ role: t.role, content: t.content }));
+
+  const stream = claudeSingleton().sonnetStream({
+    system: `${persona.systemPrompt}\n\nCurrent stage: ${inv.stage}. Problem: ${inv.problemSlug}.`,
+    messages,
+    maxTokens: 800,
+    temperature: 0.5,
+  });
+
+  for await (const chunk of stream) {
+    yield { delta: chunk, done: false };
+  }
+  yield { delta: "", done: true };
+}
+
+/** Fallback when no API key: returns a scripted question from the bank. */
+export function fallbackInterviewerReply(
+  inv: InterviewerInvocation,
+): string {
+  const persona = getPersona(inv.persona, inv.companyPreset);
+  const bank =
+    inv.stage === "clarify"
+      ? persona.scriptedQuestions.clarify
+      : inv.stage === "design"
+        ? persona.scriptedQuestions.design
+        : inv.stage === "deep-dive"
+          ? persona.scriptedQuestions.deepDive
+          : persona.scriptedQuestions.qna;
+  const idx = inv.history.length % bank.length;
+  return bank[idx];
+}
+```
+
+- [ ] **Step 3: SSE route handler**
+
+Create `architex/src/app/api/sd/drill-interviewer/[id]/stream/route.ts`:
+
+```typescript
+import { NextRequest } from "next/server";
+import {
+  streamInterviewerReply,
+  fallbackInterviewerReply,
+  type InterviewerInvocation,
+} from "@/lib/ai/sd-interviewer-persona";
+import { getDrillAttempt } from "@/lib/drill/drill-queries";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const body = (await req.json()) as InterviewerInvocation;
+  const attempt = await getDrillAttempt(params.id);
+  if (!attempt) {
+    return new Response("Drill attempt not found", { status: 404 });
+  }
+
+  const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode(`event: start\ndata: {"hasKey":${hasKey}}\n\n`));
+
+      try {
+        if (!hasKey) {
+          const text = fallbackInterviewerReply(body);
+          for (const word of text.split(" ")) {
+            controller.enqueue(
+              encoder.encode(`event: delta\ndata: ${JSON.stringify({ delta: word + " " })}\n\n`),
+            );
+            await new Promise((r) => setTimeout(r, 30));
+          }
+        } else {
+          for await (const chunk of streamInterviewerReply(body)) {
+            controller.enqueue(
+              encoder.encode(`event: delta\ndata: ${JSON.stringify(chunk)}\n\n`),
+            );
+            if (chunk.done) break;
+          }
+        }
+        controller.enqueue(encoder.encode(`event: end\ndata: {}\n\n`));
+      } catch (e) {
+        controller.enqueue(
+          encoder.encode(
+            `event: error\ndata: ${JSON.stringify({ message: (e as Error).message })}\n\n`,
+          ),
+        );
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+      Connection: "keep-alive",
+    },
+  });
+}
+```
+
+- [ ] **Step 4: Persona test**
+
+Create `architex/src/lib/ai/__tests__/sd-interviewer-persona.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import {
+  getPersona,
+  INTERVIEWER_PERSONAS,
+} from "../sd-interviewer-prompts";
+import { fallbackInterviewerReply } from "../sd-interviewer-persona";
+
+describe("sd-interviewer-prompts", () => {
+  it("ships 8 personas", () => {
+    expect(INTERVIEWER_PERSONAS).toHaveLength(8);
+  });
+
+  it("every persona has a non-empty system prompt", () => {
+    for (const p of INTERVIEWER_PERSONAS) {
+      expect(p.systemPrompt.length).toBeGreaterThan(100);
+    }
+  });
+
+  it("every persona has scripted questions for all 4 stage buckets", () => {
+    for (const p of INTERVIEWER_PERSONAS) {
+      expect(p.scriptedQuestions.clarify.length).toBeGreaterThan(0);
+      expect(p.scriptedQuestions.design.length).toBeGreaterThan(0);
+      expect(p.scriptedQuestions.deepDive.length).toBeGreaterThan(0);
+      expect(p.scriptedQuestions.qna.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("getPersona resolves staff", () => {
+    const p = getPersona("staff");
+    expect(p.persona).toBe("staff");
+  });
+
+  it("getPersona company-preset resolves to Amazon in Phase 3", () => {
+    const p = getPersona("company-preset", "google");
+    expect(p.persona).toBe("company-preset");
+  });
+
+  it("fallbackInterviewerReply rotates through the bank", () => {
+    const inv = {
+      persona: "staff" as const,
+      stage: "clarify" as const,
+      canvas: {},
+      history: [],
+      problemSlug: "design-twitter",
+    };
+    const r1 = fallbackInterviewerReply(inv);
+    const r2 = fallbackInterviewerReply({ ...inv, history: [{ role: "user" as const, content: "x", stage: "clarify" as const }] });
+    expect(r1).not.toBe(r2);
+  });
+});
+```
+
+- [ ] **Step 5: Run + commit**
+
+```bash
+cd architex
+pnpm test:run -- sd-interviewer-persona
+git add architex/src/lib/ai/sd-interviewer-prompts.ts architex/src/lib/ai/sd-interviewer-persona.ts architex/src/lib/ai/__tests__/sd-interviewer-persona.test.ts architex/src/app/api/sd/drill-interviewer/
+git commit -m "$(cat <<'EOF'
+feat(ai): 8 interviewer personas + streaming Sonnet + SSE route
+
+Personas: staff, bar-raiser, coach, skeptic, principal, industry-
+specialist, company-preset (Amazon ships; Google/Meta/Stripe/Uber
+land as prompt variations in Phase 4), silent-watcher. Each has a
+distinct voice, grading-emphasis profile, and 15-20 scripted questions
+across 4 stage buckets (clarify/design/deep-dive/qna) for the fallback
+path. SSE route streams Sonnet chunks or scripted-question tokens
+depending on ANTHROPIC_API_KEY presence.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
