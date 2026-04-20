@@ -880,3 +880,569 @@ architex/
   ```
 
 ---
+
+## Task 6: Add `requireSDAuth()` helper
+
+**Files:**
+- Modify: `architex/src/lib/auth.ts`
+- Create: `architex/src/lib/__tests__/auth-sd.test.ts`
+
+**Design intent:** Phase 1 will write 10+ SD route handlers. Each currently repeats `requireAuth` + `resolveUserId` + a null check. `requireSDAuth()` wraps the three-step dance in one call that returns `{clerkId, userId}` or throws a typed error. It also optionally accepts a `featureFlag: FlagKey` argument so routes gated behind flags can fail-closed with a 404 instead of 501/403.
+
+- [ ] **Step 1: Write the failing test**
+
+  Create `architex/src/lib/__tests__/auth-sd.test.ts`:
+
+  ```typescript
+  import { describe, it, expect, vi, beforeEach } from "vitest";
+
+  vi.mock("@clerk/nextjs/server", () => ({
+    auth: vi.fn(),
+    currentUser: vi.fn(),
+  }));
+
+  vi.mock("@/db", () => ({
+    getDb: vi.fn(),
+    users: {},
+  }));
+
+  import { auth, currentUser } from "@clerk/nextjs/server";
+  import { requireSDAuth, SDAuthError } from "@/lib/auth";
+
+  describe("requireSDAuth", () => {
+    beforeEach(() => {
+      vi.resetAllMocks();
+    });
+
+    it("throws SDAuthError('unauthorized') when Clerk returns no userId", async () => {
+      (auth as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: null });
+      await expect(requireSDAuth()).rejects.toThrow(SDAuthError);
+      await expect(requireSDAuth()).rejects.toMatchObject({
+        kind: "unauthorized",
+      });
+    });
+
+    it("throws SDAuthError('no-profile') when resolveUserId returns null", async () => {
+      (auth as ReturnType<typeof vi.fn>).mockResolvedValue({
+        userId: "clerk_abc",
+      });
+      (currentUser as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      await expect(requireSDAuth()).rejects.toMatchObject({
+        kind: "no-profile",
+      });
+    });
+  });
+  ```
+
+- [ ] **Step 2: Run — verify failure**
+
+  ```bash
+  pnpm test:run -- auth-sd
+  ```
+  Expected: FAIL with `requireSDAuth is not a function`.
+
+- [ ] **Step 3: Implement the helper**
+
+  Open `architex/src/lib/auth.ts`. Append:
+
+  ```typescript
+  /**
+   * SD Phase 0 · Typed auth wrapper for /api/sd/* handlers.
+   *
+   * Returns both the Clerk ID and the resolved DB user UUID in one call, so
+   * SD routes don't duplicate `requireAuth + resolveUserId + null-check`.
+   * Throws a typed SDAuthError which the shared error-handler maps to the
+   * correct HTTP status.
+   */
+
+  export type SDAuthErrorKind = "unauthorized" | "no-profile";
+
+  export class SDAuthError extends Error {
+    constructor(public readonly kind: SDAuthErrorKind, message?: string) {
+      super(message ?? kind);
+      this.name = "SDAuthError";
+    }
+  }
+
+  export interface SDAuthContext {
+    clerkId: string;
+    userId: string;
+  }
+
+  export async function requireSDAuth(): Promise<SDAuthContext> {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) throw new SDAuthError("unauthorized");
+    const userId = await resolveUserId(clerkId);
+    if (!userId) throw new SDAuthError("no-profile");
+    return { clerkId, userId };
+  }
+
+  /**
+   * Map an SDAuthError to the correct HTTP shape. Route handlers use:
+   *
+   *   try { const ctx = await requireSDAuth(); ... }
+   *   catch (e) { return sdAuthErrorResponse(e); }
+   */
+  export function sdAuthErrorResponse(err: unknown): Response {
+    if (err instanceof SDAuthError) {
+      if (err.kind === "unauthorized") {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (err.kind === "no-profile") {
+        return new Response(
+          JSON.stringify({ error: "User profile missing" }),
+          { status: 404, headers: { "content-type": "application/json" } },
+        );
+      }
+    }
+    return new Response(
+      JSON.stringify({ error: "Internal" }),
+      { status: 500, headers: { "content-type": "application/json" } },
+    );
+  }
+  ```
+
+- [ ] **Step 4: Run — expect PASS**
+
+  ```bash
+  pnpm test:run -- auth-sd
+  ```
+  Expected: PASS · 2 assertions.
+
+- [ ] **Step 5: Commit**
+
+  ```bash
+  git add architex/src/lib/auth.ts architex/src/lib/__tests__/auth-sd.test.ts
+  git commit -m "$(cat <<'EOF'
+  feat(auth): add requireSDAuth helper + typed SDAuthError
+
+  Collapses the requireAuth + resolveUserId + null-check dance used by
+  every SD route handler. Typed errors map cleanly to 401/404/500.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
+
+## Task 7: Create 14 `/api/sd/*` route shells (501 + auth guards)
+
+**Files:**
+- Create: 14 `route.ts` files under `architex/src/app/api/sd/**` (see File Structure above)
+- Create: `architex/src/app/api/sd/__tests__/sd-route-shells.test.ts`
+
+**Design intent:** Stand up the complete SD API surface now, even though every endpoint returns 501 Not Implemented. This gives Phase 1 a merge-friendly landing pad (no new files land in Phase 1; only bodies change) and lets the rate-limit + auth wiring from Tasks 5-6 be exercised end-to-end in Phase 0. Each route calls `requireSDAuth()` first so that a 401 fires before we reach the 501, proving the guard is in the hot path.
+
+- [ ] **Step 1: Write the shared integration test**
+
+  Create `architex/src/app/api/sd/__tests__/sd-route-shells.test.ts`:
+
+  ```typescript
+  /**
+   * Exercises every /api/sd/* shell and asserts:
+   *  1. Unauthenticated requests → 401.
+   *  2. Authenticated requests → 501 (Not Implemented yet).
+   *  3. OPTIONS preflight → 204.
+   *
+   * Runs against a Next.js route handler by importing the module directly
+   * and invoking the exported HTTP verbs with a mocked NextRequest.
+   */
+
+  import { describe, it, expect, vi, beforeEach } from "vitest";
+  import { NextRequest } from "next/server";
+
+  vi.mock("@/lib/auth", async () => {
+    const actual =
+      await vi.importActual<typeof import("@/lib/auth")>("@/lib/auth");
+    return {
+      ...actual,
+      requireSDAuth: vi.fn(),
+    };
+  });
+
+  import { requireSDAuth, SDAuthError } from "@/lib/auth";
+
+  const ROUTES = [
+    ["@/app/api/sd/concepts/route", ["GET", "POST"]],
+    ["@/app/api/sd/concepts/[slug]/route", ["GET", "PATCH", "DELETE"]],
+    ["@/app/api/sd/problems/route", ["GET", "POST"]],
+    ["@/app/api/sd/problems/[slug]/route", ["GET", "PATCH", "DELETE"]],
+    ["@/app/api/sd/diagrams/route", ["GET", "POST"]],
+    ["@/app/api/sd/diagrams/[id]/route", ["GET", "PATCH", "DELETE"]],
+    ["@/app/api/sd/simulations/route", ["GET", "POST"]],
+    ["@/app/api/sd/simulations/[id]/route", ["GET", "DELETE"]],
+    ["@/app/api/sd/drill-attempts/route", ["GET", "POST"]],
+    ["@/app/api/sd/drill-attempts/[id]/route", ["GET", "PATCH"]],
+    ["@/app/api/sd/drill-attempts/active/route", ["GET"]],
+    ["@/app/api/sd/chaos-events/route", ["GET"]],
+    ["@/app/api/sd/real-incidents/route", ["GET"]],
+  ] as const;
+
+  describe("SD route shells", () => {
+    beforeEach(() => {
+      vi.resetAllMocks();
+    });
+
+    for (const [modulePath, verbs] of ROUTES) {
+      for (const verb of verbs) {
+        it(`${verb} ${modulePath} returns 401 when unauthenticated`, async () => {
+          (requireSDAuth as ReturnType<typeof vi.fn>).mockRejectedValue(
+            new SDAuthError("unauthorized"),
+          );
+          const mod = await import(modulePath);
+          const handler = (mod as Record<string, Function>)[verb];
+          expect(handler, `${modulePath} exports ${verb}`).toBeTypeOf(
+            "function",
+          );
+          const req = new NextRequest("http://localhost/api/sd/any", {
+            method: verb,
+          });
+          const res: Response = await handler(req, { params: {} });
+          expect(res.status).toBe(401);
+        });
+
+        it(`${verb} ${modulePath} returns 501 when authenticated`, async () => {
+          (requireSDAuth as ReturnType<typeof vi.fn>).mockResolvedValue({
+            clerkId: "c_test",
+            userId: "u_test",
+          });
+          const mod = await import(modulePath);
+          const handler = (mod as Record<string, Function>)[verb];
+          const req = new NextRequest("http://localhost/api/sd/any", {
+            method: verb,
+          });
+          const res: Response = await handler(req, { params: {} });
+          expect(res.status).toBe(501);
+        });
+      }
+    }
+  });
+  ```
+
+- [ ] **Step 2: Run — verify massive failure**
+
+  ```bash
+  pnpm test:run -- sd-route-shells
+  ```
+  Expected: 52 FAIL cases (13 routes × average 2 verbs × 2 scenarios ≈ 52). Each with `Cannot find module '@/app/api/sd/.../route'`.
+
+- [ ] **Step 3: Create the shared handler factory**
+
+  Create `architex/src/app/api/sd/_shared.ts`:
+
+  ```typescript
+  /**
+   * SD Phase 0 · Route-shell factory.
+   *
+   * Every /api/sd/* route shell uses this to produce handlers that:
+   *   1. Call requireSDAuth() first → 401 if unauth.
+   *   2. Return 501 with a consistent body shape.
+   *   3. Log to Sentry with scrubbed payload.
+   */
+
+  import { NextRequest } from "next/server";
+  import { requireSDAuth, sdAuthErrorResponse } from "@/lib/auth";
+
+  export function makeShellHandler(verb: string, routeKey: string) {
+    return async (req: NextRequest, _ctx: { params: unknown }) => {
+      try {
+        await requireSDAuth();
+      } catch (err) {
+        return sdAuthErrorResponse(err);
+      }
+      return new Response(
+        JSON.stringify({
+          error: "Not Implemented",
+          verb,
+          routeKey,
+          phase: "sd-phase-0",
+        }),
+        {
+          status: 501,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    };
+  }
+  ```
+
+- [ ] **Step 4: Create each shell file**
+
+  Run the following loop (bash) from the `architex/` directory — it creates every shell with identical content, just varying the `routeKey`:
+
+  ```bash
+  cd architex
+
+  declare -A ROUTES=(
+    ["src/app/api/sd/concepts/route.ts"]="GET POST"
+    ["src/app/api/sd/concepts/[slug]/route.ts"]="GET PATCH DELETE"
+    ["src/app/api/sd/problems/route.ts"]="GET POST"
+    ["src/app/api/sd/problems/[slug]/route.ts"]="GET PATCH DELETE"
+    ["src/app/api/sd/diagrams/route.ts"]="GET POST"
+    ["src/app/api/sd/diagrams/[id]/route.ts"]="GET PATCH DELETE"
+    ["src/app/api/sd/simulations/route.ts"]="GET POST"
+    ["src/app/api/sd/simulations/[id]/route.ts"]="GET DELETE"
+    ["src/app/api/sd/simulations/[id]/stream/route.ts"]="GET"
+    ["src/app/api/sd/drill-attempts/route.ts"]="GET POST"
+    ["src/app/api/sd/drill-attempts/[id]/route.ts"]="GET PATCH"
+    ["src/app/api/sd/drill-attempts/active/route.ts"]="GET"
+    ["src/app/api/sd/chaos-events/route.ts"]="GET"
+    ["src/app/api/sd/real-incidents/route.ts"]="GET"
+  )
+
+  for path in "${!ROUTES[@]}"; do
+    mkdir -p "$(dirname "$path")"
+    verbs="${ROUTES[$path]}"
+    routeKey="$(echo "$path" | sed 's|src/app/api/||; s|/route.ts||')"
+    {
+      echo "// SD Phase 0 · route shell. Phase 1 replaces the 501 body with real logic."
+      echo "import { makeShellHandler } from \"@/app/api/sd/_shared\";"
+      echo ""
+      for v in $verbs; do
+        echo "export const $v = makeShellHandler(\"$v\", \"$routeKey\");"
+      done
+    } > "$path"
+  done
+  ```
+
+  Expected: 14 files created. Verify with:
+
+  ```bash
+  find src/app/api/sd -name "route.ts" | wc -l
+  ```
+  Should print `14`.
+
+- [ ] **Step 5: Run — expect all PASS**
+
+  ```bash
+  pnpm test:run -- sd-route-shells
+  ```
+  Expected: 52 passing assertions. If any fail, the most common cause is a path typo — re-run the bash loop from Step 4 after clearing with `rm -rf src/app/api/sd`.
+
+- [ ] **Step 6: Sanity-check typecheck + lint**
+
+  ```bash
+  pnpm typecheck
+  pnpm lint --fix
+  ```
+  Expected: zero new errors (the factory exports `async` handlers with the correct Next.js signature).
+
+- [ ] **Step 7: Commit**
+
+  ```bash
+  git add architex/src/app/api/sd architex/src/app/api/sd/__tests__/sd-route-shells.test.ts
+  git commit -m "$(cat <<'EOF'
+  feat(api): 14 /api/sd/* route shells with auth guards · 501 until Phase 1
+
+  Every SD endpoint Phase 1 will implement has a file on main today. Each
+  calls requireSDAuth first (→ 401 if unauth) then returns 501. Prevents
+  Phase-1 merge conflicts on file creation and lets Task 5 rate-limit
+  wiring be exercised end-to-end.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
+
+## Task 8: WebSocket auth pattern for chaos-engine streams
+
+**Files:**
+- Create: `architex/src/lib/sd/ws-auth.ts`
+- Create: `architex/src/lib/sd/__tests__/ws-auth.test.ts`
+- Modify: `architex/src/app/api/sd/simulations/[id]/stream/route.ts` (already a shell from Task 7; extend it)
+
+**Design intent:** Phase 3 will stream chaos-engine metrics over a WebSocket. Next.js App Router supports WebSocket upgrade via a raw `Upgrade: websocket` handshake on a GET handler. Phase 0 writes the auth-validation primitive so Phase 3 drops into it. We validate the Clerk session token (either via Authorization header or the `__session` cookie) during handshake, reject with 401 before the upgrade, and expose a typed `validateWSHandshake(req)` that returns the same `SDAuthContext` as `requireSDAuth()`.
+
+- [ ] **Step 1: Write the failing test**
+
+  Create `architex/src/lib/sd/__tests__/ws-auth.test.ts`:
+
+  ```typescript
+  import { describe, it, expect, vi, beforeEach } from "vitest";
+  import { NextRequest } from "next/server";
+
+  vi.mock("@clerk/nextjs/server", () => ({
+    auth: vi.fn(),
+  }));
+
+  import { auth } from "@clerk/nextjs/server";
+  import { validateWSHandshake, WSAuthError } from "@/lib/sd/ws-auth";
+
+  describe("validateWSHandshake", () => {
+    beforeEach(() => vi.resetAllMocks());
+
+    it("rejects non-websocket upgrades", async () => {
+      const req = new NextRequest("http://localhost/ws", {
+        headers: { upgrade: "h2c" },
+      });
+      await expect(validateWSHandshake(req)).rejects.toBeInstanceOf(
+        WSAuthError,
+      );
+    });
+
+    it("rejects missing Clerk session", async () => {
+      (auth as ReturnType<typeof vi.fn>).mockResolvedValue({ userId: null });
+      const req = new NextRequest("http://localhost/ws", {
+        headers: { upgrade: "websocket" },
+      });
+      await expect(validateWSHandshake(req)).rejects.toMatchObject({
+        kind: "unauthorized",
+      });
+    });
+
+    it("returns SDAuthContext on success", async () => {
+      (auth as ReturnType<typeof vi.fn>).mockResolvedValue({
+        userId: "clerk_ws",
+      });
+      const req = new NextRequest("http://localhost/ws", {
+        headers: { upgrade: "websocket" },
+      });
+      // resolveUserId lives in @/lib/auth — mock its module indirectly by
+      // stubbing the exported wrapper.
+      vi.doMock("@/lib/auth", () => ({
+        requireSDAuth: vi
+          .fn()
+          .mockResolvedValue({ clerkId: "clerk_ws", userId: "u_ws" }),
+      }));
+      const { validateWSHandshake: v2 } = await import("@/lib/sd/ws-auth");
+      const ctx = await v2(req);
+      expect(ctx.userId).toBe("u_ws");
+    });
+  });
+  ```
+
+- [ ] **Step 2: Run — verify failure**
+
+  ```bash
+  pnpm test:run -- ws-auth
+  ```
+  Expected: FAIL `Cannot find module '@/lib/sd/ws-auth'`.
+
+- [ ] **Step 3: Implement the handshake validator**
+
+  Create `architex/src/lib/sd/ws-auth.ts`:
+
+  ```typescript
+  /**
+   * SD Phase 0 · WebSocket handshake auth for chaos-engine streams.
+   *
+   * Phase 3 wires `/api/sd/simulations/:id/stream` to this validator. The
+   * validator rejects any upgrade that is not `Upgrade: websocket` or lacks
+   * a valid Clerk session (header or cookie). On success it returns the same
+   * SDAuthContext shape as requireSDAuth so handlers can treat WS and HTTP
+   * users identically.
+   */
+
+  import type { NextRequest } from "next/server";
+  import { requireSDAuth, type SDAuthContext } from "@/lib/auth";
+
+  export type WSAuthErrorKind = "bad-upgrade" | "unauthorized";
+
+  export class WSAuthError extends Error {
+    constructor(public readonly kind: WSAuthErrorKind, message?: string) {
+      super(message ?? kind);
+      this.name = "WSAuthError";
+    }
+  }
+
+  export async function validateWSHandshake(
+    req: NextRequest,
+  ): Promise<SDAuthContext> {
+    const upgrade = req.headers.get("upgrade")?.toLowerCase();
+    if (upgrade !== "websocket") {
+      throw new WSAuthError(
+        "bad-upgrade",
+        `Expected Upgrade: websocket, got ${upgrade ?? "none"}`,
+      );
+    }
+    try {
+      return await requireSDAuth();
+    } catch {
+      throw new WSAuthError("unauthorized");
+    }
+  }
+
+  /**
+   * Build the HTTP response Next.js must return when the handshake is
+   * REJECTED. Phase 3 will return a different response (the actual upgrade
+   * header set) on acceptance.
+   */
+  export function wsAuthRejectionResponse(err: unknown): Response {
+    if (err instanceof WSAuthError) {
+      if (err.kind === "bad-upgrade") {
+        return new Response("Expected WebSocket upgrade", { status: 400 });
+      }
+      if (err.kind === "unauthorized") {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "www-authenticate": "Bearer" },
+        });
+      }
+    }
+    return new Response("Internal", { status: 500 });
+  }
+  ```
+
+- [ ] **Step 4: Wire the shell at `/api/sd/simulations/:id/stream`**
+
+  Overwrite `architex/src/app/api/sd/simulations/[id]/stream/route.ts` (currently the Task 7 shell):
+
+  ```typescript
+  // SD Phase 0 · chaos-engine stream shell. Phase 3 replaces the 501 body
+  // with the actual upgrade + stream; Phase 0 validates the handshake.
+
+  import type { NextRequest } from "next/server";
+  import {
+    validateWSHandshake,
+    wsAuthRejectionResponse,
+  } from "@/lib/sd/ws-auth";
+
+  export async function GET(req: NextRequest) {
+    try {
+      await validateWSHandshake(req);
+    } catch (err) {
+      return wsAuthRejectionResponse(err);
+    }
+    // Phase 3: return a Response with the actual upgrade headers here.
+    return new Response(
+      JSON.stringify({
+        error: "Not Implemented",
+        phase: "sd-phase-0",
+        note: "Handshake validated. Upgrade logic lands in Phase 3.",
+      }),
+      { status: 501, headers: { "content-type": "application/json" } },
+    );
+  }
+  ```
+
+- [ ] **Step 5: Run — expect PASS**
+
+  ```bash
+  pnpm test:run -- ws-auth
+  ```
+  Expected: PASS · 3 assertions.
+
+- [ ] **Step 6: Commit**
+
+  ```bash
+  git add architex/src/lib/sd/ws-auth.ts architex/src/lib/sd/__tests__/ws-auth.test.ts architex/src/app/api/sd/simulations/[id]/stream/route.ts
+  git commit -m "$(cat <<'EOF'
+  feat(sd): WS handshake auth primitive for chaos-engine streams
+
+  validateWSHandshake enforces Upgrade: websocket + Clerk session at the
+  boundary. Phase 3 drops the actual upgrade logic behind this guard.
+  /api/sd/simulations/:id/stream now returns 400/401 on bad handshakes
+  and 501 on valid ones.
+
+  Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+  EOF
+  )"
+  ```
+
+---
