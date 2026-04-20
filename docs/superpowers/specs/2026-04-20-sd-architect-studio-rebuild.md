@@ -807,6 +807,246 @@ One click: **"Simulate this"** button in the top-right of the canvas. Carries th
 
 ---
 
+## 8. Mode Deep-Dive · Simulate (flagship)
+
+> "A diagram that has not been shaken is a diagram you do not trust."
+
+Simulate is the biggest section of this spec because Simulate is the product's most defensible differentiator. It is the wind tunnel the entire studio is built around. The feature set here was the output of Batch 4 (Q6-Q10) and Batch 5 (Q11-Q16). The engineering backbone already exists: 34 files in `architex/src/lib/simulation/` — chaos-engine, cost-model, cascade-engine, narrative-engine, queuing-model, capacity-planner, metrics-collector, sla-calculator, time-travel, what-if-engine, and more. This spec does not rebuild them; it **wraps them in pedagogy**.
+
+### 8.1 Purpose
+
+The user loads a design (from Build, from a problem template, or from a past save) and runs it against one of six activities. The run produces measurable results — p50/p95/p99 latency, throughput, error rate, cost per request, SLO attainment. It also produces a **narrative** — a serif-typeset stream of events interpreted by the narrative engine. The user can pause, scrub, branch, compare, replay, and share.
+
+Simulate mode's measurable success criterion is: the user leaves the run with a specific next action. Either "fix this hot-spot and re-run", or "read this concept because my design failed for a reason I don't fully understand", or "redo this under Drill's 5-stage clock".
+
+### 8.2 Layout
+
+Four-region layout. Left library collapses; right panel is the metric strip + narrative stream (the signature of Simulate).
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  Top chrome · activity pill · scale slider · provider pill      │
+├────────┬─────────────────────────────┬──────────────────────────┤
+│ L: Ctl │  Center: live canvas         │  R: Metric strip +       │
+│        │                               │    narrative stream     │
+│ · play │   · particle layer for reqs  │                         │
+│ · pause│   · overlays active           │   · p50/p95/p99        │
+│ · scrub│   · red vignette on cascade  │   · errors/sec         │
+│ · rate │                               │   · cost $/hr          │
+│ · chaos│                               │   · SLO indicators     │
+│   dice │                               │                         │
+│ · mode │                               │   (serif) narrative:   │
+│   pick │                               │   19:42:03 Rate limiter│
+│        │                               │   saturates...          │
+│        │                               │   19:42:05 Cache thrashes│
+│        │                               │                         │
+├────────┴─────────────────────────────┴──────────────────────────┤
+│  Bottom: timeline scrubber · tick clock · ▶ / ⏸ · ⏮ / ⏭           │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 8.3 The six activities (Q7)
+
+Users pick an activity after selecting a design. Each activity is a framed experience, not a free-for-all run. The activity shapes the UI, the coaching, the post-run loop.
+
+#### 8.3.1 Validate · "Does it work?"
+
+**Goal:** confirm the design meets stated SLOs under stated load.
+
+**UI:** user sets target QPS, SLO thresholds, and duration (default 5 minutes of sim time, compressed to 60 seconds real-time by a 5x multiplier). Clicks Run. Particle layer animates traffic. Metric strip shows p50/p95/p99 and error rate against the SLO line.
+
+**Output:** Pass/Fail card with three subscores: latency SLO, error SLO, cost ceiling. Threshold coaching on each (§8.5). Post-run loops (§8.7).
+
+**Best for:** first-time runs. Rookies use this as their warmup activity.
+
+#### 8.3.2 Stress Test · "Where does it break?"
+
+**Goal:** find the saturation point.
+
+**UI:** user sets a start QPS and a ramp ("double every 30 sim-seconds"). Runs until a metric (p99 latency, error rate, or sustained queue growth) crosses a breaking threshold. The run auto-stops; the metric strip freezes on the breaking tick; the narrative stream shows the three events leading up to the break.
+
+**Output:** "Your system holds until ~X QPS; after that, [specific component] becomes the bottleneck because [reason]." The first-bottleneck identification is the payoff; it maps directly to a fix.
+
+**Best for:** Journeymen who want intuition for their design's ceiling.
+
+#### 8.3.3 Chaos Drill (flagship) · "Can it survive?"
+
+**Goal:** verify the design's resilience under injected failures.
+
+**UI:** user runs at steady-state target QPS. A chaos control panel (§12.4) is visible — scenarios, dice, manual injection, budget, auto-escalation, red-team AI. The user chooses a mode. Events fire per mode logic. Each event triggers the cinematic ribbon (§12.3) and records into the narrative stream.
+
+**Output:** a chaos report: events fired, cascade paths, SLO impact per event, recovery time, blast radius. A per-event letter grade from the coach.
+
+**Best for:** interview prep in the "Deep Dive" phase and Journeymen preparing for on-call.
+
+#### 8.3.4 Compare A/B · "Which design is better?"
+
+**Goal:** run two candidate designs side-by-side under identical conditions.
+
+**UI:** split-canvas (leveraging the Build split-view mechanic). User loads design A on left and design B on right. Runs both simultaneously with a synced traffic stream. Metrics appear as paired strips; a diff strip shows deltas.
+
+**Output:** a paired comparison table with winner annotations per metric ("A wins on p99 latency; B wins on cost; B wins on availability under partition"). Lets the user make tradeoff decisions visually.
+
+**Best for:** "should I add Redis or just use Postgres replication?" decisions. Heavily used in problem pages (the 2-3 canonical solutions in §5.5 can all be run in Compare A/B to visualize their differences).
+
+#### 8.3.5 Forecast · "What happens in 12 months?"
+
+**Goal:** simulate growth and see when the design fails.
+
+**UI:** user sets a growth curve ("DAU 10k today, 10% month-over-month for 12 months"). Sim advances month-by-month; at each month, it runs a 1-minute validation at the projected load. A curve chart shows metrics over time. When a metric breaks its SLO, the month is highlighted.
+
+**Output:** "Your design fails at month 7 because [specific reason]. Fixes: [suggestions]." Connects to the cost-vs-p99 Pareto activity (§13) for refactor decisions.
+
+**Best for:** Architects designing for long time horizons; for thinking about capacity planning.
+
+#### 8.3.6 Archaeology (real-incident replay) · "Could our design have survived Facebook 2021?"
+
+**Goal:** replay one of the 10 real incidents against the user's design. See whether their system would have survived.
+
+**UI:** user picks an incident from the 10-card chaos-library gallery. Loads. The replay runs with the actual timeline of events. The user's design is tested against the real failure. Cinematic narration describes each beat of the incident.
+
+**Output:** a verdict page: "Your design survives Facebook 2021 BGP for 18 minutes longer than Facebook did, because your DNS is hosted externally. But you have the same circular dependency on internal auth that caused their recovery delay." Highly educational. This is the signature Architex experience.
+
+**Best for:** every persona. Architects use it for prep; Journeymen use it for humility; Rookies use it for motivation.
+
+### 8.4 The six chaos control modes (Q14)
+
+Available in Chaos Drill activity:
+
+1. **Scenario script** · pick a pre-authored scenario (e.g. "Cache warmup after cold start") from a library of 40+. Scripted sequence of events.
+2. **Chaos dice** · random event from the 73-event taxonomy, weighted by your design's exposed surface area. Rolls a new event every 45 sim-seconds.
+3. **Manual injection** · user clicks a node and fires a specific event ("Kill this node", "Inject 500ms latency here"). Full control.
+4. **Chaos budget** · user sets an error budget ("tolerate 2 minutes of SLO breach total") and the engine fires events to consume it. Teaches budget thinking.
+5. **Auto-escalation** · system fires a small event, watches recovery, escalates if recovery succeeded. Trains the user to think about cascade amplification.
+6. **Red-team AI** · Sonnet plays an adversary who has read your canvas, knows your weak points, and fires events designed to compound. This is the hardest mode. Available only after the user has completed 3 Chaos Drill runs in other modes.
+
+### 8.5 Threshold coaching (Q6)
+
+Every metric the user sees is **classified** and **explained**, never raw.
+
+| Metric | Threshold bands | Coaching phrasing |
+|---|---|---|
+| p50 latency | `<50ms excellent · <150ms good · <500ms concerning · ≥500ms broken` | "Your p50 of 340ms is **concerning**. Typical web p50 is under 150ms; 340ms means the median user feels your app as sluggish. Bottleneck: the synchronous call from your feed-ranker to the DB." |
+| p99 latency | `<200ms excellent · <1000ms good · <3000ms concerning · ≥3000ms broken` | same shape |
+| Error rate | `<0.1% excellent · <1% good · <5% concerning · ≥5% broken` | same |
+| Throughput attainment | `>95% excellent · >80% good · >50% concerning · ≤50% broken` | "You claimed 10k QPS; you're doing 6,400. The limiter is [component]." |
+| Cost per request | `<$0.0001 excellent · <$0.001 good · <$0.01 concerning · ≥$0.01 broken` | "$0.012 per request is **broken territory** at scale. Top offenders: egress ($X/hr), Redis cluster overprovisioned." |
+| Recovery time (in chaos) | `<30s excellent · <2min good · <10min concerning · ≥10min broken` | "Your recovery takes 14 minutes. Compare: Netflix averages 40 seconds for circuit-breaker events. Fix: add the recovery path sketched in this callout." |
+
+Threshold bands are per-metric global defaults, overridable per-problem (some problems demand stricter SLOs; e.g. Stripe-style payments have tighter thresholds).
+
+### 8.6 The seven drill-ins (Q9)
+
+Every sim run is inspectable. Seven inspection tools are available during and after a run:
+
+1. **Pause & Inspect** · hit Space. Particle flow freezes. Hover any node → popover with its current state (queue depth, active requests, cache hit rate, CPU util, tail latency for last 1k reqs).
+2. **Time Scrubber** · bottom bar. Drag backward or forward through the run. All overlays and metric strip animate in sync. Powered by the existing time-travel engine (`architex/src/lib/simulation/time-travel.ts`).
+3. **Cascade Trace** · when a chaos event fires, a cascade-trace overlay shows which node failed first, what it took down, and in what order. Path is highlighted with a glowing cobalt line. Hovers show per-hop latency contribution.
+4. **Slow-Mo (0.25x – 4x)** · playback rate control. Default 1.0x. Users can drop to 0.25x to watch a cascade unfold visually. Speed up to 4x for faster replays.
+5. **Replay & Share** (Q41) · capture the run as a shareable read-only link. URL embeds the canvas, scenario, chaos events, and metric stream. Anyone with the link can scrub.
+6. **Metric Drilldown** · click any metric in the strip → opens a time-series chart specific to it. Overlay multiple for correlation.
+7. **What-If Branching** · hit `B` mid-pause. The current sim state forks. User edits the canvas; the forked branch continues from the same tick. Compare branches with the Compare A/B UI.
+
+All seven are powered by existing simulation infra. This spec does not add new engines — it adds UI affordances and coaching.
+
+### 8.7 The triple learning loop (Q10)
+
+Every completed sim run produces a results card with three next-action buttons:
+
+1. **Learn →** · "Your p99 broke because of cache stampede. Read the Cache strategies concept (5 min)."
+2. **Build →** · "Fix this: add a single-flight wrapper on the cache and re-run."
+3. **Drill →** · "You solved this under Simulate. Do it again under the 5-stage interview clock to test your ability to explain it."
+
+The three buttons are always visible; their recommendations are generated by Sonnet based on the sim result (Q40). Users who click **Learn** after a chaos drill complete more concepts per week than users who don't — this is the retention mechanic that makes Simulate the center of the product.
+
+### 8.8 The whisper-mode AI coach (Q8)
+
+Haiku-backed coach that runs passively during sim runs. Listens to: metric stream, chaos events, user behavior (e.g. "user has been staring at p99 breaking for 8 seconds without action"). Fires at most **3 interventions per 5-minute sim** (cap visible in the status bar).
+
+Intervention shapes:
+
+- **Nudge** (text only, dismissable): "Your p99 is climbing — the queue to [service] has been draining at 0.7x the arrival rate for 40 seconds."
+- **Suggestion** (text + highlighted node): "Add a rate limiter in front of [service]? Its backlog won't self-recover at this arrival rate."
+- **Context** (text + link to concept): "This is a cache stampede. [Read the 2-paragraph primer.]"
+
+The coach is silent by default in **Drill mode** (simulation integrity). In Simulate, it is on by default with a toggle to silence. For Architects who already know more than the coach, a "Coach quiet" toggle in Settings sets the default to off.
+
+Cap is tunable per-user based on `user.masteredConceptCount`: Rookies get 5 interventions per 5-min sim by default; Journeymen 3; Architects 1 (and always optional).
+
+### 8.9 The cinematic chaos pulse (Q15)
+
+When a chaos event fires, the screen erupts. The choreography:
+
+1. **t=0ms** · full-width ribbon (8vh tall) slides in from the top in serif type. Third-person present tense. *"The primary database's network partition isolates it from the application tier."*
+2. **t=50ms** · red vignette (radial gradient from screen edges, 22% opacity at edges, 0% at center) fades in over 300ms.
+3. **t=0ms** · optional bass thump (WebAudio-generated, 80Hz + 40Hz, 300ms decay). Off by default; on in settings under "Audio".
+4. **t=600ms** · ribbon holds.
+5. **t=900ms** · ribbon slides up and docks as a card in the right-side margin (Q16). Red vignette fades over 800ms. Canvas animations resume if paused.
+
+The full ribbon→margin sequence takes 900ms (Q33 baseline for chaos motion). Reduced-motion users get a static red-bordered banner in the top-right; no animation, no sound.
+
+### 8.10 The margin narrative stream (Q16)
+
+The right-panel narrative stream grows during a run. Each chaos event, each SLO breach, each recovery is logged as a card. Cards use serif type (IBM Plex Serif, 13px, 1.6 line-height). Timestamps use monospace (Geist Mono, 10px).
+
+Example stream:
+
+> **19:42:03** The primary database's network partition isolates it from the application tier. *chaos-cut*
+>
+> **19:42:07** Writes to the read replica begin to back up. Queue depth: 1,400. *warning*
+>
+> **19:42:11** The circuit breaker on the API gateway opens. 57% of requests now return 503.
+>
+> **19:42:18** The retry storm from client SDKs amplifies load 3x. *cascade*
+>
+> **19:42:33** The partition heals. Primary rejoins. Replica catches up after 14 seconds of bounded backpressure.
+>
+> **19:42:51** System recovers. Total SLO impact: 48 seconds.
+
+The stream is readable as a narrative. Users can scroll back, click any card to scrub the timeline to that moment, and copy the stream as a draft postmortem (Q52).
+
+### 8.11 Sim infrastructure map
+
+For engineers implementing this mode, the relevant files already exist:
+
+- `simulation-orchestrator.ts` · main loop, tick scheduler, activity dispatcher — the entry point
+- `traffic-simulator.ts` · request generation per QPS spec
+- `queuing-model.ts` · Little's Law, M/M/c queue modeling per node
+- `chaos-engine.ts` · event injection, recovery modeling
+- `cascade-engine.ts` · failure propagation with exponential decay
+- `cost-model.ts` · per-provider rate tables, per-tick cost accrual
+- `capacity-planner.ts` · pre-run realism check
+- `metrics-collector.ts` · aggregated metric stream
+- `sla-calculator.ts` · SLO attainment from metric stream
+- `narrative-engine.ts` · rules that turn metric+chaos events into serif prose
+- `time-travel.ts` · state snapshots per tick, scrubbing API
+- `what-if-engine.ts` · fork-and-branch mechanic
+- `latency-budget.ts` · per-edge latency accounting
+- `edge-flow-tracker.ts` · request path tracing
+- `failure-modes.ts` · failure model per node family
+- `issue-taxonomy.ts` · maps metric breaches to named issues for coaching
+- `pressure-counters.ts`, `pressure-counter-tracker.ts` · backpressure accounting
+- `rule-database.ts` · rules consumed by narrative and coaching
+- `particle-path-cache.ts` · optimization for particle flow rendering
+- `report-generator.ts` · produces the results card at end of run
+
+Layering pedagogy on top is additive: the coach (Haiku) consumes `metrics-collector` output; the threshold coaching layer reads `metrics-collector` + `issue-taxonomy`; the cinematic pulse listens on `chaos-engine` events. No existing file needs rewriting.
+
+### 8.12 Simulate shortcuts
+
+- `Space` · pause / resume
+- `B` · branch into a what-if
+- `←` / `→` · scrub timeline (1 tick at a time)
+- `⇧←` / `⇧→` · scrub timeline (10 ticks)
+- `R` · replay from tick 0
+- `S` · open share dialog
+- `C` · open chaos control panel
+- `1..6` · select activity
+- `?` · surface shortcut sheet
+
+---
+
+
 
 
 
