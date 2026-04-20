@@ -402,6 +402,156 @@ Same rules as LLD §7 (Q17). Anonymous users can browse concepts, problems, the 
 
 ---
 
+## 5. Content Strategy · 40 Concepts + 30 Problems + 10 Real Incidents
+
+The content is the moat. Competitors can copy the UI chrome in six weeks. They cannot copy 150,000 words of Opus-authored prose that is technically accurate, narratively memorable, and structurally consistent across 70 pieces.
+
+### 5.1 Authorship (Q1 elevated from LLD; B3 reaffirms)
+
+All 40 concepts and all 30 problems are hand-written by Claude Opus 4.7. No stock material. No copy-paste from Refactoring Guru. No Wikipedia rewrites. The voice is the Architex brand voice (defined in `architex/docs/CONTENT_STRATEGY.md`) tuned for distributed-systems prose:
+
+- **Clarity over cleverness.** "Consistent hashing reduces the number of keys that must move when the cluster size changes" beats "Consistent hashing is a beautifully elegant algorithm that solves the graceful degradation problem."
+- **Specific, concrete, never generic.** "When Twitter shards its timeline by user-id modulo 256, adding shard 257 would move 99.6% of keys. Consistent hashing moves only 1/257 of them." beats "consistent hashing helps with sharding".
+- **The tradeoff is never hidden.** Every pattern has a "You gain X. You pay Y." paragraph. "You gain smooth cache rebalance. You pay with an extra hash step per request and a slightly more complex debugging story when a ring is misconfigured."
+- **Authority without arrogance.** The voice knows what it is saying; it does not perform its knowledge. No "obviously" or "of course". No condescension. The reader is a peer.
+- **Numbers are load-bearing.** "A single Redis shard can serve ~100k ops/sec at sub-millisecond p99 on typical hardware; plan for 30-50k in your capacity model to leave headroom." Numbers are cited (`citation: Instagram engineering blog, 2018`). Unsourced numbers are flagged and reviewed.
+
+Authoring protocol (same as LLD §8):
+1. Opus receives a prompt with the section frame, the brand voice rules, the user persona spectrum (R/J/A), and a "what could go wrong in this piece" checklist.
+2. First draft. Human editor (content lead) passes. Specific edits routed back to Opus. Second draft. Merge.
+3. Every code example is tested. Every number is sourced. Every diagram referenced in the text is confirmed to exist.
+4. Voice variants for Q46 (ELI5 mode): Opus writes a second, warmer, analogy-first version of each concept page. Three toggle states — ELI5 / Standard / ELI-Senior — mirror the LLD voice-variant system. Launch ships Standard only; ELI5 and ELI-Senior ship in Phase 4.
+
+### 5.2 The 40 concepts · 8 waves (B3)
+
+Each concept is an atom. 1200-1800 words. 8 sections (see §5.4). Each gets its own `/sd/learn/concepts/{slug}` page and a row in the knowledge graph.
+
+**Wave 1 · Foundations (5)** — the vocabulary every design conversation assumes
+- Client-server · Request-response · Statelessness · Idempotency · The three metrics that matter (latency, throughput, availability)
+
+**Wave 2 · Scaling Primitives (6)** — the levers you pull when one box isn't enough
+- Vertical vs horizontal scaling · Load balancing (L4, L7, DNS, anycast) · Caching strategies (cache-aside, write-through, write-back, refresh-ahead) · CDN fundamentals · Connection pooling · Backpressure
+
+**Wave 3 · Data & Consistency (6)** — the part nobody understands until they have been burned
+- CAP in practice · Consistency models (strict, linearizable, sequential, causal, eventual) · Replication (leader-follower, multi-leader, leaderless) · Sharding & consistent hashing · ACID vs BASE · Distributed transactions (2PC, Saga, TCC)
+
+**Wave 4 · Messaging & Streams (4)** — the async nervous system
+- Message queues vs event streams · Delivery semantics (at-most-once, at-least-once, exactly-once) · Change data capture (CDC) · Stream processing (windowing, watermarks, exactly-once in Kafka/Flink)
+
+**Wave 5 · Distributed Systems (5)** — the hard theorems
+- Consensus (Raft, Paxos in one paragraph) · Leader election · Distributed clocks (logical, vector, HLC) · Gossip protocols · Quorum reads and writes
+
+**Wave 6 · Resilience (4)** — the "you are going to be paged" wave
+- Circuit breakers · Retries with jitter and exponential backoff · Bulkheads and pool isolation · Graceful degradation
+
+**Wave 7 · Operational (5)** — what you wish you had learned before on-call
+- Observability (metrics, logs, traces, and how they differ) · SLI/SLO/SLA · Deployment patterns (blue-green, canary, feature flags, rollback) · Capacity planning (Little's Law in practice) · Incident response (the runbook shape)
+
+**Wave 8 · Modern (5)** — what's on the table in 2026
+- Edge compute & the stateless-at-the-edge pattern · WebAssembly as a runtime boundary · Vector search & RAG · Event sourcing & CQRS · AI as a system component (LLM behind a queue, embedding indexes, retry behavior for hallucinations)
+
+Total: 40. Each wave finishes with a "wave completion" certificate (same mechanic as LLD). The 8 waves have been ordered so that each wave's concepts are *prerequisites* for the next — a Rookie who completes Wave 1 can enter Wave 2 without gaps, a Journeyman can enter Wave 5 without needing Wave 2 (they already know it).
+
+### 5.3 The 30 problems · 6 domains (B3)
+
+Each problem is a molecule. 2500-3500 words. 6 panes (see §5.5). Each problem is cross-linked to the concepts it uses, the LLD patterns it leans on, and the chaos events it must withstand.
+
+**Domain 1 · Media & Social (8)**
+- Design Twitter · Design Instagram · Design YouTube · Design TikTok · Design a comment system (Reddit-style) · Design a newsfeed ranking · Design a notification service · Design a live video stream
+
+**Domain 2 · Location & Real-time (5)**
+- Design Uber (dispatch) · Design Google Maps (tiles + routing) · Design Foursquare / proximity service · Design a ride-pricing engine (surge) · Design Find My (device locator, eventually consistent location)
+
+**Domain 3 · Storage & Sync (4)**
+- Design Dropbox · Design Google Docs (collaborative editing) · Design a version control system (simplified Git server) · Design an offline-first note app sync
+
+**Domain 4 · Commerce & Payments (5)**
+- Design Amazon product catalog + checkout · Design Stripe (payment processing at idempotency grade) · Design an inventory reservation system (Ticketmaster) · Design a fraud-detection pipeline · Design a two-sided marketplace (Etsy-style)
+
+**Domain 5 · Search & Discovery (3)**
+- Design Google Search (crawler → index → ranker) · Design autocomplete at typeahead scale · Design a recommendation engine (YouTube-style collaborative filtering)
+
+**Domain 6 · Infrastructure (5)**
+- Design a URL shortener (warmup) · Design a rate limiter · Design a distributed cache · Design a monitoring / observability pipeline (Datadog-shape) · Design a message queue (Kafka-shape)
+
+Total: 30. Domain 6 includes two warmups (URL shortener, rate limiter) suitable for Rookies. Domain 4's Stripe problem is Principal-level. The mix is intentional; the library must reach from first-interview to Principal onsite in one span.
+
+### 5.4 Concept page · 8-section format (Q32)
+
+Each 1200-1800 word concept page has these sections in order. The format is explicit so that users recognize it instantly by week two and can skim efficiently.
+
+1. **Hook** · one scenario, 2-3 sentences. Concrete. "It's Black Friday at Amazon. You have 50,000 add-to-carts per second. Your payment provider can handle 500. What do you do?"
+2. **Analogy** · one memorable physical mapping. For consistent hashing: "Imagine assigning 10,000 mail carriers to deliver letters across a ring-shaped city. When one carrier quits, you only need to redistribute letters in their slice — the rest continue. That's consistent hashing."
+3. **The Primitive** · the formal definition and mechanics. Diagrams, formulas, pseudocode. 3-5 paragraphs. The technical meat.
+4. **Numbers that matter** · one "numbers strip" (Q32) — typical latencies, throughputs, cost ranges. "Single Redis shard: 100k ops/sec · sub-ms p99 · ~$0.11/hr on AWS cache.t4g.medium."
+5. **Tradeoffs · what you gain, what you pay** · the honest cost-benefit paragraph.
+6. **When not to use it** · one paragraph listing 2-3 anti-cases where the primitive is the wrong choice.
+7. **Seen in the wild** · one named-company example with source. "Cassandra uses consistent hashing with virtual nodes to balance load across an uneven cluster (DataStax engineering blog, 2016)."
+8. **Bridges** · 3-5 links: *concepts this depends on*, *problems that use this*, *LLD patterns that implement this*, *chaos events this protects against*.
+
+Each section has a word target (hook: 60w, analogy: 120w, primitive: 500-700w, numbers: 80w + table, tradeoffs: 200w, anti-cases: 150w, wild: 150w, bridges: cards). Opus hits these targets within ±20%.
+
+### 5.5 Problem page · 6-pane format (Q32)
+
+Each 2500-3500 word problem page has six panes. The panes are tabs or accordion sections in the UI; on-page, they stack in this order.
+
+1. **Problem statement** · the question as an interviewer would state it, with clarifying context and assumed scope. "Design Twitter. Assume 500M DAU, 200B tweets stored, 150k tweets/sec peak. Focus on the read path for the home timeline."
+2. **Clarifying questions the user should ask** · 8-12 questions with typical answers. Trains the Clarify phase (5 min) of the gated interview clock. "Is timeline ordered strictly by time? → No, ranked. Is ranking real-time or precomputed? → Hybrid (we'll design the fan-out + re-ranker)."
+3. **Napkin math** · the back-of-the-envelope estimate. Storage per tweet. Storage at scale. QPS at peak. Bandwidth. Cache working set. This trains the Estimate phase.
+4. **Canonical design (2-3 solutions)** · per Q3, each problem ships with 2-3 canonical solutions. Solution A might be "fan-out on write, Redis-backed timeline cache". Solution B is "fan-out on read, search-based". Solution C for whale problems (users with >10M followers) is "hybrid with whale-detector queue". Each solution is a diagram + walkthrough (400-600 words per solution).
+5. **Failure modes & resilience** · a 4-6 paragraph section discussing what breaks at scale: thundering herd, celebrity-user fan-out, cache stampede, database hot keys. Ties to specific chaos events the user can trigger in Simulate.
+6. **Real-world references** · 3-5 named-company links: Twitter's engineering blog on timeline architecture, Mastodon's federation model as a contrast, an Instagram post on cache warmup strategies. Includes year stamps (Q28). Each link opens a read-later dialog so the user doesn't leave mid-study.
+
+Word target: 2800 per problem (±300). Opus hits this in 3 rounds.
+
+### 5.6 The 10 real incidents (Q13)
+
+Each is a cinematic multi-scene replay. 1500-2500 words of narration, a replay-able simulation, a real timeline, and a postmortem. All 10:
+
+1. **Facebook 2021 BGP** · Oct 4, 2021. Facebook withdraws its own BGP routes. 6-hour global outage. DNS collapses. Physical access to datacenters needed because badge systems depend on the network.
+2. **AWS us-east-1 Dec 2021** · Networking control-plane issue. Cascade through dozens of AWS services. Ring/Echo fall over. Disney+ goes dark. A day of pagers across half the internet.
+3. **Cloudflare 2019 regex** · July 2, 2019. A regex with catastrophic backtracking (`.*.*=.*`) is pushed to global. CPU saturation on every edge. 27-minute outage.
+4. **GitHub 2018 DB** · Oct 21, 2018. Network partition splits US East from US West for 43 seconds. MySQL primary elects independently in both regions. 24 hours to reconcile.
+5. **Fastly 2021** · June 8, 2021. Edge config bug from one customer triggers crash loop across CDN. Reddit, NYT, GOV.UK, Amazon all dark for ~1 hour.
+6. **Slack Jan 4, 2021** · Clock skew after holiday leads to stampede on AWS Transit Gateway, plus a cascade in their internal service discovery.
+7. **Discord Mar 2022** · 4-hour outage traced to a database migration that did not anticipate read-traffic during switchover.
+8. **Roblox Oct-Nov 2021** · 73-hour outage. Consul cluster degraded, cache had gone cold during a holiday-specific traffic pattern. Recovery took days.
+9. **Knight Capital 2012** · 45-minute software deploy causes $465M loss. 7 of 8 servers updated; one was not. An old code path reactivated.
+10. **CrowdStrike 2024** · July 19, 2024. A kernel-level channel-file update is rolled out without canary. ~8.5M Windows machines blue-screen globally.
+
+Each incident page has:
+- **Timeline** · minute-by-minute what happened, with cinematic serif narration
+- **Replay** · click "Replay this" and the sim engine runs the cascade on a faithful diagram of the real architecture
+- **Postmortem** · what the company's published postmortem said · what Architex adds · learnings extracted
+- **Bridges** · which concepts and problems this connects to
+
+Real incidents are the most emotionally resonant content in the product. Users who complete one never forget that day.
+
+### 5.7 Content quality signaling
+
+Extend `moduleContent` with a field:
+
+```typescript
+contentQuality: "draft" | "polished" | "published" // DEFAULT "polished"
+generatedBy: "human" | "ai" | "hybrid"
+lastReviewedAt: timestamp
+sourceYear: number // for cited facts that age (e.g. "Redis can do 100k ops/sec")
+```
+
+Launch content ships `polished/hybrid` (Opus draft + human editor review). Anything with `sourceYear` older than 4 years triggers a review reminder in the content-ops dashboard.
+
+### 5.8 Content debt strategy
+
+The 70-piece library is built in three phases:
+- **Phase 2 (alpha)**: Wave 1 Foundations (5 concepts) + 3 warmup problems (URL shortener, rate limiter, distributed cache). **8 pieces**, ship with alpha.
+- **Phase 3 (beta)**: Complete Waves 2-3 (12 more concepts) + 10 more problems across domains. **30 pieces**, ship with beta.
+- **Phase 4 (GA)**: Remaining 23 concepts + 17 problems. **40 pieces**, ship with full rollout.
+
+Each phase has a content-ops track running in parallel with engineering. Target: 1.5 pieces per day from Opus + editor. 70 pieces = ~7 weeks of content work, compressible to 5 if editor throughput is doubled. Budget ~200-300 Opus hours plus ~120 editor hours.
+
+---
+
+
 
 
 
