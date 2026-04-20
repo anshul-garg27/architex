@@ -22,6 +22,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seeds/index.ts",
+    "compile:lld-lessons": "tsx scripts/compile-lld-lessons.ts",
     "prepare": "husky"
   },
   "lint-staged": {
