@@ -5103,6 +5103,662 @@ EOF
 
 ---
 
+## Task 23: API route — `POST /api/lld/drill-attempts/[id]/postmortem`
+
+**Files:**
+- Create: `architex/src/app/api/lld/drill-attempts/[id]/postmortem/route.ts`
+
+Generates the AI postmortem using `postmortem-generator.ts` + the ClaudeClient singleton. Writes result into `postmortem` JSONB. Idempotent: if already generated, returns stored.
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/drill-attempts/[id]/postmortem/route.ts`:
+
+```typescript
+/**
+ * POST /api/lld/drill-attempts/[id]/postmortem
+ *
+ * Generates the AI postmortem and stores it in the `postmortem` column.
+ * Idempotent.
+ */
+
+import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { getDb, lldDrillAttempts } from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+import {
+  buildPostmortemPrompt,
+  parsePostmortemResponse,
+  PostmortemParseError,
+  type PostmortemInput,
+  type PostmortemOutput,
+} from "@/lib/ai/postmortem-generator";
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import type { DrillVariant } from "@/lib/lld/drill-variants";
+import { getCanonicalFor } from "@/lib/lld/drill-canonical";
+import type { RubricBreakdown } from "@/lib/lld/drill-rubric";
+import type { InterviewerPersona } from "@/lib/ai/interviewer-prompts";
+
+export async function POST(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { id } = await params;
+
+    const db = getDb();
+    const [attempt] = await db
+      .select()
+      .from(lldDrillAttempts)
+      .where(
+        and(eq(lldDrillAttempts.id, id), eq(lldDrillAttempts.userId, userId)),
+      )
+      .limit(1);
+
+    if (!attempt) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (!attempt.submittedAt) {
+      return NextResponse.json(
+        {
+          error: "Can only generate postmortem after drill is submitted",
+        },
+        { status: 409 },
+      );
+    }
+
+    // Idempotent return.
+    if (attempt.postmortem) {
+      return NextResponse.json({ postmortem: attempt.postmortem, cached: true });
+    }
+
+    const rubric = attempt.rubricBreakdown as RubricBreakdown;
+    if (!rubric) {
+      return NextResponse.json(
+        { error: "Attempt has no rubric breakdown — regrade first" },
+        { status: 409 },
+      );
+    }
+
+    const stages = (attempt.stages as Record<
+      string,
+      { durationMs?: number }
+    >) ?? {};
+
+    const canvasNodes =
+      (attempt.canvasState as { nodes?: unknown[] } | null)?.nodes?.length ?? 0;
+    const canvasEdges =
+      (attempt.canvasState as { edges?: unknown[] } | null)?.edges?.length ?? 0;
+
+    const canonical = getCanonicalFor(attempt.problemId);
+
+    const input: PostmortemInput = {
+      problemId: attempt.problemId,
+      problemTitle: attempt.problemId,
+      variant: attempt.variant as DrillVariant,
+      persona: (attempt.gradeBreakdown as { persona?: InterviewerPersona })
+        ?.persona ?? "generic",
+      rubric,
+      finalScore: (attempt.gradeScore as number) ?? 0,
+      stageDurationsMs: {
+        clarify: stages.clarify?.durationMs ?? 0,
+        rubric: stages.rubric?.durationMs ?? 0,
+        canvas: stages.canvas?.durationMs ?? 0,
+        walkthrough: stages.walkthrough?.durationMs ?? 0,
+        reflection: stages.reflection?.durationMs ?? 0,
+      } as Record<DrillStage, number>,
+      canvasSummary: `${canvasNodes} classes, ${canvasEdges} edges`,
+      canonical: canonical
+        ? {
+            patternsExpected: canonical.patterns,
+            keyTradeoffs: canonical.keyTradeoffs,
+          }
+        : null,
+    };
+
+    const req = buildPostmortemPrompt(input);
+
+    // Call Claude via the existing singleton.
+    const { ClaudeClient } = await import("@/lib/ai/claude-client");
+    const client = ClaudeClient.getInstance();
+
+    let postmortem: PostmortemOutput;
+    try {
+      const response = await client.sendRequest({
+        model: req.model,
+        systemPrompt: req.system,
+        userMessage: req.user,
+        maxTokens: req.maxTokens,
+        cacheKey: `postmortem:${id}`,
+        cacheTtlMs: 24 * 60 * 60 * 1000,
+      });
+      postmortem = parsePostmortemResponse(response.text);
+    } catch (err) {
+      if (err instanceof PostmortemParseError) {
+        // Fallback: minimal rubric-derived postmortem.
+        postmortem = {
+          tldr: `Final score ${input.finalScore}. AI postmortem unavailable.`,
+          strengths: Object.entries(rubric)
+            .filter(([, r]) => r.score >= 75)
+            .map(([axis]) => `${axis} was strong`)
+            .slice(0, 3),
+          gaps: Object.entries(rubric)
+            .filter(([, r]) => r.score < 60)
+            .map(([axis]) => `${axis} needs work`)
+            .slice(0, 3),
+          patternCommentary:
+            "Postmortem narrative not available without API. See per-axis scores.",
+          tradeoffAnalysis:
+            "Postmortem narrative not available without API.",
+          canonicalDiff: canonical
+            ? [`Expected patterns: ${canonical.patterns.join(", ")}`]
+            : [],
+          followUps: ["Retry this problem", "Review the rubric"],
+        };
+      } else {
+        throw err;
+      }
+    }
+
+    await db
+      .update(lldDrillAttempts)
+      .set({ postmortem: postmortem as unknown as Record<string, unknown> })
+      .where(eq(lldDrillAttempts.id, id));
+
+    return NextResponse.json({ postmortem });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/drill-attempts/:id/postmortem] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+Note: This route depends on `ClaudeClient.getInstance().sendRequest()` existing. If the existing claude-client exposes a different method name (`send`, `chat`, `complete`), adjust the call accordingly. The 24h cache key reuse means retrying postmortem generation from the UI is cheap for the same attempt.
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/app/api/lld/drill-attempts/[id]/postmortem/route.ts
+git commit -m "$(cat <<'EOF'
+feat(api): POST /api/lld/drill-attempts/:id/postmortem
+
+Idempotent Sonnet postmortem. Composes rubric + timing + canonical
+reference into a single prompt. Falls back to a rubric-derived minimal
+report when the API key is missing or the model returns malformed JSON.
+24h cache key for free retries from the UI.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 24: API route — `POST /api/lld/drill-attempts/[id]/resume`
+
+**Files:**
+- Create: `architex/src/app/api/lld/drill-attempts/[id]/resume/route.ts`
+
+Resumes a paused drill. Validates the drill belongs to the requesting user, is still active (not submitted / abandoned / auto-abandoned), and clears `paused_at` while stamping `last_activity_at`. Also returns the full reconstructed state (stages, current stage, stage progress, interviewer turn history) so the client can rebuild its store after a browser close / refresh.
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/drill-attempts/[id]/resume/route.ts`:
+
+```typescript
+/**
+ * POST /api/lld/drill-attempts/[id]/resume
+ *
+ * Clears paused_at on an active drill + returns full state for client
+ * rehydration (stages, current stage, canvas, interviewer turns,
+ * hint log). Used when the user reloads the tab mid-drill.
+ */
+
+import { NextResponse } from "next/server";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import {
+  getDb,
+  lldDrillAttempts,
+  lldDrillInterviewerTurns,
+} from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+
+export async function POST(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const clerkId = await requireAuth();
+    const userId = await resolveUserId(clerkId);
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { id } = await params;
+
+    const db = getDb();
+    const [attempt] = await db
+      .select()
+      .from(lldDrillAttempts)
+      .where(
+        and(
+          eq(lldDrillAttempts.id, id),
+          eq(lldDrillAttempts.userId, userId),
+          isNull(lldDrillAttempts.submittedAt),
+          isNull(lldDrillAttempts.abandonedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!attempt) {
+      return NextResponse.json(
+        {
+          error: "Drill is not active (submitted, abandoned, or not found)",
+          code: "DRILL_NOT_ACTIVE",
+        },
+        { status: 404 },
+      );
+    }
+
+    const now = new Date();
+    const wasPaused = attempt.pausedAt !== null;
+    const pausedMs = wasPaused
+      ? now.getTime() - new Date(attempt.pausedAt!).getTime()
+      : 0;
+
+    await db
+      .update(lldDrillAttempts)
+      .set({
+        pausedAt: null,
+        lastActivityAt: now,
+        // Extend startedStageAt so timing accounting ignores pause duration.
+        startedStageAt: new Date(
+          new Date(attempt.startedStageAt).getTime() + pausedMs,
+        ),
+      })
+      .where(eq(lldDrillAttempts.id, id));
+
+    const turns = await db
+      .select()
+      .from(lldDrillInterviewerTurns)
+      .where(eq(lldDrillInterviewerTurns.attemptId, id))
+      .orderBy(asc(lldDrillInterviewerTurns.seq));
+
+    return NextResponse.json({
+      attempt: {
+        id: attempt.id,
+        problemId: attempt.problemId,
+        variant: attempt.variant,
+        currentStage: attempt.currentStage,
+        stages: attempt.stages,
+        canvasState: attempt.canvasState,
+        hintLog: attempt.hintLog,
+        durationLimitMs: attempt.durationLimitMs,
+        elapsedBeforePauseMs: attempt.elapsedBeforePauseMs,
+      },
+      turns,
+      resumedAt: now.toISOString(),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[api/lld/drill-attempts/:id/resume] POST error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/app/api/lld/drill-attempts/[id]/resume/route.ts
+git commit -m "$(cat <<'EOF'
+feat(api): POST /api/lld/drill-attempts/:id/resume
+
+Clears paused_at, extends startedStageAt to exclude the paused window
+from timing accounting, and returns full state (attempt row + all
+interviewer turns in order) so the client can rehydrate drill-store
+after a browser refresh mid-drill.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 25: API route — `GET /api/lld/drill-interviewer/[id]/stream` (SSE)
+
+**Files:**
+- Create: `architex/src/app/api/lld/drill-interviewer/[id]/stream/route.ts`
+
+Server-Sent Events endpoint that streams a Sonnet-generated interviewer reply token-by-token. Uses the Anthropic SDK's streaming capability via `ClaudeClient.streamText()`. Also supports `POST` to queue the user's message + persist it before the stream opens.
+
+**Security:** Route must validate attempt belongs to the requesting user. Route must respect per-user rate limiting (existing `aiUsage` table). Cost tracked per turn.
+
+- [ ] **Step 1: Create the route**
+
+Create `architex/src/app/api/lld/drill-interviewer/[id]/stream/route.ts`:
+
+```typescript
+/**
+ * Drill interviewer chat endpoint.
+ *
+ *   POST /api/lld/drill-interviewer/[id]/stream
+ *     Body: { content: string, stage: DrillStage }
+ *     Persists the user's turn + returns { ok: true, seq: number }.
+ *
+ *   GET  /api/lld/drill-interviewer/[id]/stream
+ *     SSE stream of the interviewer's reply. Events:
+ *       data: {"type":"delta","text":"..."}
+ *       data: {"type":"done"}
+ *       data: {"type":"error","error":"..."}
+ */
+
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import {
+  getDb,
+  lldDrillAttempts,
+  lldDrillInterviewerTurns,
+} from "@/db";
+import { requireAuth, resolveUserId } from "@/lib/auth";
+import {
+  buildInterviewerRequest,
+  parseTurnHistory,
+  type InterviewerTurn,
+} from "@/lib/ai/interviewer-persona";
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import type { InterviewerPersona } from "@/lib/ai/interviewer-prompts";
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const clerkId = await requireAuth();
+  const userId = await resolveUserId(clerkId);
+  if (!userId) {
+    return new Response(JSON.stringify({ error: "User not found" }), {
+      status: 404,
+    });
+  }
+
+  const { id } = await params;
+  const body = (await request.json().catch(() => ({}))) as {
+    content?: string;
+    stage?: string;
+  };
+
+  if (!body.content || typeof body.content !== "string") {
+    return new Response(JSON.stringify({ error: "content required" }), {
+      status: 400,
+    });
+  }
+
+  const db = getDb();
+  const [attempt] = await db
+    .select()
+    .from(lldDrillAttempts)
+    .where(
+      and(
+        eq(lldDrillAttempts.id, id),
+        eq(lldDrillAttempts.userId, userId),
+        isNull(lldDrillAttempts.submittedAt),
+        isNull(lldDrillAttempts.abandonedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!attempt) {
+    return new Response(JSON.stringify({ error: "Active drill not found" }), {
+      status: 404,
+    });
+  }
+
+  const [prev] = await db
+    .select({ seq: lldDrillInterviewerTurns.seq })
+    .from(lldDrillInterviewerTurns)
+    .where(eq(lldDrillInterviewerTurns.attemptId, id))
+    .orderBy(desc(lldDrillInterviewerTurns.seq))
+    .limit(1);
+
+  const seq = (prev?.seq ?? -1) + 1;
+
+  await db.insert(lldDrillInterviewerTurns).values({
+    attemptId: id,
+    role: "user",
+    stage: (body.stage ?? attempt.currentStage) as DrillStage,
+    persona: "generic",
+    seq,
+    content: body.content,
+  });
+
+  await db
+    .update(lldDrillAttempts)
+    .set({ lastActivityAt: new Date() })
+    .where(eq(lldDrillAttempts.id, id));
+
+  return new Response(JSON.stringify({ ok: true, seq }), {
+    status: 201,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const clerkId = await requireAuth();
+  const userId = await resolveUserId(clerkId);
+  if (!userId) {
+    return new Response(JSON.stringify({ error: "User not found" }), {
+      status: 404,
+    });
+  }
+
+  const { id } = await params;
+
+  const db = getDb();
+  const [attempt] = await db
+    .select()
+    .from(lldDrillAttempts)
+    .where(
+      and(
+        eq(lldDrillAttempts.id, id),
+        eq(lldDrillAttempts.userId, userId),
+        isNull(lldDrillAttempts.submittedAt),
+        isNull(lldDrillAttempts.abandonedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!attempt) {
+    return new Response(JSON.stringify({ error: "Active drill not found" }), {
+      status: 404,
+    });
+  }
+
+  const turnRows = await db
+    .select({
+      role: lldDrillInterviewerTurns.role,
+      stage: lldDrillInterviewerTurns.stage,
+      content: lldDrillInterviewerTurns.content,
+      seq: lldDrillInterviewerTurns.seq,
+    })
+    .from(lldDrillInterviewerTurns)
+    .where(eq(lldDrillInterviewerTurns.attemptId, id))
+    .orderBy(asc(lldDrillInterviewerTurns.seq));
+
+  const history = parseTurnHistory(
+    turnRows.map((r) => ({
+      role: r.role as InterviewerTurn["role"],
+      stage: r.stage as DrillStage,
+      content: r.content,
+      seq: r.seq,
+    })),
+  );
+
+  const persona =
+    ((attempt.gradeBreakdown as { persona?: InterviewerPersona })?.persona) ??
+    "generic";
+
+  let req;
+  try {
+    req = buildInterviewerRequest({
+      persona,
+      stage: attempt.currentStage as DrillStage,
+      problemTitle: attempt.problemId,
+      history,
+    });
+  } catch (err) {
+    return new Response(
+      JSON.stringify({
+        error: err instanceof Error ? err.message : "Bad history",
+      }),
+      { status: 400 },
+    );
+  }
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (payload: Record<string, unknown>) => {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(payload)}\n\n`),
+        );
+      };
+
+      try {
+        const { ClaudeClient } = await import("@/lib/ai/claude-client");
+        const client = ClaudeClient.getInstance();
+
+        let fullReply = "";
+
+        // streamText yields chunks; if the existing client does not
+        // expose streaming, we fall back to a single send.
+        const maybeStream = (
+          client as unknown as {
+            streamText?: (r: typeof req) => AsyncIterable<string>;
+          }
+        ).streamText;
+
+        if (typeof maybeStream === "function") {
+          for await (const chunk of maybeStream.call(client, req)) {
+            fullReply += chunk;
+            send({ type: "delta", text: chunk });
+          }
+        } else {
+          const response = await client.sendRequest({
+            model: req.model,
+            systemPrompt: req.system,
+            userMessage: req.messages[req.messages.length - 1]!.content,
+            maxTokens: req.maxTokens,
+          });
+          fullReply = response.text;
+          send({ type: "delta", text: fullReply });
+        }
+
+        // Persist the interviewer's finished turn.
+        const [lastSeq] = await db
+          .select({ seq: lldDrillInterviewerTurns.seq })
+          .from(lldDrillInterviewerTurns)
+          .where(eq(lldDrillInterviewerTurns.attemptId, id))
+          .orderBy(desc(lldDrillInterviewerTurns.seq))
+          .limit(1);
+
+        await db.insert(lldDrillInterviewerTurns).values({
+          attemptId: id,
+          role: "interviewer",
+          stage: attempt.currentStage as DrillStage,
+          persona,
+          seq: (lastSeq?.seq ?? -1) + 1,
+          content: fullReply,
+        });
+
+        send({ type: "done" });
+      } catch (err) {
+        send({
+          type: "error",
+          error: err instanceof Error ? err.message : "Stream failed",
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
+}
+```
+
+Note: The `streamText` method is optional. If the existing `ClaudeClient` does not stream, the route falls through to a single-send path and still emits `delta` + `done` so the client hook works identically. Add a `streamText` method to `ClaudeClient` in a follow-up if real streaming is needed — `@anthropic-ai/sdk` exposes `messages.stream()` for this.
+
+- [ ] **Step 2: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: zero errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add architex/src/app/api/lld/drill-interviewer/[id]/stream/route.ts
+git commit -m "$(cat <<'EOF'
+feat(api): GET+POST /api/lld/drill-interviewer/:id/stream (SSE)
+
+POST persists the user turn. GET opens an SSE stream of the interviewer
+reply from Sonnet. Falls back to single-send when ClaudeClient does not
+expose streamText (still emits delta + done so the client hook is
+invariant). All turns are persisted to lld_drill_interviewer_turns.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+
 
 
 
