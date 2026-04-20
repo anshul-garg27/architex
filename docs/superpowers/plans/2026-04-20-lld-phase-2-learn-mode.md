@@ -224,3 +224,540 @@ architex/
 **Content authoring:** ~20-25 hours for Tasks 24-29 (shared between Opus drafts and human editorial review).
 
 ---
+
+## Task 1: Create `lld_learn_progress` DB schema
+
+**Files:**
+- Create: `architex/src/db/schema/lld-learn-progress.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+- [ ] **Step 1: Write the schema file**
+
+Create `architex/src/db/schema/lld-learn-progress.ts`:
+
+```typescript
+/**
+ * DB-015: LLD learn progress — per (user, pattern) lesson reading state.
+ *
+ * Stores which of the 8 lesson sections the user has scrolled through,
+ * their deepest scroll offset per section, and whether each section's
+ * checkpoint has been answered. A unique (userId, patternSlug) constraint
+ * ensures one row per user+pattern.
+ *
+ * FSRS seed data — the `completedAt` of this row is what the Review mode
+ * (Phase 3) uses to schedule the first spaced-repetition card.
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  integer,
+  jsonb,
+  boolean,
+  real,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export type LearnSectionId =
+  | "itch"
+  | "definition"
+  | "mechanism"
+  | "anatomy"
+  | "numbers"
+  | "uses"
+  | "failure_modes"
+  | "checkpoints";
+
+export interface SectionState {
+  /** Deepest scroll offset reached, 0..1 clamped. */
+  scrollDepth: number;
+  /** When this section first entered viewport (epoch ms, null = never). */
+  firstSeenAt: number | null;
+  /** When the user's scroll reached ≥95% of the section (epoch ms, null = not yet). */
+  completedAt: number | null;
+}
+
+export type SectionProgressMap = Record<LearnSectionId, SectionState>;
+
+export const lldLearnProgress = pgTable(
+  "lld_learn_progress",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    patternSlug: varchar("pattern_slug", { length: 100 }).notNull(),
+
+    /** Map of section → {scrollDepth, firstSeenAt, completedAt}. */
+    sectionProgress: jsonb("section_progress")
+      .$type<SectionProgressMap>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+
+    /** Last scroll position (px) so we can restore viewport on return. */
+    lastScrollY: integer("last_scroll_y").notNull().default(0),
+    /** Which section is currently in view (server-side mirror). */
+    activeSectionId: varchar("active_section_id", { length: 30 }),
+
+    /** Number of distinct sections scrolled ≥95% (denormalized for list views). */
+    completedSectionCount: integer("completed_section_count")
+      .notNull()
+      .default(0),
+
+    /** Checkpoint attempts per section: {[sectionId]: {attempts, correct}}. */
+    checkpointStats: jsonb("checkpoint_stats")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+
+    /** Whole-lesson completion: all 8 sections + final checkpoints done. */
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+
+    /** Monotonic read count — increments each time the lesson is re-opened. */
+    visitCount: integer("visit_count").notNull().default(0),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex("lld_learn_progress_user_pattern_idx").on(
+      t.userId,
+      t.patternSlug,
+    ),
+    index("lld_learn_progress_user_idx").on(t.userId),
+  ],
+);
+
+export type LLDLearnProgress = typeof lldLearnProgress.$inferSelect;
+export type NewLLDLearnProgress = typeof lldLearnProgress.$inferInsert;
+```
+
+- [ ] **Step 2: Re-export from schema index**
+
+Open `architex/src/db/schema/index.ts` and add (alphabetical):
+
+```typescript
+export * from "./lld-learn-progress";
+```
+
+- [ ] **Step 3: Add relation**
+
+Open `architex/src/db/schema/relations.ts`. Import the new table at the top:
+
+```typescript
+import { lldLearnProgress } from "./lld-learn-progress";
+```
+
+Inside the existing `usersRelations` `many` block, add:
+
+```typescript
+lldLearnProgress: many(lldLearnProgress),
+```
+
+At the bottom of the file, add:
+
+```typescript
+export const lldLearnProgressRelations = relations(
+  lldLearnProgress,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [lldLearnProgress.userId],
+      references: [users.id],
+    }),
+  }),
+);
+```
+
+- [ ] **Step 4: Verify typecheck**
+
+```bash
+cd architex
+pnpm typecheck
+```
+Expected: no errors. If you see "cannot find `users` table", verify the import order in `relations.ts`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/db/schema/lld-learn-progress.ts architex/src/db/schema/index.ts architex/src/db/schema/relations.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add lld_learn_progress schema
+
+Tracks per (user, pattern) reading state: which of 8 sections scrolled,
+deepest offset per section, checkpoint attempts, and lesson completion
+time. Unique (userId, patternSlug) ensures one row per pair.
+completedAt seeds the FSRS review schedule in Phase 3.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 2: Create `lld_concept_reads` DB schema
+
+**Files:**
+- Create: `architex/src/db/schema/lld-concept-reads.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+- [ ] **Step 1: Write the schema file**
+
+Create `architex/src/db/schema/lld-concept-reads.ts`:
+
+```typescript
+/**
+ * DB-016: LLD concept reads — thin log of "user viewed concept X on
+ * pattern Y, at time T". Used by the cross-linking engine to dim already-
+ * read concepts in the sidebar, and by FSRS to boost stability for
+ * concepts the user has seen across multiple patterns.
+ *
+ * Append-only — we do not update existing rows. Keep rows small, index
+ * only the two query shapes we support (read all for user, read recent
+ * per user+concept).
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export const lldConceptReads = pgTable(
+  "lld_concept_reads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Concept identifier — slug from concept-graph (e.g. "lazy-init"). */
+    conceptId: varchar("concept_id", { length: 100 }).notNull(),
+    /** Pattern slug where the concept was surfaced (e.g. "singleton"). */
+    patternSlug: varchar("pattern_slug", { length: 100 }).notNull(),
+    /** Section within the pattern (itch|definition|...|checkpoints). */
+    sectionId: varchar("section_id", { length: 30 }).notNull(),
+
+    readAt: timestamp("read_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("lld_concept_reads_user_concept_idx").on(
+      t.userId,
+      t.conceptId,
+      t.readAt,
+    ),
+    index("lld_concept_reads_user_recent_idx").on(t.userId, t.readAt),
+  ],
+);
+
+export type LLDConceptRead = typeof lldConceptReads.$inferSelect;
+export type NewLLDConceptRead = typeof lldConceptReads.$inferInsert;
+```
+
+- [ ] **Step 2: Re-export from schema index**
+
+Open `architex/src/db/schema/index.ts` and add (alphabetical, above `lld-learn-progress`):
+
+```typescript
+export * from "./lld-concept-reads";
+```
+
+- [ ] **Step 3: Add relation**
+
+Open `architex/src/db/schema/relations.ts`. Import at top:
+
+```typescript
+import { lldConceptReads } from "./lld-concept-reads";
+```
+
+Add inside `usersRelations` `many` block:
+
+```typescript
+lldConceptReads: many(lldConceptReads),
+```
+
+At the bottom of the file, add:
+
+```typescript
+export const lldConceptReadsRelations = relations(
+  lldConceptReads,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [lldConceptReads.userId],
+      references: [users.id],
+    }),
+  }),
+);
+```
+
+- [ ] **Step 4: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/db/schema/lld-concept-reads.ts architex/src/db/schema/index.ts architex/src/db/schema/relations.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add lld_concept_reads schema
+
+Append-only log of concept views: (user, concept, pattern, section, readAt).
+Indexed for two query shapes: recent-by-user and recent-by-user-and-concept.
+Drives cross-link dimming and concept-level FSRS boosting.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 3: Create `lld_bookmarks` DB schema
+
+**Files:**
+- Create: `architex/src/db/schema/lld-bookmarks.ts`
+- Modify: `architex/src/db/schema/index.ts`
+- Modify: `architex/src/db/schema/relations.ts`
+
+- [ ] **Step 1: Write the schema file**
+
+Create `architex/src/db/schema/lld-bookmarks.ts`:
+
+```typescript
+/**
+ * DB-017: LLD bookmarks — user-authored anchors into lesson content.
+ *
+ * Scope: bookmark-per-heading (not arbitrary paragraph) to keep anchors
+ * stable across content edits. Each bookmark stores the pattern, the
+ * sectionId, a stable anchor id (from MDX frontmatter or the sluggified
+ * heading), and the user's optional note.
+ *
+ * Deletion is hard-delete (no soft-delete) — bookmarks are lightweight
+ * and users expect delete = gone.
+ */
+
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  text,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export const lldBookmarks = pgTable(
+  "lld_bookmarks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    patternSlug: varchar("pattern_slug", { length: 100 }).notNull(),
+    sectionId: varchar("section_id", { length: 30 }).notNull(),
+    /** Stable anchor id (e.g. "why-singleton-is-a-smell"). */
+    anchorId: varchar("anchor_id", { length: 200 }).notNull(),
+    /** Cached heading text for list display — refreshed on content edits. */
+    anchorLabel: varchar("anchor_label", { length: 500 }).notNull(),
+
+    /** Optional user note (max ~10k chars). */
+    note: text("note"),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    // One bookmark per (user, pattern, anchor) — toggling a bookmark
+    // on an already-bookmarked anchor is a delete, not a duplicate.
+    uniqueIndex("lld_bookmarks_user_anchor_idx").on(
+      t.userId,
+      t.patternSlug,
+      t.anchorId,
+    ),
+    index("lld_bookmarks_user_recent_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+export type LLDBookmark = typeof lldBookmarks.$inferSelect;
+export type NewLLDBookmark = typeof lldBookmarks.$inferInsert;
+```
+
+- [ ] **Step 2: Re-export from schema index**
+
+Open `architex/src/db/schema/index.ts` and add (alphabetical, above `lld-concept-reads`):
+
+```typescript
+export * from "./lld-bookmarks";
+```
+
+- [ ] **Step 3: Add relation**
+
+Open `architex/src/db/schema/relations.ts`. Import at top:
+
+```typescript
+import { lldBookmarks } from "./lld-bookmarks";
+```
+
+Add inside `usersRelations` `many` block:
+
+```typescript
+lldBookmarks: many(lldBookmarks),
+```
+
+At the bottom of the file, add:
+
+```typescript
+export const lldBookmarksRelations = relations(lldBookmarks, ({ one }) => ({
+  user: one(users, {
+    fields: [lldBookmarks.userId],
+    references: [users.id],
+  }),
+}));
+```
+
+- [ ] **Step 4: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/db/schema/lld-bookmarks.ts architex/src/db/schema/index.ts architex/src/db/schema/relations.ts
+git commit -m "$(cat <<'EOF'
+feat(db): add lld_bookmarks schema
+
+Per (user, pattern, anchor) bookmark row. Unique constraint means
+toggling an already-bookmarked anchor is a DELETE not an INSERT. Optional
+free-text note on each. Two indices: by anchor (for toggle lookups) and
+by recent (for the bookmark strip UI).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 4: Generate and apply 3 migrations
+
+**Files:**
+- Generated: `architex/drizzle/NNNN_add_lld_learn_progress.sql`
+- Generated: `architex/drizzle/NNNN_add_lld_concept_reads.sql`
+- Generated: `architex/drizzle/NNNN_add_lld_bookmarks.sql`
+
+Drizzle will batch these into one or more generated files depending on version. The steps below handle either case.
+
+- [ ] **Step 1: Generate migration**
+
+```bash
+cd architex
+pnpm db:generate
+```
+Expected: one or more new SQL files in `architex/drizzle/` containing `CREATE TABLE` statements for all three new tables plus their indices.
+
+- [ ] **Step 2: Review the generated SQL**
+
+Open each generated file and confirm:
+
+1. `CREATE TABLE "lld_learn_progress"` with columns: `id uuid`, `user_id uuid`, `pattern_slug varchar(100)`, `section_progress jsonb`, `last_scroll_y integer`, `active_section_id varchar(30)`, `completed_section_count integer`, `checkpoint_stats jsonb`, `completed_at timestamptz`, `visit_count integer`, `created_at timestamptz`, `updated_at timestamptz`.
+2. `CREATE UNIQUE INDEX "lld_learn_progress_user_pattern_idx" ON "lld_learn_progress" ("user_id","pattern_slug")`.
+3. `CREATE TABLE "lld_concept_reads"` with columns: `id uuid`, `user_id uuid`, `concept_id varchar(100)`, `pattern_slug varchar(100)`, `section_id varchar(30)`, `read_at timestamptz`.
+4. `CREATE INDEX "lld_concept_reads_user_concept_idx"` and `CREATE INDEX "lld_concept_reads_user_recent_idx"`.
+5. `CREATE TABLE "lld_bookmarks"` with columns: `id uuid`, `user_id uuid`, `pattern_slug varchar(100)`, `section_id varchar(30)`, `anchor_id varchar(200)`, `anchor_label varchar(500)`, `note text`, `created_at timestamptz`, `updated_at timestamptz`.
+6. `CREATE UNIQUE INDEX "lld_bookmarks_user_anchor_idx"` and `CREATE INDEX "lld_bookmarks_user_recent_idx"`.
+7. Three `FOREIGN KEY ... REFERENCES "users"("id") ON DELETE CASCADE` constraints.
+
+If any column or index is missing, delete the generated file and re-run `pnpm db:generate`. If schema still wrong, inspect the Drizzle schema files and re-verify column definitions before regenerating.
+
+- [ ] **Step 3: Apply to dev DB**
+
+```bash
+pnpm db:push
+```
+Expected: migration applies cleanly. If `error: table already exists`, a previous attempt partially applied — drop the tables via `pnpm db:studio` and retry.
+
+- [ ] **Step 4: Verify all 3 tables via Drizzle Studio**
+
+```bash
+pnpm db:studio
+```
+Opens at <https://local.drizzle.studio>. Confirm all three tables appear in the sidebar with 0 rows. Click each, check columns match the schema files.
+
+- [ ] **Step 5: Smoke-test the foreign keys**
+
+In a separate terminal, connect to the dev DB and insert a bogus row to confirm the cascade works:
+
+```bash
+pnpm db:psql <<'SQL'
+-- Expect this to succeed
+INSERT INTO users (id, clerk_user_id, email, display_name)
+  VALUES ('00000000-0000-0000-0000-000000000001', 'clerk_test', 't@test.com', 'Test')
+  ON CONFLICT DO NOTHING;
+
+INSERT INTO lld_learn_progress (user_id, pattern_slug)
+  VALUES ('00000000-0000-0000-0000-000000000001', 'singleton');
+
+INSERT INTO lld_concept_reads (user_id, concept_id, pattern_slug, section_id)
+  VALUES ('00000000-0000-0000-0000-000000000001', 'lazy-init', 'singleton', 'mechanism');
+
+INSERT INTO lld_bookmarks (user_id, pattern_slug, section_id, anchor_id, anchor_label)
+  VALUES ('00000000-0000-0000-0000-000000000001', 'singleton', 'definition', 'the-itch', 'The Itch');
+
+-- Cascade delete should take all three rows with it
+DELETE FROM users WHERE id = '00000000-0000-0000-0000-000000000001';
+
+-- These should all return 0
+SELECT count(*) AS learn FROM lld_learn_progress WHERE user_id = '00000000-0000-0000-0000-000000000001';
+SELECT count(*) AS reads FROM lld_concept_reads WHERE user_id = '00000000-0000-0000-0000-000000000001';
+SELECT count(*) AS bookmarks FROM lld_bookmarks WHERE user_id = '00000000-0000-0000-0000-000000000001';
+SQL
+```
+
+If `pnpm db:psql` isn't defined, copy the SQL into Drizzle Studio's SQL editor and run it there.
+
+Expected: all three `count(*)` results are `0`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/drizzle/
+git commit -m "$(cat <<'EOF'
+feat(db): generate + apply lld learn-progress, concept-reads, bookmarks migrations
+
+Applies 3 new tables with their indices and FK cascades to users.
+Cascade delete verified via direct SQL smoke test.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
