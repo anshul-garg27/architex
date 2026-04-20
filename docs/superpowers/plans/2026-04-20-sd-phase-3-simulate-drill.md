@@ -1077,3 +1077,457 @@ EOF
 ```
 
 ---
+
+## Group B · Engine adapters + metadata (Tasks 5-14)
+
+> The 27 simulation engine files in `architex/src/lib/simulation/` are READ-ONLY during Phase 3. All additions sit in `architex/src/lib/chaos/` or `architex/src/lib/simulation/adapters/`. The engine executes; the adapters translate between the engine's runtime contract and the product's UX contract.
+
+---
+
+## Task 5: Author `chaos-taxonomy.ts` — 73 events · 7 families · narrative templates
+
+**Files:**
+- Create: `architex/src/lib/chaos/chaos-taxonomy.ts`
+- Create: `architex/src/lib/chaos/__tests__/chaos-taxonomy.test.ts`
+
+The 73-event taxonomy is the source of truth for every chaos event in Simulate. Each event has: canonical name · family · severity band · narrative template (interpolatable) · simulation model hook (which engine file + method drives it) · canvas-family exposure (which node families are vulnerable) · real-incident tie (if applicable) · "what protects against this" card (concept bridge). This is **metadata** the engine consumes; the engine itself is untouched.
+
+**Test-first discipline.** Each sub-step writes tests before the implementation. The chaos-taxonomy test checks: (a) exactly 73 entries; (b) family counts match the spec (14/11/10/9/8/10/11); (c) every event has a non-empty narrative template; (d) every template interpolation token appears in the event's `interpolationTokens` array; (e) every event's `canvasFamilies` references a valid family from `src/lib/simulation/failure-modes.ts`; (f) severity counts across families are balanced (no family is all "critical").
+
+- [ ] **Step 1: Red · failing test for taxonomy shape**
+
+Create `architex/src/lib/chaos/__tests__/chaos-taxonomy.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import {
+  CHAOS_TAXONOMY,
+  ChaosEventDef,
+  chaosFamilyCounts,
+  getEventById,
+  getEventsByFamily,
+  renderNarrative,
+} from "../chaos-taxonomy";
+
+describe("chaos-taxonomy", () => {
+  it("contains exactly 73 events", () => {
+    expect(CHAOS_TAXONOMY).toHaveLength(73);
+  });
+
+  it("every event has a unique id", () => {
+    const ids = CHAOS_TAXONOMY.map((e) => e.id);
+    expect(new Set(ids).size).toBe(73);
+  });
+
+  it("every event has a non-empty narrativeTemplate", () => {
+    for (const e of CHAOS_TAXONOMY) {
+      expect(e.narrativeTemplate.length).toBeGreaterThan(20);
+    }
+  });
+
+  it("family counts match spec (14/11/10/9/8/10/11)", () => {
+    expect(chaosFamilyCounts()).toEqual({
+      infrastructure: 14,
+      data: 11,
+      network: 10,
+      cascade: 9,
+      external: 8,
+      human: 10,
+      load: 11,
+    });
+  });
+
+  it("every template's interpolation tokens are declared", () => {
+    const tokenRegex = /\{(\w+)\}/g;
+    for (const e of CHAOS_TAXONOMY) {
+      const tokens = new Set<string>();
+      let match: RegExpExecArray | null;
+      while ((match = tokenRegex.exec(e.narrativeTemplate))) {
+        tokens.add(match[1]);
+      }
+      for (const t of tokens) {
+        expect(e.interpolationTokens).toContain(t);
+      }
+    }
+  });
+
+  it("renderNarrative fills interpolation tokens", () => {
+    const event = getEventById("cache-stampede");
+    const rendered = renderNarrative(event, {
+      cache_name: "Redis hot-cache",
+      backend_name: "Postgres-primary",
+    });
+    expect(rendered).toContain("Redis hot-cache");
+    expect(rendered).toContain("Postgres-primary");
+    expect(rendered).not.toContain("{cache_name}");
+  });
+
+  it("getEventsByFamily returns correct subsets", () => {
+    const infra = getEventsByFamily("infrastructure");
+    expect(infra).toHaveLength(14);
+    for (const e of infra) {
+      expect(e.family).toBe("infrastructure");
+    }
+  });
+
+  it("every event references at least one canvas node family", () => {
+    for (const e of CHAOS_TAXONOMY) {
+      expect(e.canvasFamilies.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("no family is entirely critical severity", () => {
+    const families: ChaosEventDef["family"][] = [
+      "infrastructure",
+      "data",
+      "network",
+      "cascade",
+      "external",
+      "human",
+      "load",
+    ];
+    for (const fam of families) {
+      const events = getEventsByFamily(fam);
+      const critical = events.filter((e) => e.severity === "critical");
+      expect(critical.length).toBeLessThan(events.length);
+    }
+  });
+});
+```
+
+```bash
+cd architex
+pnpm test:run -- chaos-taxonomy
+```
+Expected: all tests fail (file doesn't exist). **That is the Red state.**
+
+- [ ] **Step 2: Green · minimal file so imports resolve**
+
+Create `architex/src/lib/chaos/chaos-taxonomy.ts` with type shapes and an empty array:
+
+```typescript
+/**
+ * CHAOS-001: 73-event chaos taxonomy · 7 families.
+ *
+ * Source of truth for every chaos event the Simulate mode can fire.
+ * Each event has: canonical id + display name + family + severity +
+ * narrative template (serif prose, interpolatable) + simulation model
+ * hook (engine file path) + canvas-family exposure + optional real-
+ * incident tie + "what protects against this" concept bridge.
+ *
+ * This file is metadata ONLY. The engine at src/lib/simulation/chaos-
+ * engine.ts consumes these defs and executes the events. The narrative
+ * engine at src/lib/simulation/narrative-engine.ts consumes the
+ * narrativeTemplate field and interpolates canvas-node names.
+ */
+
+export type ChaosFamily =
+  | "infrastructure"
+  | "data"
+  | "network"
+  | "cascade"
+  | "external"
+  | "human"
+  | "load";
+
+export type ChaosSeverity = "low" | "medium" | "high" | "critical";
+
+export type CanvasFamily =
+  | "stateless-service"
+  | "stateful-service"
+  | "database"
+  | "cache"
+  | "queue"
+  | "cdn"
+  | "load-balancer"
+  | "api-gateway"
+  | "message-broker"
+  | "object-store"
+  | "search-index"
+  | "dns"
+  | "auth-service"
+  | "monitor"
+  | "client"
+  | "external-dependency";
+
+export interface ChaosEventDef {
+  id: string;
+  displayName: string;
+  family: ChaosFamily;
+  severity: ChaosSeverity;
+  narrativeTemplate: string;
+  interpolationTokens: string[];
+  simModel: {
+    engineHook:
+      | "chaos-engine.fireHardwareFailure"
+      | "chaos-engine.fireDataCorruption"
+      | "chaos-engine.firePartition"
+      | "chaos-engine.fireCascade"
+      | "chaos-engine.fireExternalOutage"
+      | "chaos-engine.fireHumanError"
+      | "chaos-engine.fireLoadSpike";
+    params?: Record<string, unknown>;
+  };
+  canvasFamilies: CanvasFamily[];
+  realIncidentSlug?: string;
+  protectingConcept?: string;
+  defaultDurationMs: number;
+}
+
+export const CHAOS_TAXONOMY: ChaosEventDef[] = [
+  // Populated across 7 sub-steps below.
+];
+
+export function chaosFamilyCounts(): Record<ChaosFamily, number> {
+  const counts: Record<ChaosFamily, number> = {
+    infrastructure: 0,
+    data: 0,
+    network: 0,
+    cascade: 0,
+    external: 0,
+    human: 0,
+    load: 0,
+  };
+  for (const e of CHAOS_TAXONOMY) counts[e.family]++;
+  return counts;
+}
+
+export function getEventById(id: string): ChaosEventDef {
+  const e = CHAOS_TAXONOMY.find((x) => x.id === id);
+  if (!e) throw new Error(`Unknown chaos event id: ${id}`);
+  return e;
+}
+
+export function getEventsByFamily(family: ChaosFamily): ChaosEventDef[] {
+  return CHAOS_TAXONOMY.filter((e) => e.family === family);
+}
+
+export function renderNarrative(
+  event: ChaosEventDef,
+  params: Record<string, string>,
+): string {
+  return event.narrativeTemplate.replace(
+    /\{(\w+)\}/g,
+    (_m, token) => params[token] ?? `{${token}}`,
+  );
+}
+```
+
+```bash
+pnpm typecheck
+```
+Expected: zero errors. Tests still fail (73 !== 0) — that's fine; we green them in steps 3-9.
+
+- [ ] **Step 3: Populate 14 Infrastructure events**
+
+Replace the `CHAOS_TAXONOMY` array with the 14 Infrastructure entries first:
+
+```typescript
+export const CHAOS_TAXONOMY: ChaosEventDef[] = [
+  // ===== Infrastructure (14) =====
+  {
+    id: "vm-hardware-failure",
+    displayName: "VM hardware failure",
+    family: "infrastructure",
+    severity: "high",
+    narrativeTemplate:
+      "The {node_name} virtual machine experiences a hardware fault. Its hypervisor evicts the instance. Traffic destined for it now lands on surviving peers, which were sized for steady-state.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure" },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    protectingConcept: "replication",
+    defaultDurationMs: 30_000,
+  },
+  {
+    id: "disk-corruption",
+    displayName: "Disk corruption",
+    family: "infrastructure",
+    severity: "high",
+    narrativeTemplate:
+      "Silent data corruption begins on {node_name}'s local disk. Reads return garbage; checksums begin failing. The operator does not yet know.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireDataCorruption" },
+    canvasFamilies: ["database", "object-store"],
+    protectingConcept: "checksumming-and-read-repair",
+    defaultDurationMs: 60_000,
+  },
+  {
+    id: "disk-full",
+    displayName: "Disk full",
+    family: "infrastructure",
+    severity: "medium",
+    narrativeTemplate:
+      "The {node_name} disk reaches 100% utilization. Writes begin to fail. Logging subsystems start dropping events; the system is now flying blind.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "disk-full" } },
+    canvasFamilies: ["database", "monitor", "object-store"],
+    protectingConcept: "capacity-planning",
+    defaultDurationMs: 120_000,
+  },
+  {
+    id: "kernel-panic",
+    displayName: "Kernel panic",
+    family: "infrastructure",
+    severity: "high",
+    narrativeTemplate:
+      "A kernel panic strikes {node_name}. The process tree dies. The box reboots. During the reboot window, in-flight requests are lost and connections close with RST.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "kernel-panic" } },
+    canvasFamilies: ["stateless-service", "stateful-service", "database"],
+    protectingConcept: "graceful-degradation",
+    defaultDurationMs: 45_000,
+  },
+  {
+    id: "clock-drift",
+    displayName: "Clock drift",
+    family: "infrastructure",
+    severity: "medium",
+    narrativeTemplate:
+      "The system clock on {node_name} drifts by several minutes. TLS certificates appear invalid; distributed consensus protocols reject the node's votes.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "clock-drift" } },
+    canvasFamilies: ["stateful-service", "database", "auth-service"],
+    protectingConcept: "logical-clocks",
+    defaultDurationMs: 180_000,
+    realIncidentSlug: "slack-2021",
+  },
+  {
+    id: "numa-imbalance",
+    displayName: "NUMA imbalance",
+    family: "infrastructure",
+    severity: "low",
+    narrativeTemplate:
+      "Memory accesses on {node_name} begin crossing NUMA boundaries. Latency on the P99 quietly doubles. No error surfaces; the meter just shifts.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "numa" } },
+    canvasFamilies: ["database", "cache", "stateless-service"],
+    defaultDurationMs: 240_000,
+  },
+  {
+    id: "noisy-neighbor",
+    displayName: "Noisy neighbor CPU starvation",
+    family: "infrastructure",
+    severity: "medium",
+    narrativeTemplate:
+      "A co-tenant on {node_name}'s host bursts to full CPU. {node_name}'s threads are context-switched out. Tail latency climbs; nothing in the app logs suggests why.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "noisy-neighbor" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    protectingConcept: "bulkheads",
+    defaultDurationMs: 90_000,
+  },
+  {
+    id: "tcp-socket-exhaustion",
+    displayName: "TCP socket exhaustion",
+    family: "infrastructure",
+    severity: "high",
+    narrativeTemplate:
+      "The {node_name} TCP socket table fills. New connections are rejected with ECONNREFUSED. Upstream clients retry; retries cannot open sockets either.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "socket-exhaustion" } },
+    canvasFamilies: ["load-balancer", "api-gateway", "stateless-service"],
+    protectingConcept: "connection-pooling",
+    defaultDurationMs: 60_000,
+  },
+  {
+    id: "ip-exhaustion",
+    displayName: "IP address exhaustion",
+    family: "infrastructure",
+    severity: "medium",
+    narrativeTemplate:
+      "The VPC's IP range exhausts. New {node_name} pods cannot be scheduled. Autoscaling silently fails; the scheduler retries in the background.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "ip-exhaustion" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    defaultDurationMs: 300_000,
+  },
+  {
+    id: "dns-outage",
+    displayName: "DNS server outage",
+    family: "infrastructure",
+    severity: "critical",
+    narrativeTemplate:
+      "The authoritative DNS server for {service_domain} becomes unreachable. Clients cannot resolve hostnames. Service discovery fails. The surface of the failure is everywhere.",
+    interpolationTokens: ["service_domain"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "dns-outage" } },
+    canvasFamilies: ["dns", "client", "load-balancer"],
+    realIncidentSlug: "facebook-2021-bgp",
+    protectingConcept: "dns-redundancy",
+    defaultDurationMs: 600_000,
+  },
+  {
+    id: "cert-expiry",
+    displayName: "Certificate expiry",
+    family: "infrastructure",
+    severity: "high",
+    narrativeTemplate:
+      "The TLS certificate on {node_name} expires. Every incoming TLS handshake now fails. Monitors notice, but no rotation was scheduled.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "cert-expiry" } },
+    canvasFamilies: ["load-balancer", "api-gateway", "stateless-service"],
+    protectingConcept: "deployment-patterns",
+    defaultDurationMs: 300_000,
+  },
+  {
+    id: "hypervisor-eviction",
+    displayName: "Hypervisor eviction",
+    family: "infrastructure",
+    severity: "medium",
+    narrativeTemplate:
+      "The cloud provider's hypervisor evicts {node_name} to live-migrate it. For sixty seconds, the instance is unreachable.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "eviction" } },
+    canvasFamilies: ["stateless-service", "stateful-service"],
+    defaultDurationMs: 60_000,
+  },
+  {
+    id: "rack-power-outage",
+    displayName: "Rack power outage",
+    family: "infrastructure",
+    severity: "critical",
+    narrativeTemplate:
+      "A power supply on the rack hosting {node_name} fails. Every instance on the rack loses power simultaneously. The AZ notices the correlated failure a heartbeat later.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "rack-power" } },
+    canvasFamilies: ["stateful-service", "database", "cache"],
+    protectingConcept: "multi-az-deployment",
+    defaultDurationMs: 480_000,
+  },
+  {
+    id: "cooling-failure",
+    displayName: "Cooling failure",
+    family: "infrastructure",
+    severity: "high",
+    narrativeTemplate:
+      "Cooling in {node_name}'s zone falters. CPU thermal throttling kicks in. Throughput drops by half; nothing surfaces as an error — only as slowness.",
+    interpolationTokens: ["node_name"],
+    simModel: { engineHook: "chaos-engine.fireHardwareFailure", params: { mode: "cooling" } },
+    canvasFamilies: ["stateful-service", "database"],
+    defaultDurationMs: 300_000,
+  },
+```
+
+```bash
+pnpm test:run -- chaos-taxonomy
+```
+Expected: 3 of 9 tests pass (the 14 entries + family counts beginning to take shape; the "exactly 73" test still fails).
+
+- [ ] **Step 4: Commit milestone · 14 infrastructure events**
+
+```bash
+git add architex/src/lib/chaos/chaos-taxonomy.ts architex/src/lib/chaos/__tests__/chaos-taxonomy.test.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): chaos-taxonomy scaffold + 14 infrastructure events
+
+Scaffold with full TypeScript types (ChaosFamily, ChaosSeverity,
+CanvasFamily, ChaosEventDef) and helpers (renderNarrative,
+getEventsByFamily, chaosFamilyCounts, getEventById). Infrastructure
+family populated in full: VM failure, disk corruption/full, kernel
+panic, clock drift (Slack 2021 tie), NUMA imbalance, noisy neighbor,
+socket/IP exhaustion, DNS outage (Facebook 2021 tie), cert expiry,
+hypervisor eviction, rack power, cooling failure.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
