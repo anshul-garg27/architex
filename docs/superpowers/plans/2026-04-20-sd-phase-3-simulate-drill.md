@@ -5637,3 +5637,485 @@ EOF
 ```
 
 ---
+
+## Group C · AI integration (Tasks 15-18)
+
+> AI work sits in `src/lib/ai/` one-file-per-feature. Each file wraps the existing Claude singleton (Phase-2 infrastructure) with a specific prompt + response shape. Fallback behavior: every feature has a deterministic fallback that works without `ANTHROPIC_API_KEY`. We never hide AI unavailability from the user — a subtle "AI unavailable" pill appears when the key is missing.
+
+---
+
+## Task 15: Author whisper-mode Haiku coach (§8.8)
+
+**Files:**
+- Create: `architex/src/lib/ai/whisper-coach-prompt.ts`
+- Create: `architex/src/lib/simulation/adapters/whisper-coach.ts`
+- Create: `architex/src/hooks/useWhisperCoach.ts`
+- Create: `architex/src/hooks/__tests__/useWhisperCoach.test.tsx`
+- Create: `architex/src/lib/ai/__tests__/whisper-coach-prompt.test.ts`
+
+The whisper coach (§8.8) is a passive Haiku loop. It receives: the current metric stream snapshot, the last 10 chaos events, recent user behavior (e.g. "user has been staring at p99 breaking for 8 seconds without action"). It fires at most **3 interventions per 5-minute sim window** (hard cap). Interventions are silent toasts with three shapes: Nudge · Suggestion · Context.
+
+**Teachable-moment detection.** The coach only fires when a scoring function exceeds a threshold. Scoring uses two signals: (1) the user has been visually exposed to a degraded metric for ≥5 seconds (the "stare time"); (2) the metric's threshold band has transitioned from "good" to "concerning" or worse within the last 15 seconds.
+
+- [ ] **Step 1: Red test · prompt shape + intervention cap**
+
+Create `architex/src/lib/ai/__tests__/whisper-coach-prompt.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import {
+  buildWhisperPrompt,
+  teachableMomentScore,
+  WhisperInputState,
+} from "../whisper-coach-prompt";
+
+const baseState: WhisperInputState = {
+  metrics: {
+    p50: 120,
+    p99: 2400,
+    errorRate: 0.02,
+    throughputPctOfTarget: 0.8,
+  },
+  recentChaos: [
+    { eventId: "cache-stampede", simTimeMs: 5_000, severity: "high" },
+  ],
+  user: { stareTimeMs: 6_000, lastClickAgoMs: 8_000 },
+  thresholdTransitions: [
+    { metric: "p99", fromBand: "good", toBand: "concerning", ageMs: 4_000 },
+  ],
+  personaLevel: "journeyman",
+};
+
+describe("whisper-coach-prompt", () => {
+  it("teachableMomentScore exceeds threshold on stare + transition", () => {
+    const score = teachableMomentScore(baseState);
+    expect(score).toBeGreaterThan(0.6);
+  });
+
+  it("teachableMomentScore is low when user is actively clicking", () => {
+    const score = teachableMomentScore({
+      ...baseState,
+      user: { stareTimeMs: 500, lastClickAgoMs: 200 },
+    });
+    expect(score).toBeLessThan(0.4);
+  });
+
+  it("buildWhisperPrompt includes structured JSON of current state", () => {
+    const p = buildWhisperPrompt(baseState);
+    expect(p).toContain("2400");
+    expect(p).toContain("cache-stampede");
+    expect(p).toContain("journeyman");
+  });
+});
+```
+
+- [ ] **Step 2: Green · implement `whisper-coach-prompt.ts`**
+
+```typescript
+/**
+ * AI-010: Whisper-coach prompt builder + teachable-moment scorer.
+ *
+ * Coach is a Haiku loop that fires at most 3 interventions per 5-min
+ * window in Simulate. It only fires when teachableMomentScore(state)
+ * exceeds 0.6. Interventions come as {shape, text, highlightNodeId?,
+ * conceptSlug?} JSON from Haiku.
+ */
+
+export interface WhisperInputState {
+  metrics: {
+    p50: number;
+    p99: number;
+    errorRate: number;
+    throughputPctOfTarget: number;
+  };
+  recentChaos: Array<{
+    eventId: string;
+    simTimeMs: number;
+    severity: "low" | "medium" | "high" | "critical";
+  }>;
+  user: {
+    stareTimeMs: number;  // ms since last click
+    lastClickAgoMs: number;
+  };
+  thresholdTransitions: Array<{
+    metric: "p50" | "p99" | "errorRate" | "throughput";
+    fromBand: "excellent" | "good" | "concerning" | "broken";
+    toBand: "excellent" | "good" | "concerning" | "broken";
+    ageMs: number;
+  }>;
+  personaLevel: "rookie" | "journeyman" | "architect";
+}
+
+/**
+ * Score in [0, 1]. Coach fires when > 0.6.
+ * Signals:
+ *  - Long stare time on a degraded metric (user may be stuck)
+ *  - Recent band transition to concerning/broken
+ *  - Chaos event fired within last 10s with severity >= high
+ * Dampers:
+ *  - User is actively clicking (don't interrupt flow)
+ *  - User is an architect (lower budget for intervention)
+ */
+export function teachableMomentScore(s: WhisperInputState): number {
+  let score = 0;
+
+  // Stare signal: at 5s → 0.3; at 10s+ → 0.5
+  if (s.user.stareTimeMs >= 10_000) score += 0.5;
+  else if (s.user.stareTimeMs >= 5_000) score += 0.3;
+
+  // Transition signal: each recent concerning/broken transition adds 0.25
+  for (const t of s.thresholdTransitions) {
+    if (
+      t.ageMs < 15_000 &&
+      (t.toBand === "concerning" || t.toBand === "broken") &&
+      (t.fromBand === "excellent" || t.fromBand === "good")
+    ) {
+      score += 0.25;
+    }
+  }
+
+  // Recent severe chaos signal: 0.2
+  const now = s.recentChaos[0]?.simTimeMs ?? 0;
+  const severeRecent = s.recentChaos.find(
+    (e) => now - e.simTimeMs < 10_000 && (e.severity === "high" || e.severity === "critical"),
+  );
+  if (severeRecent) score += 0.2;
+
+  // Dampers
+  if (s.user.lastClickAgoMs < 1_500) score -= 0.3;
+  if (s.personaLevel === "architect") score -= 0.1;
+  if (s.personaLevel === "rookie") score += 0.1;
+
+  return Math.max(0, Math.min(1, score));
+}
+
+export function buildWhisperPrompt(s: WhisperInputState): string {
+  const recent = s.recentChaos
+    .slice(0, 5)
+    .map(
+      (e) => `  - ${e.eventId} (${e.severity}) at sim-time ${e.simTimeMs}ms`,
+    )
+    .join("\n");
+
+  return `You are the whisper coach for a distributed-systems simulator. The user
+is running a chaos drill against their own design. They have been
+staring at a degraded metric without taking action. You may fire ONE
+intervention. Pick the shape best suited to the situation.
+
+INTERVENTION SHAPES (pick exactly one):
+  1. "nudge"       — a 1-sentence text toast, dismissable
+  2. "suggestion"  — a 1-sentence text toast with a highlighted node
+  3. "context"     — a 2-sentence text toast + a conceptSlug link
+
+CURRENT STATE:
+  p50: ${s.metrics.p50}ms
+  p99: ${s.metrics.p99}ms
+  error rate: ${(s.metrics.errorRate * 100).toFixed(2)}%
+  throughput attainment: ${(s.metrics.throughputPctOfTarget * 100).toFixed(0)}%
+  user stare time: ${s.user.stareTimeMs}ms
+  user level: ${s.personaLevel}
+
+RECENT CHAOS EVENTS:
+${recent || "  (none)"}
+
+RECENT THRESHOLD TRANSITIONS:
+${s.thresholdTransitions
+  .map((t) => `  - ${t.metric}: ${t.fromBand} → ${t.toBand} (${t.ageMs}ms ago)`)
+  .join("\n") || "  (none)"}
+
+Output VALID JSON only:
+{
+  "shape": "nudge" | "suggestion" | "context",
+  "text": "<1-2 sentence intervention>",
+  "highlightNodeId": "<id or null>",
+  "conceptSlug": "<slug or null>"
+}
+
+Constraints:
+  - Text must be physical, concrete, and in third-person present tense.
+    Example: "The queue at [cache] is draining at 0.7x its arrival rate."
+    Not: "It looks like there may be an issue with the queue."
+  - If the user is an architect, be maximally concise.
+  - Never offer generic advice. Always reference specific metrics + nodes.`;
+}
+```
+
+- [ ] **Step 3: Green · `whisper-coach.ts` adapter (dispatcher + window tracker)**
+
+Create `architex/src/lib/simulation/adapters/whisper-coach.ts`:
+
+```typescript
+/**
+ * SIM-030: Whisper-coach adapter — wraps the Haiku loop with a
+ * 3-interventions-per-5-minute-window hard cap (per §8.8 spec).
+ *
+ * The adapter is engine-adjacent: the simulation orchestrator ticks
+ * once per sim-second; the adapter's tick() consumes the tick,
+ * computes teachable-moment score, and fires an intervention if the
+ * score exceeds the threshold AND the window cap allows it.
+ */
+
+import type { WhisperInputState } from "../../ai/whisper-coach-prompt";
+import {
+  buildWhisperPrompt,
+  teachableMomentScore,
+} from "../../ai/whisper-coach-prompt";
+
+export interface WhisperIntervention {
+  shape: "nudge" | "suggestion" | "context";
+  text: string;
+  highlightNodeId?: string | null;
+  conceptSlug?: string | null;
+  firedAtRealMs: number;
+}
+
+export interface WhisperWindowState {
+  interventionTimestamps: number[];  // real-ms
+  maxInterventionsPerWindow: number;
+  windowMs: number;
+}
+
+export function createWhisperWindow(
+  personaLevel: "rookie" | "journeyman" | "architect",
+): WhisperWindowState {
+  const cap = personaLevel === "rookie" ? 5 : personaLevel === "architect" ? 1 : 3;
+  return {
+    interventionTimestamps: [],
+    maxInterventionsPerWindow: cap,
+    windowMs: 5 * 60 * 1000,
+  };
+}
+
+export function canFireNow(
+  w: WhisperWindowState,
+  nowRealMs: number,
+): boolean {
+  const since = nowRealMs - w.windowMs;
+  const recent = w.interventionTimestamps.filter((t) => t >= since);
+  return recent.length < w.maxInterventionsPerWindow;
+}
+
+export function recordFire(
+  w: WhisperWindowState,
+  nowRealMs: number,
+): WhisperWindowState {
+  const since = nowRealMs - w.windowMs;
+  return {
+    ...w,
+    interventionTimestamps: [
+      ...w.interventionTimestamps.filter((t) => t >= since),
+      nowRealMs,
+    ],
+  };
+}
+
+/** Returns true if a Haiku call should be initiated this tick. */
+export function shouldInvokeWhisper(
+  state: WhisperInputState,
+  window: WhisperWindowState,
+  nowRealMs: number,
+  opts: { thresholdScore?: number } = {},
+): boolean {
+  const threshold = opts.thresholdScore ?? 0.6;
+  if (!canFireNow(window, nowRealMs)) return false;
+  const score = teachableMomentScore(state);
+  return score >= threshold;
+}
+
+export { buildWhisperPrompt };
+```
+
+- [ ] **Step 4: `useWhisperCoach` React hook**
+
+Create `architex/src/hooks/useWhisperCoach.ts`:
+
+```typescript
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  canFireNow,
+  createWhisperWindow,
+  recordFire,
+  shouldInvokeWhisper,
+  WhisperIntervention,
+  WhisperWindowState,
+} from "@/lib/simulation/adapters/whisper-coach";
+import type { WhisperInputState } from "@/lib/ai/whisper-coach-prompt";
+
+export type CoachQuietLevel = "normal" | "muted";
+
+export interface UseWhisperCoachOptions {
+  personaLevel: "rookie" | "journeyman" | "architect";
+  quietLevel: CoachQuietLevel;
+  ticker: () => WhisperInputState;
+  runId: string;
+  onIntervention: (ev: WhisperIntervention) => void;
+}
+
+export function useWhisperCoach(opts: UseWhisperCoachOptions) {
+  const [window, setWindow] = useState<WhisperWindowState>(() =>
+    createWhisperWindow(opts.personaLevel),
+  );
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const tick = useCallback(async () => {
+    if (opts.quietLevel === "muted") return;
+    const state = opts.ticker();
+    const nowRealMs = Date.now();
+    if (!shouldInvokeWhisper(state, window, nowRealMs)) return;
+
+    try {
+      const res = await fetch("/api/sd/whisper-coach/tick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId: opts.runId, state }),
+      });
+      if (!res.ok) return;  // silent fallback
+      const body: WhisperIntervention = await res.json();
+      if (!mountedRef.current) return;
+      setWindow((w) => recordFire(w, nowRealMs));
+      opts.onIntervention({ ...body, firedAtRealMs: nowRealMs });
+    } catch {
+      // silent failure — the coach is a nice-to-have
+    }
+  }, [opts, window]);
+
+  return { tick, window, canFireNow: canFireNow(window, Date.now()) };
+}
+```
+
+- [ ] **Step 5: `useWhisperCoach` hook test**
+
+```typescript
+// architex/src/hooks/__tests__/useWhisperCoach.test.tsx
+
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { useWhisperCoach } from "../useWhisperCoach";
+
+beforeEach(() => {
+  global.fetch = vi.fn(async () =>
+    ({
+      ok: true,
+      json: async () => ({ shape: "nudge", text: "Queue is draining slowly", highlightNodeId: null, conceptSlug: null }),
+    } as unknown as Response),
+  );
+});
+
+describe("useWhisperCoach", () => {
+  it("fires intervention when state meets threshold", async () => {
+    const onIntervention = vi.fn();
+    const ticker = () => ({
+      metrics: { p50: 200, p99: 3000, errorRate: 0.05, throughputPctOfTarget: 0.6 },
+      recentChaos: [{ eventId: "cache-stampede", simTimeMs: 5000, severity: "high" as const }],
+      user: { stareTimeMs: 10000, lastClickAgoMs: 15000 },
+      thresholdTransitions: [
+        { metric: "p99" as const, fromBand: "good" as const, toBand: "broken" as const, ageMs: 2000 },
+      ],
+      personaLevel: "journeyman" as const,
+    });
+    const { result } = renderHook(() =>
+      useWhisperCoach({
+        personaLevel: "journeyman",
+        quietLevel: "normal",
+        ticker,
+        runId: "r1",
+        onIntervention,
+      }),
+    );
+    await act(async () => {
+      await result.current.tick();
+    });
+    await waitFor(() => expect(onIntervention).toHaveBeenCalled());
+  });
+
+  it("does not fire when muted", async () => {
+    const onIntervention = vi.fn();
+    const { result } = renderHook(() =>
+      useWhisperCoach({
+        personaLevel: "journeyman",
+        quietLevel: "muted",
+        ticker: () => ({
+          metrics: { p50: 200, p99: 3000, errorRate: 0.05, throughputPctOfTarget: 0.6 },
+          recentChaos: [],
+          user: { stareTimeMs: 10000, lastClickAgoMs: 15000 },
+          thresholdTransitions: [],
+          personaLevel: "journeyman",
+        }),
+        runId: "r1",
+        onIntervention,
+      }),
+    );
+    await act(async () => {
+      await result.current.tick();
+    });
+    expect(onIntervention).not.toHaveBeenCalled();
+  });
+});
+```
+
+- [ ] **Step 6: `/api/sd/whisper-coach/tick` route (skeleton)**
+
+Create `architex/src/app/api/sd/whisper-coach/tick/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { buildWhisperPrompt } from "@/lib/ai/whisper-coach-prompt";
+import { claudeSingleton } from "@/lib/ai/claude-client";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const prompt = buildWhisperPrompt(body.state);
+  try {
+    const res = await claudeSingleton().haiku({
+      system: "Reply with VALID JSON only. No preamble.",
+      messages: [{ role: "user", content: prompt }],
+      maxTokens: 250,
+      temperature: 0.3,
+    });
+    const parsed = JSON.parse(res.text);
+    return NextResponse.json(parsed);
+  } catch {
+    // Fallback: a deterministic nudge
+    return NextResponse.json({
+      shape: "nudge",
+      text: "A metric is degrading. Check the queue depth on the slowest node.",
+      highlightNodeId: null,
+      conceptSlug: null,
+    });
+  }
+}
+```
+
+- [ ] **Step 7: Run + commit**
+
+```bash
+cd architex
+pnpm test:run -- whisper-coach
+pnpm test:run -- useWhisperCoach
+git add architex/src/lib/ai/whisper-coach-prompt.ts architex/src/lib/ai/__tests__/whisper-coach-prompt.test.ts architex/src/lib/simulation/adapters/whisper-coach.ts architex/src/hooks/useWhisperCoach.ts architex/src/hooks/__tests__/useWhisperCoach.test.tsx architex/src/app/api/sd/whisper-coach/tick/route.ts
+git commit -m "$(cat <<'EOF'
+feat(ai): whisper-mode Haiku coach · 3-interventions-per-5min cap
+
+Passive coach loop for Simulate (§8.8). Prompt builder serializes the
+full state: metrics, recent chaos, user stare time, threshold band
+transitions, persona level. teachableMomentScore ∈ [0, 1] fires when
+> 0.6. Window cap per persona: 5 (rookie), 3 (journeyman), 1 (architect).
+Fallback: deterministic nudge when ANTHROPIC_API_KEY is missing.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
