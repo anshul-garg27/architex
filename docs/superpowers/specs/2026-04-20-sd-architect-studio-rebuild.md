@@ -225,4 +225,69 @@ Throughout this spec, decisions are frequently annotated "**R / J / A**" to indi
 
 ---
 
+## 3. Product Surface · The Five Modes at a Glance
+
+One URL. One shell. Five modes. One mode at a time. The mode is the *place*, not a panel toggle. The shell around the five modes is identical to LLD's (§18) with the cobalt accent swap.
+
+| Mode | Icon · shortcut | Room metaphor | Purpose | Session shape | Best for |
+|---|---|---|---|---|---|
+| 📖 **Learn** | book · ⌘1 | Reading nook, lamp, high-backed chair | Teach one concept or problem from zero | 10-25 min, scroll-based, checkpoint-gated | R, J |
+| 🎨 **Build** | drafting compass · ⌘2 | Drafting hall, blueprint on the slab | Free-form exploration · sketch a design from scratch or a template | 15-90 min, open-ended, save-driven | J |
+| 🌪 **Simulate** | wind turbine · ⌘3 | The wind tunnel at the end of the hall | Run a design against traffic, cost, and chaos | 5-30 min per run, result-oriented | J, A (flagship — every mode links here) |
+| 🎯 **Drill** | clipboard · ⌘4 | Examination room, one clock on the wall | Gated 5-stage mock interview under a timer | 45 min (or 90 min for Full-Stack Loop) | A |
+| 🔁 **Review** | circling arrow · ⌘5 | Reading chair by the window | FSRS-driven daily retention · mixes SD/LLD/Algorithms cards | 2-4 min/day | all |
+
+The shortcut and icon positions match LLD exactly. LLD's Build is ⌘2; SD's Build is ⌘2. LLD's Review is ⌘4; SD's Review is ⌘5 (shifted by one because Simulate slots into ⌘3). This is the only SD-side change to universal keybindings (Q37). Users who have built LLD muscle memory will retrain in one session.
+
+### Why five, not four
+
+The LLD module has four modes; SD has five because **Simulate is not a feature, it is a room**. You don't "simulate inside Build" any more than you "render inside Illustrator". A simulation is a distinct activity with distinct goals, a distinct UI shape (particle layer + metric strip + narrative stream + chaos console), a distinct attentional posture, and distinct post-activity loops. Trying to collapse it into a panel inside Build would bury the flagship under tabs. The brainstorm in B2·Q1 made this explicit: *"Simulate is the wind tunnel. Wind tunnels are not drafting tables."*
+
+### Mode resolution logic
+
+```typescript
+function resolveSDMode(): SDMode {
+  if (searchParams.mode) return searchParams.mode;        // URL wins, shareable
+  const stored = userPrefs.sd.mode;                        // DB-first, cross-device
+  if (stored) return stored;
+  if (isFirstVisit) {
+    uiStore.setState({ showSDWelcomeBanner: true });
+    return "learn";                                          // R default
+  }
+  return "learn";
+}
+```
+
+Per Q38, the mode preference is persisted in `user_preferences.preferences.sd.mode`. localStorage is cache only. A 10-second debounce write-through ensures that if a user switches laptops mid-week, the new device lands in the same mode.
+
+### Three design invariants
+
+These mirror LLD §5 but are restated because new readers may come to this spec first.
+
+1. **Build mode's canvas is the same engine Simulate uses.** No bifurcation. The ReactFlow instance in Build is the ReactFlow instance you drag into Simulate's wind tunnel. The particle layer and metric strip appear in Simulate; they are dormant (but present in DOM) in Build. Zero data migration on mode switch.
+2. **Mode is a single piece of state.** Persisted to `user_preferences.preferences.sd.mode`. URL-reflectable via `?mode=simulate` for sharing. localStorage caches.
+3. **All modes share one content source.** Same 40 `SDConcept` objects, same 30 `SDProblem` objects, same 73 `SDChaosEvent` records, same 10 `SDRealIncident` records. No duplication across modes.
+
+### The shell itself
+
+- **Top chrome** · breadcrumb + **module switcher (⌘⇧M)** to jump SD → LLD → Algorithms → OS&DB · **mode switcher pill** (Learn | Build | Simulate | Drill | Review) · notification bell · search (⌘K) · settings (⌘,)
+- **Left icon rail** (Architex-wide, unchanged from LLD except the active-module highlight) — 4 module icons, 1 review icon, 1 profile icon
+- **Main content area** · swaps per mode
+- **Right neighbor sidebar** (Q35) · collapsible with `]` · shows "what to do next" links and cross-module bridges
+- **Status bar** · contextual live info (sim tick, cost/hour, elapsed drill timer, chaos budget remaining)
+
+### Mode-switch choreography
+
+Same 300ms slide as LLD (B8·Q33). Cobalt accent slides in from the right when you enter Simulate, out to the left when you leave. State preservation follows LLD's Smart Boundaries (§7):
+- Build canvas state: persists forever
+- Simulate mid-run: warn + offer "pause & save run" when switching
+- Drill mid-interview: hard-block with a confirmation dialog
+- Learn scroll position: persists per concept page
+- Review mid-card: persists per session
+
+Three confirmation dialog moments total: unsaved build, mid-sim switch with >10s of sim elapsed, drill mid-submit. Everything else is silent preservation.
+
+---
+
+
 
