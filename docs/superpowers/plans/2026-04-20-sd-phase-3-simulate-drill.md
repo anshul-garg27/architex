@@ -5120,3 +5120,520 @@ EOF
 ```
 
 ---
+
+## Task 13: Author `hdr-metrics.ts` — HDR histogram + ring buffer per node
+
+**Files:**
+- Create: `architex/src/lib/simulation/adapters/hdr-metrics.ts`
+- Create: `architex/src/lib/simulation/adapters/__tests__/hdr-metrics.test.ts`
+
+Per §29.2, each simulated node maintains an HDR Histogram for its lifetime metrics and a 30-second ring buffer for its live window. Phase 3 ships this composite structure; Phase 4 upgrades the cost-metric branch to T-Digest.
+
+We depend on `hdr-histogram-js` (npm). If not already installed, add it.
+
+- [ ] **Step 1: Install dependency**
+
+```bash
+cd architex
+pnpm add hdr-histogram-js@^3.0.0
+```
+
+Expected: `hdr-histogram-js` appears in `package.json`. If a lockfile conflict arises, align with whatever version already exists in the monorepo.
+
+- [ ] **Step 2: Red test**
+
+Create `architex/src/lib/simulation/adapters/__tests__/hdr-metrics.test.ts`:
+
+```typescript
+import { describe, expect, it, beforeEach } from "vitest";
+import { NodeMetrics } from "../hdr-metrics";
+
+describe("NodeMetrics", () => {
+  let m: NodeMetrics;
+  beforeEach(() => {
+    m = new NodeMetrics();
+  });
+
+  it("records and returns lifetime percentiles", () => {
+    for (let i = 0; i < 1000; i++) m.record(i);
+    const p50 = m.lifetimePercentile(50);
+    const p99 = m.lifetimePercentile(99);
+    expect(p50).toBeGreaterThan(400);
+    expect(p50).toBeLessThan(600);
+    expect(p99).toBeGreaterThan(900);
+  });
+
+  it("ring buffer returns live window percentiles", () => {
+    for (let i = 0; i < 100; i++) m.record(100);
+    const p99 = m.livePercentile(99, 30_000);
+    expect(p99).toBeCloseTo(100, -1);
+  });
+
+  it("reset clears state", () => {
+    for (let i = 0; i < 100; i++) m.record(i);
+    m.reset();
+    expect(m.totalCount()).toBe(0);
+  });
+
+  it("serialize returns a structured snapshot", () => {
+    for (let i = 0; i < 100; i++) m.record(i * 2);
+    const snap = m.serializeSnapshot();
+    expect(snap.p50).toBeGreaterThan(0);
+    expect(snap.p99).toBeGreaterThan(0);
+    expect(snap.totalCount).toBe(100);
+  });
+
+  it("totalCount reflects record calls", () => {
+    m.record(10);
+    m.record(20);
+    m.record(30);
+    expect(m.totalCount()).toBe(3);
+  });
+});
+```
+
+- [ ] **Step 3: Green · implement `hdr-metrics.ts`**
+
+```typescript
+/**
+ * SIM-020: HDR Histogram metrics per node (§29.2).
+ *
+ * Each node gets:
+ *   - An HDR histogram for lifetime percentiles (p50, p90, p99, p99.9, p99.99)
+ *   - A 30-second ring buffer for live-window percentiles (for the metric strip)
+ *
+ * Fixed memory: ~2 KB for the histogram + 240 KB for the ring buffer at
+ * 1ms resolution (tunable via constructor). Log-linear in sample count.
+ */
+
+import * as hdr from "hdr-histogram-js";
+
+export interface MetricsSnapshot {
+  p50: number;
+  p90: number;
+  p99: number;
+  p99_9: number;
+  p99_99: number;
+  totalCount: number;
+}
+
+class RingBuffer {
+  private buf: { t: number; v: number }[];
+  private idx: number = 0;
+  private size: number;
+
+  constructor(capacity: number) {
+    this.size = capacity;
+    this.buf = new Array(capacity);
+  }
+
+  push(t: number, v: number) {
+    this.buf[this.idx] = { t, v };
+    this.idx = (this.idx + 1) % this.size;
+  }
+
+  valuesSince(since: number): number[] {
+    const out: number[] = [];
+    for (const e of this.buf) {
+      if (e && e.t >= since) out.push(e.v);
+    }
+    return out;
+  }
+
+  clear() {
+    this.buf = new Array(this.size);
+    this.idx = 0;
+  }
+}
+
+export class NodeMetrics {
+  private histogram: hdr.Histogram;
+  private ringBuffer: RingBuffer;
+
+  constructor(
+    private opts: { windowSamples?: number } = {},
+  ) {
+    this.histogram = hdr.build({
+      lowestDiscernibleValue: 1,
+      highestTrackableValue: 60_000,
+      numberOfSignificantValueDigits: 3,
+    });
+    this.ringBuffer = new RingBuffer(opts.windowSamples ?? 30_000);
+  }
+
+  record(valueMs: number, nowRealMs: number = Date.now()) {
+    if (valueMs < 1) valueMs = 1;
+    if (valueMs > 60_000) valueMs = 60_000;
+    this.histogram.recordValue(valueMs);
+    this.ringBuffer.push(nowRealMs, valueMs);
+  }
+
+  lifetimePercentile(p: number): number {
+    return this.histogram.getValueAtPercentile(p);
+  }
+
+  livePercentile(p: number, windowMs = 30_000): number {
+    const since = Date.now() - windowMs;
+    const vs = this.ringBuffer.valuesSince(since);
+    if (vs.length === 0) return 0;
+    const sorted = [...vs].sort((a, b) => a - b);
+    const idx = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
+    return sorted[idx];
+  }
+
+  totalCount(): number {
+    return this.histogram.totalCount;
+  }
+
+  reset() {
+    this.histogram.reset();
+    this.ringBuffer.clear();
+  }
+
+  serializeSnapshot(): MetricsSnapshot {
+    return {
+      p50: this.histogram.getValueAtPercentile(50),
+      p90: this.histogram.getValueAtPercentile(90),
+      p99: this.histogram.getValueAtPercentile(99),
+      p99_9: this.histogram.getValueAtPercentile(99.9),
+      p99_99: this.histogram.getValueAtPercentile(99.99),
+      totalCount: this.histogram.totalCount,
+    };
+  }
+
+  destroy() {
+    // hdr-histogram-js v3 doesn't require explicit dispose for JS histograms; WASM build does.
+    if (typeof (this.histogram as unknown as { destroy?: () => void }).destroy === "function") {
+      (this.histogram as unknown as { destroy: () => void }).destroy();
+    }
+  }
+}
+```
+
+- [ ] **Step 4: Run + commit**
+
+```bash
+cd architex
+pnpm test:run -- hdr-metrics
+git add architex/package.json architex/pnpm-lock.yaml architex/src/lib/simulation/adapters/hdr-metrics.ts architex/src/lib/simulation/adapters/__tests__/hdr-metrics.test.ts
+git commit -m "$(cat <<'EOF'
+feat(sim): HDR histogram + ring buffer per node (§29.2)
+
+NodeMetrics class: HDR histogram (lowestValue=1ms, highestValue=60s,
+3 significant digits) for lifetime percentiles + 30,000-sample ring
+buffer for 30s live window. Methods: record · lifetimePercentile ·
+livePercentile · totalCount · reset · serializeSnapshot · destroy.
+Memory budget ~2 KB histogram + 240 KB ring buffer per node; for 200
+nodes ~48 MB total (within the 16 MB simulation-state budget once
+sampled across sim ticks).
+
+Deps: hdr-histogram-js ^3.0.0.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 14: Author replay scaffolding — seeded RNG, event log writer, keyframe snapshotter
+
+**Files:**
+- Create: `architex/src/lib/simulation/adapters/replay/seeded-rng.ts`
+- Create: `architex/src/lib/simulation/adapters/replay/event-log-writer.ts`
+- Create: `architex/src/lib/simulation/adapters/replay/keyframe-snapshotter.ts`
+- Create: `architex/src/lib/simulation/adapters/replay/__tests__/seeded-rng.test.ts`
+
+Per §29.8, full deterministic replay ships in Phase 5. But Phase 3 must write the event log + 30-second keyframes in a format that Phase 5 can replay from. We ship the writers + the PRNG in Phase 3; we do not ship the replay UI. Phase 3's `SimulationOrchestrator` (existing file, READ-ONLY) is wrapped with a `RunRecorder` that captures state at every 30s boundary.
+
+- [ ] **Step 1: Seeded RNG (Mulberry32)**
+
+```typescript
+// architex/src/lib/simulation/adapters/replay/seeded-rng.ts
+
+/**
+ * SIM-021: Mulberry32 PRNG — deterministic, fast, tiny (<1KB).
+ *
+ * Used as the top-level RNG for a simulation run. Per-node RNGs are
+ * derived via `deriveNodeRng(topLevelSeed, nodeId)` so that changing
+ * one node's config does not cascade-change every other node's noise.
+ */
+
+export type Rng = () => number;
+
+export function mulberry32(seed: number): Rng {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// FNV-1a 32-bit hash
+export function hashStringFNV(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = (h + (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24)) >>> 0;
+  }
+  return h;
+}
+
+export function deriveNodeRng(
+  topLevelSeed: number,
+  nodeId: string,
+): Rng {
+  const derived = (topLevelSeed ^ hashStringFNV(nodeId)) >>> 0;
+  return mulberry32(derived);
+}
+```
+
+- [ ] **Step 2: Test · seeded RNG determinism**
+
+```typescript
+// architex/src/lib/simulation/adapters/replay/__tests__/seeded-rng.test.ts
+
+import { describe, expect, it } from "vitest";
+import { mulberry32, deriveNodeRng, hashStringFNV } from "../seeded-rng";
+
+describe("seeded-rng", () => {
+  it("produces the same sequence for the same seed", () => {
+    const a = mulberry32(42);
+    const b = mulberry32(42);
+    for (let i = 0; i < 100; i++) {
+      expect(a()).toBe(b());
+    }
+  });
+
+  it("produces different sequences for different seeds", () => {
+    const a = mulberry32(1);
+    const b = mulberry32(2);
+    expect(a()).not.toBe(b());
+  });
+
+  it("deriveNodeRng depends on nodeId", () => {
+    const a = deriveNodeRng(42, "node-a");
+    const b = deriveNodeRng(42, "node-b");
+    expect(a()).not.toBe(b());
+  });
+
+  it("deriveNodeRng is deterministic per (seed, nodeId)", () => {
+    const a = deriveNodeRng(42, "node-x");
+    const b = deriveNodeRng(42, "node-x");
+    expect(a()).toBe(b());
+  });
+
+  it("hashStringFNV is pure", () => {
+    expect(hashStringFNV("hello")).toBe(hashStringFNV("hello"));
+    expect(hashStringFNV("hello")).not.toBe(hashStringFNV("world"));
+  });
+});
+```
+
+- [ ] **Step 3: Event log writer**
+
+```typescript
+// architex/src/lib/simulation/adapters/replay/event-log-writer.ts
+
+/**
+ * SIM-022: Event log writer — append-only in-memory buffer + flush hook.
+ *
+ * Phase 3 captures the event stream in memory during a run and flushes
+ * to the sd_chaos_event_log table on run completion or at 5-second
+ * intervals (to avoid losing >5s of events on a crash).
+ *
+ * Phase 5 wires this to the full deterministic-replay system (§29.8).
+ */
+
+export type EventKind =
+  | "request-arrival"
+  | "request-complete"
+  | "chaos-event"
+  | "circuit-breaker-flip"
+  | "node-failure"
+  | "node-recovery"
+  | "edge-failure"
+  | "edge-recovery"
+  | "user-pause"
+  | "user-resume"
+  | "user-scrub"
+  | "user-fork"
+  | "user-manual-inject"
+  | "stage-transition"
+  | "slo-breach"
+  | "slo-recovery";
+
+export interface TimestampedEvent {
+  simTimeMs: number;
+  sequenceNumber: number;
+  kind: EventKind;
+  subkind?: string;
+  severity?: "debug" | "info" | "warn" | "error" | "critical";
+  nodeId?: string;
+  edgeId?: string;
+  payload?: Record<string, unknown>;
+}
+
+export class EventLogWriter {
+  private buffer: TimestampedEvent[] = [];
+  private sequence: number = 0;
+  private readonly flushEveryMs: number;
+  private flushTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor(
+    private readonly flushFn: (events: TimestampedEvent[]) => Promise<void>,
+    opts: { flushEveryMs?: number } = {},
+  ) {
+    this.flushEveryMs = opts.flushEveryMs ?? 5_000;
+  }
+
+  start() {
+    if (this.flushTimer) return;
+    this.flushTimer = setInterval(() => void this.flush(), this.flushEveryMs);
+  }
+
+  stop() {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+  }
+
+  record(ev: Omit<TimestampedEvent, "sequenceNumber">): TimestampedEvent {
+    const full: TimestampedEvent = {
+      ...ev,
+      sequenceNumber: ++this.sequence,
+    };
+    this.buffer.push(full);
+    return full;
+  }
+
+  async flush(): Promise<void> {
+    if (this.buffer.length === 0) return;
+    const toWrite = this.buffer;
+    this.buffer = [];
+    try {
+      await this.flushFn(toWrite);
+    } catch (e) {
+      // On flush failure, put them back; next flush retries
+      this.buffer = toWrite.concat(this.buffer);
+      throw e;
+    }
+  }
+
+  pending(): TimestampedEvent[] {
+    return [...this.buffer];
+  }
+
+  pendingCount(): number {
+    return this.buffer.length;
+  }
+
+  sequenceNumber(): number {
+    return this.sequence;
+  }
+}
+```
+
+- [ ] **Step 4: Keyframe snapshotter**
+
+```typescript
+// architex/src/lib/simulation/adapters/replay/keyframe-snapshotter.ts
+
+/**
+ * SIM-023: Keyframe snapshotter — every 30 sim-seconds, capture
+ * SimState. Phase 5 replay rehydrates by loading keyframe[floor(t/30)]
+ * and replaying events between that keyframe and t.
+ *
+ * Phase 3 captures snapshots into sd_simulation_runs.keyframes JSONB
+ * blob; Phase 5 wires the rehydration path. Compression: JSON.stringify
+ * + gzip at flush time (to fit ~200 KB into the blob for a 30-minute run).
+ */
+
+export interface SimStateSnapshot {
+  simTimeMs: number;
+  rngSeed: number;
+  nodes: Record<
+    string,
+    {
+      status: "healthy" | "degraded" | "down";
+      cpuPct: number;
+      queueDepth: number;
+      activeConnections: number;
+      metricsSnapshot?: unknown;
+    }
+  >;
+  edges: Record<
+    string,
+    {
+      cbState: "closed" | "open" | "half-open";
+      errorRate: number;
+    }
+  >;
+}
+
+export class KeyframeSnapshotter {
+  private snapshots: SimStateSnapshot[] = [];
+  private lastSnapshotAtSimMs: number = 0;
+  private readonly intervalMs: number;
+
+  constructor(opts: { intervalMs?: number } = {}) {
+    this.intervalMs = opts.intervalMs ?? 30_000;
+  }
+
+  maybeSnapshot(
+    nowSimMs: number,
+    captureFn: () => SimStateSnapshot,
+  ): SimStateSnapshot | null {
+    if (nowSimMs - this.lastSnapshotAtSimMs >= this.intervalMs) {
+      const snap = captureFn();
+      this.snapshots.push(snap);
+      this.lastSnapshotAtSimMs = nowSimMs;
+      return snap;
+    }
+    return null;
+  }
+
+  all(): SimStateSnapshot[] {
+    return [...this.snapshots];
+  }
+
+  get(indexOrTimeMs: number): SimStateSnapshot | null {
+    if (indexOrTimeMs < this.snapshots.length && Number.isInteger(indexOrTimeMs)) {
+      return this.snapshots[indexOrTimeMs] ?? null;
+    }
+    const idx = Math.floor(indexOrTimeMs / this.intervalMs);
+    return this.snapshots[idx] ?? null;
+  }
+
+  count(): number {
+    return this.snapshots.length;
+  }
+}
+```
+
+- [ ] **Step 5: Run tests + commit**
+
+```bash
+cd architex
+pnpm test:run -- seeded-rng
+git add architex/src/lib/simulation/adapters/replay/
+git commit -m "$(cat <<'EOF'
+feat(sim): replay scaffolding · seeded RNG + event log writer + keyframe snapshotter
+
+§29.8 foundations for deterministic replay. Phase 5 wires replay UI;
+Phase 3 plumbs the capture format. Mulberry32 RNG with FNV-1a-derived
+per-node seeds. EventLogWriter: append-only buffer, 5s flush interval,
+pluggable flush-fn (DB write in prod, noop in tests). KeyframeSnapshotter:
+captures SimStateSnapshot every 30 sim-seconds; indexed access for
+scrub/fork operations.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
