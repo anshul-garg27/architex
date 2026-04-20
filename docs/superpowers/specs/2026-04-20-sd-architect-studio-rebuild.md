@@ -289,5 +289,119 @@ Three confirmation dialog moments total: unsaved build, mid-sim switch with >10s
 
 ---
 
+## 4. Information Architecture
+
+The SD module has four primary object types and a web of secondary relationships that must be navigable from any surface. This section defines the URL shape, the library routes, the browse facets, and the cross-module bridges.
+
+### 4.1 Primary objects
+
+| Object | Count at launch | URL shape | DB table |
+|---|---|---|---|
+| **Concept** (atom) | 40 | `/sd/concepts/{slug}` | `sd_concepts` |
+| **Problem** (molecule) | 30 | `/sd/problems/{slug}` | `sd_problems` |
+| **Simulation run** (instance of a Build + scenario) | user-generated, unbounded | `/sd/sim/{runId}` | `sd_simulation_runs` |
+| **Drill attempt** (mock interview, timed) | user-generated, unbounded | `/sd/drill/{attemptId}` | `sd_drill_attempts` |
+
+Secondary objects include `SDChaosEvent` (73 records), `SDRealIncident` (10), `SDTemplate` (canonical starter diagrams), and `SDShareLink` (one row per public share, every completed drill/sim produces one per Q41).
+
+### 4.2 URL shape
+
+```
+/sd                                      → module home (dashboard)
+/sd/learn                                → Learn library (40 concepts + 30 problems)
+/sd/learn/concepts/{slug}                → concept page (8-section)
+/sd/learn/problems/{slug}                → problem page (6-pane)
+/sd/build                                → Build mode (empty canvas or resume)
+/sd/build/{diagramId}                    → named saved diagram
+/sd/simulate                             → Simulate mode entry
+/sd/simulate/run/{runId}                 → specific past run
+/sd/drill                                → Drill library (30 problems, company presets, filters)
+/sd/drill/{attemptId}                    → live or completed drill
+/sd/review                               → Review mode (FSRS mixed queue)
+/sd/chaos                                → chaos library (73 events + 10 incidents)
+/sd/chaos/incidents/{slug}               → real-incident replay page
+/sd/share/{shareId}                      → public read-only shared diagram / run / drill
+```
+
+All mode-switch deep links respect `?mode=build|simulate|drill|learn|review` and `?resume=1`. All share links are OG-image-enabled with a cobalt-blue grade card (Q21).
+
+### 4.3 Library routes and multi-lens browse (Q20)
+
+The concept and problem libraries are one unified `/sd/learn` with a faceted filter bar. The same route is reused from Drill mode (`/sd/drill`) with "problems only" filtering. Users should be able to discover a problem **six ways**:
+
+| Lens | Example filter | Where applied |
+|---|---|---|
+| **Domain** | `?domain=media-social` | Learn, Drill |
+| **Difficulty** | `?difficulty=staff` (easy / mid / staff / principal) | Learn, Drill |
+| **Company** | `?company=google` | Drill primarily |
+| **LLD pattern** | `?lldPattern=observer` (linked through the graph) | Learn (cross-module bridge) |
+| **Concept** | `?concept=consistent-hashing` (show problems that use it) | Learn |
+| **Chaos event** | `?chaosFamily=cascade` (problems that train resilience against this) | Chaos library entry |
+
+Lenses stack. `?domain=media-social&difficulty=staff&company=meta` narrows to "Staff-level Meta interview problems in media domain" (typically 2-4 matches). This is the second-most-used navigation in the product after mode-switch, because Journeymen and Architects primarily browse by these axes.
+
+### 4.4 Knowledge graph (cross-module, Q5, Q35)
+
+Every concept, problem, and LLD pattern is a node in a shared graph. Edges:
+
+- `concept → concept` (prerequisite, partial: *consistent-hashing requires hashing-basics*)
+- `concept → problem` (problem uses this concept)
+- `problem → problem` (related: similar shape, common traps)
+- `problem → lld-pattern` (e.g. "Design Twitter" links to LLD's Observer, Pub-Sub)
+- `problem → chaos-event` (this problem is vulnerable to this event without the right primitive)
+- `lld-pattern → sd-concept` (Circuit Breaker pattern ↔ Resilience concept)
+
+The graph is navigable three ways:
+
+1. **Permanent neighbor sidebar** on every concept / problem page (Q35), shows 4-6 linked nodes with one-line context
+2. **End-of-page link cards** (Q35), more expansive — 2-3 sentences per link
+3. **Graph view** (⌘G, Q37) — zoomable 2D map of all modules. Cobalt for SD, amber for LLD, teal for Algorithms. Clustered by domain. Click a node to open its page.
+
+The graph is stored as Postgres edges and exposed by a `GET /api/graph` endpoint. The `⌘G` command invokes the graph overlay, not a new page — overlays feel continuous, routes feel like departures.
+
+### 4.5 Dashboard (Q39)
+
+`/sd` (module home) is the SD dashboard. Four cards above the fold:
+
+1. **Streak pill** — total Architex streak (unified across modules, Q36), days to next milestone, don't-break-the-streak nudge
+2. **FSRS queue** — "N cards due today" with quick-start button to Review
+3. **Resume** — most recent Build, Simulate, or Drill in flight, one-click continue
+4. **AI recommended** — Sonnet picks one next thing based on progress state (Q40). "You completed Rate Limiter yesterday. Try it under Chaos Drill conditions." or "Your p99 intuition is still weak — consider the Stress Test activity on your URL Shortener design."
+
+Below the fold:
+- Progress rings per concept wave (8 rings, 5 concepts each roughly)
+- "Your 7-day heatmap" (minutes per day, per module, color-coded)
+- A "Neighborhood" panel showing 4 concepts you have not started, relevant to what you have
+- A "Recent shares" strip if the user has any shareable artifacts
+
+The dashboard is mobile-friendly (Q42). Build/Simulate/Drill are not.
+
+### 4.6 Crunch Mode entry (Q45)
+
+A separate entrypoint card on the dashboard: *"Interviewing soon?"*. Clicking opens a 3-field dialog:
+- Onsite date (calendar picker)
+- Company (free-text with autocomplete, 8 presets available)
+- Seniority (IC4 / IC5 / IC6 / Staff / Principal)
+
+Submit → Sonnet generates a 7-day path (Q45), writes it to `sd_study_plans` (see §21), and the dashboard rearranges to show today's Crunch Mode list at the top. The plan is editable. The user can snooze a day; the plan shifts.
+
+### 4.7 Mobile IA
+
+Mobile users (Q42) see a reduced IA:
+- `/sd` (dashboard)
+- `/sd/learn/*` (read-only concept and problem pages)
+- `/sd/review` (mobile-first FSRS card stack with swipe gestures)
+- `/sd/share/{shareId}` (view-only shares)
+- `/profile/*`
+
+Attempting to visit `/sd/build`, `/sd/simulate/*`, or `/sd/drill/*` on mobile renders an "open on desktop" card with a share-to-desktop QR code (if the user is logged in, the URL + mode deep-link are already persisted, so the desktop session resumes exactly).
+
+### 4.8 Anonymous vs authenticated
+
+Same rules as LLD §7 (Q17). Anonymous users can browse concepts, problems, the chaos library, and real-incident pages. They can run up to 3 Simulate runs and 1 Drill per session (stored in localStorage). On auth, a migration decision tree merges any local state into the DB. First-visit users get Case 1 silent auto-merge with a welcome toast: *"Welcome back. Your 2 drafts have been saved to your account."*
+
+---
+
+
 
 
