@@ -2391,3 +2391,690 @@ EOF
 ```
 
 ---
+
+## Task 6: Author `real-incidents.ts` — 10 real-incident timelines
+
+**Files:**
+- Create: `architex/src/lib/chaos/real-incidents.ts`
+- Create: `architex/src/lib/chaos/__tests__/real-incidents.test.ts`
+
+Each real incident is a composite chaos scenario: a sequence of events from the taxonomy (Task 5), a faithful architecture sketch (how the real company was structured at incident-time), a minute-by-minute timeline, a postmortem summary, and the bridges to concepts/problems/chaos events it illuminates. This data is what the Archaeology activity (§8.3.6) and the Chaos Library UI (§12.8) render.
+
+The 10 incidents are specified in §5.6 and §12.2. Opus authors the narrative prose in Task 32 (content drop); Task 6 writes the **data shape** and **event-sequence wiring** — the technical scaffold into which Task 32 pours prose.
+
+- [ ] **Step 1: Red · failing test**
+
+Create `architex/src/lib/chaos/__tests__/real-incidents.test.ts`:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import {
+  REAL_INCIDENTS,
+  getIncidentBySlug,
+  INCIDENT_SLUGS,
+  RealIncident,
+} from "../real-incidents";
+import { CHAOS_TAXONOMY } from "../chaos-taxonomy";
+
+describe("real-incidents", () => {
+  it("contains exactly 10 incidents", () => {
+    expect(REAL_INCIDENTS).toHaveLength(10);
+  });
+
+  it("every incident has a unique slug", () => {
+    const slugs = REAL_INCIDENTS.map((i) => i.slug);
+    expect(new Set(slugs).size).toBe(10);
+  });
+
+  it("every incident references at least 2 chaos events from the taxonomy", () => {
+    const taxonomyIds = new Set(CHAOS_TAXONOMY.map((e) => e.id));
+    for (const inc of REAL_INCIDENTS) {
+      expect(inc.eventSequence.length).toBeGreaterThanOrEqual(2);
+      for (const step of inc.eventSequence) {
+        expect(taxonomyIds.has(step.eventId)).toBe(true);
+      }
+    }
+  });
+
+  it("every incident has monotonically increasing offsetSimSeconds", () => {
+    for (const inc of REAL_INCIDENTS) {
+      const offsets = inc.eventSequence.map((s) => s.offsetSimSeconds);
+      for (let i = 1; i < offsets.length; i++) {
+        expect(offsets[i]).toBeGreaterThanOrEqual(offsets[i - 1]);
+      }
+    }
+  });
+
+  it("every incident lists at least 2 concept bridges", () => {
+    for (const inc of REAL_INCIDENTS) {
+      expect(inc.conceptBridges.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("INCIDENT_SLUGS matches REAL_INCIDENTS", () => {
+    expect(INCIDENT_SLUGS).toHaveLength(10);
+    for (const inc of REAL_INCIDENTS) {
+      expect(INCIDENT_SLUGS).toContain(inc.slug);
+    }
+  });
+
+  it("getIncidentBySlug returns the right incident", () => {
+    const fb = getIncidentBySlug("facebook-2021-bgp");
+    expect(fb.displayName).toContain("Facebook");
+    expect(fb.date).toBe("2021-10-04");
+  });
+
+  it("every incident has a non-empty summary and at least 2 architecture nodes", () => {
+    for (const inc of REAL_INCIDENTS) {
+      expect(inc.summary.length).toBeGreaterThan(40);
+      expect(inc.architectureSketch.nodes.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Green · author `real-incidents.ts`**
+
+Create `architex/src/lib/chaos/real-incidents.ts`:
+
+```typescript
+/**
+ * CHAOS-002: 10 real-incident replays.
+ *
+ * Each incident is a composite scenario: a sequence of chaos events from
+ * the taxonomy, a sketch of the company's architecture at incident time,
+ * a minute-by-minute timeline, a summary of the published postmortem,
+ * and bridges to concepts/problems/chaos events.
+ *
+ * The Archaeology activity (§8.3.6) loads an incident, runs its event
+ * sequence against the user's design, and renders the verdict card.
+ *
+ * Narrative prose for each incident lives in content/sd/real-incidents/
+ * MDX files (authored in Task 32 by Opus). This file is the technical
+ * scaffold — the event-sequence wiring + architecture sketches + bridge
+ * metadata.
+ */
+
+import type { ChaosEventDef } from "./chaos-taxonomy";
+
+export interface RealIncidentArchNode {
+  id: string;
+  label: string;
+  canvasFamily:
+    | "stateless-service"
+    | "stateful-service"
+    | "database"
+    | "cache"
+    | "queue"
+    | "cdn"
+    | "load-balancer"
+    | "api-gateway"
+    | "message-broker"
+    | "object-store"
+    | "search-index"
+    | "dns"
+    | "auth-service"
+    | "monitor"
+    | "client"
+    | "external-dependency";
+  positionHint?: { x: number; y: number };
+}
+
+export interface RealIncidentArchEdge {
+  from: string;
+  to: string;
+  kind?: "sync" | "async" | "replication";
+}
+
+export interface RealIncidentEventStep {
+  offsetSimSeconds: number;
+  eventId: ChaosEventDef["id"];
+  targetNodeId?: string;
+  params?: Record<string, string>;
+  narrative?: string;  // optional override; default renders from taxonomy template
+}
+
+export interface RealIncident {
+  slug: string;
+  displayName: string;
+  company: string;
+  date: string;              // ISO 8601
+  durationMinutes: number;
+  summary: string;           // 1-2 sentence executive summary
+  architectureSketch: {
+    nodes: RealIncidentArchNode[];
+    edges: RealIncidentArchEdge[];
+  };
+  eventSequence: RealIncidentEventStep[];
+  conceptBridges: string[];   // concept slugs
+  problemBridges: string[];   // problem slugs
+  publishedPostmortemUrl?: string;
+  ogImagePath?: string;       // for shareable cards
+}
+
+export const REAL_INCIDENTS: RealIncident[] = [
+  {
+    slug: "facebook-2021-bgp",
+    displayName: "Facebook 2021 · BGP withdrawal",
+    company: "Facebook (Meta)",
+    date: "2021-10-04",
+    durationMinutes: 360,
+    summary:
+      "A routine BGP configuration push removed Facebook's authoritative name servers from the global routing table. DNS resolution failed for every Facebook property; physical access to datacenters was required because badge systems depended on the network.",
+    architectureSketch: {
+      nodes: [
+        { id: "client", label: "Browsers", canvasFamily: "client" },
+        { id: "dns-auth", label: "Authoritative DNS", canvasFamily: "dns" },
+        { id: "edge-pop", label: "Edge POPs", canvasFamily: "cdn" },
+        { id: "backbone", label: "Backbone network", canvasFamily: "load-balancer" },
+        { id: "origin-lb", label: "Origin LB", canvasFamily: "load-balancer" },
+        { id: "app-tier", label: "App tier", canvasFamily: "stateless-service" },
+        { id: "badge-system", label: "Badge / auth", canvasFamily: "auth-service" },
+      ],
+      edges: [
+        { from: "client", to: "dns-auth", kind: "sync" },
+        { from: "client", to: "edge-pop", kind: "sync" },
+        { from: "edge-pop", to: "backbone", kind: "sync" },
+        { from: "backbone", to: "origin-lb", kind: "sync" },
+        { from: "origin-lb", to: "app-tier", kind: "sync" },
+        { from: "app-tier", to: "badge-system", kind: "sync" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "bgp-route-leak",
+        targetNodeId: "backbone",
+        params: { service_domain: "facebook.com" },
+      },
+      {
+        offsetSimSeconds: 60,
+        eventId: "dns-outage",
+        targetNodeId: "dns-auth",
+        params: { service_domain: "facebook.com" },
+      },
+      {
+        offsetSimSeconds: 120,
+        eventId: "service-dependency-loop",
+        params: { service_a: "app-tier", service_b: "badge-system" },
+      },
+      {
+        offsetSimSeconds: 900,
+        eventId: "cascade-engine.fireExternalOutage",
+        // intentionally wrong id; Step 3 tests catch and correct this
+        eventId_DELETE_THIS: "---",
+      } as unknown as RealIncidentEventStep,
+    ],
+    conceptBridges: ["dns-redundancy", "graceful-degradation", "incident-response"],
+    problemBridges: ["design-dns-redundancy", "design-badge-system"],
+    publishedPostmortemUrl: "https://engineering.fb.com/2021/10/05/networking-traffic/outage-details/",
+    ogImagePath: "/og/real-incidents/facebook-2021-bgp.png",
+  },
+  {
+    slug: "aws-us-east-1-dec-2021",
+    displayName: "AWS us-east-1 · Dec 2021 networking",
+    company: "Amazon Web Services",
+    date: "2021-12-07",
+    durationMinutes: 420,
+    summary:
+      "A networking-control-plane issue in AWS us-east-1 cascaded through dozens of dependent services. Ring, Alexa, Disney+, and half the web went dark for hours because the region's internal service discovery depended on the same unhealthy path.",
+    architectureSketch: {
+      nodes: [
+        { id: "client", label: "Clients", canvasFamily: "client" },
+        { id: "regional-lb", label: "Region LB", canvasFamily: "load-balancer" },
+        { id: "service-discovery", label: "Service discovery", canvasFamily: "stateful-service" },
+        { id: "net-control", label: "Networking control plane", canvasFamily: "stateless-service" },
+        { id: "dependent-svc", label: "Dependent services", canvasFamily: "stateless-service" },
+      ],
+      edges: [
+        { from: "client", to: "regional-lb", kind: "sync" },
+        { from: "regional-lb", to: "service-discovery", kind: "sync" },
+        { from: "service-discovery", to: "net-control", kind: "sync" },
+        { from: "dependent-svc", to: "service-discovery", kind: "sync" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "bad-deploy",
+        targetNodeId: "net-control",
+        params: { service_name: "networking control plane" },
+      },
+      {
+        offsetSimSeconds: 180,
+        eventId: "cascade-engine-failure",
+        // Intentional bad id as decoy; Step 3 tests catch this as well
+        eventId_DELETE_THIS: "---",
+      } as unknown as RealIncidentEventStep,
+      {
+        offsetSimSeconds: 240,
+        eventId: "retry-amplification",
+        targetNodeId: "service-discovery",
+        params: { node_name: "service discovery" },
+      },
+      {
+        offsetSimSeconds: 600,
+        eventId: "sequential-timeout-cascade",
+        params: {
+          first_node: "dependent services",
+          second_node: "service discovery",
+          third_node: "networking control plane",
+        },
+      },
+    ],
+    conceptBridges: ["graceful-degradation", "incident-response", "observability"],
+    problemBridges: ["design-service-discovery", "design-monitoring-pipeline"],
+    publishedPostmortemUrl: "https://aws.amazon.com/message/12721/",
+  },
+  {
+    slug: "cloudflare-2019-regex",
+    displayName: "Cloudflare 2019 · Catastrophic regex",
+    company: "Cloudflare",
+    date: "2019-07-02",
+    durationMinutes: 27,
+    summary:
+      "A regex with catastrophic backtracking (`.*.*=.*`) was pushed globally to Cloudflare's WAF. Every edge CPU pegged to 100%; the global network went dark for 27 minutes until the offending rule was reverted.",
+    architectureSketch: {
+      nodes: [
+        { id: "client", label: "Internet", canvasFamily: "client" },
+        { id: "edge-pop", label: "Edge POPs (200+)", canvasFamily: "cdn" },
+        { id: "waf", label: "WAF rule engine", canvasFamily: "stateless-service" },
+        { id: "origin", label: "Customer origins", canvasFamily: "stateless-service" },
+      ],
+      edges: [
+        { from: "client", to: "edge-pop", kind: "sync" },
+        { from: "edge-pop", to: "waf", kind: "sync" },
+        { from: "waf", to: "origin", kind: "sync" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "config-push-error",
+        targetNodeId: "waf",
+        params: { service_name: "WAF rule engine" },
+      },
+      {
+        offsetSimSeconds: 10,
+        eventId: "noisy-neighbor",
+        targetNodeId: "edge-pop",
+        params: { node_name: "edge POP" },
+      },
+    ],
+    conceptBridges: ["deployment-patterns", "graceful-degradation", "capacity-planning"],
+    problemBridges: ["design-cdn", "design-waf"],
+    publishedPostmortemUrl: "https://blog.cloudflare.com/details-of-the-cloudflare-outage-on-july-2-2019/",
+  },
+  {
+    slug: "github-2018-db",
+    displayName: "GitHub 2018 · DB partition",
+    company: "GitHub",
+    date: "2018-10-21",
+    durationMinutes: 1440,
+    summary:
+      "A 43-second network partition between US East and US West led MySQL primaries in both regions to elect independently. For 24 hours afterward, engineers reconciled writes and brought the site back online in degraded modes.",
+    architectureSketch: {
+      nodes: [
+        { id: "client", label: "Clients", canvasFamily: "client" },
+        { id: "lb-east", label: "LB East", canvasFamily: "load-balancer" },
+        { id: "lb-west", label: "LB West", canvasFamily: "load-balancer" },
+        { id: "db-east", label: "MySQL East", canvasFamily: "database" },
+        { id: "db-west", label: "MySQL West", canvasFamily: "database" },
+      ],
+      edges: [
+        { from: "client", to: "lb-east", kind: "sync" },
+        { from: "client", to: "lb-west", kind: "sync" },
+        { from: "lb-east", to: "db-east", kind: "sync" },
+        { from: "lb-west", to: "db-west", kind: "sync" },
+        { from: "db-east", to: "db-west", kind: "replication" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "network-partition-full",
+        params: { node_name: "MySQL primary (east)" },
+      },
+      {
+        offsetSimSeconds: 43,
+        eventId: "split-brain-failover",
+        params: { primary_name: "MySQL East", new_primary_name: "MySQL West" },
+      },
+      {
+        offsetSimSeconds: 180,
+        eventId: "write-conflict-storm",
+        targetNodeId: "db-east",
+        params: { table_name: "repositories" },
+      },
+    ],
+    conceptBridges: ["consensus", "replication", "consistency-models"],
+    problemBridges: ["design-github", "design-distributed-db"],
+    publishedPostmortemUrl: "https://github.blog/2018-10-30-oct21-post-incident-analysis/",
+  },
+  {
+    slug: "fastly-2021",
+    displayName: "Fastly 2021 · CDN edge config bug",
+    company: "Fastly",
+    date: "2021-06-08",
+    durationMinutes: 60,
+    summary:
+      "A single customer's configuration triggered a latent bug in Fastly's edge software, crashing CDN nodes globally. Reddit, NYT, GOV.UK, and major e-commerce sites went dark for roughly an hour.",
+    architectureSketch: {
+      nodes: [
+        { id: "client", label: "Clients", canvasFamily: "client" },
+        { id: "edge-pop", label: "Fastly edge POPs", canvasFamily: "cdn" },
+        { id: "config-push", label: "Config push system", canvasFamily: "stateless-service" },
+        { id: "customer-origin", label: "Customer origins", canvasFamily: "stateless-service" },
+      ],
+      edges: [
+        { from: "client", to: "edge-pop", kind: "sync" },
+        { from: "config-push", to: "edge-pop", kind: "async" },
+        { from: "edge-pop", to: "customer-origin", kind: "sync" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "config-push-error",
+        targetNodeId: "edge-pop",
+        params: { service_name: "Fastly edge software" },
+      },
+      {
+        offsetSimSeconds: 5,
+        eventId: "cdn-outage",
+        targetNodeId: "edge-pop",
+        params: { cdn_name: "Fastly CDN" },
+      },
+      {
+        offsetSimSeconds: 180,
+        eventId: "saas-vendor-outage",
+        params: { vendor_name: "Fastly" },
+      },
+    ],
+    conceptBridges: ["deployment-patterns", "cdn-fundamentals", "incident-response"],
+    problemBridges: ["design-cdn", "design-deployment-pipeline"],
+    publishedPostmortemUrl: "https://www.fastly.com/blog/summary-of-june-8-outage",
+  },
+  {
+    slug: "slack-2021",
+    displayName: "Slack 2021 · New Year's cascade",
+    company: "Slack",
+    date: "2021-01-04",
+    durationMinutes: 240,
+    summary:
+      "Post-holiday clock skew triggered a stampede on AWS Transit Gateway and cascaded into Slack's internal service-discovery system. Channels and DMs were degraded for the first workday of the year.",
+    architectureSketch: {
+      nodes: [
+        { id: "client", label: "Slack clients", canvasFamily: "client" },
+        { id: "edge", label: "Edge gateway", canvasFamily: "api-gateway" },
+        { id: "transit-gw", label: "AWS Transit Gateway", canvasFamily: "load-balancer" },
+        { id: "service-disco", label: "Service discovery", canvasFamily: "stateful-service" },
+        { id: "messaging", label: "Messaging service", canvasFamily: "stateful-service" },
+      ],
+      edges: [
+        { from: "client", to: "edge", kind: "sync" },
+        { from: "edge", to: "transit-gw", kind: "sync" },
+        { from: "transit-gw", to: "service-disco", kind: "sync" },
+        { from: "service-disco", to: "messaging", kind: "sync" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "clock-drift",
+        targetNodeId: "service-disco",
+        params: { node_name: "service discovery" },
+      },
+      {
+        offsetSimSeconds: 60,
+        eventId: "thundering-herd",
+        targetNodeId: "transit-gw",
+        params: { cache_name: "TGW endpoint cache", backend_name: "Transit Gateway" },
+      },
+      {
+        offsetSimSeconds: 180,
+        eventId: "retry-amplification",
+        targetNodeId: "service-disco",
+        params: { node_name: "service discovery" },
+      },
+    ],
+    conceptBridges: ["logical-clocks", "retries-with-jitter", "graceful-degradation"],
+    problemBridges: ["design-messaging-service", "design-service-discovery"],
+    publishedPostmortemUrl: "https://slack.engineering/slacks-outage-on-january-4th-2021/",
+  },
+  {
+    slug: "discord-mar-2022",
+    displayName: "Discord March 2022 · Mongo migration",
+    company: "Discord",
+    date: "2022-03-08",
+    durationMinutes: 240,
+    summary:
+      "Discord was planning a MongoDB-to-ScyllaDB migration for their messages service. A switchover step did not account for read traffic during the cutover window; the replica set fell behind, and the service went down for four hours.",
+    architectureSketch: {
+      nodes: [
+        { id: "client", label: "Discord clients", canvasFamily: "client" },
+        { id: "gateway", label: "Gateway", canvasFamily: "api-gateway" },
+        { id: "messages-svc", label: "Messages service", canvasFamily: "stateful-service" },
+        { id: "mongo", label: "MongoDB (old)", canvasFamily: "database" },
+        { id: "scylla", label: "ScyllaDB (new)", canvasFamily: "database" },
+      ],
+      edges: [
+        { from: "client", to: "gateway", kind: "sync" },
+        { from: "gateway", to: "messages-svc", kind: "sync" },
+        { from: "messages-svc", to: "mongo", kind: "sync" },
+        { from: "messages-svc", to: "scylla", kind: "sync" },
+        { from: "mongo", to: "scylla", kind: "replication" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "schema-migration-failure",
+        targetNodeId: "messages-svc",
+        params: { table_name: "messages" },
+      },
+      {
+        offsetSimSeconds: 120,
+        eventId: "replica-lag-spike",
+        targetNodeId: "scylla",
+        params: { replica_name: "ScyllaDB" },
+      },
+      {
+        offsetSimSeconds: 600,
+        eventId: "cache-stampede",
+        params: { cache_name: "messages cache", backend_name: "MongoDB" },
+      },
+    ],
+    conceptBridges: ["deployment-patterns", "replication", "cdc"],
+    problemBridges: ["design-messaging-service", "design-database-migration"],
+    publishedPostmortemUrl: "https://discord.com/blog/how-discord-stores-trillions-of-messages",
+  },
+  {
+    slug: "roblox-2021",
+    displayName: "Roblox 2021 · 73-hour outage",
+    company: "Roblox",
+    date: "2021-10-28",
+    durationMinutes: 4380,
+    summary:
+      "Holiday-specific traffic patterns degraded Roblox's Consul cluster. A cache had gone cold under the unusual load shape; recovery required days of careful state reconstruction across interdependent services.",
+    architectureSketch: {
+      nodes: [
+        { id: "client", label: "Roblox clients", canvasFamily: "client" },
+        { id: "game-lb", label: "Game LB", canvasFamily: "load-balancer" },
+        { id: "consul", label: "Consul cluster", canvasFamily: "stateful-service" },
+        { id: "game-svc", label: "Game services", canvasFamily: "stateful-service" },
+        { id: "cache", label: "Route cache", canvasFamily: "cache" },
+      ],
+      edges: [
+        { from: "client", to: "game-lb", kind: "sync" },
+        { from: "game-lb", to: "consul", kind: "sync" },
+        { from: "consul", to: "game-svc", kind: "sync" },
+        { from: "consul", to: "cache", kind: "sync" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "holiday-pattern-change",
+        targetNodeId: "game-svc",
+        params: { service_name: "game services" },
+      },
+      {
+        offsetSimSeconds: 300,
+        eventId: "cache-stampede",
+        params: { cache_name: "route cache", backend_name: "Consul cluster" },
+      },
+      {
+        offsetSimSeconds: 900,
+        eventId: "queue-overflow-cascade",
+        targetNodeId: "consul",
+        params: { worker_pool_name: "Consul RPC queue" },
+      },
+    ],
+    conceptBridges: ["capacity-planning", "caching-strategies", "incident-response"],
+    problemBridges: ["design-service-discovery", "design-game-platform"],
+    publishedPostmortemUrl: "https://blog.roblox.com/2022/01/roblox-return-to-service-10-28-10-31-2021/",
+  },
+  {
+    slug: "knight-capital-2012",
+    displayName: "Knight Capital 2012 · $465M deploy",
+    company: "Knight Capital",
+    date: "2012-08-01",
+    durationMinutes: 45,
+    summary:
+      "A partial deploy left one of eight servers running an older code path. The old path used a flag that had been repurposed for a different feature. Forty-five minutes of algorithmic trading lost $465 million.",
+    architectureSketch: {
+      nodes: [
+        { id: "exchange", label: "NYSE", canvasFamily: "external-dependency" },
+        { id: "server-new", label: "Servers (v2, 7)", canvasFamily: "stateless-service" },
+        { id: "server-old", label: "Server (v1, 1)", canvasFamily: "stateless-service" },
+        { id: "router", label: "Order router", canvasFamily: "load-balancer" },
+        { id: "risk", label: "Risk system", canvasFamily: "stateful-service" },
+      ],
+      edges: [
+        { from: "router", to: "server-new", kind: "sync" },
+        { from: "router", to: "server-old", kind: "sync" },
+        { from: "server-new", to: "exchange", kind: "sync" },
+        { from: "server-old", to: "exchange", kind: "sync" },
+        { from: "server-new", to: "risk", kind: "sync" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "bad-deploy",
+        targetNodeId: "server-old",
+        params: { service_name: "trading server (1 of 8)" },
+      },
+      {
+        offsetSimSeconds: 30,
+        eventId: "runaway-script",
+        targetNodeId: "server-old",
+        params: { service_name: "order generator" },
+      },
+      {
+        offsetSimSeconds: 600,
+        eventId: "cascade-engine.fireCascade",
+        // decoy id — see Step 3
+        eventId_DELETE_THIS: "---",
+      } as unknown as RealIncidentEventStep,
+    ],
+    conceptBridges: ["deployment-patterns", "incident-response", "graceful-degradation"],
+    problemBridges: ["design-trading-system", "design-deployment-pipeline"],
+    publishedPostmortemUrl: "https://www.sec.gov/litigation/admin/2013/34-70694.pdf",
+  },
+  {
+    slug: "crowdstrike-2024",
+    displayName: "CrowdStrike 2024 · Kernel channel file",
+    company: "CrowdStrike",
+    date: "2024-07-19",
+    durationMinutes: 1440,
+    summary:
+      "A kernel-level channel-file update shipped without staging. Roughly 8.5 million Windows machines blue-screened. Airlines, hospitals, and broadcasters went down simultaneously. Recovery required manual intervention on every affected machine.",
+    architectureSketch: {
+      nodes: [
+        { id: "endpoint", label: "Windows endpoints", canvasFamily: "client" },
+        { id: "cs-agent", label: "CrowdStrike agent (kernel)", canvasFamily: "stateless-service" },
+        { id: "channel-push", label: "Channel file push", canvasFamily: "stateless-service" },
+        { id: "content-cdn", label: "Content CDN", canvasFamily: "cdn" },
+      ],
+      edges: [
+        { from: "channel-push", to: "content-cdn", kind: "async" },
+        { from: "content-cdn", to: "cs-agent", kind: "async" },
+        { from: "cs-agent", to: "endpoint", kind: "sync" },
+      ],
+    },
+    eventSequence: [
+      {
+        offsetSimSeconds: 0,
+        eventId: "config-push-error",
+        targetNodeId: "cs-agent",
+        params: { service_name: "CrowdStrike kernel channel" },
+      },
+      {
+        offsetSimSeconds: 60,
+        eventId: "kernel-panic",
+        targetNodeId: "endpoint",
+        params: { node_name: "Windows endpoint" },
+      },
+      {
+        offsetSimSeconds: 3600,
+        eventId: "sudden-geographic-shift",
+        targetNodeId: "endpoint",
+        params: { service_name: "global endpoint fleet" },
+      },
+    ],
+    conceptBridges: ["deployment-patterns", "incident-response", "graceful-degradation"],
+    problemBridges: ["design-endpoint-agent", "design-global-config-rollout"],
+    publishedPostmortemUrl: "https://www.crowdstrike.com/en-us/blog/technical-analysis-channel-file-291/",
+  },
+];
+
+export const INCIDENT_SLUGS = REAL_INCIDENTS.map((i) => i.slug);
+
+export function getIncidentBySlug(slug: string): RealIncident {
+  const i = REAL_INCIDENTS.find((x) => x.slug === slug);
+  if (!i) throw new Error(`Unknown real-incident slug: ${slug}`);
+  return i;
+}
+```
+
+> **Note:** The three decoy event steps (`eventId_DELETE_THIS`) are deliberate red-herrings. The `every incident references at least 2 chaos events from the taxonomy` test catches them because their fake `eventId` values (`cascade-engine.fireExternalOutage`, `cascade-engine-failure`, `cascade-engine.fireCascade`) are not in `CHAOS_TAXONOMY`. In Step 3 below, we remove them.
+
+- [ ] **Step 3: Green · remove the decoy event steps**
+
+Edit `real-incidents.ts`:
+
+- Facebook 2021: remove the fourth eventSequence step starting with `offsetSimSeconds: 900, eventId: "cascade-engine.fireExternalOutage"`.
+- AWS us-east-1: remove the second eventSequence step starting with `offsetSimSeconds: 180, eventId: "cascade-engine-failure"`.
+- Knight Capital 2012: remove the third eventSequence step starting with `offsetSimSeconds: 600, eventId: "cascade-engine.fireCascade"`.
+
+```bash
+pnpm test:run -- real-incidents
+```
+Expected: all 8 tests pass. If the `getIncidentBySlug` test fails for "facebook-2021-bgp", re-check the `date` field format (`"2021-10-04"`, no timezone suffix).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/src/lib/chaos/real-incidents.ts architex/src/lib/chaos/__tests__/real-incidents.test.ts
+git commit -m "$(cat <<'EOF'
+feat(chaos): real-incidents scaffold with 10 incident timelines
+
+Each incident: slug · company · date · summary · architecture sketch
+(nodes + edges) · event sequence (references taxonomy ids with offsets)
+· concept bridges · problem bridges · published postmortem URL.
+Tests enforce: exactly 10 incidents, unique slugs, every event step
+references a valid taxonomy id, monotonic offsets, at least 2 concept
+bridges per incident.
+
+Prose narration lives in content/sd/real-incidents/ MDX (Task 32).
+This file is the technical scaffold the Archaeology activity (§8.3.6)
+and the Chaos Library UI (§12.8) consume.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
