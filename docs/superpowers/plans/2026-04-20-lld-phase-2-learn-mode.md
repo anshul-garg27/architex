@@ -761,3 +761,880 @@ EOF
 ```
 
 ---
+
+## Task 5: Define lesson payload types + install MDX deps
+
+**Files:**
+- Create: `architex/src/lib/lld/lesson-types.ts`
+- Modify: `architex/package.json`
+
+- [ ] **Step 1: Install MDX + gray-matter**
+
+The compile script (Task 6) uses `@mdx-js/mdx` to parse MDX into JSX, `gray-matter` to extract frontmatter, `remark-gfm` for GitHub-flavored markdown, and `js-yaml` for the concepts files.
+
+```bash
+cd architex
+pnpm add @mdx-js/mdx@^3 @mdx-js/react@^3 gray-matter@^4 remark-gfm@^4 js-yaml@^4
+pnpm add -D @types/js-yaml@^4
+```
+Expected: `package.json` `dependencies` includes `@mdx-js/mdx`, `@mdx-js/react`, `gray-matter`, `remark-gfm`, `js-yaml`; `devDependencies` includes `@types/js-yaml`.
+
+- [ ] **Step 2: Create the lesson-types file**
+
+Create `architex/src/lib/lld/lesson-types.ts`:
+
+```typescript
+/**
+ * Typed lesson payload — compiled from MDX at build time, stored as JSONB
+ * on module_content rows, consumed at render time by the 8 section
+ * components.
+ *
+ * The 8 sections match Phase 2 scope (spec §6 Learn mode, extended):
+ *   1. Itch         — concrete problem scenario that makes the pattern
+ *                     feel necessary
+ *   2. Definition   — one-paragraph precise definition + canonical UML
+ *   3. Mechanism    — step-by-step how it works (sequence of events)
+ *   4. Anatomy      — class-by-class breakdown with role + responsibility
+ *   5. Numbers      — performance, memory, latency figures (Big-O + real-
+ *                     world numbers from production systems)
+ *   6. Uses         — 3-5 real-world case studies
+ *   7. Failure Modes— anti-patterns and ways this goes wrong
+ *   8. Checkpoints  — 4 checkpoints (recall/apply/compare/create)
+ */
+
+/** Section identifier used across DB rows, URLs, and UI state. */
+export type LessonSectionId =
+  | "itch"
+  | "definition"
+  | "mechanism"
+  | "anatomy"
+  | "numbers"
+  | "uses"
+  | "failure_modes"
+  | "checkpoints";
+
+/** Anchor inside a section — stable across content edits. */
+export interface LessonAnchor {
+  id: string; // stable slug
+  label: string; // heading text
+  depth: 2 | 3; // h2 or h3 within the section
+}
+
+/** Serialized MDX: the pre-compiled JSX string + imports list. */
+export interface CompiledMDX {
+  /** JSX function body, no imports — loaded client-side via useMDXComponent. */
+  code: string;
+  /** Raw markdown snippet for AI explain-inline context. */
+  raw: string;
+  /** Headings extracted at compile time. */
+  anchors: LessonAnchor[];
+  /** Concept ids referenced in this section (for cross-link dimming). */
+  conceptIds: string[];
+  /** Class ids referenced (drives scroll-sync canvas highlight). */
+  classIds: string[];
+}
+
+export interface ItchSectionPayload extends CompiledMDX {
+  /** One-line "problem statement" shown in the section header card. */
+  scenario: string;
+  /** Keywords for search / cross-linking. */
+  keywords: string[];
+}
+
+export interface DefinitionSectionPayload extends CompiledMDX {
+  /** ≤200-char precise definition. */
+  oneLiner: string;
+  /** GoF or modern canonical citation (book, paper, post). */
+  canonicalSource: string;
+}
+
+export interface MechanismSectionPayload extends CompiledMDX {
+  /** Ordered list of mechanism steps — used by the step-by-step viewer. */
+  steps: Array<{ index: number; title: string; markdown: string }>;
+}
+
+export interface AnatomySectionPayload extends CompiledMDX {
+  /** Per-class role + responsibility breakdown. */
+  classes: Array<{
+    classId: string; // matches pattern.classes[].id
+    role: string; // e.g. "Creator"
+    responsibility: string; // one-line
+    keyMethod?: string; // flagship method name
+  }>;
+}
+
+export interface NumbersSectionPayload extends CompiledMDX {
+  /** Flagship numbers shown as a banner. */
+  headline: Array<{ label: string; value: string; unit?: string }>;
+}
+
+export interface UsesSectionPayload extends CompiledMDX {
+  /** Case studies — renders as cards. */
+  cases: Array<{
+    company: string;
+    system: string;
+    whyThisPattern: string;
+    sourceUrl?: string;
+  }>;
+}
+
+export interface FailureModesSectionPayload extends CompiledMDX {
+  /** Anti-patterns and war stories. */
+  modes: Array<{
+    title: string;
+    whatGoesWrong: string;
+    howToAvoid: string;
+    severity: "low" | "medium" | "high";
+  }>;
+}
+
+export type CheckpointKind = "recall" | "apply" | "compare" | "create";
+
+export interface RecallCheckpoint {
+  kind: "recall";
+  id: string;
+  prompt: string;
+  options: Array<{
+    id: string;
+    label: string;
+    isCorrect: boolean;
+    whyWrong?: string; // shown on first wrong attempt (Q3 progressive reveal)
+  }>;
+  explanation: string; // shown when revealed or correct
+}
+
+export interface ApplyCheckpoint {
+  kind: "apply";
+  id: string;
+  /** Scenario the learner must apply the pattern to. */
+  scenario: string;
+  /** Correct class ids the user must select. */
+  correctClassIds: string[];
+  /** Distractors (classes present on canvas but not part of the pattern here). */
+  distractorClassIds: string[];
+  explanation: string;
+}
+
+export interface CompareCheckpoint {
+  kind: "compare";
+  id: string;
+  prompt: string;
+  /** Two patterns being compared. */
+  left: { patternSlug: string; label: string };
+  right: { patternSlug: string; label: string };
+  /** Statements user must categorize as "left" / "right" / "both". */
+  statements: Array<{
+    id: string;
+    text: string;
+    correct: "left" | "right" | "both";
+  }>;
+  explanation: string;
+}
+
+export interface CreateCheckpoint {
+  kind: "create";
+  id: string;
+  prompt: string;
+  /** Skeleton the user fills in. */
+  starterCanvas: {
+    classes: Array<{ id: string; name: string; methods: string[] }>;
+  };
+  /** Grading rubric — pass criteria. */
+  rubric: Array<{ criterion: string; points: number }>;
+  /** Reference solution (reveal after submit). */
+  referenceSolution: { classes: Array<{ id: string; name: string }> };
+  explanation: string;
+}
+
+export type Checkpoint =
+  | RecallCheckpoint
+  | ApplyCheckpoint
+  | CompareCheckpoint
+  | CreateCheckpoint;
+
+export interface CheckpointsSectionPayload extends CompiledMDX {
+  /** Exactly 4 checkpoints — one per kind, order fixed. */
+  checkpoints: [
+    RecallCheckpoint,
+    ApplyCheckpoint,
+    CompareCheckpoint,
+    CreateCheckpoint,
+  ];
+}
+
+/** The full lesson payload stored in module_content.content JSONB. */
+export interface LessonPayload {
+  schemaVersion: 1;
+  /** Pattern slug — must match patterns.ts id. */
+  patternSlug: string;
+  /** Short lesson subtitle shown in sidebar. */
+  subtitle: string;
+  /** Estimated reading time (minutes). */
+  estimatedMinutes: number;
+  /** Concepts introduced by this lesson (top-level, in order). */
+  conceptIds: string[];
+  /** Sections — all 8 required. */
+  sections: {
+    itch: ItchSectionPayload;
+    definition: DefinitionSectionPayload;
+    mechanism: MechanismSectionPayload;
+    anatomy: AnatomySectionPayload;
+    numbers: NumbersSectionPayload;
+    uses: UsesSectionPayload;
+    failure_modes: FailureModesSectionPayload;
+    checkpoints: CheckpointsSectionPayload;
+  };
+}
+
+/** Authors' YAML schema for cross-linking. */
+export interface ConceptYAML {
+  pattern: string; // pattern slug
+  concepts: Array<{
+    id: string; // concept slug (kebab-case)
+    label: string; // display name
+    summary: string; // one-sentence elevator pitch
+    relatedConcepts?: string[]; // other concept ids
+    relatedPatterns?: string[]; // other pattern slugs
+    /** Optional: which section(s) introduce this concept. */
+    introducedIn?: LessonSectionId[];
+  }>;
+  /** Explicit "often confused with" targets for the Confused-With panel. */
+  confusedWith?: Array<{ patternSlug: string; reason: string }>;
+}
+```
+
+- [ ] **Step 3: Verify typecheck**
+
+```bash
+pnpm typecheck
+```
+Expected: no errors. `@types/js-yaml` should be resolvable now.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add architex/package.json architex/pnpm-lock.yaml architex/src/lib/lld/lesson-types.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): add lesson payload types + install MDX deps
+
+Adds @mdx-js/mdx, @mdx-js/react, gray-matter, remark-gfm, js-yaml.
+Defines typed LessonPayload with 8 sections and 4 checkpoint kinds
+(recall/apply/compare/create). Every section extends CompiledMDX which
+carries the compiled JSX, raw markdown (for AI context), extracted
+anchors, referenced concept ids, and referenced class ids.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 6: Write the MDX compile script
+
+**Files:**
+- Create: `architex/scripts/compile-lld-lessons.ts`
+- Modify: `architex/package.json` (add script entry)
+
+- [ ] **Step 1: Write the compile script**
+
+Create `architex/scripts/compile-lld-lessons.ts`:
+
+```typescript
+#!/usr/bin/env tsx
+/**
+ * Compile LLD MDX lessons into JSONB payloads seeded into module_content.
+ *
+ * Usage:
+ *   pnpm compile:lld-lessons                 # compile all lessons
+ *   pnpm compile:lld-lessons --slug=singleton  # single pattern
+ *
+ * Pipeline per lesson:
+ *   1. Read content/lld/lessons/<slug>.mdx
+ *   2. Parse frontmatter with gray-matter
+ *   3. Split the body by `<!-- Section: <id> -->` delimiters (8 sections)
+ *   4. Compile each section's MDX body with @mdx-js/mdx
+ *   5. Extract anchors + conceptIds + classIds from raw body
+ *   6. Upsert module_content row { moduleId: "lld", contentType:
+ *      "lesson", slug, content: LessonPayload }
+ *
+ * Errors are collected and printed at the end — one bad lesson does not
+ * abort others (useful when multiple authors push concurrently).
+ */
+
+import { readFile, readdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { join, basename } from "node:path";
+import { compile } from "@mdx-js/mdx";
+import matter from "gray-matter";
+import remarkGfm from "remark-gfm";
+import yaml from "js-yaml";
+import { getDb, moduleContent } from "../src/db";
+import type {
+  LessonPayload,
+  LessonSectionId,
+  CompiledMDX,
+  ConceptYAML,
+  CheckpointsSectionPayload,
+} from "../src/lib/lld/lesson-types";
+
+const LESSON_DIR = "content/lld/lessons";
+const CONCEPT_DIR = "content/lld/concepts";
+
+const SECTION_ORDER: LessonSectionId[] = [
+  "itch",
+  "definition",
+  "mechanism",
+  "anatomy",
+  "numbers",
+  "uses",
+  "failure_modes",
+  "checkpoints",
+];
+
+interface CompileResult {
+  slug: string;
+  payload: LessonPayload;
+}
+
+interface CompileError {
+  slug: string;
+  message: string;
+}
+
+async function compileSection(
+  sectionBody: string,
+  _sectionId: LessonSectionId,
+): Promise<CompiledMDX> {
+  const compiled = await compile(sectionBody, {
+    outputFormat: "function-body",
+    remarkPlugins: [remarkGfm],
+    development: false,
+  });
+
+  // Extract anchors: all `## Heading` and `### Heading` lines
+  const anchors: CompiledMDX["anchors"] = [];
+  for (const match of sectionBody.matchAll(/^(#{2,3})\s+(.+)$/gm)) {
+    const depth = match[1].length as 2 | 3;
+    const label = match[2].trim();
+    const id = slugify(label);
+    anchors.push({ id, label, depth });
+  }
+
+  // Extract <Concept id="..."> and <Class id="..."> JSX references
+  const conceptIds = Array.from(
+    sectionBody.matchAll(/<Concept\s+id="([^"]+)"/g),
+  ).map((m) => m[1]);
+  const classIds = Array.from(
+    sectionBody.matchAll(/<Class\s+id="([^"]+)"/g),
+  ).map((m) => m[1]);
+
+  return {
+    code: String(compiled),
+    raw: sectionBody,
+    anchors,
+    conceptIds: Array.from(new Set(conceptIds)),
+    classIds: Array.from(new Set(classIds)),
+  };
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/**
+ * Split MDX body by `<!-- Section: <id> -->` delimiters.
+ * Returns map of sectionId → body.
+ */
+function splitIntoSections(
+  body: string,
+): Partial<Record<LessonSectionId, string>> {
+  const sections: Partial<Record<LessonSectionId, string>> = {};
+  const regex = /<!--\s*Section:\s*([a-z_]+)\s*-->/g;
+  const matches = Array.from(body.matchAll(regex));
+
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    const id = m[1] as LessonSectionId;
+    if (!SECTION_ORDER.includes(id)) continue;
+    const start = m.index! + m[0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : body.length;
+    sections[id] = body.slice(start, end).trim();
+  }
+  return sections;
+}
+
+async function compileLesson(slug: string): Promise<CompileResult> {
+  const mdxPath = join(LESSON_DIR, `${slug}.mdx`);
+  const rawFile = await readFile(mdxPath, "utf8");
+  const { data: frontmatter, content: body } = matter(rawFile);
+
+  const sectionBodies = splitIntoSections(body);
+
+  // Validate all 8 sections present
+  for (const id of SECTION_ORDER) {
+    if (!sectionBodies[id]) {
+      throw new Error(
+        `Missing section "${id}" in ${mdxPath}. Add <!-- Section: ${id} --> delimiter.`,
+      );
+    }
+  }
+
+  const compiled = {} as LessonPayload["sections"];
+  for (const id of SECTION_ORDER) {
+    const base = await compileSection(sectionBodies[id]!, id);
+    const fmSection = (frontmatter.sections ?? {})[id] ?? {};
+    compiled[id] = { ...base, ...fmSection } as never;
+  }
+
+  // Checkpoints are a special case — they come from frontmatter, not MDX body
+  if (!frontmatter.checkpoints || !Array.isArray(frontmatter.checkpoints)) {
+    throw new Error(
+      `${mdxPath}: frontmatter must include a \`checkpoints\` array with exactly 4 entries (recall, apply, compare, create).`,
+    );
+  }
+  const kinds = frontmatter.checkpoints.map((c: { kind: string }) => c.kind);
+  const required = ["recall", "apply", "compare", "create"];
+  for (const k of required) {
+    if (!kinds.includes(k)) {
+      throw new Error(
+        `${mdxPath}: checkpoints missing "${k}" kind. Found: ${kinds.join(", ")}`,
+      );
+    }
+  }
+  (compiled.checkpoints as CheckpointsSectionPayload).checkpoints =
+    frontmatter.checkpoints as CheckpointsSectionPayload["checkpoints"];
+
+  const payload: LessonPayload = {
+    schemaVersion: 1,
+    patternSlug: slug,
+    subtitle: frontmatter.subtitle ?? "",
+    estimatedMinutes: frontmatter.estimatedMinutes ?? 10,
+    conceptIds: frontmatter.conceptIds ?? [],
+    sections: compiled,
+  };
+
+  return { slug, payload };
+}
+
+async function readConceptYaml(slug: string): Promise<ConceptYAML | null> {
+  const path = join(CONCEPT_DIR, `${slug}.concepts.yaml`);
+  if (!existsSync(path)) return null;
+  const raw = await readFile(path, "utf8");
+  return yaml.load(raw) as ConceptYAML;
+}
+
+async function upsertLesson(result: CompileResult): Promise<void> {
+  const db = getDb();
+  await db
+    .insert(moduleContent)
+    .values({
+      moduleId: "lld",
+      contentType: "lesson",
+      slug: result.slug,
+      name: result.slug,
+      content: result.payload,
+      summary: result.payload.subtitle,
+      isPublished: true,
+    })
+    .onConflictDoUpdate({
+      target: [moduleContent.moduleId, moduleContent.contentType, moduleContent.slug],
+      set: {
+        content: result.payload,
+        summary: result.payload.subtitle,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+async function main() {
+  const slugArg = process.argv
+    .find((a) => a.startsWith("--slug="))
+    ?.split("=")[1];
+
+  let slugs: string[];
+  if (slugArg) {
+    slugs = [slugArg];
+  } else {
+    const files = await readdir(LESSON_DIR);
+    slugs = files
+      .filter((f) => f.endsWith(".mdx"))
+      .map((f) => basename(f, ".mdx"));
+  }
+
+  const errors: CompileError[] = [];
+  let successCount = 0;
+
+  for (const slug of slugs) {
+    try {
+      const result = await compileLesson(slug);
+      await upsertLesson(result);
+      // Also validate concept yaml is loadable (not used yet; Task 16 builds graph)
+      await readConceptYaml(slug);
+      successCount++;
+      console.log(`[compile-lld-lessons] ✓ ${slug}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push({ slug, message: msg });
+      console.error(`[compile-lld-lessons] ✗ ${slug}: ${msg}`);
+    }
+  }
+
+  console.log(
+    `\n[compile-lld-lessons] done: ${successCount} ok, ${errors.length} failed`,
+  );
+  if (errors.length > 0) {
+    process.exit(1);
+  }
+}
+
+main().catch((err) => {
+  console.error("[compile-lld-lessons] fatal:", err);
+  process.exit(2);
+});
+```
+
+- [ ] **Step 2: Register the npm script**
+
+Open `architex/package.json`. Inside the `scripts` block, add:
+
+```json
+"compile:lld-lessons": "tsx scripts/compile-lld-lessons.ts",
+```
+
+Also ensure `tsx` is already in `devDependencies`. If missing:
+
+```bash
+pnpm add -D tsx
+```
+
+- [ ] **Step 3: Smoke-test the script (expected: fail gracefully, no MDX files yet)**
+
+```bash
+cd architex
+mkdir -p content/lld/lessons content/lld/concepts
+pnpm compile:lld-lessons
+```
+Expected: logs `done: 0 ok, 0 failed` (no MDX files in the folder yet). No crash.
+
+- [ ] **Step 4: Smoke-test with a minimal lesson**
+
+Create a throwaway `content/lld/lessons/_sanity.mdx`:
+
+```mdx
+---
+subtitle: Sanity check
+estimatedMinutes: 1
+conceptIds: []
+checkpoints:
+  - kind: recall
+    id: r1
+    prompt: Pick one.
+    options:
+      - { id: a, label: "A", isCorrect: true }
+      - { id: b, label: "B", isCorrect: false, whyWrong: "not right" }
+    explanation: trivial
+  - kind: apply
+    id: ap1
+    scenario: pick the class
+    correctClassIds: []
+    distractorClassIds: []
+    explanation: trivial
+  - kind: compare
+    id: c1
+    prompt: compare
+    left: { patternSlug: a, label: A }
+    right: { patternSlug: b, label: B }
+    statements: []
+    explanation: trivial
+  - kind: create
+    id: cr1
+    prompt: design something
+    starterCanvas: { classes: [] }
+    rubric: []
+    referenceSolution: { classes: [] }
+    explanation: trivial
+---
+
+<!-- Section: itch -->
+## The Itch
+You have a problem.
+
+<!-- Section: definition -->
+## Definition
+It is a thing.
+
+<!-- Section: mechanism -->
+## Mechanism
+Do this first. Then that.
+
+<!-- Section: anatomy -->
+## Anatomy
+One class.
+
+<!-- Section: numbers -->
+## Numbers
+Fast.
+
+<!-- Section: uses -->
+## Uses
+Everywhere.
+
+<!-- Section: failure_modes -->
+## Failure Modes
+Things break.
+
+<!-- Section: checkpoints -->
+## Checkpoints
+See frontmatter.
+```
+
+Run:
+```bash
+pnpm compile:lld-lessons --slug=_sanity
+```
+Expected: `✓ _sanity` and a row in `module_content` with `slug = "_sanity"`, `module_id = "lld"`, `content_type = "lesson"`.
+
+Verify:
+```bash
+pnpm db:studio
+```
+Navigate to `module_content`, filter slug = `_sanity`, inspect `content` JSONB — confirm `sections.itch.anchors` includes `{id: "the-itch", label: "The Itch", depth: 2}`.
+
+- [ ] **Step 5: Delete the sanity lesson**
+
+```bash
+rm content/lld/lessons/_sanity.mdx
+```
+
+Drop the DB row via Drizzle Studio or:
+```bash
+pnpm db:psql -c "DELETE FROM module_content WHERE module_id = 'lld' AND slug = '_sanity'"
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add architex/scripts/compile-lld-lessons.ts architex/package.json architex/pnpm-lock.yaml
+git commit -m "$(cat <<'EOF'
+feat(lld): add MDX lesson compile script
+
+Reads content/lld/lessons/<slug>.mdx, splits body by
+<!-- Section: <id> --> delimiters, compiles each section's MDX with
+@mdx-js/mdx, extracts anchors/conceptIds/classIds from the raw body,
+merges with frontmatter metadata, and upserts into module_content.
+Checkpoints (frontmatter-only) are validated for all 4 kinds.
+
+Errors are collected per-lesson so one bad lesson doesn't abort others.
+Invoked via `pnpm compile:lld-lessons [--slug=foo]`.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 7: Write the lesson-loader (DB → typed payload)
+
+**Files:**
+- Create: `architex/src/lib/lld/lesson-loader.ts`
+- Test: `architex/src/lib/lld/__tests__/lesson-loader.test.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/lld/__tests__/lesson-loader.test.ts`:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { LessonPayload } from "@/lib/lld/lesson-types";
+
+const { mockDb } = vi.hoisted(() => ({
+  mockDb: {
+    select: vi.fn(),
+  },
+}));
+
+vi.mock("@/db", () => ({
+  getDb: () => mockDb,
+  moduleContent: {
+    moduleId: "moduleId",
+    contentType: "contentType",
+    slug: "slug",
+    isPublished: "isPublished",
+  },
+}));
+
+import { loadLesson, loadLessonSlugs } from "@/lib/lld/lesson-loader";
+
+const samplePayload = (slug: string): LessonPayload => ({
+  schemaVersion: 1,
+  patternSlug: slug,
+  subtitle: "x",
+  estimatedMinutes: 1,
+  conceptIds: [],
+  sections: {} as LessonPayload["sections"],
+});
+
+describe("lesson-loader", () => {
+  beforeEach(() => {
+    mockDb.select.mockReset();
+  });
+
+  it("loadLesson returns typed payload for existing slug", async () => {
+    mockDb.select.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ content: samplePayload("singleton") }],
+        }),
+      }),
+    }));
+    const payload = await loadLesson("singleton");
+    expect(payload).not.toBeNull();
+    expect(payload?.patternSlug).toBe("singleton");
+    expect(payload?.schemaVersion).toBe(1);
+  });
+
+  it("loadLesson returns null for unknown slug", async () => {
+    mockDb.select.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [],
+        }),
+      }),
+    }));
+    const payload = await loadLesson("does-not-exist");
+    expect(payload).toBeNull();
+  });
+
+  it("loadLesson rejects non-LessonPayload content shape", async () => {
+    mockDb.select.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ content: { schemaVersion: 99, bogus: true } }],
+        }),
+      }),
+    }));
+    await expect(loadLesson("malformed")).rejects.toThrow(/schemaVersion/);
+  });
+
+  it("loadLessonSlugs returns all published lesson slugs", async () => {
+    mockDb.select.mockImplementation(() => ({
+      from: () => ({
+        where: async () => [
+          { slug: "singleton" },
+          { slug: "factory-method" },
+          { slug: "observer" },
+        ],
+      }),
+    }));
+    const slugs = await loadLessonSlugs();
+    expect(slugs).toEqual(["singleton", "factory-method", "observer"]);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd architex
+pnpm test:run -- lesson-loader
+```
+Expected: FAIL with `Cannot find module '@/lib/lld/lesson-loader'`.
+
+- [ ] **Step 3: Create the loader**
+
+Create `architex/src/lib/lld/lesson-loader.ts`:
+
+```typescript
+/**
+ * Read a compiled lesson payload from module_content, type-guard it,
+ * and return typed `LessonPayload` (or null for unknown slugs).
+ *
+ * Callers: TanStack Query + RSC data loaders inside Learn mode.
+ */
+
+import { and, eq } from "drizzle-orm";
+import { getDb, moduleContent } from "@/db";
+import type { LessonPayload } from "./lesson-types";
+
+function isLessonPayload(value: unknown): value is LessonPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return v.schemaVersion === 1 && typeof v.patternSlug === "string";
+}
+
+/**
+ * Fetch a single lesson by pattern slug. Returns null if not found.
+ * Throws if the stored row does not match LessonPayload v1.
+ */
+export async function loadLesson(
+  patternSlug: string,
+): Promise<LessonPayload | null> {
+  const db = getDb();
+  const [row] = await db
+    .select()
+    .from(moduleContent)
+    .where(
+      and(
+        eq(moduleContent.moduleId, "lld"),
+        eq(moduleContent.contentType, "lesson"),
+        eq(moduleContent.slug, patternSlug),
+        eq(moduleContent.isPublished, true),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return null;
+  if (!isLessonPayload(row.content)) {
+    throw new Error(
+      `Lesson content for "${patternSlug}" does not match schemaVersion 1. Re-run \`pnpm compile:lld-lessons --slug=${patternSlug}\`.`,
+    );
+  }
+  return row.content;
+}
+
+/** List all published lesson slugs, in catalog order. */
+export async function loadLessonSlugs(): Promise<string[]> {
+  const db = getDb();
+  const rows = await db
+    .select({ slug: moduleContent.slug })
+    .from(moduleContent)
+    .where(
+      and(
+        eq(moduleContent.moduleId, "lld"),
+        eq(moduleContent.contentType, "lesson"),
+        eq(moduleContent.isPublished, true),
+      ),
+    );
+  return rows.map((r) => r.slug);
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- lesson-loader
+```
+Expected: PASS · all 4 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/lld/lesson-loader.ts architex/src/lib/lld/__tests__/lesson-loader.test.ts
+git commit -m "$(cat <<'EOF'
+feat(lld): add lesson-loader for DB → typed LessonPayload
+
+Reads module_content rows and runtime-validates schemaVersion. Throws a
+specific error naming the compile command when malformed, so authors see
+exactly how to recover.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
