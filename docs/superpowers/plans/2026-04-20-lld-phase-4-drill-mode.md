@@ -3080,6 +3080,773 @@ EOF
 
 ---
 
+## Task 14: Extend `lld-events.ts` analytics catalog with 12 drill events
+
+**Files:**
+- Modify: `architex/src/lib/analytics/lld-events.ts`
+- Test: `architex/src/lib/analytics/__tests__/lld-events-drill.test.ts`
+
+Phase 1 introduced the 25-event analytics surface. Phase 4 adds 12 typed drill events — one per stage transition, plus hint usage, interviewer turn, grade reveal, postmortem view, variant change, and abandon/resume lifecycle.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/lib/analytics/__tests__/lld-events-drill.test.ts`:
+
+```typescript
+import { describe, it, expect, vi } from "vitest";
+import {
+  lldDrillStarted,
+  lldDrillStageEntered,
+  lldDrillStageCompleted,
+  lldDrillHintConsumed,
+  lldDrillInterviewerTurn,
+  lldDrillVariantSelected,
+  lldDrillSubmitted,
+  lldDrillAbandoned,
+  lldDrillResumed,
+  lldDrillGradeRevealed,
+  lldDrillPostmortemViewed,
+  lldDrillFollowUpClicked,
+} from "@/lib/analytics/lld-events";
+
+describe("lld-events · drill events", () => {
+  it("lldDrillStarted emits required props", () => {
+    const evt = lldDrillStarted({
+      attemptId: "a1",
+      problemId: "parking-lot",
+      variant: "timed-mock",
+      persona: "generic",
+      durationLimitMs: 1_800_000,
+    });
+    expect(evt.name).toBe("lld_drill_started");
+    expect(evt.props.attempt_id).toBe("a1");
+    expect(evt.props.problem_id).toBe("parking-lot");
+    expect(evt.props.variant).toBe("timed-mock");
+  });
+
+  it("lldDrillStageEntered + Completed emit stage + duration", () => {
+    const entered = lldDrillStageEntered({ attemptId: "a1", stage: "clarify" });
+    expect(entered.name).toBe("lld_drill_stage_entered");
+    expect(entered.props.stage).toBe("clarify");
+
+    const completed = lldDrillStageCompleted({
+      attemptId: "a1",
+      stage: "clarify",
+      durationMs: 60_000,
+    });
+    expect(completed.name).toBe("lld_drill_stage_completed");
+    expect(completed.props.duration_ms).toBe(60_000);
+  });
+
+  it("lldDrillHintConsumed emits tier + penalty", () => {
+    const evt = lldDrillHintConsumed({
+      attemptId: "a1",
+      tier: "guided",
+      penalty: 10,
+      stage: "canvas",
+    });
+    expect(evt.props.tier).toBe("guided");
+    expect(evt.props.penalty).toBe(10);
+  });
+
+  it("lldDrillInterviewerTurn emits role + persona", () => {
+    const evt = lldDrillInterviewerTurn({
+      attemptId: "a1",
+      role: "interviewer",
+      persona: "stripe",
+      stage: "rubric",
+      inputTokens: 120,
+      outputTokens: 80,
+    });
+    expect(evt.props.role).toBe("interviewer");
+    expect(evt.props.output_tokens).toBe(80);
+  });
+
+  it("lldDrillSubmitted emits score + band", () => {
+    const evt = lldDrillSubmitted({
+      attemptId: "a1",
+      finalScore: 72,
+      band: "solid",
+      hintsUsed: 2,
+      totalDurationMs: 1_700_000,
+    });
+    expect(evt.props.final_score).toBe(72);
+    expect(evt.props.band).toBe("solid");
+  });
+
+  it("lldDrillGradeRevealed + PostmortemViewed fire", () => {
+    expect(lldDrillGradeRevealed({ attemptId: "a1" }).name).toBe(
+      "lld_drill_grade_revealed",
+    );
+    expect(lldDrillPostmortemViewed({ attemptId: "a1" }).name).toBe(
+      "lld_drill_postmortem_viewed",
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- lld-events-drill
+```
+Expected: FAIL with `Cannot find exported member 'lldDrillStarted'`.
+
+- [ ] **Step 3: Extend the analytics catalog**
+
+Open `architex/src/lib/analytics/lld-events.ts`. At the bottom of the file (after the Phase-1 events), append the 12 drill event builders:
+
+```typescript
+// ── Phase 4 · Drill events ───────────────────────────────────────────
+
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import type { DrillVariant } from "@/lib/lld/drill-variants";
+import type { InterviewerPersona } from "@/lib/ai/interviewer-prompts";
+import type { HintTier } from "@/lib/ai/hint-system";
+
+export function lldDrillStarted(props: {
+  attemptId: string;
+  problemId: string;
+  variant: DrillVariant;
+  persona: InterviewerPersona;
+  durationLimitMs: number;
+}) {
+  return {
+    name: "lld_drill_started" as const,
+    props: {
+      attempt_id: props.attemptId,
+      problem_id: props.problemId,
+      variant: props.variant,
+      persona: props.persona,
+      duration_limit_ms: props.durationLimitMs,
+    },
+  };
+}
+
+export function lldDrillVariantSelected(props: {
+  problemId: string;
+  variant: DrillVariant;
+}) {
+  return {
+    name: "lld_drill_variant_selected" as const,
+    props: {
+      problem_id: props.problemId,
+      variant: props.variant,
+    },
+  };
+}
+
+export function lldDrillStageEntered(props: {
+  attemptId: string;
+  stage: DrillStage;
+}) {
+  return {
+    name: "lld_drill_stage_entered" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+    },
+  };
+}
+
+export function lldDrillStageCompleted(props: {
+  attemptId: string;
+  stage: DrillStage;
+  durationMs: number;
+}) {
+  return {
+    name: "lld_drill_stage_completed" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+      duration_ms: props.durationMs,
+    },
+  };
+}
+
+export function lldDrillHintConsumed(props: {
+  attemptId: string;
+  stage: DrillStage;
+  tier: HintTier;
+  penalty: number;
+}) {
+  return {
+    name: "lld_drill_hint_consumed" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+      tier: props.tier,
+      penalty: props.penalty,
+    },
+  };
+}
+
+export function lldDrillInterviewerTurn(props: {
+  attemptId: string;
+  role: "user" | "interviewer" | "system";
+  persona: InterviewerPersona;
+  stage: DrillStage;
+  inputTokens?: number;
+  outputTokens?: number;
+}) {
+  return {
+    name: "lld_drill_interviewer_turn" as const,
+    props: {
+      attempt_id: props.attemptId,
+      role: props.role,
+      persona: props.persona,
+      stage: props.stage,
+      input_tokens: props.inputTokens,
+      output_tokens: props.outputTokens,
+    },
+  };
+}
+
+export function lldDrillSubmitted(props: {
+  attemptId: string;
+  finalScore: number;
+  band: "stellar" | "solid" | "coaching" | "redirect";
+  hintsUsed: number;
+  totalDurationMs: number;
+}) {
+  return {
+    name: "lld_drill_submitted" as const,
+    props: {
+      attempt_id: props.attemptId,
+      final_score: props.finalScore,
+      band: props.band,
+      hints_used: props.hintsUsed,
+      total_duration_ms: props.totalDurationMs,
+    },
+  };
+}
+
+export function lldDrillAbandoned(props: {
+  attemptId: string;
+  stage: DrillStage;
+  reason: "manual" | "stale" | "tab_close";
+}) {
+  return {
+    name: "lld_drill_abandoned" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+      reason: props.reason,
+    },
+  };
+}
+
+export function lldDrillResumed(props: { attemptId: string; stage: DrillStage }) {
+  return {
+    name: "lld_drill_resumed" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+    },
+  };
+}
+
+export function lldDrillGradeRevealed(props: { attemptId: string }) {
+  return {
+    name: "lld_drill_grade_revealed" as const,
+    props: {
+      attempt_id: props.attemptId,
+    },
+  };
+}
+
+export function lldDrillPostmortemViewed(props: { attemptId: string }) {
+  return {
+    name: "lld_drill_postmortem_viewed" as const,
+    props: {
+      attempt_id: props.attemptId,
+    },
+  };
+}
+
+export function lldDrillFollowUpClicked(props: {
+  attemptId: string;
+  followUpKind: "retry" | "learn_pattern" | "next_problem";
+  target: string;
+}) {
+  return {
+    name: "lld_drill_follow_up_clicked" as const,
+    props: {
+      attempt_id: props.attemptId,
+      follow_up_kind: props.followUpKind,
+      target: props.target,
+    },
+  };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- lld-events-drill
+```
+Expected: PASS · 6 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/lib/analytics/lld-events.ts architex/src/lib/analytics/__tests__/lld-events-drill.test.ts
+git commit -m "$(cat <<'EOF'
+feat(analytics): 12 typed drill events
+
+drill_started · variant_selected · stage_entered · stage_completed ·
+hint_consumed · interviewer_turn · submitted · abandoned · resumed ·
+grade_revealed · postmortem_viewed · follow_up_clicked. Each is a typed
+builder returning { name, props }.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 15: Create `drill-store.ts` Zustand slice
+
+**Files:**
+- Create: `architex/src/stores/drill-store.ts`
+- Test: `architex/src/stores/__tests__/drill-store.test.ts`
+
+The `interview-store.activeDrill` slice from Phase 1 stays untouched — it tracks timer + hint count. The new `drill-store` owns the Phase 4-specific state: current stage, stage progress bag, interviewer turns cache, hint penalty log, and the submitted rubric breakdown. This lets us ship Phase 4 without destabilizing Phase 3's grader.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/stores/__tests__/drill-store.test.ts`:
+
+```typescript
+import { describe, it, expect, beforeEach } from "vitest";
+import { useDrillStore, type StageProgressBag } from "@/stores/drill-store";
+
+describe("drill-store", () => {
+  beforeEach(() => {
+    useDrillStore.getState().reset();
+  });
+
+  it("has sensible defaults", () => {
+    const s = useDrillStore.getState();
+    expect(s.currentStage).toBe("clarify");
+    expect(s.interviewerTurns).toEqual([]);
+    expect(s.hintPenaltyTotal).toBe(0);
+    expect(s.rubricBreakdown).toBeNull();
+  });
+
+  it("enterStage updates currentStage + stampsStartedAt", () => {
+    useDrillStore.getState().enterStage("rubric");
+    expect(useDrillStore.getState().currentStage).toBe("rubric");
+    expect(useDrillStore.getState().stageStartedAt).toBeGreaterThan(0);
+  });
+
+  it("mergeStageProgress merges into the current stage bag", () => {
+    useDrillStore.getState().mergeStageProgress({ questionsAsked: 1 });
+    useDrillStore.getState().mergeStageProgress({ questionsAsked: 3 });
+    const bag = useDrillStore.getState().stageProgress.clarify ?? {};
+    expect((bag as StageProgressBag).questionsAsked).toBe(3);
+  });
+
+  it("appendInterviewerTurn grows turns list with seq", () => {
+    useDrillStore.getState().appendInterviewerTurn({
+      role: "user",
+      stage: "clarify",
+      content: "hi",
+      createdAt: new Date().toISOString(),
+    });
+    useDrillStore.getState().appendInterviewerTurn({
+      role: "interviewer",
+      stage: "clarify",
+      content: "hello",
+      createdAt: new Date().toISOString(),
+    });
+    const turns = useDrillStore.getState().interviewerTurns;
+    expect(turns).toHaveLength(2);
+    expect(turns[0]?.seq).toBe(0);
+    expect(turns[1]?.seq).toBe(1);
+  });
+
+  it("recordHintPenalty accumulates", () => {
+    useDrillStore.getState().recordHintPenalty(5);
+    useDrillStore.getState().recordHintPenalty(10);
+    expect(useDrillStore.getState().hintPenaltyTotal).toBe(15);
+  });
+
+  it("setRubric stores the grade breakdown", () => {
+    const mock = {
+      clarification: { score: 80, good: [], missing: [], wrong: [] },
+      classes: { score: 70, good: [], missing: [], wrong: [] },
+      relationships: { score: 65, good: [], missing: [], wrong: [] },
+      patternFit: { score: 75, good: [], missing: [], wrong: [] },
+      tradeoffs: { score: 55, good: [], missing: [], wrong: [] },
+      communication: { score: 80, good: [], missing: [], wrong: [] },
+    };
+    useDrillStore.getState().setRubric(mock);
+    expect(useDrillStore.getState().rubricBreakdown).toEqual(mock);
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- drill-store
+```
+Expected: FAIL with `Cannot find module '@/stores/drill-store'`.
+
+- [ ] **Step 3: Implement the store**
+
+Create `architex/src/stores/drill-store.ts`:
+
+```typescript
+import { create } from "zustand";
+import type { DrillStage, DrillStageProgress } from "@/lib/lld/drill-stages";
+import type { DrillVariant } from "@/lib/lld/drill-variants";
+import type { InterviewerPersona } from "@/lib/ai/interviewer-prompts";
+import type { InterviewerTurn } from "@/lib/ai/interviewer-persona";
+import type { RubricBreakdown } from "@/lib/lld/drill-rubric";
+import type { HintTier } from "@/lib/ai/hint-system";
+
+export type StageProgressBag = DrillStageProgress;
+
+export interface HintLogEntry {
+  tier: HintTier;
+  stage: DrillStage;
+  penalty: number;
+  usedAt: number;
+  content?: string;
+}
+
+export interface DrillStoreState {
+  /** null before drill is started. */
+  attemptId: string | null;
+  variant: DrillVariant;
+  persona: InterviewerPersona;
+
+  currentStage: DrillStage;
+  stageStartedAt: number; // epoch ms — updated on every enterStage
+  stageProgress: Partial<Record<DrillStage, StageProgressBag>>;
+  stageDurationsMs: Partial<Record<DrillStage, number>>;
+
+  interviewerTurns: InterviewerTurn[];
+  hintLog: HintLogEntry[];
+  hintPenaltyTotal: number;
+
+  rubricBreakdown: RubricBreakdown | null;
+  finalScore: number | null;
+
+  // ── Actions ────────────────────────────────────────────────────────
+  reset: () => void;
+  beginAttempt: (opts: {
+    attemptId: string;
+    variant: DrillVariant;
+    persona: InterviewerPersona;
+  }) => void;
+  enterStage: (stage: DrillStage) => void;
+  mergeStageProgress: (patch: Partial<StageProgressBag>) => void;
+  appendInterviewerTurn: (
+    turn: Omit<InterviewerTurn, "seq">,
+  ) => void;
+  recordHintPenalty: (penalty: number, entry?: Partial<HintLogEntry>) => void;
+  setRubric: (rubric: RubricBreakdown, finalScore?: number) => void;
+}
+
+const initialState = (): Omit<
+  DrillStoreState,
+  | "reset"
+  | "beginAttempt"
+  | "enterStage"
+  | "mergeStageProgress"
+  | "appendInterviewerTurn"
+  | "recordHintPenalty"
+  | "setRubric"
+> => ({
+  attemptId: null,
+  variant: "timed-mock",
+  persona: "generic",
+  currentStage: "clarify",
+  stageStartedAt: 0,
+  stageProgress: {},
+  stageDurationsMs: {},
+  interviewerTurns: [],
+  hintLog: [],
+  hintPenaltyTotal: 0,
+  rubricBreakdown: null,
+  finalScore: null,
+});
+
+export const useDrillStore = create<DrillStoreState>((set, get) => ({
+  ...initialState(),
+
+  reset: () => set(initialState()),
+
+  beginAttempt: ({ attemptId, variant, persona }) =>
+    set({
+      ...initialState(),
+      attemptId,
+      variant,
+      persona,
+      stageStartedAt: Date.now(),
+    }),
+
+  enterStage: (stage) => {
+    const now = Date.now();
+    const previous = get();
+    // Record the duration the user spent on the outgoing stage.
+    const prevStage = previous.currentStage;
+    const prevStart = previous.stageStartedAt || now;
+    const spent = Math.max(0, now - prevStart);
+    set({
+      currentStage: stage,
+      stageStartedAt: now,
+      stageDurationsMs: {
+        ...previous.stageDurationsMs,
+        [prevStage]: (previous.stageDurationsMs[prevStage] ?? 0) + spent,
+      },
+    });
+  },
+
+  mergeStageProgress: (patch) => {
+    const s = get();
+    const bag = s.stageProgress[s.currentStage] ?? {};
+    set({
+      stageProgress: {
+        ...s.stageProgress,
+        [s.currentStage]: { ...bag, ...patch },
+      },
+    });
+  },
+
+  appendInterviewerTurn: (turn) => {
+    const s = get();
+    const seq = s.interviewerTurns.length;
+    set({
+      interviewerTurns: [
+        ...s.interviewerTurns,
+        { ...turn, seq } as InterviewerTurn,
+      ],
+    });
+  },
+
+  recordHintPenalty: (penalty, entry) => {
+    const s = get();
+    set({
+      hintPenaltyTotal: s.hintPenaltyTotal + penalty,
+      hintLog: [
+        ...s.hintLog,
+        {
+          tier: (entry?.tier ?? "nudge") as HintTier,
+          stage: (entry?.stage ?? s.currentStage) as DrillStage,
+          penalty,
+          usedAt: Date.now(),
+          content: entry?.content,
+        },
+      ],
+    });
+  },
+
+  setRubric: (rubric, finalScore) =>
+    set({ rubricBreakdown: rubric, finalScore: finalScore ?? null }),
+}));
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- drill-store
+```
+Expected: PASS · 6 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/stores/drill-store.ts architex/src/stores/__tests__/drill-store.test.ts
+git commit -m "$(cat <<'EOF'
+feat(stores): drill-store Phase 4 slice
+
+Owns Phase-4-specific state: currentStage, stageProgress, stageDurationsMs,
+interviewerTurns, hintLog, hintPenaltyTotal, rubricBreakdown. Does not
+persist to localStorage — server is source of truth. Complements (does
+not replace) interview-store.activeDrill from Phase 1.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+## Task 16: `useDrillStage` hook — gate + transition
+
+**Files:**
+- Create: `architex/src/hooks/useDrillStage.ts`
+- Test: `architex/src/hooks/__tests__/useDrillStage.test.tsx`
+
+Consumes `drill-store`, computes whether the current stage's gate passes, and exposes `advance()` / `retreat()` functions the UI buttons call. Fires the stage_entered / stage_completed analytics events.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `architex/src/hooks/__tests__/useDrillStage.test.tsx`:
+
+```tsx
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useDrillStage } from "@/hooks/useDrillStage";
+import { useDrillStore } from "@/stores/drill-store";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+describe("useDrillStage", () => {
+  beforeEach(() => {
+    useDrillStore.getState().reset();
+    useDrillStore.getState().beginAttempt({
+      attemptId: "a1",
+      variant: "timed-mock",
+      persona: "generic",
+    });
+  });
+
+  it("reports current stage + gate unsatisfied by default", () => {
+    const { result } = renderHook(() => useDrillStage());
+    expect(result.current.currentStage).toBe("clarify");
+    expect(result.current.gate.satisfied).toBe(false);
+  });
+
+  it("advance() is a no-op when gate is unsatisfied", () => {
+    const { result } = renderHook(() => useDrillStage());
+    act(() => {
+      result.current.advance();
+    });
+    expect(useDrillStore.getState().currentStage).toBe("clarify");
+  });
+
+  it("advance() transitions when gate is satisfied", () => {
+    const { result } = renderHook(() => useDrillStage());
+    act(() => {
+      useDrillStore.getState().mergeStageProgress({ questionsAsked: 3 });
+    });
+    act(() => {
+      result.current.advance();
+    });
+    expect(useDrillStore.getState().currentStage).toBe("rubric");
+  });
+
+  it("retreat() moves to previous stage", () => {
+    useDrillStore.getState().enterStage("rubric");
+    const { result } = renderHook(() => useDrillStage());
+    act(() => {
+      result.current.retreat();
+    });
+    expect(useDrillStore.getState().currentStage).toBe("clarify");
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+pnpm test:run -- useDrillStage
+```
+Expected: FAIL.
+
+- [ ] **Step 3: Create the hook**
+
+Create `architex/src/hooks/useDrillStage.ts`:
+
+```typescript
+"use client";
+
+import { useCallback, useMemo } from "react";
+import {
+  canAdvance,
+  gatePredicateFor,
+  isTerminalStage,
+  nextStage,
+  previousStage,
+  type DrillStage,
+  type GateResult,
+} from "@/lib/lld/drill-stages";
+import { useDrillStore } from "@/stores/drill-store";
+
+export interface UseDrillStageResult {
+  currentStage: DrillStage;
+  nextStage: DrillStage | null;
+  previousStage: DrillStage | null;
+  isTerminal: boolean;
+  gate: GateResult;
+  advance: () => void;
+  retreat: () => void;
+}
+
+export function useDrillStage(): UseDrillStageResult {
+  const currentStage = useDrillStore((s) => s.currentStage);
+  const enterStage = useDrillStore((s) => s.enterStage);
+  const stageProgress = useDrillStore(
+    (s) => s.stageProgress[s.currentStage] ?? {},
+  );
+
+  const gate = useMemo<GateResult>(
+    () => gatePredicateFor(currentStage)(stageProgress),
+    [currentStage, stageProgress],
+  );
+
+  const next = useMemo(() => nextStage(currentStage), [currentStage]);
+  const prev = useMemo(() => previousStage(currentStage), [currentStage]);
+
+  const advance = useCallback(() => {
+    if (!canAdvance(currentStage, stageProgress)) return;
+    if (!next) return;
+    enterStage(next);
+  }, [currentStage, stageProgress, next, enterStage]);
+
+  const retreat = useCallback(() => {
+    if (!prev) return;
+    enterStage(prev);
+  }, [prev, enterStage]);
+
+  return {
+    currentStage,
+    nextStage: next,
+    previousStage: prev,
+    isTerminal: isTerminalStage(currentStage),
+    gate,
+    advance,
+    retreat,
+  };
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+```bash
+pnpm test:run -- useDrillStage
+```
+Expected: PASS · 4 assertions.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add architex/src/hooks/useDrillStage.ts architex/src/hooks/__tests__/useDrillStage.test.tsx
+git commit -m "$(cat <<'EOF'
+feat(hooks): useDrillStage — gate evaluation + transition
+
+Returns currentStage + gate result + advance/retreat callbacks.
+advance() is a no-op when the gate predicate fails, guaranteeing UI
+buttons cannot bypass gate logic. retreat() always allowed (user can
+go back to fix clarifications etc.).
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
+
 
 
 
