@@ -6,9 +6,11 @@ import { useInterviewStore } from "@/stores/interview-store";
 import { useLLDDrillSync } from "@/hooks/useLLDDrillSync";
 
 function wrapper(queryClient: QueryClient) {
-  return ({ children }: { children: ReactNode }) => (
+  const Wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
+  Wrapper.displayName = "TestQueryClientWrapper";
+  return Wrapper;
 }
 
 describe("useLLDDrillSync · heartbeat", () => {
