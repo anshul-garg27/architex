@@ -85,7 +85,10 @@ export function skipListToArray(state: SkipListState): number[] {
 
 export function skipListInsert(state: SkipListState, value: number): DSResult {
   const { step } = createStepRecorder();
-  _nodeCounter = 0;
+  // NOTE: `_nodeCounter` must NOT be reset here. Resetting it produced
+  // colliding IDs (e.g. a new node would reuse `sl-0`, which is the head's
+  // ID), creating self-referential forward pointers and infinite loops
+  // during subsequent inserts/searches.
   const steps: DSStep[] = [];
   const s = cloneSkipList(state);
 
@@ -164,7 +167,7 @@ export function skipListInsert(state: SkipListState, value: number): DSResult {
 
 export function skipListSearch(state: SkipListState, value: number): DSResult {
   const { step } = createStepRecorder();
-  _nodeCounter = 0;
+  // Do not reset _nodeCounter here — see note in skipListInsert.
   const steps: DSStep[] = [];
 
   steps.push(step(`Search for ${value} starting from top level ${state.maxLevel}`, []));
@@ -212,7 +215,7 @@ export function skipListSearch(state: SkipListState, value: number): DSResult {
 
 export function skipListDelete(state: SkipListState, value: number): DSResult {
   const { step } = createStepRecorder();
-  _nodeCounter = 0;
+  // Do not reset _nodeCounter here — see note in skipListInsert.
   const steps: DSStep[] = [];
   const s = cloneSkipList(state);
 
