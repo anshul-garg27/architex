@@ -10,7 +10,7 @@ import {
   type DrillStage,
   type GateResult,
 } from "@/lib/lld/drill-stages";
-import { useDrillStore } from "@/stores/drill-store";
+import { useDrillStore, type StageProgressBag } from "@/stores/drill-store";
 
 export interface UseDrillStageResult {
   currentStage: DrillStage;
@@ -22,11 +22,18 @@ export interface UseDrillStageResult {
   retreat: () => void;
 }
 
+// Stable fallback reference — returning a fresh `{}` from the Zustand
+// selector on every call tripped React's useSyncExternalStore snapshot
+// invariant ("getSnapshot should be cached to avoid an infinite loop").
+const EMPTY_PROGRESS: Readonly<StageProgressBag> = Object.freeze(
+  {} as StageProgressBag,
+);
+
 export function useDrillStage(): UseDrillStageResult {
   const currentStage = useDrillStore((s) => s.currentStage);
   const enterStage = useDrillStore((s) => s.enterStage);
   const stageProgress = useDrillStore(
-    (s) => s.stageProgress[s.currentStage] ?? {},
+    (s) => s.stageProgress[s.currentStage] ?? EMPTY_PROGRESS,
   );
 
   const gate = useMemo<GateResult>(
