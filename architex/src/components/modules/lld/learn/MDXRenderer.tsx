@@ -16,6 +16,39 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
 import type { CompiledMDX } from "@/lib/lld/lesson-types";
 
+/**
+ * Inline MDX component stubs. The compile pipeline extracts `id` attributes
+ * from <Class id="..."> and <Concept id="..."> JSX in the source MDX, so we
+ * need real components at render time. For Phase 2 these render as small
+ * inline chips; Phase 3 wires them to canvas interactions and concept popovers.
+ */
+function Class({ id, children }: { id: string; children?: ReactNode }): ReactNode {
+  return (
+    <code
+      data-class-id={id}
+      className="rounded border border-amber-400/40 bg-amber-50 px-1 py-0.5 text-sm font-mono text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200"
+    >
+      {children ?? id}
+    </code>
+  );
+}
+
+function Concept({ id, children }: { id: string; children?: ReactNode }): ReactNode {
+  return (
+    <span
+      data-concept-id={id}
+      className="rounded border border-sky-400/40 bg-sky-50 px-1 py-0.5 text-sm text-sky-900 dark:border-sky-400/30 dark:bg-sky-950/30 dark:text-sky-200"
+    >
+      {children ?? id}
+    </span>
+  );
+}
+
+const DEFAULT_MDX_COMPONENTS = {
+  Class,
+  Concept,
+} as unknown as Record<string, React.ComponentType<unknown>>;
+
 interface MDXRendererProps {
   compiled: Pick<CompiledMDX, "code" | "raw">;
   components?: Record<string, React.ComponentType<unknown>>;
@@ -115,5 +148,9 @@ export function MDXRenderer({
     );
   }
 
-  return <Content components={components ?? {}} />;
+  return (
+    <Content
+      components={{ ...DEFAULT_MDX_COMPONENTS, ...(components ?? {}) }}
+    />
+  );
 }
