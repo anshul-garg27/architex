@@ -8,6 +8,7 @@ import {
   Binary,
   Boxes,
   PenTool,
+  Compass,
   Database,
   Network,
   Globe,
@@ -39,6 +40,12 @@ interface ModuleDefinition {
   color: string;
   bgGradient: string;
   category: ModuleCategory;
+  /**
+   * If set, the card links here directly instead of routing through the
+   * home-page module switcher. Used for modules that have their own
+   * dedicated route tree (Blueprint).
+   */
+  href?: string;
 }
 
 const MODULES: ModuleDefinition[] = [
@@ -77,6 +84,16 @@ const MODULES: ModuleDefinition[] = [
     color: "text-amber-400",
     bgGradient: "from-amber-500/10 to-amber-600/5",
     category: "Learning",
+  },
+  {
+    id: "blueprint",
+    label: "Blueprint",
+    description: "A structured course in object-oriented design. 12 hand-authored units.",
+    icon: Compass,
+    color: "text-indigo-400",
+    bgGradient: "from-indigo-500/10 to-sky-500/5",
+    category: "Learning",
+    href: "/modules/blueprint",
   },
   {
     id: "database",
@@ -206,7 +223,7 @@ function ModuleCard({
       }}
     >
       <Link
-        href="/"
+        href={module.href ?? "/"}
         className={cn(
           "group relative flex flex-col gap-4 rounded-xl border border-border p-4 transition-all hover:border-primary/40 hover:shadow-lg",
           "bg-gradient-to-br",
