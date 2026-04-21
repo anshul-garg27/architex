@@ -28,17 +28,22 @@ type MDXExports = {
 /**
  * Eval the function-body string with the JSX runtime in scope.
  * The result is either a module-like object or a Promise of one.
+ *
+ * `@mdx-js/mdx` with `outputFormat: "function-body"` destructures its runtime
+ * from `arguments[0]` like:
+ *     const {Fragment: _Fragment, jsx: _jsx, jsxs: _jsxs} = arguments[0];
+ * so we pass a single object, not positional args.
  */
 async function evalMDX(code: string): Promise<MDXExports> {
-  // The function body returns `{ default: MDXContent }`.
-  // Inject the jsx runtime via positional arguments.
-  const fn = new Function(
-    "Fragment",
-    "jsx",
-    "jsxs",
-    `${code}`,
-  ) as (F: typeof Fragment, j: typeof jsx, js: typeof jsxs) => MDXExports | Promise<MDXExports>;
-  const result = fn(Fragment, jsx, jsxs);
+  type Runtime = {
+    Fragment: typeof Fragment;
+    jsx: typeof jsx;
+    jsxs: typeof jsxs;
+  };
+  const fn = new Function(`${code}`) as (
+    runtime: Runtime,
+  ) => MDXExports | Promise<MDXExports>;
+  const result = fn({ Fragment, jsx, jsxs });
   return result instanceof Promise ? await result : result;
 }
 
