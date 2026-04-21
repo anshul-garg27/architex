@@ -83,10 +83,24 @@ export async function POST(request: Request) {
         .returning();
       return NextResponse.json({ attempt: created }, { status: 201 });
     } catch (error) {
-      // Partial unique index violation = user already has an active drill.
+      // Postgres unique violation (SQLSTATE 23505) against either the
+      // partial `one_active_drill_per_user` index or any nested duplicate.
+      // Match broadly — drizzle/pg may wrap the error so the literal index
+      // name isn't always in `error.message`.
+      const err = error as {
+        code?: string;
+        message?: string;
+        constraint?: string;
+        cause?: { code?: string; constraint?: string };
+      };
+      const code = err.code ?? err.cause?.code;
+      const constraint = err.constraint ?? err.cause?.constraint ?? "";
+      const msg = err.message ?? "";
       if (
-        error instanceof Error &&
-        error.message.includes("one_active_drill_per_user")
+        code === "23505" ||
+        constraint.includes("one_active_drill_per_user") ||
+        msg.includes("one_active_drill_per_user") ||
+        msg.toLowerCase().includes("duplicate key value")
       ) {
         return NextResponse.json(
           {
