@@ -25,6 +25,8 @@
     "compile:lld-lessons": "tsx scripts/compile-lld-lessons.ts",
     "build:concept-graph": "tsx scripts/build-concept-graph.ts",
     "blueprint:seed-units": "tsx scripts/blueprint/seed-units.ts",
+    "blueprint:compile-units": "tsx scripts/blueprint/compile-all-units.ts",
+    "blueprint:seed-content": "tsx scripts/blueprint/seed-unit-content.ts",
     "prepare": "husky"
   },
   "lint-staged": {
