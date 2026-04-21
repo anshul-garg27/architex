@@ -4,10 +4,14 @@
  * Typed builders prevent event-name drift. Every event writes to
  * activityEvents (user-owned) + mirrors to PostHog (aggregate).
  *
- * Phase 1 ships only a subset: mode switching + welcome banner + drill
- * lifecycle. Later phases expand to lesson scroll milestones, checkpoint
- * attempts, etc.
+ * Phase 1 ships lifecycle events. Phase 4 extends with 12 drill-specific
+ * events (one per stage transition, hint ladder, postmortem flow, etc.).
  */
+
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import type { DrillVariant } from "@/lib/lld/drill-variants";
+import type { InterviewerPersona } from "@/lib/ai/interviewer-prompts";
+import type { HintTier } from "@/lib/ai/hint-system";
 
 type LLDMode = "learn" | "build" | "drill" | "review";
 type DrillMode = "interview" | "guided" | "speed";
@@ -40,38 +44,13 @@ export function lldWelcomeBannerDismissed(args: {
   return { event: "lld_welcome_banner_dismissed", metadata: args };
 }
 
-// ── Drill lifecycle ──────────────────────────────────────
-
-export function lldDrillStarted(args: {
-  problemId: string;
-  drillMode: DrillMode;
-}): LLDEvent {
-  return { event: "lld_drill_started", metadata: args };
-}
+// ── Phase 1 · Drill lifecycle (legacy builders retained) ─────────────
 
 export function lldDrillPaused(args: {
   problemId: string;
   elapsedMs: number;
 }): LLDEvent {
   return { event: "lld_drill_paused", metadata: args };
-}
-
-export function lldDrillSubmitted(args: {
-  problemId: string;
-  drillMode: DrillMode;
-  grade: number;
-  durationMs: number;
-  hintsUsed: number;
-}): LLDEvent {
-  return { event: "lld_drill_submitted", metadata: args };
-}
-
-export function lldDrillAbandoned(args: {
-  problemId: string;
-  elapsedMs: number;
-  reason: "give_up" | "timeout" | "auto";
-}): LLDEvent {
-  return { event: "lld_drill_abandoned", metadata: args };
 }
 
 export function lldDrillGradeTierCrossed(args: {
@@ -103,4 +82,184 @@ export async function track(event: LLDEvent): Promise<void> {
   } catch (err) {
     console.warn("[lld-events] track failed (non-critical):", err);
   }
+}
+
+// ── Phase 4 · Drill events (12 typed builders) ───────────────────────
+
+export function lldDrillStarted(props: {
+  attemptId: string;
+  problemId: string;
+  variant: DrillVariant;
+  persona: InterviewerPersona;
+  durationLimitMs: number;
+  // Optional — allows Phase 1 callers to pass drillMode without breaking.
+  drillMode?: DrillMode;
+}) {
+  return {
+    name: "lld_drill_started" as const,
+    props: {
+      attempt_id: props.attemptId,
+      problem_id: props.problemId,
+      variant: props.variant,
+      persona: props.persona,
+      duration_limit_ms: props.durationLimitMs,
+      drill_mode: props.drillMode,
+    },
+  };
+}
+
+export function lldDrillVariantSelected(props: {
+  problemId: string;
+  variant: DrillVariant;
+}) {
+  return {
+    name: "lld_drill_variant_selected" as const,
+    props: {
+      problem_id: props.problemId,
+      variant: props.variant,
+    },
+  };
+}
+
+export function lldDrillStageEntered(props: {
+  attemptId: string;
+  stage: DrillStage;
+}) {
+  return {
+    name: "lld_drill_stage_entered" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+    },
+  };
+}
+
+export function lldDrillStageCompleted(props: {
+  attemptId: string;
+  stage: DrillStage;
+  durationMs: number;
+}) {
+  return {
+    name: "lld_drill_stage_completed" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+      duration_ms: props.durationMs,
+    },
+  };
+}
+
+export function lldDrillHintConsumed(props: {
+  attemptId: string;
+  stage: DrillStage;
+  tier: HintTier;
+  penalty: number;
+}) {
+  return {
+    name: "lld_drill_hint_consumed" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+      tier: props.tier,
+      penalty: props.penalty,
+    },
+  };
+}
+
+export function lldDrillInterviewerTurn(props: {
+  attemptId: string;
+  role: "user" | "interviewer" | "system";
+  persona: InterviewerPersona;
+  stage: DrillStage;
+  inputTokens?: number;
+  outputTokens?: number;
+}) {
+  return {
+    name: "lld_drill_interviewer_turn" as const,
+    props: {
+      attempt_id: props.attemptId,
+      role: props.role,
+      persona: props.persona,
+      stage: props.stage,
+      input_tokens: props.inputTokens,
+      output_tokens: props.outputTokens,
+    },
+  };
+}
+
+export function lldDrillSubmitted(props: {
+  attemptId: string;
+  finalScore: number;
+  band: "stellar" | "solid" | "coaching" | "redirect";
+  hintsUsed: number;
+  totalDurationMs: number;
+}) {
+  return {
+    name: "lld_drill_submitted" as const,
+    props: {
+      attempt_id: props.attemptId,
+      final_score: props.finalScore,
+      band: props.band,
+      hints_used: props.hintsUsed,
+      total_duration_ms: props.totalDurationMs,
+    },
+  };
+}
+
+export function lldDrillAbandoned(props: {
+  attemptId: string;
+  stage: DrillStage;
+  reason: "manual" | "stale" | "tab_close";
+}) {
+  return {
+    name: "lld_drill_abandoned" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+      reason: props.reason,
+    },
+  };
+}
+
+export function lldDrillResumed(props: { attemptId: string; stage: DrillStage }) {
+  return {
+    name: "lld_drill_resumed" as const,
+    props: {
+      attempt_id: props.attemptId,
+      stage: props.stage,
+    },
+  };
+}
+
+export function lldDrillGradeRevealed(props: { attemptId: string }) {
+  return {
+    name: "lld_drill_grade_revealed" as const,
+    props: {
+      attempt_id: props.attemptId,
+    },
+  };
+}
+
+export function lldDrillPostmortemViewed(props: { attemptId: string }) {
+  return {
+    name: "lld_drill_postmortem_viewed" as const,
+    props: {
+      attempt_id: props.attemptId,
+    },
+  };
+}
+
+export function lldDrillFollowUpClicked(props: {
+  attemptId: string;
+  followUpKind: "retry" | "learn_pattern" | "next_problem";
+  target: string;
+}) {
+  return {
+    name: "lld_drill_follow_up_clicked" as const,
+    props: {
+      attempt_id: props.attemptId,
+      follow_up_kind: props.followUpKind,
+      target: props.target,
+    },
+  };
 }
