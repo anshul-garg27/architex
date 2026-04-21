@@ -9,15 +9,28 @@ import { eq } from "drizzle-orm";
 import { getDb, users } from "@/db";
 
 /**
+ * Dev-mode fallback: when NODE_ENV is development and no Clerk session is
+ * present, pretend to be this stable fake user. Lets the app be usable
+ * end-to-end without running the Clerk sign-in flow locally. Production is
+ * unaffected — this branch is gated on NODE_ENV.
+ */
+const DEV_CLERK_ID = "dev-user-local";
+
+function isDevEnv(): boolean {
+  return process.env.NODE_ENV === "development";
+}
+
+/**
  * Require authentication. Throws "Unauthorized" if no session exists.
+ * In dev mode without a Clerk session, returns a synthetic user ID so the
+ * full app flow works locally without auth setup.
  * @returns The Clerk user ID (string).
  */
 export async function requireAuth(): Promise<string> {
   const { userId } = await auth();
-  if (!userId) {
-    throw new Error("Unauthorized");
-  }
-  return userId;
+  if (userId) return userId;
+  if (isDevEnv()) return DEV_CLERK_ID;
+  throw new Error("Unauthorized");
 }
 
 /**
@@ -50,6 +63,22 @@ export async function resolveUserId(
 
   if (existing) {
     return existing.id;
+  }
+
+  // Dev-mode synthetic user — no Clerk session, so skip currentUser() and
+  // seed a plausible record directly. This keeps local dev unblocked when
+  // Clerk isn't signed in.
+  if (clerkId === DEV_CLERK_ID && isDevEnv()) {
+    const [created] = await db
+      .insert(users)
+      .values({
+        clerkId: DEV_CLERK_ID,
+        email: "dev@localhost",
+        name: "Local Dev",
+        tier: "free",
+      })
+      .returning({ id: users.id });
+    return created?.id ?? null;
   }
 
   // User not in DB yet — create a minimal record.
