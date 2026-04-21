@@ -15,6 +15,9 @@ import { gallerySubmissions, galleryUpvotes } from "./gallery";
 import { aiUsage } from "./ai-usage";
 import { lldBookmarks } from "./lld-bookmarks";
 import { lldConceptReads } from "./lld-concept-reads";
+import { lldDesigns } from "./lld-designs";
+import { lldDesignSnapshots } from "./lld-design-snapshots";
+import { lldDesignAnnotations } from "./lld-design-annotations";
 import { lldDrillAttempts } from "./lld-drill-attempts";
 import { lldLearnProgress } from "./lld-learn-progress";
 import { userPreferences } from "./user-preferences";
@@ -30,6 +33,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   aiUsage: many(aiUsage),
   lldBookmarks: many(lldBookmarks),
   lldConceptReads: many(lldConceptReads),
+  lldDesigns: many(lldDesigns),
   lldDrillAttempts: many(lldDrillAttempts),
   lldLearnProgress: many(lldLearnProgress),
   preferences: one(userPreferences, {
@@ -176,3 +180,46 @@ export const lldBookmarksRelations = relations(lldBookmarks, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// ── LLD Designs ───────────────────────────────────────────────
+
+export const lldDesignsRelations = relations(lldDesigns, ({ one, many }) => ({
+  user: one(users, {
+    fields: [lldDesigns.userId],
+    references: [users.id],
+  }),
+  snapshots: many(lldDesignSnapshots),
+  annotations: many(lldDesignAnnotations),
+}));
+
+// ── LLD Design Annotations ────────────────────────────────────
+
+export const lldDesignAnnotationsRelations = relations(
+  lldDesignAnnotations,
+  ({ one }) => ({
+    design: one(lldDesigns, {
+      fields: [lldDesignAnnotations.designId],
+      references: [lldDesigns.id],
+    }),
+    user: one(users, {
+      fields: [lldDesignAnnotations.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── LLD Design Snapshots ──────────────────────────────────────
+
+export const lldDesignSnapshotsRelations = relations(
+  lldDesignSnapshots,
+  ({ one }) => ({
+    design: one(lldDesigns, {
+      fields: [lldDesignSnapshots.designId],
+      references: [lldDesigns.id],
+    }),
+    user: one(users, {
+      fields: [lldDesignSnapshots.userId],
+      references: [users.id],
+    }),
+  }),
+);

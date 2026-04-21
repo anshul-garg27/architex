@@ -59,6 +59,26 @@ export {
   type NewLLDConceptRead,
 } from "./lld-concept-reads";
 export {
+  lldDesigns,
+  type LLDDesign,
+  type NewLLDDesign,
+} from "./lld-designs";
+export {
+  lldDesignSnapshots,
+  type LLDDesignSnapshot,
+  type NewLLDDesignSnapshot,
+} from "./lld-design-snapshots";
+export {
+  lldTemplatesLibrary,
+  type LLDTemplatesLibraryEntry,
+  type NewLLDTemplatesLibraryEntry,
+} from "./lld-templates-library";
+export {
+  lldDesignAnnotations,
+  type LLDDesignAnnotation,
+  type NewLLDDesignAnnotation,
+} from "./lld-design-annotations";
+export {
   lldDrillAttempts,
   type LLDDrillAttempt,
   type NewLLDDrillAttempt,
@@ -89,6 +109,9 @@ export {
   aiUsageRelations,
   lldBookmarksRelations,
   lldConceptReadsRelations,
+  lldDesignsRelations,
+  lldDesignSnapshotsRelations,
+  lldDesignAnnotationsRelations,
   lldDrillAttemptsRelations,
   lldLearnProgressRelations,
   userPreferencesRelations,
