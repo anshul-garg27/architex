@@ -53,12 +53,22 @@ test.describe("Blueprint · shell + routes", () => {
     await expect(page).toHaveURL(/\/modules\/blueprint$/);
   });
 
-  test("unit URL renders SP3 placeholder", async ({ page }) => {
+  test("unit URL renders unit page (SP3)", async ({ page }) => {
+    // Hitting an unpublished unit shows the empty-recipe state.
     await page.goto("/modules/blueprint/unit/meet-builder");
     await expect(
       page.getByRole("navigation", { name: /Breadcrumb/ }),
     ).toBeVisible();
-    await expect(page.getByText("SP3").first()).toBeVisible();
+    await expect(
+      page.getByText(/Unit not yet authored|Unit not found/i),
+    ).toBeVisible();
+  });
+
+  test("unit completion URL renders (SP3)", async ({ page }) => {
+    await page.goto("/modules/blueprint/unit/meet-builder/complete");
+    await expect(
+      page.getByRole("navigation", { name: /Breadcrumb/ }),
+    ).toBeVisible();
   });
 
   test("toolkit pattern URL renders SP4 placeholder", async ({ page }) => {

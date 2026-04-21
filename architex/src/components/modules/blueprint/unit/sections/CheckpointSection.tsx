@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { McqSingleWidget } from "../widgets/McqSingleWidget";
@@ -38,15 +38,14 @@ export function CheckpointSection({
   onComplete,
 }: Props) {
   const { track } = useBlueprintAnalytics();
-  const [startedOnce, setStartedOnce] = useState(false);
+  const startedRef = useRef(false);
   const [results, setResults] = useState<Record<number, { correct: boolean; attempts: number }>>({});
 
   useEffect(() => {
-    if (!startedOnce) {
-      setStartedOnce(true);
-      track(blueprintCheckpointStarted({ unitSlug }));
-    }
-  }, [startedOnce, unitSlug, track]);
+    if (startedRef.current) return;
+    startedRef.current = true;
+    track(blueprintCheckpointStarted({ unitSlug }));
+  }, [unitSlug, track]);
 
   const correctCount = useMemo(
     () => Object.values(results).filter((r) => r.correct).length,

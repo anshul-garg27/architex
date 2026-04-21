@@ -53,7 +53,10 @@ export function UnitPage({ unitSlug }: Props) {
     onReadScrollDeep,
   });
 
-  const sections = unit?.recipeJson?.sections ?? [];
+  const sections = useMemo(
+    () => unit?.recipeJson?.sections ?? [],
+    [unit],
+  );
   const activeIdx = useMemo(() => {
     if (!activeSectionId) return 0;
     return Math.max(
