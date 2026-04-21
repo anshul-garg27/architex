@@ -1,10 +1,5 @@
-import { BlueprintComingSoon } from "@/components/modules/blueprint/BlueprintComingSoon";
+import { ProblemHistoryList } from "@/components/modules/blueprint/progress/ProblemHistoryList";
 
 export default function ProblemHistoryPage() {
-  return (
-    <BlueprintComingSoon
-      subprojectId="SP2"
-      hint="Problem history list ships with the progress dashboard in sub-project 2."
-    />
-  );
+  return <ProblemHistoryList />;
 }
