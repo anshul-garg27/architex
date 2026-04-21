@@ -52,7 +52,7 @@ export async function GET(
 
     return NextResponse.json(rows[0]);
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[api/blueprint/units/[slug]] GET error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, count: capped.length });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[api/blueprint/events] POST error:", error);
     // Never block the UI on analytics — 200 with an error marker instead
     // of 500, so the client's keepalive POST doesn't retry endlessly.

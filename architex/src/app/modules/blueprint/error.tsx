@@ -10,7 +10,7 @@ export default function BlueprintError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.error("[blueprint error]", error);
   }, [error]);
 

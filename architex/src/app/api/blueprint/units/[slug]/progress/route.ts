@@ -109,7 +109,7 @@ export async function GET(
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // eslint-disable-next-line no-console
+     
     console.error(
       "[api/blueprint/units/[slug]/progress] GET error:",
       error,
@@ -171,7 +171,7 @@ export async function PATCH(
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // eslint-disable-next-line no-console
+     
     console.error(
       "[api/blueprint/units/[slug]/progress] PATCH error:",
       error,

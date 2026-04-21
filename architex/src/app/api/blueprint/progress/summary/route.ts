@@ -55,7 +55,7 @@ export async function GET() {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // eslint-disable-next-line no-console
+     
     console.error("[api/blueprint/progress/summary] GET error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

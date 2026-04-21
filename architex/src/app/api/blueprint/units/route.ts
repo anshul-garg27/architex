@@ -56,7 +56,7 @@ export async function GET() {
 
     return NextResponse.json({ units: rows });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[api/blueprint/units] GET error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

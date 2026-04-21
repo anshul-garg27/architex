@@ -48,7 +48,7 @@ export function useBlueprintAnalytics(): {
       process.env.NODE_ENV === "development"
     ) {
       for (const e of batch) {
-        // eslint-disable-next-line no-console
+         
         console.log("[blueprint-event]", e.name, e.payload);
       }
     }
