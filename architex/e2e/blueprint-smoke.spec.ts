@@ -1,18 +1,44 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * SP1 smoke test — every Blueprint route renders the shell and a
- * subproject-tagged "Coming soon" placeholder. Back/forward work.
+ * SP1 + SP2 smoke test — every Blueprint route renders and the shell
+ * stays intact. Routes whose bodies haven't shipped yet show a
+ * subproject-tagged "Coming soon" placeholder; routes that have
+ * shipped (SP2) render their real component.
  */
 
-test.describe("Blueprint · shell + routes (SP1)", () => {
-  test("home renders shell + SP2 placeholder", async ({ page }) => {
+test.describe("Blueprint · shell + routes", () => {
+  test("home renders journey layout (SP2)", async ({ page }) => {
     await page.goto("/modules/blueprint");
     await expect(
       page.getByRole("navigation", { name: /Blueprint surfaces/ }),
     ).toBeVisible();
-    await expect(page.getByText(/Coming soon/i)).toBeVisible();
-    await expect(page.getByText("SP2").first()).toBeVisible();
+    // SP2 journey home shows "Your journey" heading instead of Coming soon
+    await expect(page.getByRole("heading", { name: /Your journey/ })).toBeVisible();
+  });
+
+  test("progress dashboard renders real cards (SP2)", async ({ page }) => {
+    await page.goto("/modules/blueprint/progress");
+    await expect(page.getByRole("heading", { name: /Your progress/ })).toBeVisible();
+  });
+
+  test("pattern mastery grid renders (SP2)", async ({ page }) => {
+    await page.goto("/modules/blueprint/progress/patterns");
+    await expect(
+      page.getByRole("heading", { name: /Pattern mastery/ }),
+    ).toBeVisible();
+  });
+
+  test("streak detail renders (SP2)", async ({ page }) => {
+    await page.goto("/modules/blueprint/progress/streak");
+    await expect(page.getByRole("heading", { name: /Your streak/ })).toBeVisible();
+  });
+
+  test("problem history empty-state renders (SP2)", async ({ page }) => {
+    await page.goto("/modules/blueprint/progress/problems");
+    await expect(
+      page.getByRole("heading", { name: /Problem history/ }),
+    ).toBeVisible();
   });
 
   test("surface tabs route between Journey / Toolkit / Progress", async ({
@@ -27,33 +53,27 @@ test.describe("Blueprint · shell + routes (SP1)", () => {
     await expect(page).toHaveURL(/\/modules\/blueprint$/);
   });
 
-  test("unit URL resolves with breadcrumb", async ({ page }) => {
+  test("unit URL renders SP3 placeholder", async ({ page }) => {
     await page.goto("/modules/blueprint/unit/meet-builder");
     await expect(
       page.getByRole("navigation", { name: /Breadcrumb/ }),
     ).toBeVisible();
-    await expect(page.getByText(/Meet Builder/)).toBeVisible();
     await expect(page.getByText("SP3").first()).toBeVisible();
   });
 
-  test("toolkit pattern URL resolves", async ({ page }) => {
+  test("toolkit pattern URL renders SP4 placeholder", async ({ page }) => {
     await page.goto("/modules/blueprint/toolkit/patterns/builder");
     await expect(page.getByText("SP4").first()).toBeVisible();
   });
 
-  test("toolkit problems URL resolves", async ({ page }) => {
+  test("toolkit problems URL renders SP5 placeholder", async ({ page }) => {
     await page.goto("/modules/blueprint/toolkit/problems");
     await expect(page.getByText("SP5").first()).toBeVisible();
   });
 
-  test("toolkit review URL resolves", async ({ page }) => {
+  test("toolkit review URL renders SP6 placeholder", async ({ page }) => {
     await page.goto("/modules/blueprint/toolkit/review");
     await expect(page.getByText("SP6").first()).toBeVisible();
-  });
-
-  test("progress URL resolves", async ({ page }) => {
-    await page.goto("/modules/blueprint/progress");
-    await expect(page.getByText("SP2").first()).toBeVisible();
   });
 
   test("browser back navigates through surfaces", async ({ page }) => {
