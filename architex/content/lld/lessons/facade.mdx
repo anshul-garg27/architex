@@ -1,0 +1,270 @@
+---
+subtitle: "A simple door over a complicated house"
+estimatedMinutes: 12
+conceptIds:
+  - subsystem-coupling
+  - interface-narrowing
+  - api-gateway-pattern
+  - hidden-complexity
+sections:
+  itch:
+    scenario: "Your checkout feature imports six internal SDKs, reads three config files, and wires fifty lines of boilerplate — before it can charge a card."
+    keywords: ["subsystem", "boilerplate", "blast radius", "BFF"]
+  definition:
+    oneLiner: "Facade provides a unified interface to a set of interfaces in a subsystem. It defines a higher-level interface that makes the subsystem easier to use."
+    canonicalSource: "Gang of Four, Design Patterns (1994), p.185."
+  mechanism:
+    steps:
+      - index: 1
+        title: "Identify the subsystem"
+        markdown: "Draw a ring around the classes callers currently reach into. Everything inside the ring is the subsystem; everything outside is a caller."
+      - index: 2
+        title: "Write down the caller's actual intent"
+        markdown: "Forget the subsystem APIs. What is the caller *trying to do*? `chargeCard(amount, card)` — not `buildCryptogram(); authorize(); settle();`."
+      - index: 3
+        title: "Forward, don't wrap"
+        markdown: "The Facade holds references to the subsystem classes and forwards. It does no real work; it just orchestrates."
+      - index: 4
+        title: "Make the subsystem package-private"
+        markdown: "If the language supports it, hide the subsystem classes behind the package boundary so callers cannot bypass the Facade."
+  anatomy:
+    classes:
+      - classId: Facade
+        role: Facade
+        responsibility: The single entry point callers see; delegates to subsystem classes.
+        keyMethod: "high-level operation like checkout(), render(), send()"
+      - classId: Subsystem
+        role: Subsystem
+        responsibility: One of the underlying classes the Facade coordinates. Still callable directly by power users when needed.
+      - classId: Client
+        role: Client
+        responsibility: Talks only to the Facade. Knows nothing about the subsystem.
+  numbers:
+    headline:
+      - label: "Subsystems"
+        value: "2-10"
+      - label: "Calls collapsed"
+        value: "3-8 → 1-3"
+      - label: "Stripe Elements"
+        value: "~40"
+        unit: "PCI calls hidden"
+  uses:
+    cases:
+      - company: "Stripe"
+        system: "Stripe Elements + Payment Intents"
+        whyThisPattern: "One `<PaymentElement/>` component hides ~40 PCI-compliance calls, 3DS challenges, SCA handoffs, and network retry logic behind a single widget."
+      - company: "jQuery"
+        system: "The entire library"
+        whyThisPattern: "`$('#foo').fadeIn()` hides `document.getElementById`, cross-browser event quirks, animation frame loops, and computed-style reads behind one chainable call."
+      - company: "WHATWG / browsers"
+        system: "fetch() over XMLHttpRequest"
+        whyThisPattern: "`fetch(url)` collapses XHR lifecycle (open, setRequestHeader, onreadystatechange, JSON.parse) into one Promise-returning call."
+      - company: "Meta / Netflix"
+        system: "Backend-for-Frontend (BFF)"
+        whyThisPattern: "A single mobile-shaped endpoint fans out to 6-12 microservices so the client doesn't round-trip each one and doesn't know their shapes."
+      - company: "AWS"
+        system: "aws-sdk high-level clients"
+        whyThisPattern: "`s3.putObject()` hides SigV4 signing, region endpoint resolution, multipart chunking, and retry backoff — all HTTP calls under the hood."
+      - company: "React 18"
+        system: "createRoot(container).render(<App/>)"
+        whyThisPattern: "Replaces a history of `appendChild` + manual reconciliation + hydration wiring with one factory + one method."
+  failure_modes:
+    modes:
+      - title: "God-object Facade"
+        whatGoesWrong: "The Facade accretes every method the app ever calls. It becomes the app, not a door to the subsystem. Changes everywhere touch it; its tests run for 20 minutes."
+        howToAvoid: "Split by caller intent, not by subsystem boundary. Two Facades over the same subsystem is fine. One Facade over 80 methods is not."
+        severity: "high"
+      - title: "Leaky abstraction"
+        whatGoesWrong: "The Facade returns raw subsystem types (a `ByteBuffer`, an internal `PaymentContext`). Callers now depend on them and the Facade can no longer evolve independently."
+        howToAvoid: "Return plain data shapes the caller owns. Never let a subsystem type cross the Facade boundary unless you commit to it as public API."
+        severity: "high"
+      - title: "The 1% case"
+        whatGoesWrong: "A power user needs one subsystem knob the Facade doesn't expose — they either patch the Facade (bloating it) or bypass it (defeating it)."
+        howToAvoid: "Keep the subsystem classes accessible. The Facade is a convenience, not a prison. Document the bypass path explicitly."
+        severity: "medium"
+      - title: "Stale-by-design"
+        whatGoesWrong: "Subsystem adds a feature. Facade lags. For six months, the Facade is the worst way to use the subsystem. Callers start going around it."
+        howToAvoid: "Own the Facade on the same team as the subsystem. Treat Facade parity as part of the subsystem's definition of done."
+        severity: "medium"
+checkpoints:
+  - kind: recall
+    id: r1
+    prompt: "Which statement is *most* true of Facade?"
+    options:
+      - id: a
+        label: "It translates one interface into another"
+        isCorrect: false
+        whyWrong: "That's Adapter. Adapter bridges mismatched shapes; Facade hides many working shapes behind one simpler one."
+      - id: b
+        label: "It simplifies access to a set of subsystem classes"
+        isCorrect: true
+      - id: c
+        label: "It implements the same interface as its subject with added behavior"
+        isCorrect: false
+        whyWrong: "That's Proxy. Proxy is transparent — same interface, new behavior. Facade is opinionated — new, narrower interface."
+      - id: d
+        label: "It coordinates peer objects that don't know each other"
+        isCorrect: false
+        whyWrong: "That's Mediator. Mediator wires colleagues together; Facade hides callees from callers."
+    explanation: "Facade is defined by *interface narrowing*: a simpler, higher-level API layered over a set of working subsystem classes. The confusions with Adapter, Proxy, and Mediator are the most common interview traps."
+  - kind: apply
+    id: a1
+    scenario: "You're designing a CheckoutService that coordinates PaymentGateway, InventoryService, TaxCalculator, ShippingQuoter, and EmailSender. Which class(es) form the Facade structure?"
+    correctClassIds: ["CheckoutService"]
+    distractorClassIds: ["PaymentGateway", "InventoryService", "TaxCalculator", "ShippingQuoter", "EmailSender"]
+    explanation: "Only CheckoutService plays the Facade role. The five collaborators are the subsystem — they still exist as independently usable classes; CheckoutService just forwards to them. If you tried to pull any of them into the Facade role, you'd be confusing the convenience door with the house behind it."
+  - kind: compare
+    id: cp1
+    prompt: "A senior engineer says your new class is 'just an Adapter.' You believe it's a Facade. Which statements belong to each?"
+    left:
+      patternSlug: "facade"
+      label: "Facade"
+    right:
+      patternSlug: "adapter"
+      label: "Adapter"
+    statements:
+      - id: s1
+        text: "Primary goal is to simplify — the caller sees fewer concepts than the subsystem has"
+        correct: "left"
+      - id: s2
+        text: "Primary goal is to translate — a caller's expected shape doesn't match the callee's actual shape"
+        correct: "right"
+      - id: s3
+        text: "Typically sits over many classes"
+        correct: "left"
+      - id: s4
+        text: "Typically wraps one class or one interface"
+        correct: "right"
+      - id: s5
+        text: "Introduces a *new* interface that didn't exist before"
+        correct: "both"
+    explanation: "Adapter answers 'how do I plug A into B when their shapes differ?' Facade answers 'how do I let A ignore everything inside B?' Both invent a new interface, but for different reasons — translation vs. simplification. Proxy is the third cousin here: same interface as the subject, adding behavior like caching or access control."
+  - kind: create
+    id: cr1
+    prompt: "Sketch a Facade over a video-upload pipeline: presigned-URL request, multipart upload, transcoding job, CDN invalidation, thumbnail generation. Name the Facade class and its public method; the subsystem classes stay as-is."
+    starterCanvas:
+      classes: []
+    rubric:
+      - criterion: "Introduces one Facade class with a single high-level method (e.g. upload(file))"
+        points: 3
+      - criterion: "Keeps all 5 subsystem classes intact and callable directly"
+        points: 2
+      - criterion: "Facade returns a plain data shape (e.g. UploadResult), not a subsystem type"
+        points: 2
+      - criterion: "Facade does no business logic beyond orchestration"
+        points: 1
+    referenceSolution:
+      classes:
+        - id: vu
+          name: "VideoUploader"
+        - id: ps
+          name: "PresignService"
+        - id: mpu
+          name: "MultipartUploader"
+        - id: tc
+          name: "Transcoder"
+        - id: cdn
+          name: "CdnClient"
+        - id: th
+          name: "ThumbnailGenerator"
+    explanation: "One Facade (VideoUploader) with `upload(file): UploadResult`. Inside, it calls PresignService, then MultipartUploader, kicks off Transcoder + ThumbnailGenerator in parallel, invalidates CdnClient, returns an UploadResult the caller owns. The five subsystem classes remain independently testable and usable — that's the sign of a Facade done right, not a God-object."
+---
+
+<!-- Section: itch -->
+## The Itch
+
+Your payments service ships a checkout endpoint. It imports six internal SDKs: `pricing`, `inventory`, `tax`, `fraud`, `payments`, `notifications`. Each SDK has its own init pattern, its own config file, its own error taxonomy. Every new feature opens a file, writes fifty lines of boilerplate — fetch pricing, reserve inventory, compute tax, run fraud, authorize, fallback on decline, notify — then closes the file. You now have forty-seven callers, each repeating the same sequence with small variations, each with its own subtle bug.
+
+Then `payments-sdk` ships v4 with a breaking signature on `authorize()`. You grep for callers. There are forty-seven. Forty-seven pull requests.
+
+Facade is the pattern for the door you wish had been there all along. One class. One method. `checkout(cart, customer)` returns a result. The six subsystems are still there — still testable, still reachable — but no caller mentions them. The next SDK break is one pull request, not forty-seven.
+
+You've seen this before. jQuery was this over the DOM. `fetch()` was this over `XMLHttpRequest`. Stripe Elements is this over forty calls of PCI compliance. BFFs are this over a mesh of microservices. The pattern has a name.
+
+<!-- Section: definition -->
+## Definition
+
+> *Provide a unified interface to a set of interfaces in a subsystem. Facade defines a higher-level interface that makes the subsystem easier to use.*
+>
+> — Gang of Four, *Design Patterns* (1994), p.185
+
+Two obligations make a Facade:
+
+1. It sits *over* a subsystem of collaborating classes — two or more, usually several.
+2. It offers the caller a *simpler* surface than the subsystem itself exposes.
+
+The subsystem keeps working; its classes remain usable. The Facade is convenience, not prison. If you ever find yourself routing through the Facade because the subsystem classes are hidden from you, you're in a Facade-turned-gatekeeper situation that the GoF were explicit about not requiring.
+
+This is the pattern that is most often confused with its neighbors. Adapter translates *one* mismatched interface. Proxy preserves the same interface and adds behavior. Mediator wires peers together. Facade simplifies access to many. Keep those four sentences in your head and most interview traps resolve themselves.
+
+<!-- Section: mechanism -->
+## Mechanism
+
+The work is almost physical. You draw a ring around the subsystem classes your callers are currently reaching into. Everything inside the ring is going to be hidden. Everything outside has to ask the Facade for what it wants.
+
+Then you forget the subsystem's API for a moment and write down what the caller is actually *trying to do*. Not `buildCryptogram()` then `authorize()` then `settle()` — but `chargeCard(amount, card)`. The Facade's method names come from the caller's vocabulary, not the subsystem's.
+
+<Class id="Facade" /> holds references to the <Class id="Subsystem" /> classes. Each Facade method forwards to a short sequence of subsystem calls — orchestration only, no real work. If the Facade starts implementing domain logic, it has stopped being a Facade and become something else (usually a God-object; see Failure Modes).
+
+The subsystem classes stay *usable*. A power user who needs raw access bypasses the Facade and talks to the subsystem directly. This is a deliberate property of the pattern, not a leak. If you take away the bypass you've built a Gateway, not a Facade.
+
+<!-- Section: anatomy -->
+## Anatomy
+
+Three roles, most lessons collapse them to two.
+
+<Class id="Facade" /> is the one new class the pattern introduces. It exposes the narrowed, caller-friendly interface. Its implementation is almost entirely delegation.
+
+<Class id="Subsystem" /> stands in for two or more existing classes that were already doing the work. They don't change. They don't know about the Facade — one-way coupling, always. The Facade depends on the subsystem; the subsystem has no reason to reference the Facade.
+
+<Class id="Client" /> is the caller. After the Facade lands, the Client imports only the Facade. The subsystem becomes an implementation detail.
+
+One detail catches people: the Facade is *not* an abstract class or interface by definition. It's usually a concrete class. An interface layer is a refinement (useful for testing), not part of the base structure.
+
+<!-- Section: numbers -->
+## Numbers
+
+Reach for Facade when:
+
+- **At least two distinct subsystem classes** would otherwise be called together. One subsystem class behind a Facade is usually wasted indirection — just fix the class.
+- **Three to eight subsystem method calls** collapse into one to three Facade methods. The ratio is the point of the pattern.
+- **Blast radius of subsystem change** drops from *O(callers)* to *O(1)* when the Facade is the only caller of the subsystem.
+
+Stripe Elements is the textbook case: roughly forty PCI-compliance calls — element mounting, tokenization, 3DS challenge, Strong Customer Authentication, retry, fallback — collapse into one `<PaymentElement/>` component plus one `confirmPayment()` call. The subsystem classes still exist; the Stripe dashboard and raw-API users still reach them. Most callers never do.
+
+There is no runtime cost to Facade beyond one extra function call per operation — O(1), inlined by any real compiler. The real cost is organizational: someone has to own the Facade and evolve it alongside the subsystem.
+
+<!-- Section: uses -->
+## Uses
+
+Every developer alive uses Facades daily, usually without naming them.
+
+**jQuery** is the canonical user-land example. `$('#foo').fadeIn()` hides `document.getElementById` (or `querySelector`), a cross-browser event model, `requestAnimationFrame` loops, computed-style reads, and transition events. For a decade it was the only tolerable way to talk to the DOM. When `querySelector` and `fetch` finally shipped, much of jQuery's value disappeared — the DOM had absorbed the Facade.
+
+**`fetch(url)`** is itself a Facade over the `XMLHttpRequest` lifecycle: `open`, `setRequestHeader`, `onreadystatechange`, `responseText` parsing, abort handling — collapsed into one promise-returning call with a response object.
+
+**Stripe Elements** hides ~40 PCI-compliance, 3DS, and retry calls behind a single widget. You cannot pass card numbers through Stripe's Facade and fail PCI; the whole point is that the simpler API is also the safer one.
+
+**Backend-for-Frontend (BFF)** is the architectural scale version. A single mobile-shaped endpoint fans out to 6-12 microservices so the client never round-trips each one. The mobile team owns the BFF; it's their Facade over the service mesh.
+
+**AWS SDK** high-level clients (`s3.putObject`, `ddb.getItem`) are Facades over SigV4 signing, endpoint resolution, multipart chunking, retry backoff, and HTTP. Raw signing is still possible; nobody does it.
+
+**React 18's `createRoot(container).render(<App/>)`** replaces a decade of `appendChild` + manual reconciliation wiring + hydration edge cases with one factory plus one method. The reconciler is still there — React's internals still reach it — but the Client never does.
+
+One property is shared across all six: the Facade adds no capability. Every call it makes was possible before. What it adds is the right *shape* for the caller.
+
+<!-- Section: failure_modes -->
+## Failure Modes
+
+The first and worst failure is the **God-object Facade**. A team adds a Facade, then adds "just one more method" to it for months. Eighteen months in, the Facade has 240 methods, tests that take 20 minutes, and every caller reaches through it for everything. It has become the application, not a door to the subsystem. The fix is almost always to split by *caller intent*: a Facade for checkout, a different Facade for admin, a third for reporting, all over the same subsystem. Two Facades over one subsystem is fine. One Facade over eighty methods is a smell.
+
+The second, quieter failure is the **leaky abstraction**. Your Facade method returns a raw subsystem type — a `ByteBuffer`, an internal `PaymentContext` with twelve nullable fields — because returning the "real" thing was the easiest first move. Now every caller depends on that type. The moment you try to evolve the subsystem, you break everyone. The rule: return plain data shapes the caller owns. If a subsystem type crosses the Facade boundary, you've committed to it as public API — be explicit about that choice.
+
+The third is the **1% case**. A power user needs one subsystem knob the Facade doesn't expose. They patch the Facade (bloating it) or bypass it (defeating it). Neither is wrong — but the right answer is documented. Keep the subsystem classes accessible and tell users, clearly, when to reach past the Facade. The Facade is a convenience, not a prison.
+
+The fourth is **stale-by-design**. The subsystem team ships a feature. The Facade team is separate, and lags by a quarter. For three months, the Facade is the *worst* way to use the subsystem — missing flags, stale defaults — and callers start going around it. The fix is ownership: same team owns the Facade and the subsystem, or Facade parity is in the subsystem's definition of done. Otherwise the Facade rots.
+
+<!-- Section: checkpoints -->
+## Checkpoints
+
+Four checkpoints below. The third is the one candidates trip on — it's the Facade-vs-Adapter-vs-Proxy distinction that trips real interviews. Take it seriously; getting it wrong is fine, each wrong answer reveals more context.
