@@ -8,6 +8,7 @@ import { AnnotationToolbar } from "@/components/modules/lld/build-mode/Annotatio
 import { TemplateLoaderDialog } from "@/components/modules/lld/build-mode/TemplateLoaderDialog";
 import { AISuggestionsCard } from "@/components/modules/lld/build-mode/AISuggestionsCard";
 import { useBuildKeyboardShortcuts } from "@/hooks/useBuildKeyboardShortcuts";
+import { useLLDDesignSync } from "@/hooks/useLLDDesignSync";
 import { useCanvasStore } from "@/stores/canvas-store";
 
 interface Props {
@@ -33,6 +34,11 @@ export const BuildModeLayout = memo(function BuildModeLayout({
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const push = useCanvasStore((s) => s.pushNamedSnapshot);
+  const activeDesignId = useCanvasStore((s) => s.activeDesignId);
+
+  // Sync named snapshots + auto-save to DB when bound to a design.
+  // No-ops when activeDesignId is null (user hasn't saved yet).
+  useLLDDesignSync({ designId: activeDesignId });
 
   useBuildKeyboardShortcuts({
     enabled: true,
