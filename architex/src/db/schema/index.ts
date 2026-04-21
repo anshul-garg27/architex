@@ -82,7 +82,14 @@ export {
   lldDrillAttempts,
   type LLDDrillAttempt,
   type NewLLDDrillAttempt,
+  type DrillStage,
+  type DrillVariant,
 } from "./lld-drill-attempts";
+export {
+  lldDrillInterviewerTurns,
+  type LLDDrillInterviewerTurn,
+  type NewLLDDrillInterviewerTurn,
+} from "./lld-drill-interviewer-turns";
 export {
   lldLearnProgress,
   type LLDLearnProgress,
@@ -113,6 +120,7 @@ export {
   lldDesignSnapshotsRelations,
   lldDesignAnnotationsRelations,
   lldDrillAttemptsRelations,
+  lldDrillInterviewerTurnsRelations,
   lldLearnProgressRelations,
   userPreferencesRelations,
 } from "./relations";

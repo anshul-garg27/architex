@@ -19,6 +19,7 @@ import { lldDesigns } from "./lld-designs";
 import { lldDesignSnapshots } from "./lld-design-snapshots";
 import { lldDesignAnnotations } from "./lld-design-annotations";
 import { lldDrillAttempts } from "./lld-drill-attempts";
+import { lldDrillInterviewerTurns } from "./lld-drill-interviewer-turns";
 import { lldLearnProgress } from "./lld-learn-progress";
 import { userPreferences } from "./user-preferences";
 
@@ -128,10 +129,23 @@ export const aiUsageRelations = relations(aiUsage, ({ one }) => ({
 
 export const lldDrillAttemptsRelations = relations(
   lldDrillAttempts,
-  ({ one }) => ({
+  ({ one, many }) => ({
     user: one(users, {
       fields: [lldDrillAttempts.userId],
       references: [users.id],
+    }),
+    interviewerTurns: many(lldDrillInterviewerTurns),
+  }),
+);
+
+// ── LLD Drill Interviewer Turns ───────────────────────────────
+
+export const lldDrillInterviewerTurnsRelations = relations(
+  lldDrillInterviewerTurns,
+  ({ one }) => ({
+    attempt: one(lldDrillAttempts, {
+      fields: [lldDrillInterviewerTurns.attemptId],
+      references: [lldDrillAttempts.id],
     }),
   }),
 );
