@@ -1,10 +1,5 @@
-import { BlueprintComingSoon } from "@/components/modules/blueprint/BlueprintComingSoon";
+import { JourneyHomePage } from "@/components/modules/blueprint/journey/JourneyHomePage";
 
 export default function BlueprintHomePage() {
-  return (
-    <BlueprintComingSoon
-      subprojectId="SP2"
-      hint="The journey home — curriculum map, resume card, streak — is scheduled for sub-project 2."
-    />
-  );
+  return <JourneyHomePage />;
 }
