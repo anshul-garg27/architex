@@ -1,0 +1,41 @@
+pattern: facade
+concepts:
+  - id: subsystem-coupling
+    label: Subsystem Coupling
+    summary: How tightly callers depend on the individual classes inside a working subsystem. High coupling turns one SDK break into N pull requests.
+    relatedPatterns:
+      - adapter
+      - mediator
+    introducedIn:
+      - itch
+      - failure_modes
+  - id: interface-narrowing
+    label: Interface Narrowing
+    summary: Replacing a wide subsystem API with a smaller, caller-shaped one. The narrowed surface is the core move Facade makes.
+    relatedConcepts:
+      - hidden-complexity
+    introducedIn:
+      - definition
+      - mechanism
+  - id: api-gateway-pattern
+    label: API Gateway / BFF
+    summary: The distributed-systems cousin of Facade — one endpoint fans out to many backends so clients don't have to. Backend-for-Frontend is the mobile-shaped variant.
+    relatedPatterns:
+      - facade
+    introducedIn:
+      - uses
+  - id: hidden-complexity
+    label: Hidden Complexity
+    summary: The subsystem work that still happens — signing, retry, cross-browser quirks, PCI compliance — but never appears in caller code. Stripe Elements hides ~40 such calls.
+    relatedConcepts:
+      - interface-narrowing
+    introducedIn:
+      - numbers
+      - uses
+confusedWith:
+  - patternSlug: adapter
+    reason: Adapter translates one interface to another; Facade simplifies access to many.
+  - patternSlug: proxy
+    reason: Proxy implements the same interface with added behavior; Facade implements a new, simpler interface.
+  - patternSlug: mediator
+    reason: Mediator coordinates peer objects that don't know each other; Facade hides subsystem classes from callers that don't need to know them.
