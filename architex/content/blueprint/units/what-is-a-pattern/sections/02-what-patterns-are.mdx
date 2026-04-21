@@ -1,0 +1,19 @@
+A design pattern is a recurring **arrangement of classes and responsibilities** that solves a specific design problem. Three parts of that definition do load-bearing work:
+
+### Recurring
+
+A pattern isn't a clever trick someone invented. It's a shape that shows up in codebase after codebase, because a class of problems shows up over and over. If you'd never seen it before but had ten years of OO experience, you'd probably invent it yourself. That's a good sign.
+
+### Arrangement
+
+A pattern is not a library, not a specific algorithm, not a language feature. It's the *relationship between classes*. <Class id="Strategy">Strategy</Class>, the one we're about to meet, is just "one interface and a family of classes that implement it" — but naming that arrangement turns a pile of code into a conversation.
+
+### Specific problem
+
+Every pattern comes with a precise problem statement and a non-trivial trade-off. If a pattern solves ten problems at once, it's not a pattern — it's a vibe.
+
+The Gang of Four (Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides, 1994) cataloged 23 of them. Modern practice uses more — the architectural patterns like Repository and Saga, the concurrency patterns like Producer-Consumer, the failure patterns like Circuit Breaker. But the 23 are the vocabulary you'll reach for every week.
+
+<Callout kind="aside">
+Why not just read the GoF book? Because patterns taste different in code you actually own. You'll remember three you use more than twenty you read about. We'll build the vocabulary one pattern at a time.
+</Callout>

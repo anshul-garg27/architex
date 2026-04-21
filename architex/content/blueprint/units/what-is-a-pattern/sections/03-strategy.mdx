@@ -1,0 +1,23 @@
+Back to your checkout. Here's what you're going to do:
+
+1. Define one interface — <Class id="PaymentStrategy">PaymentStrategy</Class> — with one method, `charge(amount, customer)`.
+2. Write one class per payment method: <Class id="CreditCardStrategy">CreditCardStrategy</Class>, <Class id="PayPalStrategy">PayPalStrategy</Class>, <Class id="ApplePayStrategy">ApplePayStrategy</Class>. Each implements `PaymentStrategy.charge` its own way.
+3. In your checkout service, hold a reference to a `PaymentStrategy` and call `.charge()`. You don't know or care which one.
+
+That's Strategy. Three classes where you had one 340-line method, and each class does one thing you can test, replace, or version independently.
+
+### The shape
+
+- One <Concept id="interface">interface</Concept> says *what* happens.
+- Many classes say *how* it happens.
+- A caller picks *which* at runtime.
+
+The name "Strategy" comes from the idea that each implementation is a **strategy** for accomplishing the same goal. Different strategies produce different results, but the caller treats them uniformly.
+
+### What you gain
+
+Adding a new payment method is now: *write one class*. Nothing else touches. You've turned a risky change into a boring one. That's the prize patterns pay out over time.
+
+### What you pay
+
+Two extra classes minimum (interface + concrete) and a new indirection. If your checkout only ever supports credit cards, you paid for nothing. Patterns are tools, not decorations.

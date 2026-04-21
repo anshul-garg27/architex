@@ -33,8 +33,12 @@ async function main() {
   for (const slug of slugs) {
     await new Promise<void>((resolve, reject) => {
       const child = spawn(
-        "pnpm",
-        ["tsx", "scripts/blueprint/compile-unit.ts", slug],
+        process.execPath,
+        [
+          "--experimental-strip-types",
+          "scripts/blueprint/compile-unit.ts",
+          slug,
+        ],
         { stdio: "inherit" },
       );
       child.on("close", (code) => {

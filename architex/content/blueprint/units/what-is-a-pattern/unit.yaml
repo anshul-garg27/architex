@@ -1,0 +1,94 @@
+slug: what-is-a-pattern
+recipeVersion: 1
+sections:
+  - id: itch
+    type: read
+    title: The itch
+    mdx: 01-itch.mdx
+    estimatedSeconds: 90
+
+  - id: what-patterns-are
+    type: read
+    title: What a pattern really is
+    mdx: 02-what-patterns-are.mdx
+    estimatedSeconds: 150
+
+  - id: pattern-or-technique
+    type: interact
+    title: Pattern or technique?
+    widget:
+      kind: mcq-single
+      prompt: "Which of these is a design pattern, not just a technique?"
+      options:
+        - id: a
+          label: Caching results to speed up repeated calls
+          whyWrong: Caching is a general technique — no specific arrangement of classes, no defined responsibilities. You cache values, you don't arrange classes.
+        - id: b
+          label: Keeping exactly one shared instance of a class
+          # correct — Singleton
+        - id: c
+          label: Using a hash table instead of a linked list for O(1) lookup
+          whyWrong: That's a data-structure choice, not a pattern. Patterns are about class arrangement, not which container you pick.
+        - id: d
+          label: Catching exceptions and retrying on transient failures
+          whyWrong: Retry is a technique — sometimes it's wrapped into a Circuit Breaker pattern, but on its own it's just a loop.
+      correctId: b
+
+  - id: meet-strategy
+    type: read
+    title: Meet Strategy
+    mdx: 03-strategy.mdx
+    estimatedSeconds: 150
+
+  - id: strategy-smell-test
+    type: interact
+    title: When to reach for Strategy
+    widget:
+      kind: mcq-multi
+      prompt: "Which of these are signs that Strategy fits? Select all that apply."
+      options:
+        - id: family
+          label: You have a family of algorithms or implementations that do "the same thing" differently.
+          # correct
+        - id: memory
+          label: You want to save memory by sharing state across instances.
+          whyWrong: That's Flyweight — a structural pattern for dedup, not behavior swap. We'll meet it in Unit 8.
+        - id: switch
+          label: Your big switch/if chain is growing every sprint, tied to one input type.
+          # correct
+        - id: single
+          label: You need exactly one shared instance across the app.
+          whyWrong: That's Singleton. Single instance is the problem; Strategy doesn't care how many instances exist.
+        - id: runtime-swap
+          label: You want to swap implementations at runtime without a restart.
+          # correct
+        - id: undo
+          label: You need to record user actions so you can undo them.
+          whyWrong: That's Command + Memento — together, not apart. We'll meet both in Unit 11.
+      correctIds: [family, switch, runtime-swap]
+
+  - id: not-every-hammer
+    type: read
+    title: Not every hammer
+    mdx: 04-not-every-hammer.mdx
+    estimatedSeconds: 120
+
+  - id: retain-strategy
+    type: retain
+    title: See you in a few days
+    recap: |
+      Strategy is one interface plus a family of implementations, picked at runtime.
+      Cost is two extra classes. Win is that new implementations drop in without
+      touching old ones. Reach for it when the choice is recurring and the selection
+      is runtime-dynamic.
+    cards:
+      - id: card-strategy-name
+        front: "A family of algorithms or implementations doing 'the same thing' differently, swappable at runtime."
+        back: "Strategy"
+        entitySlug: strategy
+        entityType: pattern
+      - id: card-strategy-cost
+        front: "What's the primary cost of the Strategy pattern?"
+        back: "Two extra classes per algorithm family (interface + at least one implementation), plus the wiring to pick one — paid in code weight, earned back in boring changes."
+        entitySlug: strategy
+        entityType: concept

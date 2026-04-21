@@ -1,0 +1,9 @@
+You're building a checkout system. Your service handles credit cards — fine. Then the product team adds PayPal. Then Apple Pay. Then split-payments across a card and a wallet. Then a "buy now, pay later" provider your CEO signed last quarter.
+
+Your `PaymentService.process()` method is now 340 lines of `if (method === "credit-card") ... else if (method === "paypal") ...`. Every time one payment provider changes their API, three other payment providers almost break. Every new intern fears that file.
+
+You sense there's a shape here — a way to arrange these classes so new methods slot in without the existing ones flinching. You've felt it before, in other codebases. You don't have a name for it yet.
+
+That feeling — *"there's a shape here"* — is what a design pattern names.
+
+We'll start with the one that matches your checkout problem. But first: what is a pattern, really?

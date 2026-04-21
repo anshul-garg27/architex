@@ -1,0 +1,23 @@
+A pattern you applied too early costs more than one you missed.
+
+Strategy on your 340-line payment method: clear win. Strategy on a `formatDate()` function that only ever handles ISO-8601: you paid for two classes, an interface, and a dependency-injection wiring — to replace four lines.
+
+Three tests before reaching for a pattern:
+
+### 1. Can I name the problem?
+
+If you can't write one sentence that starts *"I have a recurring choice between ..."* you don't have the problem a pattern solves.
+
+### 2. Is it actually recurring?
+
+Not hypothetical. You've seen this shape in this codebase at least twice, or you reasonably expect to see it in the next six months. If not, write the obvious code.
+
+### 3. Would the pattern survive scrutiny?
+
+If a new engineer reads this code, do they think *"oh, that's a nice arrangement"* or *"why are there so many files"*? The second is a smell.
+
+<Callout kind="warn">
+The junior-developer failure mode is to apply Strategy everywhere. The senior-developer failure mode is to never apply it — to write one more 20-line switch because "we'll refactor later." Aim for the middle.
+</Callout>
+
+Strategy is a good first pattern because the shape is small. In Unit 4 we'll meet its cousins — <Class id="FactoryMethod">Factory Method</Class>, <Class id="Builder">Builder</Class>, <Class id="Observer">Observer</Class> — and you'll start to see which arrangement fits which itch.
