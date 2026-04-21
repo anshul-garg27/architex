@@ -49,6 +49,7 @@ const MODULE_META: Record<ModuleType, { label: string; icon: React.ComponentType
   algorithms: { label: "Algorithms", icon: Binary, color: "text-violet-400" },
   "data-structures": { label: "Data Structures", icon: Boxes, color: "text-emerald-400" },
   lld: { label: "Low-Level Design", icon: PenTool, color: "text-amber-400" },
+  blueprint: { label: "Blueprint", icon: PenTool, color: "text-indigo-400" },
   database: { label: "Database", icon: Database, color: "text-green-400" },
   distributed: { label: "Distributed Systems", icon: Network, color: "text-cyan-400" },
   networking: { label: "Networking", icon: Globe, color: "text-purple-400" },

@@ -16,6 +16,7 @@ const MODULE_LABELS: Record<ModuleType, string> = {
   algorithms: "Algorithms",
   "data-structures": "Data Structures",
   lld: "Low-Level Design",
+  blueprint: "Blueprint",
   database: "Database",
   distributed: "Distributed Systems",
   networking: "Networking",
