@@ -28,6 +28,7 @@ function StartDrillPanel() {
   const [problemId, setProblemId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeConflict, setActiveConflict] = useState<string | null>(null);
 
   useEffect(() => {
     setProblemId(readProblemIdFromUrl());
@@ -48,6 +49,7 @@ function StartDrillPanel() {
     if (!problemId) return;
     setStarting(true);
     setError(null);
+    setActiveConflict(null);
     try {
       const res = await fetch("/api/lld/drill-attempts", {
         method: "POST",
@@ -58,6 +60,13 @@ function StartDrillPanel() {
           durationLimitMs: VARIANT_CONFIG[variant].defaultDurationMs,
         }),
       });
+      if (res.status === 409) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setActiveConflict(
+          data.error ?? "A drill is already active. Abandon it to start fresh.",
+        );
+        return;
+      }
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -70,6 +79,31 @@ function StartDrillPanel() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function onAbandonActive() {
+    setStarting(true);
+    try {
+      // Look up the active drill id, then PATCH abandon.
+      const res = await fetch("/api/lld/drill-attempts/active");
+      if (res.ok) {
+        const { active } = (await res.json()) as {
+          active: { id: string } | null;
+        };
+        if (active?.id) {
+          await fetch(`/api/lld/drill-attempts/${active.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "abandon" }),
+          });
+        }
+      }
+      setActiveConflict(null);
+      // Retry start.
+      await onStart();
     } finally {
       setStarting(false);
     }
@@ -112,6 +146,21 @@ function StartDrillPanel() {
         {error ? (
           <div className="mt-4 rounded border border-red-500/40 bg-red-900/20 px-3 py-2 text-sm text-red-200">
             {error}
+          </div>
+        ) : null}
+
+        {activeConflict ? (
+          <div className="mt-4 rounded border border-amber-500/40 bg-amber-900/20 px-3 py-2 text-sm text-amber-200">
+            <div>{activeConflict}</div>
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={onAbandonActive}
+                disabled={starting}
+                className="rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
+              >
+                Abandon &amp; start new
+              </button>
+            </div>
           </div>
         ) : null}
 
