@@ -8,7 +8,17 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { getDb, lldDrillAttempts } from "@/db";
 import { requireAuth, resolveUserId } from "@/lib/auth";
 
-const VALID_MODES = new Set(["interview", "guided", "speed"]);
+// Phase 1 accepted { interview, guided, speed }. Phase 4 expanded to
+// { exam, timed-mock, study } (see lld-drill-attempts schema). Accept both
+// and normalise Phase-1 names to their Phase-4 equivalents so old clients
+// keep working during the transition.
+const PHASE4_VARIANTS = new Set(["exam", "timed-mock", "study"]);
+const PHASE1_TO_PHASE4: Record<string, string> = {
+  interview: "timed-mock",
+  guided: "study",
+  speed: "exam",
+};
+const LEGACY_MODES = new Set(Object.keys(PHASE1_TO_PHASE4));
 
 export async function POST(request: Request) {
   try {
@@ -21,22 +31,32 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as {
       problemId?: string;
       drillMode?: string;
+      variant?: string;
       durationLimitMs?: number;
     };
 
-    const { problemId, drillMode, durationLimitMs } = body;
+    const { problemId, durationLimitMs } = body;
+    // `variant` is the Phase-4 field; `drillMode` is the Phase-1 alias.
+    const rawVariant = body.variant ?? body.drillMode;
     if (!problemId || typeof problemId !== "string") {
       return NextResponse.json(
         { error: "problemId required" },
         { status: 400 },
       );
     }
-    if (!drillMode || !VALID_MODES.has(drillMode)) {
+    if (!rawVariant || typeof rawVariant !== "string") {
+      return NextResponse.json(
+        { error: "variant (or legacy drillMode) required" },
+        { status: 400 },
+      );
+    }
+    const variant = LEGACY_MODES.has(rawVariant)
+      ? PHASE1_TO_PHASE4[rawVariant]
+      : rawVariant;
+    if (!PHASE4_VARIANTS.has(variant)) {
       return NextResponse.json(
         {
-          error: `drillMode must be one of: ${Array.from(VALID_MODES).join(
-            ", ",
-          )}`,
+          error: `variant must be one of: ${Array.from(PHASE4_VARIANTS).join(", ")}`,
         },
         { status: 400 },
       );
@@ -56,7 +76,8 @@ export async function POST(request: Request) {
         .values({
           userId,
           problemId,
-          drillMode,
+          drillMode: variant,
+          variant: variant as "exam" | "timed-mock" | "study",
           durationLimitMs,
         })
         .returning();
