@@ -12,16 +12,24 @@ export type BlueprintUnitState =
   | "completed"
   | "mastered";
 
+/**
+ * Matches the server shape (blueprint_user_progress.section_states
+ * JSONB). `completedAt` being truthy means the section is complete —
+ * no separate boolean flag is needed.
+ */
 export interface SectionCompletion {
-  completed: boolean;
+  startedAt: number | null;
+  completedAt: number | null;
   attempts: number;
-  score?: number;
+  score: number | null;
 }
 
 export interface UnitProgressCache {
   unitSlug: string;
   state: BlueprintUnitState;
   sectionStates: Record<string, SectionCompletion>;
+  /** Last section slug the user was on — echoes back to server as last_position. */
+  lastPosition?: string | null;
   lastSeenAt: number;
 }
 

@@ -1,4 +1,4 @@
-import { BlueprintComingSoon } from "@/components/modules/blueprint/BlueprintComingSoon";
+import { UnitPage } from "@/components/modules/blueprint/unit/UnitPage";
 
 export default async function BlueprintUnitPage({
   params,
@@ -6,10 +6,5 @@ export default async function BlueprintUnitPage({
   params: Promise<{ unitSlug: string }>;
 }) {
   const { unitSlug } = await params;
-  return (
-    <BlueprintComingSoon
-      subprojectId="SP3"
-      hint={`Unit renderer for "${unitSlug}" ships in sub-project 3.`}
-    />
-  );
+  return <UnitPage unitSlug={unitSlug} />;
 }

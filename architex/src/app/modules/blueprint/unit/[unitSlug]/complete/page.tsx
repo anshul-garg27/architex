@@ -1,10 +1,10 @@
-import { BlueprintComingSoon } from "@/components/modules/blueprint/BlueprintComingSoon";
+import { UnitCompletion } from "@/components/modules/blueprint/unit/UnitCompletion";
 
-export default function BlueprintUnitCompletePage() {
-  return (
-    <BlueprintComingSoon
-      subprojectId="SP3"
-      hint="Unit completion screen ships with the unit renderer in sub-project 3."
-    />
-  );
+export default async function BlueprintUnitCompletePage({
+  params,
+}: {
+  params: Promise<{ unitSlug: string }>;
+}) {
+  const { unitSlug } = await params;
+  return <UnitCompletion unitSlug={unitSlug} />;
 }
