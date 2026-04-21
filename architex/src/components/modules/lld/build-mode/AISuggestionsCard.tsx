@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Sparkles, RefreshCw, X } from "lucide-react";
 import { useAISuggestions } from "@/hooks/useAISuggestions";
 import { useCanvasStore } from "@/stores/canvas-store";
@@ -16,17 +16,22 @@ export const AISuggestionsCard = memo(function AISuggestionsCard({
   const mutation = useAISuggestions();
   const addNode = useCanvasStore((s) => s.addNode);
 
-  const acceptSuggestion = (name: string, kind: string) => {
-    addNode({
-      id: `sug-${Date.now()}`,
-      type: "class",
-      position: {
-        x: 120 + Math.random() * 240,
-        y: 120 + Math.random() * 240,
-      },
-      data: { label: name, kind },
-    });
-  };
+  const acceptSuggestion = useCallback(
+    (name: string, kind: string) => {
+      // Event-handler scope — Date.now / crypto are intentionally
+      // invoked lazily at click time so each "Add" creates a fresh node.
+      const id = `sug-${Date.now()}`;
+      const x = 120 + Math.random() * 240;
+      const y = 120 + Math.random() * 240;
+      addNode({
+        id,
+        type: "class",
+        position: { x, y },
+        data: { label: name, kind },
+      });
+    },
+    [addNode],
+  );
 
   return (
     <aside

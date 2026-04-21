@@ -1,28 +1,25 @@
 "use client";
 
-import { memo, useState, useEffect } from "react";
+import { memo, useState } from "react";
 import { StickyNote, X } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvas-store";
 
-interface Props {
+interface InnerProps {
   nodeId: string;
   onClose: () => void;
 }
 
-export const NodeNotesPopover = memo(function NodeNotesPopover({
-  nodeId,
-  onClose,
-}: Props) {
+/**
+ * Inner body. Parent keys by nodeId so mounting a new node resets
+ * local `draft` state naturally — no effect-based sync needed.
+ */
+function NodeNotesPopoverInner({ nodeId, onClose }: InnerProps) {
   const nodes = useCanvasStore((s) => s.nodes);
   const update = useCanvasStore((s) => s.updateNodeNotes);
   const node = nodes.find((n) => n.id === nodeId);
   const [draft, setDraft] = useState(
     (node?.data as { notes?: string })?.notes ?? "",
   );
-
-  useEffect(() => {
-    setDraft((node?.data as { notes?: string })?.notes ?? "");
-  }, [nodeId, node]);
 
   if (!node) return null;
 
@@ -59,4 +56,22 @@ export const NodeNotesPopover = memo(function NodeNotesPopover({
       />
     </div>
   );
+}
+
+interface Props {
+  nodeId: string;
+  onClose: () => void;
+}
+
+/**
+ * Public wrapper — keys the inner component on nodeId so switching to a
+ * new node unmounts/remounts the body, resetting local `draft` without
+ * needing a setState-in-effect sync (which the react-hooks/purity rule
+ * correctly flags as an anti-pattern).
+ */
+export const NodeNotesPopover = memo(function NodeNotesPopover({
+  nodeId,
+  onClose,
+}: Props) {
+  return <NodeNotesPopoverInner key={nodeId} nodeId={nodeId} onClose={onClose} />;
 });
