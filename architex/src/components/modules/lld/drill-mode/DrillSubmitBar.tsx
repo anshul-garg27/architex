@@ -22,7 +22,16 @@ export function DrillSubmitBar({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onAbandon}
+          onClick={() => {
+            if (
+              typeof window !== "undefined" &&
+              window.confirm(
+                "End this drill without submitting? Your progress won't count toward rubric.",
+              )
+            ) {
+              onAbandon();
+            }
+          }}
           className="text-rose-300"
         >
           Give up
