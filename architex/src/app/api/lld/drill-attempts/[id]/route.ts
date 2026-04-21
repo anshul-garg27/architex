@@ -51,6 +51,15 @@ export async function PATCH(
       );
     }
 
+    // TEMP: trace who is auto-abandoning drills
+    if (action === "abandon") {
+      const ua = request.headers.get("user-agent") ?? "unknown";
+      const referer = request.headers.get("referer") ?? "unknown";
+      console.log(
+        `[DRILL-ABANDON-TRACE] id=${id} userAgent=${ua} referer=${referer}`,
+      );
+    }
+
     const db = getDb();
     const now = new Date();
 
