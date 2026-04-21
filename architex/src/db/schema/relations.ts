@@ -21,6 +21,11 @@ import { lldDesignAnnotations } from "./lld-design-annotations";
 import { lldDrillAttempts } from "./lld-drill-attempts";
 import { lldLearnProgress } from "./lld-learn-progress";
 import { userPreferences } from "./user-preferences";
+import { blueprintCourses } from "./blueprint-courses";
+import { blueprintUnits } from "./blueprint-units";
+import { blueprintUserProgress } from "./blueprint-user-progress";
+import { blueprintJourneyState } from "./blueprint-journey-state";
+import { blueprintEvents } from "./blueprint-events";
 
 // ── Users ──────────────────────────────────────────────────────
 
@@ -219,6 +224,68 @@ export const lldDesignSnapshotsRelations = relations(
     }),
     user: one(users, {
       fields: [lldDesignSnapshots.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── Blueprint · Courses ──────────────────────────────────────
+
+export const blueprintCoursesRelations = relations(
+  blueprintCourses,
+  ({ many }) => ({
+    units: many(blueprintUnits),
+  }),
+);
+
+// ── Blueprint · Units ────────────────────────────────────────
+
+export const blueprintUnitsRelations = relations(
+  blueprintUnits,
+  ({ one, many }) => ({
+    course: one(blueprintCourses, {
+      fields: [blueprintUnits.courseId],
+      references: [blueprintCourses.id],
+    }),
+    userProgress: many(blueprintUserProgress),
+  }),
+);
+
+// ── Blueprint · User Progress ────────────────────────────────
+
+export const blueprintUserProgressRelations = relations(
+  blueprintUserProgress,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [blueprintUserProgress.userId],
+      references: [users.id],
+    }),
+    unit: one(blueprintUnits, {
+      fields: [blueprintUserProgress.unitId],
+      references: [blueprintUnits.id],
+    }),
+  }),
+);
+
+// ── Blueprint · Journey State ────────────────────────────────
+
+export const blueprintJourneyStateRelations = relations(
+  blueprintJourneyState,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [blueprintJourneyState.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+// ── Blueprint · Events ───────────────────────────────────────
+
+export const blueprintEventsRelations = relations(
+  blueprintEvents,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [blueprintEvents.userId],
       references: [users.id],
     }),
   }),
