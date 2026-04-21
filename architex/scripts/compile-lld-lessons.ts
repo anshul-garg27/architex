@@ -20,7 +20,7 @@
  * abort others (useful when multiple authors push concurrently).
  */
 
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { compile } from "@mdx-js/mdx";
@@ -221,11 +221,22 @@ async function upsertLesson(result: CompileResult): Promise<void> {
     });
 }
 
+const COMPILED_DIR = "content/lld/compiled";
+
+async function writeJsonArtifact(result: CompileResult): Promise<void> {
+  if (!existsSync(COMPILED_DIR)) {
+    await mkdir(COMPILED_DIR, { recursive: true });
+  }
+  const path = join(COMPILED_DIR, `${result.slug}.json`);
+  await writeFile(path, JSON.stringify(result.payload, null, 2), "utf8");
+}
+
 async function main() {
   const slugArg = process.argv
     .find((a) => a.startsWith("--slug="))
     ?.split("=")[1];
   const dryRun = process.argv.includes("--dry");
+  const jsonOut = process.argv.includes("--json-out");
 
   let slugs: string[];
   if (slugArg) {
@@ -249,15 +260,20 @@ async function main() {
   for (const slug of slugs) {
     try {
       const result = await compileLesson(slug);
-      if (!dryRun) {
+      if (jsonOut) {
+        await writeJsonArtifact(result);
+      } else if (!dryRun) {
         await upsertLesson(result);
       }
       // Also validate concept yaml is loadable (not used yet; Task 16 builds graph)
       await readConceptYaml(slug);
       successCount++;
-      console.log(
-        `[compile-lld-lessons] ✓ ${slug}${dryRun ? " (dry-run)" : ""}`,
-      );
+      const modeLabel = jsonOut
+        ? " (json-out)"
+        : dryRun
+          ? " (dry-run)"
+          : "";
+      console.log(`[compile-lld-lessons] ✓ ${slug}${modeLabel}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push({ slug, message: msg });

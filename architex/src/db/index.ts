@@ -14,7 +14,7 @@ import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { neon } from "@neondatabase/serverless";
 import pg from "pg";
 
-import * as schema from "./schema";
+import * as schema from "./schema/index.ts";
 
 type Schema = typeof schema;
 

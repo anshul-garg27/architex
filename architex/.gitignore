@@ -42,3 +42,6 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# compiled lesson JSON artifacts (regenerated via `pnpm compile:lld-lessons --json-out`)
+/content/lld/compiled/
