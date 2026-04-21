@@ -15,18 +15,18 @@ function format(ms: number): string {
 
 export function DrillTimer() {
   const activeDrill = useInterviewStore((s) => s.activeDrill);
-  const [, tick] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!activeDrill || activeDrill.pausedAt !== null) return;
-    const iv = setInterval(() => tick((x) => x + 1), 1000);
+    const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(iv);
   }, [activeDrill]);
 
   if (!activeDrill) return null;
   const elapsed =
     activeDrill.elapsedBeforePauseMs +
-    (activeDrill.pausedAt === null ? Date.now() - activeDrill.startedAt : 0);
+    (activeDrill.pausedAt === null ? now - activeDrill.startedAt : 0);
   const remaining = activeDrill.durationLimitMs - elapsed;
   const urgent = remaining < 60_000;
   const warn = remaining < 5 * 60_000;
