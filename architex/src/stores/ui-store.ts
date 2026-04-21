@@ -6,6 +6,7 @@ export type ModuleType =
   | "algorithms"
   | "data-structures"
   | "lld"
+  | "blueprint"
   | "database"
   | "distributed"
   | "networking"

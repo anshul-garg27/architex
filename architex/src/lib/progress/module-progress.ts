@@ -177,6 +177,15 @@ const MODULE_FEATURES: Record<ModuleType, string[]> = {
     "behavioral-simulator",
     "latency-overlay",
   ],
+  blueprint: [
+    // SP1 placeholder — real feature tracking lands in SP2+ once
+    // units actually render.
+    "journey-home",
+    "toolkit-patterns",
+    "toolkit-problems",
+    "toolkit-review",
+    "progress-dashboard",
+  ],
   database: [
     "normalization",
     "btree-visualization",

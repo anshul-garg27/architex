@@ -1,11 +1,13 @@
 "use client";
 
 import { memo, useState, useCallback, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Binary,
   Boxes,
   PenTool,
+  Compass,
   Database,
   Network,
   Globe,
@@ -39,6 +41,12 @@ interface ModuleItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   shortcut: string;
+  /**
+   * If set, clicking this item navigates to the href instead of
+   * dispatching to the home-page module switcher. Used by modules
+   * that have their own dedicated route tree (e.g. Blueprint).
+   */
+  href?: string;
 }
 
 const modules: ModuleItem[] = [
@@ -46,6 +54,7 @@ const modules: ModuleItem[] = [
   { id: "algorithms", label: "Algorithms", icon: Binary, shortcut: "2" },
   { id: "data-structures", label: "Data Structures", icon: Boxes, shortcut: "3" },
   { id: "lld", label: "Low-Level Design", icon: PenTool, shortcut: "4" },
+  { id: "blueprint", label: "Blueprint", icon: Compass, shortcut: "", href: "/modules/blueprint" },
   { id: "database", label: "Database", icon: Database, shortcut: "5" },
   { id: "distributed", label: "Distributed Systems", icon: Network, shortcut: "6" },
   { id: "networking", label: "Networking", icon: Globe, shortcut: "7" },
@@ -67,8 +76,35 @@ const DesktopActivityBar = memo(function DesktopActivityBar() {
   const setActiveModule = useUIStore((s) => s.setActiveModule);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const setSettingsPanelOpen = useUIStore((s) => s.setSettingsPanelOpen);
+  const router = useRouter();
+  const pathname = usePathname();
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+
+  const handleModuleClick = useCallback(
+    (mod: ModuleItem) => {
+      if (mod.href) {
+        router.push(mod.href);
+        return;
+      }
+      if (activeModule === mod.id) {
+        toggleSidebar();
+      } else {
+        setActiveModule(mod.id);
+      }
+    },
+    [router, activeModule, setActiveModule, toggleSidebar],
+  );
+
+  const isRouteActive = useCallback(
+    (mod: ModuleItem): boolean => {
+      if (mod.href) {
+        return pathname?.startsWith(mod.href) ?? false;
+      }
+      return activeModule === mod.id && !pathname?.startsWith("/modules/blueprint");
+    },
+    [pathname, activeModule],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -119,7 +155,7 @@ const DesktopActivityBar = memo(function DesktopActivityBar() {
         >
           {modules.map((mod, index) => {
             const Icon = mod.icon;
-            const isActive = activeModule === mod.id;
+            const isActive = isRouteActive(mod);
             const isFocused = focusedIndex === index;
             const tooltipLabel = `${mod.label}${mod.shortcut ? ` (⌘${mod.shortcut})` : ""}`;
             return (
@@ -128,13 +164,7 @@ const DesktopActivityBar = memo(function DesktopActivityBar() {
                   <TooltipTrigger asChild>
                     <button
                       ref={(el) => { buttonRefs.current[index] = el; }}
-                      onClick={() => {
-                        if (activeModule === mod.id) {
-                          toggleSidebar();
-                        } else {
-                          setActiveModule(mod.id);
-                        }
-                      }}
+                      onClick={() => handleModuleClick(mod)}
                       onFocus={() => setFocusedIndex(index)}
                       aria-label={tooltipLabel}
                       tabIndex={isFocused || (focusedIndex === -1 && index === 0) ? 0 : -1}
@@ -202,17 +232,23 @@ const MobileActivityBar = memo(function MobileActivityBar() {
   const activeModule = useUIStore((s) => s.activeModule);
   const setActiveModule = useUIStore((s) => s.setActiveModule);
   const setSettingsPanelOpen = useUIStore((s) => s.setSettingsPanelOpen);
+  const router = useRouter();
   const [overflowOpen, setOverflowOpen] = useState(false);
 
   const visibleModules = modules.slice(0, MOBILE_VISIBLE_COUNT);
   const overflowModules = modules.slice(MOBILE_VISIBLE_COUNT);
 
   const handleModuleSelect = useCallback(
-    (id: ModuleType) => {
-      setActiveModule(id);
+    (mod: ModuleItem) => {
+      if (mod.href) {
+        router.push(mod.href);
+        setOverflowOpen(false);
+        return;
+      }
+      setActiveModule(mod.id);
       setOverflowOpen(false);
     },
-    [setActiveModule],
+    [router, setActiveModule],
   );
 
   // AUD-063: Focus trap for the mobile overflow sheet
@@ -248,7 +284,7 @@ const MobileActivityBar = memo(function MobileActivityBar() {
                 return (
                   <li key={mod.id}>
                     <button
-                      onClick={() => handleModuleSelect(mod.id)}
+                      onClick={() => handleModuleSelect(mod)}
                       aria-label={mod.label}
                       aria-selected={isActive}
                       className={cn(
@@ -295,7 +331,7 @@ const MobileActivityBar = memo(function MobileActivityBar() {
           return (
             <button
               key={mod.id}
-              onClick={() => handleModuleSelect(mod.id)}
+              onClick={() => handleModuleSelect(mod)}
               aria-label={mod.label}
               aria-selected={isActive}
               className={cn(

@@ -97,6 +97,43 @@ export {
   type NewUserPreferences,
 } from "./user-preferences";
 
+// Blueprint module tables
+export {
+  blueprintCourses,
+  type BlueprintCourse,
+  type NewBlueprintCourse,
+} from "./blueprint-courses";
+export {
+  blueprintUnits,
+  type BlueprintUnit,
+  type NewBlueprintUnit,
+  type BlueprintDifficulty,
+  type BlueprintEntityRefs,
+  type BlueprintSectionType,
+  type BlueprintSectionRecipe,
+  type BlueprintUnitRecipe,
+} from "./blueprint-units";
+export {
+  blueprintUserProgress,
+  type BlueprintUserProgress,
+  type NewBlueprintUserProgress,
+  type BlueprintUnitState,
+  type BlueprintSectionCompletion,
+  type BlueprintSectionStatesMap,
+} from "./blueprint-user-progress";
+export {
+  blueprintJourneyState,
+  type BlueprintJourneyState,
+  type NewBlueprintJourneyState,
+  type BlueprintPreferredLang,
+  type BlueprintPinnedTool,
+} from "./blueprint-journey-state";
+export {
+  blueprintEvents,
+  type BlueprintEvent,
+  type NewBlueprintEvent,
+} from "./blueprint-events";
+
 // Relations (defined in a single file to avoid circular imports)
 export {
   usersRelations,
@@ -115,4 +152,9 @@ export {
   lldDrillAttemptsRelations,
   lldLearnProgressRelations,
   userPreferencesRelations,
+  blueprintCoursesRelations,
+  blueprintUnitsRelations,
+  blueprintUserProgressRelations,
+  blueprintJourneyStateRelations,
+  blueprintEventsRelations,
 } from "./relations";
