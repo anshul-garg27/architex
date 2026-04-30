@@ -1,0 +1,131 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 8 of 20</strong> — "tinker" permission in Learn mode. Pedagogy vs curation tradeoff.
+  </div>
+</div>
+
+<h2>Q8 · Can users edit the canvas mid-lesson?</h2>
+<p class="subtitle">Learn mode's canvas is read-only today. But Manu Kapur's <strong>Productive Failure</strong> research (cited in your README) says hands-on experimentation boosts retention 2-3x. What's the right balance between curated and experimental?</p>
+
+<!-- THE TENSION -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 10px;">⚖️ THE REAL TENSION</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 11px;">
+    <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid rgb(16,185,129); padding: 10px 12px; border-radius: 0 6px 6px 0;">
+      <strong style="color: rgb(110, 231, 183);">Curated lesson argument</strong>
+      <p style="color: rgb(229, 231, 235); margin: 6px 0 0 0; line-height: 1.5;">Scroll-sync depends on canvas matching lesson expectations. If user moves classes, highlights end up in weird places. Lesson authored for specific UML — breaking that breaks the lesson.</p>
+    </div>
+    <div style="background: rgba(147, 197, 253, 0.08); border-left: 3px solid rgb(147,197,253); padding: 10px 12px; border-radius: 0 6px 6px 0;">
+      <strong style="color: rgb(147, 197, 253);">Experimental argument</strong>
+      <p style="color: rgb(229, 231, 235); margin: 6px 0 0 0; line-height: 1.5;">"What if I added another ConcreteProduct?" is the exact <em>productive failure</em> moment. Blocking it teaches learned helplessness. Brilliant lets you poke; Duolingo lets you try. Tool should encourage curiosity.</p>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Strict read-only · explicit mode switch required</h3>
+      <p>Canvas is inert in Learn (except for Q7's popover). To experiment, user clicks "Switch to Build" — gets a fresh Build workspace.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Zero state confusion. Lesson remains curated. Simple.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> High friction for mid-lesson curiosity. Starting from blank Build canvas loses the lesson's UML context.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">B</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Tinker mode · temporary unlock with reset &amp; fork-to-Build</h3>
+      <p>Small <strong>"✏️ Tinker"</strong> button floats above canvas in Learn mode. Click → canvas becomes editable. Scroll-sync pauses. A persistent toolbar appears with <strong>[Reset to lesson] [Save to Build] [Done tinkering]</strong>.</p>
+
+      <!-- Mockup -->
+      <div style="margin-top: 12px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px;">
+        <div style="position: relative; height: 160px; background: rgba(255,255,255,0.02); border-radius: 6px; padding: 10px;">
+          <!-- Tinker toolbar when active -->
+          <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 10px;">
+            <div style="background: rgba(250, 204, 21, 0.15); border: 1px solid rgba(250, 204, 21, 0.35); color: rgb(250, 204, 21); font-size: 9px; padding: 4px 10px; border-radius: 14px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+              <span>✏️</span>
+              <span>Tinkering</span>
+              <span style="font-size: 8px; color: rgb(156,163,175); font-weight: 400;">· scroll-sync paused</span>
+            </div>
+            <div style="flex: 1;"></div>
+            <div style="background: rgba(255,255,255,0.05); color: rgb(229, 231, 235); font-size: 9px; padding: 4px 10px; border-radius: 4px;">↺ Reset to lesson</div>
+            <div style="background: rgba(59, 130, 246, 0.2); color: rgb(147, 197, 253); font-size: 9px; padding: 4px 10px; border-radius: 4px;">💾 Save to Build</div>
+            <div style="background: rgba(16, 185, 129, 0.2); color: rgb(110, 231, 183); font-size: 9px; padding: 4px 10px; border-radius: 4px;">✓ Done</div>
+          </div>
+          <!-- Mock canvas -->
+          <div style="display: flex; gap: 10px; justify-content: center;">
+            <div style="width: 80px; height: 50px; background: rgba(147,197,253,0.1); border: 1px dashed rgba(147,197,253,0.35); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 9px; color: rgb(147,197,253);">Creator</div>
+            <div style="width: 80px; height: 50px; background: rgba(147,197,253,0.1); border: 1px dashed rgba(147,197,253,0.35); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 9px; color: rgb(147,197,253);">Product</div>
+            <div style="width: 80px; height: 50px; background: rgba(110,231,183,0.15); border: 2px solid rgb(110,231,183); border-radius: 4px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size: 9px; color: rgb(110,231,183);">
+              ProductC
+              <span style="font-size: 7px; color: rgb(134,239,172);">(user-added)</span>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 10px; font-size: 9px; color: rgb(156, 163, 175); font-style: italic;">
+            User dragged out a new ProductC class. Lesson scroll is paused until they click "Done" or "Reset".
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5; display: grid; gap: 4px;">
+        <div><strong style="color: rgb(229, 231, 235);">Done tinkering</strong> — canvas animates back to lesson state, scroll-sync resumes. Tinker session discarded.</div>
+        <div><strong style="color: rgb(229, 231, 235);">Reset to lesson</strong> — immediate revert without leaving tinker mode. Like CMD+Z for the whole session.</div>
+        <div><strong style="color: rgb(229, 231, 235);">Save to Build</strong> — takes tinker state, opens Build mode with it as a new named scratch. Switch modes explicit.</div>
+      </div>
+
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Serves productive-failure learners. Never destroys curated lesson. Save-to-Build = natural bridge. Mode remains Learn but with a pause state — no state confusion.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> Adds a "tinkering" sub-state to Learn mode. UX complexity: scroll-sync paused needs a visual indicator.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Always editable · scroll-sync adapts to user's canvas</h3>
+      <p>Canvas is always editable in Learn. Lesson highlights try to match user's current classes (by name) — if user renamed or removed them, highlight fails gracefully.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Maximum flexibility. No mode sub-states.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Lesson authoring becomes hostile — every section must handle "what if class doesn't exist". Breaking canvas breaks lesson. Curation erodes.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Section-end CTAs only · "Try it in Build →" at end of each section</h3>
+      <p>No mid-lesson editing. Each lesson section ends with a "Try it" button that opens Build mode with the section's final UML as starting state.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Explicit boundaries. No sub-states.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Curiosity is in-the-moment — "can I try this right now?". Section-end CTAs are too late. Loses the teachable instant.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why B -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY B · TINKER RESPECTS BOTH MODES</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Default path stays curated.</strong> 95% of users will never click "Tinker" — they'll scroll lesson, take checkpoints, move on. Their experience is identical to A.<br><br>
+    <strong>Curious learners get an escape valve.</strong> The 5% who think <em>"wait, what if..."</em> click Tinker → poke at the canvas → click Done → lesson resumes exactly where they left off. Zero lost progress. Experiment discarded by default — aligns with ephemeral exploration mindset.<br><br>
+    <strong>Save-to-Build is the killer secondary action.</strong> If a learner's tinker produces something interesting, one click preserves it. This is also the ONLY bridge from Learn to Build that preserves state — a natural pedagogical arc.<br><br>
+    <strong>Implementation cost is modest.</strong> Tinker mode = toggle a <code>canvasEditable</code> flag + pause scroll-sync hook + persist snapshot before entering. ~6-8h.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q9 — <em>what counts as "completed" for progress tracking?</em>
+  </p>
+</div>

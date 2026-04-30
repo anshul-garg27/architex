@@ -1,0 +1,139 @@
+<div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <div style="font-size: 22px;">🔍</div>
+    <div style="font-size: 13px; color: rgb(251, 191, 36); font-weight: 700;">I just inspected the live LLD module in your browser. Key finding:</div>
+  </div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.6;">
+    The current UI is <strong>genuinely production-quality</strong> — clean UML canvas, proper edge routing, 3-language code tabs, sub-mode tabs already exist (quiz, flashcards, lightbulb, trophy). It's <strong>not</strong> ugly or broken. The opportunity is <strong>not</strong> a rewrite — it's <strong>depth, delight, and differentiation</strong> on top of a solid base.
+  </div>
+</div>
+
+<h2>Batch 1 of 5 · Visual Language &amp; Diagrams</h2>
+<p class="subtitle">Pick any / all / none. <strong>Multi-select</strong> — click each idea you want included; click again to deselect. Terminal reply to advance.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <div class="option" data-choice="v1" onclick="toggleSelect(this)">
+    <div class="letter">V1</div>
+    <div class="content">
+      <h3>Pattern-specific accent themes</h3>
+      <p>Each pattern (or category) gets a signature micro-palette. Opening Singleton subtly shifts canvas background gradient + edge hue + header bar to a Singleton-specific color story. Creates a sense of place. Like moving between rooms.</p>
+      <div style="margin-top: 10px; display: flex; gap: 8px;">
+        <div style="flex: 1; height: 32px; background: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 60% 30%)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; font-weight: 600;">Creational · emerald</div>
+        <div style="flex: 1; height: 32px; background: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 70% 40%)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; font-weight: 600;">Structural · azure</div>
+        <div style="flex: 1; height: 32px; background: linear-gradient(135deg, hsl(271 81% 56%), hsl(271 60% 36%)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; font-weight: 600;">Behavioral · violet</div>
+        <div style="flex: 1; height: 32px; background: linear-gradient(135deg, hsl(330 81% 60%), hsl(330 60% 40%)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; font-weight: 600;">AI-Agent · fuchsia</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Implementation: CSS custom properties swap per pattern via data-attribute on shell. ~3h. <strong>Impact: high delight, zero functional change.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="v2" onclick="toggleSelect(this)">
+    <div class="letter">V2</div>
+    <div class="content">
+      <h3>Typography hierarchy upgrade in lesson column</h3>
+      <p>Current lesson text is uniform 12-13px. Propose a <em>narrative typography system</em> for Learn mode: hook = 22px serif-ish display, analogy = italic soft 16px, section labels = 10px all-caps tracked, body = 14px, pull-quotes = large display on occasion. Creates reading rhythm like a great long-form article (NYT, The Atlantic).</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px;">
+        <div style="font-size: 20px; color: rgb(229, 231, 235); font-weight: 700; line-height: 1.3; letter-spacing: -0.01em;">You're building a stock trading app.</div>
+        <div style="font-size: 10px; color: rgb(196, 181, 253); letter-spacing: 0.1em; margin-top: 8px; font-weight: 600;">THE HOOK</div>
+        <div style="font-size: 14px; color: rgb(229, 231, 235); line-height: 1.6; margin-top: 4px;">When a stock price changes, the dashboard, notifications, and portfolio all need to update.</div>
+        <div style="font-size: 14px; font-style: italic; color: rgb(196, 181, 253); line-height: 1.6; margin-top: 10px; padding-left: 12px; border-left: 2px solid rgba(124, 58, 237, 0.4);">Think of a newspaper subscription...</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Implementation: Tailwind typography extensions + lesson column-only CSS scope. ~5h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="v3" onclick="toggleSelect(this)">
+    <div class="letter">V3</div>
+    <div class="content">
+      <h3>Canvas aesthetic variants · "Paper / Whiteboard / Terminal"</h3>
+      <p>Settings toggle lets user swap canvas aesthetic — doesn't change UML semantics, changes the vibe:</p>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <div style="background: #f5f1e8; color: #2a2a2a; padding: 10px; border-radius: 6px; font-size: 10px;">
+          <div style="font-weight: 700; margin-bottom: 4px;">📜 Paper</div>
+          <div style="line-height: 1.5;">Sepia cream, hand-sketch edges (Excalidraw), brown ink</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.95); color: #333; padding: 10px; border-radius: 6px; font-size: 10px;">
+          <div style="font-weight: 700; margin-bottom: 4px;">⬜ Whiteboard</div>
+          <div style="line-height: 1.5;">Stark white, blue marker edges, meeting-room feel</div>
+        </div>
+        <div style="background: #0a0a0a; color: #50fa7b; padding: 10px; border-radius: 6px; font-size: 10px; font-family: monospace;">
+          <div style="font-weight: 700; margin-bottom: 4px;">&gt;_ Terminal</div>
+          <div style="line-height: 1.5;">ASCII art style, monospace labels, green-on-black</div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Implementation: React Flow theme variants. ~10h for 2 new themes (Paper + Whiteboard). Terminal is "fun but maybe v2".</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="v4" onclick="toggleSelect(this)">
+    <div class="letter">V4</div>
+    <div class="content">
+      <h3>Pattern mascot illustrations · the "Architex Zoo"</h3>
+      <p>Each of the 36 patterns gets a bespoke small illustration (not stock icons) — a memorable visual cue. Singleton = lonely monk. Factory Method = assembly line worker. Observer = town crier. Mediator = traffic controller. Strategy = Swiss Army knife. Circuit Breaker = breaker panel.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 14px; border-radius: 6px; display: flex; gap: 14px; align-items: center;">
+        <div style="font-size: 32px;">🧘</div>
+        <div style="font-size: 32px;">🏭</div>
+        <div style="font-size: 32px;">📢</div>
+        <div style="font-size: 32px;">🚦</div>
+        <div style="font-size: 32px;">🔧</div>
+        <div style="font-size: 32px;">⚡</div>
+        <div style="font-size: 32px;">...</div>
+        <div style="font-size: 10px; color: rgb(156, 163, 175); margin-left: 8px;">(these are emoji placeholders — real illustrations would be line-art SVGs)</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Implementation: commission 36 SVG line-art illustrations (~$500-1500 Fiverr/dribbble) OR AI-generate 36 consistent illustrations (~$50 in Sonnet + editing, 6-8h human curation). <strong>The most viral identity feature you could ship.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="v5" onclick="toggleSelect(this)">
+    <div class="letter">V5</div>
+    <div class="content">
+      <h3>"Pressure palette" · state colors during simulation</h3>
+      <p>When Drill mode runs auto-grading, classes pulse with their evaluated state: missing = red outline, correct = green glow, partial = yellow. Currently classes look identical after grading. Visual semantic feedback at-a-glance.</p>
+      <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+        <div style="width: 80px; height: 50px; background: rgba(16,185,129,0.15); border: 2px solid rgb(16,185,129); border-radius: 6px; padding: 6px; box-shadow: 0 0 20px rgba(16,185,129,0.3);">
+          <div style="font-size: 9px; color: rgb(110,231,183);">✓ Correct</div>
+        </div>
+        <div style="width: 80px; height: 50px; background: rgba(250,204,21,0.15); border: 2px solid rgb(250,204,21); border-radius: 6px; padding: 6px;">
+          <div style="font-size: 9px; color: rgb(250,204,21);">◐ Partial</div>
+        </div>
+        <div style="width: 80px; height: 50px; background: rgba(239,68,68,0.1); border: 2px dashed rgb(239,68,68); border-radius: 6px; padding: 6px;">
+          <div style="font-size: 9px; color: rgb(252,165,165);">✗ Missing</div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Implementation: extend <code>highlightedClassIds</code> prop → <code>classStates: {id, state}</code>. Pulse via motion. ~6h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="v6" onclick="toggleSelect(this)">
+    <div class="letter">V6</div>
+    <div class="content">
+      <h3>Edge personality · protocol-style edge variants</h3>
+      <p>Currently all UML edges are the same style (just marker differences). Propose: edges carry semantic style — <em>inheritance</em> = crisp solid, <em>dependency</em> = delicate dotted, <em>data flow in runtime</em> = animated dashed, <em>weak reference</em> = translucent. Turns edges from bookkeeping into storytelling.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Implementation: extend existing edge renderer. ~4h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="v7" onclick="toggleSelect(this)">
+    <div class="letter">V7</div>
+    <div class="content">
+      <h3>"Reading mode" overlay · distraction-free Learn</h3>
+      <p>Shortcut toggles a full-screen reading overlay: fades sidebar + chrome + properties, expands lesson column to center 720px, increases font size 10%. Like Safari's Reader mode but for Learn mode. Perfect for deep focus reading.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Implementation: shell-level overlay class + hotkey binding. ~3h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="v8" onclick="toggleSelect(this)">
+    <div class="letter">V8</div>
+    <div class="content">
+      <h3>Empty-state storytelling · "Canvas is blank" replaced</h3>
+      <p>Currently empty canvas = "Start Building" + big icon. Replace with a randomized evocative prompt per visit: <em>"What kind of system keeps you up at night?"</em> · <em>"Designing for a million users? Start with one."</em> · <em>"Every system begins with a single class."</em> — rotating quotes that make the blank canvas feel inviting rather than intimidating.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Implementation: quote bank (20-30 curated) + random pick on mount. ~2h.</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select · pick any V1-V8 that resonate</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Type in terminal: "V1, V2, V4" · or "all" · or "none" · or describe something adjacent. Next: Batch 2 (motion &amp; interaction).</p>
+</div>

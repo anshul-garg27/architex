@@ -1,0 +1,393 @@
+<div style="background: rgba(110, 231, 183, 0.1); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">💸</div>
+  <div style="font-size: 12px; color: rgb(110, 231, 183); line-height: 1.5;">
+    <strong>Batch 7 of 10 · Cost &amp; scaling as learning surfaces.</strong> Turning the dormant cost model into design pressure. Teaching engineers to <em>feel</em> the dollar signs.
+  </div>
+</div>
+
+<h2>The premise · Cost is the invisible force that bends every real design</h2>
+<p class="subtitle">Interview candidates hand-wave infrastructure. Real engineers don't. At $400k / year, a senior is expected to know: "3 Redis clusters across regions costs ~$8k/mo, is that worth it vs. eventual consistency?" The simulation engine already tracks cost per node. This batch turns that number from display to <strong>teacher</strong>.</p>
+
+<!-- ========== PRINCIPLE ========== -->
+<div style="margin-top: 20px; background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.25); border-radius: 12px; padding: 18px;">
+  <div style="display: flex; gap: 14px; align-items: flex-start;">
+    <div style="font-size: 32px; line-height: 1;">⚖️</div>
+    <div>
+      <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">THE INVISIBLE-FORCE PRINCIPLE</div>
+      <div style="font-size: 13px; color: rgb(229, 231, 235); line-height: 1.7; font-style: italic;">
+        "Perfection isn't when there's nothing left to add — it's when there's nothing left you can afford."
+      </div>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); line-height: 1.6; margin-top: 10px;">
+        Every design decision has a price. Caching: cheaper reads, more infra. Multi-region: better DR, 2-3x cost. Microservices: nicer boundaries, 10x operational overhead. Textbooks skip this. Real architects live it. Our simulation must make the price <em>visible</em>, <em>provocative</em>, and <em>sometimes constraining</em>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Q23 VISIBILITY ========== -->
+<h2 style="margin-top: 28px;">Q23 · When is cost visible during design?</h2>
+<p class="subtitle">Cost is either always-on (background pressure) or summoned (reflective moment). The choice shapes the whole experience.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · HIDDEN BY DEFAULT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Cost invisible unless user clicks "Cost" tab. Matches Build mode minimalism. But: beginners never think about it.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION B · CORNER METER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Always-visible cost meter in bottom-right corner. Updates as user drags nodes on canvas. Green under budget, amber approaching, red over.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 8px; font-family: monospace; font-size: 10px; color: rgb(251, 191, 36);">
+      💰 <strong>$6,840 / mo</strong>  •  <span style="color: rgb(251, 146, 60);">68% of budget</span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION C · PER-NODE + METER + DIFF</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Full transparency. Each node shows its monthly cost on hover. Corner meter shows total. When you add/remove a node: "+$740/mo" floating annotation fades in. Teaches the unit economics.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 10px; line-height: 1.7;">
+      <strong style="color: rgb(110, 231, 183);">⬤ postgres-primary</strong>  $420/mo (db.m5.xlarge)<br>
+      <strong style="color: rgb(110, 231, 183);">⬤ redis-cache</strong>  $180/mo (cache.m5.large)<br>
+      <strong style="color: rgb(110, 231, 183);">⬤ cdn-tier</strong>  $240/mo (CloudFront · 5TB egress)<br>
+      <span style="color: rgb(156, 163, 175);">+ new node: <strong style="color: rgb(251, 191, 36);">+$740/mo</strong></span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · MODE-DEPENDENT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Build mode: hidden by default. Drill mode: corner meter (stakes present). Simulate mode: per-node + meter + diff (teaching moment). Cost appears where it matters most.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q24 PROVIDERS ========== -->
+<h2 style="margin-top: 28px;">Q24 · Cost model scope — which providers do we ship?</h2>
+<p class="subtitle">AWS pricing differs from GCP differs from Azure. Cost modeling is real engineering work.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em;">① AWS ⭐</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">70% of prep candidates deploy here</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      EC2, RDS, ElastiCache, S3, CloudFront, Lambda, DynamoDB, SQS, MSK. ~30 services priced. Industry default.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em;">② GCP ⭐</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">for Google-aspirant candidates</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      GCE, Cloud SQL, Memorystore, GCS, Cloud CDN, Cloud Run, Firestore, Pub/Sub, BigQuery. ~25 services.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em;">③ AZURE</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">enterprise-prep bucket</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      VMs, SQL DB, Cosmos DB, Cache for Redis, Blob Storage, Front Door. For candidates targeting MSFT / enterprise.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em;">④ PROVIDER-AGNOSTIC (ABSTRACT UNITS) ⭐</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">the pedagogical default</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "small instance $50/mo", "large instance $400/mo", "cache tier $200/mo". Rounded, memorable. Teaches cost-thinking without provider noise. Toggle to "real AWS prices" when user is ready.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em;">⑤ CROSS-PROVIDER COMPARE</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">power-user feature</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Same design priced side-by-side across AWS/GCP/Azure. Shows DynamoDB vs. Firestore vs. Cosmos DB cost lines. Reveals where egress &amp; storage pricing bite.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(252, 165, 165, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em;">⑥ SELF-HOSTED / BARE METAL</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">reality-check option</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "This same design on colo racks at Hetzner costs ~1/5. Why does cloud cost 5x?" Teaches the cloud premium. Strong signal of senior thinking.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q25 SCALING SCENARIOS ========== -->
+<h2 style="margin-top: 28px;">Q25 · Scaling scenarios — how does scale enter the design?</h2>
+<p class="subtitle">A design for 1k users is not a design for 100M users. The simulation lets us move along that curve.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · FIXED TARGET</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each problem specifies one scale. "Design Netflix for 200M DAU." User designs to that. Clean, pedagogical.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · SCALE SLIDER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User drags slider: <strong>10k → 1M → 10M → 100M → 1B</strong> DAU. Cost updates. Latency updates. Whole architecture may need to change. Teaches "what breaks when you grow 10x?" — the core SD question.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-family: monospace; font-size: 10px; color: rgb(229, 231, 235);">
+      ▼ SCALE: <strong style="color: rgb(110, 231, 183);">1M</strong> DAU<br>
+      ├───●──────────────────  10k · 1M · 10M · 100M · 1B<br>
+      cost: $8,400/mo  →  p99: 180ms  →  shards: 1
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · GROWTH CURVE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "You start with 1k users. In 12 months you're at 10M. Design for that journey." Timeline scrub. Shows what breaks and when. Teaches capacity planning.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + C</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Slider for static "point-in-time" view. Curve for trajectory view. Toggle. Covers both mental models.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q26 COST PRESSURE ========== -->
+<h2 style="margin-top: 28px;">Q26 · Cost-pressure mechanics — ship these activities?</h2>
+<p class="subtitle">Cost is most instructive when it <em>constrains</em>. Multi-select which activities we ship.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① BUDGET-CONSTRAINED PROBLEMS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each problem has a monthly budget ("Design Netflix on $50k/mo infra"). Tight enough to force tradeoffs. Violating budget = rubric penalty. Teaches "what do we cut?"
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② COST-OPTIMIZATION DRILL ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Given a working but expensive design, reduce cost by X% without breaking SLOs. Like a refactor drill. Teaches reserved instances, spot, right-sizing, caching at right layer.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ "WHAT COULD WE CUT?" MODE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AI analyzes current design, suggests 3 cost-cut options with SLO impact estimates. "Drop multi-region to single-region: −42% cost, +15% chance of regional outage." Every tradeoff explicit.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ COST-PER-USER EXPOSED ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "Your design costs <strong>$0.012 per user per month</strong>. Netflix spends ~$0.40. YouTube ~$0.08." Normalizes scale. Makes "is this cheap or expensive?" answerable.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ FORECAST COST CURVE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Given growth rate, plot cost over 24 months. Shows nonlinear jumps ("shard split needed at 10M users = +$8k/mo"). Teaches capacity budget planning.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ COST VS p99 TRADEOFF CURVE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Plots: each architectural option at a point on (cost, p99) plane. User sees the Pareto frontier. Teaches "at what price do we get what latency?" — the core senior-eng skill.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(252, 165, 165, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ "CLOUD BILL SHOCK" SCENARIO</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Real narratives from companies that blew their AWS bill. "One engineer enabled CloudTrail on all regions — $200k/mo." Teaches cost-observability and guardrails.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q27 HIDDEN COSTS ========== -->
+<h2 style="margin-top: 28px;">Q27 · Hidden &amp; operational costs — which to surface?</h2>
+<p class="subtitle">The cost model is easy to do wrong. These are the non-obvious cost lines that separate juniors from seniors. Multi-select.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① DATA EGRESS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AWS charges $0.02-0.09 per GB out. Cross-region transfer is worse. 1 PB out = $40k-90k. Easily surprises junior engineers.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② OBSERVABILITY TAX ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Datadog/Splunk/Sentry/APM often 10-30% of compute cost. High-cardinality metrics can 10x bills. Real number most engineers underestimate.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ ON-CALL LOAD</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Not a cloud bill — but real. "This design needs 3 on-call engineers × $300k ea = $900k/yr hidden cost." Teaches operational honesty.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ VENDOR LOCK-IN COST ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      DynamoDB cheaper than running Cassandra — but what's the cost of migrating off? Proxy metric: how many vendor-specific APIs does your design touch?
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ CROSS-REGION REPLICATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Multi-region DR sounds great — costs 2-3x (compute + egress + sync). Shows up clearly when slider hits multi-region.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ IDLE-CAPACITY WASTE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Over-provisioning. "You've got 3 app servers at 12% CPU." Teaches right-sizing + autoscale tuning. Most common real-world cost leak.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(252, 165, 165, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ RETRY AMPLIFICATION COST</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Bad retry logic → 3-5x actual requests → 3-5x costs. Hidden. Shows during chaos simulation. Teaches backoff + circuit breakers as <em>cost</em> mechanisms.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ COMPLIANCE / AUDIT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Adds encryption + logging + region segregation. SOC2 = +15-25% infra cost. HIPAA / PCI more. Most textbooks never teach this.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q28 REAL COMPANIES ========== -->
+<h2 style="margin-top: 28px;">Q28 · Real-company cost references — how much do we expose?</h2>
+<p class="subtitle">Actual numbers from Netflix / Reddit / Twitter build intuition. But some numbers are proprietary / stale.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · ABSTRACT ONLY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      No named-company numbers. "Large streaming service: ~$0.10-0.50 per user/month." Safe, stale-resistant. But loses teaching punch.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · NAMED BANDS (ROUNDED)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Disclosed public numbers, rounded, with year stamp + source. "Netflix AWS spend ≈ $400M/yr (2022 earnings call)." Memorable and sourced.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.7;">
+      <strong>Netflix:</strong> ~$400M / yr AWS · ~$0.20 / user-month (2022)<br>
+      <strong>Reddit:</strong> ~$100M / yr infra · ~$0.05 / user-month (2023 S-1)<br>
+      <strong>Dropbox:</strong> saved $75M / yr moving to Magic Pocket (2016)<br>
+      <strong>Snapchat:</strong> paid $3B over 5 yrs for Google Cloud (2017 deal)<br>
+      <span style="color: rgb(156, 163, 175);">Sources: earnings reports, S-1 filings, engineering blogs.</span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · INFRA PER USER GRAPHS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Visualization: log-log plot of user-base vs. infra-cost for 15 companies. User's design plotted on same graph. Visceral "am I in the ballpark?" check.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + C</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Named bands in tooltips + graph for visualization. Both channels. More work but higher pedagogical density.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== VISUAL: COST PANEL ========== -->
+<h2 style="margin-top: 28px;">Reference · Cost panel mockup</h2>
+<p class="subtitle">For orientation — the recommended stack (C + A+B/D + B + all 4/6 + all + B) looks like this.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.25); border-radius: 10px; padding: 14px; margin-top: 12px;">
+  <div style="background: rgb(9, 14, 25); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 9px; line-height: 1.7; color: rgb(229, 231, 235);">
+<span style="color: rgb(110, 231, 183);">┌─ COST PANEL · Design Netflix · AWS prices ──────────────── budget: $50k/mo ──┐</span>
+│ 💰 <strong style="color: rgb(251, 191, 36);">$42,140 / mo</strong>    <span style="color: rgb(251, 191, 36);">━━━━━━━━━━━━━━━━━━━━━━▶        </span>   84% of budget │
+│                                                                              │
+│ <span style="color: rgb(156, 163, 175);">PER-NODE BREAKDOWN</span>                                                          │
+│ ⬤ cdn-tier            $8,400  <span style="color: rgb(156, 163, 175);">(CloudFront · 80TB egress @ $0.085/GB)</span>         │
+│ ⬤ app-pool-us-e        $12,200 <span style="color: rgb(156, 163, 175);">(EC2 · 40× m5.2xlarge)</span>                        │
+│ ⬤ rds-primary          $7,800  <span style="color: rgb(156, 163, 175);">(RDS · db.r5.8xlarge + Multi-AZ)</span>              │
+│ ⬤ elasticache-tier     $4,100  <span style="color: rgb(156, 163, 175);">(ElastiCache · 6× cache.r5.xlarge)</span>           │
+│ ⬤ s3-video-assets      $6,200  <span style="color: rgb(156, 163, 175);">(S3 · 2PB stored + requests)</span>                 │
+│ ⬤ observability        $3,440  <span style="color: rgb(156, 163, 175);">(Datadog · 250 hosts + logs)</span>     <span style="color: rgb(251, 146, 60);">← 8% tax</span>     │
+│                                                                              │
+│ <span style="color: rgb(156, 163, 175);">SCALE SLIDER</span>  10k ├──●──────────────── 1B     current: <strong style="color: rgb(110, 231, 183);">5M DAU</strong>          │
+│                                                                              │
+│ <span style="color: rgb(156, 163, 175);">BENCHMARK</span>  your $/user-month: <strong style="color: rgb(110, 231, 183);">$0.0084</strong>                                  │
+│            ┌──────────────────────────────────────────────┐                  │
+│            │  Netflix $0.20  ██████████████████████████   │                  │
+│            │  Reddit  $0.05  ██████                       │                  │
+│            │  <strong>YOU</strong>     $0.008 ██                             │                  │
+│            └──────────────────────────────────────────────┘                  │
+│                                                                              │
+│ <span style="color: rgb(251, 146, 60);">⚠ SUGGESTED OPTIMIZATIONS</span>                                                     │
+│   ▸ Drop multi-AZ on RDS: <span style="color: rgb(110, 231, 183);">−$3,900/mo</span>  <span style="color: rgb(252, 165, 165);">risk: +15% outage probability</span>     │
+│   ▸ Move cold videos to S3-IA: <span style="color: rgb(110, 231, 183);">−$2,100/mo</span>  <span style="color: rgb(251, 191, 36);">risk: 1st-play latency +40ms</span>│
+│   ▸ Right-size EC2 from m5.2x to m5.x: <span style="color: rgb(110, 231, 183);">−$5,600/mo</span>  <span style="color: rgb(251, 191, 36);">risk: headroom thin</span>  │
+<span style="color: rgb(110, 231, 183);">└──────────────────────────────────────────────────────────────────────────────┘</span>
+  </div>
+</div>
+
+<!-- ========== CTA ========== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 16px; margin-top: 24px;">
+  <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">YOUR PICKS · BATCH 7</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong>Q23</strong> — cost visibility: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q24</strong> — providers (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥</span><br>
+    <strong>Q25</strong> — scaling scenario: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q26</strong> — cost-pressure activities (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦</span><br>
+    <strong>Q27</strong> — hidden costs (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q28</strong> — real-company references: <span style="color: rgb(110, 231, 183);">A / B / C / D</span>
+  </div>
+  <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 10px;">
+    Reply with picks and I advance to Batch 8 · UI layer extension, panels, content formats.
+  </div>
+</div>

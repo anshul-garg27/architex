@@ -1,0 +1,618 @@
+<div style="background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🔬</div>
+  <div style="font-size: 12px; color: rgb(196, 181, 253); line-height: 1.5;">
+    <strong>Bonus Batch 11 · Diagram language, new components, pedagogical angles.</strong> You asked me to think from different angles. This is the "everything we were about to miss" batch. 8 dense questions.
+  </div>
+</div>
+
+<h2>The premise · Box-and-arrow is the default, not the ceiling</h2>
+<p class="subtitle">So far we've assumed ReactFlow-style box-and-arrow diagrams because that's what the existing canvas is. But System Design is a multi-lens discipline: architecture diagrams, sequence diagrams, deployment topologies, data flow maps, state machines. And the same architecture can be viewed through overlays: latency heat, cost heat, blast radius, critical path. This batch expands <em>what a diagram can be</em>, <em>what components it contains</em>, and <em>what learning formats surround it</em>.</p>
+
+<!-- ========== Q47 DIAGRAM TYPES ========== -->
+<h2 style="margin-top: 28px;">Q47 · Diagram <em>types</em> — which to ship beyond architecture boxes?</h2>
+<p class="subtitle">Each diagram type teaches a different axis. Multi-select. More = more surface but richer pedagogy.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em;">① ARCHITECTURE DIAGRAM ⭐ baseline</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">what we have today</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Boxes = services/stores. Arrows = calls. The canvas we already have. Keep.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② SEQUENCE DIAGRAM ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Time runs top-to-bottom. Shows request flow across services: "client → gateway → auth → app → cache → db → back". Critical for showing <em>how</em> a request travels. Interview-standard.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 6px; font-family: monospace; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.7;">
+      client ─────▶ gateway ─────▶ auth<br>
+      &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│◀────── token<br>
+      &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│─────▶ app ─────▶ cache (miss)<br>
+      &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│─────▶ db
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ DEPLOYMENT TOPOLOGY ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Regions → AZs → hosts → containers → services. Shows the <em>physical</em> placement. Reveals blast radius of zone/region outage at a glance. Chaos drill clicks through it.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ DATA FLOW DIAGRAM ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Shows where data moves + transforms. Ingestion → enrichment → storage → serving. Critical for streaming systems and ETL-heavy problems.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(252, 165, 165, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ STATE MACHINE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      For protocols (Paxos, Raft, 2PC, Saga). States as circles, transitions as arrows. Critical for teaching consensus + transactions.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ ER / DATA MODEL</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Tables / collections / entities + relationships. Often a sub-panel of the main diagram but sometimes its own view.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ NETWORK TOPOLOGY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      VPCs, subnets, routes, LBs, firewalls, peering. For enterprise problems + infra deep-dives.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ SWIMLANES / OWNERSHIP MAP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Team-by-team column layout. "Who owns what?" Shows org/system coupling (Conway's Law made visible). Unique moat — no competitor ships this.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑨ SERVICE MESH / DEPENDENCY GRAPH</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Force-directed. Shows the real call graph at scale. Great for "find the single point of failure" drills.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑩ CASCADE / BLAST-RADIUS GRAPH</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Click any node → all downstream nodes that would fail if this dies. Live highlighting. Pairs with chaos events. Our moat in failure pedagogy.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q48 NODE TYPES ========== -->
+<h2 style="margin-top: 28px;">Q48 · SD node-type library — what components live on the canvas?</h2>
+<p class="subtitle">LLD has class-box nodes. SD needs richer, more distinct types. Multi-select the families to ship.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">① CLIENT TIER ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Web browser · mobile · IoT · admin · CLI · bot. Icons distinguish. Entry-point for request traces.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">② EDGE &amp; CDN ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      CloudFront / Cloudflare / Fastly · DNS · Anycast · edge compute · WAF.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">③ LOAD BALANCERS ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      L4 TCP/UDP · L7 HTTP · round-robin · consistent-hash · weighted · sticky-session. Visual distinguishes.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">④ API GATEWAYS ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      AuthN · rate-limit · transform · aggregate · BFF.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑤ APP / SERVICE NODES ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Stateless service · stateful service · background worker · cron · serverless function. Replicated visual (stack of boxes).
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑥ DATABASES · 6 FLAVORS ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Relational · document · column (Cassandra) · key-value · graph · time-series. Distinct icons, distinct cost models.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑦ CACHES ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      In-process · distributed (Redis/Memcached) · CDN · db query cache. Visual shows TTL + hit ratio.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑧ QUEUES &amp; STREAMS ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Message queue (SQS · RabbitMQ) · pub-sub (Kafka · Redis) · event log (Kinesis) · job queue. Visual shows depth + lag.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑨ OBJECT &amp; FILE STORAGE</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      S3 / GCS / Azure Blob · file systems · block storage. Cost scales with GB + requests.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑩ SEARCH &amp; ANALYTICS</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Elasticsearch · OpenSearch · Algolia · ClickHouse · Druid · Snowflake. Separate from OLTP databases.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑪ OBSERVABILITY STACK</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Metrics (Prom/Datadog) · logs · traces · APM · on-call. Often forgotten by juniors — explicit node teaches inclusion.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑫ AUTH &amp; IDENTITY</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      OAuth provider · SSO · IAM · secrets store · certificate authority.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑬ 3RD-PARTY / EXTERNAL ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Stripe · Twilio · Auth0 · OpenAI API · SendGrid. Cost-per-call. Reliability-not-yours. Teaches dependency management.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑭ CONTAINERS · REGIONS · ZONES ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Group-containers that hold other nodes. Drag-drop a node into a region/AZ. Visualizes placement.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑮ REPLICATED / SHARDED BADGES ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Any node can have a "×3 replica" or "×16 shards" badge. Visual shows replication factor without cluttering canvas.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.2em; margin-bottom: 4px;">⑯ EDGE TYPES · SYNC / ASYNC / BATCH ⭐</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">
+      Solid = sync RPC. Dashed = async/fire-and-forget. Dotted = batch job. Edge style teaches call pattern.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q49 OVERLAYS ========== -->
+<h2 style="margin-top: 28px;">Q49 · Diagram overlays &amp; live views</h2>
+<p class="subtitle">Same architecture, many lenses. Click a button, canvas re-colors to reveal a different dimension. Multi-select.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① LATENCY HEAT MAP ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Nodes colored by contribution to p99. Red = hottest. Click for breakdown.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② COST HEAT MAP ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Nodes colored by monthly cost share. Instantly spot the expensive components.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ BLAST RADIUS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Click any node → all downstream nodes that break if it dies, highlighted with severity.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ REQUEST PATH TRACE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Trace one synthetic request through the system. Animated particle follows edges. Shows critical path.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ DATA LOCALITY MAP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Overlays show where user data physically lives (region). Useful for GDPR / latency / sovereignty.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ LAYERED VIEWS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Toggle: show only data layer · service layer · infrastructure layer. Progressive reveal.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ ERROR RATE OVERLAY ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Live during sim. Each node colored by current error %. Red nodes pulse.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ ZOOM LEVELS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      High-level (5 boxes), medium (services), low (per-instance). Semantic zoom, not just pixel zoom.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(252, 165, 165, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑨ TIMELINE SCRUB</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Bottom bar shows architecture at t=0, t=3mo, t=6mo, etc. Scrub to see how the design evolved. Great for growth-curve problems.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑩ 3D ISOMETRIC VIEW</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Optional view: physical rack visualization. Datacenters → racks → servers. Showpiece / pitch-deck mode.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q50 SMART CANVAS ========== -->
+<h2 style="margin-top: 28px;">Q50 · Smart canvas features — AI + pattern-aware canvas</h2>
+<p class="subtitle">The canvas is not just a drawing tool — it can recognize patterns, warn about anti-patterns, suggest improvements. Multi-select.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① PATTERN DETECTION ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AI recognizes classic patterns in your design. Badges appear: "CQRS detected", "Leader-follower replication", "Saga pattern". Links to Learn content for each.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② ANTI-PATTERN WARNINGS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Detects problematic patterns: N+1 service call · cascade failure risk · hot-partition · missing observability · single-region-dependency · synchronous-chain-of-5+. Subtle red badge.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ AI NODE SUGGESTIONS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "Given your current design, you're likely missing: ⬆ a cache between app and DB, ⬆ rate limiter at gateway." User can accept or dismiss.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ COMPLEXITY SCORE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each design gets a complexity number (services × edges × replication factor). Shown in corner. Teaches "is my design too elaborate?"
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ CONSTRAINT SOLVER ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "Set p99 ≤ 50ms." AI suggests architecture changes to meet constraint. Shows the change as ghost-diff.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ REVERSE ENGINEERING ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Paste a system description ("Our service uses Postgres + Redis + Kafka + S3") → AI drafts a starter diagram. Turns text into canvas.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ DRAG-IN REFERENCE COMPONENTS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Side library: "Netflix CDN stack", "Uber dispatch subsystem", "Stripe idempotency layer". Drag into your canvas → adapts to your design. Instant pattern reuse.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ AUTO-LAYOUT PRESETS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      One-click "tidy up": left-to-right · top-down · layered · circular. Dagre-based, serif-timed animation.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q51 PEDAGOGICAL FORMATS ========== -->
+<h2 style="margin-top: 28px;">Q51 · Novel pedagogical formats</h2>
+<p class="subtitle">Beyond read-learn-drill. Formats competitors don't ship. Multi-select.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① BUILD-ALONG ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "Follow along" sessions: senior architect builds a design step-by-step, narrating tradeoffs. User's canvas mirrors. Pause + replay. Like live coding but for systems.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② DEBUG-THIS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Given a broken design + symptoms ("latency spiked 6x at 2am") → diagnose. Teaches incident response. Rubric grades root-cause accuracy.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ INHERIT-THIS-MESS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Given a poorly-designed system (real-world scenario: new employee Day 1). Refactor it. Teaches brownfield thinking — most engineering is NOT greenfield.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ SCALE-THIS-UP ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Working design at 10k users → modify for 100M. Shows what has to change at each order of magnitude. Teaches scaling inflection points.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ CTO INTERVIEW</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AI acts as CTO of a fictional startup. Presents a business problem ("we're losing $10k/day to latency"). You propose a design. They push back with business constraints. Teaches <em>product-thinking</em> alongside engineering.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ GUIDED DERIVATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Step-by-step textbook-style: "start with 1 server. now add scale. why does this break? let's add caching. why not perfect? and so on." Interactive, socratic.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ COMPARE-TWO-COMPANIES</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "Netflix vs Hulu · how do their video-delivery architectures differ?" Side-by-side canvases with annotated contrasts. Teaches "there's more than one right answer".
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ EVOLVING-DESIGN CAMPAIGN</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Multi-hour narrative: "You join MockFlix Day 1. Scale is 100k users. In 6 game-months, you'll hit 100M. Survive each scaling wave." Each session is one chapter.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q52 AUTO-GENERATED ARTIFACTS ========== -->
+<h2 style="margin-top: 28px;">Q52 · Auto-generated documentation artifacts</h2>
+<p class="subtitle">Your design produces more than a diagram. What else gets auto-generated?</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① ADR · ARCHITECTURE DECISION RECORDS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each design choice auto-logged: "Decision: use Redis for session cache. Context: need &lt;5ms lookup. Alternatives considered: Memcached, in-process. Consequences: ...". Industry standard, export as MD.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② RUNBOOK ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "Given this design, when paged at 3am, here's your checklist." AI-generates incident response playbook per failure mode.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ RFC-STYLE WRITE-UP ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Full RFC doc: Goals · Non-goals · Design · Alternatives · Risks · Migration. Like Google/Meta internal RFCs. Export to Google Doc / Notion.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ INFRA-AS-CODE STARTER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Export design as Terraform / CDK / Pulumi skeleton. Not deployable, but teaches "this architecture → this IaC file". Huge for junior eng career growth.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ CAPACITY PLAN</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "At 10M users, you need 40× app servers, 3× RDS primary, 8× cache nodes, ~$42k/mo." Spreadsheet-style projection doc.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ POSTMORTEM TEMPLATE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Given a chaos-drill failure → auto-generates postmortem (timeline, root cause, impact, fix). Ready to paste into Confluence.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ ONE-PAGER EXEC SUMMARY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "Design Netflix in 200 words for a non-engineer CEO." Teaches upward communication. Rubric grades clarity.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ INTERVIEW CHEAT-SHEET</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      For a problem you've drilled: 1-page "what I'd say in the interview" crib. Scale math · 3 key tradeoffs · canonical diagram · failure mode. Your own voice.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q53 VISUAL RENDERING ========== -->
+<h2 style="margin-top: 28px;">Q53 · Visual / rendering innovations</h2>
+<p class="subtitle">Beyond standard ReactFlow look. How does the canvas <em>feel</em>?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① BLUEPRINT-PAPER MODE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Canvas background: subtle blueprint grid on cyan-white. Edges look hand-drafted. Strong "architect" signal. Unique visual signature.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② HAND-DRAWN MODE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Sketchy lines (rough.js style) during brainstorm phase. Signals "work in progress". Toggle to crisp mode when design is locked.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ ANIMATED DATA FLOW ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      During simulation: particles/dots flow along edges. Visual "throughput". Faster = more requests. Dying edge = slowing flow.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ NODE "BREATHING" ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Nodes subtly pulse at their actual QPS rate. Feels alive. Faster pulse = higher load. Cinema-grade touch.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ SERIF LABELS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Node labels in serif (IBM Plex Serif). Radically different from competitors' sans-heavy UIs. Signals "thoughtful" not "tech-bro".
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ AMBIENT SOUND (OPT-IN)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Low background hum during normal sim. Subtle bass pulse on chaos event. Silence when paused. Optional + off-by-default.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ FAILURE CINEMATOGRAPHY ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      When a chaos event fires: screen vignettes dark, failed node glows red, 2s serif ribbon narrates. From Batch 5 = locked but noting here for completeness.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ CONTEXT-AWARE NODE ICONS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each node type has a distinctive, serif-styled icon (not generic). Cassandra node looks different from Postgres node. Intuitive at a glance.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q54 IMMERSION ========== -->
+<h2 style="margin-top: 28px;">Q54 · Immersion · narrative · worldbuilding</h2>
+<p class="subtitle">The highest-ambition lens. Does Architex feel like a place with characters and history? Or just a toolbox?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · PURE TOOL</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      No narrative. Just content + canvas + simulation. Classical "textbook but interactive". Safe, understandable.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · AMBIENT NARRATIVE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Architect's Studio as a place. Serif typography, earned color. Rooms for different activities. Cinematic chaos events. No characters or storyline — just atmosphere. This is already what we're building.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · CHARACTER PROGRESSION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User has a title progression: Apprentice → Journeyman → Architect → Master. Each tier unlocks new interviewer personas / harder drills / esoteric content. Visible on profile.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · FULL CAMPAIGN MODE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "The MockFlix Saga" — a 40-hour narrative where user is hired at a fictional company, grows from Eng1 to Staff, faces scaling crises, leads a rewrite. All content threaded through one story. Immersive; high authoring cost.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION E · B + C</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Atmosphere (locked) + title progression. Adds lightweight narrative without a campaign author. Safe middle.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION F · B + D (DECADE SAGA)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Atmosphere + campaign. Most ambitious. Campaign is ONE long narrative optional layer — user can stick to discrete drills or follow the Saga.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== CTA ========== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 16px; margin-top: 24px;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">YOUR PICKS · BONUS BATCH 11</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong>Q47</strong> — diagram types (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩</span><br>
+    <strong>Q48</strong> — node type families (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩ ⑪ ⑫ ⑬ ⑭ ⑮ ⑯</span><br>
+    <strong>Q49</strong> — overlays / live views (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩</span><br>
+    <strong>Q50</strong> — smart canvas features (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q51</strong> — pedagogical formats (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q52</strong> — auto-generated artifacts (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q53</strong> — visual rendering (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q54</strong> — immersion / narrative: <span style="color: rgb(110, 231, 183);">A / B / C / D / E / F</span>
+  </div>
+  <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+    After this: ALL decisions across 11 batches (46 + 8 = <strong>54 locked questions</strong>) consolidate into the System Design rebuild spec. If you want to go even deeper I can keep adding bonus batches — just say "<em>aur socho</em>" and I'll open new angles.
+  </div>
+</div>

@@ -1,0 +1,328 @@
+<div style="background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🏗️</div>
+  <div style="font-size: 12px; color: rgb(251, 146, 60); line-height: 1.5;">
+    <strong>Batch 6 · visual edition.</strong> Same layout ideas — now each has a wireframe showing what it looks like in-context.
+  </div>
+</div>
+
+<h2>Layout &amp; canvas architecture — with visuals</h2>
+<p class="subtitle">Multi-select. Each box shows the idea visually.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <!-- L1 Resizable panels -->
+  <div class="option" data-choice="l1" onclick="toggleSelect(this)">
+    <div class="letter">L1</div>
+    <div class="content">
+      <h3>Resizable panels · drag panel borders to adjust</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Today: fixed panel widths. Proposal: drag handles on borders.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; height: 130px; display: grid; grid-template-columns: 24px 160px 6px 1fr 6px 200px; gap: 0; position: relative;">
+        <div style="background: rgba(124,58,237,0.15); border-radius: 4px;"></div>
+        <div style="background: rgba(255,255,255,0.04); border-radius: 4px; padding: 6px; font-size: 8px; color: rgb(156,163,175);">Sidebar</div>
+        <div style="background: rgba(251,146,60,0.3); cursor: col-resize; position: relative;">
+          <div style="position: absolute; top: 50%; left: -4px; transform: translateY(-50%); font-size: 10px; color: rgb(251,146,60);">↔</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 4px; display: flex; align-items:center; justify-content:center; font-size: 10px; color: rgb(147,197,253);">Canvas expands</div>
+        <div style="background: rgba(251,146,60,0.3); cursor: col-resize; position: relative;">
+          <div style="position: absolute; top: 50%; left: -4px; transform: translateY(-50%); font-size: 10px; color: rgb(251,146,60);">↔</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); border-radius: 4px; padding: 6px; font-size: 8px; color: rgb(156,163,175);">Properties</div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Orange strips = drag handles · ↔ resize cursor on hover · widths saved per-user</div>
+    </div>
+  </div>
+
+  <!-- L2 Collapsible -->
+  <div class="option" data-choice="l2" onclick="toggleSelect(this)">
+    <div class="letter">L2</div>
+    <div class="content">
+      <h3>Collapsible panels · ⌘[ hides sidebar, ⌘] hides properties</h3>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+          <div style="font-size: 9px; color: rgb(156,163,175); margin-bottom: 4px; letter-spacing: 0.5px;">BEFORE · all panels open</div>
+          <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px; height: 100px; display: grid; grid-template-columns: 20px 1fr 2fr 1fr; gap: 3px;">
+            <div style="background: rgba(124,58,237,0.15); border-radius: 3px;"></div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 3px;"></div>
+            <div style="background: rgba(255,255,255,0.02); border-radius: 3px;"></div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 3px;"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 9px; color: rgb(110,231,183); margin-bottom: 4px; letter-spacing: 0.5px;">AFTER · ⌘[ collapsed sidebar</div>
+          <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px; height: 100px; display: grid; grid-template-columns: 20px 4px 3fr 1fr; gap: 3px; position: relative;">
+            <div style="background: rgba(124,58,237,0.15); border-radius: 3px;"></div>
+            <div style="background: rgba(110,231,183,0.3); border-radius: 2px; cursor: pointer;" title="Click to expand"></div>
+            <div style="background: rgba(255,255,255,0.02); border-radius: 3px; display:flex; align-items:center; justify-content:center; font-size: 10px; color: rgb(110,231,183);">Canvas takes more</div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 3px;"></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Thin green strip = "click to re-expand" · state persists</div>
+    </div>
+  </div>
+
+  <!-- L3 Tabs -->
+  <div class="option" data-choice="l3" onclick="toggleSelect(this)">
+    <div class="letter">L3</div>
+    <div class="content">
+      <h3>Pattern tabs · multiple open, switch freely</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden;">
+        <!-- tab row -->
+        <div style="background: rgba(0,0,0,0.35); padding: 4px 4px 0 4px; display: flex; gap: 1px;">
+          <div style="background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.4); border-bottom: 2px solid rgb(124,58,237); padding: 6px 14px; border-radius: 6px 6px 0 0; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 6px; height: 6px; background: rgb(110,231,183); border-radius: 50%;"></div>
+            <div style="font-size: 10px; color: rgb(229, 231, 235); font-weight: 600;">Singleton</div>
+            <div style="color: rgb(156, 163, 175); font-size: 10px;">×</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 6px 14px; border-radius: 6px 6px 0 0; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 6px; height: 6px; background: rgb(250,204,21); border-radius: 50%;"></div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175);">Observer <span style="font-size: 8px; background: rgba(250,204,21,0.2); color: rgb(250,204,21); padding: 0 4px; border-radius: 6px;">●</span></div>
+            <div style="color: rgb(156, 163, 175); font-size: 10px;">×</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 6px 14px; border-radius: 6px 6px 0 0; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 6px; height: 6px; background: rgb(252,165,165); border-radius: 50%;"></div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175);">Parking Lot <span style="font-size: 8px; color: rgb(252,165,165);">drill active</span></div>
+            <div style="color: rgb(156, 163, 175); font-size: 10px;">×</div>
+          </div>
+          <div style="padding: 6px 10px; color: rgb(156, 163, 175); font-size: 12px;">+</div>
+        </div>
+        <div style="padding: 16px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: rgb(196, 181, 253);">Singleton canvas (active tab's content shows)</div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Dot = unsaved · yellow = checkpoint in progress · red = drill timer running</div>
+    </div>
+  </div>
+
+  <!-- L4 Split-view -->
+  <div class="option" data-choice="l4" onclick="toggleSelect(this)">
+    <div class="letter">L4</div>
+    <div class="content">
+      <h3>Split-view · compare two patterns side by side</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px;">
+        <div style="display: grid; grid-template-columns: 1fr 6px 1fr; gap: 0; height: 140px;">
+          <div style="background: rgba(110,231,183,0.05); border: 1px solid rgba(110,231,183,0.25); border-radius: 6px; padding: 8px; position: relative;">
+            <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 600; margin-bottom: 6px;">OBSERVER</div>
+            <div style="display: flex; gap: 8px; align-items: center; justify-content: center; height: 90px;">
+              <div style="width: 50px; height: 26px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 3px; font-size: 8px; color: rgb(110,231,183); display:flex; align-items:center; justify-content:center;">Subject</div>
+              <div style="color: rgb(156,163,175); font-size: 10px;">→</div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <div style="width: 50px; height: 22px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 3px; font-size: 8px; color: rgb(110,231,183); display:flex; align-items:center; justify-content:center;">Obs1</div>
+                <div style="width: 50px; height: 22px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 3px; font-size: 8px; color: rgb(110,231,183); display:flex; align-items:center; justify-content:center;">Obs2</div>
+              </div>
+            </div>
+          </div>
+          <div style="background: rgba(251,146,60,0.3); cursor: col-resize;"></div>
+          <div style="background: rgba(147,197,253,0.05); border: 1px solid rgba(147,197,253,0.25); border-radius: 6px; padding: 8px;">
+            <div style="font-size: 10px; color: rgb(147, 197, 253); font-weight: 600; margin-bottom: 6px;">MEDIATOR</div>
+            <div style="display: flex; gap: 8px; align-items: center; justify-content: center; height: 90px;">
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <div style="width: 40px; height: 22px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 3px; font-size: 8px; color: rgb(147,197,253); display:flex; align-items:center; justify-content:center;">Col1</div>
+                <div style="width: 40px; height: 22px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 3px; font-size: 8px; color: rgb(147,197,253); display:flex; align-items:center; justify-content:center;">Col2</div>
+              </div>
+              <div style="color: rgb(156,163,175); font-size: 10px;">↔</div>
+              <div style="width: 60px; height: 30px; background: rgba(147,197,253,0.2); border: 2px solid rgba(147,197,253,0.4); border-radius: 3px; font-size: 8px; color: rgb(147,197,253); display:flex; align-items:center; justify-content:center;">Mediator</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Observer: 1-to-many broadcasts · Mediator: many-to-many via central hub · difference visible at glance</div>
+    </div>
+  </div>
+
+  <!-- L5 Zen mode -->
+  <div class="option" data-choice="l5" onclick="toggleSelect(this)">
+    <div class="letter">L5</div>
+    <div class="content">
+      <h3>Zen mode · ⌘. hides all chrome</h3>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+          <div style="font-size: 9px; color: rgb(156,163,175); margin-bottom: 4px; letter-spacing: 0.5px;">NORMAL</div>
+          <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px; height: 100px; display: grid; grid-template-columns: 20px 1fr 2fr 1fr; gap: 3px;">
+            <div style="background: rgba(124,58,237,0.15); border-radius: 3px;"></div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 3px;"></div>
+            <div style="background: rgba(147,197,253,0.05); border-radius: 3px;"></div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 3px;"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 9px; color: rgb(196,181,253); margin-bottom: 4px; letter-spacing: 0.5px;">ZEN ⌘.</div>
+          <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px; height: 100px; display: flex; align-items: center; justify-content: center;">
+            <div style="font-size: 18px;">☯</div>
+          </div>
+          <div style="font-size: 8px; color: rgb(107, 114, 128); text-align: center; margin-top: 2px;">Pure canvas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- L6 Smart zoom -->
+  <div class="option" data-choice="l6" onclick="toggleSelect(this)">
+    <div class="letter">L6</div>
+    <div class="content">
+      <h3>Smart zoom menu · "fit what I'm looking at"</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px;">
+        <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 10px;">
+          <div style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; font-size: 9px; color: rgb(229, 231, 235);">100%</div>
+          <div style="background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.4); padding: 4px 8px; border-radius: 4px; font-size: 9px; color: rgb(196, 181, 253);">Fit ▾</div>
+        </div>
+        <!-- dropdown -->
+        <div style="background: rgb(30, 41, 59); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px; width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+          <div style="background: rgba(124,58,237,0.15); padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(196, 181, 253); margin-bottom: 2px;">◎ Fit all <span style="float: right; color: rgb(156,163,175); font-size: 9px;">⌘0</span></div>
+          <div style="padding: 6px 10px; font-size: 10px; color: rgb(229, 231, 235);">⌖ Fit selection <span style="float: right; color: rgb(156,163,175); font-size: 9px;">⌘⇧0</span></div>
+          <div style="padding: 6px 10px; font-size: 10px; color: rgb(229, 231, 235);">⊡ Fit group <span style="float: right; color: rgb(156,163,175); font-size: 9px;">⌘G</span></div>
+          <div style="padding: 6px 10px; font-size: 10px; color: rgb(229, 231, 235);">✦ Fit highlighted <span style="float: right; color: rgb(156,163,175); font-size: 9px;">⌘H</span></div>
+          <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 4px 8px;"></div>
+          <div style="padding: 6px 10px; font-size: 10px; color: rgb(229, 231, 235);">↺ Reset to 100% <span style="float: right; color: rgb(156,163,175); font-size: 9px;">⌘1</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- L7 Snap-to-grid -->
+  <div class="option" data-choice="l7" onclick="toggleSelect(this)">
+    <div class="letter">L7</div>
+    <div class="content">
+      <h3>Snap-to-grid on Shift-hold · grid briefly visible</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; height: 120px; position: relative; background-image: radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 16px 16px;">
+        <div style="position: absolute; top: 30px; left: 60px; width: 80px; height: 40px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 4px; padding: 6px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center;">ClassA</div>
+        <div style="position: absolute; top: 35px; right: 60px; width: 80px; height: 40px; background: rgba(147,197,253,0.15); border: 2px solid rgba(251,146,60,0.6); border-radius: 4px; padding: 6px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center; box-shadow: 0 0 12px rgba(251,146,60,0.3);">ClassB</div>
+        <div style="position: absolute; bottom: 6px; left: 10px; font-size: 9px; color: rgb(251, 146, 60); background: rgba(251,146,60,0.15); padding: 2px 6px; border-radius: 3px;">⇧ held · snapping to 16px grid</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- L8 Alignment guides -->
+  <div class="option" data-choice="l8" onclick="toggleSelect(this)">
+    <div class="letter">L8</div>
+    <div class="content">
+      <h3>Alignment guides · live pink dashes when edges align</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; height: 120px; position: relative;">
+        <div style="position: absolute; top: 30px; left: 50px; width: 70px; height: 35px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 4px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center;">ClassA</div>
+        <!-- dragged class near alignment -->
+        <div style="position: absolute; top: 28px; right: 60px; width: 70px; height: 35px; background: rgba(147,197,253,0.15); border: 1px dashed rgba(236, 72, 153, 0.7); border-radius: 4px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center; cursor: move;">ClassB</div>
+        <!-- pink alignment line -->
+        <div style="position: absolute; top: 30px; left: 120px; right: 130px; height: 1px; background: rgba(236, 72, 153, 0.7); border-top: 1px dashed rgb(236, 72, 153);"></div>
+        <div style="position: absolute; bottom: 30px; left: 120px; right: 130px; height: 1px; background: rgba(236, 72, 153, 0.7); border-top: 1px dashed rgb(236, 72, 153);"></div>
+        <div style="position: absolute; bottom: 6px; left: 10px; font-size: 9px; color: rgb(236, 72, 153); background: rgba(236, 72, 153, 0.12); padding: 2px 6px; border-radius: 3px;">↕ Top aligned · ↕ Bottom aligned</div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Your codebase has <code>AlignmentGuides</code> — just wire it into LLDCanvas.</div>
+    </div>
+  </div>
+
+  <!-- L9 Context menu -->
+  <div class="option" data-choice="l9" onclick="toggleSelect(this)">
+    <div class="letter">L9</div>
+    <div class="content">
+      <h3>Right-click context menus · 12+ actions per class</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; position: relative; height: 220px;">
+        <!-- class being right-clicked -->
+        <div style="position: absolute; top: 30px; left: 40px; width: 100px; height: 50px; background: rgba(147,197,253,0.15); border: 2px solid rgba(147,197,253,0.4); border-radius: 4px; padding: 6px; font-size: 10px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center; box-shadow: 0 0 8px rgba(124,58,237,0.3);">Singleton</div>
+        <!-- context menu -->
+        <div style="position: absolute; top: 30px; left: 155px; background: rgb(30, 41, 59); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 4px; width: 200px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); font-size: 10px;">
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235); display: flex; align-items: center; gap: 8px;">✎ Edit <span style="margin-left: auto; color: rgb(156,163,175); font-size: 9px;">E</span></div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235); display: flex; align-items: center; gap: 8px;">⊕ Duplicate <span style="margin-left: auto; color: rgb(156,163,175); font-size: 9px;">⌘D</span></div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235); display: flex; align-items: center; gap: 8px;">⊟ Delete <span style="margin-left: auto; color: rgb(156,163,175); font-size: 9px;">⌫</span></div>
+          <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 3px 6px;"></div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235);">＋ Add method</div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235);">＋ Add attribute</div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235);">↗ Convert to interface</div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235);">⬆ Extract parent class</div>
+          <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 3px 6px;"></div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235);">⧉ Copy name</div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235);">⧉ Copy as TypeScript</div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235);">⧉ Copy as Mermaid</div>
+          <div style="padding: 5px 10px; border-radius: 3px; color: rgb(229, 231, 235);">🔍 Find in lesson</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- L10 Status bar -->
+  <div class="option" data-choice="l10" onclick="toggleSelect(this)">
+    <div class="letter">L10</div>
+    <div class="content">
+      <h3>Richer status bar · live context + micro-stats</h3>
+      <div style="margin-top: 10px;">
+        <div style="font-size: 9px; color: rgb(156,163,175); margin-bottom: 4px; letter-spacing: 0.5px;">TODAY</div>
+        <div style="background: rgb(17, 24, 39); padding: 6px 14px; display: flex; align-items: center; gap: 14px; font-size: 10px; color: rgb(156, 163, 175); border-radius: 6px;">
+          <div>Low-Level Design</div>
+          <div>0 nodes / 0 edges</div>
+          <div style="margin-left: auto;">idle</div>
+          <div>~$0/mo</div>
+          <div>100%</div>
+        </div>
+        <div style="font-size: 9px; color: rgb(110,231,183); margin: 10px 0 4px; letter-spacing: 0.5px;">PROPOSED · LIVE, RICH</div>
+        <div style="background: rgb(17, 24, 39); padding: 6px 14px; display: flex; align-items: center; gap: 12px; font-size: 10px; color: rgb(229, 231, 235); border-radius: 6px; border: 1px solid rgba(110,231,183,0.15);">
+          <div style="color: rgb(196, 181, 253); font-weight: 600;">📖 Factory Method</div>
+          <div style="color: rgb(156, 163, 175);">•</div>
+          <div>6 classes · 4 rels</div>
+          <div style="color: rgb(156, 163, 175);">•</div>
+          <div style="color: rgb(110,231,183);">92% complete</div>
+          <div style="color: rgb(156, 163, 175);">•</div>
+          <div style="color: rgb(156,163,175);">scroll §3 of 8</div>
+          <div style="margin-left: auto; color: rgb(156,163,175);">saved 2s ago</div>
+          <div style="color: rgb(156,163,175);">⌘K commands</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- L11 Breadcrumb -->
+  <div class="option" data-choice="l11" onclick="toggleSelect(this)">
+    <div class="letter">L11</div>
+    <div class="content">
+      <h3>Deeper breadcrumbs · "where am I" at all depths</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 14px;">
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 10px;">
+          <span style="color: rgb(156, 163, 175);">🏠 LLD</span>
+          <span style="color: rgb(107, 114, 128);">›</span>
+          <span style="color: rgb(156, 163, 175);">Creational</span>
+          <span style="color: rgb(107, 114, 128);">›</span>
+          <span style="color: rgb(229, 231, 235); font-weight: 600;">Factory Method</span>
+          <span style="color: rgb(107, 114, 128);">›</span>
+          <span style="color: rgb(196, 181, 253); background: rgba(124,58,237,0.15); padding: 1px 6px; border-radius: 8px; font-size: 9px;">📖 Learn mode</span>
+          <span style="color: rgb(107, 114, 128);">›</span>
+          <span style="color: rgb(110, 231, 183); font-size: 9px;">§3 UML Reveal</span>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Each segment clickable · hierarchical zoom-out</div>
+    </div>
+  </div>
+
+  <!-- L12 Minimap -->
+  <div class="option" data-choice="l12" onclick="toggleSelect(this)">
+    <div class="letter">L12</div>
+    <div class="content">
+      <h3>Mini-map intelligence · highlights + section overlay</h3>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+          <div style="font-size: 9px; color: rgb(156,163,175); margin-bottom: 4px; letter-spacing: 0.5px;">TODAY</div>
+          <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px; height: 90px; position: relative;">
+            <div style="position: absolute; top: 16px; left: 20px; width: 20px; height: 10px; background: rgba(156,163,175,0.3); border-radius: 1px;"></div>
+            <div style="position: absolute; top: 40px; left: 40px; width: 22px; height: 10px; background: rgba(156,163,175,0.3); border-radius: 1px;"></div>
+            <div style="position: absolute; top: 40px; left: 70px; width: 22px; height: 10px; background: rgba(156,163,175,0.3); border-radius: 1px;"></div>
+          </div>
+          <div style="font-size: 8px; color: rgb(107,114,128); text-align: center; margin-top: 2px;">Just silhouettes</div>
+        </div>
+        <div>
+          <div style="font-size: 9px; color: rgb(110,231,183); margin-bottom: 4px; letter-spacing: 0.5px;">PROPOSED</div>
+          <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px; height: 90px; position: relative;">
+            <!-- faded classes -->
+            <div style="position: absolute; top: 16px; left: 20px; width: 20px; height: 10px; background: rgba(156,163,175,0.3); border-radius: 1px;"></div>
+            <!-- highlighted class -->
+            <div style="position: absolute; top: 40px; left: 40px; width: 22px; height: 10px; background: rgb(110,231,183); border-radius: 1px; box-shadow: 0 0 8px rgb(110,231,183);"></div>
+            <div style="position: absolute; top: 40px; left: 70px; width: 22px; height: 10px; background: rgba(156,163,175,0.3); border-radius: 1px;"></div>
+            <!-- section scroll overlay -->
+            <div style="position: absolute; top: 35px; left: 30px; right: 20px; height: 20px; border: 1px solid rgba(196, 181, 253, 0.5); border-radius: 2px; background: rgba(124, 58, 237, 0.1);"></div>
+            <div style="position: absolute; top: 2px; right: 4px; font-size: 7px; color: rgb(196, 181, 253);">§3</div>
+          </div>
+          <div style="font-size: 8px; color: rgb(110, 231, 183); text-align: center; margin-top: 2px;">Glow = highlighted · Purple box = lesson scroll position</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Visual edition. Multi-select L1-L12.</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Next: Batch 7 (visualizations/charts) — also visual-rich.</p>
+</div>

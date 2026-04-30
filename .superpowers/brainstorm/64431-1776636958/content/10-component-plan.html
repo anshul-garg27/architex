@@ -1,0 +1,257 @@
+<div style="background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">📐</div>
+  <div style="font-size: 12px; color: rgb(196, 181, 253); line-height: 1.5;">
+    <strong>Design Section 5 of 6:</strong> File-by-file component plan. What's NEW · what's MODIFIED · what's REUSED as-is. Color-coded so you can see the surgery precisely.
+  </div>
+</div>
+
+<h2>The exact file plan</h2>
+<p class="subtitle"><span style="color: rgb(110, 231, 183); font-weight: 600;">🟢 NEW</span> = create from scratch · <span style="color: rgb(250, 204, 21); font-weight: 600;">🟡 MODIFY</span> = edit existing · <span style="color: rgb(147, 197, 253); font-weight: 600;">🔵 REUSE</span> = no changes, just consumed</p>
+
+<!-- ═══════════════ 1. DB LAYER ═══════════════ -->
+<div style="margin-top: 32px;">
+  <h3 style="color: rgb(110, 231, 183);">1 · Database layer · <span style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 400;">~4 hours</span></h3>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-top: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/db/</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 schema/index.ts</span> <span style="color: rgb(107,114,128);">// re-export new schema</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 schema/relations.ts</span> <span style="color: rgb(107,114,128);">// add drill_attempts relation</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 schema/user-preferences.ts</span> <span style="color: rgb(107,114,128);">// doc the lld JSONB shape</span><br>
+└── <span style="color: rgb(110, 231, 183);">🟢 schema/lld-drill-attempts.ts</span> <span style="color: rgb(107,114,128);">// NEW table (see §4.5)</span><br><br>
+<span style="color: rgb(156, 163, 175);">drizzle/</span><br>
+└── <span style="color: rgb(110, 231, 183);">🟢 0001_add_lld_drill_attempts.sql</span> <span style="color: rgb(107,114,128);">// generated migration</span>
+  </div>
+</div>
+
+<!-- ═══════════════ 2. API LAYER ═══════════════ -->
+<div style="margin-top: 32px;">
+  <h3 style="color: rgb(147, 197, 253);">2 · API routes · <span style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 400;">~8 hours</span></h3>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-top: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/app/api/</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 user-preferences/route.ts</span> <span style="color: rgb(107,114,128);">// GET full preferences</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 user-preferences/lld/route.ts</span> <span style="color: rgb(107,114,128);">// PATCH lld subtree</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 user-preferences/lld/migrate/route.ts</span> <span style="color: rgb(107,114,128);">// POST anon→user</span><br>
+└── <span style="color: rgb(156, 163, 175);">lld/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span style="color: rgb(110, 231, 183);">🟢 drill-attempts/route.ts</span> <span style="color: rgb(107,114,128);">// GET?status · POST start</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span style="color: rgb(110, 231, 183);">🟢 drill-attempts/active/route.ts</span> <span style="color: rgb(107,114,128);">// GET with auto-abandon</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── <span style="color: rgb(110, 231, 183);">🟢 drill-attempts/[id]/route.ts</span> <span style="color: rgb(107,114,128);">// PATCH pause/resume/submit/abandon/heartbeat</span>
+  </div>
+
+  <div style="background: rgba(147, 197, 253, 0.06); border-left: 3px solid rgb(147, 197, 253); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-top: 10px; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+    <strong>Auth pattern:</strong> Every route uses existing <code>requireAuth()</code> → <code>resolveUserId()</code> chain from <code>src/lib/auth.ts</code>. Rate limiting inherited from middleware.
+  </div>
+</div>
+
+<!-- ═══════════════ 3. STORE LAYER ═══════════════ -->
+<div style="margin-top: 32px;">
+  <h3 style="color: rgb(167, 139, 250);">3 · Zustand stores · <span style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 400;">~3 hours</span></h3>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-top: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/stores/</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 ui-store.ts</span> <span style="color: rgb(107,114,128);">// + lldMode, lldWelcomeBannerDismissed, setLLDMode with side effects</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 interview-store.ts</span> <span style="color: rgb(107,114,128);">// + activeDrill + start/pause/resume/submit/abandon actions</span><br>
+└── <span style="color: rgb(147, 197, 253);">🔵 canvas-store.ts</span> <span style="color: rgb(107,114,128);">// unchanged — Build mode uses it directly</span>
+  </div>
+
+  <div style="background: rgba(167, 139, 250, 0.06); border-left: 3px solid rgb(167, 139, 250); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-top: 10px; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+    <strong>No new stores.</strong> Existing slices get extensions. One source of truth per concern.
+  </div>
+</div>
+
+<!-- ═══════════════ 4. HOOKS ═══════════════ -->
+<div style="margin-top: 32px;">
+  <h3 style="color: rgb(249, 168, 212);">4 · Sync hooks · <span style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 400;">~4 hours</span></h3>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-top: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/hooks/</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 useLLDModeSync.ts</span> <span style="color: rgb(107,114,128);">// URL ↔ store bidirectional</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 useLLDPreferencesSync.ts</span> <span style="color: rgb(107,114,128);">// write-through to /api/user-preferences/lld</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 useLLDDrillSync.ts</span> <span style="color: rgb(107,114,128);">// drill state ↔ /api/lld/drill-attempts</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 useLessonScrollSync.ts</span> <span style="color: rgb(107,114,128);">// scroll position → canvas highlightedClassIds</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 useDrillHeartbeat.ts</span> <span style="color: rgb(107,114,128);">// 10s lastActivityAt ping while active</span><br>
+└── <span style="color: rgb(110, 231, 183);">🟢 useDrillTimer.ts</span> <span style="color: rgb(107,114,128);">// client-side countdown from startedAt + elapsedBeforePause</span>
+  </div>
+</div>
+
+<!-- ═══════════════ 5. UI LAYER ═══════════════ -->
+<div style="margin-top: 32px;">
+  <h3 style="color: rgb(252, 165, 165);">5 · UI components · <span style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 400;">~30 hours (biggest chunk)</span></h3>
+
+  <!-- 5a Mode infrastructure -->
+  <div style="margin-top: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;">5a · MODE SHELL INFRASTRUCTURE</div>
+    <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/components/modules/lld/modes/</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 LLDModeProvider.tsx</span> <span style="color: rgb(107,114,128);">// reads lldMode, renders right layout</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 LearnModeLayout.tsx</span> <span style="color: rgb(107,114,128);">// 3-col: pattern list + canvas + lesson</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 BuildModeLayout.tsx</span> <span style="color: rgb(107,114,128);">// thin wrapper over existing UI</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 DrillModeLayout.tsx</span> <span style="color: rgb(107,114,128);">// queue + canvas + hints + grader</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 ModeSwitcher.tsx</span> <span style="color: rgb(107,114,128);">// 3-pill component in shell chrome</span><br>
+└── <span style="color: rgb(110, 231, 183);">🟢 WelcomeBanner.tsx</span> <span style="color: rgb(107,114,128);">// first-visit dismissable banner</span>
+    </div>
+  </div>
+
+  <!-- 5b Learn mode -->
+  <div style="margin-top: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;">5b · LEARN MODE (Brilliant-style)</div>
+    <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/components/modules/lld/learn/</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 LessonColumn.tsx</span> <span style="color: rgb(107,114,128);">// 8-section scrollable container</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 LessonSection.tsx</span> <span style="color: rgb(107,114,128);">// single section (hook/analogy/UML/...)</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 LessonNavigation.tsx</span> <span style="color: rgb(107,114,128);">// footer: prev/next pattern + progress bar</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 LearnSidebar.tsx</span> <span style="color: rgb(107,114,128);">// minimal: pattern list + learning-path progress</span><br>
+└── <span style="color: rgb(110, 231, 183);">🟢 SwitchToBuildCTA.tsx</span> <span style="color: rgb(107,114,128);">// end-of-lesson prompt</span>
+    </div>
+  </div>
+
+  <!-- 5c Drill mode -->
+  <div style="margin-top: 14px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;">5c · DRILL MODE</div>
+    <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/components/modules/lld/drill/</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 DrillProblemQueue.tsx</span> <span style="color: rgb(107,114,128);">// 33 problems, difficulty filter, completion state</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 DrillTimer.tsx</span> <span style="color: rgb(107,114,128);">// countdown display + overtime warning</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 DrillHintPanel.tsx</span> <span style="color: rgb(107,114,128);">// 3-tier + credit budget UI</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 DrillSubmitBar.tsx</span> <span style="color: rgb(107,114,128);">// Submit + Give up + Pause buttons</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 DrillResumePrompt.tsx</span> <span style="color: rgb(107,114,128);">// shown on return if active drill exists</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 DrillGradeReveal.tsx</span> <span style="color: rgb(107,114,128);">// post-submit AutoGrader result panel</span><br>
+└── <span style="color: rgb(110, 231, 183);">🟢 DrillProblemStatement.tsx</span> <span style="color: rgb(107,114,128);">// top banner with problem + requirements</span>
+    </div>
+  </div>
+
+  <!-- 5d Modifications to existing -->
+  <div style="margin-top: 14px;">
+    <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;">5d · MODIFICATIONS TO EXISTING</div>
+    <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/components/modules/lld/</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 canvas/LLDCanvas.tsx</span> <span style="color: rgb(107,114,128);">// + highlightedClassIds prop + focus-mode from it</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 hooks/useLLDModuleImpl.tsx</span> <span style="color: rgb(107,114,128);">// delegate layout to LLDModeProvider</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 panels/ContextualBottomTabs.tsx</span> <span style="color: rgb(107,114,128);">// remove WalkthroughPlayer from explain tab (moved to Learn)</span><br>
+├── <span style="color: rgb(250, 204, 21);">🟡 panels/WalkthroughPlayer.tsx</span> <span style="color: rgb(107,114,128);">// + scroll callback, pattern-scoped progress persistence</span><br>
+└── <span style="color: rgb(250, 204, 21);">🟡 panels/AutoGrader.tsx</span> <span style="color: rgb(107,114,128);">// accept drillAttemptId, POST grade result to DB</span>
+    </div>
+  </div>
+
+  <!-- 5e Reused as-is -->
+  <div style="margin-top: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;">5e · REUSED AS-IS (zero changes)</div>
+    <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/components/modules/lld/</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 sidebar/LLDSidebar.tsx</span> <span style="color: rgb(107,114,128);">// full sidebar for Build mode</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 panels/LLDProperties.tsx</span> <span style="color: rgb(107,114,128);">// Build mode properties panel</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 panels/LLDBottomPanel.tsx</span> <span style="color: rgb(107,114,128);">// Build mode bottom tabs</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 panels/PatternQuiz.tsx</span> <span style="color: rgb(107,114,128);">// quiz component</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 panels/Flashcards.tsx</span> <span style="color: rgb(107,114,128);">// FSRS flashcards</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 panels/MermaidEditor.tsx</span> <span style="color: rgb(107,114,128);">// Mermaid DSL editor</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 panels/SOLIDViolationSpotter.tsx</span> <span style="color: rgb(107,114,128);">// unchanged</span><br>
+└── <span style="color: rgb(147, 197, 253);">🔵 (all other existing panels)</span><br><br>
+<span style="color: rgb(156, 163, 175);">src/lib/</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 lld/patterns.ts</span> <span style="color: rgb(107,114,128);">// 36 patterns data</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 lld/problems.ts</span> <span style="color: rgb(107,114,128);">// 33 problems data</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 lld/java-code.ts</span> <span style="color: rgb(107,114,128);">// Java implementations</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 lld/astar-router.ts</span> <span style="color: rgb(107,114,128);">// A* edge routing</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 lld/dagre-layout.ts</span> <span style="color: rgb(107,114,128);">// Sugiyama layout</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 lld/grading-engine.ts</span> <span style="color: rgb(107,114,128);">// fuzzy-match auto-grader</span><br>
+├── <span style="color: rgb(147, 197, 253);">🔵 ai/hint-system.ts</span> <span style="color: rgb(107,114,128);">// 3-tier hint engine</span><br>
+└── <span style="color: rgb(147, 197, 253);">🔵 fsrs.ts</span> <span style="color: rgb(107,114,128);">// spaced repetition</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ 6. ROUTING INTEGRATION ═══════════════ -->
+<div style="margin-top: 32px;">
+  <h3 style="color: rgb(250, 204, 21);">6 · Routing integration · <span style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 400;">~1 hour</span></h3>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-top: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/app/</span><br>
+└── <span style="color: rgb(250, 204, 21);">🟡 [wherever LLD mounts]</span> <span style="color: rgb(107,114,128);">// wrap in LLDModeProvider + call useLLDModeSync</span>
+  </div>
+</div>
+
+<!-- ═══════════════ 7. TESTS ═══════════════ -->
+<div style="margin-top: 32px;">
+  <h3 style="color: rgb(134, 239, 172);">7 · Tests · <span style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 400;">~8 hours</span></h3>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; margin-top: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+<span style="color: rgb(156, 163, 175);">src/__tests__/</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 stores/ui-store.setLLDMode.test.ts</span> <span style="color: rgb(107,114,128);">// side effects fire</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 stores/interview-store.drill.test.ts</span> <span style="color: rgb(107,114,128);">// lifecycle state machine</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 hooks/useLLDModeSync.test.ts</span> <span style="color: rgb(107,114,128);">// URL ↔ store</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 hooks/useDrillTimer.test.ts</span> <span style="color: rgb(107,114,128);">// pause/resume accumulator</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 api/user-preferences-lld.test.ts</span> <span style="color: rgb(107,114,128);">// PATCH partial merges</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 api/lld-drill-attempts.test.ts</span> <span style="color: rgb(107,114,128);">// unique constraint, auto-abandon, heartbeat</span><br>
+├── <span style="color: rgb(110, 231, 183);">🟢 integration/learn-flow.test.tsx</span> <span style="color: rgb(107,114,128);">// scroll → highlight → checkpoint → next</span><br>
+└── <span style="color: rgb(110, 231, 183);">🟢 integration/drill-flow.test.tsx</span> <span style="color: rgb(107,114,128);">// start → timer → hint → submit → grade</span>
+  </div>
+</div>
+
+<!-- ═══════════════ TOTALS ═══════════════ -->
+<div style="margin-top: 36px;">
+  <h3>File totals &amp; effort</h3>
+
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px;">
+    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 16px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 700; color: rgb(110, 231, 183);">28</div>
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 600; margin-top: 2px;">🟢 NEW FILES</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px;">schema + API + hooks + layouts + components + tests</div>
+    </div>
+    <div style="background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 10px; padding: 16px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 700; color: rgb(250, 204, 21);">8</div>
+      <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 600; margin-top: 2px;">🟡 MODIFIED FILES</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px;">stores + 5 existing components + schema relations</div>
+    </div>
+    <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 16px; text-align: center;">
+      <div style="font-size: 28px; font-weight: 700; color: rgb(147, 197, 253);">20+</div>
+      <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 600; margin-top: 2px;">🔵 REUSED AS-IS</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px;">patterns, problems, codegen, canvas, grading</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 14px; background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 12px;">
+      <div>
+        <div style="color: rgb(156, 163, 175); font-size: 10px; letter-spacing: 0.5px; margin-bottom: 4px;">EFFORT BY LAYER</div>
+        <div style="color: rgb(229, 231, 235); line-height: 1.8;">
+          DB + schema: <strong style="color: rgb(110, 231, 183);">4h</strong><br>
+          API routes: <strong style="color: rgb(110, 231, 183);">8h</strong><br>
+          Stores: <strong style="color: rgb(110, 231, 183);">3h</strong><br>
+          Hooks: <strong style="color: rgb(110, 231, 183);">4h</strong><br>
+          UI components: <strong style="color: rgb(110, 231, 183);">30h</strong><br>
+          Routing integration: <strong style="color: rgb(110, 231, 183);">1h</strong><br>
+          Tests: <strong style="color: rgb(110, 231, 183);">8h</strong>
+        </div>
+      </div>
+      <div>
+        <div style="color: rgb(156, 163, 175); font-size: 10px; letter-spacing: 0.5px; margin-bottom: 4px;">TOTAL</div>
+        <div style="color: rgb(229, 231, 235); font-size: 22px; font-weight: 700;">~58 hours</div>
+        <div style="color: rgb(156, 163, 175); font-size: 11px; margin-top: 4px; line-height: 1.5;">
+          = <strong style="color: rgb(110, 231, 183);">1 focused developer · 1.5 weeks</strong><br>
+          or <strong style="color: rgb(110, 231, 183);">2 developers · 1 week</strong>
+        </div>
+        <div style="color: rgb(252, 165, 165); font-size: 10px; margin-top: 8px; line-height: 1.5; font-style: italic;">
+          Estimate includes polish, reasonable PR review cycles, and buffer. Not a hero-mode rush estimate.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Key insight -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 12px; padding: 18px;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 10px;">💡 KEY INSIGHT</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>The math shows why Approach 3 is cheap:</strong> 20+ files reused untouched, only 8 surgical modifications, and 28 new files most of which are <em>composition</em> (layouts, hooks) rather than <em>logic</em>. The grading engine, hint system, A* router, Dagre layout, patterns data, problems data, Java codegen, FSRS, WalkthroughPlayer checkpoints — all zero lines of new logic. We're rewiring existing power, not building new power.
+  </div>
+</div>
+
+<!-- Confirmation CTA -->
+<div style="margin-top: 32px; text-align:center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">
+    File plan approved?
+  </p>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin: 0;">
+    Reply "yes" → Section 6: phasing + testing strategy (what ships first, what we can delay).<br>
+    Or flag any file that seems misplaced / missing / overscoped.
+  </p>
+</div>

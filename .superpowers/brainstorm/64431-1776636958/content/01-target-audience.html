@@ -1,0 +1,54 @@
+<h2>LLD Beginner Mode — Let's Design This Right</h2>
+<p class="subtitle">Before we talk UI, I need to understand <strong>exactly who</strong> struggles with the current experience. The answer shapes everything else.</p>
+
+<div class="section" style="background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+  <div class="label" style="color: rgb(167, 139, 250); margin-bottom: 12px;">⚡ UNEXPECTED FINDING FROM CODE EXPLORATION</div>
+  <p style="margin: 0 0 12px 0; line-height: 1.6;">The earlier audit said <code>WalkthroughPlayer</code> was "read-only, checkpoints not wired." <strong>That is wrong.</strong></p>
+  <p style="margin: 0 0 12px 0; line-height: 1.6;">Reading the actual file — <code>src/components/modules/lld/panels/WalkthroughPlayer.tsx</code> — all 4 checkpoint types (<em>multiple-choice, click-class, fill-blank, order-steps</em>) are <strong>fully implemented with state, grading, and feedback UI.</strong> It's rendered inside <code>ContextualBottomTabs.tsx</code> under the <em>"explain"</em> tab.</p>
+  <p style="margin: 0; line-height: 1.6;">So the question isn't <em>"build a learning experience"</em> — it's <strong>"why does it feel hidden and intimidating to beginners?"</strong></p>
+</div>
+
+<h3>First question: Who exactly is "someone who knows nothing about LLD"?</h3>
+<p class="subtitle">This matters a lot. A CS student and a self-taught bootcamp grad need very different first experiences.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>The Absolute Newcomer</h3>
+      <p>Knows <strong>some</strong> programming (maybe Python, maybe JS). Has heard "design patterns" but doesn't know what OOP even means deeply. Asks: <em>"What is a class? Why do I need patterns?"</em></p>
+      <p style="margin-top: 8px; font-size: 11px; color: rgb(156, 163, 175);">Needs: OOP primer → "what problem does a pattern solve" → first pattern via a concrete problem</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>The OOP-Familiar Learner</h3>
+      <p>Comfortable with classes, inheritance, interfaces. Never systematically studied design patterns. Asks: <em>"I've written code for 2 years. Why should I care about Observer vs Strategy?"</em></p>
+      <p style="margin-top: 8px; font-size: 11px; color: rgb(156, 163, 175);">Needs: "Here's a real problem you've hit" → pattern reveal → UML → code → when NOT to use</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>The Interview-Prep Cruncher</h3>
+      <p>Has read GoF/Head First. Knows most patterns by name. Needs <strong>drill + retrieval practice</strong>, not teaching. Asks: <em>"Quiz me. Grade me. Tell me where I'm weak."</em></p>
+      <p style="margin-top: 8px; font-size: 11px; color: rgb(156, 163, 175);">Needs: Fast access to problems → timed practice → auto-grading → spaced repetition review</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>All of the above — one UI must serve all</h3>
+      <p>Realistic case: random visitor could be any of A, B, C, or D. UI must detect / let them self-select, then adapt.</p>
+      <p style="margin-top: 8px; font-size: 11px; color: rgb(156, 163, 175);">Needs: Onboarding gate → persona selection → branched paths from home screen</p>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 32px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 12px; color: rgb(156, 163, 175);">
+  <strong style="color: rgb(229, 231, 235);">My guess based on your product vision doc:</strong> You probably mean <strong>A or B</strong>, because your research already identified "Interview Prep Student" (60% of users) as the primary persona — and those are mostly B. But you said <em>"koi jise kuch nahi aata"</em> which leans A. Which one were you picturing?
+</div>

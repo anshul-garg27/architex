@@ -1,0 +1,240 @@
+<div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🏛</div>
+  <div style="font-size: 12px; color: rgb(147, 197, 253); line-height: 1.5;">
+    <strong>Batch 2 of 10 · Core architecture decisions.</strong> The load-bearing calls that shape everything downstream. 5 questions · pick one answer each.
+  </div>
+</div>
+
+<h2>System Design · Core architecture calls</h2>
+
+<!-- ================== Q1: MODES ================== -->
+<div style="margin-top: 28px;">
+  <h3 style="color: rgb(196, 181, 253);">Q1 · How many modes? Same 4 as LLD, or add a 5th "Simulate"?</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 11px;">LLD locked on Learn / Build / Drill / Review. System Design's unique asset is the <strong>simulation engine</strong> — already 34 files of infrastructure. Does simulation deserve its own mode, or is it embedded <em>within</em> Build?</p>
+
+  <div class="options" style="margin-top: 14px;">
+    <div class="option" data-choice="q1a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Same 4 modes · simulation lives <em>inside</em> Build</h3>
+        <p>Build mode gets a "▶ Simulate" toggle. You design, you flip the switch, traffic flows. Consistent with LLD.</p>
+        <div style="margin-top: 8px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> Cross-module consistency · simpler nav · fewer URL modes to manage. <strong>Cons:</strong> Buries the moat. Simulation is <em>the</em> differentiator; hiding it in Build under-sells it.</div>
+      </div>
+    </div>
+
+    <div class="option" data-choice="q1b" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+      <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">B</div>
+      <div class="content">
+        <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+        <h3>5 modes · Learn / Build / Simulate / Drill / Review</h3>
+        <p>Simulate becomes its own primary mode. When you enter Simulate, you get a <em>reference architecture</em> (or your own design imported from Build) + chaos controls + live metrics + narrative engine. Simulate is where you <strong>learn by breaking</strong>.</p>
+        <div style="margin-top: 10px; display: flex; gap: 3px; background: rgba(0,0,0,0.4); border-radius: 18px; padding: 3px; width: fit-content;">
+          <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 12px; border-radius: 14px;">📖 Learn</div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 12px; border-radius: 14px;">🎨 Build</div>
+          <div style="background: rgba(251, 146, 60, 0.3); color: rgb(251, 146, 60); font-size: 10px; padding: 5px 12px; border-radius: 14px; font-weight: 600;">⚡ Simulate</div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 12px; border-radius: 14px;">⏱ Drill</div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 12px; border-radius: 14px;">🔁 Review</div>
+        </div>
+        <div style="margin-top: 10px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> Surfaces the moat. "See it break" is a distinct activity from "design it". Chaos storytelling needs its own real estate. <strong>Cons:</strong> Breaks cross-module consistency (LLD has 4). ⌘5 shortcut added.</div>
+      </div>
+    </div>
+
+    <div class="option" data-choice="q1c" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>4 modes but <em>swap</em> Drill for Simulate</h3>
+        <p>For System Design specifically: drop "Drill" as a standalone mode, merge drill problems INTO Simulate ("design the architecture for Netflix, then simulate"). Simulate IS the drill for System Design.</p>
+        <div style="margin-top: 8px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> 4-mode parity with LLD. Elegant — simulation-as-grading. <strong>Cons:</strong> Conflates two distinct activities. "Quick drill" (blank canvas, timer) is different from "run my design under load".</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================== Q2: PROBLEMS VS CONCEPTS ================== -->
+<div style="margin-top: 36px;">
+  <h3 style="color: rgb(110, 231, 183);">Q2 · Content structure · 36 problems (like LLD), or concepts library, or both?</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 11px;">LLD = 36 patterns. System Design's parallel unit is ambiguous. Three options:</p>
+
+  <div class="options" style="margin-top: 14px;">
+    <div class="option" data-choice="q2a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Problem-centric · 36 canonical system design interviews</h3>
+        <p>"Design Netflix · Design Uber · Design Twitter · Design WhatsApp · Design Dropbox · etc." 36 canonical problems in 8 waves. Each problem teaches the concepts needed by appearing IN context. Concepts are implicit, not standalone.</p>
+        <div style="margin-top: 8px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> Symmetry with LLD's 36 patterns. Problem-first matches how interview prep works. Memorable names. <strong>Cons:</strong> Concepts repeat (load balancer appears in 30+ problems). No "one place" to learn load balancing deeply.</div>
+      </div>
+    </div>
+
+    <div class="option" data-choice="q2b" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Concept-centric · ~40 core concepts, each deeply taught</h3>
+        <p>Consistent hashing · CAP theorem · Rate limiting · CDN · Leader-follower replication · Pub-sub · Event sourcing · Idempotency · etc. Each concept gets a Learn-mode lesson. Problems are practice arenas that combine concepts.</p>
+        <div style="margin-top: 8px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> ByteByteGo approach. Concepts get proper treatment. Searchable. <strong>Cons:</strong> Less emotionally memorable than "Design Netflix". Can feel academic.</div>
+      </div>
+    </div>
+
+    <div class="option" data-choice="q2c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+      <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+      <div class="content">
+        <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+        <h3>Both · 40 concepts (atoms) + 30 problems (molecules)</h3>
+        <p>Concepts are the teachable atoms (load balancer, consistent hashing). Problems are molecules that compose concepts under realistic constraints. Lesson view prioritizes concepts; Drill view prioritizes problems. A problem page links to every concept it uses. A concept page shows every problem that uses it.</p>
+
+        <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: rgba(0,0,0,0.3); padding: 14px; border-radius: 8px;">
+          <div>
+            <div style="font-size: 10px; color: rgb(110,231,183); font-weight: 700; letter-spacing: 0.3em;">🧩 CONCEPTS · atoms</div>
+            <div style="font-size: 10px; color: rgb(229, 231, 235); margin-top: 6px; line-height: 1.6;">
+              • Load balancer (L4 vs L7)<br>
+              • Consistent hashing<br>
+              • CAP theorem<br>
+              • Rate limiting<br>
+              • CDN + edge caching<br>
+              • Leader-follower replication<br>
+              • Pub-sub messaging<br>
+              • Event sourcing + CQRS<br>
+              • Idempotency<br>
+              • Circuit breakers<br>
+              • ...30 more
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 10px; color: rgb(147,197,253); font-weight: 700; letter-spacing: 0.3em;">🏛 PROBLEMS · molecules</div>
+            <div style="font-size: 10px; color: rgb(229, 231, 235); margin-top: 6px; line-height: 1.6;">
+              • Netflix · video streaming<br>
+              • Uber · ride matching<br>
+              • Twitter · timeline fanout<br>
+              • WhatsApp · messaging<br>
+              • Dropbox · file sync<br>
+              • Instagram · feed<br>
+              • TinyURL · shortener<br>
+              • Stripe · payments<br>
+              • Google Maps · routing<br>
+              • Zoom · video conferencing<br>
+              • ...20 more
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 10px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> Serves concept-first learners AND problem-first learners. Mirrors how senior engineers actually think (know the atoms, wield them in context). Cross-linking makes the graph rich. <strong>Cons:</strong> 2x content authoring (40+30 = 70 pieces). But smaller unit than 36 full patterns each × 8 sections.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================== Q3: TEMPLATE RELATIONSHIP ================== -->
+<div style="margin-top: 36px;">
+  <h3 style="color: rgb(250, 204, 21);">Q3 · What do we do with the 53 existing templates?</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 11px;">The current template system has 53 pre-built architectures. They're unnamed scenarios without lessons attached. They need a fate.</p>
+
+  <div class="options" style="margin-top: 14px;">
+    <div class="option" data-choice="q3a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Keep + catalog · rename as "reference architectures"</h3>
+        <p>Each of the 53 templates gets metadata (name, 1-line description, which problem it solves). Accessible via Build mode's "Browse templates" button. No lesson, just a starting point.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="q3b" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+      <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">B</div>
+      <div class="content">
+        <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+        <h3>Elevate · templates become problem solutions</h3>
+        <p>Each of the 30 problems gets 2-3 "canonical" solutions adapted from existing templates. User in Drill mode designs their own. Learn mode shows one canonical. "Compare" mode shows your design vs canonical. The 53 templates get curated down to the best 60-90 solution variants (2-3 per problem).</p>
+        <div style="margin-top: 8px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> Templates now serve pedagogy. User sees "5 ways to design Netflix" · canonical vs minimal vs enterprise. <strong>Cons:</strong> Content curation work (rename / document each).</div>
+      </div>
+    </div>
+    <div class="option" data-choice="q3c" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>Retire · start fresh</h3>
+        <p>Don't carry forward. Design new reference solutions tied to the 30 problems from scratch.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================== Q4: STUDIO METAPHOR EXTENSION ================== -->
+<div style="margin-top: 36px;">
+  <h3 style="color: rgb(249, 168, 212);">Q4 · Does the "Architect's Studio" metaphor extend here?</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 11px;">LLD spec locked "The Architect's Studio" as the UI metaphor. Every UI element maps to physical studio. Should System Design live <em>inside</em> the same studio, or get its own metaphor?</p>
+
+  <div class="options" style="margin-top: 14px;">
+    <div class="option" data-choice="q4a" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+      <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">A</div>
+      <div class="content">
+        <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+        <h3>Same studio · System Design = the "large drafting hall + wind tunnel"</h3>
+        <p>In the Architect's Studio, LLD modules live in the "pattern library wing" (small rooms for each pattern). System Design lives in the "large hall" — open, airy, with <strong>wind tunnels</strong> (simulation), <strong>blueprint tables</strong> (Build), <strong>model city</strong> (explore full-scale architectures). Same visual language — serif typography, fluid layers, ambient light — different room character.</p>
+        <div style="margin-top: 10px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> Cross-module coherence. User feels they're in ONE place, not two products. <strong>Cons:</strong> Constrains SD aesthetic to LLD's choices.</div>
+      </div>
+    </div>
+    <div class="option" data-choice="q4b" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Different metaphor · System Design = "Mission Control"</h3>
+        <p>System Design uses a NASA/ops-room metaphor. Dark, focused, many screens, live telemetry. Different mood from LLD's editorial studio.</p>
+        <div style="margin-top: 8px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> Distinctive. Matches sim engineering vibe. <strong>Cons:</strong> Fragments brand across modules.</div>
+      </div>
+    </div>
+    <div class="option" data-choice="q4c" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>Purely functional · no metaphor</h3>
+        <p>SD stays as today's clean SaaS dashboard. Don't force narrative.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================== Q5: CROSS-MODULE SEAMLESSNESS ================== -->
+<div style="margin-top: 36px;">
+  <h3 style="color: rgb(147, 197, 253);">Q5 · How do LLD + System Design feel like ONE product?</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 11px;">Today the module switcher is just icons. When you jump from LLD → System Design, context is lost. The user said "sab seamless ho" — seamless. What concretely makes that true?</p>
+
+  <div class="options" style="margin-top: 14px;">
+    <div class="option" data-choice="q5a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Shared chrome only · unified top nav + mode switcher style</h3>
+        <p>Same mode switcher pill shape. Same studio background. Same typography. Different content per module.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="q5b" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+      <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">B</div>
+      <div class="content">
+        <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+        <h3>Deep cross-linking · concepts and patterns reference each other</h3>
+        <p>Builds on (A) plus: LLD's Factory Method lesson links to SD's "Plugin architecture" concept. SD's Circuit Breaker concept links to LLD's Circuit Breaker pattern. <strong>The knowledge graph becomes the connective tissue.</strong> Seamless = "I can follow my curiosity across modules without losing flow."</p>
+        <div style="margin-top: 12px; background: rgba(0,0,0,0.3); padding: 14px; border-radius: 8px; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">
+          <div style="color: rgb(196, 181, 253); font-weight: 600; margin-bottom: 4px;">Example: reading LLD · Observer</div>
+          <div>In the "Real-world uses" section:<br>
+          • React state (in-process pub-sub)<br>
+          • Node EventEmitter<br>
+          <span style="color: rgb(147, 197, 253);">→ SD concept: Pub-Sub at scale (Redis / Kafka / NATS)</span><br>
+          <span style="color: rgb(110, 231, 183);">→ SD problem: Design Twitter timeline fanout</span></div>
+        </div>
+        <div style="margin-top: 8px; font-size: 10px; color: rgb(156,163,175);"><strong>Pros:</strong> Turns the 13-module platform from "13 silos" into "one interconnected graph". The Knowledge Graph module (currently partial) becomes the meta-navigator.</div>
+      </div>
+    </div>
+    <div class="option" data-choice="q5c" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>Shared persona + progression · your "architect rank" spans modules</h3>
+        <p>Your Mastered count spans all 13 modules. Achievements work cross-module. "Full-Stack Architect" title when you master LLD + SD + Distributed.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="q5d" onclick="toggleSelect(this)">
+      <div class="letter">D</div>
+      <div class="content">
+        <h3>All of A + B + C</h3>
+        <p>Shared chrome + deep cross-linking + cross-module progression. The full seamless vision.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 36px; text-align:center; padding: 18px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 6px 0; font-weight: 600;">Answer all 5 questions · format: "Q1: B, Q2: C, Q3: B, Q4: A, Q5: D"</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">URL: <code>http://localhost:57460</code> · Phase 1 LLD agent is running in background</p>
+</div>

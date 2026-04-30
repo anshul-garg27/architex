@@ -1,0 +1,259 @@
+<div style="background: rgba(110, 231, 183, 0.1); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">📚</div>
+  <div style="font-size: 12px; color: rgb(110, 231, 183); line-height: 1.5;">
+    <strong>Batch 3 of 10 · Content strategy.</strong> Concrete draft of 40 concepts + 30 problems. 8-wave curation. Cross-linking schema. Opus authorship.
+  </div>
+</div>
+
+<h2>The 40 concepts · atoms of system design</h2>
+<p class="subtitle">Organized in 8 waves. Each is a Learn-mode lesson with 8-section structure like LLD. Each has UML-equivalent (architecture diagram), code-equivalent (pseudo-code or config), real production references, 4 checkpoint types.</p>
+
+<!-- ========== CONCEPT WAVES ========== -->
+<div style="margin-top: 20px;">
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px;">
+
+    <div style="background: rgba(110, 231, 183, 0.06); border-left: 3px solid rgb(110, 231, 183); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px;">
+      <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">WAVE 1 · FOUNDATIONS (5)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">Client-server basics · HTTP verbs &amp; REST · TCP vs UDP · DNS resolution · IP / routing</div>
+    </div>
+
+    <div style="background: rgba(147, 197, 253, 0.06); border-left: 3px solid rgb(147, 197, 253); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px;">
+      <div style="font-size: 10px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">WAVE 2 · SCALING PRIMITIVES (6)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">Load balancer (L4 vs L7) · Horizontal vs vertical scaling · Consistent hashing · CDN &amp; edge caching · Rate limiting · Caching strategies (cache-aside · write-through · write-behind)</div>
+    </div>
+
+    <div style="background: rgba(196, 181, 253, 0.06); border-left: 3px solid rgb(196, 181, 253); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px;">
+      <div style="font-size: 10px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">WAVE 3 · DATA &amp; CONSISTENCY (6)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">CAP theorem · ACID vs BASE · Leader-follower replication · Multi-leader &amp; leaderless · Sharding · Eventual consistency</div>
+    </div>
+
+    <div style="background: rgba(251, 191, 36, 0.06); border-left: 3px solid rgb(251, 191, 36); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px;">
+      <div style="font-size: 10px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">WAVE 4 · MESSAGING &amp; STREAMS (4)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">Message queues (RabbitMQ · SQS) · Pub-sub (Kafka · Redis) · Event sourcing &amp; CQRS · Stream processing</div>
+    </div>
+
+    <div style="background: rgba(251, 146, 60, 0.06); border-left: 3px solid rgb(251, 146, 60); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px;">
+      <div style="font-size: 10px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">WAVE 5 · DISTRIBUTED SYSTEMS (5)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">Consensus (Paxos · Raft) · Distributed transactions (2PC · Saga) · Idempotency · Vector clocks · Gossip protocol</div>
+    </div>
+
+    <div style="background: rgba(239, 68, 68, 0.06); border-left: 3px solid rgb(239, 68, 68); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px;">
+      <div style="font-size: 10px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">WAVE 6 · RESILIENCE (4)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">Circuit breakers · Bulkheads · Retries &amp; backoff · Graceful degradation</div>
+    </div>
+
+    <div style="background: rgba(249, 168, 212, 0.06); border-left: 3px solid rgb(249, 168, 212); padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 8px;">
+      <div style="font-size: 10px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">WAVE 7 · OPERATIONAL (5)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">Observability (metrics · logs · traces) · SLI / SLO / SLA · Deployment strategies (blue-green · canary) · Feature flags · API gateway patterns</div>
+    </div>
+
+    <div style="background: rgba(167, 139, 250, 0.06); border-left: 3px solid rgb(167, 139, 250); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+      <div style="font-size: 10px; color: rgb(167, 139, 250); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">WAVE 8 · MODERN (5)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">Microservices vs monolith · Serverless &amp; FaaS · Service mesh · Multi-region failover · Zero-trust security</div>
+    </div>
+  </div>
+  <div style="margin-top: 10px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Total: 40 concepts · 8 waves · ~5 per wave · each wave = milestone certificate (like LLD)</div>
+</div>
+
+<!-- ========== PROBLEMS CATALOG ========== -->
+<h2 style="margin-top: 40px;">The 30 problems · molecules you design</h2>
+<p class="subtitle">Real interview problems from FAANG / unicorn interviews. Organized by domain. Each problem has 2-3 canonical solutions (from the 53 existing templates, curated). Each problem lists concepts it uses for graph navigation.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin-top: 14px;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+
+    <!-- Column 1 -->
+    <div>
+      <div style="font-size: 10px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">🎬 MEDIA &amp; SOCIAL (8)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.9;">
+        1. Netflix · video streaming<br>
+        2. Twitter · timeline fanout<br>
+        3. Instagram · feed<br>
+        4. YouTube · upload + serve<br>
+        5. TikTok · recommendation<br>
+        6. WhatsApp · messaging<br>
+        7. Zoom · video conferencing<br>
+        8. Reddit · threaded comments
+      </div>
+
+      <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-top: 16px; margin-bottom: 6px;">📍 LOCATION &amp; REAL-TIME (5)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.9;">
+        9. Uber · ride matching<br>
+        10. Google Maps · routing<br>
+        11. Yelp · nearby search<br>
+        12. Doordash · delivery<br>
+        13. Strava · activity tracking
+      </div>
+
+      <div style="font-size: 10px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-top: 16px; margin-bottom: 6px;">💾 STORAGE &amp; SYNC (4)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.9;">
+        14. Dropbox · file sync<br>
+        15. Google Drive · collaborative docs<br>
+        16. Notion · real-time editing<br>
+        17. iCloud · cross-device sync
+      </div>
+    </div>
+
+    <!-- Column 2 -->
+    <div>
+      <div style="font-size: 10px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">💳 COMMERCE &amp; PAYMENTS (5)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.9;">
+        18. Amazon · e-commerce<br>
+        19. Stripe · payment processing<br>
+        20. Airbnb · booking<br>
+        21. DoorDash · order processing<br>
+        22. Robinhood · trading platform
+      </div>
+
+      <div style="font-size: 10px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-top: 16px; margin-bottom: 6px;">🔍 SEARCH &amp; DISCOVERY (3)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.9;">
+        23. Google · web search<br>
+        24. Pinterest · discovery feed<br>
+        25. LinkedIn · people search
+      </div>
+
+      <div style="font-size: 10px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-top: 16px; margin-bottom: 6px;">⚙️ INFRASTRUCTURE (5)</div>
+      <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.9;">
+        26. TinyURL · URL shortener<br>
+        27. Pastebin · text paste<br>
+        28. Rate limiter · API protection<br>
+        29. Distributed cache · Redis-like<br>
+        30. Key-value store · DynamoDB-like
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== CROSS-LINKING ========== -->
+<h2 style="margin-top: 40px;">Cross-linking · the knowledge graph</h2>
+<p class="subtitle">Every concept page lists every problem using it. Every problem page lists every concept it uses. Plus cross-module bridges to LLD, Distributed, Database, Networking.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; margin-top: 14px;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 10px;">EXAMPLE · CONCEPT PAGE: "CONSISTENT HASHING"</div>
+
+  <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 14px;">
+    <div style="font-size: 14px; color: rgb(229, 231, 235); font-weight: 700;">Consistent Hashing</div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px; font-style: italic;">Scaling primitive · Wave 2</div>
+
+    <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div style="background: rgba(147,197,253,0.08); border-radius: 6px; padding: 10px 14px;">
+        <div style="font-size: 9px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">USED IN PROBLEMS</div>
+        <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">
+          → Distributed cache (Q29)<br>
+          → Key-value store (Q30)<br>
+          → Dropbox file sync (Q14)<br>
+          → Google Drive collab (Q15)<br>
+          <span style="color: rgb(156, 163, 175);">+4 more</span>
+        </div>
+      </div>
+
+      <div style="background: rgba(167, 139, 250, 0.08); border-radius: 6px; padding: 10px 14px;">
+        <div style="font-size: 9px; color: rgb(167, 139, 250); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">CROSS-MODULE BRIDGES</div>
+        <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">
+          → Distributed Systems module · full lesson<br>
+          → Data Structures module · Hash Ring viz<br>
+          → Algorithms module · Hash functions<br>
+          <span style="color: rgb(156, 163, 175);">No LLD link — pure infra concept</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; margin-top: 14px;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 10px;">EXAMPLE · PROBLEM PAGE: "DESIGN NETFLIX"</div>
+
+  <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 14px;">
+    <div style="font-size: 14px; color: rgb(229, 231, 235); font-weight: 700;">Design Netflix · video streaming at scale</div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px; font-style: italic;">Wave 3 · Hard · interview frequency: very-high</div>
+
+    <div style="margin-top: 14px;">
+      <div style="font-size: 9px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">KEY CONCEPTS USED · click to learn</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+        <div style="background: rgba(110,231,183,0.1); color: rgb(110, 231, 183); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(110,231,183,0.25);">CDN &amp; edge caching</div>
+        <div style="background: rgba(110,231,183,0.1); color: rgb(110, 231, 183); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(110,231,183,0.25);">Consistent hashing</div>
+        <div style="background: rgba(110,231,183,0.1); color: rgb(110, 231, 183); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(110,231,183,0.25);">Load balancing (L7)</div>
+        <div style="background: rgba(110,231,183,0.1); color: rgb(110, 231, 183); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(110,231,183,0.25);">Video transcoding</div>
+        <div style="background: rgba(110,231,183,0.1); color: rgb(110, 231, 183); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(110,231,183,0.25);">Circuit breakers</div>
+        <div style="background: rgba(110,231,183,0.1); color: rgb(110, 231, 183); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(110,231,183,0.25);">Eventual consistency</div>
+        <div style="background: rgba(110,231,183,0.1); color: rgb(110, 231, 183); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(110,231,183,0.25);">Multi-region failover</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 14px;">
+      <div style="font-size: 9px; color: rgb(167, 139, 250); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">LLD PATTERNS YOU'LL USE · bridges to LLD module</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+        <div style="background: rgba(167,139,250,0.1); color: rgb(196, 181, 253); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(167,139,250,0.25);">→ Observer · player events</div>
+        <div style="background: rgba(167,139,250,0.1); color: rgb(196, 181, 253); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(167,139,250,0.25);">→ Circuit Breaker · backend resilience</div>
+        <div style="background: rgba(167,139,250,0.1); color: rgb(196, 181, 253); font-size: 10px; padding: 3px 10px; border-radius: 12px; border: 1px solid rgba(167,139,250,0.25);">→ Strategy · encoding selection</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 14px;">
+      <div style="font-size: 9px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">CANONICAL SOLUTIONS · from 53 templates</div>
+      <div style="display: flex; gap: 6px;">
+        <div style="background: rgba(251, 191, 36, 0.1); color: rgb(251, 191, 36); font-size: 10px; padding: 3px 10px; border-radius: 4px;">⭐ Ideal solution</div>
+        <div style="background: rgba(110, 231, 183, 0.1); color: rgb(110, 231, 183); font-size: 10px; padding: 3px 10px; border-radius: 4px;">🧘 Minimalist</div>
+        <div style="background: rgba(147, 197, 253, 0.1); color: rgb(147, 197, 253); font-size: 10px; padding: 3px 10px; border-radius: 4px;">🏢 Enterprise</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== AUTHORING PROTOCOL ========== -->
+<h2 style="margin-top: 40px;">Authoring protocol · parallel to LLD</h2>
+
+<div style="background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 18px; border-radius: 0 8px 8px 0; margin-top: 14px;">
+  <div style="font-size: 12px; color: rgb(196, 181, 253); font-weight: 700; margin-bottom: 8px;">Claude Opus 4.7 writes all 40 concepts + 30 problems · 1000% quality bar</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    Same brand voice, same 6-step teaching sequence as LLD, adapted for system design context:<br><br>
+    <strong>Concept lessons (40 × 8-section):</strong> Hook → Analogy → Architecture reveal → Checkpoint → Code/config example → Tradeoffs → Summary → CTA<br><br>
+    <strong>Problem lessons (30 × extended structure):</strong> Real context (why does this exist? what scale?) → Requirements capture → Naive solution → Constraints that break naive → Design evolution → 2-3 canonical solutions side-by-side → Tradeoff matrix → Interview Q&amp;A<br><br>
+    <strong>Total content volume:</strong> 40 concepts × ~1500 words = 60k words · 30 problems × ~3000 words = 90k words · plus code samples, diagrams, cross-links. Opus time: ~200-300 hours over 2-3 months (authoring cadence, with human review).
+  </div>
+</div>
+
+<!-- ========== CONTENT FORMATS ========== -->
+<h3 style="margin-top: 36px;">Each concept + problem gets these additional formats</h3>
+
+<div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+  <div style="background: rgba(0,0,0,0.25); padding: 12px 14px; border-radius: 6px; border-left: 2px solid rgb(251, 146, 60);">
+    <div style="font-size: 10px; color: rgb(251, 146, 60); font-weight: 700; margin-bottom: 4px;">📊 Scaling numbers</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">QPS targets, storage estimates, bandwidth math. <em>"Netflix serves 100B requests/day. That's 1.2M QPS peak."</em></div>
+  </div>
+  <div style="background: rgba(0,0,0,0.25); padding: 12px 14px; border-radius: 6px; border-left: 2px solid rgb(239, 68, 68);">
+    <div style="font-size: 10px; color: rgb(252, 165, 165); font-weight: 700; margin-bottom: 4px;">💥 Failure war stories</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">Real outages where this concept/problem failed. AWS S3 2017, Cloudflare July 2019, etc.</div>
+  </div>
+  <div style="background: rgba(0,0,0,0.25); padding: 12px 14px; border-radius: 6px; border-left: 2px solid rgb(110, 231, 183);">
+    <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 700; margin-bottom: 4px;">🎙 Engineering blog deep-links</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">Curated links to Netflix Tech Blog, Uber Engineering, Stripe Engineering articles on the topic.</div>
+  </div>
+  <div style="background: rgba(0,0,0,0.25); padding: 12px 14px; border-radius: 6px; border-left: 2px solid rgb(167, 139, 250);">
+    <div style="font-size: 10px; color: rgb(196, 181, 253); font-weight: 700; margin-bottom: 4px;">🧪 Simulation scenario</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">One-click "Simulate this in the wind tunnel" — spins up reference architecture, pushes traffic, shows what breaks.</div>
+  </div>
+  <div style="background: rgba(0,0,0,0.25); padding: 12px 14px; border-radius: 6px; border-left: 2px solid rgb(147, 197, 253);">
+    <div style="font-size: 10px; color: rgb(147, 197, 253); font-weight: 700; margin-bottom: 4px;">💰 Cost model</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">AWS cost estimate for reference solution at 1M / 10M / 100M users. Teaches cost-aware architecture.</div>
+  </div>
+  <div style="background: rgba(0,0,0,0.25); padding: 12px 14px; border-radius: 6px; border-left: 2px solid rgb(249, 168, 212);">
+    <div style="font-size: 10px; color: rgb(249, 168, 212); font-weight: 700; margin-bottom: 4px;">🎭 Interviewer questions</div>
+    <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">Top 10 probing questions interviewers actually ask per problem. For Netflix: "how do you handle VP9 vs H.264 device compat?"</div>
+  </div>
+</div>
+
+<!-- ========== KEY DIFFERENCE VS LLD ========== -->
+<div style="margin-top: 36px; background: rgba(251, 191, 36, 0.06); border-left: 3px solid rgb(251, 191, 36); padding: 14px 18px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">💡 KEY DIFFERENCE VS LLD</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    LLD content is <strong>theory-heavy</strong> — 36 patterns that apply anywhere. System Design content is <strong>context-heavy</strong> — every design involves scale numbers, real companies, actual tradeoffs. A concept isn't "load balancer the abstract idea" — it's <em>"NGINX at 100k QPS breaks when X, here's why, here's how Netflix solved it"</em>.<br><br>
+    This is why System Design content takes 2-3x longer to author than LLD. Every claim needs numbers. Every design needs a failure mode. Every tradeoff needs "we know this because Company X hit it in 2019 and wrote a post-mortem".<br><br>
+    <strong>Opus can do this</strong> — the research exists on Netflix Tech Blog, Uber Engineering, ACM Queue, etc. But the authoring is <em>research + synthesis</em>, not just creative writing.
+  </div>
+</div>
+
+<div style="margin-top: 32px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Approve this content structure?</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Reply "go" / "yes" to advance to Batch 4 (Simulation-as-pedagogy). Or flag any concept/problem you'd add, remove, or rename.</p>
+</div>

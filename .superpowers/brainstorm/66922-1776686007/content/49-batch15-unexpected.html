@@ -1,0 +1,320 @@
+<div style="background: rgba(103, 232, 249, 0.1); border: 1px solid rgba(103, 232, 249, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+    <div style="font-size: 22px;">🌌</div>
+    <div style="font-size: 14px; color: rgb(103, 232, 249); font-weight: 700;">Batch 15 · Unexpected directions · what we haven't touched</div>
+  </div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">Beyond UI/content/AI — angles nobody in LLD space has tried: identity, rituals, cross-domain, physical products, crisis simulation, community depth.</div>
+</div>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <!-- X1 Architect archetype -->
+  <div class="option" data-choice="x1" onclick="toggleSelect(this)">
+    <div class="letter">X1</div>
+    <div class="content">
+      <h3>Architect archetype quiz · your design identity</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">5-min quiz on first visit reveals your archetype: <strong>Minimalist</strong> (fewer classes, strong invariants) · <strong>Baroque</strong> (rich hierarchies, lots of abstraction) · <strong>Pragmatist</strong> (just-ship-it) · <strong>Idealist</strong> (perfect patterns first) · <strong>Explorer</strong> (tries weird combinations). Your archetype shapes lesson emphasis + drill grading rubric. <em>Like Myers-Briggs for software architects.</em></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px;">
+          <div style="background: rgba(110,231,183,0.1); border: 1px solid rgba(110,231,183,0.3); border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 22px;">🧘</div>
+            <div style="font-size: 9px; color: rgb(110,231,183); font-weight: 600; margin-top: 4px;">Minimalist</div>
+          </div>
+          <div style="background: rgba(196,181,253,0.1); border: 1px solid rgba(196,181,253,0.3); border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 22px;">🎭</div>
+            <div style="font-size: 9px; color: rgb(196,181,253); font-weight: 600; margin-top: 4px;">Baroque</div>
+          </div>
+          <div style="background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.3); border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 22px;">🛠</div>
+            <div style="font-size: 9px; color: rgb(251,146,60); font-weight: 600; margin-top: 4px;">Pragmatist</div>
+          </div>
+          <div style="background: rgba(147,197,253,0.1); border: 1px solid rgba(147,197,253,0.3); border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 22px;">⭐</div>
+            <div style="font-size: 9px; color: rgb(147,197,253); font-weight: 600; margin-top: 4px;">Idealist</div>
+          </div>
+          <div style="background: rgba(249,168,212,0.1); border: 1px solid rgba(249,168,212,0.3); border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 22px;">🧭</div>
+            <div style="font-size: 9px; color: rgb(249,168,212); font-weight: 600; margin-top: 4px;">Explorer</div>
+          </div>
+        </div>
+        <div style="font-size: 10px; color: rgb(156, 163, 175); font-style: italic; text-align: center;">"You're a Minimalist. Here's how your lessons will be framed, and what rubric your drills use."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X2 Pattern Advent -->
+  <div class="option" data-choice="x2" onclick="toggleSelect(this)">
+    <div class="letter">X2</div>
+    <div class="content">
+      <h3>25 days of patterns · advent calendar event</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Dec 1-25 every year: open a "door" each day, get a 5-min pattern micro-lesson. Cycles through 25 patterns annually. Seasonal collectible achievement. Engineers share doors on Twitter. <strong>Becomes a yearly dev tradition.</strong></p>
+      <div style="margin-top: 10px; background: linear-gradient(180deg, rgba(239,68,68,0.1), rgba(16,185,129,0.08)); border-radius: 10px; padding: 14px; position: relative;">
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+          <div style="aspect-ratio: 1; background: rgba(16,185,129,0.3); border: 1px solid rgba(16,185,129,0.5); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(134,239,172); font-weight: 700;">1</div>
+          <div style="aspect-ratio: 1; background: rgba(16,185,129,0.3); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(134,239,172); font-weight: 700;">2</div>
+          <div style="aspect-ratio: 1; background: rgba(16,185,129,0.3); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(134,239,172); font-weight: 700;">3</div>
+          <div style="aspect-ratio: 1; background: rgba(239,68,68,0.3); border: 2px solid rgb(239,68,68); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; font-weight: 700; box-shadow: 0 0 12px rgba(239,68,68,0.4);">4<br><span style="font-size: 6px;">today</span></div>
+          <div style="aspect-ratio: 1; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(156,163,175);">🔒</div>
+          <div style="aspect-ratio: 1; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(156,163,175);">🔒</div>
+          <div style="aspect-ratio: 1; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(156,163,175);">🔒</div>
+        </div>
+        <div style="text-align: center; font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;">Today's door: <strong style="color: rgb(229,231,235);">Dec 4 · Decorator pattern</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X3 On-call simulator -->
+  <div class="option" data-choice="x3" onclick="toggleSelect(this)">
+    <div class="letter">X3</div>
+    <div class="content">
+      <h3>On-call pressure simulator · crisis design drill</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Random 1-in-week: app pages you at weird hour with a <em>"PAGER ALERT"</em>. Production is down. 5-minute crisis design challenge — you must pick a pattern + explain fix + explain tradeoffs. Pressure simulation. <strong>The closest you'll get to SRE real-world stress without actual outages.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 2px solid rgba(239,68,68,0.5); border-radius: 10px; padding: 16px; text-align: center; position: relative;">
+        <div style="font-size: 28px; animation: pulse 1s infinite;">🚨</div>
+        <div style="font-size: 12px; color: rgb(252,165,165); font-weight: 700; margin-top: 4px; letter-spacing: 0.3em;">PAGER · P1 INCIDENT</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 10px; line-height: 1.6;">Database connection pool is exhausted. Checkout failing. 5k users affected. What pattern do you reach for?</div>
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 14px;">
+          <div style="background: rgba(239,68,68,0.2); color: rgb(252,165,165); padding: 6px 14px; border-radius: 4px; font-size: 10px; font-weight: 600;">⏱ 4:52</div>
+          <div style="background: rgba(251,146,60,0.2); color: rgb(251,146,60); padding: 6px 14px; border-radius: 4px; font-size: 10px;">Answer →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X4 Real-time pair -->
+  <div class="option" data-choice="x4" onclick="toggleSelect(this)">
+    <div class="letter">X4</div>
+    <div class="content">
+      <h3>Real-time pair designing · two cursors, one canvas</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Invite a friend by link. Both on same canvas simultaneously. Voice optional. See each other's cursor + edits in real-time. Can hand off control. Great for study pairs, mentorship, interview prep together. Uses Yjs (already in your stack).</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; height: 130px; position: relative;">
+        <div style="position: absolute; top: 20px; left: 40px; width: 80px; height: 40px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(147,197,253);">ClassA</div>
+        <div style="position: absolute; top: 50px; left: 60px; width: 8px; height: 12px; background: rgb(110,231,183);"></div>
+        <div style="position: absolute; top: 68px; left: 70px; background: rgb(110,231,183); color: white; font-size: 8px; padding: 2px 6px; border-radius: 3px; white-space: nowrap;">Anshul</div>
+        <div style="position: absolute; top: 30px; right: 50px; width: 80px; height: 40px; background: rgba(147,197,253,0.15); border: 1px solid rgba(249,168,212,0.6); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(147,197,253);">ClassB</div>
+        <div style="position: absolute; top: 50px; right: 40px; width: 8px; height: 12px; background: rgb(249,168,212);"></div>
+        <div style="position: absolute; top: 68px; right: 30px; background: rgb(249,168,212); color: rgb(30,30,30); font-size: 8px; padding: 2px 6px; border-radius: 3px; white-space: nowrap;">Maya</div>
+        <div style="position: absolute; bottom: 10px; left: 10px; font-size: 9px; color: rgb(156,163,175); font-style: italic;">🎙 voice connected · 2 cursors live</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X5 Design mystery -->
+  <div class="option" data-choice="x5" onclick="toggleSelect(this)">
+    <div class="letter">X5</div>
+    <div class="content">
+      <h3>Design mysteries · whodunit, but for software</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">A fictional e-commerce company's system is broken. You're handed: 3 class diagrams, 5 commits, 2 angry customer reviews, 1 incident post-mortem. Find the root cause. Whodunit style. <em>"Was it Observer's missing unsubscribe? Singleton's thread race? Factory's bad constructor?"</em> Each mystery = a pattern masterclass in context.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(249, 168, 212); letter-spacing: 0.3em; font-weight: 700; margin-bottom: 10px;">🔍 THE CASE OF THE 3AM PAGER</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7; font-style: italic; padding-left: 12px; border-left: 2px solid rgba(249,168,212,0.4);">
+          "Checkout was working fine at 2:50 AM. By 3:15 AM, 40% of requests were failing. No deploys happened. No traffic spike. Nobody touched the database. The only change: someone rolled out a new Observer for analytics at 2:55..."
+        </div>
+        <div style="margin-top: 10px; display: flex; gap: 4px;">
+          <div style="background: rgba(147,197,253,0.1); border: 1px solid rgba(147,197,253,0.3); padding: 4px 10px; border-radius: 12px; font-size: 9px; color: rgb(147, 197, 253);">📋 Evidence</div>
+          <div style="background: rgba(196,181,253,0.1); border: 1px solid rgba(196,181,253,0.3); padding: 4px 10px; border-radius: 12px; font-size: 9px; color: rgb(196, 181, 253);">👥 Witnesses</div>
+          <div style="background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.3); padding: 4px 10px; border-radius: 12px; font-size: 9px; color: rgb(251, 146, 60);">🧑‍💻 Suspects</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X6 Cross-domain transfer -->
+  <div class="option" data-choice="x6" onclick="toggleSelect(this)">
+    <div class="letter">X6</div>
+    <div class="content">
+      <h3>Cross-domain transfer · patterns in biology, music, city planning</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Observer exists in <em>neurons</em> (action potentials fan out). Command exists in <em>music</em> (conducted orchestral score). Composite exists in <em>cities</em> (buildings within neighborhoods within districts). Each pattern page has a <strong>"This pattern in the world"</strong> section with 2-3 analogies from non-software domains. <em>Locks the pattern in your long-term memory.</em></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+          <div style="background: rgba(110,231,183,0.08); padding: 10px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px;">🧠</div>
+            <div style="font-size: 9px; color: rgb(110,231,183); font-weight: 600; margin-top: 4px;">NEUROSCIENCE</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 3px; line-height: 1.4;">Synapses fan out an action potential to many targets — Observer</div>
+          </div>
+          <div style="background: rgba(196,181,253,0.08); padding: 10px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px;">🎻</div>
+            <div style="font-size: 9px; color: rgb(196,181,253); font-weight: 600; margin-top: 4px;">MUSIC</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 3px; line-height: 1.4;">Conductor signals; musicians watch, play on cue — also Observer</div>
+          </div>
+          <div style="background: rgba(251,146,60,0.08); padding: 10px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px;">🏙</div>
+            <div style="font-size: 9px; color: rgb(251,146,60); font-weight: 600; margin-top: 4px;">URBAN PLANNING</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 3px; line-height: 1.4;">Emergency broadcast: one signal, many districts receive</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X7 Failure portfolio -->
+  <div class="option" data-choice="x7" onclick="toggleSelect(this)">
+    <div class="letter">X7</div>
+    <div class="content">
+      <h3>Failure portfolio · celebrate your wrong answers</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Inverse achievements. Your failures become a <em>public portfolio</em> (opt-in) showing the bold mistakes you tried. <em>"Attempted Visitor pattern on a graph with 200 nodes · learned why double-dispatch is painful"</em>. Normalizes failure as essential to learning. Shows growth, not perfection.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; margin-bottom: 10px;">🏅 My Failure Portfolio · 14 proud mistakes</div>
+        <div style="display: grid; gap: 5px;">
+          <div style="background: rgba(239,68,68,0.05); padding: 8px 12px; border-radius: 4px; border-left: 2px solid rgb(239,68,68); font-size: 10px; color: rgb(229, 231, 235);">
+            <strong>Tried Visitor on 200-node graph</strong> · "why double-dispatch hurts at scale"
+          </div>
+          <div style="background: rgba(239,68,68,0.05); padding: 8px 12px; border-radius: 4px; border-left: 2px solid rgb(239,68,68); font-size: 10px; color: rgb(229, 231, 235);">
+            <strong>Singleton for session state</strong> · "global state in disguise, learned the hard way"
+          </div>
+          <div style="background: rgba(239,68,68,0.05); padding: 8px 12px; border-radius: 4px; border-left: 2px solid rgb(239,68,68); font-size: 10px; color: rgb(229, 231, 235);">
+            <strong>5-level inheritance hierarchy</strong> · "not everything needs a base class"
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X8 Pomodoro -->
+  <div class="option" data-choice="x8" onclick="toggleSelect(this)">
+    <div class="letter">X8</div>
+    <div class="content">
+      <h3>Pomodoro built in · 25/5 focus rhythm</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Setting toggle: enable Pomodoro timer. Each 25-min focus block, then 5-min break. Break screens show gentle animated prompts: <em>"Stand up. Look at something 20ft away for 20 seconds. Take 3 deep breaths."</em> Session count in status bar. <strong>Learning + body + rhythm.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; gap: 14px; align-items: center;">
+          <div style="width: 80px; height: 80px; border-radius: 50%; background: conic-gradient(rgb(239,68,68) 0deg, rgb(239,68,68) 200deg, rgba(239,68,68,0.15) 200deg); display: flex; align-items: center; justify-content: center;">
+            <div style="width: 62px; height: 62px; background: rgb(17,24,39); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div style="font-size: 16px; color: rgb(252,165,165); font-weight: 700; font-family: monospace;">18:22</div>
+              <div style="font-size: 7px; color: rgb(156, 163, 175);">focus</div>
+            </div>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Pomodoro · Session 3</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Next break in 18:22 · 🍵 tea reminder</div>
+            <div style="margin-top: 8px; display: flex; gap: 3px;">
+              <div style="width: 16px; height: 4px; background: rgb(110,231,183); border-radius: 2px;"></div>
+              <div style="width: 16px; height: 4px; background: rgb(110,231,183); border-radius: 2px;"></div>
+              <div style="width: 16px; height: 4px; background: rgb(110,231,183); border-radius: 2px;"></div>
+              <div style="width: 16px; height: 4px; background: rgb(252,165,165); border-radius: 2px;"></div>
+              <div style="width: 16px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X9 Physical product -->
+  <div class="option" data-choice="x9" onclick="toggleSelect(this)">
+    <div class="letter">X9</div>
+    <div class="content">
+      <h3>Physical product · card deck + poster pack shipped</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Thing that sits on engineers' desks. <strong>36-pattern playing-card deck</strong> (actual shippable). <strong>Pattern poster set</strong> (6 large format, blueprint style). <strong>Notebook</strong> with pattern reference in back. Sold via Shopify. <em>Architex-branded merch with actual pedagogical value.</em></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
+          <div>
+            <div style="background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(236,72,153,0.15)); border: 2px solid rgba(124,58,237,0.4); border-radius: 6px; padding: 20px 10px; height: 100px;">
+              <div style="font-size: 24px;">🃏</div>
+              <div style="font-size: 9px; color: rgb(196,181,253); font-weight: 600; margin-top: 6px;">36-Card Deck</div>
+              <div style="font-size: 8px; color: rgb(156, 163, 175); margin-top: 2px;">$25</div>
+            </div>
+          </div>
+          <div>
+            <div style="background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(14,165,233,0.12)); border: 2px solid rgba(59,130,246,0.4); border-radius: 6px; padding: 20px 10px; height: 100px;">
+              <div style="font-size: 24px;">🖼</div>
+              <div style="font-size: 9px; color: rgb(147,197,253); font-weight: 600; margin-top: 6px;">6-Poster Pack</div>
+              <div style="font-size: 8px; color: rgb(156, 163, 175); margin-top: 2px;">$40</div>
+            </div>
+          </div>
+          <div>
+            <div style="background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.12)); border: 2px solid rgba(16,185,129,0.4); border-radius: 6px; padding: 20px 10px; height: 100px;">
+              <div style="font-size: 24px;">📔</div>
+              <div style="font-size: 9px; color: rgb(110,231,183); font-weight: 600; margin-top: 6px;">Pattern Journal</div>
+              <div style="font-size: 8px; color: rgb(156, 163, 175); margin-top: 2px;">$18</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Print-on-demand via Shopify. Passive side revenue. Brand signal.</div>
+    </div>
+  </div>
+
+  <!-- X10 Job app assistant -->
+  <div class="option" data-choice="x10" onclick="toggleSelect(this)">
+    <div class="letter">X10</div>
+    <div class="content">
+      <h3>Job application assistant · company-specific interview prep</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">User tells app: <em>"Interviewing at Stripe in 2 weeks"</em>. System creates targeted plan: <em>"Stripe asks Payment System 40% of the time. Let's drill: Parking Lot, Vending Machine, Money Transfer. Their eval rubric emphasizes idempotency — you're weak there, here are 3 lessons."</em> Adaptive, specific, just-in-time.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <div style="width: 36px; height: 36px; background: #635bff; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 14px;">S</div>
+          <div>
+            <div style="font-size: 12px; color: rgb(229, 231, 235); font-weight: 700;">Stripe · Senior Backend</div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175);">Interview in 14 days · 2-week sprint plan ready</div>
+          </div>
+        </div>
+        <div style="display: grid; gap: 4px; font-size: 10px;">
+          <div style="background: rgba(110,231,183,0.08); padding: 6px 10px; border-left: 2px solid rgb(110,231,183); border-radius: 0 4px 4px 0; color: rgb(229, 231, 235);"><strong>Day 1-3:</strong> Payment domain patterns (5 drills) · your weak area</div>
+          <div style="background: rgba(147,197,253,0.08); padding: 6px 10px; border-left: 2px solid rgb(147,197,253); border-radius: 0 4px 4px 0; color: rgb(229, 231, 235);"><strong>Day 4-7:</strong> Idempotency lessons · Learn + custom problem</div>
+          <div style="background: rgba(196,181,253,0.08); padding: 6px 10px; border-left: 2px solid rgb(196,181,253); border-radius: 0 4px 4px 0; color: rgb(229, 231, 235);"><strong>Day 8-11:</strong> Stripe-style mock interviews (hostile mode)</div>
+          <div style="background: rgba(251,191,36,0.08); padding: 6px 10px; border-left: 2px solid rgb(251,191,36); border-radius: 0 4px 4px 0; color: rgb(229, 231, 235);"><strong>Day 12-14:</strong> Review + calm · no new patterns</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X11 Community Hall of Fame -->
+  <div class="option" data-choice="x11" onclick="toggleSelect(this)">
+    <div class="letter">X11</div>
+    <div class="content">
+      <h3>Community Hall of Fame · "best solutions ever submitted"</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Curated leaderboard: <em>"Most elegant Parking Lot ever (upvoted 2.3k times). Most minimal Chat Room (847). Most controversial Vending Machine"</em>. Each entry shows author, their reasoning, what made it special. Inspires by showing <strong>creative excellence</strong>.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 10px;">🏆 HALL OF FAME</div>
+        <div style="display: grid; gap: 6px;">
+          <div style="background: linear-gradient(90deg, rgba(251,191,36,0.15), rgba(251,191,36,0.02)); padding: 10px 14px; border-radius: 6px; border-left: 3px solid rgb(251,191,36); display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 18px;">🥇</div>
+            <div style="flex: 1;">
+              <div style="font-size: 10px; color: rgb(229, 231, 235); font-weight: 600;">Most Elegant Parking Lot</div>
+              <div style="font-size: 9px; color: rgb(156, 163, 175);">@anshul-garg27 · 6 classes · 2.3k upvotes</div>
+            </div>
+            <div style="font-size: 9px; color: rgb(251, 191, 36);">View →</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 10px 14px; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 16px;">🥈</div>
+            <div style="flex: 1;">
+              <div style="font-size: 10px; color: rgb(229, 231, 235); font-weight: 600;">Most Minimal Chat Room</div>
+              <div style="font-size: 9px; color: rgb(156, 163, 175);">@maya_l · 4 classes · 847 upvotes</div>
+            </div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 10px 14px; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 16px;">🥉</div>
+            <div style="flex: 1;">
+              <div style="font-size: 10px; color: rgb(229, 231, 235); font-weight: 600;">Most Controversial Vending Machine</div>
+              <div style="font-size: 9px; color: rgb(156, 163, 175);">@kenji_v · functional approach · 652</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- X12 Time capsule -->
+  <div class="option" data-choice="x12" onclick="toggleSelect(this)">
+    <div class="letter">X12</div>
+    <div class="content">
+      <h3>Time capsule · letter to your future self</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">After completing your first 5 patterns: <em>"Write a short letter to yourself 1 year from now. What do you hope you've learned? What do you hope you'll remember?"</em> Sealed. Delivered exactly 1 year later. <strong>Emotionally anchors learning to identity, not just content.</strong></p>
+      <div style="margin-top: 10px; background: rgba(253, 251, 246, 0.95); color: #333; border-radius: 10px; padding: 20px 24px; font-family: 'Cormorant Garamond', Georgia, serif; box-shadow: 0 4px 14px rgba(0,0,0,0.15);">
+        <div style="font-size: 10px; color: #999; letter-spacing: 0.3em; margin-bottom: 10px;">── TO OPEN · APRIL 2027 ──</div>
+        <div style="font-size: 13px; line-height: 1.7; font-style: italic;">
+          Dear future me,<br><br>
+          I'm writing this after finishing my first 5 patterns. Right now, Factory Method still feels clever and fresh. I hope by the time you read this, it feels <em>obvious</em> — because if it does, that means you've grown.<br><br>
+          Also: please don't be tempted to Singleton-everything. I know it's tempting...
+        </div>
+        <div style="text-align: right; margin-top: 12px; font-family: 'Brush Script MT', cursive; font-size: 16px; color: #333;">A. G.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select X1-X12.</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">And then — genuinely the end. Or say "more" if you want yet another batch.</p>
+</div>

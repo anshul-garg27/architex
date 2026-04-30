@@ -1,0 +1,300 @@
+<div style="background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+    <div style="font-size: 22px;">📖</div>
+    <div style="font-size: 14px; color: rgb(251, 146, 60); font-weight: 700;">Batch 12 · Content format innovations · world-class storytelling</div>
+  </div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">Beyond lesson + drill — how we make content so <em>compelling</em> that people binge patterns like Netflix. Content me dum honi chahiye, na?</div>
+</div>
+
+<h2>Content formats that make patterns feel like stories, not textbooks</h2>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <!-- CT1 Pattern Origin Comics -->
+  <div class="option" data-choice="ct1" onclick="toggleSelect(this)">
+    <div class="letter">CT1</div>
+    <div class="content">
+      <h3>Pattern origin comics · "How Observer was born"</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Each pattern gets a 6-panel visual comic telling <em>the story of why it exists</em>. Observer: PARC 1979 → MVC → GoF → React hooks. Engineers remember <strong>stories</strong>, not definitions.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+          <div style="background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.3); border-radius: 6px; padding: 10px; aspect-ratio: 4/3;">
+            <div style="font-size: 9px; color: rgb(196,181,253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">1979</div>
+            <div style="font-size: 9px; color: rgb(229, 231, 235); line-height: 1.4;">Xerox PARC · Trygve Reenskaug invents MVC for Smalltalk. Model needs to notify View when it changes...</div>
+          </div>
+          <div style="background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.3); border-radius: 6px; padding: 10px; aspect-ratio: 4/3;">
+            <div style="font-size: 9px; color: rgb(110,231,183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">1995</div>
+            <div style="font-size: 9px; color: rgb(229, 231, 235); line-height: 1.4;">GoF formalize Observer: Subject + Observer interface + subscribe/unsubscribe. The name sticks.</div>
+          </div>
+          <div style="background: rgba(147,197,253,0.08); border: 1px solid rgba(147,197,253,0.3); border-radius: 6px; padding: 10px; aspect-ratio: 4/3;">
+            <div style="font-size: 9px; color: rgb(147,197,253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">2013</div>
+            <div style="font-size: 9px; color: rgb(229, 231, 235); line-height: 1.4;">React launches. useState + useEffect = Observer in 2 lines. Pattern becomes invisible...</div>
+          </div>
+          <div style="background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); border-radius: 6px; padding: 10px; aspect-ratio: 4/3;">
+            <div style="font-size: 9px; color: rgb(251,191,36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">2020</div>
+            <div style="font-size: 9px; color: rgb(229, 231, 235); line-height: 1.4;">RxJS, Signals, Svelte stores — Observer evolves into <em>reactive</em>. The idea expands...</div>
+          </div>
+          <div style="background: rgba(236,72,153,0.08); border: 1px solid rgba(236,72,153,0.3); border-radius: 6px; padding: 10px; aspect-ratio: 4/3;">
+            <div style="font-size: 9px; color: rgb(249,168,212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">TODAY</div>
+            <div style="font-size: 9px; color: rgb(229, 231, 235); line-height: 1.4;">Every framework has Observer baked in. You use it 100x/day without naming it. The pattern won.</div>
+          </div>
+          <div style="background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.3); border-radius: 6px; padding: 10px; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; text-align: center;">
+            <div style="font-size: 10px; color: rgb(196, 181, 253); font-weight: 700;">Next time you write <code>useState</code>, whisper: "thanks, Reenskaug."</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">36 patterns × 6-panel comic. Opus writes + illustrations (AI-gen or human). <strong>Makes CS history feel alive.</strong></div>
+    </div>
+  </div>
+
+  <!-- CT2 Design Disasters -->
+  <div class="option" data-choice="ct2" onclick="toggleSelect(this)">
+    <div class="letter">CT2</div>
+    <div class="content">
+      <h3>Design disasters · real war stories of what happens without the pattern</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Each pattern has a "war story" page. <strong>Real incidents</strong> where missing or misusing the pattern caused production outages. Knight Capital (2012, $440M loss) as an example of missing Circuit Breaker. AWS S3 outage 2017 as cascading failure without Bulkhead.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
+          <div style="width: 40px; height: 40px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;">💥</div>
+          <div style="flex: 1;">
+            <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 700;">Knight Capital · August 1, 2012</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">The $440M 45-minute trading disaster</div>
+          </div>
+          <div style="background: rgba(239,68,68,0.15); color: rgb(252,165,165); font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: 700;">Circuit Breaker</div>
+        </div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7; background: rgba(0,0,0,0.25); padding: 10px 14px; border-radius: 6px;">
+          A deployment left 1 of 8 servers running old code with a dormant flag re-enabled. The server sent bogus orders — <em>thousands per second</em>. No circuit breaker stopped the cascade. By the time humans reacted, Knight Capital had <strong>lost $440M and bankrupted itself</strong>.
+        </div>
+        <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;"><strong style="color: rgb(252,165,165);">Lesson:</strong> Circuit Breaker isn't nice-to-have — it's the difference between "weird Tuesday" and "company ends".</div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">12-15 patterns have iconic disaster stories. Opus writes + links to post-mortems.</div>
+    </div>
+  </div>
+
+  <!-- CT3 Pattern Battle Cards -->
+  <div class="option" data-choice="ct3" onclick="toggleSelect(this)">
+    <div class="letter">CT3</div>
+    <div class="content">
+      <h3>Pattern battle cards · head-to-head comparisons as collectibles</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Pokemon-card style comparison. Observer vs Mediator. Strategy vs State. Inheritance vs Composition. Each card: stats (coupling, flexibility, complexity), special moves, weakness. <strong>Engineers collect these; great for recall + shareable.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <!-- card A -->
+          <div style="background: linear-gradient(135deg, rgba(110,231,183,0.15), rgba(16,185,129,0.1)); border: 2px solid rgba(110,231,183,0.4); border-radius: 10px; padding: 12px; box-shadow: 0 4px 12px rgba(110,231,183,0.15);">
+            <div style="font-size: 9px; color: rgb(110,231,183); letter-spacing: 0.3em; font-weight: 700;">BEHAVIORAL · COMMON</div>
+            <div style="font-size: 14px; color: rgb(229, 231, 235); font-weight: 700; margin-top: 4px;">Observer</div>
+            <div style="font-size: 24px; margin: 8px 0;">📢</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); line-height: 1.4;">Notifies many subscribers when subject changes</div>
+            <div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 8px;">
+              <div style="color: rgb(156, 163, 175);">Coupling</div>
+              <div style="color: rgb(110,231,183); text-align: right;">LOW</div>
+              <div style="color: rgb(156, 163, 175);">Flexibility</div>
+              <div style="color: rgb(110,231,183); text-align: right;">HIGH</div>
+              <div style="color: rgb(156, 163, 175);">Scale</div>
+              <div style="color: rgb(250,204,21); text-align: right;">MEDIUM</div>
+              <div style="color: rgb(156, 163, 175);">Weakness</div>
+              <div style="color: rgb(252,165,165); text-align: right;">ORDER</div>
+            </div>
+          </div>
+          <!-- card B -->
+          <div style="background: linear-gradient(135deg, rgba(147,197,253,0.15), rgba(59,130,246,0.1)); border: 2px solid rgba(147,197,253,0.4); border-radius: 10px; padding: 12px; box-shadow: 0 4px 12px rgba(147,197,253,0.15);">
+            <div style="font-size: 9px; color: rgb(147,197,253); letter-spacing: 0.3em; font-weight: 700;">BEHAVIORAL · RARE</div>
+            <div style="font-size: 14px; color: rgb(229, 231, 235); font-weight: 700; margin-top: 4px;">Mediator</div>
+            <div style="font-size: 24px; margin: 8px 0;">🚦</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); line-height: 1.4;">Centralizes M-to-M object communication</div>
+            <div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 8px;">
+              <div style="color: rgb(156, 163, 175);">Coupling</div>
+              <div style="color: rgb(250,204,21); text-align: right;">MID</div>
+              <div style="color: rgb(156, 163, 175);">Flexibility</div>
+              <div style="color: rgb(250,204,21); text-align: right;">MID</div>
+              <div style="color: rgb(156, 163, 175);">Scale</div>
+              <div style="color: rgb(252,165,165); text-align: right;">LOW</div>
+              <div style="color: rgb(156, 163, 175);">Weakness</div>
+              <div style="color: rgb(252,165,165); text-align: right;">GOD</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align: center; font-size: 11px; color: rgb(156, 163, 175); margin-top: 10px;">VS. <span style="color: rgb(251,191,36); font-weight: 700;">→ which wins for chat room?</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CT4 Choose-Your-Own-Design -->
+  <div class="option" data-choice="ct4" onclick="toggleSelect(this)">
+    <div class="letter">CT4</div>
+    <div class="content">
+      <h3>Choose-your-own-design-adventure · branching story per pattern</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Interactive fiction where each decision shapes the system you build. <em>"You're the lead engineer. Product wants real-time stock prices in 50ms. Which do you reach for first? [Observer] [WebSocket + event bus] [Polling]"</em> Each choice branches. Wrong choices reveal the consequences mid-story. Right choices unlock the pattern's nuance.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7; margin-bottom: 10px; font-style: italic;">
+          <strong>Scene 3 · Wednesday, 10 AM</strong><br>
+          Product Manager slacks: <em>"The CFO dashboard is lagging 2 seconds behind trades. Fix before demo Friday."</em><br>
+          You check the code. One StockPrice class pushes updates to 4 dashboards via direct method calls. Now we need 15 dashboards.
+        </div>
+        <div style="display: grid; gap: 5px; font-size: 10px;">
+          <div style="background: rgba(110,231,183,0.1); padding: 8px 12px; border-left: 3px solid rgb(110,231,183); border-radius: 0 4px 4px 0; color: rgb(229,231,235);">
+            <strong style="color: rgb(110,231,183);">A.</strong> Add Observer — let each dashboard subscribe
+          </div>
+          <div style="background: rgba(250,204,21,0.1); padding: 8px 12px; border-left: 3px solid rgb(250,204,21); border-radius: 0 4px 4px 0; color: rgb(229,231,235);">
+            <strong style="color: rgb(250,204,21);">B.</strong> Move it all to a Redis pub-sub bus
+          </div>
+          <div style="background: rgba(239,68,68,0.08); padding: 8px 12px; border-left: 3px solid rgb(239,68,68); border-radius: 0 4px 4px 0; color: rgb(229,231,235);">
+            <strong style="color: rgb(252,165,165);">C.</strong> Keep the direct calls, just add 11 more
+          </div>
+        </div>
+        <div style="margin-top: 10px; font-size: 9px; color: rgb(156, 163, 175); text-align: center; font-style: italic;">Pick C = see cascade failure at scale. Pick A = next scene: WebSocket fan-out challenges. Pick B = "you over-engineered. PM is angry. how do you defend?"</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CT5 System Archaeology -->
+  <div class="option" data-choice="ct5" onclick="toggleSelect(this)">
+    <div class="letter">CT5</div>
+    <div class="content">
+      <h3>System archaeology · "dig through this legacy codebase"</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Given a fictional (or real open-source) legacy codebase. Find and identify 5 design patterns. Explain the archaeological context — <em>why</em> was this pattern used here, when, and what was the tradeoff at the time? <strong>Turns learning into investigation.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(251,146,60); font-weight: 600; letter-spacing: 0.3px; margin-bottom: 8px;">🏛 DIG SITE · Legacy Order System · codebase from 2008</div>
+        <div style="background: rgba(0,0,0,0.3); padding: 10px 14px; border-radius: 6px; font-family: monospace; font-size: 9px; color: rgb(229, 231, 235); line-height: 1.6;">
+          public class OrderManager {<br>
+          &nbsp;&nbsp;private static OrderManager instance;<br>
+          &nbsp;&nbsp;public static synchronized OrderManager getInstance() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span style="background: rgba(251,146,60,0.2); padding: 0 3px;">// ... Singleton pattern</span><br>
+          &nbsp;&nbsp;}<br>
+          }
+        </div>
+        <div style="margin-top: 10px; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">
+          <strong>Question:</strong> You find Singleton used here. <em>Explain why a 2008 engineer would reach for Singleton in this context — and what modern alternative would you use now?</em>
+        </div>
+        <div style="margin-top: 8px; background: rgba(147,197,253,0.08); padding: 6px 10px; border-radius: 4px; font-size: 9px; color: rgb(147,197,253); font-style: italic;">Bonus: identify 4 more patterns in this 300-line sample. Hunt them down.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CT6 Pattern Personalities -->
+  <div class="option" data-choice="ct6" onclick="toggleSelect(this)">
+    <div class="letter">CT6</div>
+    <div class="content">
+      <h3>Pattern personalities · each pattern is a character</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Ted Chiang / Kazuo Ishiguro-style vignettes where patterns have personalities. Observer is the anxious attention-seeker. Singleton is the lone monk. Mediator is the exhausted diplomat. Circuit Breaker is the paranoid veteran. Each gets a 100-word character sketch + memorable tagline.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: 60px 1fr; gap: 12px; align-items: flex-start;">
+          <div style="font-size: 40px; text-align: center;">🧘</div>
+          <div>
+            <div style="font-size: 13px; color: rgb(229, 231, 235); font-weight: 700;">Singleton</div>
+            <div style="font-size: 10px; color: rgb(110, 231, 183); font-style: italic; margin-top: 2px;">"There can only be one."</div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6; margin-top: 8px;">
+              Singleton sits alone in the application, watched over by the runtime. Everyone thinks they know where to find him — and they do. But his solitude costs him: he can't be mocked, can't be tested in isolation, can't evolve without touching everyone. <em>"Being the only one sounds like power,"</em> he says, <em>"but it's mostly loneliness."</em>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">36 characters. 36 taglines. Ishiguro-grade prose from Opus. <strong>Patterns become <em>memorable</em> because they're human.</strong></div>
+    </div>
+  </div>
+
+  <!-- CT7 Pattern Dialogue -->
+  <div class="option" data-choice="ct7" onclick="toggleSelect(this)">
+    <div class="letter">CT7</div>
+    <div class="content">
+      <h3>Pattern dialogues · podcast-style conversations between patterns</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">"Observer and Pub-Sub walk into a bar..." Two patterns debate when to use which. Written as scripts (optional audio). Observer defends itself: <em>"I keep subs &amp; subject in the same process."</em> Pub-Sub pushes back: <em>"Exactly your problem — you don't scale past one machine."</em> Observer sulks. Pub-Sub buys beer.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(196,181,253); letter-spacing: 0.3px; font-weight: 700; margin-bottom: 8px;">🎙 THE OBSERVER / PUB-SUB DEBATE · scene 1</div>
+        <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.8;">
+          <div><strong style="color: rgb(110,231,183);">OBSERVER:</strong> I've served React, Angular, Vue for years. What's your deal?</div>
+          <div style="margin-top: 6px;"><strong style="color: rgb(147,197,253);">PUB-SUB:</strong> I serve 15 microservices at once. You couldn't keep up past 1,000 subscribers.</div>
+          <div style="margin-top: 6px;"><strong style="color: rgb(110,231,183);">OBSERVER:</strong> <em>(sulking)</em> I never claimed to. That's what message brokers are for.</div>
+          <div style="margin-top: 6px;"><strong style="color: rgb(147,197,253);">PUB-SUB:</strong> So admit it — you're in-memory only.</div>
+          <div style="margin-top: 6px;"><strong style="color: rgb(110,231,183);">OBSERVER:</strong> And you need infrastructure! Kafka. RabbitMQ. Configs. I'm 3 classes in your app.</div>
+          <div style="margin-top: 6px;"><strong style="color: rgb(147,197,253);">PUB-SUB:</strong> <em>(pauses, sips)</em> Fair.</div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">20-30 dialogues covering the classic "confused-with" pairs. Shareable. Memorable. Fun.</div>
+    </div>
+  </div>
+
+  <!-- CT8 Pattern Timeline -->
+  <div class="option" data-choice="ct8" onclick="toggleSelect(this)">
+    <div class="letter">CT8</div>
+    <div class="content">
+      <h3>Interactive pattern timeline · 1979 → today</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Horizontal scroll through 45 years of pattern evolution. 1979 MVC · 1994 GoF · 2004 Inversion of Control · 2012 Microservices · 2020 AI-Agent patterns. Hover any milestone → details. See patterns emerge in waves, influenced by what came before.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; align-items: center; gap: 0; position: relative; padding: 20px 0;">
+          <div style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, rgb(16,185,129), rgb(147,197,253), rgb(196,181,253), rgb(249,168,212)); transform: translateY(-50%);"></div>
+          <div style="background: rgb(30,41,59); border: 2px solid rgb(110,231,183); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(110,231,183); font-weight: 700; flex-shrink: 0; z-index: 1;">79</div>
+          <div style="flex: 1; font-size: 9px; color: rgb(156,163,175); text-align: center;">MVC</div>
+          <div style="background: rgb(30,41,59); border: 2px solid rgb(110,231,183); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(110,231,183); font-weight: 700; flex-shrink: 0; z-index: 1;">95</div>
+          <div style="flex: 1; font-size: 9px; color: rgb(156,163,175); text-align: center;">GoF 23</div>
+          <div style="background: rgb(30,41,59); border: 2px solid rgb(147,197,253); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(147,197,253); font-weight: 700; flex-shrink: 0; z-index: 1;">04</div>
+          <div style="flex: 1; font-size: 9px; color: rgb(156,163,175); text-align: center;">IoC/DI</div>
+          <div style="background: rgb(30,41,59); border: 2px solid rgb(196,181,253); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(196,181,253); font-weight: 700; flex-shrink: 0; z-index: 1;">12</div>
+          <div style="flex: 1; font-size: 9px; color: rgb(156,163,175); text-align: center;">μ-svc</div>
+          <div style="background: rgb(30,41,59); border: 2px solid rgb(249,168,212); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(249,168,212); font-weight: 700; flex-shrink: 0; z-index: 1;">20</div>
+          <div style="flex: 1; font-size: 9px; color: rgb(156,163,175); text-align: center;">ReAct</div>
+          <div style="background: rgb(30,41,59); border: 2px solid rgb(251,191,36); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: rgb(251,191,36); font-weight: 700; flex-shrink: 0; z-index: 1;">26</div>
+        </div>
+        <div style="background: rgba(196,181,253,0.08); border: 1px solid rgba(196,181,253,0.25); border-radius: 6px; padding: 10px 14px; margin-top: 6px;">
+          <div style="font-size: 10px; color: rgb(196,181,253); font-weight: 600;">2012 · Microservices pop</div>
+          <div style="font-size: 10px; color: rgb(229, 231, 235); margin-top: 3px; line-height: 1.5;">Netflix publishes Hystrix. Circuit Breaker pattern goes mainstream. Saga pattern emerges for distributed transactions. Old GoF patterns suddenly look insufficient for networked systems.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CT9 Pattern FAQ mining -->
+  <div class="option" data-choice="ct9" onclick="toggleSelect(this)">
+    <div class="letter">CT9</div>
+    <div class="content">
+      <h3>Pattern FAQ · questions engineers actually ask on Stack Overflow</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Mine Stack Overflow for top 10 questions per pattern — questions real engineers got stuck on. Present as lesson section: <em>"Questions you'll probably ask."</em> Instead of anticipating what <em>you</em> think, show what the hive mind actually stumbled over.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(250,204,21); letter-spacing: 0.3px; font-weight: 600; margin-bottom: 8px;">❓ REAL QUESTIONS · TOP 5 FROM STACK OVERFLOW</div>
+        <div style="display: grid; gap: 6px;">
+          <div style="background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235);">
+            <div style="font-weight: 600;">"Why is double-checked locking broken in Java before 1.5?"</div>
+            <div style="color: rgb(156, 163, 175); font-size: 9px; margin-top: 2px;">1.2k upvotes · memory model &amp; volatile deep-dive</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235);">
+            <div style="font-weight: 600;">"Singleton vs static class — which one to use?"</div>
+            <div style="color: rgb(156, 163, 175); font-size: 9px; margin-top: 2px;">800 upvotes · classic mistake</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235);">
+            <div style="font-weight: 600;">"How do you unit test a Singleton?"</div>
+            <div style="color: rgb(156, 163, 175); font-size: 9px; margin-top: 2px;">650 upvotes · the everybody-hates-it problem</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235);">
+            <div style="font-weight: 600;">"Thread-safe Singleton in Python — is __init__ enough?"</div>
+            <div style="color: rgb(156, 163, 175); font-size: 9px; margin-top: 2px;">420 upvotes · language-specific nuance</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Manual curation + AI synthesis. ~10 questions × 36 patterns = 360 FAQs. High-SEO content.</div>
+    </div>
+  </div>
+
+  <!-- CT10 Design Diaries -->
+  <div class="option" data-choice="ct10" onclick="toggleSelect(this)">
+    <div class="letter">CT10</div>
+    <div class="content">
+      <h3>A week in the life · fictional engineer's design diary</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Short serialized diary (Monday → Friday) of a fictional mid-level engineer navigating real design challenges. Day 1: Product wants feature X. Day 3: she reaches for Observer. Day 5: realizes she should have used Strategy. Reflective, honest, human. Written like <em>Notes from the Architect</em> meets <em>The Mythical Man-Month</em>.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(249,168,212); letter-spacing: 0.3em; font-weight: 700; margin-bottom: 10px;">WEDNESDAY · 11:47 PM</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7; font-style: italic; padding-left: 12px; border-left: 2px solid rgba(249,168,212,0.4);">
+          Reviewed my PR tonight. The senior engineer wrote: <em>"This looks like Observer. Why not use an event emitter?"</em><br><br>
+          I almost snapped back. <strong>I thought</strong> I had picked correctly. Observer was explicit, typed, had clear handler contracts. Event emitters are loose. Why would I want less structure?<br><br>
+          But 2 hours of reading later... I see it. In this codebase, 5 modules will need to listen. None of them have a compile-time relationship. I was picking Observer because I was nostalgic. EventEmitter is right for <em>this</em>.<br><br>
+          Pattern knowledge is a hammer. <em>Choosing</em> the pattern is the hard part.
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">5-part series per pattern. 36 × 5 = 180 mini-essays. Opus writes at Fowler-quality. <strong>Becomes the content engineers bookmark.</strong></div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select CT1-CT10.</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Final batch next: wild-card PhD-level ideas (things nobody else has built).</p>
+</div>

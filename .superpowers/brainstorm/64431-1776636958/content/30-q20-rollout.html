@@ -1,0 +1,175 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 20 of 20 · FINAL</strong> — rollout strategy. How do we safely ship this much UX change without breaking existing users?
+  </div>
+</div>
+
+<h2>Q20 · How do we actually ship the 4-mode system?</h2>
+<p class="subtitle">This is a significant UX overhaul. Existing LLD users open the module → suddenly see a completely reorganized interface. A bad rollout = support tickets, churn, "where did my workspace go?". Choose the safety-net.</p>
+
+<!-- WHAT'S AT RISK -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">⚠️ WHAT COULD GO WRONG</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    • Existing users lose their workflow (Build mode exists but their muscle memory breaks)<br>
+    • First-visit banner gets accidentally shown to returning users → looks infantilizing<br>
+    • Content for 26 patterns ships half-written in early pushes<br>
+    • Drill mode has a grading bug that hits first 500 users before detection<br>
+    • Review mode FSRS scheduling miscalibration affects retention metrics invisibly<br>
+    • Mobile layouts break on a browser we didn't test
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Big bang · ship when ready, flip the switch</h3>
+      <p>Build all modes. Test internally. One deploy, everyone sees it. No flags, no cohorts.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Simple. No feature-flag infra. Clear launch moment.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Bugs hit everyone. Rollback = full deploy. No A/B data. First-day support load terrifying.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Parallel routes · <code>/modules/lld</code> vs <code>/modules/lld-v2</code></h3>
+      <p>Keep old LLD at existing URL. New 4-mode system at <code>/modules/lld-v2</code>. Both live for months. User chooses via banner.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Zero risk to existing users.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> 2x code to maintain. Forked state trees. Migration eventually happens anyway.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Feature-flagged cohort rollout · phased ramp</h3>
+      <p>Single codebase. <code>lldV2Enabled</code> flag. Cohort-gated rollout. Rollback via flag flip, no deploy.</p>
+
+      <!-- Rollout timeline -->
+      <div style="margin-top: 14px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; gap: 10px;">
+
+          <div style="background: rgba(110, 231, 183, 0.08); border-left: 3px solid rgb(110, 231, 183); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <div style="background: rgba(110, 231, 183, 0.2); color: rgb(110, 231, 183); font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 700;">WAVE 1 · internal</div>
+              <div style="font-size: 10px; color: rgb(156, 163, 175);">Week 0 · ~5 users</div>
+            </div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">You + 2-4 teammates. Flag manually enabled for your user IDs. Stress-test all 4 modes, all edge cases from Q11 cross-mode table.</div>
+          </div>
+
+          <div style="background: rgba(147, 197, 253, 0.08); border-left: 3px solid rgb(147, 197, 253); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <div style="background: rgba(147, 197, 253, 0.2); color: rgb(147, 197, 253); font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 700;">WAVE 2 · alpha opt-in</div>
+              <div style="font-size: 10px; color: rgb(156, 163, 175);">Week 1 · ~50-100 users</div>
+            </div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">Banner in existing LLD: <em>"Try the new Learn/Build/Drill/Review experience? [Enable beta]"</em>. Users opt-in. Feedback form prominent. Toggle to return to old UI anytime.</div>
+          </div>
+
+          <div style="background: rgba(250, 204, 21, 0.08); border-left: 3px solid rgb(250, 204, 21); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <div style="background: rgba(250, 204, 21, 0.2); color: rgb(250, 204, 21); font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 700;">WAVE 3 · anonymous 100%</div>
+              <div style="font-size: 10px; color: rgb(156, 163, 175);">Week 2-3 · new anonymous visitors</div>
+            </div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">All <em>anonymous</em> (logged-out) visitors get the new UI by default. No confused existing users. Monitor drill grade distribution, Review completion rate, churn signals.</div>
+          </div>
+
+          <div style="background: rgba(251, 146, 60, 0.08); border-left: 3px solid rgb(251, 146, 60); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <div style="background: rgba(251, 146, 60, 0.2); color: rgb(251, 146, 60); font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 700;">WAVE 4 · authenticated 10% → 50%</div>
+              <div style="font-size: 10px; color: rgb(156, 163, 175);">Week 4-5 · ramp gradually</div>
+            </div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">Hash userId → deterministic cohort. Start 10%, monitor metrics vs control. If healthy, ramp to 25%, 50%. Rollback = flip flag config, takes 30s.</div>
+          </div>
+
+          <div style="background: rgba(196, 181, 253, 0.08); border-left: 3px solid rgb(196, 181, 253); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <div style="background: rgba(196, 181, 253, 0.2); color: rgb(196, 181, 253); font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 700;">WAVE 5 · 100% + kill switch</div>
+              <div style="font-size: 10px; color: rgb(156, 163, 175);">Week 6+ · full rollout</div>
+            </div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">All users on new UI. Old code path stays for 4 more weeks behind a "revert to old" settings toggle (hidden) for anyone who really needs escape hatch. Then purge.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kill switches -->
+      <div style="margin-top: 14px; background: rgba(239, 68, 68, 0.06); border-left: 3px solid rgb(239, 68, 68); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+        <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">🚨 ROLLBACK TRIGGERS (auto-alert)</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+          • Drill submission error rate &gt; 5%<br>
+          • Learn pattern completion rate drops &gt; 20% vs control cohort<br>
+          • Mode switch bug causing data loss reports &gt; 3 in 24h<br>
+          • FSRS review rating distribution shifts suspiciously (e.g., 80% "Again" = review broken)<br>
+          Hitting any of these → auto-flag revert + page on-call
+        </div>
+      </div>
+
+      <!-- Schema for flag -->
+      <div style="margin-top: 14px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 14px;">
+        <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;">FLAG IMPLEMENTATION</div>
+        <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+          <span style="color: rgb(156, 163, 175);">// userPreferences.preferences.lld.v2Enabled || cohortRoll() || envOverride()</span><br>
+          <span style="color: rgb(196, 181, 253);">function</span> <span style="color: rgb(147, 197, 253);">isLLDV2Enabled</span>(user) {<br>
+          &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (user?.preferences.lld.v2Optout) <span style="color: rgb(196, 181, 253);">return false</span>;<br>
+          &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (user?.preferences.lld.v2OptIn) <span style="color: rgb(196, 181, 253);">return true</span>;<br>
+          &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (!user) <span style="color: rgb(196, 181, 253);">return</span> ROLLOUT.anonymous;&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// always true post-wave 3</span><br>
+          &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">return</span> <span style="color: rgb(147, 197, 253);">hashCohort</span>(user.id) &lt; ROLLOUT.authenticatedPercent;<br>
+          }
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Safety at every step. Real user data informs ramp decisions. Rollback without deploy. 4 weeks of dual-path code is finite and bounded. Opt-in alpha generates testimonials + feedback. Existing users never get surprised.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> 4-6 week rollout calendar. Dual UI paths exist briefly (shared shell minimizes this). Flag infrastructure needs to be reliable.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Stealth drop · ship, don't announce, observe</h3>
+      <p>Ship quietly. No announcement. Monitor closely. Add announcement 1 week later if metrics look good.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Low-key launch.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Still big-bang underneath. Existing users get surprise UI change with no opt-in. Support load still spikes.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why C -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY C · PHASED RAMP WITH ROLLBACK</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Every wave earns the next one.</strong> Internal proves it works. Alpha opt-in proves users like it. Anonymous proves new-user funnel is good. 10% authenticated proves it scales. 50% proves it doesn't break. 100% is just closing the loop.<br><br>
+    <strong>Anonymous-first is clever.</strong> Logged-out users have no muscle memory → no confusion. They become the proof-of-concept cohort before you touch authenticated users.<br><br>
+    <strong>Kill switches are non-negotiable.</strong> Hitting auto-rollback triggers means a problem was caught at 10% instead of 100%. That's the entire point.<br><br>
+    <strong>4-week calendar is realistic.</strong> Section 5 estimated 58h for implementation. Add 4 weeks for rollout on top = ~2 months total from code-complete to 100%.
+  </div>
+</div>
+
+<!-- FINAL -->
+<div style="margin-top: 32px; background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(236,72,153,0.1)); border: 1px solid rgba(124, 58, 237, 0.35); border-radius: 12px; padding: 18px; text-align: center;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">🎉 THIS IS Q20 · THE FINAL DEEP-DIVE QUESTION</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.6;">
+    After you answer this, I'll consolidate all 20 answers + the 6 design sections into a formal design spec at<br>
+    <code>docs/superpowers/specs/2026-04-20-lld-beginner-mode-design.md</code>, commit to git, and hand to you for review.<br><br>
+    Then we move to the implementation plan (via the writing-plans skill).
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. This is the last one.
+  </p>
+</div>

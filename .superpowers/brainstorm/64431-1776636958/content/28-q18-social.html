@@ -1,0 +1,131 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 18 of 20</strong> — social &amp; sharing surface. Viral growth vs scope.
+  </div>
+</div>
+
+<h2>Q18 · What's shareable outside the app?</h2>
+<p class="subtitle">Your research file 11 lists <em>"Multiplayer Battles"</em> and <em>"Peer Review"</em> as P2 innovation features. But sharing is different — it's about getting <strong>external</strong> attention for the work you did inside the app. LinkedIn, Twitter, group chats.</p>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>No social · V1 is solo learning</h3>
+      <p>No leaderboards, no shareable cards, no public profiles. Focus is pure learning. Add later if needed.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Cleanest scope. No moderation overhead.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Loses viral growth. Users can't show off progress — reduces organic acquisition.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Minimal · URL sharing only</h3>
+      <p>Already designed in Q3/§4: deep-link URLs like <code>/modules/lld?mode=learn&amp;pattern=observer</code>. User shares URL in Slack, recipient sees the same lesson. No images, no cards, no profiles.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Already free from Q3.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Plain URLs don't render nicely on Twitter/LinkedIn. Low signal.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Light social · shareable grade cards + optional public profile</h3>
+      <p>Three surfaces, no leaderboards, no competition:</p>
+
+      <!-- Surface 1 -->
+      <div style="margin-top: 14px; background: rgba(251, 191, 36, 0.06); border-left: 3px solid rgb(251, 191, 36); padding: 12px 14px; border-radius: 0 6px 6px 0;">
+        <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; margin-bottom: 8px;">① DRILL SHARE CARDS · dynamic OG image on ⭐ 90+ grade</div>
+
+        <!-- OG card mockup -->
+        <div style="background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(236,72,153,0.15)); border: 1px solid rgba(124,58,237,0.35); border-radius: 8px; padding: 14px; margin-top: 8px; position: relative;">
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(rgb(251, 191, 36) 0deg, rgb(251, 191, 36) 342deg, rgba(255,255,255,0.1) 342deg); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 48px; height: 48px; background: rgb(17, 24, 39); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: rgb(251, 191, 36);">95</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 700;">Designed Parking Lot in 24:12</div>
+              <div style="font-size: 10px; color: rgb(229, 231, 235); margin-top: 2px;">on Architex · 18 classes · 0 hints used</div>
+              <div style="display: flex; gap: 4px; margin-top: 6px;">
+                <div style="background: rgba(110,231,183,0.2); color: rgb(110, 231, 183); font-size: 9px; padding: 2px 6px; border-radius: 10px;">Factory Method</div>
+                <div style="background: rgba(110,231,183,0.2); color: rgb(110, 231, 183); font-size: 9px; padding: 2px 6px; border-radius: 10px;">State</div>
+                <div style="background: rgba(110,231,183,0.2); color: rgb(110, 231, 183); font-size: 9px; padding: 2px 6px; border-radius: 10px;">Singleton</div>
+              </div>
+            </div>
+            <div style="font-size: 20px;">⭐</div>
+          </div>
+          <div style="position: absolute; bottom: 6px; right: 10px; font-size: 9px; color: rgb(156, 163, 175);">architex.app</div>
+        </div>
+        <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px; line-height: 1.5;">Server-rendered OG image (Next.js <code>/api/og</code> already exists). Previews in Twitter/LinkedIn/Slack as a rich card. Tap → open drill problem page.</div>
+      </div>
+
+      <!-- Surface 2 -->
+      <div style="margin-top: 10px; background: rgba(110, 231, 183, 0.06); border-left: 3px solid rgb(110, 231, 183); padding: 12px 14px; border-radius: 0 6px 6px 0;">
+        <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; margin-bottom: 6px;">② OPTIONAL PUBLIC PROFILE · <code>/profile/[username]</code></div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+          Off by default. Settings toggle: <em>"Make my profile public"</em>. If on: shows patterns mastered count, streak, achievements, drill pass rate. Never shows individual drill scores (just aggregate). Username customizable. <strong>Linkable from LinkedIn.</strong>
+        </div>
+      </div>
+
+      <!-- Surface 3 -->
+      <div style="margin-top: 10px; background: rgba(147, 197, 253, 0.06); border-left: 3px solid rgb(147, 197, 253); padding: 12px 14px; border-radius: 0 6px 6px 0;">
+        <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; margin-bottom: 6px;">③ DIAGRAM SHARE · existing gallery mechanism</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+          Already exists: <code>gallerySubmissions</code> table. From Build mode, "Share to gallery" posts a named diagram publicly. OG card generated per-diagram. Already-built infrastructure.
+        </div>
+      </div>
+
+      <!-- Deferred -->
+      <div style="margin-top: 14px; background: rgba(0,0,0,0.3); padding: 12px 14px; border-radius: 6px;">
+        <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; margin-bottom: 4px;">DEFERRED TO V2 · explicitly not in scope</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+          ❌ Leaderboards (global rankings, friends rankings) · ❌ Multiplayer battles (1v1) · ❌ Comments on shared diagrams · ❌ Follow-other-users · ❌ Public drill history<br>
+          These are P2 innovation features — build when user base supports it.
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Viral growth vehicle (OG cards). LinkedIn-shareable profile = career marketing for users. Reuses existing <code>/api/og</code> + <code>gallerySubmissions</code>. No moderation overhead (no comments, no DMs). Excellent effort/return ratio.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> Share card design takes polish iteration. ~10h for 3 surfaces + dynamic OG.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Full social · leaderboards, multiplayer, comments</h3>
+      <p>Every feature from the P2 innovation list. Full community platform.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Sticky community.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Moderation burden. Spam/abuse/trolling. Doubles scope. Requires active user base to not feel dead (chicken-egg).
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why C -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY C · SHARE, DON'T COMPETE</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Interview prep pros don't want leaderboards.</strong> Competition is their day job. They want <em>private</em> improvement with <em>public</em> credentials.<br><br>
+    <strong>OG cards are asymmetric viral.</strong> Every 95+ grade tweet = 3-10 new anonymous visitors. Zero effort to build that loop after infrastructure exists. "I solved Parking Lot in 24 minutes" with rich preview = perfect developer-Twitter content.<br><br>
+    <strong>LinkedIn profile is career gold.</strong> "Certified in 22 GoF design patterns via Architex" is shareable. Users bragging = free marketing.<br><br>
+    <strong>Gallery already exists.</strong> <code>gallerySubmissions</code> table, upvote logic, public submissions — all in the DB today. Just wire the UI, ship.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q19 — <em>observability &amp; analytics (what events do we track)?</em>
+  </p>
+</div>

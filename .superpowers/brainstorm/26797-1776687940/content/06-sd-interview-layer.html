@@ -1,0 +1,409 @@
+<div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">⏱</div>
+  <div style="font-size: 12px; color: rgb(251, 191, 36); line-height: 1.5;">
+    <strong>Batch 6 of 10 · Interview prep layer.</strong> System Design interviews — the 45-minute FAANG ritual. Turning Build + Drill + AI + Canvas into the best SD prep tool in existence.
+  </div>
+</div>
+
+<h2>The premise · SD interview is its own animal</h2>
+<p class="subtitle">LLD drills ask "implement these classes". SD interviews ask "design Twitter in 45 minutes, also explain every tradeoff". They have a 5-stage structure candidates routinely bomb. Every FAANG pays $400k+ for this skill. Every existing prep tool (Educative, ByteByteGo, Grokking) ships static content. Ours ships a living canvas + real interviewer + real stakes. This batch designs that layer.</p>
+
+<!-- ========== PRINCIPLE ========== -->
+<div style="margin-top: 20px; background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.25); border-radius: 12px; padding: 18px;">
+  <div style="display: flex; gap: 14px; align-items: flex-start;">
+    <div style="font-size: 32px; line-height: 1;">🎯</div>
+    <div>
+      <div style="font-size: 10px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">THE 45-MINUTE PRINCIPLE</div>
+      <div style="font-size: 13px; color: rgb(229, 231, 235); line-height: 1.7; font-style: italic;">
+        "You don't design Twitter in 45 minutes. You <em>perform</em> designing Twitter in 45 minutes — while the interviewer watches you think."
+      </div>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); line-height: 1.6; margin-top: 10px;">
+        The SD interview is two games at once: the <strong>design game</strong> (is the architecture correct?) and the <strong>performance game</strong> (did you clarify? estimate? justify? respond to pushback?). Most candidates obsess over the first and lose on the second. Our interview layer trains both simultaneously — by making the performance game visible, gradable, repeatable.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Q17 STAGE STRUCTURE ========== -->
+<h2 style="margin-top: 28px;">Q17 · Enforce the 5-stage structure?</h2>
+<p class="subtitle">Real SD interviews follow a predictable arc. Strong candidates move through it deliberately. Weak ones skip straight to boxes-and-arrows. Do we <em>enforce</em> the stages in UI?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · FREE-FORM</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User gets canvas + problem statement. Draws whatever they want. No stage enforcement. Grading based on what they produced by timer-end.
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> matches real interview freedom. <em>Cons:</em> beginners skip clarification, fail fast.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · GATED STAGES</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Five explicit stages. User can't advance without a minimum commitment. Canvas unlocks only after clarifying. Deep-dive unlocks only after high-level design.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.9;">
+      <span style="color: rgb(110, 231, 183);">① CLARIFY</span> · 5 min · ask 3 questions, get constraints<br>
+      <span style="color: rgb(147, 197, 253);">② ESTIMATE</span> · 5 min · Fermi math on QPS/storage<br>
+      <span style="color: rgb(251, 191, 36);">③ HIGH-LEVEL DESIGN</span> · 15 min · canvas, main components<br>
+      <span style="color: rgb(251, 146, 60);">④ DEEP DIVE</span> · 15 min · interviewer picks 1-2 components<br>
+      <span style="color: rgb(196, 181, 253);">⑤ TRADE-OFFS &amp; FOLLOW-UP</span> · 5 min · Q&A, alternatives
+    </div>
+    <div style="font-size: 10px; color: rgb(110, 231, 183); margin-top: 8px;"><em>Pros:</em> teaches the arc. <em>Cons:</em> feels on-rails at first.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · STAGES BUT ADVISORY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Stages shown in top bar with elapsed time. User can move freely but gets "you're 12 min in and haven't clarified anything — interviewers note this" nudges. Penalty at grade time, not locked in UI.
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> flexibility + awareness. <em>Cons:</em> some users ignore.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · PERSONA-SCALED</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Rookie: gated (B). Journeyman: advisory (C). Architect: free-form (A). Matches skill level. Requires more UX work but honors learner.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q18 MODES ========== -->
+<h2 style="margin-top: 28px;">Q18 · Interview modes to ship (multi-select)</h2>
+<p class="subtitle">Different users want different stakes. Not every session is a high-pressure timed mock.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em;">① STUDY MODE ⭐</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">must-ship</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      No timer. Unlimited hints. User learns the problem shape. Canonical solution revealable at any time. For first-time exposure to a problem.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em;">② TIMED MOCK ⭐</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">must-ship</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      45- or 60-minute timer. Pauses permitted (with warning). Hints available but cost rubric points. Simulates the real thing.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em;">③ EXAM MODE ⭐</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">the stress-test</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      45 min. No pauses. No hints. No canvas templates. Graded end-of-session. Tracks cumulative streak. The "can I do this when it matters?" mode.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em;">④ PAIR MODE ⭐</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">our moat</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AI (Sonnet) interviews live. Asks clarifying Qs. Pushes on weak spots. Drops hints when stuck. Real back-and-forth via text OR voice. <strong>Nothing else in market does this at this depth.</strong>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em;">⑤ REVIEW MODE</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">reuse past</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Replay any past attempt with annotations. See your reasoning. Compare to canonical at each stage. Rewinds are free; no penalty.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em;">⑥ FULL-STACK LOOP</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">cross-module</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      90-min double session. SD round (45) then LLD round (45). Mirrors actual FAANG onsite. Same problem in two lenses ("design Uber at scale → now implement dispatch algo"). Deep cross-module integration.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em;">⑦ VERBAL MODE</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">hard-mode</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Mic on. User narrates design aloud while drawing. AI transcribes + grades verbal explanation quality. Simulates whiteboard-talking-to-human-at-Google.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q19 INTERVIEWER PERSONAS ========== -->
+<h2 style="margin-top: 28px;">Q19 · AI interviewer personas (multi-select)</h2>
+<p class="subtitle">One AI, many voices. Different personas drill different muscles.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">① THE STAFF ENGINEER ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Senior+ at big tech. Asks for tradeoffs on everything. "Why CDN here?" "Why not this instead?" Warm but rigorous. Default persona.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">② THE BAR-RAISER ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Amazon-style. Probes for weakness. "What happens if your cache is cold?" "You said 10k rps — defend that number." Intentionally adversarial but fair.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">③ THE COACH</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Bootcamp instructor vibe. Drops gentle hints when stuck. "Have you thought about caching?" Scores less harshly. For warmup sessions.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">④ THE SKEPTIC</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Meta-engineer style. "Prove it'll work." "What's your p99?" "Why this and not Kafka?" Forces quantification at every step.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">⑤ THE PRINCIPAL</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "So we did this in 2018 and it didn't work because..." Drops real-world war stories mid-interview. Tests if candidate can absorb prior context.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">⑥ THE INDUSTRY SPECIALIST</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Switches persona by problem domain. Fintech-interviewer for payments. Gaming-interviewer for matchmaking. Context-appropriate lens.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">⑦ THE COMPANY PRESET</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Named presets: "Google Bar-Raiser", "Meta L5 Loop", "Amazon Leadership Principles", "Stripe Senior Eng". Each persona rubric-tuned to real feedback.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">⑧ THE SILENT WATCHER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Barely speaks. Occasional "hmm" or "go on". Simulates interviewers who want you to drive. Hardest mode — no external structure.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q20 PROBLEM CURATION ========== -->
+<h2 style="margin-top: 28px;">Q20 · Problem set curation — how do we organize 30 problems?</h2>
+<p class="subtitle">From Batch 3 we locked 30 problems across 6 domains. Now: how do we present them for interview prep?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION A · MULTI-LENS BROWSE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User filters problems by:
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.9;">
+      <strong>By domain</strong> · Media · Location · Storage · Commerce · Search · Infra<br>
+      <strong>By difficulty</strong> · Warmup → Intermediate → Hard → Staff+<br>
+      <strong>By company frequency</strong> · Top-10-at-Meta · Top-10-at-Google<br>
+      <strong>By LLD pattern</strong> · "uses Observer" · "uses Saga" · "uses Circuit Breaker"<br>
+      <strong>By concept</strong> · "teaches Consistent Hashing" · "teaches CAP"<br>
+      <strong>By chaos</strong> · "has viral-spike chaos" · "has region-outage chaos"
+    </div>
+    <div style="font-size: 10px; color: rgb(110, 231, 183); margin-top: 8px;">Cross-linked graph from Batch 3 makes this cheap.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION B · LINEAR PROGRESSION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      30 problems in fixed order. Problem 1 unlocks Problem 2. Like Leetcode's learning tracks. Simple, predictable.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · "FAANG 30" CANON</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      One landing page, 30 canonical problems. "These are THE 30." Market positioning: competitive moat vs. "150 problems" competitors. Depth &gt; breadth.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · SPACED-REPETITION QUEUE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      FSRS-5 (same algo as LLD flashcards). System serves the next problem based on "when are you likely to forget this?". Review queue doubles as interview prep. Integrated with Review mode from Batch 4.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q21 GRADE ARTIFACTS ========== -->
+<h2 style="margin-top: 28px;">Q21 · Post-interview artifacts — what gets generated?</h2>
+<p class="subtitle">End-of-session deliverables. Multi-select.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① RUBRIC BREAKDOWN ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      6-axis score: Clarification · Estimation · HL Design · Deep-Dive · Tradeoffs · Communication. Each axis 1-5. With 1-sentence rationale. Chartable over time.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② AI POST-MORTEM ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Sonnet-generated narrative: "you spent 22 min on clarification (too much). Your estimate was off by 10x. Strong move: introducing the cache mid-design. Weak moment: didn't justify single DB."
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ CANONICAL COMPARE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Side-by-side: your design vs. the canonical (from Batch 3's templates). Diff-highlighted. "Canonical uses Redis streams here — you used RabbitMQ."
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ TIMING HEATMAP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Timeline of 45 min. Where did you spend time? Compared to optimal split. Reveals time-management patterns.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ FOLLOW-UP DRILLS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "You struggled on estimation — try these 3 warmup problems." Personalized next-step queue.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ SIMULATE YOUR DESIGN</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      One-click button: "run chaos drill on your design". Link to Simulate mode (Batch 4) with user's interview design pre-loaded.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ SHAREABLE RECAP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Export as PDF (or link). Rubric + design + post-mortem. User can share with mentor, coach, or recruiter. Subtle marketing.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ STREAK &amp; STATS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Profile dashboard: # interviews done, avg rubric score, strongest/weakest axis, domain coverage. Gamifies consistency.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q22 CROSS-MODULE ========== -->
+<h2 style="margin-top: 28px;">Q22 · SD-LLD crossover in Drill mode</h2>
+<p class="subtitle">Users preparing for onsite loops face BOTH SD and LLD rounds. How much do we integrate?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · SIBLING MODULES</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Keep LLD and SD drills separate. Same UI shell, independent progress. User picks which to practice.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · LINKED + OPTIONAL LOOP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Separate drills PLUS a "Full-Stack Loop" option: 45 min SD → 10 min break → 45 min LLD on a related problem. Same canonical problem domain. User unlocks after doing 5 each.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px;">
+      <strong style="color: rgb(110, 231, 183);">Example loop:</strong><br>
+      <span style="color: rgb(156, 163, 175);">SD round:</span> "Design Uber at scale · matching + routing + payment"<br>
+      <span style="color: rgb(156, 163, 175);">LLD round:</span> "Implement the dispatch matching algo from your SD"
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · DEEP INTEGRATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      A SD design can "zoom in" on any component → triggers an LLD drill for that component. A LLD pattern can "zoom out" → triggers an SD design for "where is this pattern used at scale?". Knowledge graph wire.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · ALL THREE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Sibling drills (A) + full-stack loops (B) + zoom-in/out integration (C). Everything wired. Maximum moat. Incremental ship.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== VISUAL: INTERVIEW SHELL ========== -->
+<h2 style="margin-top: 28px;">Reference · Timed Mock interview shell (Option B stages, Option 4 pair mode)</h2>
+<p class="subtitle">For orientation — what the live interview screen looks like.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.25); border-radius: 10px; padding: 14px; margin-top: 12px;">
+  <div style="background: rgb(9, 14, 25); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 9px; line-height: 1.7; color: rgb(229, 231, 235);">
+<span style="color: rgb(251, 191, 36);">┌─ DRILL · Design Netflix · Timed Mock · The Staff Engineer ────── 18:24 / 45:00 ┐</span>
+│ <span style="color: rgb(110, 231, 183);">● CLARIFY (5)</span>  <span style="color: rgb(147, 197, 253);">● ESTIMATE (5)</span>  <span style="color: rgb(251, 191, 36);">◉ DESIGN (25)</span>  <span style="color: rgb(156, 163, 175);">○ DEEP-DIVE</span>  <span style="color: rgb(156, 163, 175);">○ Q&A</span>    │
+├───────────────────┬─────────────────────────┬───────────────────────────┤
+│ <span style="color: rgb(156, 163, 175);">PROBLEM</span>           │                         │ <span style="color: rgb(156, 163, 175);">INTERVIEWER</span>               │
+│ Design Netflix:   │                         │                           │
+│ 200M users        │   [canvas · design]     │ <span style="color: rgb(251, 191, 36);">"you mentioned 200M DAU</span>    │
+│ 60% mobile        │                         │ <span style="color: rgb(251, 191, 36);"> — can you sanity-check</span>    │
+│ 1080p + 4K        │   ●─●  CDN              │ <span style="color: rgb(251, 191, 36);"> your bandwidth number?"</span>   │
+│                   │    │                    │                           │
+│ <span style="color: rgb(156, 163, 175);">REQS (locked in)</span>  │   ●─● encoding          │ <span style="color: rgb(110, 231, 183);">YOU ▶ typing...</span>           │
+│ ✓ 10-sec startup  │        │                │                           │
+│ ✓ 99.9% uptime    │        ●  origin        │ <span style="color: rgb(147, 197, 253);">HINT (−1 pt)</span>               │
+│ ✓ global (5 rgns) │                         │ <span style="color: rgb(147, 197, 253);">SKIP STAGE</span>                 │
+│                   │                         │                           │
+│ <span style="color: rgb(156, 163, 175);">SCRATCH</span>           │                         │                           │
+│ 200M · 2hr/day    │                         │                           │
+│ = 400M hrs/day    │                         │                           │
+│ 400M·5GB=2EB/day  │                         │                           │
+├───────────────────┴─────────────────────────┴───────────────────────────┤
+│ <kbd style="background: rgb(17, 24, 39); border: 1px solid rgb(75, 85, 99); border-radius: 3px; padding: 1px 4px; font-size: 8px;">space</kbd> pause   <kbd style="background: rgb(17, 24, 39); border: 1px solid rgb(75, 85, 99); border-radius: 3px; padding: 1px 4px; font-size: 8px;">⌘N</kbd> new node   <kbd style="background: rgb(17, 24, 39); border: 1px solid rgb(75, 85, 99); border-radius: 3px; padding: 1px 4px; font-size: 8px;">⌘↵</kbd> submit stage   <kbd style="background: rgb(17, 24, 39); border: 1px solid rgb(75, 85, 99); border-radius: 3px; padding: 1px 4px; font-size: 8px;">esc</kbd> abort   │
+<span style="color: rgb(251, 191, 36);">└─────────────────────────────────────────────────────────────────────────┘</span>
+  </div>
+</div>
+
+<!-- ========== CTA ========== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 16px; margin-top: 24px;">
+  <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">YOUR PICKS · BATCH 6</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong>Q17</strong> — stage enforcement: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q18</strong> — interview modes (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦</span><br>
+    <strong>Q19</strong> — interviewer personas (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q20</strong> — problem set curation: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q21</strong> — post-interview artifacts (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q22</strong> — SD-LLD crossover: <span style="color: rgb(110, 231, 183);">A / B / C / D</span>
+  </div>
+  <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 10px;">
+    Reply with picks (e.g. "<code style="background: rgb(9, 14, 25); padding: 1px 4px; border-radius: 3px;">B · ①②③④⑤ · ①②③⑦ · A · all · B</code>") and I advance to Batch 7 · Cost &amp; scaling as learning surfaces.
+  </div>
+</div>

@@ -1,0 +1,301 @@
+<div style="background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(236,72,153,0.1)); border: 1px solid rgba(124, 58, 237, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div style="font-size: 24px;">🏁</div>
+    <div>
+      <div style="font-size: 14px; color: rgb(196, 181, 253); font-weight: 700;">Batch 10 of 10 · FINAL · Finishing touches</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5; margin-top: 4px;">After this batch, I consolidate everything (~90 ideas across 10 batches + 20 Q&amp;A + 6 design sections) into the spec.</div>
+    </div>
+  </div>
+</div>
+
+<h2>The finishing touches · 10 essentials + open field</h2>
+<p class="subtitle">Multi-select. After these, I hand you a comprehensive spec document.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <!-- B1 Smart onboarding -->
+  <div class="option" data-choice="b1" onclick="toggleSelect(this)">
+    <div class="letter">B1</div>
+    <div class="content">
+      <h3>Smart onboarding tour · 3 persona variants</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">First visit. Welcome card asks <em>"Are you here to (a) Learn from scratch, (b) Brush up for interviews, (c) Just explore?"</em>. Each answer runs a different 90-second tour highlighting relevant modes.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; text-align: center;">
+        <div style="font-size: 15px; color: rgb(229, 231, 235); font-weight: 700; margin-bottom: 4px;">👋 Welcome.</div>
+        <div style="font-size: 11px; color: rgb(156, 163, 175); margin-bottom: 14px;">What brings you here today?</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+          <div style="background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.3); padding: 10px 8px; border-radius: 6px;">
+            <div style="font-size: 16px;">📖</div>
+            <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 600; margin-top: 4px;">Learning from scratch</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175); margin-top: 2px;">tour Learn + Review</div>
+          </div>
+          <div style="background: rgba(252,165,165,0.08); border: 1px solid rgba(239,68,68,0.3); padding: 10px 8px; border-radius: 6px;">
+            <div style="font-size: 16px;">⏱️</div>
+            <div style="font-size: 10px; color: rgb(252, 165, 165); font-weight: 600; margin-top: 4px;">Interview prep</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175); margin-top: 2px;">tour Drill + AI scoring</div>
+          </div>
+          <div style="background: rgba(147,197,253,0.08); border: 1px solid rgba(147,197,253,0.3); padding: 10px 8px; border-radius: 6px;">
+            <div style="font-size: 16px;">🎨</div>
+            <div style="font-size: 10px; color: rgb(147, 197, 253); font-weight: 600; margin-top: 4px;">Just exploring</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175); margin-top: 2px;">tour Build + tools</div>
+          </div>
+        </div>
+        <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 10px; font-style: italic;">or skip tour</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B2 Inline find -->
+  <div class="option" data-choice="b2" onclick="toggleSelect(this)">
+    <div class="letter">B2</div>
+    <div class="content">
+      <h3>Inline find · ⌘F works in lessons</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Most sites break ⌘F inside scrollable lesson columns. Architex catches ⌘F, opens an inline search box, highlights matches in yellow, cycles with Enter.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(250,204,21,0.35); border-radius: 6px; padding: 6px 12px; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <div style="font-size: 10px; color: rgb(250, 204, 21);">🔍</div>
+          <div style="flex: 1; font-size: 10px; color: rgb(229, 231, 235); font-family: monospace;">instance</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175);">3 of 7</div>
+          <div style="font-size: 9px; color: rgb(250, 204, 21);">↑ ↓</div>
+        </div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">A Singleton has only one <span style="background: rgba(250,204,21,0.4); color: rgb(229,231,235); padding: 0 3px; border-radius: 2px;">instance</span>. The static method returns the cached <span style="background: rgba(250,204,21,0.25); padding: 0 3px; border-radius: 2px;">instance</span> on subsequent calls. If no <span style="background: rgba(250,204,21,0.25); padding: 0 3px; border-radius: 2px;">instance</span> exists, create one.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B3 Notification center -->
+  <div class="option" data-choice="b3" onclick="toggleSelect(this)">
+    <div class="letter">B3</div>
+    <div class="content">
+      <h3>In-app notification center · past achievements + system alerts</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <div style="font-size: 14px;">🔔</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Notifications</div>
+          <div style="background: rgb(239, 68, 68); color: white; font-size: 9px; padding: 1px 6px; border-radius: 10px;">4</div>
+          <div style="margin-left: auto; font-size: 9px; color: rgb(156, 163, 175);">Mark all read</div>
+        </div>
+        <div style="display: grid; gap: 4px;">
+          <div style="background: rgba(251,191,36,0.08); border-left: 2px solid rgb(251,191,36); padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(229,231,235); display: flex; align-items: center; gap: 6px;">
+            ⭐ <span>Observer mastered! +50 XP</span> <span style="margin-left: auto; color: rgb(156,163,175); font-size: 9px;">2h</span>
+          </div>
+          <div style="background: rgba(196,181,253,0.08); border-left: 2px solid rgb(196,181,253); padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(229,231,235); display: flex; align-items: center; gap: 6px;">
+            🔁 <span>3 patterns due for review</span> <span style="margin-left: auto; color: rgb(156,163,175); font-size: 9px;">8h</span>
+          </div>
+          <div style="background: rgba(147,197,253,0.08); border-left: 2px solid rgb(147,197,253); padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(229,231,235); display: flex; align-items: center; gap: 6px;">
+            📖 <span>New pattern added: "ReAct AI Agent"</span> <span style="margin-left: auto; color: rgb(156,163,175); font-size: 9px;">2d</span>
+          </div>
+          <div style="background: rgba(110,231,183,0.08); border-left: 2px solid rgb(110,231,183); padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(229,231,235); display: flex; align-items: center; gap: 6px;">
+            🔥 <span>14-day streak! Don't break it</span> <span style="margin-left: auto; color: rgb(156,163,175); font-size: 9px;">3d</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B4 Keyboard canvas -->
+  <div class="option" data-choice="b4" onclick="toggleSelect(this)">
+    <div class="letter">B4</div>
+    <div class="content">
+      <h3>Fully keyboard-navigable canvas · Tab through classes</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Tab moves focus class-by-class. Arrow keys move selected class. Enter edits. Delete removes. Shift+Tab reverses. Great for accessibility + power users who never want to touch the mouse.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; height: 120px; position: relative;">
+        <div style="position: absolute; top: 25px; left: 30px; width: 70px; height: 40px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 4px; font-size: 10px; color: rgb(147,197,253); display:flex; align-items:center; justify-content:center;">ClassA</div>
+        <div style="position: absolute; top: 25px; right: 30px; width: 70px; height: 40px; background: rgba(147,197,253,0.15); border: 2px solid rgb(250,204,21); border-radius: 4px; font-size: 10px; color: rgb(147,197,253); display:flex; align-items:center; justify-content:center; box-shadow: 0 0 0 4px rgba(250,204,21,0.25);">ClassB</div>
+        <div style="position: absolute; bottom: 10px; left: 10px; font-size: 9px; color: rgb(250, 204, 21); background: rgba(250,204,21,0.12); padding: 3px 8px; border-radius: 3px;">⌨ ClassB focused · Tab for next · ↵ edit · ⌫ delete</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B5 Customizable shortcuts -->
+  <div class="option" data-choice="b5" onclick="toggleSelect(this)">
+    <div class="letter">B5</div>
+    <div class="content">
+      <h3>Customizable shortcuts · rebind any key</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 10px;">KEYBOARD SHORTCUTS · edit any binding</div>
+        <div style="display: grid; gap: 4px; font-size: 10px;">
+          <div style="display: flex; align-items: center; padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">
+            <div style="color: rgb(229, 231, 235); flex: 1;">Open command palette</div>
+            <div style="background: rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 3px; font-family: monospace; color: rgb(229, 231, 235);">⌘K</div>
+            <div style="margin-left: 10px; font-size: 9px; color: rgb(196, 181, 253); cursor: pointer;">✎ rebind</div>
+          </div>
+          <div style="display: flex; align-items: center; padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">
+            <div style="color: rgb(229, 231, 235); flex: 1;">Submit drill</div>
+            <div style="background: rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 3px; font-family: monospace; color: rgb(229, 231, 235);">⌘↵</div>
+            <div style="margin-left: 10px; font-size: 9px; color: rgb(196, 181, 253); cursor: pointer;">✎ rebind</div>
+          </div>
+          <div style="display: flex; align-items: center; padding: 6px 10px; background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.3); border-radius: 4px;">
+            <div style="color: rgb(229, 231, 235); flex: 1;">Rate review · Good</div>
+            <div style="background: rgba(110,231,183,0.25); padding: 3px 8px; border-radius: 3px; font-family: monospace; color: rgb(110, 231, 183);">G</div>
+            <div style="margin-left: 10px; font-size: 9px; color: rgb(110, 231, 183);">● rebinding... press a key</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B6 Data export -->
+  <div class="option" data-choice="b6" onclick="toggleSelect(this)">
+    <div class="letter">B6</div>
+    <div class="content">
+      <h3>Own your data · export everything as portable JSON/CSV</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Settings → "Download my data" → ZIP with all progress, diagrams, notes, attempt history. GDPR-compliant, trust-building. Also: "Delete my account" explicit option.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 8px;">YOUR DATA · YOUR RIGHT</div>
+        <div style="display: grid; gap: 6px;">
+          <div style="background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.25); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 14px;">📦</div>
+            <div style="flex: 1;">
+              <div style="font-size: 10px; color: rgb(229, 231, 235); font-weight: 600;">Export all data</div>
+              <div style="font-size: 9px; color: rgb(156, 163, 175);">ZIP · progress + diagrams + notes · ~3 MB</div>
+            </div>
+            <div style="background: rgba(110,231,183,0.25); color: rgb(110, 231, 183); font-size: 9px; padding: 4px 10px; border-radius: 4px; font-weight: 600;">Download</div>
+          </div>
+          <div style="background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 14px;">🗑</div>
+            <div style="flex: 1;">
+              <div style="font-size: 10px; color: rgb(229, 231, 235); font-weight: 600;">Delete my account</div>
+              <div style="font-size: 9px; color: rgb(156, 163, 175);">Permanent · no recovery · 30-day grace</div>
+            </div>
+            <div style="color: rgb(252, 165, 165); font-size: 9px;">Request →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B7 Offline PWA -->
+  <div class="option" data-choice="b7" onclick="toggleSelect(this)">
+    <div class="letter">B7</div>
+    <div class="content">
+      <h3>Offline-first PWA · install + fully offline learning</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+          <div style="font-size: 14px;">📱</div>
+          <div style="flex: 1;">
+            <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Install Architex</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175);">Works fully offline after install</div>
+          </div>
+          <div style="background: rgb(124, 58, 237); color: white; font-size: 10px; padding: 6px 14px; border-radius: 4px; font-weight: 600;">Install</div>
+        </div>
+        <div style="display: grid; gap: 4px; font-size: 10px;">
+          <div style="display: flex; align-items: center; gap: 6px; color: rgb(110, 231, 183);">
+            <span>✓</span> Read any pattern offline
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; color: rgb(110, 231, 183);">
+            <span>✓</span> Build &amp; save diagrams offline
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; color: rgb(110, 231, 183);">
+            <span>✓</span> Run reviews offline (sync on reconnect)
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; color: rgb(250, 204, 21);">
+            <span>⚡</span> AI features need internet (gracefully degraded)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B8 Swipe gestures -->
+  <div class="option" data-choice="b8" onclick="toggleSelect(this)">
+    <div class="letter">B8</div>
+    <div class="content">
+      <h3>Swipe gestures on mobile review · Tinder-style rating</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">In Review mode on phone: swipe left = Again, down = Hard, up = Good, right = Easy. Card flings off, next review card slides in. Feels physical. <em>This is the fastest possible FSRS UI.</em></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 20px; display: flex; justify-content: center;">
+        <div style="position: relative; width: 180px; height: 240px;">
+          <div style="position: absolute; top: 10px; left: 10px; width: 160px; height: 220px; background: rgba(255,255,255,0.04); border-radius: 12px; transform: rotate(3deg);"></div>
+          <div style="position: absolute; top: 6px; left: 6px; width: 168px; height: 228px; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; transform: rotate(1.5deg);"></div>
+          <div style="position: absolute; top: 0; left: 0; width: 180px; height: 240px; background: rgb(30, 41, 59); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px;">
+            <div style="font-size: 9px; color: rgb(196, 181, 253); letter-spacing: 0.5px; margin-bottom: 8px;">§3 · OBSERVER</div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">Why is the subject unaware of concrete observer classes?</div>
+            <div style="position: absolute; bottom: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; font-size: 8px; color: rgb(156, 163, 175);">
+              <span>← Again</span>
+              <span>Easy →</span>
+            </div>
+          </div>
+          <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 9px; color: rgb(156, 163, 175);">↑ Good</div>
+          <div style="position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%); font-size: 9px; color: rgb(156, 163, 175);">↓ Hard</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B9 Error pages -->
+  <div class="option" data-choice="b9" onclick="toggleSelect(this)">
+    <div class="letter">B9</div>
+    <div class="content">
+      <h3>Error pages with personality · 404, 500, offline</h3>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+        <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; text-align: center;">
+          <div style="font-size: 28px;">🧭</div>
+          <div style="font-size: 13px; color: rgb(229, 231, 235); font-weight: 600; margin-top: 6px;">404</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 4px; line-height: 1.4;">"Every architect eventually designs themselves into a corner. Back to the diagram."</div>
+        </div>
+        <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; text-align: center;">
+          <div style="font-size: 28px;">🔧</div>
+          <div style="font-size: 13px; color: rgb(229, 231, 235); font-weight: 600; margin-top: 6px;">500</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 4px; line-height: 1.4;">"Circuit breaker tripped on our side. We're looking. Try again in a sec."</div>
+        </div>
+        <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; text-align: center;">
+          <div style="font-size: 28px;">📴</div>
+          <div style="font-size: 13px; color: rgb(229, 231, 235); font-weight: 600; margin-top: 6px;">Offline</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 4px; line-height: 1.4;">"No connection. But your cached patterns are still here."</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B10 Skip ahead -->
+  <div class="option" data-choice="b10" onclick="toggleSelect(this)">
+    <div class="letter">B10</div>
+    <div class="content">
+      <h3>"Skip ahead" for experienced users · pass-out test</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Click pattern → if you already know it, click "I know this" → mini quiz (3 hard questions). Pass = pattern marked "Completed" without reading the lesson. Fail = redirected to Learn mode. Respects experienced engineers' time.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(250,204,21,0.06); border: 1px dashed rgba(250,204,21,0.35); border-radius: 6px;">
+          <div style="font-size: 14px;">⚡</div>
+          <div style="flex: 1;">
+            <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Already know Singleton?</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Take a 3-question test — pass = mark Completed, skip the lesson</div>
+          </div>
+          <div style="background: rgba(250,204,21,0.2); color: rgb(250, 204, 21); font-size: 10px; padding: 5px 12px; border-radius: 4px; font-weight: 600;">Test me</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPEN FIELD -->
+<div style="margin-top: 40px; background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(110,231,183,0.05)); border: 1px solid rgba(110,231,183,0.3); border-radius: 14px; padding: 24px;">
+  <div style="font-size: 12px; color: rgb(110, 231, 183); letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px;">🌱 OPEN FIELD</div>
+  <h3 style="margin-top: 0; color: rgb(229, 231, 235);">Anything we missed? Any wild idea?</h3>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7; margin-bottom: 16px;">
+    We've covered 10 batches · ~90 ideas · 20 Q&amp;A locks · 6 design sections. But <strong>what's in your head that I haven't asked about?</strong> Could be anything:
+  </div>
+  <ul style="font-size: 11px; color: rgb(156, 163, 175); line-height: 1.9; margin: 0; padding-left: 20px;">
+    <li>A specific problem you've experienced when learning LLD</li>
+    <li>A UI pattern from another product you love ("like Linear's X")</li>
+    <li>A business model idea</li>
+    <li>A demographic you want to target (e.g., college students, bootcampers, indie devs)</li>
+    <li>A tech integration (GitHub, Figma, Notion sync)</li>
+    <li>A content angle (video essays, comics, audio drama)</li>
+    <li>A delight moment you fantasize about</li>
+    <li>A feature competitors have that you want beaten</li>
+    <li>An accessibility angle we haven't touched</li>
+    <li>Anything else. Really anything.</li>
+  </ul>
+  <div style="margin-top: 16px; background: rgba(0,0,0,0.3); border: 1px dashed rgba(110,231,183,0.3); border-radius: 8px; padding: 14px; font-style: italic; color: rgb(156, 163, 175); font-size: 11px;">
+    → Reply in terminal with anything. Even half-formed. I'll integrate it into the spec.
+  </div>
+</div>
+
+<!-- FINAL WRAP -->
+<div style="margin-top: 32px; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 18px; text-align: center;">
+  <div style="font-size: 14px; color: rgb(229, 231, 235); font-weight: 700; margin-bottom: 6px;">After this: spec consolidation</div>
+  <div style="font-size: 11px; color: rgb(156, 163, 175); line-height: 1.6;">
+    Reply with your B1-B10 picks + any open-field ideas.<br>
+    Then I write <code>docs/superpowers/specs/2026-04-20-lld-beginner-mode-design.md</code> — a single document capturing <strong>every</strong> decision.<br>
+    You review it. We proceed to implementation plan when you're happy.
+  </div>
+</div>

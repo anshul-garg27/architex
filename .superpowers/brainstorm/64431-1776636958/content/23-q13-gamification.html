@@ -1,0 +1,151 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 13 of 20</strong> — gamification surfacing. Your audience is mostly interview-prep pros — tone matters more than with students.
+  </div>
+</div>
+
+<h2>Q13 · How loud is streak / XP / achievements in the new UI?</h2>
+<p class="subtitle">Your codebase has <code>StreakCounter.tsx</code>, 30+ achievements in 4 rarity tiers, and <code>progress-store</code> tracks XP. But interview-prep pros aren't 10-year-olds on Duolingo. Calibrate the vibe.</p>
+
+<!-- REFERENCES -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">🎚️ GAMIFICATION VOLUME DIAL</div>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 10px;">
+    <div style="background: rgba(239,68,68,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(252, 165, 165); font-weight: 700;">🔊🔊🔊 Duolingo</div>
+      <div style="color: rgb(156, 163, 175); margin-top: 3px;">XP burst, streak fire, league, gems, sound effects, push notifications</div>
+    </div>
+    <div style="background: rgba(250,204,21,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(250, 204, 21); font-weight: 700;">🔊🔊 Brilliant</div>
+      <div style="color: rgb(156, 163, 175); margin-top: 3px;">Streak visible, progress bars, some celebration, no XP spray</div>
+    </div>
+    <div style="background: rgba(110,231,183,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(110, 231, 183); font-weight: 700;">🔊 LeetCode</div>
+      <div style="color: rgb(156, 163, 175); margin-top: 3px;">Submission stats, streak count, badges, mostly passive</div>
+    </div>
+    <div style="background: rgba(147,197,253,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(147, 197, 253); font-weight: 700;">🔇 GitHub</div>
+      <div style="color: rgb(156, 163, 175); margin-top: 3px;">Contribution graph. Achievements exist but feel incidental</div>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Loud · Duolingo-style</h3>
+      <p>XP spray on every correct answer. Level-up explosions. Daily streak push notifications. Sounds on checkpoint correct. Leaderboards.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Proven retention hook. Habit forming.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Feels juvenile to a 30-yo Staff Engineer prepping for Meta. Risks brand damage — "isn't this supposed to be serious?"
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Quiet · dashboard-only stats</h3>
+      <p>Zero in-mode surfacing. Streak, achievements, XP all live in the Dashboard page. Drill and Learn show no gamification UI at all.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Pure. Respects pros.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Loses the daily-habit loop. Streak that's invisible doesn't motivate the comeback.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Calibrated · visible but adult</h3>
+      <p>3-tier philosophy:</p>
+
+      <!-- 3 tiers -->
+      <div style="margin-top: 12px; display: grid; gap: 10px;">
+
+        <div style="background: rgba(110, 231, 183, 0.08); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; margin-bottom: 6px;">① ALWAYS VISIBLE · subtle pill in shell chrome</div>
+          <div style="background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span style="font-size: 10px; color: rgb(252, 165, 165); font-weight: 600;">🔥 7</span>
+            <span style="color: rgb(107, 114, 128); font-size: 10px;">·</span>
+            <span style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 600;">★ 12/36</span>
+          </div>
+          <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+            Only two numbers: <strong>streak days</strong> and <strong>patterns mastered</strong>. No XP number visible. Single pill, right side of top nav. Clickable → opens Dashboard.
+          </div>
+        </div>
+
+        <div style="background: rgba(250, 204, 21, 0.08); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; margin-bottom: 6px;">② MOMENT-OF-EARNING · celebrate, then fade</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+            <strong>Unlocks achievements:</strong> toast in bottom-right, 4s, with rarity glow — <em>"🎖️ Achievement: Pattern Sensei (Rare) — 10 patterns mastered"</em>. One tap to share or dismiss.<br><br>
+            <strong>Streak milestones (7, 14, 30, 100):</strong> subtle full-screen moment with confetti on milestone crossings only. Not every day.<br><br>
+            <strong>Drill 90+:</strong> (already in Q10) tier-based confetti.<br><br>
+            <strong>Never:</strong> XP bursts on every correct answer. No level-ups. No sound effects by default.
+          </div>
+        </div>
+
+        <div style="background: rgba(147, 197, 253, 0.08); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; margin-bottom: 6px;">③ DASHBOARD PAGE · deep stats for the curious</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+            Full gamification surface lives at <code>/dashboard</code>: XP total, levels (if kept), achievement grid with locked/unlocked + progress toward locked ones, streak history heatmap, skill radar, FSRS review calendar. <strong>Opt-in depth for gamification lovers.</strong>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- XP verdict -->
+      <div style="margin-top: 12px; background: rgba(0,0,0,0.3); padding: 10px 14px; border-radius: 6px; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+        <strong style="color: rgb(250, 204, 21);">XP verdict:</strong> Keep in DB (don't rip out — it's already there) but <strong>don't surface it anywhere except Dashboard</strong>. Streak and "patterns mastered" are the ambient signals. XP is the power-user detail.
+      </div>
+
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Streak creates daily habit without looking juvenile. Achievement moments feel earned. Dashboard satisfies gamification-curious without polluting main surfaces. Tone matches interview-prep audience.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> Less "dopamine per second" than Duolingo. That's a feature.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>User-configurable · toggle in settings</h3>
+      <p>Settings has a "Gamification volume" slider: Off / Subtle / Full. User picks their preference.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Everyone happy.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> 3x UI states to maintain. Most users never touch settings — default still matters. Punt the real decision.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why C -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY C · ADULT GAMIFICATION</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Interview-prep pros are the target persona.</strong> They'll check the platform at 11pm after work. XP bursts annoy. Streak fire motivates. Know the difference.<br><br>
+    <strong>"Patterns mastered X/36" is the best progress metric.</strong> Concrete, meaningful, career-relevant ("I've mastered 22 of 36 GoF patterns"). Shareable ("look what I've learned") — unlike XP which is meaningless to anyone outside.<br><br>
+    <strong>Streak is the adult habit loop.</strong> Not "don't break your streak or your league drops!" but quiet "🔥 7". Users who care, see it. Users who don't, ignore it. Jiff 30-day milestone lands because it's earned.<br><br>
+    <strong>Dashboard for gamification-depth users.</strong> The 5% who love stats get their corner. The 95% who want to learn get a clean workspace.
+  </div>
+</div>
+
+<!-- Reuses -->
+<div style="margin-top: 18px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px;">
+  <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">REUSES EXISTING</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <code>StreakCounter.tsx</code> (exists, repurpose as compact pill) · <code>progress-store</code> (XP + streak tracking) · <code>achievements</code> + <code>userAchievements</code> tables (30+ achievements seeded) · <code>notification-store</code> (toast system for earn moments) · Dashboard page exists at <code>/dashboard</code>.<br><br>
+    New work ≈ refactor StreakCounter into compact pill for top nav (2h) + achievement unlock toast template (3h) + streak milestone celebration screen (4h) ≈ <strong>9h total</strong>.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q14 — <em>keyboard navigation (power-user shortcuts in each mode)</em>.
+  </p>
+</div>

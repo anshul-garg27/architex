@@ -1,0 +1,285 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 6 of 20</strong> — mobile &amp; responsive layout. Architex is desktop-first today. What's the strategy when a user opens LLD on a phone?
+  </div>
+</div>
+
+<h2>Q6 · How ambitious is mobile support?</h2>
+<p class="subtitle">We have 4 modes. Each one has a different feasibility on small screens. <strong>Not every mode should pretend to be mobile-friendly</strong> — some experiences are fundamentally desktop activities.</p>
+
+<!-- MODE-BY-MODE FEASIBILITY -->
+<h3 style="margin-top: 28px;">Feasibility per mode · the honest truth</h3>
+
+<div style="display: grid; gap: 12px; margin-top: 14px;">
+
+  <!-- REVIEW · mobile-gold -->
+  <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 14px 18px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-size: 20px;">🔁</div>
+      <div style="flex: 1;">
+        <div style="font-size: 12px; color: rgb(110, 231, 183); font-weight: 700;">REVIEW · MOBILE-GOLD ⭐⭐⭐⭐⭐</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 2px;">Already minimal. One question + 3 options + rating buttons. <strong>Better on phone than desktop.</strong> This is your daily-driver mobile experience.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEARN · feasible -->
+  <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 14px 18px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-size: 20px;">📖</div>
+      <div style="flex: 1;">
+        <div style="font-size: 12px; color: rgb(147, 197, 253); font-weight: 700;">LEARN · FEASIBLE WITH ADAPTATION ⭐⭐⭐</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 2px;">3-col breaks, but lesson content works on phone. <strong>Canvas becomes tap-to-expand; scroll-sync replaced with inline diagram cards.</strong> Reading + checkpoints work great.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DRILL · painful but possible -->
+  <div style="background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 10px; padding: 14px 18px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-size: 20px;">⏱️</div>
+      <div style="flex: 1;">
+        <div style="font-size: 12px; color: rgb(250, 204, 21); font-weight: 700;">DRILL · FEASIBLE BUT COMPROMISED ⭐⭐</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 2px;">UML editing on touch is painful. <strong>Mobile drill = read-only history + restart on desktop nudge.</strong> Or build a <em>"sketch on paper, snap photo"</em> text-describe alternative (expensive, v2).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUILD · desktop-only -->
+  <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; padding: 14px 18px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-size: 20px;">🎨</div>
+      <div style="flex: 1;">
+        <div style="font-size: 12px; color: rgb(252, 165, 165); font-weight: 700;">BUILD · DESKTOP-ONLY ⭐</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 2px;">4-panel layout + React Flow + drag-drop + 75+ nodes + properties editor. <strong>Pretending this works on mobile is worse than not shipping it.</strong> Show "Best on desktop" nudge with email-me-a-link.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BREAKPOINT MOCKUPS -->
+<h3 style="margin-top: 36px;">How each mode looks at each breakpoint</h3>
+<p class="subtitle">Visual comparison · desktop (1280+) · tablet (768-1279) · mobile (&lt;768)</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-top: 14px;">
+  <!-- Table -->
+  <div style="display: grid; grid-template-columns: 80px 1fr 1fr 1fr; gap: 8px;">
+    <!-- Header row -->
+    <div></div>
+    <div style="text-align: center; font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; padding-bottom: 6px;">💻 DESKTOP · 1280+</div>
+    <div style="text-align: center; font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; padding-bottom: 6px;">📱 TABLET · 768-1279</div>
+    <div style="text-align: center; font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; padding-bottom: 6px;">📱 MOBILE · &lt;768</div>
+
+    <!-- LEARN row -->
+    <div style="background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgb(110, 231, 183); font-weight: 600;">📖 Learn</div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px;">
+      <div style="display: grid; grid-template-columns: 30% 40% 30%; gap: 3px; height: 70px;">
+        <div style="background: rgba(16,185,129,0.15); border-radius: 3px;"></div>
+        <div style="background: rgba(255,255,255,0.06); border-radius: 3px;"></div>
+        <div style="background: rgba(124,58,237,0.15); border-radius: 3px;"></div>
+      </div>
+      <div style="font-size: 8px; color: rgb(156, 163, 175); text-align: center; margin-top: 4px;">3-col · scroll-sync</div>
+    </div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px;">
+      <div style="display: grid; grid-template-columns: 45% 55%; gap: 3px; height: 70px;">
+        <div style="background: rgba(255,255,255,0.06); border-radius: 3px;"></div>
+        <div style="background: rgba(124,58,237,0.15); border-radius: 3px;"></div>
+      </div>
+      <div style="font-size: 8px; color: rgb(156, 163, 175); text-align: center; margin-top: 4px;">2-col · sidebar as drawer</div>
+    </div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px;">
+      <div style="display: flex; flex-direction: column; gap: 2px; height: 70px;">
+        <div style="background: rgba(255,255,255,0.06); border-radius: 3px; height: 10px;"></div>
+        <div style="background: rgba(255,255,255,0.03); border-radius: 3px; height: 18px;"></div>
+        <div style="background: rgba(124,58,237,0.15); border-radius: 3px; flex: 1;"></div>
+      </div>
+      <div style="font-size: 8px; color: rgb(156, 163, 175); text-align: center; margin-top: 4px;">stack · inline diagrams</div>
+    </div>
+
+    <!-- BUILD row -->
+    <div style="background: rgba(59, 130, 246, 0.1); padding: 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgb(147, 197, 253); font-weight: 600;">🎨 Build</div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px;">
+      <div style="display: grid; grid-template-columns: 25% 50% 25%; gap: 3px; height: 56px;">
+        <div style="background: rgba(59,130,246,0.15); border-radius: 3px;"></div>
+        <div style="background: rgba(255,255,255,0.06); border-radius: 3px;"></div>
+        <div style="background: rgba(59,130,246,0.15); border-radius: 3px;"></div>
+      </div>
+      <div style="height: 10px; background: rgba(59,130,246,0.1); border-radius: 3px; margin-top: 3px;"></div>
+      <div style="font-size: 8px; color: rgb(156, 163, 175); text-align: center; margin-top: 4px;">full 4-panel</div>
+    </div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px;">
+      <div style="display: grid; grid-template-columns: 30% 70%; gap: 3px; height: 56px;">
+        <div style="background: rgba(59,130,246,0.15); border-radius: 3px;"></div>
+        <div style="background: rgba(255,255,255,0.06); border-radius: 3px;"></div>
+      </div>
+      <div style="height: 10px; background: rgba(59,130,246,0.1); border-radius: 3px; margin-top: 3px;"></div>
+      <div style="font-size: 8px; color: rgb(156, 163, 175); text-align: center; margin-top: 4px;">props &amp; bottom = drawers</div>
+    </div>
+    <div style="background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+      <div style="font-size: 14px;">🚫</div>
+      <div style="font-size: 8px; color: rgb(252, 165, 165); font-weight: 600; margin-top: 2px;">"Best on desktop"</div>
+      <div style="font-size: 7px; color: rgb(156, 163, 175); margin-top: 2px;">send link to inbox</div>
+    </div>
+
+    <!-- DRILL row -->
+    <div style="background: rgba(250, 204, 21, 0.1); padding: 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgb(250, 204, 21); font-weight: 600;">⏱️ Drill</div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px;">
+      <div style="height: 12px; background: rgba(239,68,68,0.15); border-radius: 3px; margin-bottom: 3px;"></div>
+      <div style="display: grid; grid-template-columns: 25% 55% 20%; gap: 3px; height: 56px;">
+        <div style="background: rgba(239,68,68,0.1); border-radius: 3px;"></div>
+        <div style="background: rgba(255,255,255,0.06); border-radius: 3px;"></div>
+        <div style="background: rgba(239,68,68,0.1); border-radius: 3px;"></div>
+      </div>
+      <div style="font-size: 8px; color: rgb(156, 163, 175); text-align: center; margin-top: 4px;">queue + canvas + hints</div>
+    </div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px;">
+      <div style="height: 12px; background: rgba(239,68,68,0.15); border-radius: 3px; margin-bottom: 3px;"></div>
+      <div style="display: grid; grid-template-columns: 100%; gap: 3px; height: 56px;">
+        <div style="background: rgba(255,255,255,0.06); border-radius: 3px;"></div>
+      </div>
+      <div style="font-size: 8px; color: rgb(156, 163, 175); text-align: center; margin-top: 4px;">queue &amp; hints = drawers</div>
+    </div>
+    <div style="background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.2); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+      <div style="height: 12px; background: rgba(239,68,68,0.15); border-radius: 3px; width: 80%; margin: 0 auto 6px;"></div>
+      <div style="font-size: 8px; color: rgb(250, 204, 21); font-weight: 600;">History only</div>
+      <div style="font-size: 7px; color: rgb(156, 163, 175); margin-top: 1px;">"Drill on desktop"</div>
+    </div>
+
+    <!-- REVIEW row (hero) -->
+    <div style="background: rgba(124, 58, 237, 0.15); padding: 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgb(196, 181, 253); font-weight: 600; border: 2px solid rgba(124,58,237,0.4);">🔁 Review</div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px; display: flex; align-items: center; justify-content: center;">
+      <div style="width: 70%; height: 56px; background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.25); border-radius: 6px; padding: 4px;">
+        <div style="height: 4px; background: rgba(124,58,237,0.3); border-radius: 2px;"></div>
+        <div style="margin-top: 8px; font-size: 7px; color: rgb(196, 181, 253);">Question?</div>
+        <div style="margin-top: 3px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+          <div style="height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+          <div style="height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px; display: flex; align-items: center; justify-content: center;">
+      <div style="width: 80%; height: 56px; background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.25); border-radius: 6px; padding: 4px;">
+        <div style="height: 4px; background: rgba(124,58,237,0.3); border-radius: 2px;"></div>
+        <div style="margin-top: 8px; font-size: 7px; color: rgb(196, 181, 253);">Question?</div>
+        <div style="margin-top: 3px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="height: 5px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+          <div style="height: 5px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+          <div style="height: 5px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="background: rgba(124,58,237,0.15); border: 2px solid rgba(124,58,237,0.4); border-radius: 6px; padding: 6px;">
+      <div style="height: 3px; background: rgba(124,58,237,0.4); border-radius: 2px; margin-bottom: 6px;"></div>
+      <div style="font-size: 8px; color: rgb(196, 181, 253);">Question?</div>
+      <div style="margin-top: 6px; display: flex; flex-direction: column; gap: 3px;">
+        <div style="height: 12px; background: rgba(255,255,255,0.1); border-radius: 4px;"></div>
+        <div style="height: 12px; background: rgba(255,255,255,0.1); border-radius: 4px;"></div>
+        <div style="height: 12px; background: rgba(255,255,255,0.1); border-radius: 4px;"></div>
+      </div>
+      <div style="font-size: 8px; color: rgb(196, 181, 253); font-weight: 600; text-align: center; margin-top: 4px;">🌟 HERO ON MOBILE</div>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<h3 style="margin-top: 36px;">Four strategies</h3>
+
+<div class="options" style="margin-top: 14px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Full responsive everywhere · all 4 modes work on mobile</h3>
+      <p>Invest heavily in touch UML editing, mobile drag-drop, virtual keyboard handling. Every mode works at every breakpoint.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> No user left behind.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> 2x the engineering. Build mode on phone will be a <em>bad</em> experience no matter what. Touch UML is genuinely hard (Miro's mobile UX is mediocre, Figma's mobile UX is read-only). You'd be fighting physics.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Mobile-first for Review only</h3>
+      <p>Review becomes phone-native (it's 80% there already). Other 3 modes are desktop/tablet only. Mobile visitors to Build/Drill/Learn see "switch to desktop" screen.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Clean scope. Review = habit-forming mobile app.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Learn on phone is genuinely useful for reading on commute. Blocking it feels overly strict.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Tiered support · be honest about what works where</h3>
+      <p>Each mode gets the support level that matches its nature. Don't fake it.</p>
+
+      <div style="margin-top: 12px; display: grid; gap: 6px;">
+        <div style="background: rgba(110,231,183,0.08); border-radius: 6px; padding: 8px 12px; font-size: 11px;">
+          <strong style="color: rgb(110, 231, 183);">🔁 Review · mobile-first</strong>
+          <span style="color: rgb(229, 231, 235);"> — optimized for phone. Big buttons, swipeable rating, vertical layout. This is the primary mobile experience.</span>
+        </div>
+        <div style="background: rgba(147,197,253,0.08); border-radius: 6px; padding: 8px 12px; font-size: 11px;">
+          <strong style="color: rgb(147, 197, 253);">📖 Learn · responsive</strong>
+          <span style="color: rgb(229, 231, 235);"> — full 3-col on desktop, stacked vertical on mobile. Canvas becomes an <em>inline diagram card</em> embedded between lesson sections (not a sticky panel). Scroll-sync replaced with "tap to zoom". Checkpoints always inline.</span>
+        </div>
+        <div style="background: rgba(250,204,21,0.08); border-radius: 6px; padding: 8px 12px; font-size: 11px;">
+          <strong style="color: rgb(250, 204, 21);">⏱️ Drill · read-only on mobile</strong>
+          <span style="color: rgb(229, 231, 235);"> — mobile shows drill history + problem catalog + "Solve on desktop" CTA with email-link. Active drilling is desktop/tablet only. (Tablet drill works OK — stylus on iPad is viable.)</span>
+        </div>
+        <div style="background: rgba(239,68,68,0.08); border-radius: 6px; padding: 8px 12px; font-size: 11px;">
+          <strong style="color: rgb(252, 165, 165);">🎨 Build · desktop-only with honest fallback</strong>
+          <span style="color: rgb(229, 231, 235);"> — on mobile, show a preview of user's saved diagrams + message: <em>"Build mode needs desktop for precise UML editing. Open on laptop?"</em> + email-yourself-a-link button.</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Each mode gets the right treatment. Review becomes a habit-forming mobile daily driver. Learn works on commute. No apology for Build being desktop — pros respect tool honesty.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> Multiple layouts per mode. ~10-15h extra over desktop-only.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Desktop-only now · native mobile app later</h3>
+      <p>Ship all 4 modes desktop-only. Defer mobile to a React Native app built specifically for Review + Learn on phone. Separate concern, separate roadmap.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Laser focus. Best desktop experience possible. Mobile done right later, not halfway now.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Months before mobile. Loses 40% of web traffic. FSRS habit loop needs mobile to work.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why C -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY C · HONEST TIERED SUPPORT</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Not every screen needs to do everything.</strong> Figma doesn't edit on phone — they display. Notion doesn't fully edit on phone — they view. VS Code doesn't run on phone at all. Tool-honesty is respected by pros; trying to fake full parity produces cursed UX.<br><br>
+    <strong>Review-on-mobile is the killer daily-habit loop.</strong> 2-minute reviews on the train. Duolingo owns this territory. FSRS + mobile Review is your retention engine.<br><br>
+    <strong>Learn-on-mobile is reading.</strong> Commute reading is enormous for learning platforms. Stack vertical, make canvas inline and tap-to-zoom. Checkpoints work great with touch. ~8h of extra work.<br><br>
+    <strong>Build-on-mobile is a lie.</strong> UML editing with 75+ node types + edge routing + properties panel on a phone is cursed. Saying "open on desktop" with an email-me-a-link button is <em>kinder</em> than shipping a bad experience.<br><br>
+    <strong>Drill-on-mobile is half-useful.</strong> History review works. Solving doesn't. Be honest.
+  </div>
+</div>
+
+<!-- Implementation note -->
+<div style="margin-top: 18px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px;">
+  <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">IMPLEMENTATION HOOK</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    Existing hook <code>use-media-query.ts</code> already exists. New <code>useLLDResponsive()</code> returns <code>{ breakpoint, canEditUML, showDesktopNudge }</code> and each mode layout reads it to decide rendering. ~5h to build the hook + responsive shell. Mode-specific mobile layouts (Learn, Review) add ~8h each. Drill read-only + Build nudge screen ≈ 3h each. Total ≈ 24-27h added to Section 5's estimate.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q7 — <em>canvas↔lesson reverse sync (click a class → scroll lesson to that part)?</em>
+  </p>
+</div>

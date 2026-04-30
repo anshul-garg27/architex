@@ -1,0 +1,157 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 11 of 20</strong> — cross-mode state preservation. The edge cases when user switches modes mid-task.
+  </div>
+</div>
+
+<h2>Q11 · How aggressively do we preserve state across mode switches?</h2>
+<p class="subtitle">Section 4 outlined the basics — Build canvas persists, drill timer pauses. But there are sharper edges: <em>checkpoint answered but not submitted</em>, <em>mid-typed fill-blank</em>, <em>tinker session unsaved</em>, <em>drill mid-submit</em>. Four philosophies.</p>
+
+<!-- EDGE CASES TABLE -->
+<h3 style="margin-top: 24px;">The 10 edge cases worth deciding</h3>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-top: 14px;">
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; background: rgba(255,255,255,0.05); padding: 10px 14px; font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px;">
+    <div>SCENARIO</div>
+    <div>MY RECOMMENDATION</div>
+    <div>RATIONALE</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Learn scroll position</div>
+    <div style="color: rgb(110, 231, 183);">✓ Persist per pattern</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Already covered. DB: <code>progress.metadata.scrollDepth</code>. Resume to same pixel.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Checkpoint answers submitted</div>
+    <div style="color: rgb(110, 231, 183);">✓ Persist forever</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Already covered. FSRS records each submission.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Mid-typed fill-blank answer <span style="font-weight: 400; color: rgb(156,163,175);">(typing, not submitted)</span></div>
+    <div style="color: rgb(250, 204, 21);">⚡ Discard on switch</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Transient UI state. Preserving half-typed text across modes is weird. User re-types when they return.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Tinker session unsaved <span style="font-weight: 400; color: rgb(156,163,175);">(from Q8)</span></div>
+    <div style="color: rgb(251, 146, 60);">⚠ Warn + offer Save-to-Build</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Active work worth preserving. On mode switch, dialog: <em>"You've tinkered with the canvas. [Save to Build] [Discard]."</em></div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Build canvas state</div>
+    <div style="color: rgb(110, 231, 183);">✓ Persist always</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Already designed. DB: <code>userPreferences.preferences.lld.scratchCanvas</code>. Survives everything.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Build selected node / panel expand state</div>
+    <div style="color: rgb(110, 231, 183);">✓ Persist per session</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Nice polish. Returning to Build feels seamless.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Drill canvas + timer</div>
+    <div style="color: rgb(110, 231, 183);">✓ Persist until submit/abandon</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Already designed. Timer pauses. DB persists canvas + elapsedBeforePause.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Drill mid-submission <span style="font-weight: 400; color: rgb(156,163,175);">(grading in flight)</span></div>
+    <div style="color: rgb(239, 68, 68);">🚫 Warn + soft-block</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Interrupting a running grade = confusing. Show dialog: <em>"Grading in progress · wait 3s or [interrupt]"</em>. Interrupt resets submission state.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Drill grade reveal <span style="font-weight: 400; color: rgb(156,163,175);">(shown, not dismissed)</span></div>
+    <div style="color: rgb(110, 231, 183);">✓ Persist for 24h</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Returning user should see their last grade reveal unless they clicked "Next problem". Ephemerally persistent.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Review session in progress</div>
+    <div style="color: rgb(110, 231, 183);">✓ Persist per session</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Mid-session switch → return → resume at question X. Review is short enough that this rarely triggers.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 3fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Popovers / dropdowns / tooltips open</div>
+    <div style="color: rgb(250, 204, 21);">⚡ Close on switch</div>
+    <div style="color: rgb(156, 163, 175); line-height: 1.5;">Transient UI. Always close. No question.</div>
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<h3 style="margin-top: 32px;">Four philosophies for the policy</h3>
+
+<div class="options" style="margin-top: 14px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Aggressive · preserve everything exactly</h3>
+      <p>Every UI sub-state persists. Mid-typed answers, open dropdowns, scroll positions, timer millis. Returning user sees <em>identical</em> view to before switch.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Feels magical.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Preserving transient UI (open dropdowns across a mode switch) is uncanny-valley. Storage bloat.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">B</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Smart boundaries · work persists, UI state discards</h3>
+      <p>The policy the table above implements: <strong>work</strong> (canvas, progress, timer, scroll) persists to DB. <strong>Transient UI</strong> (dropdowns, half-typed inputs) discards. <strong>Ambiguous</strong> cases (unsaved tinker, mid-submit) get explicit confirmation.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> User trust — never silently loses work, never uncanny-resumes random UI. Explicit confirmation for edge cases respects user agency. Storage-efficient.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> 3 dialogs possible (tinker save, drill mid-submit, drill grade). Must be designed well to not be annoying.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Confirmation-first · always ask before switch</h3>
+      <p>Any mode switch triggers: <em>"Switching to Build. Keep your Drill in progress? [Keep] [Abandon]"</em>. Explicit, conservative, slow.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Never silent loss.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Every mode switch hits a dialog. Switcher becomes slow. Pros hate this.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Clean-slate · modes are independent · only canvas survives</h3>
+      <p>Switching modes is a reset. Only the durable canvas state (Build scratch, named diagrams) crosses modes. Everything else resets.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Simplest mental model.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Lose mid-drill timer on Review switch = infuriating. Lose learn scroll on Drill switch = "why did it reset?"
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why B -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY B · THE TABLE IS THE SPEC</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    The key insight: <strong>not all state is created equal</strong>. Work (canvas, progress, timer) deserves aggressive preservation because losing it is devastating. Transient UI (dropdowns, typing) should discard because preserving it feels weird. Ambiguous cases deserve user agency — confirm, don't decide silently.<br><br>
+    <strong>Three dialog moments is the budget.</strong> Tinker unsaved, drill mid-submit, drill grade dismissal. Not 10. Not 0. Three is enough to respect the user, few enough to not annoy.<br><br>
+    <strong>The table above becomes the spec.</strong> When implementing <code>setLLDMode</code> side effects (from Section 4), each row of this table is a case handled. No ambiguity.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q12 — <em>drill problem starter canvas vs user's existing canvas — conflict resolution</em>.
+  </p>
+</div>

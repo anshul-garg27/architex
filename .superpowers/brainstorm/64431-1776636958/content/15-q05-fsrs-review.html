@@ -1,0 +1,140 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 5 of 20</strong> — FSRS review integration. This determines daily retention loop.
+  </div>
+</div>
+
+<h2>Q5 · Where does the FSRS review experience live?</h2>
+<p class="subtitle">FSRS-5 schedules reviews at optimal spacing. When a pattern is "due", user needs a frictionless way to review it. But we have 3 modes already. Does review become a 4th mode, get embedded, or live somewhere else?</p>
+
+<!-- WHY THIS MATTERS -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">⏰ WHY REVIEW IS A DISTINCT ACTIVITY</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    Review ≠ Learn (not teaching new material) · Review ≠ Build (not free exploration) · Review ≠ Drill (not timed problem). It's <strong>short retrieval practice on already-completed material</strong>. 2-3 minutes, 1-3 patterns, checkpoint-style. Designed as a <em>daily habit</em>, not an occasional deep dive.<br><br>
+    The question: does it deserve primary screen real estate, or does it ride inside another mode?
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">A</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>4th primary mode · "Review"</h3>
+      <p>Add a 4th pill to the switcher. Review lives alongside Learn/Build/Drill. Badge shows "N due" count in real-time.</p>
+
+      <div style="margin-top: 12px; background: rgba(0,0,0,0.3); padding: 10px 14px; border-radius: 8px;">
+        <div style="font-size: 9px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 6px;">SWITCHER (top chrome)</div>
+        <div style="display: flex; gap: 3px; background: rgba(0,0,0,0.4); border-radius: 18px; padding: 3px; width: fit-content;">
+          <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 12px; border-radius: 14px;">📖 Learn</div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 12px; border-radius: 14px;">🎨 Build</div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 12px; border-radius: 14px;">⏱️ Drill</div>
+          <div style="background: rgba(124,58,237,0.3); color: rgb(196,181,253); font-size: 10px; padding: 5px 12px; border-radius: 14px; font-weight: 600; display:flex; align-items:center; gap: 6px;">
+            🔁 Review
+            <span style="background: rgb(239,68,68); color: white; font-size: 9px; padding: 1px 6px; border-radius: 10px; font-weight: 700;">3</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Review mode mockup -->
+      <div style="margin-top: 12px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px;">
+        <div style="font-size: 9px; color: rgb(196, 181, 253); letter-spacing: 0.5px; margin-bottom: 8px;">REVIEW MODE LAYOUT · minimal, distraction-free</div>
+        <div style="background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 8px; padding: 14px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <div style="width: 80px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px;">
+              <div style="width: 33%; height: 100%; background: rgb(167, 139, 250); border-radius: 2px;"></div>
+            </div>
+            <div style="font-size: 10px; color: rgb(196, 181, 253);">1 of 3 · Singleton</div>
+          </div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); margin-bottom: 10px;"><strong>Quick question:</strong></div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); margin-bottom: 12px; line-height: 1.5;">Why is Singleton's constructor typically made private?</div>
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div style="background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(229, 231, 235);">A · To save memory</div>
+            <div style="background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(229, 231, 235);">B · To prevent external <code>new</code> calls</div>
+            <div style="background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(229, 231, 235);">C · Convention</div>
+          </div>
+          <div style="margin-top: 10px; display:flex; gap:6px; justify-content:flex-end;">
+            <div style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; font-size: 9px; color: rgb(156, 163, 175);">Skip</div>
+            <div style="background: rgba(167,139,250,0.25); padding: 4px 8px; border-radius: 4px; font-size: 9px; color: rgb(196,181,253);">Open in Learn →</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Review is <em>visible</em> → builds habit. Badge makes it feel like a task. Clean separation. Minimal layout = phone-friendly daily driver.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> 4 modes &gt; 3 modes. Slightly more UI complexity.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Embedded in Learn · "Due for review" section in sidebar</h3>
+      <p>Learn sidebar shows a "Review" section at top with N due patterns. Click → opens that pattern in Learn mode with only checkpoint section auto-scrolled into view.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Keeps 3-mode system clean. Learn already has checkpoints.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Review is hidden inside Learn — other-mode users never see it. Doesn't build daily-habit visibility.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Modal flow · accessible from anywhere</h3>
+      <p>Persistent "Review (3)" button in top chrome across ALL 3 modes. Clicking opens an overlay modal with review flow. Close → return to whatever mode you were in.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Context-preserving. Always accessible.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Modals feel interruptive. Button competes with mode switcher for chrome space.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Drill-embedded · due reviews become mini-drills</h3>
+      <p>Due reviews surface as a "Quick Review" category in Drill mode. Solving them counts toward retention. Conceptually neat — retention = application.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Elegant theoretical fit.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Drill ≈ 20+ minute activity. Review should be ≈ 2 min. Wrong tempo.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why A wins -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY A · MAKE REVIEW A PRIMARY MODE</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Your product has already bet on FSRS.</strong> Your README calls out "99.6% superiority over SM-2". Your <code>progress</code> table has 8 FSRS fields. Your <code>use-due-reviews.ts</code> hook exists. You've invested in the science — now give it the UI real estate to become an <em>actual daily habit</em>.<br><br>
+    <strong>Duolingo's whole business model is Review-as-primary.</strong> Their app IS a review app dressed up with lesson chrome. Users don't "go to Duolingo to learn" — they go because of streaks and reviews. That's the engagement flywheel you want.<br><br>
+    <strong>The minimal Review layout is a feature, not a bug.</strong> Review mode strips away sidebars, canvases, panels — one question at a time, big buttons. This is <em>exactly</em> what works on mobile (Q13 later will tackle mobile adaptation — Review mode is the easiest to make mobile-first).<br><br>
+    <strong>Badge mechanics compound.</strong> Red "3" on the pill is a gentle pull back to the app. That's a retention feature worth a little UI complexity.
+  </div>
+</div>
+
+<!-- Review mode spec snapshot -->
+<div style="margin-top: 18px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px;">
+  <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 10px;">REVIEW MODE · SPEC SNAPSHOT</div>
+  <div style="display: grid; gap: 6px; font-size: 11px;">
+    <div><strong style="color: rgb(196, 181, 253);">Entry:</strong> <span style="color: rgb(229, 231, 235);">Click 🔁 Review in switcher. If 0 due → shows "All caught up · come back tomorrow".</span></div>
+    <div><strong style="color: rgb(196, 181, 253);">Session:</strong> <span style="color: rgb(229, 231, 235);">Sequential 1-3 patterns. One random checkpoint per pattern. User rates retention: Again / Hard / Good / Easy → updates FSRS.</span></div>
+    <div><strong style="color: rgb(196, 181, 253);">Time budget:</strong> <span style="color: rgb(229, 231, 235);">&lt; 2 min for 3 patterns. Short by design.</span></div>
+    <div><strong style="color: rgb(196, 181, 253);">Escape hatch:</strong> <span style="color: rgb(229, 231, 235);">"Open in Learn →" on any checkpoint if user forgets. Keeps review forgiving.</span></div>
+    <div><strong style="color: rgb(196, 181, 253);">Completion:</strong> <span style="color: rgb(229, 231, 235);">Session summary + streak increment. CTA: "Try Drill mode?" or "Done for today".</span></div>
+    <div><strong style="color: rgb(196, 181, 253);">Reuses:</strong> <span style="color: rgb(229, 231, 235);"><code>use-due-reviews.ts</code> (existing), <code>quizQuestions</code> data (existing), <code>progress</code> FSRS fields (existing).</span></div>
+    <div><strong style="color: rgb(196, 181, 253);">New components:</strong> <span style="color: rgb(229, 231, 235);"><code>ReviewModeLayout.tsx</code>, <code>ReviewSessionCard.tsx</code>, <code>ReviewEmptyState.tsx</code>, <code>ReviewStreakCelebrate.tsx</code> (≈ +8h effort).</span></div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q6 — <em>mobile &amp; responsive layout (3-col Learn won't fit on phone)</em>.
+  </p>
+</div>

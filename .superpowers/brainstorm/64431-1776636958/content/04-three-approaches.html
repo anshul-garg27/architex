@@ -1,0 +1,213 @@
+<h2>Three approaches to serve all 4 personas</h2>
+<p class="subtitle">You picked <strong>D — serve everyone</strong>. Here are three ways to actually architect that. Visual wireframes below. My recommendation is at the bottom.</p>
+
+<!-- ─────────────────────────── APPROACH 1 ─────────────────────────── -->
+<div class="option" data-choice="1" onclick="toggleSelect(this)" style="padding: 20px; margin-bottom: 20px;">
+  <div style="display:flex; gap: 20px; align-items: flex-start;">
+    <div class="letter">1</div>
+    <div style="flex:1;">
+      <h3 style="margin-top:0;">Persona Gate → 3 Separate Routes</h3>
+      <p style="color: rgb(156, 163, 175); margin-bottom: 16px;">First visit hits a welcome gate. User picks path. That choice routes them to a dedicated URL: <code>/lld/learn</code>, <code>/lld/build</code>, <code>/lld/drill</code>. Each is a fully distinct UI optimized for its persona. Mode switcher in top nav for later changes.</p>
+
+      <!-- Wireframe -->
+      <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin: 12px 0;">
+        <div style="text-align:center; font-size: 10px; color: rgb(156,163,175); margin-bottom: 10px; letter-spacing: 0.5px;">FIRST-VISIT GATE — fullscreen</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 14px; text-align:center;">
+            <div style="font-size: 20px;">📖</div>
+            <div style="font-size: 11px; font-weight: 600; color: rgb(110, 231, 183); margin-top: 6px;">Teach me</div>
+            <div style="font-size: 9px; color: rgb(156,163,175); margin-top: 4px;">→ /lld/learn</div>
+          </div>
+          <div style="background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; padding: 14px; text-align:center;">
+            <div style="font-size: 20px;">🎨</div>
+            <div style="font-size: 11px; font-weight: 600; color: rgb(147, 197, 253); margin-top: 6px;">Let me build</div>
+            <div style="font-size: 9px; color: rgb(156,163,175); margin-top: 4px;">→ /lld/build</div>
+          </div>
+          <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; padding: 14px; text-align:center;">
+            <div style="font-size: 20px;">⏱️</div>
+            <div style="font-size: 11px; font-weight: 600; color: rgb(252, 165, 165); margin-top: 6px;">Drill me</div>
+            <div style="font-size: 9px; color: rgb(156,163,175); margin-top: 4px;">→ /lld/drill</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top: 14px;">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>Each mode optimized independently — clean</li>
+            <li>Clear intent = clear UX per persona</li>
+            <li>URL-addressable — shareable learn/drill links</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>Onboarding gate = extra click friction</li>
+            <li>3 distinct UIs to maintain = 3x work</li>
+            <li>Current "/modules/lld" has to split — migration risk</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top: 12px; font-size: 11px; color: rgb(156,163,175);">
+        <strong>Effort:</strong> 🔴 Large (4-6 weeks) · <strong>Risk:</strong> Medium · <strong>Future flex:</strong> High
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────── APPROACH 2 ─────────────────────────── -->
+<div class="option" data-choice="2" onclick="toggleSelect(this)" style="padding: 20px; margin-bottom: 20px;">
+  <div style="display:flex; gap: 20px; align-items: flex-start;">
+    <div class="letter">2</div>
+    <div style="flex:1;">
+      <h3 style="margin-top:0;">One Adaptive UI (progressive unlock)</h3>
+      <p style="color: rgb(156, 163, 175); margin-bottom: 16px;">No persona gate. First visit = minimal canvas with one big CTA: <em>"Try Singleton →"</em>. UI <strong>unlocks progressively</strong> as user completes walkthroughs. Advanced tools (Mermaid editor, SOLID spotter, code generator) appear after milestones. Same URL throughout.</p>
+
+      <!-- Wireframe: 3 stages of progressive unlock -->
+      <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin: 12px 0;">
+        <div style="text-align:center; font-size: 10px; color: rgb(156,163,175); margin-bottom: 10px; letter-spacing: 0.5px;">PROGRESSIVE UNLOCK — same URL, UI grows</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div style="background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; padding: 10px;">
+            <div style="font-size: 9px; color: rgb(134, 239, 172); margin-bottom: 6px;">▸ NEW USER</div>
+            <div style="height: 14px; background: rgba(59,130,246,0.25); border-radius: 3px; margin-bottom: 4px;"></div>
+            <div style="height: 60px; background: rgba(255,255,255,0.06); border-radius: 3px; display: flex; align-items:center; justify-content:center; font-size: 9px; color:rgb(156,163,175);">"Try Singleton →"</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; padding: 10px;">
+            <div style="font-size: 9px; color: rgb(250, 204, 21); margin-bottom: 6px;">▸ 3 PATTERNS DONE</div>
+            <div style="height: 14px; background: rgba(59,130,246,0.25); border-radius: 3px; margin-bottom: 4px;"></div>
+            <div style="display:flex; gap: 3px; margin-bottom: 4px;">
+              <div style="width: 18px; height: 14px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+              <div style="flex:1; height: 14px; background: rgba(255,255,255,0.04); border-radius: 2px;"></div>
+            </div>
+            <div style="height: 42px; background: rgba(255,255,255,0.06); border-radius: 3px;"></div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; padding: 10px;">
+            <div style="font-size: 9px; color: rgb(196, 181, 253); margin-bottom: 6px;">▸ ADVANCED</div>
+            <div style="height: 14px; background: rgba(59,130,246,0.25); border-radius: 3px; margin-bottom: 4px;"></div>
+            <div style="display:flex; gap: 3px; margin-bottom: 4px;">
+              <div style="width: 18px; height: 14px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+              <div style="flex:1; height: 14px; background: rgba(255,255,255,0.04); border-radius: 2px;"></div>
+              <div style="width: 22px; height: 14px; background: rgba(255,255,255,0.08); border-radius: 2px;"></div>
+            </div>
+            <div style="height: 42px; background: rgba(255,255,255,0.06); border-radius: 3px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top: 14px;">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>Zero onboarding friction — start fast</li>
+            <li>Single UI = single codebase to maintain</li>
+            <li>Feels magical — "app grew up with me"</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>Crammer (persona C) hates unlocks — wants full power now</li>
+            <li>Progress-gating = frustrating if it gates wrong</li>
+            <li>Hard to serve D's "I know this, skip me ahead"</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top: 12px; font-size: 11px; color: rgb(156,163,175);">
+        <strong>Effort:</strong> 🟡 Medium (3-4 weeks) · <strong>Risk:</strong> High (UX design risk) · <strong>Future flex:</strong> Medium
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────── APPROACH 3 ─────────────────────────── -->
+<div class="option" data-choice="3" onclick="toggleSelect(this)" style="padding: 20px; margin-bottom: 20px; border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+  <div style="display:flex; gap: 20px; align-items: flex-start;">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">3</div>
+    <div style="flex:1;">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3 style="margin-top:0;">Hybrid — Mode Switcher inside shared shell</h3>
+      <p style="color: rgb(156, 163, 175); margin-bottom: 16px;">One URL (<code>/modules/lld</code>). On first visit, shell shows a compact "How do you want to start?" banner with 3 modes: <strong>Learn / Build / Drill</strong>. Pick one — content pane switches. Mode switcher stays visible at top. Returning users land on last-used mode. Same shell, 3 content modes inside.</p>
+
+      <!-- Wireframe: the 3 modes sharing a shell -->
+      <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin: 12px 0;">
+        <div style="text-align:center; font-size: 10px; color: rgb(156,163,175); margin-bottom: 10px; letter-spacing: 0.5px;">SHARED SHELL · mode switcher at top · content pane swaps below</div>
+
+        <!-- Shared top chrome: always visible -->
+        <div style="background: rgba(255,255,255,0.06); border-radius: 6px 6px 0 0; padding: 8px; display: flex; gap: 6px; align-items: center;">
+          <div style="width: 14px; height: 14px; background: rgba(255,255,255,0.15); border-radius: 3px;"></div>
+          <div style="font-size: 10px; color: rgb(229, 231, 235); margin-right: auto;">LLD · Singleton</div>
+          <!-- Mode switcher (3 pill buttons) -->
+          <div style="display:flex; gap: 3px; background: rgba(0,0,0,0.3); border-radius: 16px; padding: 2px;">
+            <div style="background: rgba(16, 185, 129, 0.3); color: rgb(110, 231, 183); font-size: 9px; padding: 3px 10px; border-radius: 14px; font-weight:600;">Learn</div>
+            <div style="color: rgb(156,163,175); font-size: 9px; padding: 3px 10px; border-radius: 14px;">Build</div>
+            <div style="color: rgb(156,163,175); font-size: 9px; padding: 3px 10px; border-radius: 14px;">Drill</div>
+          </div>
+        </div>
+
+        <!-- Content pane: swaps per mode. Showing LEARN below -->
+        <div style="background: rgba(255,255,255,0.03); border-radius: 0 0 6px 6px; padding: 10px; display: grid; grid-template-columns: 1fr 320px; gap: 10px;">
+          <div>
+            <div style="font-size: 9px; color: rgb(110, 231, 183); margin-bottom: 4px;">CANVAS (auto-highlights as you scroll)</div>
+            <div style="height: 140px; background: rgba(255,255,255,0.04); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 10px; color: rgb(156, 163, 175);">
+              [Singleton UML · class highlighted]
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 9px; color: rgb(110, 231, 183); margin-bottom: 4px;">LESSON COLUMN (scroll-synced)</div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 4px; padding: 10px; height: 140px; overflow:hidden;">
+              <div style="font-size: 9px; font-weight:600; color: rgb(229, 231, 235);">Why Singleton?</div>
+              <div style="font-size: 8px; color: rgb(156,163,175); margin-top: 4px; line-height: 1.4;">Imagine a thread-safe logger... Everyone writes to the same file.</div>
+              <div style="background: rgba(124,58,237,0.15); border-left: 2px solid rgb(124,58,237); padding: 4px 6px; margin-top: 6px; font-size: 8px;">
+                ✓ Checkpoint: What makes Singleton thread-unsafe?
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center; font-size: 9px; color: rgb(107, 114, 128); margin-top: 8px;">
+          ↓ Switch to <strong>Build</strong> → same URL, canvas becomes full-width with sidebar · Switch to <strong>Drill</strong> → problem queue appears
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top: 14px;">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>Preserves current Build mode untouched</li>
+            <li>Ship incrementally — add Learn first, Drill later</li>
+            <li>One URL = SEO / sharing stays simple</li>
+            <li>Mode switcher = persona C can jump to Drill instantly</li>
+            <li>First-visit banner = picks their path without force-gate</li>
+            <li>Remembers last mode = returning user feels personal</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>Shell complexity grows — must handle 3 modes</li>
+            <li>Learn and Build fight over canvas real estate</li>
+            <li>"Smart defaults" tuning takes iteration</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top: 12px; font-size: 11px; color: rgb(229, 231, 235);">
+        <strong>Effort:</strong> 🟢 Medium (3-4 weeks, shippable in 2 phases) · <strong>Risk:</strong> Low · <strong>Future flex:</strong> High
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────────── Decision rationale ──────────────────── -->
+<div style="margin-top: 28px; padding: 20px; background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 12px;">
+  <div class="label" style="color: rgb(167, 139, 250); margin-bottom: 12px;">🎯 WHY I RECOMMEND APPROACH 3</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Approach 1</strong> is "cleanest" on paper but forces a 3-way fork in the codebase — 3 distinct shells, 3 onboardings, 3 state trees. For a team of 1-2, that's quarters of work. <strong>Approach 2</strong> sounds elegant but breaks for persona C (they don't want training wheels) and D (they don't want unlocks at all).<br><br>
+    <strong>Approach 3</strong> uses your existing shell (canvas + sidebar + properties + bottom panel) as the stage. The current UI <em>becomes</em> Build mode. Learn mode <em>replaces the content pane</em> with scroll-synced lesson (the WalkthroughPlayer you already built). Drill mode <em>replaces it</em> with the problem queue. Three modes, one shell.<br><br>
+    <strong>Critically:</strong> the <code>WalkthroughPlayer</code> component already renders all 4 checkpoint types. So "Learn mode" is ~70% built — we mostly need to reposition it from the bottom panel tab to a dedicated mode layout. That's the highest-ROI move.
+  </div>
+</div>
+
+<p style="margin-top: 28px; text-align:center; color: rgb(156, 163, 175); font-size: 12px;">
+  Pick 1, 2, or 3 — or tell me what you'd change. Click in browser + send terminal message.
+</p>

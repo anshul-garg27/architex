@@ -1,0 +1,306 @@
+<div style="background: rgba(249, 168, 212, 0.1); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">⚡</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Batch 8 · Interactions &amp; power-user commands.</strong> Shortcuts, searches, annotations — what makes the product feel like a professional IDE, not a learning tool.
+  </div>
+</div>
+
+<h2>Power-user interactions with visuals</h2>
+<p class="subtitle">Multi-select. Each has a mockup.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <!-- I1 Supercharged Command Palette -->
+  <div class="option" data-choice="i1" onclick="toggleSelect(this)">
+    <div class="letter">I1</div>
+    <div class="content">
+      <h3>Supercharged command palette · scopes, actions, results preview</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Current cmdk = simple list. Upgrade: typed queries with prefix scopes (<code>&gt;</code> action, <code>/</code> pattern, <code>?</code> problem, <code>@</code> class). Result preview on right.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.5); border-radius: 8px; padding: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.6);">
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(124,58,237,0.4); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px;">
+          <div style="font-size: 12px; color: rgb(196, 181, 253);">⌘K</div>
+          <div style="font-size: 12px; color: rgb(229, 231, 235); font-family: monospace;">/obs</div>
+          <div style="width: 2px; height: 12px; background: rgb(196, 181, 253); animation: pulse 1s infinite;"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 4px;">PATTERNS (matching /obs)</div>
+            <div style="background: rgba(124,58,237,0.15); padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(196, 181, 253); margin-bottom: 3px;">📖 Observer <span style="color: rgb(156,163,175); font-size: 9px;">· Behavioral</span></div>
+            <div style="padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(229, 231, 235); margin-bottom: 3px;">📖 Observable <span style="color: rgb(156,163,175); font-size: 9px;">· RxJS</span></div>
+            <div style="padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(229, 231, 235);">📖 Pub-Sub <span style="color: rgb(156,163,175); font-size: 9px;">· confused-with</span></div>
+            <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 4px;">ACTIONS</div>
+            <div style="padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(229, 231, 235);">▶ Start drill on Observer</div>
+            <div style="padding: 6px 10px; border-radius: 4px; font-size: 10px; color: rgb(229, 231, 235);">⭐ Mark Observer as favorite</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.03); border-left: 1px solid rgba(255,255,255,0.08); padding-left: 10px;">
+            <div style="font-size: 8px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 6px;">PREVIEW</div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600; margin-bottom: 4px;">Observer</div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Pub-sub style 1-to-many notification. Subject holds list of observers...</div>
+            <div style="display: flex; gap: 4px; margin-top: 8px;">
+              <div style="font-size: 7px; background: rgba(251,191,36,0.2); color: rgb(251,191,36); padding: 2px 6px; border-radius: 6px;">★ Mastered</div>
+              <div style="font-size: 7px; background: rgba(196,181,253,0.2); color: rgb(196,181,253); padding: 2px 6px; border-radius: 6px;">Behavioral</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 14px; font-size: 8px; color: rgb(156, 163, 175);">
+          <div>↵ open</div>
+          <div>⌘↵ action</div>
+          <div>⌫ back</div>
+          <div>esc close</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- I2 Spotlight Search -->
+  <div class="option" data-choice="i2" onclick="toggleSelect(this)">
+    <div class="letter">I2</div>
+    <div class="content">
+      <h3>Spotlight search · universal "find anything"</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Large centered search — patterns, problems, Java code examples, lesson section text, your notes, gallery diagrams. Result grouping.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.7); border-radius: 12px; padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(255,255,255,0.08); border-radius: 8px; margin-bottom: 12px;">
+          <div style="font-size: 16px;">🔍</div>
+          <div style="flex: 1; font-size: 14px; color: rgb(229, 231, 235);">circuit breaker</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 6px;">esc</div>
+        </div>
+        <div>
+          <div style="font-size: 9px; color: rgb(110, 231, 183); letter-spacing: 0.5px; margin-bottom: 4px;">⭐ TOP MATCH</div>
+          <div style="background: rgba(110,231,183,0.1); padding: 10px 12px; border-radius: 6px; margin-bottom: 10px;">
+            <div style="font-size: 12px; color: rgb(229, 231, 235); font-weight: 600;">Circuit Breaker Pattern</div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 2px;">Resilience · Prevents cascading failures by tripping open after N errors</div>
+          </div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 4px;">OTHER RESULTS</div>
+          <div style="padding: 6px 12px; font-size: 11px; color: rgb(229, 231, 235);">📘 §4 of Retry Pattern lesson <span style="color: rgb(156, 163, 175); font-size: 9px;">"...use Circuit Breaker for stopping retries..."</span></div>
+          <div style="padding: 6px 12px; font-size: 11px; color: rgb(229, 231, 235);">💾 Your diagram "Payment Service" <span style="color: rgb(156, 163, 175); font-size: 9px;">contains CircuitBreaker class</span></div>
+          <div style="padding: 6px 12px; font-size: 11px; color: rgb(229, 231, 235);">📝 Your note "Netflix Hystrix" <span style="color: rgb(156, 163, 175); font-size: 9px;">tagged with Circuit Breaker</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- I3 Quick Pattern Switcher -->
+  <div class="option" data-choice="i3" onclick="toggleSelect(this)">
+    <div class="letter">I3</div>
+    <div class="content">
+      <h3>Quick switcher · ⌘P fuzzy-find only patterns</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; max-width: 360px; margin-left: auto; margin-right: auto; box-shadow: 0 12px 32px rgba(0,0,0,0.5);">
+        <div style="display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 6px;">
+          <div style="font-size: 10px; color: rgb(156,163,175);">⌘P</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); font-family: monospace;">fctmth</div>
+        </div>
+        <div style="font-size: 9px; color: rgb(156, 163, 175); padding: 3px 10px;">fuzzy-matched:</div>
+        <div style="padding: 6px 10px; background: rgba(124,58,237,0.15); border-radius: 4px; font-size: 10px; color: rgb(196, 181, 253); margin-bottom: 2px;"><strong>F</strong>a<strong>ct</strong>ory <strong>M</strong>e<strong>th</strong>od</div>
+        <div style="padding: 6px 10px; font-size: 10px; color: rgb(229, 231, 235); margin-bottom: 2px;"><strong>F</strong>a<strong>c</strong>ade</div>
+        <div style="padding: 6px 10px; font-size: 10px; color: rgb(156, 163, 175); margin-bottom: 2px;">Strategy <span style="font-size: 9px;">· template method</span></div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Vim-style "jump to pattern" — character match highlights</div>
+    </div>
+  </div>
+
+  <!-- I4 Favorites -->
+  <div class="option" data-choice="i4" onclick="toggleSelect(this)">
+    <div class="letter">I4</div>
+    <div class="content">
+      <h3>Favorites · star patterns for quick access</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px;">
+        <div style="font-size: 9px; color: rgb(251,191,36); letter-spacing: 0.5px; font-weight: 600; margin-bottom: 6px;">⭐ FAVORITES (4)</div>
+        <div style="display: grid; gap: 4px;">
+          <div style="background: rgba(251,191,36,0.08); border-left: 2px solid rgb(251,191,36); padding: 5px 10px; font-size: 10px; color: rgb(229,231,235); border-radius: 0 4px 4px 0; display: flex; align-items: center; gap: 8px;">
+            <span style="color: rgb(251,191,36);">⭐</span> Observer <span style="color: rgb(156,163,175); margin-left: auto; font-size: 9px;">Behavioral</span>
+          </div>
+          <div style="background: rgba(251,191,36,0.08); border-left: 2px solid rgb(251,191,36); padding: 5px 10px; font-size: 10px; color: rgb(229,231,235); border-radius: 0 4px 4px 0; display: flex; align-items: center; gap: 8px;">
+            <span style="color: rgb(251,191,36);">⭐</span> Strategy <span style="color: rgb(156,163,175); margin-left: auto; font-size: 9px;">Behavioral</span>
+          </div>
+          <div style="background: rgba(251,191,36,0.08); border-left: 2px solid rgb(251,191,36); padding: 5px 10px; font-size: 10px; color: rgb(229,231,235); border-radius: 0 4px 4px 0; display: flex; align-items: center; gap: 8px;">
+            <span style="color: rgb(251,191,36);">⭐</span> Circuit Breaker <span style="color: rgb(156,163,175); margin-left: auto; font-size: 9px;">Resilience</span>
+          </div>
+          <div style="background: rgba(251,191,36,0.08); border-left: 2px solid rgb(251,191,36); padding: 5px 10px; font-size: 10px; color: rgb(229,231,235); border-radius: 0 4px 4px 0; display: flex; align-items: center; gap: 8px;">
+            <span style="color: rgb(251,191,36);">⭐</span> Saga <span style="color: rgb(156,163,175); margin-left: auto; font-size: 9px;">Modern</span>
+          </div>
+        </div>
+        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.08); font-size: 9px; color: rgb(156, 163, 175);">Click ⭐ on any pattern · drag to reorder · keyboard: F to toggle</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- I5 Personal Notes -->
+  <div class="option" data-choice="i5" onclick="toggleSelect(this)">
+    <div class="letter">I5</div>
+    <div class="content">
+      <h3>Personal notes · notebook-style per pattern</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 6px;">📝 YOUR NOTES · OBSERVER</div>
+        <div style="background: rgba(255,255,255,0.04); border-left: 2px solid rgb(110, 231, 183); padding: 10px; border-radius: 0 4px 4px 0; margin-bottom: 6px;">
+          <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">
+            Remember: in React's <code>useEffect</code>, dep array controls observer re-subscribe.<br>
+            <strong>Gotcha:</strong> missing cleanup = memory leak.
+          </div>
+          <div style="font-size: 8px; color: rgb(156, 163, 175); margin-top: 6px;">· 2d ago · personal</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); border-left: 2px solid rgb(147, 197, 253); padding: 10px; border-radius: 0 4px 4px 0; margin-bottom: 6px;">
+          <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">
+            Interview answer: <em>"I'd use Observer for the stock price use case because..."</em>
+          </div>
+          <div style="font-size: 8px; color: rgb(156, 163, 175); margin-top: 6px;">· 5d ago · interview-prep</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1); padding: 10px; border-radius: 4px; font-size: 10px; color: rgb(156, 163, 175); font-style: italic;">+ Add a note...</div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Markdown support. Tag with custom labels. Searchable from Spotlight.</div>
+    </div>
+  </div>
+
+  <!-- I6 Canvas Annotations -->
+  <div class="option" data-choice="i6" onclick="toggleSelect(this)">
+    <div class="letter">I6</div>
+    <div class="content">
+      <h3>Canvas annotations · sticky notes + arrows ON the diagram</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; height: 170px; position: relative;">
+        <!-- mock classes -->
+        <div style="position: absolute; top: 30px; left: 60px; width: 80px; height: 45px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 10px; color: rgb(147, 197, 253);">Subject</div>
+        <div style="position: absolute; top: 30px; right: 60px; width: 80px; height: 45px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 10px; color: rgb(147, 197, 253);">Observer</div>
+        <!-- sticky note -->
+        <div style="position: absolute; top: 90px; left: 40px; width: 140px; background: rgb(253, 224, 71); border-radius: 3px; padding: 8px; font-size: 9px; color: rgb(42, 42, 0); transform: rotate(-2deg); box-shadow: 4px 4px 8px rgba(0,0,0,0.3); font-family: monospace; line-height: 1.4;">
+          <strong>Me</strong><br>
+          why private?<br>
+          ask tomorrow
+        </div>
+        <!-- arrow annotation -->
+        <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0; pointer-events: none;">
+          <path d="M 230 70 Q 260 90 285 110" fill="none" stroke="rgb(236, 72, 153)" stroke-width="2" stroke-linecap="round"/>
+          <polygon points="280,105 287,110 283,117" fill="rgb(236, 72, 153)"/>
+        </svg>
+        <div style="position: absolute; bottom: 10px; right: 30px; background: rgba(236, 72, 153, 0.15); border: 1px solid rgba(236, 72, 153, 0.4); color: rgb(249, 168, 212); padding: 4px 10px; border-radius: 3px; font-size: 10px; transform: rotate(3deg);">important!</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Sticky note tool + arrow tool + highlighter. Persist with canvas. Team-shareable if collaboration enabled.</div>
+    </div>
+  </div>
+
+  <!-- I7 Recent Items -->
+  <div class="option" data-choice="i7" onclick="toggleSelect(this)">
+    <div class="letter">I7</div>
+    <div class="content">
+      <h3>Recent items · jump list from home screen</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(196, 181, 253); letter-spacing: 0.5px; margin-bottom: 8px;">🕐 RECENT · JUMP BACK IN</div>
+        <div style="display: grid; gap: 6px;">
+          <div style="background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 14px;">📖</div>
+            <div style="flex: 1;">
+              <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Observer · Learn mode</div>
+              <div style="font-size: 9px; color: rgb(156, 163, 175);">§4 Checkpoint · 5min ago</div>
+            </div>
+            <div style="font-size: 9px; color: rgb(110, 231, 183);">▶ Resume</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 14px;">⏱️</div>
+            <div style="flex: 1;">
+              <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Parking Lot · Drill</div>
+              <div style="font-size: 9px; color: rgb(156, 163, 175);">Score 78 · 2d ago</div>
+            </div>
+            <div style="font-size: 9px; color: rgb(252, 165, 165);">↻ Retry</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 14px;">🎨</div>
+            <div style="flex: 1;">
+              <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Payment Service · Build</div>
+              <div style="font-size: 9px; color: rgb(156, 163, 175);">12 classes · 3d ago</div>
+            </div>
+            <div style="font-size: 9px; color: rgb(147, 197, 253);">→ Open</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- I8 Custom Tags -->
+  <div class="option" data-choice="i8" onclick="toggleSelect(this)">
+    <div class="letter">I8</div>
+    <div class="content">
+      <h3>Custom tags · personal taxonomy for patterns</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="margin-bottom: 10px;">
+          <div style="font-size: 10px; color: rgb(156,163,175); letter-spacing: 0.5px; margin-bottom: 6px;">YOUR TAGS</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+            <div style="background: rgba(239,68,68,0.15); color: rgb(252,165,165); padding: 3px 10px; border-radius: 12px; font-size: 10px;">🏷️ meta-interview</div>
+            <div style="background: rgba(110,231,183,0.15); color: rgb(110,231,183); padding: 3px 10px; border-radius: 12px; font-size: 10px;">🏷️ mastered-monday</div>
+            <div style="background: rgba(250,204,21,0.15); color: rgb(250,204,21); padding: 3px 10px; border-radius: 12px; font-size: 10px;">🏷️ needs-revisit</div>
+            <div style="background: rgba(147,197,253,0.15); color: rgb(147,197,253); padding: 3px 10px; border-radius: 12px; font-size: 10px;">🏷️ used-at-work</div>
+            <div style="background: rgba(196,181,253,0.15); color: rgb(196,181,253); padding: 3px 10px; border-radius: 12px; font-size: 10px;">🏷️ love-it</div>
+            <div style="background: rgba(255,255,255,0.05); color: rgb(156,163,175); padding: 3px 10px; border-radius: 12px; font-size: 10px;">+ new tag</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 10px; color: rgb(156,163,175); letter-spacing: 0.5px; margin-bottom: 6px;">PATTERNS TAGGED "meta-interview"</div>
+          <div style="display: grid; gap: 3px; font-size: 10px; color: rgb(229, 231, 235);">
+            <div style="padding: 3px 8px;">• Observer</div>
+            <div style="padding: 3px 8px;">• Strategy</div>
+            <div style="padding: 3px 8px;">• Singleton</div>
+            <div style="padding: 3px 8px;">• Factory Method</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- I9 Multi-select Batch -->
+  <div class="option" data-choice="i9" onclick="toggleSelect(this)">
+    <div class="letter">I9</div>
+    <div class="content">
+      <h3>Multi-select + batch actions on canvas</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; height: 140px; position: relative;">
+        <!-- selection rectangle -->
+        <div style="position: absolute; top: 20px; left: 30px; width: 220px; height: 80px; border: 1px dashed rgb(124, 58, 237); background: rgba(124, 58, 237, 0.06); border-radius: 2px;"></div>
+        <!-- selected classes -->
+        <div style="position: absolute; top: 35px; left: 50px; width: 70px; height: 30px; background: rgba(147,197,253,0.15); border: 2px solid rgb(124, 58, 237); border-radius: 4px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center;">ClassA</div>
+        <div style="position: absolute; top: 35px; left: 140px; width: 70px; height: 30px; background: rgba(147,197,253,0.15); border: 2px solid rgb(124, 58, 237); border-radius: 4px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center;">ClassB</div>
+        <div style="position: absolute; top: 80px; left: 95px; width: 70px; height: 30px; background: rgba(147,197,253,0.15); border: 2px solid rgb(124, 58, 237); border-radius: 4px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center;">ClassC</div>
+        <!-- batch action toolbar -->
+        <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgb(30, 41, 59); border: 1px solid rgba(124,58,237,0.4); border-radius: 20px; padding: 4px 6px; display: flex; gap: 2px; box-shadow: 0 8px 20px rgba(0,0,0,0.5);">
+          <div style="color: rgb(196, 181, 253); font-size: 10px; padding: 4px 10px; background: rgba(124,58,237,0.2); border-radius: 14px;">3 selected</div>
+          <div style="color: rgb(229, 231, 235); font-size: 10px; padding: 4px 8px;">↔ Align</div>
+          <div style="color: rgb(229, 231, 235); font-size: 10px; padding: 4px 8px;">⊞ Distribute</div>
+          <div style="color: rgb(229, 231, 235); font-size: 10px; padding: 4px 8px;">⊟ Group</div>
+          <div style="color: rgb(229, 231, 235); font-size: 10px; padding: 4px 8px;">⧉ Copy</div>
+          <div style="color: rgb(252, 165, 165); font-size: 10px; padding: 4px 8px;">⊗ Delete</div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Drag-select or ⌘-click to select multiple · floating contextual toolbar</div>
+    </div>
+  </div>
+
+  <!-- I10 Canvas Versioning -->
+  <div class="option" data-choice="i10" onclick="toggleSelect(this)">
+    <div class="letter">I10</div>
+    <div class="content">
+      <h3>Canvas time machine · version history slider</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(156, 163, 175); margin-bottom: 10px;">🕰️ Scrub through the last 20 edits</div>
+        <div style="position: relative; height: 30px; background: rgba(255,255,255,0.04); border-radius: 15px; padding: 4px; display: flex; align-items: center;">
+          <!-- dots -->
+          <div style="position: absolute; left: 10%; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; background: rgb(156,163,175); border-radius: 50%;"></div>
+          <div style="position: absolute; left: 25%; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; background: rgb(156,163,175); border-radius: 50%;"></div>
+          <div style="position: absolute; left: 40%; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; background: rgb(156,163,175); border-radius: 50%;"></div>
+          <div style="position: absolute; left: 55%; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; background: rgb(156,163,175); border-radius: 50%;"></div>
+          <div style="position: absolute; left: 70%; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; background: rgb(196, 181, 253); border-radius: 50%; box-shadow: 0 0 12px rgb(124,58,237);"></div>
+          <div style="position: absolute; left: 85%; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; background: rgb(156,163,175); border-radius: 50%;"></div>
+          <!-- track -->
+          <div style="width: 100%; height: 2px; background: rgba(255,255,255,0.08); border-radius: 1px;"></div>
+          <div style="width: 70%; position: absolute; top: 50%; left: 10%; height: 2px; background: rgb(124,58,237); transform: translateY(-50%); border-radius: 1px;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 9px; color: rgb(156, 163, 175);">
+          <div>15 min ago</div>
+          <div style="color: rgb(196, 181, 253); font-weight: 600;">● scrubbed to 4 min ago</div>
+          <div>now</div>
+        </div>
+        <div style="margin-top: 8px; padding: 8px 12px; background: rgba(124,58,237,0.08); border-radius: 6px; font-size: 10px; color: rgb(229,231,235);">Added <strong>ConcreteCreatorB</strong> · removed unused method <code>validate()</code>. <span style="color: rgb(196, 181, 253);">Restore this point?</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select I1-I10.</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Next: Batch 9 (personalization &amp; delight) — also visual-rich.</p>
+</div>

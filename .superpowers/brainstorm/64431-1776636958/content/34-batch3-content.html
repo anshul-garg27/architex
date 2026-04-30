@@ -1,0 +1,149 @@
+<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">📚</div>
+  <div style="font-size: 12px; color: rgb(110, 231, 183); line-height: 1.5;">
+    <strong>Batch 3 of 5 · Content formats &amp; storytelling.</strong> Beyond the 8-section lesson, what other shapes can content take? Anti-patterns, case studies, origin stories, playgrounds — formats that make your content library a <em>wiki + museum + sandbox</em> rolled into one.
+  </div>
+</div>
+
+<h2>What content formats differentiate Architex from reference books?</h2>
+<p class="subtitle">Multi-select. Each is an independent content feature that uses existing pattern data — no new core content writing, just new <em>angles</em> on the same material.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <div class="option" data-choice="c1" onclick="toggleSelect(this)">
+    <div class="letter">C1</div>
+    <div class="content">
+      <h3>Interactive code playground · edit code → UML auto-updates</h3>
+      <p>Bottom of lesson column gets a live Monaco editor. User edits the TS code sample — adds a method, removes a class — and the UML canvas <em>reflects the change in real-time</em>. Leverages your existing <code>code-to-diagram.ts</code> bidirectional sync (already 707 lines, working).</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <div style="color: rgb(110, 231, 183); font-weight: 600; margin-bottom: 4px;">CODE (editable)</div>
+            <div style="font-family: monospace; background: rgba(0,0,0,0.4); padding: 6px; border-radius: 4px; line-height: 1.5; font-size: 9px;">
+              class Logger {<br>
+              &nbsp;&nbsp;private static instance;<br>
+              &nbsp;&nbsp;<span style="background: rgba(250,204,21,0.2); padding: 0 3px;">private constructor()</span><br>
+              &nbsp;&nbsp;static getInstance() {}<br>
+              }
+            </div>
+          </div>
+          <div>
+            <div style="color: rgb(147, 197, 253); font-weight: 600; margin-bottom: 4px;">UML (auto-synced)</div>
+            <div style="background: rgba(0,0,0,0.4); padding: 6px; border-radius: 4px; height: 60px; display: flex; align-items: center; justify-content: center;">
+              <div style="width: 60px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.35); border-radius: 3px; padding: 4px; font-size: 8px; color: rgb(110, 231, 183);">Logger<br>⚡ updates live</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;"><strong>Killer feature.</strong> Uses existing infrastructure. "Write code, see structure" is the exact loop engineers need. ~12-15h to polish into lesson column.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c2" onclick="toggleSelect(this)">
+    <div class="letter">C2</div>
+    <div class="content">
+      <h3>Anti-pattern museum · "here's what breaks without this pattern"</h3>
+      <p>Each pattern page has a toggle: <em>"See the 'before' version"</em>. Shows the naïve wrong approach — nested constructors for Builder, giant switch statement for State, tight coupling for Observer. Side-by-side with the pattern-applied version. <strong>Teaches the value of the pattern by showing its absence.</strong></p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 6px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div style="background: rgba(239,68,68,0.08); padding: 8px; border-radius: 4px; border-left: 2px solid rgb(239,68,68);">
+            <div style="font-size: 9px; color: rgb(252, 165, 165); font-weight: 700; margin-bottom: 4px;">BEFORE · coupled mess</div>
+            <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.4;">stock.price = x;<br>dashboard.refresh();<br>notifier.notify();<br>portfolio.recalc();<br>analytics.track();<br><em>add a new listener? touch stock</em></div>
+          </div>
+          <div style="background: rgba(110,231,183,0.08); padding: 8px; border-radius: 4px; border-left: 2px solid rgb(110,231,183);">
+            <div style="font-size: 9px; color: rgb(110, 231, 183); font-weight: 700; margin-bottom: 4px;">AFTER · Observer</div>
+            <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.4;">stock.setPrice(x);<br><em>subscribers notified<br>automatically · Stock<br>doesn't know about them</em></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Content: 36 before/after pairs (Opus writes). Complements existing lessons, doesn't replace. ~36 pattern × 15min drafting = 9h Opus time.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c3" onclick="toggleSelect(this)">
+    <div class="letter">C3</div>
+    <div class="content">
+      <h3>Real-world case studies · "Netflix / Uber / Stripe uses this"</h3>
+      <p>Each pattern's lesson adds a "In production" section — short (100-200 word) case studies citing real companies. Netflix uses Circuit Breaker in Hystrix. Spotify uses Observer in RxJava. Stripe's idempotency layer uses Proxy. <strong>Connects abstract patterns to real systems users already respect.</strong></p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 6px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <div style="width: 24px; height: 24px; background: #e50914; border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 10px; font-weight: 700; color: white;">N</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Netflix · Circuit Breaker (Hystrix)</div>
+        </div>
+        <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;"><em>"When a downstream service fails, Hystrix's circuit breaker opens after 20 failures in 10 seconds. Netflix handles 100B+ API calls/day — without CB, one bad microservice would cascade."</em></div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~20 patterns have clean production examples (heavy-hitters). 16 more may need creative sourcing. Links to real tech blogs. <strong>Converts patterns from theoretical to "this is how X Company scales".</strong> Opus writes + links. ~10-12h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c4" onclick="toggleSelect(this)">
+    <div class="letter">C4</div>
+    <div class="content">
+      <h3>Pattern genealogy graph · "how patterns relate across the 36"</h3>
+      <p>A standalone page showing all 36 patterns as nodes in a force-directed graph, edges showing relationships: <strong>related-to</strong>, <strong>often-confused-with</strong>, <strong>historically-evolved-from</strong>, <strong>commonly-composed-with</strong>. Click a node → zoom in. Data <em>already exists</em> in your codebase (<code>relatedPatterns</code>, <code>confusedWith</code>). Just no visualization yet.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 14px; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 12px;">
+        <div style="width: 60px; height: 60px; background: rgba(110,231,183,0.15); border: 2px solid rgba(110,231,183,0.4); border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size: 9px; color: rgb(110,231,183);">Factory<br>Method</div>
+        <div style="width: 80px; height: 1px; background: linear-gradient(to right, rgba(110,231,183,0.4), rgba(167,139,250,0.4));"></div>
+        <div style="width: 60px; height: 60px; background: rgba(167,139,250,0.15); border: 2px solid rgba(167,139,250,0.4); border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size: 9px; color: rgb(196,181,253);">Abstract<br>Factory</div>
+        <div style="width: 80px; height: 1px; background: rgba(251,146,60,0.4); border-top: 1px dashed rgb(251,146,60);"></div>
+        <div style="width: 60px; height: 60px; background: rgba(251,146,60,0.15); border: 2px solid rgba(251,146,60,0.4); border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size: 9px; color: rgb(251,146,60);">Builder</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">D3-force or React Flow (already in stack). ~8-12h. Data already exists from research file 02. Listed as gap in audit file 11 — finally ship it.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c5" onclick="toggleSelect(this)">
+    <div class="letter">C5</div>
+    <div class="content">
+      <h3>"Find this pattern in the wild" · live GitHub snippets</h3>
+      <p>Bottom of each pattern page: curated list of 3-5 real open-source code examples using the pattern. Linked to GitHub with line numbers. "Here's Observer in React's <code>useReducer</code> internals" with highlighted snippet. Makes the pattern <em>tangible</em> — you can go read the actual working code.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 10px; color: rgb(229, 231, 235);">
+        <div style="color: rgb(147, 197, 253);">📁 facebook/react</div>
+        <div style="color: rgb(156, 163, 175); padding-left: 12px;">packages/react/src/ReactHooks.js:L141-158</div>
+        <div style="color: rgb(110, 231, 183); padding-left: 12px; margin-top: 3px;">→ Classical Observer implementation</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Manual curation: 36 patterns × 3 links = 108 link-line references. <strong>High signal-to-noise ratio for career engineers.</strong> ~15-20h content effort.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c6" onclick="toggleSelect(this)">
+    <div class="letter">C6</div>
+    <div class="content">
+      <h3>"Draw from memory" challenge · pattern as pure recall</h3>
+      <p>Novel format: pattern page has a "Close your eyes, open this" button. Canvas is blank. User gets 3 minutes to drag-build the pattern from scratch — no reference, no starter. Auto-grader checks. Pass = Mastered tier bonus. Feels like a pop quiz, but voluntary.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Uses existing grading engine. Timer + "no reference" mode toggle on canvas. Spaced repetition <em>gold</em> — this is Anki with UML. ~6h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c7" onclick="toggleSelect(this)">
+    <div class="letter">C7</div>
+    <div class="content">
+      <h3>Side-by-side multi-language viewer · TS / Py / Java / Go / Rust columns</h3>
+      <p>Current design shows code as tabs (switch one at a time). Propose: optional "compare" view showing the same pattern in 3 languages <em>side-by-side</em>. See how idiomatic differences express the same intent — Python's <code>__instance__</code> vs Java's <code>synchronized</code>. Requires adding Go + Rust snippets to the 3 existing (TS/Py/Java).</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">UI toggle: tabs → columns. Adding Go + Rust snippets for 36 patterns ≈ 8-10h Opus. UI work ≈ 4h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c8" onclick="toggleSelect(this)">
+    <div class="letter">C8</div>
+    <div class="content">
+      <h3>Audio narration · podcast-style lesson mode</h3>
+      <p>Each lesson gets a 5-8 min audio narration (Claude Opus voice-gen or human). "Play audio" button in Learn mode — canvas highlights follow narration timestamps. Perfect for commutes, bathtub, running. Turns reading into listening.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Audio production: 36 patterns × 6 min avg = 3.6 hours of content. AI voice gen (~$200 ElevenLabs) OR human narrator (~$2K). Timestamp alignment with canvas highlights = ~10h. <strong>Audio first-mover advantage in tech-education.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c9" onclick="toggleSelect(this)">
+    <div class="letter">C9</div>
+    <div class="content">
+      <h3>Pattern origin stories · 1-paragraph history per pattern</h3>
+      <p>"Who coined this? Why? When?" Small history card per pattern: <em>"Erich Gamma et al. coined Observer in the 1995 Gang of Four book. Inspired by the Model-View-Controller pattern at Xerox PARC in 1979."</em> Makes patterns feel like <em>human inventions</em>, not cosmic laws. Counter to the "memorize 36 abstract names" feel.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Opus writes: 36 × 5-min research each ≈ 3h content. ~2h UI. <strong>Small effort, big humanization.</strong></div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select C1-C9. Type choices or "all" / "none".</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Next: Batch 4 — AI &amp; automation depth (what Claude can do beyond checkpoints).</p>
+</div>

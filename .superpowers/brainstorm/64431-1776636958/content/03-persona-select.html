@@ -1,0 +1,51 @@
+<div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">💡</div>
+  <div style="font-size: 12px; color: rgb(134, 239, 172); line-height: 1.5;">
+    <strong>Reminder:</strong> Click any option below to mark your choice (highlight dikhega), <strong>then send "done" or "ok" in the terminal</strong> so I can read your selection and respond.
+  </div>
+</div>
+
+<h2>Who is the "beginner" we're designing for?</h2>
+<p class="subtitle">Pick one. This shapes the whole UX — layout, copy, onboarding, content depth.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Absolute Newcomer</h3>
+      <p>Knows some programming (Python/JS) but shaky on OOP itself. Has <em>heard</em> "design pattern" but can't define it. Asks: <em>"Why do I even need this?"</em></p>
+      <p style="margin-top: 8px; font-size: 11px; color: rgb(156, 163, 175);">Entry experience needs: <strong>OOP primer → "what problem does a pattern solve" → first pattern as concrete story</strong></p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>OOP-Familiar Learner <span style="font-size:10px;background:rgba(124,58,237,0.2);padding:2px 8px;border-radius:10px;color:rgb(196,181,253);margin-left:8px;">my guess</span></h3>
+      <p>Comfortable with classes, inheritance, interfaces. 1-3 years of coding. Never systematically studied patterns. Asks: <em>"Why Strategy vs Observer? What's the real difference?"</em></p>
+      <p style="margin-top: 8px; font-size: 11px; color: rgb(156, 163, 175);">Entry experience needs: <strong>Real problem hook → pattern reveal → UML → code → when NOT to use</strong></p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Interview-Prep Cruncher</h3>
+      <p>Read Head First / GoF. Knows 20+ patterns by name. Needs <strong>drill, retrieval practice, honest grading</strong>. Asks: <em>"Test me hard. Where am I weak?"</em></p>
+      <p style="margin-top: 8px; font-size: 11px; color: rgb(156, 163, 175);">Entry experience needs: <strong>Skip teaching → straight to problems → timer + auto-grade → SRS review queue</strong></p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>All of the above — the UI must serve all</h3>
+      <p>Real-world case: any visitor could be A, B, C, or D. Home screen must detect / let them self-select, then branch.</p>
+      <p style="margin-top: 8px; font-size: 11px; color: rgb(156, 163, 175);">Entry experience needs: <strong>Onboarding gate with 3 clear paths: "Teach me" / "Practice" / "Drill & grade"</strong></p>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; padding: 14px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 12px; color: rgb(156, 163, 175); line-height: 1.6;">
+  <strong style="color: rgb(229, 231, 235);">Why I guessed B:</strong> Your product vision doc already targets "Interview Prep Student (60%)" as primary — those are mostly B. You said <em>"jise kuch nahi aata"</em> which leans A, but a pure A-persona on an interview-prep platform is rare. B is also a superset: if we nail B, we can bolt a thin OOP primer on for A, and a fast-track drill mode for C. Safer starting point than trying to serve all 4 at once.
+</div>

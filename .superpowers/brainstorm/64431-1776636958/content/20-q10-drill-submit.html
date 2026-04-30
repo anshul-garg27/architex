@@ -1,0 +1,182 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 10 of 20</strong> — drill submission moment. The climax of Drill mode — biggest emotional leverage point in the product.
+  </div>
+</div>
+
+<h2>Q10 · User clicks Submit in Drill. What happens next?</h2>
+<p class="subtitle">This is the most emotionally loaded 3 seconds in the entire product. A good reveal creates a dopamine loop worth grinding for. A bad one feels like a test. Get this right and users come back. Get it wrong and Drill dies.</p>
+
+<!-- PHILOSOPHY -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 10px;">🎭 TWO SCHOOLS OF SUBMISSION UX</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 11px;">
+    <div style="background: rgba(59, 130, 246, 0.08); border-left: 3px solid rgb(59,130,246); padding: 10px 12px; border-radius: 0 6px 6px 0;">
+      <strong style="color: rgb(147, 197, 253);">LeetCode school</strong>
+      <p style="color: rgb(229, 231, 235); margin: 6px 0 0 0; line-height: 1.5;">Raw results. "Accepted" or "Wrong Answer". Test cases listed. Move on. No celebration, no hand-holding. Respects pros.</p>
+    </div>
+    <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid rgb(16,185,129); padding: 10px 12px; border-radius: 0 6px 6px 0;">
+      <strong style="color: rgb(110, 231, 183);">Duolingo school</strong>
+      <p style="color: rgb(229, 231, 235); margin: 6px 0 0 0; line-height: 1.5;">Celebration every time. XP spray, level-up sounds, dopamine drip. Builds habit at the cost of feeling infantilizing when you're experienced.</p>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Instant dump · LeetCode-style</h3>
+      <p>Click Submit → score + breakdown appear instantly at top of panel. No animation, no transition. "You scored 73/100. Classes: 32/40. Relationships: 21/30. ..."</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Fast. Respects time. Pros don't feel patronized.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Flat — no emotional payoff for success. Failure feels brutal with no coaching. Habit loop weaker.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">B</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Tiered reveal · celebration scales to earned quality</h3>
+      <p>3-second choreography: <strong>grading spinner → score emerges → breakdown unfolds → action choices</strong>. Visual treatment varies by tier — confetti only when earned (≥90%), specific coaching when failing. Never brutal, never infantilizing.</p>
+
+      <!-- Tier mockups -->
+      <div style="margin-top: 12px; display: grid; gap: 10px;">
+
+        <!-- Excellent (90+) -->
+        <div style="background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(rgb(251, 191, 36) 0deg, rgb(251, 191, 36) 342deg, rgba(255,255,255,0.1) 342deg); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 46px; height: 46px; background: rgb(17, 24, 39); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: rgb(251, 191, 36);">95</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 13px; color: rgb(251, 191, 36); font-weight: 700;">⭐ Excellent — interview-ready</div>
+              <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 2px;">Parking Lot · 24:12 · 0 hints used</div>
+            </div>
+            <div style="font-size: 18px;">🎉</div>
+          </div>
+          <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px; font-style: italic;">Subtle confetti burst · streak increment · "Pattern mastered" badge if this is the 1st FSRS pass</div>
+        </div>
+
+        <!-- Solid (70-89) -->
+        <div style="background: rgba(110, 231, 183, 0.08); border: 1px solid rgba(110, 231, 183, 0.3); border-radius: 8px; padding: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(rgb(110, 231, 183) 0deg, rgb(110, 231, 183) 280deg, rgba(255,255,255,0.1) 280deg); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 46px; height: 46px; background: rgb(17, 24, 39); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: rgb(110, 231, 183);">78</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 13px; color: rgb(110, 231, 183); font-weight: 700;">✓ Solid · you nailed the core</div>
+              <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 2px;">Parking Lot · 28:41 · 1 hint used</div>
+            </div>
+          </div>
+          <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px; font-style: italic;">No confetti. "One thing to tune: <em>cardinality on Spot-Vehicle relationship</em>" — specific coaching.</div>
+        </div>
+
+        <!-- Needs work (50-69) -->
+        <div style="background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 8px; padding: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(rgb(250, 204, 21) 0deg, rgb(250, 204, 21) 216deg, rgba(255,255,255,0.1) 216deg); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 46px; height: 46px; background: rgb(17, 24, 39); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: rgb(250, 204, 21);">60</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 13px; color: rgb(250, 204, 21); font-weight: 700;">◐ Partial · close, not there</div>
+              <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 2px;">Parking Lot · 35:07 · 3 hints used</div>
+            </div>
+          </div>
+          <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px; font-style: italic;">"Missing: Payment class. Weak: Spot-Level relationship. Consider reviewing State pattern before retrying."</div>
+        </div>
+
+        <!-- Keep going (0-49) -->
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(rgb(239, 68, 68) 0deg, rgb(239, 68, 68) 144deg, rgba(255,255,255,0.1) 144deg); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 46px; height: 46px; background: rgb(17, 24, 39); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: rgb(252, 165, 165);">40</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 13px; color: rgb(252, 165, 165); font-weight: 700;">○ Keep going · this one's tough</div>
+              <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 2px;">Parking Lot · 41:22 · gave up</div>
+            </div>
+          </div>
+          <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px; font-style: italic;">"Parking Lot is medium-hard. Step back — try Learn mode for State + Factory patterns first, come back stronger."</div>
+        </div>
+      </div>
+
+      <!-- Always show breakdown -->
+      <div style="margin-top: 14px; background: rgba(0,0,0,0.25); border-radius: 6px; padding: 10px 12px;">
+        <div style="font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; margin-bottom: 6px;">ALWAYS SHOW · 4-category breakdown (collapsible per-category)</div>
+        <div style="font-size: 10px; color: rgb(229, 231, 235); display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+          <div style="background: rgba(255,255,255,0.04); padding: 4px 8px; border-radius: 4px;"><strong>Classes 32/40</strong></div>
+          <div style="background: rgba(255,255,255,0.04); padding: 4px 8px; border-radius: 4px;"><strong>Relations 21/30</strong></div>
+          <div style="background: rgba(255,255,255,0.04); padding: 4px 8px; border-radius: 4px;"><strong>Pattern 18/20</strong></div>
+          <div style="background: rgba(255,255,255,0.04); padding: 4px 8px; border-radius: 4px;"><strong>Complete 7/10</strong></div>
+        </div>
+      </div>
+
+      <!-- Action row -->
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong>Next-action row</strong> (tiered): 90+ shows <em>"Next problem →"</em>; 70-89 shows <em>"Retry · Next problem"</em>; 50-69 shows <em>"Review this pattern · Retry"</em>; &lt;50 shows <em>"Open Learn mode · See reference solution"</em>.
+      </div>
+
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Celebration is <em>earned</em>. Failure is <em>coached</em>. Pros get specifics, beginners get paths forward. 3-second choreography feels intentional, not patronizing.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> More component surface (4 tiered reveals vs 1 generic). ~5-8h extra.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Interactive walkthrough · user expands each rubric category</h3>
+      <p>After submit, show 4 category cards (Classes, Relationships, Pattern Usage, Completeness) as tabs. User clicks each to see specific feedback with diff.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Controlled pacing. Deep-dive per category.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> More clicks. No celebration moment. Feels like a tax form.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Side-by-side compare with reference solution</h3>
+      <p>Submit → screen splits · user's canvas on left, reference solution on right · click differences to see explanations.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Visual feedback. See exactly what's different.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Reveals reference too easily = less incentive to retry. Also assumes 1 canonical solution (LLD problems have many valid designs). Dishonest for designs that are <em>different but correct</em>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why B -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY B · EARNED CELEBRATION, COACHED FAILURE</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>The tier philosophy:</strong> 90+ earns confetti. 70-89 earns respect (no celebration, specific tune-up). 50-69 earns honest partial credit + path forward. &lt;50 earns compassion + a strategic next step (not "try again").<br><br>
+    <strong>Dopamine asymmetry is a feature.</strong> If EVERY submission triggered confetti, confetti stops meaning anything. If NO submission ever did, the 95% moment feels like the 40% moment. Tiered treatment makes each outcome feel distinct.<br><br>
+    <strong>Failure-coaching is where Architex differentiates.</strong> LeetCode says "Wrong Answer". Brilliant says "Try again!" Duolingo says "Heart lost!". None of them tell you <em>what specifically</em> was wrong and <em>what to do about it</em>. Your fuzzy grader + pattern detection already has this data — use it.<br><br>
+    <strong>Tier → next-action mapping</strong> is where retention lives. A 40% score that ends with "next problem →" is brutal. A 40% score that ends with "Open Learn mode for State pattern — 5 min" is a path. Path beats grade.
+  </div>
+</div>
+
+<!-- Engineering hook -->
+<div style="margin-top: 18px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px;">
+  <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">IMPLEMENTATION</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <code>DrillGradeReveal.tsx</code> (new) receives the <code>GradingResult</code> from existing <code>grading-engine.ts</code>. Tier derived from <code>totalScore</code>. 4 tier templates share a shell, differ in copy + confetti + next-action. <code>AI-generated specific feedback</code> via existing Claude client with prompt:<br><br>
+    <em>"Grade a candidate's Parking Lot design. Score: 78. Missing classes: [Payment]. Weak relationships: [Spot-Vehicle cardinality]. Suggest the ONE most-impactful thing to fix."</em><br><br>
+    Response shown after 800ms stagger. ~10-12h for full reveal component including tier templates + confetti + AI feedback integration.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q11 — <em>cross-mode resume (switch mid-task behavior)</em>.
+  </p>
+</div>

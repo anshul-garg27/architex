@@ -1,0 +1,351 @@
+<div style="background: rgba(249, 168, 212, 0.1); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🔗</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Batch 9 of 10 · Cross-module seamlessness.</strong> Making 13 modules feel like one interconnected brain. Knowledge graph, shared progress, unified profile, universal shortcuts.
+  </div>
+</div>
+
+<h2>The premise · Thirteen modules or one organism?</h2>
+<p class="subtitle">Architex has 13 modules. LLD and SD are the flagship two. Algorithms, Databases, Networking, Data Structures, Graphs, Theory, Observability, etc. fill the rest. Today a user clicking "SD" feels like they entered a different product. The seamless ideal: <strong>curiosity flows without friction</strong>. Reading about Consistent Hashing in SD, one click takes you to the LLD pattern that implements it, and another click opens a database module deep-dive on consistent sharding. One brain.</p>
+
+<!-- ========== PRINCIPLE ========== -->
+<div style="margin-top: 20px; background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.25); border-radius: 12px; padding: 18px;">
+  <div style="display: flex; gap: 14px; align-items: flex-start;">
+    <div style="font-size: 32px; line-height: 1;">🧠</div>
+    <div>
+      <div style="font-size: 10px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">THE ONE-ORGANISM PRINCIPLE</div>
+      <div style="font-size: 13px; color: rgb(229, 231, 235); line-height: 1.7; font-style: italic;">
+        "The user should never have to remember which module a concept lives in — only what they want to learn next."
+      </div>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); line-height: 1.6; margin-top: 10px;">
+        Concepts, patterns, problems, and failures reference each other across modules. Progress earned in one module carries over. Profile tracks everything. When the user switches modules, state is preserved and context is maintained. This batch decides <em>how deep</em> the seams disappear.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Q35 KNOWLEDGE GRAPH ========== -->
+<h2 style="margin-top: 28px;">Q35 · Knowledge graph depth — how linked is everything?</h2>
+<p class="subtitle">From Batch 2 we agreed cross-linking is deep. Now: how does the user <em>see</em> and <em>navigate</em> that graph?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · TEXT LINKS ONLY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Every concept page has inline links to related ones. "See also: <u>LLD Observer Pattern</u>." Simple, cheap, text-based.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · LINK CARDS + NEIGHBOR SIDEBAR</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      End-of-page bridge cards (from Batch 8) + a permanent "Related" sidebar on every page showing top-6 related items across modules, weighted by relationship strength. Always visible; 2-click traversal to anywhere.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.8;">
+      <strong style="color: rgb(156, 163, 175);">Related to Consistent Hashing:</strong><br>
+      <span style="color: rgb(147, 197, 253);">📘 LLD ·</span> Strategy Pattern (used by hash ring)<br>
+      <span style="color: rgb(147, 197, 253);">🏛 SD ·</span> Design Dynamo / Cassandra<br>
+      <span style="color: rgb(147, 197, 253);">💾 DB ·</span> Sharding strategies<br>
+      <span style="color: rgb(147, 197, 253);">🌐 NET ·</span> Load balancer routing<br>
+      <span style="color: rgb(147, 197, 253);">🧩 DS ·</span> Hash tables<br>
+      <span style="color: rgb(147, 197, 253);">🔥 Chaos ·</span> Cache eviction storm
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · VISUAL GRAPH EXPLORER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Dedicated Knowledge Graph page: force-directed graph of all 700+ content pieces. User clicks node → content opens. Zoom to explore clusters. Beautiful, but search-first users never find it.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + C</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Sidebar on every page (B) + optional graph explorer view (C) accessible via <kbd style="background: rgb(9, 14, 25); border-radius: 3px; padding: 1px 5px; font-size: 9px;">⌘G</kbd>. Power users love the graph; everyone benefits from the sidebar.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q36 UNIFIED PROGRESS ========== -->
+<h2 style="margin-top: 28px;">Q36 · Unified progress model</h2>
+<p class="subtitle">Earn progress in SD — does it count toward LLD? FSRS cards from one module appear in another's review queue?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · ISOLATED</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each module tracks its own progress. User has LLD streak vs SD streak vs Algorithms streak. Clean but fractures identity.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · ONE PROFILE, PER-MODULE LENSES</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Single user profile holds all progress. Dashboard shows per-module breakdowns. Streaks are cross-module ("you learned something somewhere today"). FSRS queue mixes all modules. Badges are global.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.8;">
+      <span style="color: rgb(110, 231, 183);"><strong>TODAY'S REVIEW · 8 cards</strong></span><br>
+      <span style="color: rgb(156, 163, 175);">📘 LLD · Factory Method (due 2d)</span><br>
+      <span style="color: rgb(156, 163, 175);">🏛 SD · Consistent Hashing (due 1d)</span><br>
+      <span style="color: rgb(156, 163, 175);">💾 DB · Isolation levels (due today)</span><br>
+      <span style="color: rgb(156, 163, 175);">🌐 NET · TLS handshake (overdue)</span><br>
+      <span style="color: rgb(156, 163, 175);">🧩 Algo · Dijkstra (due today)</span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · PATH-BASED</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Named learning paths spanning modules: "FAANG-Ready" = 10 LLD patterns + 15 SD concepts + 20 algo problems. Progress = completion of paths, not individual modules.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + C</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Single profile (B) + curated learning paths (C). Paths are guided runs; profile shows everything. Most complete but more UX surface area.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q37 UNIVERSAL COMMAND ========== -->
+<h2 style="margin-top: 28px;">Q37 · Universal command palette &amp; shortcuts</h2>
+<p class="subtitle">One keystroke to go anywhere — the power-user's love letter. Multi-select features to ship.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① ⌘K COMMAND PALETTE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Universal. Search across: concepts, problems, patterns, chaos events, incidents, templates, past attempts, settings. Type <code style="background: rgb(9, 14, 25); padding: 1px 4px; border-radius: 3px; font-size: 10px;">observer</code> → find LLD Observer pattern + SD pub-sub concept + related drills.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② ⌘, PROFILE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Opens your unified profile: streaks, cards-due, path progress, last-sessions-per-module.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ ⌘⇧M MODULE SWITCHER ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Jumps between modules preserving current mode. If in LLD Drill, pressing this + picking SD puts you in SD Drill. Muscle memory transfers.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ ⌘G KNOWLEDGE GRAPH</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Opens the visual graph (if Q35=D). From anywhere. Always lands on current-page's node.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ ⌘R REVIEW QUEUE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      One-keystroke review: jumps to cross-module FSRS queue. Can be done for 5 minutes before starting any work.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ ⌘? SHORTCUTS SHEET</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Overlay with all shortcuts grouped by mode/module. Context-aware (shows Drill keys when in Drill).
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ NATURAL LANGUAGE QUERIES</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <kbd style="background: rgb(9, 14, 25); border-radius: 3px; padding: 1px 5px; font-size: 9px;">⌘K</kbd> + question mark enables AI-backed search. "Show me problems that use consistent hashing and have multi-region chaos events." Returns filtered list.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(252, 165, 165, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ RECENTS STACK</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <kbd style="background: rgb(9, 14, 25); border-radius: 3px; padding: 1px 5px; font-size: 9px;">⌘[</kbd> / <kbd style="background: rgb(9, 14, 25); border-radius: 3px; padding: 1px 5px; font-size: 9px;">⌘]</kbd> navigate back/forward across content. Like browser history but cross-module aware.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q38 PERSISTENCE ========== -->
+<h2 style="margin-top: 28px;">Q38 · State persistence across mode + module switches</h2>
+<p class="subtitle">Mid-drill, user switches to read a concept. Comes back. Does state survive?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · LOSE STATE ON SWITCH</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Leaving a drill = abandoning it. Canvas cleared. Timer reset. Harsh but simple.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · DB-FIRST PERSISTENT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      All in-progress state (drill canvas, timer state, simulation run, learn scroll position) saves to DB every ~10s. Cross-device resume. Cross-browser resume. Matches LLD's decision (Q8 in LLD brainstorm).
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.8; color: rgb(156, 163, 175);">
+      <strong style="color: rgb(110, 231, 183);">Returning to drill:</strong><br>
+      "Welcome back. You were 18:24 into Design Netflix (timed mock, The Staff Engineer). Resume where you left off?" <em>[Yes]</em> <em>[Abandon]</em>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · LOCAL-ONLY (localStorage)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Persist per-browser only. No cross-device. Faster, no server load. Matches "offline first" aesthetic but hurts mobile-to-desktop transitions.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + "SNAPSHOT" EXPLICIT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      DB persistence (B) PLUS explicit "Save snapshot" for nameable save-points. Useful for ambitious designs user wants to fork from.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q39 NOTIFICATIONS / DAILY ========== -->
+<h2 style="margin-top: 28px;">Q39 · Daily re-entry experience</h2>
+<p class="subtitle">User opens Architex in the morning. What do they see?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · LAST MODE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Lands where they left off. Zero friction, zero nudge. Power-user default.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · DAILY DASH</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Homepage with: cards due today · streak · "pick up where you left off" · "one thing I'd recommend" (AI) · recent community. Honors unified profile.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.8;">
+      <strong style="color: rgb(110, 231, 183);">Good morning, Daisy.</strong><br>
+      <span style="color: rgb(156, 163, 175);">🔥 7-day streak · don't break it</span><br>
+      <span style="color: rgb(156, 163, 175);">🃏 8 cards due · ~12 min</span><br>
+      <span style="color: rgb(156, 163, 175);">▶ Resume: Design Netflix (18 min left)</span><br>
+      <span style="color: rgb(156, 163, 175);">💡 Suggested: try the Facebook 2021 chaos replay — 25 min, pairs with your recent Pub-Sub read.</span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · FOCUS MODE ENTRY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User picks a goal ("30-min review" / "full drill" / "just read"). Session shaped accordingly. Anti-rabbit-hole.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B DEFAULT, A TOGGLE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Dashboard by default, "Always resume last" toggle in profile for power users. Best-of-both.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q40 SHARED AI CONTEXT ========== -->
+<h2 style="margin-top: 28px;">Q40 · Shared AI context across modules</h2>
+<p class="subtitle">AI-assisted features exist in LLD (explain, tutor), SD (coach, interviewer), possibly elsewhere. Does the AI know what you did in other modules?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · NO SHARED CONTEXT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each AI invocation is stateless. Cheap. But can't notice "you just read this concept — let me reference it."
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · PROGRESS-AWARE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AI sees user's module-wide progress: recent reads, mastery levels, common weak points. Sonnet prompts include a compact "user context" block. Not full conversation history — just structured state.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-family: monospace; font-size: 9px; color: rgb(156, 163, 175);">
+      user-context: {<br>
+      &nbsp;&nbsp;recent: ["sd/consistent-hashing", "lld/observer"],<br>
+      &nbsp;&nbsp;mastery: { caching: 0.7, sharding: 0.4 },<br>
+      &nbsp;&nbsp;weak: ["distributed-consensus"],<br>
+      &nbsp;&nbsp;streak: 7, cards_due: 8<br>
+      }
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · FULL CONVERSATION MEMORY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AI remembers actual conversation turns across modules. "As we discussed earlier in LLD..." Costly (token bill), privacy-complex, powerful.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · USER-CONTROLLED MEMORY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User picks per session: "remember me" vs "fresh". Privacy honored. Adds UX friction. For trust-conscious users.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== VISUAL: HOME DASHBOARD ========== -->
+<h2 style="margin-top: 28px;">Reference · Daily dashboard with unified profile</h2>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.25); border-radius: 10px; padding: 14px; margin-top: 12px;">
+  <div style="background: rgb(9, 14, 25); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 9px; line-height: 1.7; color: rgb(229, 231, 235);">
+<span style="color: rgb(249, 168, 212);">┌─ ARCHITEX · home ─────────────────────────────────────────────── ⌘K  ⚙ ──┐</span>
+│                                                                           │
+│  <strong>Good morning, Daisy.</strong>      <span style="color: rgb(251, 191, 36);">🔥 7-day streak</span>                        │
+│                                                                           │
+│  ┌────── today ──────┐ ┌────── resume ──────┐ ┌────── recommended ─────┐ │
+│  │ 🃏 <strong>8 cards due</strong>     │ │ ▶ <strong>Design Netflix</strong>   │ │ 🎬 Facebook 2021 replay │ │
+│  │   ~12 min         │ │   Timed Mock       │ │   25 min · pairs w/     │ │
+│  │   📘4 🏛2 💾1 🌐1  │ │   18:24 elapsed    │ │   your Pub-Sub read     │ │
+│  │   [start review]  │ │   [resume]         │ │   [start]               │ │
+│  └───────────────────┘ └────────────────────┘ └─────────────────────────┘ │
+│                                                                           │
+│  <span style="color: rgb(156, 163, 175);">━━━ modules ━━━</span>                                                          │
+│  📘 <strong>LLD</strong>    ████████░░  80%   (Factory · Observer · Strategy · …+11)    │
+│  🏛 <strong>SD</strong>     ██░░░░░░░░  20%   (CAP · Consistent Hash · Sharding · …+5) │
+│  💾 <strong>DB</strong>     █████░░░░░  50%   (Isolation · Replication · Indexing · …) │
+│  🌐 <strong>NET</strong>    ██████░░░░  60%   (TLS · HTTP/2 · DNS · …)                  │
+│  🧩 <strong>Algo</strong>   ███░░░░░░░  30%   (BFS · Dijkstra · Dynamic Prog · …)       │
+│                                                                           │
+│  <span style="color: rgb(156, 163, 175);">━━━ on the path ━━━</span>                                                      │
+│  <strong>FAANG-Ready</strong>   14 / 45 items   <span style="color: rgb(110, 231, 183);">━━━━━━━━░░░░░░░░░░░░░░░</span>   31%          │
+│                                                                           │
+<span style="color: rgb(249, 168, 212);">└───────────────────────────────────────────────────────────────────────────┘</span>
+  </div>
+</div>
+
+<!-- ========== CTA ========== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 16px; margin-top: 24px;">
+  <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">YOUR PICKS · BATCH 9</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong>Q35</strong> — knowledge graph depth: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q36</strong> — progress model: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q37</strong> — universal shortcuts (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q38</strong> — persistence: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q39</strong> — daily re-entry: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q40</strong> — shared AI context: <span style="color: rgb(110, 231, 183);">A / B / C / D</span>
+  </div>
+  <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 10px;">
+    Reply with picks and I advance to Batch 10 · Wild cards &amp; open field (the final batch before we write the SD spec).
+  </div>
+</div>

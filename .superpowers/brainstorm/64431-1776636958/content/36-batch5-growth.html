@@ -1,0 +1,152 @@
+<div style="background: rgba(147, 197, 253, 0.1); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🚀</div>
+  <div style="font-size: 12px; color: rgb(147, 197, 253); line-height: 1.5;">
+    <strong>Batch 5 of 5 · FINAL · Growth, polish &amp; identity.</strong> Ways Architex reaches new users + becomes iconic. Some are features, some are distribution, some are delight.
+  </div>
+</div>
+
+<h2>What makes Architex a product people rave about?</h2>
+<p class="subtitle">Multi-select. These are the "how does this spread?" + "how does this feel distinctive?" ideas.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <div class="option" data-choice="g1" onclick="toggleSelect(this)">
+    <div class="letter">G1</div>
+    <div class="content">
+      <h3>Embeddable widgets · iframe any pattern into a blog post</h3>
+      <p>Every pattern page gets an "Embed" button → copy HTML snippet. Paste into Substack, Dev.to, personal blog. Readers see a live interactive UML preview, click through to Architex. <strong>Organic backlink network from dev blogs.</strong></p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 10px; color: rgb(147, 197, 253);">
+        &lt;iframe src="architex.app/embed/pattern/singleton" width="600" height="400"&gt;
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;"><strong>Already exists!</strong> <code>src/app/embed/lld/pattern/[id]/page.tsx</code> is built. Just need the "copy embed" button UI. ~3h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g2" onclick="toggleSelect(this)">
+    <div class="letter">G2</div>
+    <div class="content">
+      <h3>Browser extension · pattern detector on any GitHub page</h3>
+      <p>Install Architex browser extension. Browse any GitHub file. Extension highlights class definitions and silently labels them: <em>"Probable Singleton"</em>, <em>"Factory Method"</em>. Click label → opens that pattern's Architex lesson in new tab. <strong>Distribution via GitHub browsing behavior.</strong></p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Chrome/Firefox MV3 extension. Haiku analysis per visible code block. ~30-40h for V1 + submission to stores.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g3" onclick="toggleSelect(this)">
+    <div class="letter">G3</div>
+    <div class="content">
+      <h3>VS Code extension · "Explain this class's pattern"</h3>
+      <p>Right-click any class in VS Code → "Explain via Architex". Inline hover shows identified pattern + link to lesson. Pro tier: get anti-pattern warnings while coding. <strong>Embeds Architex into daily dev workflow.</strong></p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">VS Code LSP-style extension. Uses same AI + patterns data. ~40-60h for V1. Marketplace submission.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g4" onclick="toggleSelect(this)">
+    <div class="letter">G4</div>
+    <div class="content">
+      <h3>Completion certificates · LinkedIn-ready shareables</h3>
+      <p>Complete all 5 creational patterns → unlock "Creational Master" certificate. Rendered as a clean OG-image certificate: name, date, pattern list, verification URL. One-click share to LinkedIn. Uses your existing <code>/api/og</code> infrastructure.</p>
+      <div style="margin-top: 10px; background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(167,139,250,0.1)); border: 1px solid rgba(251,191,36,0.3); border-radius: 8px; padding: 14px; text-align: center;">
+        <div style="font-size: 10px; color: rgb(251,191,36); letter-spacing: 0.3em; font-weight: 700;">ARCHITEX</div>
+        <div style="font-size: 13px; color: rgb(229, 231, 235); font-weight: 700; margin-top: 6px;">Creational Patterns · Mastered</div>
+        <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px;">Anshul Garg · 2026-04-20</div>
+        <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 8px;">Singleton · Factory Method · Abstract Factory · Builder · Prototype</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">8 certificates possible (8 waves × Mastered). ~6h template + cert verification URL backend.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g5" onclick="toggleSelect(this)">
+    <div class="letter">G5</div>
+    <div class="content">
+      <h3>Pattern of the Day · email subscription + RSS</h3>
+      <p>Free opt-in. Every morning, a 3-min pattern deep-dive delivered by email or RSS. Cycles through 36 patterns every ~5 weeks. Same content as Learn mode but formatted for email skimming. <strong>Daily habit without requiring app open.</strong></p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Resend integration (already in deps). Inngest scheduled job (already in stack). ~10h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g6" onclick="toggleSelect(this)">
+    <div class="letter">G6</div>
+    <div class="content">
+      <h3>"Pattern of the Week" deep-dive blog · SEO gold</h3>
+      <p>Long-form written pattern essay published weekly to <code>/blog</code>. 2000-3000 word treatment — history, variations, case study, code in 5 languages, interview questions. <strong>SEO-optimized for developers Googling "what is the X pattern".</strong> Blog infrastructure already exists at <code>/blog</code>.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Opus writes. 36 patterns × weekly = 9 months of content queued. Each post = 4-6h Opus. <strong>SEO flywheel.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g7" onclick="toggleSelect(this)">
+    <div class="letter">G7</div>
+    <div class="content">
+      <h3>Accessibility: beyond compliance · actually delightful on screen readers</h3>
+      <p>Most technical sites check accessibility boxes. Architex goes further: canvas UML has a <em>full narrative text mode</em> generated per pattern ("The Factory Method pattern consists of 5 classes. Creator, an abstract class, defines factoryMethod()..."). VoiceOver / NVDA users get a first-class experience, not a degraded one.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Already <code>ScreenReaderView.tsx</code> exists in your codebase — extend to all modes. Full keyboard canvas (navigate UML classes via tab). ~15h. Dyslexia-friendly font option, high-contrast mode polish. <strong>Also expands legal/enterprise market.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g8" onclick="toggleSelect(this)">
+    <div class="letter">G8</div>
+    <div class="content">
+      <h3>Easter eggs · hidden delights that reward curiosity</h3>
+      <p>Small secret achievements that reward exploration:</p>
+      <div style="margin-top: 10px; display: grid; gap: 6px; font-size: 11px; color: rgb(229, 231, 235);">
+        <div style="background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 4px;">🥚 <strong>Code poet</strong> — discover 3 easter-egg comments hidden in lesson code</div>
+        <div style="background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 4px;">⌨️ <strong>Konami master</strong> — ↑↑↓↓←→←→BA unlocks a hidden "Beta Tester" badge</div>
+        <div style="background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 4px;">🌙 <strong>Night owl</strong> — learn past 2am → private "midnight architect" stamp</div>
+        <div style="background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 4px;">🔮 <strong>Perfect recall</strong> — 20 FSRS reviews in a row rated "Easy"</div>
+        <div style="background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 4px;">🧘 <strong>The Singleton life</strong> — use ONE pattern for 3 consecutive drills (thematic)</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~4-6h content + triggers. <strong>Makes the product feel alive.</strong> Users talking about secret achievements = organic word-of-mouth.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g9" onclick="toggleSelect(this)">
+    <div class="letter">G9</div>
+    <div class="content">
+      <h3>BYOK · bring your own Claude key</h3>
+      <p>Pro users can paste their own Anthropic API key → all AI features run on their budget. Lower your cost, they get unlimited AI usage. Win-win. Stored encrypted, never logged.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Settings flow + server-side encryption. ~6h. <strong>Important for enterprise/senior dev adoption who want cost isolation.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g10" onclick="toggleSelect(this)">
+    <div class="letter">G10</div>
+    <div class="content">
+      <h3>Architex API · devs build on top</h3>
+      <p>Public API for `/api/patterns/:id`, `/api/problems/:id`, `/api/grade` (submit UML, get score). Enables external tools to consume Architex content. Textbook publishers embed. Bootcamps integrate. Universities license. <strong>Platform play.</strong></p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Already has most endpoints — just need public documentation + API keys + rate limiting per key. Stripe-style dev portal. ~20h. <strong>Long-term moat.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g11" onclick="toggleSelect(this)">
+    <div class="letter">G11</div>
+    <div class="content">
+      <h3>"Architex for teams" · bootcamp / classroom mode</h3>
+      <p>One account manages N students. Teacher dashboard shows cohort progress. Assign patterns as homework. Review student drills. Leaderboard within-cohort only (not public). Pricing: $X/seat/month.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Uses existing user/tier/org structure. ~30h for basic teacher dashboard. <strong>B2B revenue channel.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="g12" onclick="toggleSelect(this)">
+    <div class="letter">G12</div>
+    <div class="content">
+      <h3>Alumni showcase · "people who finished all 36"</h3>
+      <p>Public page listing users who achieved all 36 Mastered. Opt-in. LinkedIn/GitHub link allowed. Becomes a recruiter hunting ground. Badge on their profile: "Architex Certified · 36/36".</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;"><strong>Powerful career incentive.</strong> Completing = verifiable credential visible to recruiters. ~8h page. Opt-in only.</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 32px; background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(236,72,153,0.1)); border: 1px solid rgba(124, 58, 237, 0.35); border-radius: 12px; padding: 18px;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 10px;">🎬 THIS IS THE FINAL BATCH</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    After this batch, I'll have captured:<br>
+    • 6 design sections (from the first round)<br>
+    • 20 Q&amp;A decisions (locked)<br>
+    • <strong>~46 ideas from 5 batches</strong> (V, M, C, A, G series)<br><br>
+    I'll then consolidate everything into the spec at <code>docs/superpowers/specs/2026-04-20-lld-beginner-mode-design.md</code>, commit to git, and hand you a single comprehensive document you can read, edit, share, or feed into the implementation plan.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select G1-G12. Final batch. Reply with choices or "all" / "none".</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">After this → spec consolidation begins.</p>
+</div>

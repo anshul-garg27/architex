@@ -1,0 +1,542 @@
+<div style="background: rgba(45, 212, 191, 0.1); border: 1px solid rgba(45, 212, 191, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">⚙️</div>
+  <div style="font-size: 12px; color: rgb(94, 234, 212); line-height: 1.5;">
+    <strong>Bonus Batch 12 · Engineering depth.</strong> LLD has A* edge routing + Dagre + Zundo undo history. SD needs the same engineering rigor — but extended. This batch is the <em>technical</em> moat.
+  </div>
+</div>
+
+<h2>The premise · pedagogy is the "what", engineering is the "how good"</h2>
+<p class="subtitle">A simulation with 1000 nodes rendering at 60fps, chaos cascades propagating on correct hysteresis math, request traces with OpenTelemetry-accurate spans — this is what makes Architex <em>feel</em> real. Competitors ship static JPG architectures. We ship a living wind tunnel. This batch decides the engineering depth.</p>
+
+<!-- ========== PRINCIPLE ========== -->
+<div style="margin-top: 20px; background: rgb(17, 24, 39); border: 1px solid rgba(45, 212, 191, 0.25); border-radius: 12px; padding: 18px;">
+  <div style="display: flex; gap: 14px; align-items: flex-start;">
+    <div style="font-size: 32px; line-height: 1;">🔬</div>
+    <div>
+      <div style="font-size: 10px; color: rgb(94, 234, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">THE LIVING-LAB PRINCIPLE</div>
+      <div style="font-size: 13px; color: rgb(229, 231, 235); line-height: 1.7; font-style: italic;">
+        "The difference between 'educational software' and 'professional tool' is how deep the numbers go when you hover. In ours, they go all the way down."
+      </div>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); line-height: 1.6; margin-top: 10px;">
+        LLD's A* edge routing isn't visible unless you notice that edges never overlap nodes. Dagre's layered layout isn't visible unless you notice classes are perfectly stacked. <strong>Good engineering is invisible until it's absent.</strong> SD's simulation needs this invisible quality — physics, math, and algorithms that make "it just feels right" true for 10k concurrent users.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Q55 SIM CLOCK ========== -->
+<h2 style="margin-top: 28px;">Q55 · Simulation clock &amp; timestep model</h2>
+<p class="subtitle">Chaos drill says "5 minutes". In what time does that unfold?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · WALL-CLOCK 1:1</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "5 minutes" = 5 real minutes. Chaos events fire on wall-clock timer. Easy to reason about. But boring for long time-scale things (3-month cost forecast).
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · DUAL-CLOCK</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Two clocks: <strong>real-time</strong> (for chaos drills, interview timer) and <strong>sim-time</strong> (for forecast, evolving campaigns — 3 months compressed into 3 min). User-aware labeling: "sim-time: 2 months elapsed · real-time: 1:47".
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 8px; font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">
+      realtime: 0:01:47  │  sim-time: 2mo 7d<br>
+      speed: <span style="color: rgb(251, 191, 36);">30 sim-days / real-min</span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · FIXED TIMESTEP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Sim advances in discrete ticks (e.g. 100ms). All metrics roll at tick boundary. Deterministic; easy to replay. But coarse for sub-100ms chaos events.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · VARIABLE TIMESTEP + DILATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Fixed physics tick (100ms) but rendered frames adapt to user's rAF rate. Slow-mo (0.25x) = tick still 100ms but played over 400ms. Replay deterministic. Most engineering but highest fidelity.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q56 METRICS ENGINE ========== -->
+<h2 style="margin-top: 28px;">Q56 · Metrics engine — how are p50/p95/p99 computed?</h2>
+<p class="subtitle">Latency percentiles need the right data structure. Naive arrays blow up memory at 1000 rps. What ships?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · SLIDING ARRAY (today)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Last-N samples kept in a bounded array. Sort to compute percentiles. Simple but O(n log n) per sample. What we have today.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · HDR HISTOGRAM</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      HDR Histogram (industry standard — used by Prometheus, Netflix, Datadog). O(1) recording, log-linear memory (~2KB fixed for full range). Accurate p99.99 up to hours of range. True production-grade.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 8px; font-family: monospace; font-size: 10px; color: rgb(156, 163, 175);">
+      npm: <span style="color: rgb(110, 231, 183);">hdr-histogram-js</span>  (~2KB per histogram)<br>
+      record(latencyMs) → O(1)<br>
+      percentile(99.9) → O(bucketCount)
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · T-DIGEST</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      T-Digest (used by Cassandra, Kafka). Good accuracy at extreme percentiles. Mergeable across workers. Marginally more code than HDR but better for streaming systems.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · RING-BUFFER + HDR</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      HDR histogram for live p-values + raw ring-buffer (30s of samples) for the time-scrubber replay. Dual structure. Covers both use cases at ~10KB per node.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q57 LOAD MODEL ========== -->
+<h2 style="margin-top: 28px;">Q57 · Load-model fidelity — how realistic is the traffic?</h2>
+<p class="subtitle">"200k rps" is a number. But what's the shape? Uniform? Bursty? Poisson?</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(156, 163, 175, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① UNIFORM (naive)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Constant rate. Fails realism but simple. Only useful for initial learning modes.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② POISSON PROCESS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Inter-arrival times follow exponential distribution. Matches real-world random arrivals. Standard queuing-theory assumption. Cheap to compute.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 6px; font-family: monospace; font-size: 10px; color: rgb(156, 163, 175);">
+      nextArrival = -Math.log(1 - Math.random()) / λ
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ DIURNAL CURVES ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Rate varies with time-of-day. Matches real traffic: 3 AM trough, noon peak, evening surge. Per-region curves (shifted by timezone). Essential for forecast mode.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ BURST / FLASH CROWDS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Viral spike modeling — exponential ramp-up then decay. Used in "Reddit-hug-of-death" scenarios. Mathematically: Pareto-distributed burst events.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ HOT-KEY DISTRIBUTION ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Zipfian access pattern — 20% of keys get 80% of traffic. Teaches why consistent hashing breaks, why hot partitions form. Critical for sharding lessons.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ USER-SEGMENT MIX</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Mobile · Desktop · Bot · API-client — each has different request shape (size, frequency, error tolerance). Mix them realistically.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ PER-ENDPOINT PROFILE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      GET /feed has different rate + cache-hit ratio than POST /upload. Realistic when user designs >1 API.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ REAL-WORLD TRACE REPLAY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Ingest anonymized real traces (Alibaba 2018, Google 2011, Meta F4) — replay against user's design. Ultra-realistic. Authoring cost per trace ~8hr.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q58 CASCADE ENGINE ========== -->
+<h2 style="margin-top: 28px;">Q58 · Cascade propagation &amp; failure math</h2>
+<p class="subtitle">When cache misses → DB hot → retries amplify. This chain is the signature learning moment. How is it modeled?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · SCRIPTED</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Chaos events have pre-written cascade lists: "cache-evict → spike db-cpu". Simple. Lies to physics when user's design differs.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · PHYSICS-DRIVEN + HYSTERESIS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each node has <strong>saturation curves</strong> (latency goes exponential past 80% CPU), <strong>failure probability</strong> proportional to saturation, <strong>recovery hysteresis</strong> (can't recover instantly), <strong>circuit breaker state machines</strong> on edges. Cascades emerge from math — not scripts.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.7;">
+      <strong style="color: rgb(110, 231, 183);">Node model:</strong><br>
+      <span style="color: rgb(156, 163, 175);">cpu = load × tailFactor(load, capacity)</span><br>
+      <span style="color: rgb(156, 163, 175);">p99 = base + exp(cpu/capacity - 0.8) × 50ms</span><br>
+      <span style="color: rgb(156, 163, 175);">errorRate = max(0, (cpu/cap - 0.95) × 10)</span><br>
+      <br>
+      <strong style="color: rgb(251, 146, 60);">Circuit breaker:</strong><br>
+      <span style="color: rgb(156, 163, 175);">state: closed → open → half-open → closed</span><br>
+      <span style="color: rgb(156, 163, 175);">triggers: errorRate ≥ 0.5 over 10s window</span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · QUEUING THEORY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each node = M/M/c queue. Little's Law: L = λW. Exact latency for load ≤ capacity. Breaks down at saturation (real systems do too).
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + C HYBRID</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Queuing math up to 80% load (accurate), saturation curves + circuit breakers past 80% (realistic). Best-of-both. Teaches correct math + correct failure behavior.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q59 RENDERING ========== -->
+<h2 style="margin-top: 28px;">Q59 · Rendering engine — canvas performance &amp; visual fidelity</h2>
+<p class="subtitle">1000+ nodes + animated data flow + node breathing + cascade arrows — at 60fps. How?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · SVG + REACTFLOW (today)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each node is a DOM element. Fine up to ~100 nodes. Breaks at 500+ with animation. What LLD uses.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · HYBRID · SVG NODES + CANVAS PARTICLES</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Nodes stay SVG (interaction, accessibility). Data-flow particles on a <code style="color: rgb(147, 197, 253);">&lt;canvas&gt;</code> layer underneath. Node-breathing via CSS transform (GPU-accelerated). Scales to 500-1000 nodes + 10k particles at 60fps.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · PIXI.JS / WEBGL</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Full GPU-accelerated canvas. 10k+ nodes possible. Loss: accessibility, text-selection, DOM events need custom layer.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + LOD ZOOM</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Hybrid (B) + Level-Of-Detail: zoomed-out shows simplified node (dot), zoomed-in shows full metrics. Matches semantic-zoom from Q49.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q60 EDGE ROUTING ========== -->
+<h2 style="margin-top: 28px;">Q60 · Edge routing algorithm — beyond LLD's A*</h2>
+<p class="subtitle">LLD uses A* for class-diagram edges. SD has more diagram types → more routing needs.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① A* WITH CONTAINER PENALTY ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Extension of LLD's A*. Cost function adds penalty for crossing region/zone containers. Teaches you: "your edge shouldn't cross AZ boundaries invisibly." For architecture diagrams.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 6px; font-family: monospace; font-size: 10px; color: rgb(156, 163, 175);">
+      cost(a,b) = dist + crossContainer×50 + crossNode×∞
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② ORTHOGONAL ROUTING ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Right-angle edges only (Manhattan routing). For deployment + network topology diagrams. Algorithms: orthogonal graph drawing + libavoid-style.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ BEZIER FOR ASYNC ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Smooth curves for async/streaming edges. Dashed, animated flow. Distinguishes from sync calls visually.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ FORCE-DIRECTED (mesh diagrams) ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      d3-force for service-mesh + dependency graphs. Nodes repel, edges attract. Self-organizing. For the dependency-graph diagram type.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ EDGE BUNDLING</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Parallel edges with similar source/target → bundle into a thicker beam. Reduces visual noise in high-connectivity designs.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ CROSSING MINIMIZATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Incremental re-layout when user adds edges — minimizes crossings. OSage-style algorithm. Higher effort, notably cleaner visuals.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q61 AUTO-LAYOUT ========== -->
+<h2 style="margin-top: 28px;">Q61 · Auto-layout per diagram type</h2>
+<p class="subtitle">LLD uses Dagre (layered). SD has 10 diagram types — one algorithm won't serve all.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">① DAGRE (hierarchical) ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Layered DAG. For architecture + data-flow. Same as LLD.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">② ELK (layered + orthogonal) ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Eclipse Layout Kernel. More options than Dagre. Handles deployment + network topology. ~50KB + webworker.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">③ D3-FORCE (force-directed) ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Service mesh + dependency graph. Organic. Live updates as user interacts.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">④ SWIMLANE (columnar) ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Custom — columns per team/owner. Sequence diagram too (time-ordered). Small, in-house.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">⑤ RADIAL (dependency center)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Pick a node, others orbit by distance-from-it. For "blast-radius" views.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">⑥ INCREMENTAL RE-LAYOUT ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User adds a node → only affected sub-graph repositions. Surroundings stay stable. Anti-jitter. Hard engineering but critical UX.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q62 DETERMINISTIC REPLAY ========== -->
+<h2 style="margin-top: 28px;">Q62 · Deterministic replay + branching</h2>
+<p class="subtitle">From Batch 4 we locked Replay &amp; What-If-Branching. The engineering to make those possible.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · EVENT LOG ONLY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Store the event stream (chaos events, user actions). Replay runs engine forward. Deterministic if engine is pure. Memory-cheap.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · SEED + EVENT LOG + KEYFRAME SNAPSHOTS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Seeded RNG + event log + full-state snapshots every 30s. Replay seeks to nearest snapshot, replays forward from there. Fast scrubbing. What-If branching = fork a snapshot + diverge.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 8px; font-family: monospace; font-size: 10px; color: rgb(156, 163, 175);">
+      sim-state: { rng-seed, event-log, snapshots[] }<br>
+      replay(t) = snapshots[floor(t/30s)] + replayEvents(t%30s)<br>
+      branch(t) = fork snapshot at t; new rng-seed
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · FULL STATE LOG</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      State snapshot every tick. Highest fidelity. Memory prohibitive for long sims (MB per minute).
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + SERVER STORAGE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Keyframes stored in DB (Neon Postgres JSONB) for shareable replays. Cross-device. Peer-review workflow unlocked.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q63 REQUEST TRACING ========== -->
+<h2 style="margin-top: 28px;">Q63 · Request tracing visualization</h2>
+<p class="subtitle">"Watch one request travel through the system." Under the hood, it's OpenTelemetry spans in a tree.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · ANIMATED PARTICLE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Dot moves through graph. Pretty. Low information density.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · SPAN TREE · WATERFALL</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Jaeger/Honeycomb-style waterfall timeline. Each bar = one service span. Shows parallelism vs serialization. Clickable → zoom to service.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-family: monospace; font-size: 10px; line-height: 1.7;">
+      <span style="color: rgb(110, 231, 183);">gateway</span>        <span style="color: rgb(110, 231, 183);">████████████████</span>  16ms<br>
+      <span style="color: rgb(147, 197, 253);"> └─auth</span>        <span style="color: rgb(147, 197, 253);">  ██</span>                2ms<br>
+      <span style="color: rgb(147, 197, 253);"> └─app</span>         <span style="color: rgb(147, 197, 253);">    ████████████</span>   12ms<br>
+      <span style="color: rgb(251, 191, 36);">   └─cache</span>     <span style="color: rgb(251, 191, 36);">      █</span>              1ms  miss<br>
+      <span style="color: rgb(252, 165, 165);">   └─db</span>        <span style="color: rgb(252, 165, 165);">       █████████</span>       9ms  ⚠ slow
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · FLAME GRAPH</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Vertical flame — aggregated spans across many requests. Shows hot paths. Advanced user feature.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · A + B TOGETHER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Animated particle on canvas (A) + synchronized waterfall panel (B). Click span → particle jumps. Maximum signal.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q64 COLLAB SIM ========== -->
+<h2 style="margin-top: 28px;">Q64 · Multiplayer / collaborative simulation</h2>
+<p class="subtitle">From Batch 10 we locked "shareable artifacts". This is the live-simulation extension.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · SPECTATOR ONLY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Share-link viewers watch a sim live (WebSocket relay). Can't interact. Simple infra, limited moat.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · PAIR MODE · CO-OP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Two users, one canvas, shared engine. Either can interact. CRDT-based state sync (Yjs). Cursor presence. WebSocket. Pairs with "Live Pair Session" from Q41.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · VS MODE · ATTACKER vs DEFENDER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      One user designs. Other user picks chaos events from the 73-catalog and fires them. Timed rounds. "Can you keep your design alive?" Gamified. Highest engagement.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · A + B + C</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Full collab stack. Spectator · Co-op · VS. Progressive ship.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== VISUAL: ENGINEERING STACK ========== -->
+<h2 style="margin-top: 28px;">Reference · Engineering stack diagram</h2>
+<p class="subtitle">What sits under the hood of the wind tunnel, if everything ⭐ ships.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(45, 212, 191, 0.25); border-radius: 10px; padding: 14px; margin-top: 12px;">
+  <div style="background: rgb(9, 14, 25); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 9px; line-height: 1.7; color: rgb(229, 231, 235);">
+<span style="color: rgb(94, 234, 212);">┌─ SD SIMULATION ENGINE · LAYERED ───────────────────────────────────────┐</span>
+│                                                                         │
+│  <span style="color: rgb(251, 146, 60);">▶ RENDER</span>   SVG nodes + <span style="color: rgb(147, 197, 253);">canvas</span> particles + CSS-GPU breathing │
+│           Hybrid · 500-1k nodes @ 60fps · semantic LOD zoom             │
+│                                                                         │
+│  <span style="color: rgb(251, 191, 36);">▶ LAYOUT</span>   <span style="color: rgb(156, 163, 175);">Dagre · ELK · d3-force · swimlane · radial</span>              │
+│           Incremental re-layout · diff-aware · per-diagram-type        │
+│                                                                         │
+│  <span style="color: rgb(110, 231, 183);">▶ ROUTING</span>  A* with container-penalty + orthogonal + bezier-async    │
+│           Edge-bundling · crossing minimization · live re-route        │
+│                                                                         │
+│  <span style="color: rgb(147, 197, 253);">▶ PHYSICS</span>  <span style="color: rgb(156, 163, 175);">Saturation curves · M/M/c queues · hysteresis</span>            │
+│           Circuit-breaker state machines · retry amplification math     │
+│                                                                         │
+│  <span style="color: rgb(196, 181, 253);">▶ LOAD</span>     Poisson + diurnal + burst + zipfian-hot-key + segments     │
+│           Real-trace replay option · per-endpoint profiles              │
+│                                                                         │
+│  <span style="color: rgb(249, 168, 212);">▶ METRICS</span>  HDR histograms + 30s ring-buffer per node                 │
+│           ~10KB / node · O(1) record · accurate p99.99                  │
+│                                                                         │
+│  <span style="color: rgb(252, 165, 165);">▶ CHAOS</span>    73 events · state machines · compound triggers            │
+│           Auto-escalation rules · red-team AI picker · seed replay     │
+│                                                                         │
+│  <span style="color: rgb(251, 146, 60);">▶ REPLAY</span>   seeded-RNG + event log + 30s keyframe snapshots          │
+│           Fast scrub · What-If branch · shareable to DB               │
+│                                                                         │
+│  <span style="color: rgb(110, 231, 183);">▶ TRACING</span>  OpenTelemetry-style spans → waterfall + flame + particle   │
+│                                                                         │
+│  <span style="color: rgb(94, 234, 212);">▶ CLOCK</span>    Fixed 100ms physics tick + dual real-time / sim-time UI   │
+│           Time dilation for slow-mo · deterministic replay              │
+│                                                                         │
+│  <span style="color: rgb(147, 197, 253);">▶ COLLAB</span>   Yjs CRDT · WebSocket state relay · cursor presence        │
+│           Spectator + Co-op + VS modes                                 │
+│                                                                         │
+<span style="color: rgb(94, 234, 212);">└─────────────────────────────────────────────────────────────────────────┘</span>
+  </div>
+</div>
+
+<!-- ========== CTA ========== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(45, 212, 191, 0.35); border-radius: 10px; padding: 16px; margin-top: 24px;">
+  <div style="font-size: 11px; color: rgb(94, 234, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">YOUR PICKS · BONUS BATCH 12</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong>Q55</strong> — sim clock model: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q56</strong> — metrics engine: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q57</strong> — load model fidelity (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q58</strong> — cascade engine: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q59</strong> — rendering: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q60</strong> — edge routing (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥</span><br>
+    <strong>Q61</strong> — auto-layout (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥</span><br>
+    <strong>Q62</strong> — replay: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q63</strong> — request tracing: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q64</strong> — multiplayer sim: <span style="color: rgb(110, 231, 183);">A / B / C / D</span>
+  </div>
+  <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+    If you want to go even deeper on LLD too — canvas engine upgrades, undo-redo depth, A* enhancements, collaboration on canvas — say "<em>LLD me bhi socho</em>" and I'll open another bonus batch just for LLD engineering. Otherwise I consolidate SD (now 64 decisions across 12 batches) into the spec.
+  </div>
+</div>

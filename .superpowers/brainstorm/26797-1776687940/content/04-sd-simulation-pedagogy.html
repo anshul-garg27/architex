@@ -1,0 +1,342 @@
+<div style="background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">⚡</div>
+  <div style="font-size: 12px; color: rgb(251, 146, 60); line-height: 1.5;">
+    <strong>Batch 4 of 10 · Simulation-as-pedagogy.</strong> Turning the 34-file simulation engine + 73 chaos events + cost model into a teaching tool. This is the moat.
+  </div>
+</div>
+
+<h2>The premise · Simulate mode is where LLD can't reach</h2>
+<p class="subtitle">LLD teaches structure. System Design needs consequence. The existing engine already runs p50/p95/p99 metrics, cost accounting, chaos events, cascade propagation, narrative hooks. What's missing is pedagogy on top. This batch decides what <em>teaching</em> happens inside the simulation.</p>
+
+<!-- ========== PRINCIPLE ========== -->
+<div style="margin-top: 20px; background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.25); border-radius: 12px; padding: 18px;">
+  <div style="display: flex; gap: 14px; align-items: flex-start;">
+    <div style="font-size: 32px; line-height: 1;">🌪</div>
+    <div>
+      <div style="font-size: 10px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">THE WIND-TUNNEL PRINCIPLE</div>
+      <div style="font-size: 13px; color: rgb(229, 231, 235); line-height: 1.7; font-style: italic;">
+        "A wind tunnel doesn't fly the plane. It tells you where the plane is weakest before the plane is in the sky."
+      </div>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); line-height: 1.6; margin-top: 10px;">
+        Simulate mode is not a game. It is a <strong>failure laboratory</strong>. The user brings a design. The lab stresses it until it breaks. Every break is a <strong>concrete lesson</strong> the user could not have learned from a textbook. The simulation is only valuable if the user leaves changed — having updated their mental model of <em>what happens when X fails at scale</em>.
+      </div>
+      <div style="font-size: 11px; color: rgb(251, 146, 60); line-height: 1.6; margin-top: 10px;">
+        <strong>Every metric that moves must have a teaching moment attached.</strong> A number without a baseline is noise. A failure without narrative is frustration. A chaos event without context is a lightshow.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Q6 METRIC ANNOTATIONS ========== -->
+<h2 style="margin-top: 28px;">Q6 · How do live metrics become teaching signals?</h2>
+<p class="subtitle">The existing engine already emits p50/p95/p99, throughput, error rate, cache hit ratio, queue depth. Right now they display as numbers. The question: how do we make those numbers <em>pedagogical</em>?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · RAW NUMBERS (CURRENT)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Metrics display as-is. User interprets. Example:
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px 10px; margin-top: 8px; font-family: monospace; font-size: 10px; color: rgb(156, 163, 175);">
+      p99 latency: 3,200ms<br>
+      throughput: 1,240 rps<br>
+      cache hit: 12%
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> clean, no opinion. <em>Cons:</em> user has no idea if 3200ms is "fine" or "catastrophic".</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · THRESHOLD COACHING</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each metric has known thresholds. System classifies + explains:
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px 10px; margin-top: 8px; font-size: 10px; line-height: 1.8;">
+      <span style="color: rgb(252, 165, 165);">⬤</span> <strong style="color: rgb(252, 165, 165);">p99: 3,200ms · CRITICAL</strong><br>
+      <span style="color: rgb(156, 163, 175); font-size: 9px;">SLO violated. User-facing requests timing out. Industry: p99 &lt; 500ms is web norm.</span><br><br>
+      <span style="color: rgb(251, 191, 36);">⬤</span> <strong style="color: rgb(251, 191, 36);">cache hit: 12% · POOR</strong><br>
+      <span style="color: rgb(156, 163, 175); font-size: 9px;">88% of requests hit DB. Healthy cache: 85-95%. Your keys may be misshaped.</span>
+    </div>
+    <div style="font-size: 10px; color: rgb(110, 231, 183); margin-top: 8px;"><em>Pros:</em> every number becomes a lesson. <em>Cons:</em> authoring 40+ metric thresholds.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · BASELINE COMPARATOR</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each metric shows alongside "what real systems hit":
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px 10px; margin-top: 8px; font-size: 10px; line-height: 1.7;">
+      <strong>Your throughput:</strong> 1,240 rps<br>
+      <span style="color: rgb(156, 163, 175); font-size: 9px;">&nbsp;└─ Reddit front page: ~15k rps</span><br>
+      <span style="color: rgb(156, 163, 175); font-size: 9px;">&nbsp;└─ Twitter timeline: ~200k rps</span><br>
+      <span style="color: rgb(156, 163, 175); font-size: 9px;">&nbsp;└─ Netflix peak: ~350k rps</span><br>
+      <span style="color: rgb(147, 197, 253); font-size: 9px;">&nbsp;└─ You're at <strong>0.6% of Netflix scale</strong></span>
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> gives scale intuition. <em>Cons:</em> baselines go stale, need updates.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · B + C COMBINED</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Thresholds <em>and</em> baselines together. Each metric has 3 layers: raw number · classification · real-world comparison. Hover reveals deeper chain. Click opens "Why this metric matters" reading.
+    </div>
+    <div style="font-size: 10px; color: rgb(196, 181, 253); margin-top: 12px;"><em>Pros:</em> maximum teaching density. <em>Cons:</em> 2x authoring work, UI gets busy. Tooltip discipline needed.</div>
+  </div>
+
+</div>
+
+<!-- ========== Q7 SIMULATION MODES ========== -->
+<h2 style="margin-top: 28px;">Q7 · What simulation activities do we ship?</h2>
+<p class="subtitle">The engine can run any scenario. We have to pick which <em>framings</em> become first-class "activities" with their own UI, scoring, teaching moments. Pick as many as you want — these are not exclusive.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em;">① VALIDATE</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">⭐ must-ship</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong>Input:</strong> your design from Build mode. <strong>Output:</strong> "Does this design handle spec?" Runs workload at target scale for 60 seconds, grades against problem's SLO (p99, availability, correctness). Short (60s), low-drama, high-signal. First-time simulation experience.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em;">② STRESS TEST</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">⭐ must-ship</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong>Find the breaking point.</strong> Ramp load from 1x → 100x target. Graph shows where latency hockey-sticks. Teaches "where does my design fall over" viscerally. Result: a number — "your design holds to 14x target before p99 breaches SLO." Generates headline: "You survived 14x. The top 5% solutions survive 50x."
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em;">③ CHAOS DRILL</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">⭐ must-ship · the flagship</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong>Scenario-based narrative.</strong> "It's Black Friday 11:58 PM. Traffic 10x in 4 minutes. Then primary-region goes dark. You have 5 minutes to survive." Timed. 1 chaos event every 45-90 seconds. User can intervene (toggle circuit breakers, scale up, switch regions). Post-mortem generated. The <strong>flagship simulation</strong>.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em;">④ COMPARE · A/B DESIGNS</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">nice-to-have</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong>Split-screen.</strong> Run two designs against the same workload. See which handles chaos better. Example: "Design A: monolith + cache. Design B: microservices + queue. Same traffic, same chaos. Winner?" Teaches tradeoffs viscerally. High production value but limited reuse.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em;">⑤ FORECAST · 3-MONTH HORIZON</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">later</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong>"Where does your design break next?"</strong> Given current design + growth assumption (2x users/month), predicts which component fails first, when, and why. Teaches capacity planning. Advanced — ship after ①②③ are stable.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em;">⑥ ARCHEOLOGY · REPLAY REAL INCIDENTS</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175);">ambitious</div>
+    </div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong>"What happened at Facebook in Oct 2021?"</strong> Rebuild a real outage as a simulation scenario. User lives through the cascade as on-call engineer lived it. Teaches incident response + real systems thinking. Content-heavy — each one is a ~4-hour authoring effort.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q8 AI COACH ========== -->
+<h2 style="margin-top: 28px;">Q8 · AI coach during simulation — how intrusive?</h2>
+<p class="subtitle">Haiku (cheap) or Sonnet (slow) can observe the simulation live and talk. Too much → paternalistic. Too little → user flounders. Pick the vibe.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · SILENT WATCHER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      No coach during simulation. AI analysis only in post-mortem. User learns by suffering then reading. Classic failure pedagogy (Kapur's productive failure).
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> respectful, cheapest. <em>Cons:</em> beginners drown.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · WHISPER MODE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Coach only speaks on <strong>teachable moments</strong>: first cache-miss storm, first cascade, first timeout fan-out. Max 3 whispers per 5-min simulation. Haiku-powered (cheap, low latency). Ghost-text style, slides in from edge.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 10px; color: rgb(110, 231, 183); font-style: italic;">
+      "👁 Notice how every request now hits the DB — your cache just evicted. Watch what happens in 10s."
+    </div>
+    <div style="font-size: 10px; color: rgb(110, 231, 183); margin-top: 8px;"><em>Pros:</em> rare = signal. <em>Cons:</em> moment detection logic to build.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · COMMENTATOR</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AI narrates continuously like a sports commentator. "Load climbing through 5x · cache hit ratio dropping · DB CPU at 78%..." Maintains tension. Engagement high; signal low. Great for demos.
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> cinematic. <em>Cons:</em> Sonnet-grade cost, noisy.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · ON-DEMAND CONSULT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Silent by default. User can press <kbd style="background: rgb(9, 14, 25); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 3px; padding: 1px 5px; font-size: 9px; color: rgb(196, 181, 253);">?</kbd> anytime to pause and ask: "what's happening?" Coach answers with current state. Puts user in control.
+    </div>
+    <div style="font-size: 10px; color: rgb(196, 181, 253); margin-top: 8px;"><em>Pros:</em> learner-paced. <em>Cons:</em> beginners don't know what to ask.</div>
+  </div>
+
+</div>
+
+<!-- ========== Q9 TIME TOOLS ========== -->
+<h2 style="margin-top: 28px;">Q9 · Drill-in features for a running simulation</h2>
+<p class="subtitle">Pick any that feel necessary. Time-tools turn a flash of red into an autopsy.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① PAUSE &amp; INSPECT ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <kbd style="background: rgb(9, 14, 25); border-radius: 3px; padding: 1px 5px; font-size: 9px;">Space</kbd> freezes time. Hover any node, see all metrics, in-flight requests, queue depths. Baseline feature.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② TIME SCRUBBER ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Scrub back 30 seconds (live) or entire run (post). "How did we get here?" becomes answerable. Requires ring-buffered state.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ CASCADE TRACE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      When a failure cascades, visualize the <em>chain</em>: "Cache evicted → DB CPU spiked → write queue backed up → API timeouts → clients retrying → amplification." Each link clickable. The engine already tracks cascades — this exposes them.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ SLOW-MO</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      0.25x / 0.5x / 1x / 2x / 4x playback speed. Slow-mo catches sub-second cascades beginners miss at 1x.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ REPLAY &amp; SHARE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Save a simulation run. Replay exactly with annotations overlaid. Export as shareable link — "watch my design survive chaos drill 7". Social moat.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ METRIC DRILLDOWN</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Click any metric line on the graph → popover shows "at this moment, DB was at 78%, cache miss spiked 12% → 47%, 3 requests timed out." Traces the local cause.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ "WHAT IF?" BRANCHING</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Pause mid-simulation, edit the design, resume — see if the change would have saved you. Counterfactual learning. Powerful but expensive (requires state-cloning).
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q10 LEARNING LOOP ========== -->
+<h2 style="margin-top: 28px;">Q10 · How does Simulate link back to Learn and Drill?</h2>
+<p class="subtitle">A simulation that ends in "you died" with no path forward is a dead-end. The loop must close.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · POST-MORTEM ONLY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      After run, generate a report. Links to relevant concept pages and drill problems. User clicks to dig deeper on their own initiative.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · TRIPLE LOOP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Three explicit paths out of a simulation result:
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.8;">
+      <strong style="color: rgb(147, 197, 253);">📖 Learn path:</strong><br>
+      <span style="color: rgb(156, 163, 175); font-size: 9px;">"You failed on cache eviction. Read: Caching Strategies."</span><br>
+      <strong style="color: rgb(251, 191, 36);">🎨 Build path:</strong><br>
+      <span style="color: rgb(156, 163, 175); font-size: 9px;">"Want to try a different design? Back to Build, load your attempt, iterate."</span><br>
+      <strong style="color: rgb(252, 165, 165);">⏱ Drill path:</strong><br>
+      <span style="color: rgb(156, 163, 175); font-size: 9px;">"Try 'Design Twitter' — same cascade pattern, different constraints."</span>
+    </div>
+    <div style="font-size: 10px; color: rgb(110, 231, 183); margin-top: 8px;">Each path opens with context preloaded.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · FORCED REMEDIATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Can't retry the simulation until you've read the remedial concept. Feels nanny-ish but guarantees learning. Good for Rookie persona, kill-switch for Architect persona.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · CHALLENGE ESCALATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Pass simulation → unlock harder chaos drill. Fail → unlock <em>easier</em> variant. Difficulty auto-tunes. Gamified but maintains dignity (no "you failed" shaming).
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== VISUAL MOCKUP: SIMULATE SHELL ========== -->
+<h2 style="margin-top: 28px;">Reference · Simulate mode shell wireframe</h2>
+<p class="subtitle">So you can picture what all this resolves to. Not a design choice — just orientation.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.25); border-radius: 10px; padding: 14px; margin-top: 12px;">
+  <div style="background: rgb(9, 14, 25); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 9px; line-height: 1.7; color: rgb(229, 231, 235);">
+<span style="color: rgb(251, 146, 60);">┌─ SIMULATE · Chaos Drill "Black Friday Netflix" ───────────────── 03:24 / 05:00 ┐</span>
+│ <span style="color: rgb(156, 163, 175);">[scenario narrator]</span> <span style="color: rgb(251, 146, 60);">⚠ Primary region going dark in 12s...</span>          │
+├─────────────────────────────┬───────────────────────────────────────┤
+│                             │ <span style="color: rgb(156, 163, 175);">METRICS (live · threshold-coached)</span>   │
+│   [your design on canvas]   │ p99 <span style="color: rgb(252, 165, 165);">3,200ms</span> ⬤ CRITICAL  (SLO: 500)│
+│   ● ● ●  pulsing nodes      │ rps  1,240      → Netflix: 350k       │
+│   ━━━━  red edges cascading │ cache <span style="color: rgb(251, 191, 36);">12%</span>  ⬤ POOR                │
+│                             │ cost/hr <span style="color: rgb(110, 231, 183);">$47</span>                       │
+│                             ├───────────────────────────────────────┤
+│                             │ <span style="color: rgb(156, 163, 175);">CASCADE TRACE</span>                       │
+│                             │ ① cache eviction storm (0:12)         │
+│                             │ ② db CPU → 94%      (0:31)            │
+│                             │ ③ write queue backlog (0:47)          │
+│                             │ ④ API timeouts →  (1:04)              │
+├─────────────────────────────┴───────────────────────────────────────┤
+│ <span style="color: rgb(110, 231, 183);">💬 COACH (whisper)</span> "Your cache just evicted. Watch in 10s."           │
+├─────────────────────────────────────────────────────────────────────┤
+│ <kbd style="background: rgb(17, 24, 39); border: 1px solid rgb(75, 85, 99); border-radius: 3px; padding: 1px 4px; font-size: 8px;">space</kbd> pause   <kbd style="background: rgb(17, 24, 39); border: 1px solid rgb(75, 85, 99); border-radius: 3px; padding: 1px 4px; font-size: 8px;">←→</kbd> scrub   <kbd style="background: rgb(17, 24, 39); border: 1px solid rgb(75, 85, 99); border-radius: 3px; padding: 1px 4px; font-size: 8px;">?</kbd> ask coach   <kbd style="background: rgb(17, 24, 39); border: 1px solid rgb(75, 85, 99); border-radius: 3px; padding: 1px 4px; font-size: 8px;">esc</kbd> abort       │
+<span style="color: rgb(251, 146, 60);">└─────────────────────────────────────────────────────────────────────┘</span>
+  </div>
+</div>
+
+<!-- ========== CTA ========== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 16px; margin-top: 24px;">
+  <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">YOUR PICKS</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong>Q6</strong> — metric pedagogy: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q7</strong> — simulation activities to ship (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥</span><br>
+    <strong>Q8</strong> — AI coach vibe: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q9</strong> — drill-in features (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦</span><br>
+    <strong>Q10</strong> — learning loop: <span style="color: rgb(110, 231, 183);">A / B / C / D</span>
+  </div>
+  <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 10px;">
+    Reply with your picks (e.g. "<code style="background: rgb(9, 14, 25); padding: 1px 4px; border-radius: 3px;">B · ①②③ · B · ①②③⑤ · B</code>") and I'll advance to Batch 5 · Chaos as Storytelling.
+  </div>
+</div>

@@ -1,0 +1,158 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 4 of 20</strong> — graduation criteria. What visible milestones mark a pattern's status? Affects sidebar, dashboard, FSRS, achievements — everything progress-related.
+  </div>
+</div>
+
+<h2>Q4 · When is a pattern "mastered" — and what does that look like?</h2>
+<p class="subtitle">A user sees "Singleton" in the sidebar. What visual signal tells them their relationship with it? Done? Half-learned? Golden? This signal drives motivation and FSRS review cadence.</p>
+
+<!-- THE PROBLEM -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">🎯 THE REAL STATES A USER CAN BE IN</div>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 10px;">
+    <div style="background: rgba(107, 114, 128, 0.15); padding: 6px 8px; border-radius: 4px; color: rgb(156, 163, 175);">○ Unseen</div>
+    <div style="background: rgba(250, 204, 21, 0.1); padding: 6px 8px; border-radius: 4px; color: rgb(250, 204, 21);">◐ Introduced <span style="color: rgb(156,163,175); font-size: 9px;">(partial scroll)</span></div>
+    <div style="background: rgba(110, 231, 183, 0.1); padding: 6px 8px; border-radius: 4px; color: rgb(110, 231, 183);">◑ Completed <span style="color: rgb(156,163,175); font-size: 9px;">(walkthrough done)</span></div>
+    <div style="background: rgba(134, 239, 172, 0.1); padding: 6px 8px; border-radius: 4px; color: rgb(134, 239, 172);">● Confident <span style="color: rgb(156,163,175); font-size: 9px;">(1st-try checkpoints)</span></div>
+    <div style="background: rgba(147, 197, 253, 0.1); padding: 6px 8px; border-radius: 4px; color: rgb(147, 197, 253);">🎯 Applied <span style="color: rgb(156,163,175); font-size: 9px;">(drill solved)</span></div>
+    <div style="background: rgba(167, 139, 250, 0.1); padding: 6px 8px; border-radius: 4px; color: rgb(167, 139, 250);">🔁 Retained <span style="color: rgb(156,163,175); font-size: 9px;">(1 FSRS review)</span></div>
+    <div style="background: rgba(251, 191, 36, 0.12); padding: 6px 8px; border-radius: 4px; color: rgb(251, 191, 36);">⭐ Mastered <span style="color: rgb(156,163,175); font-size: 9px;">(multi-review)</span></div>
+    <div style="background: rgba(239, 68, 68, 0.1); padding: 6px 8px; border-radius: 4px; color: rgb(252, 165, 165);">📉 Lapsing <span style="color: rgb(156,163,175); font-size: 9px;">(FSRS decay)</span></div>
+  </div>
+  <div style="font-size: 11px; color: rgb(156, 163, 175); margin-top: 10px; line-height: 1.5;">
+    8 possible states. But UI can't show 8 icons — user would be confused. We need to collapse these into a visible tier structure.
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Binary · not-done vs done</h3>
+      <p>One checkmark. No gradient. Pattern is either completed or not.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+        ○ Singleton<br>
+        ✓ <span style="color: rgb(110, 231, 183);">Factory Method</span><br>
+        ✓ <span style="color: rgb(110, 231, 183);">Builder</span><br>
+        ○ Observer
+      </div>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Dead simple. Obvious at a glance.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Doesn't distinguish "scrolled through" from "truly knows it". No motivation to revisit. FSRS signal ignored at UI level.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">B</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>3-tier · Introduced → Completed → Mastered · with decay</h3>
+      <p>Three visible levels. <strong>Mastered decays back to Completed</strong> if no FSRS review passes in 90+ days — motivates ongoing review without punishing absence.</p>
+
+      <div style="margin-top: 12px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 6px; font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 2.1;">
+        <span style="color: rgb(107, 114, 128);">○</span>&nbsp;&nbsp;Singleton <span style="color: rgb(156, 163, 175); font-size: 10px;">— not started</span><br>
+        <span style="color: rgb(250, 204, 21);">◐</span>&nbsp;&nbsp;Factory Method <span style="color: rgb(250, 204, 21); font-size: 10px;">— Introduced</span><br>
+        <span style="color: rgb(110, 231, 183);">◉</span>&nbsp;&nbsp;<span style="color: rgb(110, 231, 183);">Builder</span> <span style="color: rgb(110, 231, 183); font-size: 10px;">— Completed</span><br>
+        <span style="color: rgb(251, 191, 36);">★</span>&nbsp;&nbsp;<span style="color: rgb(251, 191, 36);">Observer</span> <span style="color: rgb(251, 191, 36); font-size: 10px;">— Mastered</span><br>
+        <span style="color: rgb(251, 146, 60);">◉</span>&nbsp;&nbsp;<span style="color: rgb(251, 146, 60);">Strategy</span> <span style="color: rgb(251, 146, 60); font-size: 10px;">— lapsing, review due</span>
+      </div>
+
+      <!-- Tier criteria -->
+      <div style="margin-top: 12px; display: grid; gap: 6px;">
+        <div style="background: rgba(250, 204, 21, 0.08); padding: 8px 10px; border-radius: 4px;">
+          <strong style="color: rgb(250, 204, 21); font-size: 11px;">◐ Introduced:</strong>
+          <span style="color: rgb(229, 231, 235); font-size: 11px;"> ≥50% scroll depth OR 1+ checkpoint attempted</span>
+        </div>
+        <div style="background: rgba(110, 231, 183, 0.08); padding: 8px 10px; border-radius: 4px;">
+          <strong style="color: rgb(110, 231, 183); font-size: 11px;">◉ Completed:</strong>
+          <span style="color: rgb(229, 231, 235); font-size: 11px;"> 100% scroll + ≥70% checkpoints correct (reveals count as wrong)</span>
+        </div>
+        <div style="background: rgba(251, 191, 36, 0.08); padding: 8px 10px; border-radius: 4px;">
+          <strong style="color: rgb(251, 191, 36); font-size: 11px;">★ Mastered:</strong>
+          <span style="color: rgb(229, 231, 235); font-size: 11px;"> Completed + drill passed (≥70% grade) + 1+ FSRS review retained</span>
+        </div>
+        <div style="background: rgba(251, 146, 60, 0.08); padding: 8px 10px; border-radius: 4px;">
+          <strong style="color: rgb(251, 146, 60); font-size: 11px;">📉 Lapsing (not a tier, a warning):</strong>
+          <span style="color: rgb(229, 231, 235); font-size: 11px;"> Completed/Mastered + FSRS says review is overdue (stability low). Shown separately.</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Maps cleanly to 3 icon glyphs. Motivates both <em>first-time completion</em> and <em>long-term retention</em>. Drill integration baked in. FSRS lapsing surfaces as actionable nudge.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> Needs 3 signals (scroll, drill, FSRS) to compute — slightly more DB reads. Manageable.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>5-tier · full granularity</h3>
+      <p>Seen / Introduced / Completed / Applied / Mastered. More precise but more icons = more cognitive load.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+        <span style="color: rgb(107, 114, 128);">○</span> Seen · <span style="color: rgb(250, 204, 21);">◐</span> Introduced · <span style="color: rgb(110, 231, 183);">◑</span> Completed · <span style="color: rgb(147, 197, 253);">🎯</span> Applied · <span style="color: rgb(251, 191, 36);">★</span> Mastered
+      </div>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> High fidelity. Nerdy users love this.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> 5 states to explain. Users forget which icon means what. Too many.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Continuous 0-100% mastery score · FSRS-decaying</h3>
+      <p>Each pattern shows a ring or number. Score computed from scroll, checkpoints, drill, FSRS stability. Decays over time without review.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+        ⚪ Singleton · <span style="color: rgb(156, 163, 175);">0%</span><br>
+        🟡 Factory Method · <span style="color: rgb(250, 204, 21);">45%</span><br>
+        🟢 Builder · <span style="color: rgb(110, 231, 183);">78%</span><br>
+        ⭐ Observer · <span style="color: rgb(251, 191, 36);">94%</span>
+      </div>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Scientifically precise. Percentage is universal.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Gameable feel ("must get to 100%"). Tuning the formula is painful. Doesn't celebrate milestones — no "aha moment" when you cross a threshold.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why B -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY B WINS</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>3 tiers is the sweet spot</strong> — enough granularity to motivate (crossing Introduced → Completed is a celebration; Completed → Mastered is aspirational), but few enough to instantly parse. Each tier maps to a distinct glyph (◐ ◉ ★), visually scannable in a 36-item sidebar.<br><br>
+    <strong>Decay is essential.</strong> Your product vision already bet on FSRS-5 as the spaced repetition engine (99.6% vs SM-2 superiority, per your README). Decay back to Completed when Mastered → lapsing is exactly the mechanism that creates the ongoing habit loop. Users who drift away get pulled back: "<em>Your Observer mastery is lapsing — 2-min review?</em>"<br><br>
+    <strong>Drill integration is natural.</strong> "Mastered" requires drill pass → creates an organic bridge from Learn mode to Drill mode. Answers Q2's open question: <em>"when should user graduate from Learn to Drill?"</em> — when they want to turn Completed into Mastered.
+  </div>
+</div>
+
+<!-- Schema + computation -->
+<div style="margin-top: 18px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px;">
+  <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">COMPUTATION (server-side, cached)</div>
+  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <span style="color: rgb(196, 181, 253);">function</span> <span style="color: rgb(147, 197, 253);">computeTier</span>(progress, drillAttempts) {<br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> scrolled = progress.metadata.scrollDepth &gt;= <span style="color: rgb(251, 146, 60);">50</span>;<br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> completed = progress.completedAt !== <span style="color: rgb(110, 231, 183);">null</span> &amp;&amp; progress.checkpointAccuracy &gt;= <span style="color: rgb(251, 146, 60);">0.7</span>;<br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> drillPassed = drillAttempts.<span style="color: rgb(147, 197, 253);">some</span>(a =&gt; a.gradeScore &gt;= <span style="color: rgb(251, 146, 60);">70</span>);<br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> reviewed = progress.reps &gt;= <span style="color: rgb(251, 146, 60);">1</span> &amp;&amp; progress.lapses &lt;= progress.reps;<br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> lapsing = progress.nextReviewAt &lt; <span style="color: rgb(252, 165, 165);">Date</span>.<span style="color: rgb(147, 197, 253);">now</span>();<br><br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (completed &amp;&amp; drillPassed &amp;&amp; reviewed &amp;&amp; !lapsing) <span style="color: rgb(196, 181, 253);">return</span> <span style="color: rgb(110, 231, 183);">"mastered"</span>;<br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (completed) <span style="color: rgb(196, 181, 253);">return</span> <span style="color: rgb(110, 231, 183);">"completed"</span>;<br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (scrolled) <span style="color: rgb(196, 181, 253);">return</span> <span style="color: rgb(110, 231, 183);">"introduced"</span>;<br>
+    &nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">return</span> <span style="color: rgb(110, 231, 183);">"unseen"</span>;<br>
+    }
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q5 — <em>FSRS review integration (4th mode · in-Learn · Drill-embedded?)</em>
+  </p>
+</div>

@@ -1,0 +1,131 @@
+<div style="background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🏗️</div>
+  <div style="font-size: 12px; color: rgb(251, 146, 60); line-height: 1.5;">
+    <strong>Batch 6 · Layout &amp; canvas architecture deep-dive.</strong> From my browser inspection of the live LLD module, here's where the current layout has room to grow in sophistication.
+  </div>
+</div>
+
+<h2>How the canvas shell itself could be smarter</h2>
+<p class="subtitle">Multi-select. Layout ideas that the live LLD UI either lacks or could level up.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <div class="option" data-choice="l1" onclick="toggleSelect(this)">
+    <div class="letter">L1</div>
+    <div class="content">
+      <h3>Resizable panels everywhere · drag-to-resize sidebar/canvas/properties</h3>
+      <p>Currently panel widths are fixed. Engineers want control — give them drag handles at panel borders. Preferences persist per-user. Mini-map auto-positions. Your stack already has <code>react-resizable-panels</code>.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~4h. Library already in deps.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l2" onclick="toggleSelect(this)">
+    <div class="letter">L2</div>
+    <div class="content">
+      <h3>Collapsible panels · one-click hide sidebar / properties for focus</h3>
+      <p>Hit the chevron → sidebar slides away, canvas expands to claim space. Same for properties panel. Keybindings: <code>⌘[</code> collapse sidebar, <code>⌘]</code> collapse properties. Muscle-memory from VS Code.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~3h. Chevron UI + state persistence.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l3" onclick="toggleSelect(this)">
+    <div class="letter">L3</div>
+    <div class="content">
+      <h3>Pattern tabs · browser-style tabs for open patterns/problems</h3>
+      <p>Open Singleton. Click Observer — opens in a new tab. Switch between tabs without losing scroll/state. ⌘W closes. Pros familiar pattern from VS Code / Figma.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; display: flex; gap: 2px;">
+        <div style="background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.3); padding: 4px 12px; border-radius: 4px 4px 0 0; font-size: 10px; color: rgb(110, 231, 183);">● Singleton ×</div>
+        <div style="background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 4px 4px 0 0; font-size: 10px; color: rgb(156, 163, 175);">Observer ×</div>
+        <div style="background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 4px 4px 0 0; font-size: 10px; color: rgb(156, 163, 175);">Parking Lot ×</div>
+        <div style="color: rgb(156, 163, 175); padding: 4px 8px; font-size: 12px;">+</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~10h. Each tab persists canvas state.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l4" onclick="toggleSelect(this)">
+    <div class="letter">L4</div>
+    <div class="content">
+      <h3>Split-view · compare two patterns side-by-side in one window</h3>
+      <p>Hit "compare" icon → canvas splits vertically. Left: Observer. Right: Mediator. Both scrollable/editable independently. See structural differences at a glance. <strong>Teaching feature + crammer tool.</strong></p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~15h. Two canvas instances, shared chrome.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l5" onclick="toggleSelect(this)">
+    <div class="letter">L5</div>
+    <div class="content">
+      <h3>Distraction-free "zen mode" · everything fades but the canvas</h3>
+      <p>Keybind <code>⌘.</code>. Sidebar, properties, header, status bar all slide away. Canvas fills the viewport. Useful when designing in flow state. Another keybind to restore.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~3h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l6" onclick="toggleSelect(this)">
+    <div class="letter">L6</div>
+    <div class="content">
+      <h3>Canvas zoom semantics · pattern-context-aware fit-to-view</h3>
+      <p>Hitting "Fit" in current UI fits the whole diagram. Propose richer zoom: <code>Fit selection</code>, <code>Fit group</code>, <code>Fit highlighted</code>, <code>Reset to 100%</code>. Each as discrete menu option. Power users want control.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~4h. React Flow has zoom APIs.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l7" onclick="toggleSelect(this)">
+    <div class="letter">L7</div>
+    <div class="content">
+      <h3>Snap-to-grid toggle · visible grid on hold-Shift</h3>
+      <p>Normal mode: free positioning. Hold Shift while dragging: snap to invisible 8px grid + temporarily show grid lines. Release: grid vanishes. <strong>OCD-friendly, optional.</strong></p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~2h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l8" onclick="toggleSelect(this)">
+    <div class="letter">L8</div>
+    <div class="content">
+      <h3>Alignment guides · live guides appear when dragging classes</h3>
+      <p>Dragging a class near another's edge → pink dashed alignment guides appear when edges would match. Release = perfect alignment. Figma-style. Tiny detail, enormous quality signal.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Your codebase already has <code>AlignmentGuides + DistanceIndicators</code> components. Wire them into LLDCanvas. ~3h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l9" onclick="toggleSelect(this)">
+    <div class="letter">L9</div>
+    <div class="content">
+      <h3>Right-click context menus · reveal advanced actions</h3>
+      <p>Right-click a class → menu: <em>Edit, Duplicate, Delete, Add method, Add attribute, Convert to interface, Extract parent, Copy name, Copy as code, Copy as Mermaid, Find usages in lesson</em>. Packs 10 actions into 1 shortcut. Industry standard.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;"><code>CanvasContextMenu</code> exists — extend with LLD-specific actions. ~6h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l10" onclick="toggleSelect(this)">
+    <div class="letter">L10</div>
+    <div class="content">
+      <h3>Status bar polish · live context + micro-stats</h3>
+      <p>Current status bar shows "0 nodes / 0 edges". Propose richer context: <em>"Factory Method · 6 classes · 4 relationships · 92% completion · last saved 2s ago"</em>. Live, compact, informative. Click-to-dig-deeper per metric.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~4h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l11" onclick="toggleSelect(this)">
+    <div class="letter">L11</div>
+    <div class="content">
+      <h3>Breadcrumb navigation · always visible "where am I"</h3>
+      <p>Top-left breadcrumb: <code>LLD &gt; Creational &gt; Factory Method &gt; Learn Mode &gt; §3 UML Reveal</code>. Each segment clickable. Exact location context at all times. Currently breadcrumb exists but could be richer with section-level depth.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~3h polish.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="l12" onclick="toggleSelect(this)">
+    <div class="letter">L12</div>
+    <div class="content">
+      <h3>Mini-map intelligence · shows highlights, not just shapes</h3>
+      <p>Current mini-map shows class silhouettes. Extend: highlighted/selected classes glow in mini-map. Lesson-scroll-section visible in mini-map as colored overlay. Mini-map becomes a <em>navigation + attention map</em>, not a preview.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~4h. Extend existing <code>Minimap.tsx</code>.</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select L1-L12. Reply "all" / "none" / specific.</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Then Batch 7 — data visualization innovations (charts, heatmaps, constellations).</p>
+</div>

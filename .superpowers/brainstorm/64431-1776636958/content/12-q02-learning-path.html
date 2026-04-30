@@ -1,0 +1,154 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 2 of 20</strong> — learning path structure. Shapes sidebar, navigation, prerequisites, progress bars.
+  </div>
+</div>
+
+<h2>Q2 · In what order should the 36 patterns be learned?</h2>
+<p class="subtitle">Beginner opens Learn mode. Sidebar shows 36 patterns. What do they see first — a curated path, a free menu, or a locked sequence? This shapes onboarding for personas A &amp; B especially.</p>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 20px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Pure linear · locked sequence</h3>
+      <p>Pattern 2 is locked until Pattern 1 is complete. Classic "course" model. Duolingo-style gates.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-family: 'Geist Mono', monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.8;">
+        ✓ <span style="color: rgb(110, 231, 183);">Singleton</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="color: rgb(156, 163, 175);">(done)</span><br>
+        ▶ <span style="color: rgb(250, 204, 21);">Factory Method</span>&nbsp;<span style="color: rgb(156, 163, 175);">(current)</span><br>
+        🔒 <span style="color: rgb(107, 114, 128);">Abstract Factory</span>&nbsp;<span style="color: rgb(107, 114, 128);">(locked)</span><br>
+        🔒 <span style="color: rgb(107, 114, 128);">Builder</span><br>
+        🔒 <span style="color: rgb(107, 114, 128);">…33 more</span>
+      </div>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Zero decision paralysis. Perfect for persona A. Clear progress signal.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Frustrates persona C (crammer). Can't review old patterns unless completed ones are revisitable. Feels infantilizing to pros.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Prerequisite DAG · earn-your-way-in</h3>
+      <p>Patterns have explicit prerequisites. E.g., Abstract Factory depends on Factory Method. Strategy depends on basic Interface understanding. Graph-based, not linear.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6; text-align: center;">
+        <div style="display: inline-grid; grid-template-columns: auto auto auto; gap: 12px 24px; text-align: left;">
+          <div style="color: rgb(110, 231, 183);">✓ Singleton</div>
+          <div style="color: rgb(156, 163, 175);">→</div>
+          <div style="color: rgb(250, 204, 21);">▶ Factory Method</div>
+          <div></div>
+          <div></div>
+          <div style="color: rgb(156, 163, 175);">↓</div>
+          <div style="color: rgb(107, 114, 128); grid-column: 1 / 4;">🔒 Abstract Factory (needs Factory Method)</div>
+          <div style="color: rgb(250, 204, 21);">▶ Observer</div>
+          <div style="color: rgb(156, 163, 175);">→</div>
+          <div style="color: rgb(107, 114, 128);">🔒 Mediator (needs Observer)</div>
+        </div>
+      </div>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Pedagogically honest — real dependencies enforced. Can work on multiple branches in parallel.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Authoring the DAG is a ton of work. Still gates pros. Complex to visualize.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Free-choice · no gates · like LeetCode</h3>
+      <p>All 36 patterns visible and clickable from day one. No locks. Sort by difficulty / category / frequency. User picks what they want.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-family: 'Geist Mono', monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.8;">
+        <span style="color: rgb(156, 163, 175);">Sort: [Difficulty ▼] [Category] [Frequency]</span><br>
+        ● <span style="color: rgb(229, 231, 235);">Singleton</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(110, 231, 183);">Easy</span><br>
+        ● <span style="color: rgb(229, 231, 235);">Factory Method</span>&nbsp;<span style="color: rgb(110, 231, 183);">Easy</span><br>
+        ● <span style="color: rgb(229, 231, 235);">Observer</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">Medium</span><br>
+        ● <span style="color: rgb(229, 231, 235);">Visitor</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(239, 68, 68);">Hard</span><br>
+        <span style="color: rgb(156, 163, 175);">…all 36 clickable</span>
+      </div>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Pros love it. Zero friction. Respects user intelligence.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Persona A is paralyzed — "where do I even start?" Dumps all 36 on them.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">D</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Hybrid · recommended path (DAG) + "free explore" escape hatch</h3>
+      <p>Default view shows a curated <strong>learning path</strong> — 36 patterns ordered in a DAG, highlighted node = "start here", next node = "suggested next". But <em>nothing is locked</em>. A toggle <code>[Guided · All patterns]</code> swaps to flat list for pros.</p>
+
+      <!-- Mockup -->
+      <div style="margin-top: 12px; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 12px;">
+        <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); border-radius: 16px; padding: 2px; width: fit-content; margin-bottom: 10px;">
+          <div style="background: rgba(124, 58, 237, 0.35); color: rgb(196, 181, 253); font-size: 10px; padding: 3px 10px; border-radius: 14px; font-weight: 600;">Guided path</div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 3px 10px; border-radius: 14px;">All 36 patterns</div>
+        </div>
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; font-size: 10px;">
+          <div style="color: rgb(110, 231, 183);">✓</div>
+          <div style="color: rgb(229, 231, 235);"><strong>Singleton</strong> <span style="color: rgb(156, 163, 175);">— OOP gateway pattern</span></div>
+          <div style="color: rgb(250, 204, 21);">▶</div>
+          <div style="color: rgb(229, 231, 235); background: rgba(250, 204, 21, 0.08); padding: 2px 6px; border-radius: 4px;"><strong>Factory Method</strong> <span style="color: rgb(250, 204, 21); font-size: 9px;">← RECOMMENDED NEXT</span></div>
+          <div style="color: rgb(156, 163, 175);">○</div>
+          <div style="color: rgb(229, 231, 235);">Builder <span style="color: rgb(156, 163, 175);">— complex object construction</span></div>
+          <div style="color: rgb(156, 163, 175);">○</div>
+          <div style="color: rgb(229, 231, 235);">Abstract Factory <span style="color: rgb(156, 163, 175);">— families of factories</span></div>
+          <div style="color: rgb(156, 163, 175);">○</div>
+          <div style="color: rgb(229, 231, 235);">Observer <span style="color: rgb(156, 163, 175);">— pub-sub within a process</span></div>
+          <div style="color: rgb(156, 163, 175);">○</div>
+          <div style="color: rgb(229, 231, 235);">Strategy <span style="color: rgb(156, 163, 175);">— swappable algorithms</span></div>
+          <div style="color: rgb(156, 163, 175);">…</div>
+          <div style="color: rgb(156, 163, 175);">31 more · click to jump</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Persona A follows path. Persona B follows path but jumps if bored. Persona C clicks "All patterns" once, never sees guided view again. All served.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> Authoring the DAG still requires thought (but you don't enforce it, so mistakes cost less). Two UI states to maintain.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- The proposed DAG -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 12px; padding: 18px;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 10px;">📋 THE PROPOSED LEARNING PATH (if you pick D)</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong style="color: rgb(110, 231, 183);">Wave 1 · Foundations (5):</strong> Singleton → Factory Method → Builder → Abstract Factory → Prototype<br>
+    <strong style="color: rgb(110, 231, 183);">Wave 2 · Communication (6):</strong> Observer → Mediator → Command → Chain of Responsibility → Iterator → Visitor<br>
+    <strong style="color: rgb(110, 231, 183);">Wave 3 · Behavior (5):</strong> Strategy → State → Template Method → Memento → Interpreter<br>
+    <strong style="color: rgb(110, 231, 183);">Wave 4 · Structure (7):</strong> Adapter → Bridge → Facade → Decorator → Composite → Proxy → Flyweight<br>
+    <strong style="color: rgb(110, 231, 183);">Wave 5 · Modern (4):</strong> Module → Event Emitter → Async Patterns → Reactive Patterns<br>
+    <strong style="color: rgb(110, 231, 183);">Wave 6 · Resilience (4):</strong> Timeout → Retry → Circuit Breaker → Bulkhead<br>
+    <strong style="color: rgb(110, 231, 183);">Wave 7 · Concurrency (2):</strong> Thread Pool → Work Queue<br>
+    <strong style="color: rgb(110, 231, 183);">Wave 8 · AI-Agent (3):</strong> Tool Use → Agent Loop → ReAct Pattern
+  </div>
+  <div style="font-size: 11px; color: rgb(156, 163, 175); margin-top: 10px; line-height: 1.5; font-style: italic;">
+    36 patterns · 8 waves · ~4-5 patterns per wave. Each wave introduces one conceptual axis. Completing a wave = clear milestone.
+  </div>
+</div>
+
+<!-- Data model -->
+<div style="margin-top: 18px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px;">
+  <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">SCHEMA IMPACT IF YOU PICK D</div>
+  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <span style="color: rgb(156, 163, 175);">// Extend moduleContent.content JSONB for patterns:</span><br>
+    {<br>
+    &nbsp;&nbsp;<span style="color: rgb(110, 231, 183);">pathOrder</span>: <span style="color: rgb(251, 146, 60);">3</span>,&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// position in guided path</span><br>
+    &nbsp;&nbsp;<span style="color: rgb(110, 231, 183);">wave</span>: <span style="color: rgb(251, 146, 60);">1</span>,&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// which wave</span><br>
+    &nbsp;&nbsp;<span style="color: rgb(110, 231, 183);">prerequisites</span>: [<span style="color: rgb(110, 231, 183);">"factory-method"</span>],&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// soft hints</span><br>
+    &nbsp;&nbsp;<span style="color: rgb(110, 231, 183);">unlocksRecommendation</span>: [<span style="color: rgb(110, 231, 183);">"abstract-factory"</span>]<br>
+    }
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D · or tell me in terminal. Next: Q3 — <em>prerequisite gating (soft hint vs hard lock)</em>.
+  </p>
+</div>

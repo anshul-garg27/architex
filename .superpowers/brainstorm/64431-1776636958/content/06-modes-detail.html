@@ -1,0 +1,359 @@
+<div style="background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">📐</div>
+  <div style="font-size: 12px; color: rgb(196, 181, 253); line-height: 1.5;">
+    <strong>Design Section 2 of 6:</strong> Each mode in detail — exact layout, exact components, exact interactions. This is where the design gets concrete.
+  </div>
+</div>
+
+<h2>Each mode, detailed</h2>
+<p class="subtitle">For each mode: <em>what does the user see</em>, <em>what components render</em>, <em>what happens when they interact</em>.</p>
+
+<!-- ════════════════════ LEARN MODE ════════════════════ -->
+<div style="border-radius: 14px; overflow: hidden; margin: 32px 0; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.3);">
+
+  <div style="background: rgba(16, 185, 129, 0.15); padding: 14px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(16, 185, 129, 0.25);">
+    <div style="font-size: 24px;">📖</div>
+    <div>
+      <h3 style="margin: 0; color: rgb(110, 231, 183);">LEARN MODE — "Brilliant.org inside a UML canvas"</h3>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); margin-top: 2px;">Scroll-synced lesson + auto-highlighting canvas. <strong>Default for first-time visitors.</strong></div>
+    </div>
+  </div>
+
+  <div style="padding: 20px;">
+
+    <!-- WIREFRAME -->
+    <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px;">
+      <!-- Top strip -->
+      <div style="display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 10px;">
+        <div style="font-size: 10px; color: rgb(229, 231, 235);">🧭 LLD · <strong>Singleton</strong></div>
+        <div style="width: 120px; height: 4px; background: rgba(16,185,129,0.15); border-radius: 2px; overflow: hidden;">
+          <div style="width: 35%; height: 100%; background: rgb(16,185,129);"></div>
+        </div>
+        <div style="font-size: 9px; color: rgb(110, 231, 183);">3/8 steps</div>
+        <div style="flex:1;"></div>
+        <div style="display:flex; gap: 3px; background: rgba(0,0,0,0.4); border-radius: 16px; padding: 2px;">
+          <div style="background: rgba(16, 185, 129, 0.3); color: rgb(110, 231, 183); font-size: 9px; padding: 3px 10px; border-radius: 14px; font-weight: 600;">Learn</div>
+          <div style="color: rgb(107, 114, 128); font-size: 9px; padding: 3px 10px; border-radius: 14px;">Build</div>
+          <div style="color: rgb(107, 114, 128); font-size: 9px; padding: 3px 10px; border-radius: 14px;">Drill</div>
+        </div>
+      </div>
+
+      <!-- 2-column body -->
+      <div style="display: grid; grid-template-columns: 180px 1fr 380px; gap: 10px; min-height: 340px;">
+
+        <!-- LEFT: Pattern list (minimal sidebar) -->
+        <div style="background: rgba(255,255,255,0.03); border-radius: 6px; padding: 10px;">
+          <div style="font-size: 9px; color: rgb(156,163,175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">PATTERNS</div>
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <div style="background: rgba(16,185,129,0.15); color: rgb(110,231,183); font-size: 10px; padding: 5px 8px; border-radius: 4px; font-weight: 600;">✓ Singleton</div>
+            <div style="color: rgb(156,163,175); font-size: 10px; padding: 5px 8px;">Factory Method</div>
+            <div style="color: rgb(156,163,175); font-size: 10px; padding: 5px 8px;">Builder</div>
+            <div style="color: rgb(156,163,175); font-size: 10px; padding: 5px 8px;">Observer</div>
+            <div style="color: rgb(156,163,175); font-size: 10px; padding: 5px 8px;">Strategy</div>
+          </div>
+          <div style="font-size: 9px; color: rgb(156,163,175); font-weight: 600; letter-spacing: 0.5px; margin: 16px 0 8px;">YOUR PATH</div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-size: 9px; color: rgb(110,231,183);">◉ Creational · 1/5</div>
+            <div style="height: 3px; background: rgba(16,185,129,0.15); border-radius: 2px;">
+              <div style="width: 20%; height: 100%; background: rgb(16,185,129); border-radius: 2px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CENTER: Canvas (auto-highlighting) -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 10px; position: relative;">
+          <div style="font-size: 9px; color: rgb(110, 231, 183); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">CANVAS · read-only · auto-highlight</div>
+
+          <!-- Mock UML with highlighted class -->
+          <div style="position: relative; height: 280px; display: flex; align-items: center; justify-content: center;">
+            <!-- Dimmed class -->
+            <div style="position: absolute; top: 20px; left: 20px; width: 100px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px; opacity: 0.35;">
+              <div style="font-size: 8px; font-weight: 600; color: rgb(156,163,175);">Client</div>
+              <div style="font-size: 7px; color: rgb(107,114,128); margin-top: 4px;">+ request()</div>
+            </div>
+
+            <!-- HIGHLIGHTED class -->
+            <div style="position: absolute; top: 90px; left: 50%; transform: translateX(-50%); width: 140px; background: rgba(16,185,129,0.15); border: 2px solid rgb(16,185,129); border-radius: 6px; padding: 8px; box-shadow: 0 0 0 4px rgba(16,185,129,0.15), 0 0 20px rgba(16,185,129,0.3);">
+              <div style="font-size: 9px; font-weight: 700; color: rgb(110,231,183); text-align:center;">Singleton</div>
+              <div style="height: 1px; background: rgba(16,185,129,0.3); margin: 6px 0;"></div>
+              <div style="font-size: 8px; color: rgb(229, 231, 235);">- instance: Singleton</div>
+              <div style="height: 1px; background: rgba(16,185,129,0.3); margin: 6px 0;"></div>
+              <div style="font-size: 8px; color: rgb(229, 231, 235);">+ getInstance()</div>
+              <div style="font-size: 8px; color: rgb(229, 231, 235);">- constructor()</div>
+            </div>
+
+            <!-- Pulse ring to emphasize highlight -->
+            <div style="position: absolute; top: 96px; left: 50%; transform: translateX(-50%); width: 148px; height: 74px; border: 2px solid rgba(16,185,129,0.4); border-radius: 8px; animation: pulse 2s infinite;"></div>
+          </div>
+
+          <div style="position: absolute; bottom: 10px; left: 10px; font-size: 9px; color: rgb(156, 163, 175); font-style: italic;">↑ This class is highlighted because the lesson on the right is describing it</div>
+        </div>
+
+        <!-- RIGHT: Lesson column (scroll-synced) -->
+        <div style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: hidden;">
+          <div style="font-size: 9px; color: rgb(196, 181, 253); font-weight: 600; letter-spacing: 0.5px;">LESSON COLUMN · scroll-synced</div>
+
+          <!-- Section 1: Hook -->
+          <div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.3px; margin-bottom: 4px;">① HOOK</div>
+            <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">You're building a logger. Every module needs to write to the <em>same</em> file. How do you guarantee only one log instance exists across the whole app?</div>
+          </div>
+
+          <!-- Section 2: Analogy -->
+          <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
+            <div style="font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.3px; margin-bottom: 4px;">② ANALOGY</div>
+            <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">A country has many citizens but <em>one</em> president. Doesn't matter where you are — ask for "the president" and you get the same person.</div>
+          </div>
+
+          <!-- Section 3: UML Reveal (triggers highlight on canvas) -->
+          <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; background: rgba(16,185,129,0.08); margin: 0 -14px; padding: 10px 14px; border-left: 3px solid rgb(16,185,129);">
+            <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 600; letter-spacing: 0.3px; margin-bottom: 4px;">③ UML REVEAL ← you are here</div>
+            <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">Meet the <strong>Singleton class</strong> (highlighted on the left). It has a private <code>instance</code> field and a static <code>getInstance()</code> method. The constructor is private — you can't call <code>new</code>.</div>
+          </div>
+
+          <!-- Section 4: Checkpoint (interactive) -->
+          <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
+            <div style="font-size: 10px; color: rgb(250, 204, 21); font-weight: 600; letter-spacing: 0.3px; margin-bottom: 6px;">④ CHECKPOINT · click to answer</div>
+            <div style="background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.25); border-radius: 6px; padding: 8px;">
+              <div style="font-size: 10px; color: rgb(229, 231, 235); margin-bottom: 6px;">Why is the constructor private?</div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <div style="background: rgba(255,255,255,0.05); border-radius: 3px; padding: 4px 8px; font-size: 9px; color: rgb(156, 163, 175);">A · To save memory</div>
+                <div style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 3px; padding: 4px 8px; font-size: 9px; color: rgb(110, 231, 183); font-weight: 600;">B · To prevent external <code>new</code> calls ✓</div>
+                <div style="background: rgba(255,255,255,0.05); border-radius: 3px; padding: 4px 8px; font-size: 9px; color: rgb(156, 163, 175);">C · Convention</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ghost preview of upcoming sections -->
+          <div style="opacity: 0.4; font-size: 9px; color: rgb(156, 163, 175); border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px;">
+            ⑤ Code · ⑥ Tradeoffs · ⑦ Summary · ⑧ CTA: "Switch to Build →"
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Component map for Learn mode -->
+    <div style="margin-top: 20px;">
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">COMPONENTS INVOLVED</div>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 11px;">
+        <div style="background: rgba(255,255,255,0.04); padding: 8px 10px; border-radius: 6px;">
+          <div style="color: rgb(110, 231, 183); font-weight: 600;">NEW · <code>LearnModeLayout.tsx</code></div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; margin-top: 2px;">2-column grid. Scroll listener syncs canvas highlight.</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); padding: 8px 10px; border-radius: 6px;">
+          <div style="color: rgb(110, 231, 183); font-weight: 600;">REUSE · <code>WalkthroughPlayer.tsx</code></div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; margin-top: 2px;">Repositioned from bottom tab → full lesson column. All 4 checkpoint types already work.</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); padding: 8px 10px; border-radius: 6px;">
+          <div style="color: rgb(110, 231, 183); font-weight: 600;">EXTEND · <code>LLDCanvas.tsx</code></div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; margin-top: 2px;">Add <code>highlightedClassIds</code> prop driven by scroll position.</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); padding: 8px 10px; border-radius: 6px;">
+          <div style="color: rgb(110, 231, 183); font-weight: 600;">NEW · <code>LessonColumn.tsx</code></div>
+          <div style="color: rgb(156, 163, 175); font-size: 10px; margin-top: 2px;">7-section layout: hook/analogy/UML/checkpoint/code/tradeoffs/summary.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ BUILD MODE ════════════════════ -->
+<div style="border-radius: 14px; overflow: hidden; margin: 32px 0; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.25);">
+
+  <div style="background: rgba(59, 130, 246, 0.12); padding: 14px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(59, 130, 246, 0.2);">
+    <div style="font-size: 24px;">🎨</div>
+    <div>
+      <h3 style="margin: 0; color: rgb(147, 197, 253);">BUILD MODE — the current 4-panel UI, unchanged</h3>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); margin-top: 2px;">Zero regression. What exists today. <strong>Default for returning users.</strong></div>
+    </div>
+  </div>
+
+  <div style="padding: 20px;">
+    <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px;">
+      <div style="display: grid; grid-template-columns: 200px 1fr 240px; gap: 6px; height: 220px;">
+        <!-- Full sidebar -->
+        <div style="background: rgba(59,130,246,0.06); border-radius: 6px; padding: 8px;">
+          <div style="font-size: 8px; color: rgb(147,197,253); font-weight: 600;">SIDEBAR (full)</div>
+          <div style="font-size: 8px; color: rgb(156,163,175); margin-top: 6px; line-height: 1.5;">
+            Mode: Pattern<br>Mode: Problem<br>Mode: SOLID<br>Mode: Sequence<br>Mode: State Machine<br>Mode: Code→Diagram<br>Mode: Mermaid<br>Mode: Pattern Graph
+          </div>
+        </div>
+        <!-- Full canvas -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 6px; padding: 8px; display:flex; align-items:center; justify-content:center;">
+          <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 600;">Full LLDCanvas · editable · drag-drop</div>
+        </div>
+        <!-- Properties -->
+        <div style="background: rgba(59,130,246,0.06); border-radius: 6px; padding: 8px;">
+          <div style="font-size: 8px; color: rgb(147,197,253); font-weight: 600;">PROPERTIES</div>
+          <div style="font-size: 8px; color: rgb(156,163,175); margin-top: 4px;">class attrs / methods / visibility</div>
+        </div>
+      </div>
+      <!-- Bottom panel tabs -->
+      <div style="background: rgba(59,130,246,0.08); border-radius: 6px; padding: 8px; margin-top: 6px;">
+        <div style="font-size: 8px; color: rgb(147,197,253); font-weight: 600; margin-bottom: 4px;">BOTTOM TABS</div>
+        <div style="display:flex; gap: 4px; flex-wrap: wrap;">
+          <div style="font-size: 8px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; color: rgb(229,231,235);">explain (WalkthroughPlayer)</div>
+          <div style="font-size: 8px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; color: rgb(156,163,175);">quiz</div>
+          <div style="font-size: 8px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; color: rgb(156,163,175);">confused-with</div>
+          <div style="font-size: 8px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; color: rgb(156,163,175);">interview prep</div>
+          <div style="font-size: 8px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; color: rgb(156,163,175);">auto-grader</div>
+          <div style="font-size: 8px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; color: rgb(156,163,175);">mermaid</div>
+          <div style="font-size: 8px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 3px; color: rgb(156,163,175);">SOLID spotter</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; background: rgba(59,130,246,0.05); border-left: 3px solid rgb(59,130,246); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+      <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 600; margin-bottom: 4px;">SCOPE FOR BUILD MODE</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+        <strong>Zero component changes.</strong> We only wrap the existing content in a new <code>BuildModeLayout.tsx</code> for consistency. All of <code>LLDSidebar</code>, <code>LLDCanvas</code>, <code>LLDProperties</code>, <code>ContextualBottomTabs</code> render exactly as they do today. This is what makes this approach shippable fast — we don't break anything.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ DRILL MODE ════════════════════ -->
+<div style="border-radius: 14px; overflow: hidden; margin: 32px 0; background: rgba(239, 68, 68, 0.04); border: 1px solid rgba(239, 68, 68, 0.25);">
+
+  <div style="background: rgba(239, 68, 68, 0.12); padding: 14px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(239, 68, 68, 0.2);">
+    <div style="font-size: 24px;">⏱️</div>
+    <div>
+      <h3 style="margin: 0; color: rgb(252, 165, 165);">DRILL MODE — timed problem solving with auto-grading</h3>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); margin-top: 2px;">Interview prep grinder. <strong>Default CTA for persona C.</strong></div>
+    </div>
+  </div>
+
+  <div style="padding: 20px;">
+    <!-- Wireframe -->
+    <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px;">
+
+      <!-- Top: problem statement + timer -->
+      <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: rgba(239, 68, 68, 0.08); border-radius: 6px; margin-bottom: 8px;">
+        <div style="flex: 1;">
+          <div style="font-size: 8px; color: rgb(252, 165, 165); font-weight: 600;">PROBLEM #7 · Medium</div>
+          <div style="font-size: 10px; color: rgb(229, 231, 235); font-weight: 600; margin-top: 2px;">Design a Parking Lot System</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Support multiple floors, vehicle types, spot assignment, payment.</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 8px 14px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 16px; color: rgb(252, 165, 165); font-weight: 700; font-family: monospace;">23:41</div>
+          <div style="font-size: 8px; color: rgb(156, 163, 175); letter-spacing: 0.5px;">REMAINING</div>
+        </div>
+        <button class="mock-button" style="background: rgb(239, 68, 68); color: white; font-size: 10px; padding: 8px 16px; font-weight: 600;">Submit for grading</button>
+      </div>
+
+      <!-- Body: queue + canvas + hints -->
+      <div style="display: grid; grid-template-columns: 180px 1fr 150px; gap: 6px; min-height: 240px;">
+
+        <!-- Problem queue -->
+        <div style="background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px;">
+          <div style="font-size: 9px; color: rgb(252, 165, 165); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;">QUEUE · 33 problems</div>
+          <div style="display: flex; gap: 3px; margin-bottom: 6px;">
+            <div style="font-size: 8px; color: rgb(229, 231, 235); background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 10px;">All</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175); padding: 2px 6px;">Easy</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175); padding: 2px 6px;">Med</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175); padding: 2px 6px;">Hard</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-size: 9px; color: rgb(110, 231, 183); padding: 3px 5px; border-radius: 3px;">✓ Tic-Tac-Toe</div>
+            <div style="font-size: 9px; color: rgb(110, 231, 183); padding: 3px 5px; border-radius: 3px;">✓ LRU Cache</div>
+            <div style="font-size: 9px; color: rgb(252, 165, 165); padding: 3px 5px; background: rgba(239,68,68,0.1); border-radius: 3px; font-weight: 600;">● Parking Lot</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); padding: 3px 5px;">○ ATM</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); padding: 3px 5px;">○ Elevator</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); padding: 3px 5px;">○ Chess</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); padding: 3px 5px;">○ Splitwise</div>
+          </div>
+        </div>
+
+        <!-- Canvas (starter or blank) -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(239,68,68,0.3); border-radius: 6px; padding: 10px; position: relative;">
+          <div style="font-size: 9px; color: rgb(252, 165, 165); font-weight: 600; letter-spacing: 0.5px;">YOUR CANVAS · start blank, design the system</div>
+          <div style="height: 200px; display: flex; align-items: center; justify-content: center; color: rgb(107, 114, 128); font-size: 11px; font-style: italic;">
+            Drag classes from sidebar · define relationships · capture requirements
+          </div>
+          <div style="position: absolute; bottom: 10px; left: 10px; display:flex; gap: 6px;">
+            <div style="background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 12px; font-size: 9px; color: rgb(229, 231, 235);">+ Add class</div>
+            <div style="background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 12px; font-size: 9px; color: rgb(229, 231, 235);">+ Relationship</div>
+          </div>
+        </div>
+
+        <!-- Hints panel -->
+        <div style="background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px;">
+          <div style="font-size: 9px; color: rgb(252, 165, 165); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;">HINTS · 15 credits</div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="background: rgba(255,255,255,0.04); border-radius: 4px; padding: 6px; font-size: 9px; color: rgb(229, 231, 235);">
+              <div style="font-weight: 600; color: rgb(250, 204, 21);">Nudge · 1 cr</div>
+              <div style="color: rgb(156, 163, 175); margin-top: 2px;">"Have you considered..."</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 4px; padding: 6px; font-size: 9px; color: rgb(229, 231, 235);">
+              <div style="font-weight: 600; color: rgb(251, 146, 60);">Guided · 3 cr</div>
+              <div style="color: rgb(156, 163, 175); margin-top: 2px;">Specific suggestion</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 4px; padding: 6px; font-size: 9px; color: rgb(229, 231, 235);">
+              <div style="font-weight: 600; color: rgb(239, 68, 68);">Full · 5 cr</div>
+              <div style="color: rgb(156, 163, 175); margin-top: 2px;">Complete walkthrough</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom: AutoGrader result (collapsed until submit) -->
+      <div style="margin-top: 6px; background: rgba(255,255,255,0.03); border-radius: 6px; padding: 8px; font-size: 9px; color: rgb(156, 163, 175); text-align: center;">
+        ▸ AutoGrader collapses here · 8-dim scoring appears after Submit: Classes (40%) · Relationships (30%) · Pattern Usage (20%) · Completeness (10%)
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; background: rgba(239,68,68,0.05); border-left: 3px solid rgb(239,68,68); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 600; margin-bottom: 4px;">REUSES EXISTING INFRASTRUCTURE</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+        <code>AutoGrader.tsx</code> exists · <code>grading-engine.ts</code> with fuzzy matching exists · 33 problems in <code>problems.ts</code> exist · 3-tier hint system (<code>hint-system.ts</code>) exists · <code>interview-store</code> tracks attempts. <strong>New work</strong> is the layout composition + timer integration, not logic.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ MODE TRANSITIONS ════════════════════ -->
+<h3 style="margin-top: 40px;">What happens when user switches mode mid-work?</h3>
+<p class="subtitle">Critical UX question — I'm proposing <strong>work-preserving</strong> transitions.</p>
+
+<div style="display: grid; gap: 10px; margin-top: 16px;">
+
+  <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 14px 18px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 600; margin-bottom: 6px;">🎨 Build → 📖 Learn (user is tinkering, then wants to learn)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Build canvas state <strong>preserved in canvas-store</strong> (already persisted). Learn mode shows its own read-only reference canvas. When user switches back: their drawing is exactly where they left it. Toast: <em>"Your work is saved — switching to Learn."</em>
+    </div>
+  </div>
+
+  <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 14px 18px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 600; margin-bottom: 6px;">⏱️ Drill → 🎨 Build (mid-solve, wants to experiment)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong>Timer pauses.</strong> Canvas becomes editable with all their drill work intact. They can experiment freely. When they switch back to Drill: <em>"Resume challenge? Timer: 23:41 remaining"</em> with Resume / Give up / Submit now buttons.
+    </div>
+  </div>
+
+  <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 14px 18px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 600; margin-bottom: 6px;">📖 Learn → 📖 Learn (jumping between patterns)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Scroll position + checkpoint progress per pattern saved to <code>progress-store</code>. Return to same pattern later → land at same scroll position. "Resume where you left off" badge on the pattern card.
+    </div>
+  </div>
+
+  <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 14px 18px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 600; margin-bottom: 6px;">❓ Abandonment edge case</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      If user closes tab mid-drill → drill state cleared on next open (don't resume stale drills silently). BUT if they close mid-lesson → land exactly where they left off (learn is low-stakes).
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation CTA -->
+<div style="margin-top: 32px; text-align:center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">
+    Does each mode's detail feel right?
+  </p>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin: 0;">
+    Reply "yes" / "go" → Section 3: first-visit UX (how users discover modes on arrival).<br>
+    Or flag anything that feels off — layout, scope, transitions.
+  </p>
+</div>

@@ -1,0 +1,393 @@
+<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🔥</div>
+  <div style="font-size: 12px; color: rgb(252, 165, 165); line-height: 1.5;">
+    <strong>Batch 5 of 10 · Chaos as storytelling.</strong> Turning 73 chaos events into 73 war stories. The taxonomy, the narrative, the real-incident library, the controls.
+  </div>
+</div>
+
+<h2>The premise · A failure is just data until it becomes a story</h2>
+<p class="subtitle">The engine has 73 chaos events already wired. Right now they're visual effects with state mutations — a red pulse, a broken edge, a metric spike. Engineers remember <strong>stories</strong>, not metrics. "Facebook Oct 2021" is a story. "Cache eviction at t=0:47" is a log line. This batch decides how to promote every chaos event from log line to story.</p>
+
+<!-- ========== PRINCIPLE ========== -->
+<div style="margin-top: 20px; background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 18px;">
+  <div style="display: flex; gap: 14px; align-items: flex-start;">
+    <div style="font-size: 32px; line-height: 1;">📖</div>
+    <div>
+      <div style="font-size: 10px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">THE WAR-STORY PRINCIPLE</div>
+      <div style="font-size: 13px; color: rgb(229, 231, 235); line-height: 1.7; font-style: italic;">
+        "Senior engineers don't remember concepts — they remember the 3 AM page that taught them the concept."
+      </div>
+      <div style="font-size: 11px; color: rgb(156, 163, 175); line-height: 1.6; margin-top: 10px;">
+        A chaos event should enter the user's memory as <strong>a story</strong>: a scene, a character, a stakes-moment, an aftermath. "The time the cache evicted during the demo" beats "cache eviction can cause latency spikes" in every cognitive science metric: recall, transfer, retention. Each of our 73 events is a potential story. This batch decides the shape of those stories.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Q11 TAXONOMY ========== -->
+<h2 style="margin-top: 28px;">Q11 · How do we group 73 chaos events for the user?</h2>
+<p class="subtitle">Users need to browse, pick, search. 73 is a lot. Taxonomy decides the first screen of chaos mode.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION A · BY FAILURE DOMAIN (7)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Group by <em>where</em> the failure originates. Matches engineers' mental model.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.9;">
+      <span style="color: rgb(252, 165, 165);">🔥 Infrastructure</span> (14) · region down, disk full, CPU spike, OOM<br>
+      <span style="color: rgb(251, 146, 60);">🗄 Data layer</span> (11) · DB primary down, replica lag, shard imbalance<br>
+      <span style="color: rgb(251, 191, 36);">🌐 Network</span> (10) · latency spike, packet loss, DNS flap<br>
+      <span style="color: rgb(196, 181, 253);">🌊 Cascade</span> (9) · thundering herd, retry amplification, cache storm<br>
+      <span style="color: rgb(147, 197, 253);">🔌 External dep</span> (8) · 3rd-party API, CDN, payment gateway<br>
+      <span style="color: rgb(110, 231, 183);">👤 Human</span> (10) · bad deploy, config drift, deleted index<br>
+      <span style="color: rgb(249, 168, 212);">📈 Load</span> (11) · viral spike, bot attack, hotspot
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION B · BY SEVERITY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Group by blast radius. Good for difficulty sorting but weak for learning — the same "minor" event (slow disk) can cascade differently in different systems.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.9;">
+      ⬤ <strong>Catastrophic</strong> (12) · total outage<br>
+      ⬤ <strong>Severe</strong> (25) · multi-service degradation<br>
+      ⬤ <strong>Moderate</strong> (23) · single-service<br>
+      ⬤ <strong>Nuisance</strong> (13) · recoverable glitch
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · BY REAL-WORLD ANALOG</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Name each event after a famous incident it resembles. "The Facebook 2021", "The Cloudflare Regex", "The us-east-1 Cascade". Memorable but locks you into naming.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · A + B DUAL FILTER</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Primary browse by domain (A). Severity shown as colored dot per event. User can filter either way. Best of both but requires richer UI.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q12 NARRATIVE FORMAT ========== -->
+<h2 style="margin-top: 28px;">Q12 · What does one chaos event feel like when it fires?</h2>
+<p class="subtitle">The instant an event triggers — the ribbon, the tone, the voice. This is the 5-second hook that turns a metric into a memory.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · INCIDENT REPORT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">Terse, clinical. Like a production runbook.</div>
+    <div style="background: rgb(9, 14, 25); border: 1px solid rgba(252, 165, 165, 0.4); border-radius: 6px; padding: 10px; margin-top: 8px; font-family: monospace; font-size: 10px; line-height: 1.6; color: rgb(229, 231, 235);">
+      <span style="color: rgb(252, 165, 165);">[INC-047] PRIMARY DB UNREACHABLE</span><br>
+      <span style="color: rgb(156, 163, 175);">Severity: P1 · Region: us-east-1</span><br>
+      <span style="color: rgb(156, 163, 175);">Started: 03:47:22 · Detected: 03:47:34</span><br>
+      <span style="color: rgb(156, 163, 175);">Blast radius: writes, 73% of reads</span>
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> looks professional. <em>Cons:</em> dry, forgettable.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · CINEMATIC NARRATOR</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">Third-person, present-tense, stakes implied.</div>
+    <div style="background: rgb(9, 14, 25); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 6px; padding: 10px; margin-top: 8px; font-family: Georgia, serif; font-size: 11px; line-height: 1.7; color: rgb(229, 231, 235); font-style: italic;">
+      3:47 AM Pacific. Black Friday. The primary database in us-east-1 just stopped answering. Your read replicas are still alive — for now. In 90 seconds, they'll start falling over from write backpressure. What do you do?
+    </div>
+    <div style="font-size: 10px; color: rgb(110, 231, 183); margin-top: 8px;"><em>Pros:</em> memorable, cinematic, tested in industry training. <em>Cons:</em> authoring time per event.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · ENGINEER DIARY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">First-person. The user IS the on-call.</div>
+    <div style="background: rgb(9, 14, 25); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 11px; line-height: 1.6; color: rgb(229, 231, 235); font-style: italic;">
+      "PagerDuty woke me up. I fumble for my laptop. Dashboards are red. DB primary — dead. Why now? Why this night? I'm opening the runbook but there's no time — writes are already queueing..."
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> visceral. <em>Cons:</em> can feel performative.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · DIALOG BETWEEN ENGINEERS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">Two voices. Teaches through conflict.</div>
+    <div style="background: rgb(9, 14, 25); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 11px; line-height: 1.7; color: rgb(229, 231, 235);">
+      <strong style="color: rgb(196, 181, 253);">Sarah:</strong> "why is p99 at 3 seconds?"<br>
+      <strong style="color: rgb(251, 146, 60);">Jake:</strong> "retries. Everyone's retrying the dead DB."<br>
+      <strong style="color: rgb(196, 181, 253);">Sarah:</strong> "...so we're DDoSing ourselves."<br>
+      <strong style="color: rgb(251, 146, 60);">Jake:</strong> "yup. welcome to thundering herd."
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 8px;"><em>Pros:</em> teaches by mimicking real postmortems. <em>Cons:</em> 2x authoring.</div>
+  </div>
+
+</div>
+
+<!-- ========== Q13 REAL INCIDENTS ========== -->
+<h2 style="margin-top: 28px;">Q13 · Real-incident replay library — which to ship?</h2>
+<p class="subtitle">Each replay is a curated scenario reproducing a famous outage as a chaos drill. Each takes ~4 hours to author (research + script + narrative). Multi-select.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">① FACEBOOK · Oct 4, 2021 · BGP MISCONFIG</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">Routing update took down FB/IG/WhatsApp for 6 hours. Engineers couldn't even badge into buildings. Teaches: DNS / BGP / internal-service-dependencies / blast-radius-containment.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(251, 146, 60); text-align: right;">⭐ flagship</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">② AWS us-east-1 · Dec 7, 2021 · NETWORK CASCADE</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">Internal network scaling event cascaded. Took down half the internet for hours. Teaches: single-region-dependency / observability-failure / recovery-through-fog.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(251, 146, 60); text-align: right;">⭐ flagship</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">③ CLOUDFLARE · Jun 27, 2019 · REGEX DDOS</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">A single regex pushed to WAF rules DDoS'd their own CPU globally. 27 mins of 502s. Teaches: CPU-bound-operations-in-hot-path / config-push-safety / canary-deploys.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(251, 146, 60); text-align: right;">⭐ flagship</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">④ GITHUB · Oct 21, 2018 · DB PARTITION</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">43-second network split caused cross-region DB partition. Manual failover took 24 hours. Teaches: split-brain / automated-failover-vs-manual / data-consistency-tradeoffs.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(156, 163, 175); text-align: right;">must-have</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">⑤ FASTLY · Jun 8, 2021 · CONFIG PUSH</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">Customer config triggered latent bug → global CDN 503s for ~1 hour. Reddit, NYT, Hulu, Gov.uk all dark. Teaches: rare-code-path-testing / multi-tenancy-blast-radius.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(156, 163, 175); text-align: right;">must-have</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">⑥ SLACK · Jan 4, 2021 · AUTH STAMPEDE</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">First workday of year, everyone logged in simultaneously, auth service couldn't handle surge + AWS transit gateway limits. Teaches: thundering-herd-on-human-schedule / capacity-for-seasonal-load.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(156, 163, 175); text-align: right;">must-have</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">⑦ DISCORD · Mar 2022 · MONGODB CASCADE</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">Slow-query feedback loop. Auto-scaler added replicas faster than primary could handle. Teaches: auto-scaling-wrong-direction / feedback-loops / runaway-control-systems.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(156, 163, 175); text-align: right;">nice</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">⑧ ROBLOX · Oct 2021 · 73-HOUR OUTAGE</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">Consul cluster + traffic routing interaction brought down the whole platform for 3 days. Teaches: service-mesh-complexity / observability-when-foundation-is-gone.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(156, 163, 175); text-align: right;">nice</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">⑨ KNIGHT CAPITAL · Aug 2012 · $460M IN 45 MIN</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">Deploy bug on trading system. A single undeleted flag triggered dormant code, burned $10M/min. Teaches: deploy-consistency / dead-code-dangers / human-in-the-loop.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(156, 163, 175); text-align: right;">hall of fame</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+    <div>
+      <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 2px;">⑩ CROWDSTRIKE · Jul 2024 · KERNEL-DRIVER PUSH</div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); line-height: 1.6;">A single config file crashed 8.5M Windows machines worldwide. Airlines grounded, hospitals offline. Teaches: shared-infra-blast-radius / kernel-safety / staged-rollouts.</div>
+    </div>
+    <div style="font-size: 9px; color: rgb(156, 163, 175); text-align: right;">recent</div>
+  </div>
+
+</div>
+
+<!-- ========== Q14 USER CONTROL ========== -->
+<h2 style="margin-top: 28px;">Q14 · How does the user control chaos?</h2>
+<p class="subtitle">In Chaos Drill mode, the user is on-call. In other modes, they're more like a director. Multi-select the control modes to ship.</p>
+
+<div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">① SCENARIO SCRIPT ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Pre-written sequence. "Black Friday Netflix" runs events 1→2→3 at predictable times. Used by Chaos Drill + real-incident replays. Must-ship.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">② CHAOS DICE ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Weighted random. Every 45-90s a random event from the active domain fires. Unpredictable, replayable with seed. Used by Stress Test.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">③ MANUAL INJECTION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Chaos panel lists all 73 events. User clicks to fire specific one. For Build/Validate mode — test specific hypotheses. "What happens if my cache dies right now?"
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">④ CHAOS BUDGET ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Gamified: "you have 3 chaos tokens in 5 minutes. Plan wisely." User picks when to fire which event, watches design respond. Teaches <em>thinking in failures</em>.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">⑤ AUTO-ESCALATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Engine detects cascade triggers (cache evicted → DB hot). Auto-fires secondary events from the cascade graph. Simulates realism.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">⑥ RED-TEAM MODE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      AI (Sonnet) picks the worst possible chaos given your design's weakness. It reads your architecture, finds the fragile node, breaks it first. Brutal teacher.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q15 VISUAL/AUDIO ========== -->
+<h2 style="margin-top: 28px;">Q15 · Visual + audio treatment when chaos fires</h2>
+<p class="subtitle">The 5-second hook. Too loud = anxiety. Too quiet = ignored. Pick the vibe.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · MINIMAL DESIGN</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Small toast appears top-right. Affected node glows amber for 2s. No audio. Serif voice.
+    </div>
+    <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 6px;">Calm, respectful. But feels like nothing happened.</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · CINEMATIC PULSE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Full-width narrative ribbon slides in (2s, auto-dismiss 8s). Affected nodes pulse red with ring-of-influence. Screen edge briefly vignettes red. Optional subtle bass thump. Voiceover OFF by default (accessibility + library).
+    </div>
+    <div style="font-size: 10px; color: rgb(110, 231, 183); margin-top: 6px;">Urgent but not anxiety-inducing. Every animation serif-timed (550ms, not 200ms).</div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · WAR ROOM</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      TV-news aesthetic. Red banner, alert sound, Pagerduty-ish beep. Good for demos and engagement. But sustained anxiety for long sessions.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · PERSONA-SCALED</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Rookie gets option A (gentle). Journeyman gets B. Architect persona gets optional C (full war room with sound). Respects the user's tolerance.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q16 POST-EVENT ========== -->
+<h2 style="margin-top: 28px;">Q16 · What happens AFTER a chaos event fires?</h2>
+<p class="subtitle">The afterglow. The moment between "that just happened" and "here's what I learned".</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · NOTHING SPECIAL</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Metrics settle, sim continues. Everything gathered into post-mortem at end of run.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · MARGIN CARD</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Small card appears in right margin with <strong>one sentence lesson</strong> + "learn more" link. Stacks with previous events. User reads in their own time. Creates a visible "storyboard" of what happened during the run.
+    </div>
+    <div style="background: rgb(9, 14, 25); border: 1px solid rgba(110, 231, 183, 0.3); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 10px; color: rgb(229, 231, 235);">
+      <strong style="color: rgb(110, 231, 183);">▸ cache eviction storm</strong> · t=0:47<br>
+      <span style="color: rgb(156, 163, 175);">"TTL sync across all keys caused simultaneous expiry → DB hit. Fix: jittered TTL."</span><br>
+      <span style="color: rgb(147, 197, 253); font-size: 9px;">→ Learn: Caching Strategies</span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · PAUSE &amp; REFLECT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Each event auto-pauses sim for 8s with modal: "pause to absorb this?" User can continue or drill in. Interrupts flow but guarantees learning moment.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · ACHIEVEMENT CHIP</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      First time you survive each chaos event → collectible "achievement" chip. "First thundering herd survived." Gamified. Stored in profile.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== VISUAL: CHAOS EVENT FIRING ========== -->
+<h2 style="margin-top: 28px;">Reference · A chaos event firing (Option B + B + B)</h2>
+<p class="subtitle">For orientation — this is what the recommended stack looks like in motion.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 10px; padding: 14px; margin-top: 12px;">
+  <div style="background: rgb(9, 14, 25); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 9px; line-height: 1.7; color: rgb(229, 231, 235);">
+<span style="color: rgb(252, 165, 165);">══════════════════════════════════════════════════════════════════════</span>
+<span style="color: rgb(252, 165, 165);">⚠ CHAOS EVENT · t=0:47</span>
+<span style="color: rgb(252, 165, 165);">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
+<span style="color: rgb(229, 231, 235); font-style: italic;">3:47 AM Pacific. Black Friday. The primary database in us-east-1</span>
+<span style="color: rgb(229, 231, 235); font-style: italic;">just stopped answering. Your read replicas are still alive — for now.</span>
+<span style="color: rgb(229, 231, 235); font-style: italic;">In 90 seconds, they'll start falling over from write backpressure.</span>
+<span style="color: rgb(252, 165, 165);">══════════════════════════════════════════════════════════════════════</span>
+
+   [canvas]                               │ [margin · narrative stream]
+                                          │
+   ●─●─●  ◉ db-primary  ← <span style="color: rgb(252, 165, 165);">pulsing red</span>     │ <span style="color: rgb(110, 231, 183);">▸ primary DB unreachable</span>
+       \                                  │   t=0:47
+        ●─●  write-queue ← <span style="color: rgb(251, 191, 36);">amber</span>            │   <span style="color: rgb(156, 163, 175);">"hardware failure</span>
+                                          │    <span style="color: rgb(156, 163, 175);">or zone down?"</span>
+                                          │   <span style="color: rgb(147, 197, 253);">→ Replica Promotion</span>
+                                          │
+                                          │ <span style="color: rgb(110, 231, 183);">▸ cache eviction storm</span>
+                                          │   t=0:12
+                                          │   <span style="color: rgb(156, 163, 175);">"TTL sync → mass</span>
+                                          │    <span style="color: rgb(156, 163, 175);">expiry → DB hit."</span>
+                                          │   <span style="color: rgb(147, 197, 253);">→ Caching Strategies</span>
+                                          │
+<span style="color: rgb(110, 231, 183);">💬 COACH (whisper)</span>                         │ <span style="color: rgb(156, 163, 175);">[ scroll for more... ]</span>
+"primary's gone. your write queue
+ is filling. what's your failover?"
+  </div>
+</div>
+
+<!-- ========== CTA ========== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 16px; margin-top: 24px;">
+  <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">YOUR PICKS · BATCH 5</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong>Q11</strong> — taxonomy: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q12</strong> — narrative format: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q13</strong> — real-incident library (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩</span><br>
+    <strong>Q14</strong> — user control modes (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥</span><br>
+    <strong>Q15</strong> — visual/audio treatment: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q16</strong> — post-event: <span style="color: rgb(110, 231, 183);">A / B / C / D</span>
+  </div>
+  <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 10px;">
+    Reply with picks (e.g. "<code style="background: rgb(9, 14, 25); padding: 1px 4px; border-radius: 3px;">A · B · ①②③④⑤⑥⑦ · ①②④ · B · B</code>") and I advance to Batch 6 · Interview prep layer for SD.
+  </div>
+</div>

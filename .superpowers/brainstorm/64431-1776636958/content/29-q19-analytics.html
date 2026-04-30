@@ -1,0 +1,164 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 19 of 20</strong> — observability. Which events do we log, and what's the dual purpose (product insights + user-facing progress)?
+  </div>
+</div>
+
+<h2>Q19 · What do we track in the LLD module?</h2>
+<p class="subtitle"><code>activityEvents</code> table already exists (append-only). Plus PostHog scaffolding. Plus Sentry scaffolding. The question is: <strong>what's the event taxonomy</strong> and <strong>who consumes it</strong>?</p>
+
+<!-- DUAL PURPOSE -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">👥 EVENTS HAVE TWO AUDIENCES</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 11px;">
+    <div style="background: rgba(110, 231, 183, 0.08); border-radius: 6px; padding: 10px 12px;">
+      <strong style="color: rgb(110, 231, 183);">Product team (you)</strong>
+      <p style="color: rgb(229, 231, 235); margin: 4px 0 0 0; line-height: 1.5;">"Where do users drop off? Which patterns are hardest? Does Review mode get used?" — funnel + retention analytics via PostHog/ClickHouse.</p>
+    </div>
+    <div style="background: rgba(147, 197, 253, 0.08); border-radius: 6px; padding: 10px 12px;">
+      <strong style="color: rgb(147, 197, 253);">User themselves</strong>
+      <p style="color: rgb(229, 231, 235); margin: 4px 0 0 0; line-height: 1.5;">"How much time have I spent on Observer? What's my drill pass rate this month?" — personal dashboard reads from same event stream.</p>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Minimal · page views + logins only</h3>
+      <p>Just Next.js analytics + Clerk login events. Nothing custom.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Easy. No new code.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Zero insight into in-app behavior. Can't improve what you can't measure.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Core events only · ~8 key moments</h3>
+      <p>Mode switches, pattern completions, drill submissions, achievements. That's it.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Simple.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> No funnel depth. Can't see where in Learn mode users drop off.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Full funnel · ~25 events with typed schema · dual-purpose</h3>
+      <p>Typed event catalog. Each event writes to <code>activityEvents</code> (owned by user, drives personal stats) AND mirrors to PostHog (aggregate funnels).</p>
+
+      <!-- Event catalog -->
+      <div style="margin-top: 14px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+
+        <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">📖 LEARN MODE (9)</div>
+        <div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.8; margin-bottom: 12px;">
+          <div><code>lld_pattern_opened</code> {patternId, fromMode}</div>
+          <div><code>lld_scroll_milestone</code> {patternId, depth: 25|50|75|100}</div>
+          <div><code>lld_checkpoint_attempted</code> {patternId, checkpointId, attemptNumber, correct}</div>
+          <div><code>lld_checkpoint_revealed</code> {patternId, checkpointId, attemptsBeforeReveal}</div>
+          <div><code>lld_section_completed</code> {patternId, sectionId, timeSpentMs}</div>
+          <div><code>lld_pattern_completed</code> {patternId, tier, durationMs}</div>
+          <div><code>lld_tinker_started / ended</code> {patternId, saved: boolean}</div>
+          <div><code>lld_ai_invoked_in_learn</code> {surface: "failed_checkpoint"|"section_end"|"confused_with"}</div>
+          <div><code>lld_frustration_level_changed</code> {level, patternId}</div>
+        </div>
+
+        <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">🎨 BUILD MODE (4)</div>
+        <div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.8; margin-bottom: 12px;">
+          <div><code>lld_build_canvas_modified</code> {nodeCount, edgeCount, debounced 30s}</div>
+          <div><code>lld_build_ai_review_requested</code> {issueCount, severity}</div>
+          <div><code>lld_build_diagram_saved</code> {diagramId, classCount}</div>
+          <div><code>lld_build_diagram_exported</code> {format: "ts"|"py"|"java"|"mermaid"}</div>
+        </div>
+
+        <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">⏱️ DRILL MODE (8)</div>
+        <div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.8; margin-bottom: 12px;">
+          <div><code>lld_drill_started</code> {problemId, drillMode: interview|guided|speed}</div>
+          <div><code>lld_drill_paused</code> {problemId, elapsedMs}</div>
+          <div><code>lld_drill_hint_used</code> {tier, problemId, elapsedMs}</div>
+          <div><code>lld_drill_submitted</code> {problemId, grade, breakdown, durationMs, hintsUsed}</div>
+          <div><code>lld_drill_abandoned</code> {problemId, elapsedMs, reason: "give_up"|"timeout"|"auto"}</div>
+          <div><code>lld_drill_grade_tier_crossed</code> {problemId, tier: excellent|solid|partial|needs_work}</div>
+          <div><code>lld_drill_canvas_heartbeat</code> {drillId, elapsedMs, every 60s}</div>
+          <div><code>lld_drill_mode_switched_during</code> {problemId, targetMode}</div>
+        </div>
+
+        <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">🔁 REVIEW MODE (4)</div>
+        <div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.8;">
+          <div><code>lld_review_session_started</code> {dueCount}</div>
+          <div><code>lld_review_item_rated</code> {patternId, fsrsRating: again|hard|good|easy, responseMs}</div>
+          <div><code>lld_review_session_completed</code> {reviewCount, avgResponseMs, streakIncremented}</div>
+          <div><code>lld_review_abandoned_mid_session</code> {completedCount, remaining}</div>
+        </div>
+      </div>
+
+      <!-- Cross-cutting -->
+      <div style="margin-top: 14px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px 14px;">
+        <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">CROSS-CUTTING EVENTS</div>
+        <div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.8;">
+          <div><code>lld_mode_switched</code> {from, to, trigger: click|keyboard|url}</div>
+          <div><code>lld_welcome_banner_shown / dismissed</code></div>
+          <div><code>lld_nudge_triggered / dismissed</code> {nudgeType}</div>
+          <div><code>lld_anon_migration</code> {case: 1|2|3, merged: patternCount}</div>
+          <div><code>lld_share_card_generated</code> {type: drill|diagram|profile}</div>
+        </div>
+      </div>
+
+      <!-- Funnels -->
+      <div style="margin-top: 14px; background: rgba(110, 231, 183, 0.08); border-radius: 8px; padding: 12px 14px;">
+        <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">CRITICAL FUNNELS THIS ENABLES</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+          • <strong>Learn completion funnel:</strong> opened → scroll 25% → scroll 75% → all checkpoints → completed<br>
+          • <strong>Learn → Drill conversion:</strong> completed pattern → drill started on same pattern<br>
+          • <strong>Drill success funnel:</strong> started → hint used → submitted → graded ≥ 70<br>
+          • <strong>Review retention:</strong> session started → rated item → session completed<br>
+          • <strong>Learn → Mastered:</strong> opened → completed → drill pass → FSRS review → Mastered tier<br>
+          • <strong>Abandonment signals:</strong> which step users drop at, which patterns are abandoned most
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Every meaningful action captured. Dual-purpose (product + user dashboard). Reuses existing <code>activityEvents</code> — no new schema. TypeScript-typed event builders prevent drift. Each event &lt; 1 KB so log size is fine.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> 25 events = 25 call sites to wire. ~6-8h for full instrumentation.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Everything · including hover, focus, scroll positions</h3>
+      <p>Heatmap-level tracking. Every interaction.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Rich data.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Massive storage cost. Privacy concerns. Noise drowns signal. Needs dedicated analytics infra at 100K+ DAU.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why C -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY C · TYPED EVENT CATALOG</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>25 events is the sweet spot.</strong> Enough to answer every product question (funnels, drop-off, time-on-task, mode distribution, mastery velocity). Few enough to stay intentional and typed.<br><br>
+    <strong>Dual-purpose saves infrastructure.</strong> Same event stream feeds <em>your</em> PostHog dashboards AND <em>user's</em> personal dashboard. <code>activityEvents</code> already designed for this.<br><br>
+    <strong>TypeScript-typed event builders matter.</strong> Create <code>src/lib/analytics/lld-events.ts</code> with a function per event — <code>trackPatternOpened(patternId, fromMode)</code>. Compile-time safety, refactor-safe, IDE autocomplete. Prevents the "what did we name that event again?" debt.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Final question: Q20 — <em>rollout strategy · feature flag · who gets it first?</em>
+  </p>
+</div>

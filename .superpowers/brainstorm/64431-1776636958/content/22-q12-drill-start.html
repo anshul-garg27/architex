@@ -1,0 +1,151 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 12 of 20</strong> — drill starting canvas. What's on screen when the timer begins.
+  </div>
+</div>
+
+<h2>Q12 · When a drill starts, what's already on the canvas?</h2>
+<p class="subtitle">Your <code>problems.ts</code> data has <code>starterClasses</code> defined for each of 33 problems — skeleton classes with method stubs. Question: do we pre-load these, start blank, or give the user the choice? This affects interview realism vs practice accelerator tradeoff.</p>
+
+<!-- WHAT DATA EXISTS -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">📦 WHAT'S IN <code>problems.ts</code> PER PROBLEM</div>
+  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <span style="color: rgb(196, 181, 253);">interface</span> <span style="color: rgb(252, 165, 165);">LLDProblem</span> {<br>
+    &nbsp;&nbsp;requirements: <span style="color: rgb(252, 165, 165);">string[]</span>; <span style="color: rgb(156, 163, 175);">// 5-8 functional requirements</span><br>
+    &nbsp;&nbsp;starterClasses: <span style="color: rgb(252, 165, 165);">UMLClass[]</span>; <span style="color: rgb(156, 163, 175);">// 4-10 skeleton classes with method stubs</span><br>
+    &nbsp;&nbsp;starterRelationships: <span style="color: rgb(252, 165, 165);">UMLRelationship[]</span>;<br>
+    &nbsp;&nbsp;hints: <span style="color: rgb(252, 165, 165);">string[]</span>; <span style="color: rgb(156, 163, 175);">// 5-7 progressive hints</span><br>
+    &nbsp;&nbsp;keyPatterns: <span style="color: rgb(252, 165, 165);">string[]</span>;<br>
+    &nbsp;&nbsp;classCount: <span style="color: rgb(252, 165, 165);">number</span>; <span style="color: rgb(156, 163, 175);">// expected count</span><br>
+    }
+  </div>
+</div>
+
+<!-- THE TENSION -->
+<div style="margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+  <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid rgb(239, 68, 68); padding: 10px 12px; border-radius: 0 6px 6px 0;">
+    <strong style="color: rgb(252, 165, 165); font-size: 11px;">Interview-realism argument</strong>
+    <p style="color: rgb(229, 231, 235); margin: 6px 0 0 0; line-height: 1.5; font-size: 11px;">Real interviewer hands you a <em>prompt</em>, not starter code. Starting blank trains the actual skill: go from requirements → classes from nothing. Starter classes = training wheels.</p>
+  </div>
+  <div style="background: rgba(59, 130, 246, 0.08); border-left: 3px solid rgb(59, 130, 246); padding: 10px 12px; border-radius: 0 6px 6px 0;">
+    <strong style="color: rgb(147, 197, 253); font-size: 11px;">Pattern-practice argument</strong>
+    <p style="color: rgb(229, 231, 235); margin: 6px 0 0 0; line-height: 1.5; font-size: 11px;">For learners drilling a <em>specific pattern</em> (say Observer in Chat app), they don't care about re-creating User/Message classes. Starter classes let them focus on the pattern-relevant structure.</p>
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Always blank · pure interview simulation</h3>
+      <p>Timer starts, canvas is empty. Only the requirements list is shown. User designs from scratch every time. <code>starterClasses</code> data becomes the reference solution baseline for grading, not user input.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Maximally realistic. Strongest interview prep.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Intimidating for first drill ever. Users abandon if they freeze staring at blank canvas.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Always starter · accelerated practice</h3>
+      <p>Starter classes pre-loaded. User fills in methods, adds missing classes, sets up relationships.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Lower friction. Pattern-focused practice.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Unrealistic — real interviews are blank. Creates false confidence.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>User picks at drill start · 3 modes per problem</h3>
+      <p>When user clicks a problem, modal asks:</p>
+
+      <div style="margin-top: 12px; background: rgba(0,0,0,0.3); padding: 14px; border-radius: 8px;">
+        <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600; margin-bottom: 8px;">Design Parking Lot · how do you want to start?</div>
+        <div style="display: grid; gap: 8px;">
+          <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 10px 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="font-size: 16px;">🎯</div>
+              <div style="flex: 1;">
+                <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700;">Interview mode · blank canvas <span style="background: rgba(239,68,68,0.25); font-size: 9px; padding: 1px 6px; border-radius: 8px; margin-left: 4px;">DEFAULT</span></div>
+                <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 2px;">Requirements + timer. Design from scratch. Realistic.</div>
+              </div>
+            </div>
+          </div>
+          <div style="background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 6px; padding: 10px 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="font-size: 16px;">🚂</div>
+              <div style="flex: 1;">
+                <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700;">Guided mode · starter classes</div>
+                <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 2px;">Pre-populated skeleton · fill in methods + relationships. Lower stakes.</div>
+              </div>
+            </div>
+          </div>
+          <div style="background: rgba(147, 197, 253, 0.08); border: 1px solid rgba(147, 197, 253, 0.3); border-radius: 6px; padding: 10px 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="font-size: 16px;">⚡</div>
+              <div style="flex: 1;">
+                <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700;">Speed mode · starter + no timer</div>
+                <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 2px;">Pure practice. No pressure. Grade records as "practice", not in SRS stats.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> User autonomy. First-time users pick Guided; crammers default to Interview. Speed mode is a welcome "untimed practice" option no competitor offers. All 3 use same grading engine.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> One extra click before drill starts. Solved by remembering user's default choice.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Difficulty-tiered · Easy = starter, Medium = partial, Hard = blank</h3>
+      <p>Algorithmic decision per problem. Easy gets full starter. Medium shows 2-3 seed classes. Hard is blank.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Progressive challenge.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> User can't override. Advanced learner doing easy problem gets free classes they don't want. Forces design philosophy on user.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why C -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY C · 3 MODES PER PROBLEM</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Different users, different drills.</strong> Someone prepping for a Meta interview in 2 weeks wants Interview mode (hard mode, timed, realistic). Someone learning Observer wants Guided (skip infrastructure, focus on pattern). Someone curious wants Speed (no pressure, just explore). C lets all three exist without forcing you to pick a default philosophy.<br><br>
+    <strong>Speed mode is competitive moat.</strong> LeetCode has no "untimed pattern practice". Brilliant doesn't do interview prep. A "just let me design without pressure" mode is gold for learners stuck between Learn and Drill. Your grading engine runs either way — zero extra engine work.<br><br>
+    <strong>Remember user default.</strong> Third-time user never sees modal — lands in their preferred mode. First-timer sees it once to make an informed choice. Modal is <em>onboarding</em>, not friction.<br><br>
+    <strong>SRS stats separation.</strong> Speed mode grades don't count toward FSRS (no pressure = different signal). Interview + Guided both do. This keeps retention metrics honest.
+  </div>
+</div>
+
+<!-- Schema impact -->
+<div style="margin-top: 18px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px;">
+  <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">SCHEMA IMPACT</div>
+  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <span style="color: rgb(156, 163, 175);">// Extend lld_drill_attempts:</span><br>
+    <span style="color: rgb(110, 231, 183);">drillMode</span>: <span style="color: rgb(252, 165, 165);">"interview"</span> | <span style="color: rgb(252, 165, 165);">"guided"</span> | <span style="color: rgb(252, 165, 165);">"speed"</span><br>
+    <span style="color: rgb(156, 163, 175);">// Extend userPreferences.preferences.lld:</span><br>
+    <span style="color: rgb(110, 231, 183);">defaultDrillMode</span>: <span style="color: rgb(252, 165, 165);">"interview"</span> | <span style="color: rgb(252, 165, 165);">"guided"</span> | <span style="color: rgb(252, 165, 165);">"speed"</span> | <span style="color: rgb(110, 231, 183);">null</span> <span style="color: rgb(156, 163, 175);">// null = ask each time</span>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q13 — <em>streak, XP, achievements — where do they appear in the new UI?</em>
+  </p>
+</div>

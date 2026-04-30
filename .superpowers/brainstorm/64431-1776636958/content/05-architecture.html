@@ -1,0 +1,157 @@
+<div style="background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">📐</div>
+  <div style="font-size: 12px; color: rgb(196, 181, 253); line-height: 1.5;">
+    <strong>Design Section 1 of 6:</strong> High-level architecture. Confirm this picture feels right before we go deeper into the modes.
+  </div>
+</div>
+
+<h2>How the Mode Switcher sits inside the existing shell</h2>
+<p class="subtitle">Current 4-panel layout becomes "Build mode" (unchanged). A new <strong>mode dimension</strong> is added at the shell level. Switching mode swaps which components render in the canvas + properties + bottom panel slots.</p>
+
+<!-- ──────────────── ARCHITECTURE DIAGRAM ──────────────── -->
+<div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 24px; margin: 20px 0;">
+
+  <!-- TOP: Mode selector lives in shell chrome -->
+  <div style="background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(236,72,153,0.15)); border: 1px solid rgba(124,58,237,0.4); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;">
+    <div style="font-size: 10px; color: rgb(196, 181, 253); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">▸ SHELL CHROME (always visible)</div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="font-size: 11px; color: rgb(229, 231, 235);">🧭 LLD · <span style="color: rgb(156, 163, 175);">Singleton</span></div>
+      <div style="flex: 1;"></div>
+      <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.4); border-radius: 20px; padding: 3px;">
+        <div style="background: rgba(16, 185, 129, 0.25); color: rgb(110, 231, 183); font-size: 10px; padding: 5px 14px; border-radius: 18px; font-weight: 600;">📖 Learn</div>
+        <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 14px; border-radius: 18px;">🎨 Build</div>
+        <div style="color: rgb(156, 163, 175); font-size: 10px; padding: 5px 14px; border-radius: 18px;">⏱️ Drill</div>
+      </div>
+      <div style="color: rgb(156,163,175); font-size: 10px;">⚙️</div>
+    </div>
+    <div style="font-size: 10px; color: rgb(167, 139, 250); margin-top: 8px; font-style: italic;">↑ Mode switcher — one source of truth, zustand <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">ui-store.lldMode</code></div>
+  </div>
+
+  <!-- MIDDLE: 3 parallel mode containers — only ONE active at a time -->
+  <div style="position: relative; margin-top: 20px;">
+    <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: rgb(17, 24, 39); padding: 0 12px; font-size: 10px; color: rgb(156, 163, 175); letter-spacing: 0.5px;">▼ ONE MODE RENDERS AT A TIME ▼</div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 20px 0;">
+
+      <!-- LEARN mode wireframe -->
+      <div style="background: rgba(16, 185, 129, 0.08); border: 2px solid rgba(16, 185, 129, 0.4); border-radius: 10px; padding: 12px;">
+        <div style="font-size: 10px; font-weight: 700; color: rgb(110, 231, 183); margin-bottom: 8px; letter-spacing: 0.5px;">📖 LEARN MODE</div>
+        <div style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 8px;">
+          <!-- Simplified sidebar: pattern list only -->
+          <div style="display: grid; grid-template-columns: 40px 1fr 80px; gap: 4px; height: 100px;">
+            <div style="background: rgba(255,255,255,0.05); border-radius: 3px; display:flex; align-items:center; justify-content:center; font-size: 8px; color: rgb(156,163,175);">
+              nav
+            </div>
+            <div style="background: rgba(16,185,129,0.1); border-radius: 3px; padding: 6px; display:flex; flex-direction:column; gap: 3px;">
+              <div style="font-size: 7px; color: rgb(110, 231, 183); font-weight: 600;">Canvas (auto-highlight)</div>
+              <div style="flex:1; background: rgba(255,255,255,0.03); border-radius: 2px;"></div>
+            </div>
+            <div style="background: rgba(124,58,237,0.1); border-radius: 3px; padding: 6px; display:flex; flex-direction:column; gap: 2px;">
+              <div style="font-size: 7px; color: rgb(196,181,253); font-weight: 600;">Lesson</div>
+              <div style="height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px;"></div>
+              <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; width: 80%;"></div>
+              <div style="height: 8px; background: rgba(124,58,237,0.3); border-radius: 2px; margin-top: 2px;"></div>
+              <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;"></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 8px; line-height: 1.4;">
+          Scroll-synced lesson + canvas highlight.<br>WalkthroughPlayer upgraded + moved.
+        </div>
+      </div>
+
+      <!-- BUILD mode wireframe (current) -->
+      <div style="background: rgba(59, 130, 246, 0.08); border: 2px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 12px;">
+        <div style="font-size: 10px; font-weight: 700; color: rgb(147, 197, 253); margin-bottom: 8px; letter-spacing: 0.5px;">🎨 BUILD MODE <span style="font-size:8px;background:rgba(59,130,246,0.2);padding:1px 6px;border-radius:8px;margin-left:4px;">DEFAULT FOR RETURNING</span></div>
+        <div style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 8px;">
+          <div style="display: grid; grid-template-columns: 50px 1fr 70px; gap: 4px; height: 80px;">
+            <div style="background: rgba(255,255,255,0.05); border-radius: 3px; display:flex; align-items:center; justify-content:center; font-size: 8px; color: rgb(156,163,175);">
+              full<br>nav
+            </div>
+            <div style="background: rgba(59,130,246,0.1); border-radius: 3px; padding: 4px;">
+              <div style="font-size: 7px; color: rgb(147, 197, 253); font-weight: 600;">Full canvas</div>
+              <div style="height: 60px; background: rgba(255,255,255,0.03); border-radius: 2px; margin-top: 2px;"></div>
+            </div>
+            <div style="background: rgba(255,255,255,0.05); border-radius: 3px; display:flex; align-items:center; justify-content:center; font-size: 7px; color: rgb(156,163,175);">
+              props
+            </div>
+          </div>
+          <div style="height: 16px; background: rgba(255,255,255,0.05); border-radius: 3px; margin-top: 4px; display:flex; align-items:center; padding: 0 6px; gap: 4px;">
+            <div style="font-size: 7px; color: rgb(156, 163, 175);">bottom: code · chaos · metrics</div>
+          </div>
+        </div>
+        <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 8px; line-height: 1.4;">
+          Current UI, unchanged.<br>All tools available.
+        </div>
+      </div>
+
+      <!-- DRILL mode wireframe -->
+      <div style="background: rgba(239, 68, 68, 0.08); border: 2px solid rgba(239, 68, 68, 0.4); border-radius: 10px; padding: 12px;">
+        <div style="font-size: 10px; font-weight: 700; color: rgb(252, 165, 165); margin-bottom: 8px; letter-spacing: 0.5px;">⏱️ DRILL MODE</div>
+        <div style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 8px;">
+          <div style="display: grid; grid-template-columns: 100px 1fr; gap: 4px; height: 80px;">
+            <div style="background: rgba(239,68,68,0.1); border-radius: 3px; padding: 4px;">
+              <div style="font-size: 7px; color: rgb(252, 165, 165); font-weight: 600;">Problem queue</div>
+              <div style="height: 4px; background: rgba(239,68,68,0.3); border-radius: 2px; margin-top: 3px;"></div>
+              <div style="height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 2px;"></div>
+              <div style="height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 2px;"></div>
+              <div style="height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 2px;"></div>
+            </div>
+            <div style="background: rgba(255,255,255,0.04); border-radius: 3px; padding: 4px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size: 7px; color: rgb(252, 165, 165); font-weight: 600;">Canvas (blank)</div>
+                <div style="font-size: 7px; color: rgb(252, 165, 165); background:rgba(239,68,68,0.15); padding:1px 5px; border-radius:6px;">⏱ 23:41</div>
+              </div>
+              <div style="height: 48px; background: rgba(255,255,255,0.03); border-radius: 2px; margin-top: 2px; border: 1px dashed rgba(239,68,68,0.2);"></div>
+            </div>
+          </div>
+          <div style="height: 16px; background: rgba(239,68,68,0.1); border-radius: 3px; margin-top: 4px; display:flex; align-items:center; padding: 0 6px; gap: 4px;">
+            <div style="font-size: 7px; color: rgb(252, 165, 165);">Submit → AutoGrader → feedback</div>
+          </div>
+        </div>
+        <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 8px; line-height: 1.4;">
+          Blank canvas + timer + grade.<br>Existing AutoGrader reused.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BOTTOM: Shared services -->
+  <div style="margin-top: 10px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 14px 18px;">
+    <div style="font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">▸ SHARED SERVICES (all 3 modes consume)</div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 10px;">
+      <div style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 6px; color: rgb(229, 231, 235);">📦 Pattern catalog <span style="color:rgb(156,163,175);">(existing · 36 patterns)</span></div>
+      <div style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 6px; color: rgb(229, 231, 235);">🎯 Grading engine <span style="color:rgb(156,163,175);">(existing · fuzzy rubric)</span></div>
+      <div style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 6px; color: rgb(229, 231, 235);">📊 Progress store <span style="color:rgb(156,163,175);">(existing · FSRS)</span></div>
+      <div style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 6px; color: rgb(229, 231, 235);">🎨 Canvas engine <span style="color:rgb(156,163,175);">(existing · A* routing)</span></div>
+      <div style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 6px; color: rgb(229, 231, 235);">🤖 AI client <span style="color:rgb(156,163,175);">(existing · explain, hint)</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- The three invariants -->
+<h3 style="margin-top: 32px;">Three design invariants this architecture enforces</h3>
+<div style="display: grid; gap: 12px; margin-top: 12px;">
+  <div style="background: rgba(255,255,255,0.04); border-left: 3px solid rgb(16, 185, 129); border-radius: 0 8px 8px 0; padding: 12px 16px;">
+    <div style="font-size: 11px; font-weight: 600; color: rgb(110, 231, 183); margin-bottom: 4px;">1. Build mode stays untouched</div>
+    <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.6;">Current <code>LLDSidebar + LLDCanvas + LLDProperties + ContextualBottomTabs</code> become the Build mode content. Zero regression risk for existing users.</div>
+  </div>
+  <div style="background: rgba(255,255,255,0.04); border-left: 3px solid rgb(124, 58, 237); border-radius: 0 8px 8px 0; padding: 12px 16px;">
+    <div style="font-size: 11px; font-weight: 600; color: rgb(196, 181, 253); margin-bottom: 4px;">2. Mode is a single piece of state</div>
+    <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.6;">One field in <code>ui-store</code>: <code>lldMode: "learn" | "build" | "drill"</code>. Persisted to localStorage. URL-reflectable via query param for sharing: <code>?mode=learn</code>.</div>
+  </div>
+  <div style="background: rgba(255,255,255,0.04); border-left: 3px solid rgb(239, 68, 68); border-radius: 0 8px 8px 0; padding: 12px 16px;">
+    <div style="font-size: 11px; font-weight: 600; color: rgb(252, 165, 165); margin-bottom: 4px;">3. All 3 modes share one content source</div>
+    <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.6;">Same <code>DesignPattern</code> / <code>LLDProblem</code> objects drive all 3 modes. Learn mode renders <em>walkthrough + canvas highlight</em>. Build renders <em>full tools</em>. Drill renders <em>starter canvas + timer + grader</em>. No content duplication.</div>
+  </div>
+</div>
+
+<div style="margin-top: 32px; text-align:center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">
+    Does this high-level picture feel right?
+  </p>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin: 0;">
+    Reply "yes" / "go" to advance to Section 2 (each mode in detail), or tell me what needs to change.
+  </p>
+</div>

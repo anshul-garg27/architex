@@ -1,0 +1,365 @@
+<div style="background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(239,68,68,0.1)); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 14px;">
+    <div style="font-size: 28px;">🔥</div>
+    <div>
+      <div style="font-size: 16px; color: rgb(251, 191, 36); font-weight: 700;">Batch 14 · The Breathtaking Rebuild</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6; margin-top: 4px;">You want to rebuild. OK. Let's not rebuild into another SaaS dashboard — let's build something that makes engineers say <em>"wait, what is this?"</em>. Below are 8 bold concept directions + 1 unifying metaphor.</div>
+    </div>
+  </div>
+</div>
+
+<!-- THE BIG IDEA -->
+<div style="background: rgb(17, 24, 39); border: 2px solid rgba(124, 58, 237, 0.4); border-radius: 14px; padding: 24px; margin-bottom: 28px;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); letter-spacing: 0.3em; font-weight: 700; margin-bottom: 10px;">THE UNIFYING CONCEPT</div>
+  <h2 style="margin: 0; color: rgb(229, 231, 235); font-size: 28px; font-weight: 800; letter-spacing: -0.02em;">Architex · The Architect's Studio</h2>
+  <div style="font-size: 13px; color: rgb(167, 139, 250); font-style: italic; margin-top: 8px;">Not a tool. A place.</div>
+
+  <div style="font-size: 13px; color: rgb(229, 231, 235); line-height: 1.8; margin-top: 16px;">
+    Every other LLD tool looks like "<em>form fields + save button</em>". We design Architex as a <strong>physical studio</strong> — the kind of space Frank Gehry or I. M. Pei would work in. A drafting table. Reference shelves of pattern books. A blueprint light-box. Notebook pages. A reading nook. An examination room.<br><br>
+    Every UI element maps to a physical metaphor. <strong>Every transition feels like walking between rooms</strong>, not clicking through screens. Typography has texture. Motion has weight. Sound (optional) has space. <em>This is the Architex nobody expects — because nobody has ever built it.</em>
+  </div>
+
+  <div style="margin-top: 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+    <div style="background: rgba(251,191,36,0.08); border-radius: 6px; padding: 10px; text-align: center;">
+      <div style="font-size: 22px;">📐</div>
+      <div style="font-size: 9px; color: rgb(251,191,36); font-weight: 700; margin-top: 4px; letter-spacing: 0.5px;">DRAFTING TABLE</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Build mode</div>
+    </div>
+    <div style="background: rgba(110,231,183,0.08); border-radius: 6px; padding: 10px; text-align: center;">
+      <div style="font-size: 22px;">📚</div>
+      <div style="font-size: 9px; color: rgb(110,231,183); font-weight: 700; margin-top: 4px; letter-spacing: 0.5px;">REFERENCE LIBRARY</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Pattern browser</div>
+    </div>
+    <div style="background: rgba(147,197,253,0.08); border-radius: 6px; padding: 10px; text-align: center;">
+      <div style="font-size: 22px;">📖</div>
+      <div style="font-size: 9px; color: rgb(147,197,253); font-weight: 700; margin-top: 4px; letter-spacing: 0.5px;">READING NOOK</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Learn mode</div>
+    </div>
+    <div style="background: rgba(239,68,68,0.08); border-radius: 6px; padding: 10px; text-align: center;">
+      <div style="font-size: 22px;">📝</div>
+      <div style="font-size: 9px; color: rgb(252,165,165); font-weight: 700; margin-top: 4px; letter-spacing: 0.5px;">EXAMINATION ROOM</div>
+      <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Drill mode</div>
+    </div>
+  </div>
+</div>
+
+<h2>Supporting rebuild ideas — pick the ones that match this vision</h2>
+<p class="subtitle">Multi-select.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <!-- R1 Cinematic cold open -->
+  <div class="option" data-choice="r1" onclick="toggleSelect(this)">
+    <div class="letter">R1</div>
+    <div class="content">
+      <h3>Cinematic cold open · 15-second film on first visit</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">First URL load: fade from black. Soft piano. Text appears: <em>"Every system you've ever used..."</em> → <em>"...was built from 36 ideas."</em> → <em>"Let's learn them."</em> → fade to home screen. 15 seconds. Never again. Creates <strong>anchor memory</strong> of arrival.</p>
+      <div style="margin-top: 10px; background: #000; border-radius: 10px; padding: 40px 20px; text-align: center; position: relative; overflow: hidden;">
+        <div style="font-size: 20px; color: rgba(255,255,255,0.9); font-weight: 200; letter-spacing: 0.02em; line-height: 1.4;">Every system you've ever used<br><span style="color: rgba(167,139,250,0.9); font-style: italic;">was built from 36 ideas.</span></div>
+        <div style="margin-top: 24px; font-size: 10px; color: rgba(167,139,250,0.6); letter-spacing: 0.3em;">── LET'S LEARN THEM ──</div>
+        <div style="position: absolute; bottom: 14px; left: 20px; font-size: 9px; color: rgba(255,255,255,0.3);">skip intro</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- R2 Spatial home -->
+  <div class="option" data-choice="r2" onclick="toggleSelect(this)">
+    <div class="letter">R2</div>
+    <div class="content">
+      <h3>Spatial home · drafting table, not a dashboard</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Home isn't widgets. Home is an <em>isometric studio view</em>. Your current work is on the drafting table (large central piece). Pattern shelves on the wall. Notebook (notes) on the side. Door to examination room (drill) in the corner. Everything has <em>place</em>.</p>
+      <div style="margin-top: 12px; background: linear-gradient(135deg, #1a1625, #2a1f40); border-radius: 12px; padding: 24px; height: 260px; position: relative; overflow: hidden; box-shadow: inset 0 0 60px rgba(0,0,0,0.5);">
+        <!-- wall shelves (back) -->
+        <div style="position: absolute; top: 20px; left: 20px; right: 20px; height: 70px; background: linear-gradient(180deg, rgba(167,139,250,0.15), rgba(167,139,250,0.05)); border-radius: 4px; padding: 8px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px;">
+          <div style="background: rgba(251,191,36,0.3); border-radius: 2px; height: 100%;"></div>
+          <div style="background: rgba(110,231,183,0.3); border-radius: 2px; height: 100%;"></div>
+          <div style="background: rgba(147,197,253,0.3); border-radius: 2px; height: 100%;"></div>
+          <div style="background: rgba(251,146,60,0.3); border-radius: 2px; height: 100%;"></div>
+          <div style="background: rgba(196,181,253,0.3); border-radius: 2px; height: 100%;"></div>
+          <div style="background: rgba(249,168,212,0.3); border-radius: 2px; height: 100%;"></div>
+          <div style="background: rgba(107,114,128,0.25); border-radius: 2px; height: 100%;"></div>
+          <div style="background: rgba(107,114,128,0.25); border-radius: 2px; height: 100%;"></div>
+        </div>
+        <div style="position: absolute; top: 92px; left: 20px; font-size: 8px; color: rgba(255,255,255,0.4); letter-spacing: 0.3em;">── PATTERN LIBRARY · 36 SHELVED ──</div>
+
+        <!-- drafting table (main center) -->
+        <div style="position: absolute; top: 118px; left: 50%; transform: translateX(-50%); width: 280px; height: 120px; background: linear-gradient(135deg, rgba(255,248,220,0.08), rgba(255,248,220,0.04)); border: 1px solid rgba(255,248,220,0.2); border-radius: 6px; padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+          <div style="font-size: 9px; color: rgba(255,248,220,0.5); letter-spacing: 0.3em; text-align: center;">── CURRENT BLUEPRINT ──</div>
+          <div style="margin-top: 12px; display: flex; gap: 12px; justify-content: center;">
+            <div style="width: 50px; height: 28px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 2px;"></div>
+            <div style="width: 50px; height: 28px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 2px;"></div>
+          </div>
+          <div style="margin-top: 10px; text-align: center; font-size: 8px; color: rgba(255,248,220,0.6); font-style: italic;">Observer · last edited 12 min ago</div>
+        </div>
+
+        <!-- notebook (left) -->
+        <div style="position: absolute; top: 150px; left: 30px; width: 70px; height: 85px; background: rgba(147,197,253,0.12); border: 1px solid rgba(147,197,253,0.35); border-radius: 4px; padding: 6px; transform: rotate(-3deg);">
+          <div style="font-size: 7px; color: rgba(147,197,253,0.9); font-weight: 600;">notebook</div>
+          <div style="margin-top: 4px;"><div style="height: 1px; background: rgba(147,197,253,0.3); margin-bottom: 2px;"></div><div style="height: 1px; background: rgba(147,197,253,0.3); margin-bottom: 2px;"></div><div style="height: 1px; background: rgba(147,197,253,0.3); margin-bottom: 2px;"></div><div style="height: 1px; background: rgba(147,197,253,0.3); margin-bottom: 2px;"></div><div style="height: 1px; background: rgba(147,197,253,0.3); margin-bottom: 2px;"></div></div>
+        </div>
+
+        <!-- door to exam room (right) -->
+        <div style="position: absolute; top: 150px; right: 30px; width: 50px; height: 85px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; padding: 6px; text-align: center;">
+          <div style="font-size: 14px;">🚪</div>
+          <div style="font-size: 7px; color: rgba(252,165,165,0.8); letter-spacing: 0.2em; margin-top: 3px;">EXAM</div>
+          <div style="font-size: 7px; color: rgba(255,255,255,0.4); margin-top: 3px;">3 due</div>
+        </div>
+
+        <!-- corner element: tea -->
+        <div style="position: absolute; bottom: 10px; left: 110px; font-size: 10px; opacity: 0.5;">☕</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Click shelves → library · click blueprint → Build · click notebook → notes · click door → Drill</div>
+    </div>
+  </div>
+
+  <!-- R3 Pattern as rooms -->
+  <div class="option" data-choice="r3" onclick="toggleSelect(this)">
+    <div class="letter">R3</div>
+    <div class="content">
+      <h3>Patterns as rooms · you walk <em>into</em> a pattern</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Click Observer → screen transition = a door opens, you step into Observer's room. <strong>Walls</strong> = the UML diagram (depth/perspective). <strong>Floor</strong> = the code scroll. <strong>Ceiling</strong> = metadata (real-world uses, history). <strong>Door on wall</strong> leads to confused-with patterns (Pub-Sub across the hall). Navigation is <em>architectural</em>.</p>
+      <div style="margin-top: 12px; background: linear-gradient(180deg, rgba(147,197,253,0.08) 0%, rgba(147,197,253,0.02) 70%, rgba(147,197,253,0.08) 100%); border: 1px solid rgba(147,197,253,0.2); border-radius: 10px; padding: 20px; height: 220px; position: relative; perspective: 800px;">
+        <!-- ceiling -->
+        <div style="position: absolute; top: 10px; left: 10%; right: 10%; height: 28px; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); border-radius: 2px; transform: rotateX(45deg) translateZ(-20px); padding: 6px; text-align: center; font-size: 8px; color: rgba(251,191,36,0.9); letter-spacing: 0.3em;">─── REAL-WORLD USES · NETFLIX · REACT · NODE EVENTS ───</div>
+        <!-- wall (UML) -->
+        <div style="position: absolute; top: 52px; left: 50%; transform: translateX(-50%); width: 70%; height: 120px; background: rgba(147,197,253,0.1); border: 1px solid rgba(147,197,253,0.3); border-radius: 4px; padding: 14px; box-shadow: inset 0 0 30px rgba(147,197,253,0.1);">
+          <div style="display: flex; align-items: center; gap: 10px; justify-content: center; height: 100%;">
+            <div style="width: 50px; height: 30px; background: rgba(147,197,253,0.2); border: 1px solid rgba(147,197,253,0.5); border-radius: 3px; font-size: 9px; color: rgb(147,197,253); display:flex; align-items:center; justify-content:center;">Subject</div>
+            <div style="font-size: 14px; color: rgb(147,197,253);">→</div>
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <div style="width: 50px; height: 20px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 3px; font-size: 8px; color: rgb(110,231,183); display:flex; align-items:center; justify-content:center;">Obs1</div>
+              <div style="width: 50px; height: 20px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 3px; font-size: 8px; color: rgb(110,231,183); display:flex; align-items:center; justify-content:center;">Obs2</div>
+            </div>
+          </div>
+        </div>
+        <!-- floor (code) -->
+        <div style="position: absolute; bottom: 10px; left: 10%; right: 10%; height: 28px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; padding: 6px 10px; font-family: monospace; font-size: 8px; color: rgba(229,231,235,0.6);">class Subject { notify() { subs.forEach(...) } }</div>
+        <!-- side door -->
+        <div style="position: absolute; top: 80px; right: 14px; width: 22px; height: 60px; background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.35); border-radius: 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2px;">
+          <div style="font-size: 10px;">🚪</div>
+          <div style="font-size: 6px; color: rgba(249,168,212,0.9); letter-spacing: 0.2em; writing-mode: vertical-rl;">PUB-SUB</div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Transition between patterns = camera "walks through door" · spatial memory = better recall</div>
+    </div>
+  </div>
+
+  <!-- R4 Radial command -->
+  <div class="option" data-choice="r4" onclick="toggleSelect(this)">
+    <div class="letter">R4</div>
+    <div class="content">
+      <h3>Radial command interface · press-hold anywhere, radial menu blooms</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Figma-style. Long-press anywhere on canvas → radial menu appears around cursor with 6-8 context actions. Drag cursor to an arc, release to execute. No toolbars. No menus. <strong>Action is where your cursor is.</strong></p>
+      <div style="margin-top: 12px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 30px; height: 200px; position: relative;">
+        <!-- radial menu -->
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(124,58,237,0.15), rgba(124,58,237,0.03) 70%); border: 1px dashed rgba(124,58,237,0.4);">
+          <!-- center point -->
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background: rgb(196,181,253); border-radius: 50%; box-shadow: 0 0 12px rgb(196,181,253);"></div>
+          <!-- radial items -->
+          <div style="position: absolute; top: 4px; left: 50%; transform: translateX(-50%); background: rgba(124,58,237,0.25); padding: 6px 10px; border-radius: 12px; font-size: 9px; color: rgb(196,181,253);">＋ Class</div>
+          <div style="position: absolute; top: 30%; right: 4px; background: rgba(124,58,237,0.25); padding: 6px 10px; border-radius: 12px; font-size: 9px; color: rgb(196,181,253);">↔ Edge</div>
+          <div style="position: absolute; bottom: 30%; right: 4px; background: rgba(124,58,237,0.25); padding: 6px 10px; border-radius: 12px; font-size: 9px; color: rgb(196,181,253);">✂ Group</div>
+          <div style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); background: rgba(124,58,237,0.25); padding: 6px 10px; border-radius: 12px; font-size: 9px; color: rgb(196,181,253);">📝 Note</div>
+          <div style="position: absolute; bottom: 30%; left: 4px; background: rgba(124,58,237,0.25); padding: 6px 10px; border-radius: 12px; font-size: 9px; color: rgb(196,181,253);">🤖 Ask AI</div>
+          <div style="position: absolute; top: 30%; left: 4px; background: rgba(124,58,237,0.25); padding: 6px 10px; border-radius: 12px; font-size: 9px; color: rgb(196,181,253);">⇨ Align</div>
+        </div>
+        <div style="position: absolute; bottom: 10px; left: 10px; font-size: 9px; color: rgb(156, 163, 175); font-style: italic;">Press-and-hold 200ms anywhere on canvas · menu blooms · drag to item · release.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- R5 Typography-as-architecture -->
+  <div class="option" data-choice="r5" onclick="toggleSelect(this)">
+    <div class="letter">R5</div>
+    <div class="content">
+      <h3>Typography as architecture · editorial, not utility</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Current LLD uses utility typography (Geist Sans, small sizes, flat). Rebuild: introduce <strong>a serif</strong> for long-form lesson content (New York Times essay feel) + monospace for code + the existing Geist for UI chrome. Three voices, three altitudes.</p>
+      <div style="margin-top: 12px; background: rgb(253, 251, 246); color: rgb(30, 30, 30); border-radius: 10px; padding: 28px 36px;">
+        <div style="font-family: 'Cormorant Garamond', Georgia, serif; font-size: 28px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.15;">The Observer's Dilemma</div>
+        <div style="font-family: 'Cormorant Garamond', Georgia, serif; font-size: 13px; font-style: italic; color: rgb(120, 120, 120); margin-top: 6px;">On loose coupling, and the price it exacts.</div>
+        <div style="font-family: 'Cormorant Garamond', Georgia, serif; font-size: 14px; line-height: 1.7; margin-top: 16px;">
+          Every system of substance comes, eventually, to the same problem. Something happened. Many things want to know. <em>The question is never whether they should know, but how.</em>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Lesson content styled like a printed magazine · feels like reading <em>The Atlantic</em>, not a wiki</div>
+    </div>
+  </div>
+
+  <!-- R6 Gesture grammar -->
+  <div class="option" data-choice="r6" onclick="toggleSelect(this)">
+    <div class="letter">R6</div>
+    <div class="content">
+      <h3>Gesture grammar · pinch, two-finger rotate, swipe between patterns</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Designed-for-trackpad-first interactions: pinch to zoom (natural), two-finger-rotate to reorient canvas, three-finger-swipe to navigate patterns, pinch-to-close to exit mode. <strong>Your hands drive the experience, not menus.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 10px;">
+          <div style="text-align: center;">
+            <div style="font-size: 26px;">🤏</div>
+            <div style="color: rgb(229, 231, 235); font-weight: 600; margin-top: 4px;">Pinch</div>
+            <div style="color: rgb(156, 163, 175); font-size: 8px; margin-top: 2px;">zoom canvas</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 26px;">🔄</div>
+            <div style="color: rgb(229, 231, 235); font-weight: 600; margin-top: 4px;">2-finger rotate</div>
+            <div style="color: rgb(156, 163, 175); font-size: 8px; margin-top: 2px;">reorient view</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 26px;">👋</div>
+            <div style="color: rgb(229, 231, 235); font-weight: 600; margin-top: 4px;">3-finger swipe</div>
+            <div style="color: rgb(156, 163, 175); font-size: 8px; margin-top: 2px;">prev/next pattern</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 26px;">🤲</div>
+            <div style="color: rgb(229, 231, 235); font-weight: 600; margin-top: 4px;">Pinch-out</div>
+            <div style="color: rgb(156, 163, 175); font-size: 8px; margin-top: 2px;">zoom back to studio</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- R7 Ambient sound + light -->
+  <div class="option" data-choice="r7" onclick="toggleSelect(this)">
+    <div class="letter">R7</div>
+    <div class="content">
+      <h3>Ambient soundscape + dynamic lighting · atmosphere per pattern</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Each pattern category has a subtle ambient sound (optional, off by default): Creational = light rain + paper rustle. Behavioral = soft café hum. Resilience = low hum of server room. Plus <strong>dynamic ambient lighting</strong> — canvas background subtly shifts warm/cool with time of day. Makes the app feel <em>inhabited</em>.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div style="background: linear-gradient(135deg, rgba(167,139,250,0.08), rgba(110,231,183,0.04)); padding: 14px; border-radius: 6px;">
+            <div style="font-size: 9px; color: rgb(110, 231, 183); letter-spacing: 0.3em;">MORNING · 9:14 AM</div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 6px;">Warm light · higher saturation · 🎵 soft jazz café</div>
+          </div>
+          <div style="background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(167,139,250,0.04)); padding: 14px; border-radius: 6px;">
+            <div style="font-size: 9px; color: rgb(147, 197, 253); letter-spacing: 0.3em;">EVENING · 10:47 PM</div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 6px;">Cool light · lower saturation · 🎵 distant rain + low hum</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- R8 Fluid layout -->
+  <div class="option" data-choice="r8" onclick="toggleSelect(this)">
+    <div class="letter">R8</div>
+    <div class="content">
+      <h3>Fluid layout · no hard panels, everything overlaps and breathes</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Apple's macOS design language evolved to <em>fluid translucent panels with overlap</em>. Move sidebar → canvas fluidly reshapes. Close properties → it dissolves, doesn't snap. Every transition is <em>material</em>. No hard dividers.</p>
+      <div style="margin-top: 10px; background: rgba(8, 4, 16, 1); border-radius: 10px; padding: 14px; position: relative; height: 140px; overflow: hidden;">
+        <div style="position: absolute; top: 14px; left: 14px; width: 140px; bottom: 14px; background: rgba(167,139,250,0.08); backdrop-filter: blur(20px); border-radius: 10px; border: 1px solid rgba(167,139,250,0.15);"></div>
+        <div style="position: absolute; top: 14px; left: 100px; width: 360px; bottom: 14px; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(10px); box-shadow: 0 4px 24px rgba(0,0,0,0.4);"></div>
+        <div style="position: absolute; top: 14px; right: 14px; width: 160px; bottom: 14px; background: rgba(147,197,253,0.06); border-radius: 10px; border: 1px solid rgba(147,197,253,0.15); backdrop-filter: blur(20px);"></div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Translucent layers overlap · backdrop-filter: blur · never hard-edged</div>
+    </div>
+  </div>
+
+  <!-- R9 Architect signature -->
+  <div class="option" data-choice="r9" onclick="toggleSelect(this)">
+    <div class="letter">R9</div>
+    <div class="content">
+      <h3>Personal architect signature · your designs get your mark</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Sign-up: draw a signature with trackpad/mouse once. Every saved diagram has YOUR signature in the bottom corner (like blueprints signed by architects). Shared diagrams display it. <strong>Ownership feels personal.</strong></p>
+      <div style="margin-top: 10px; background: rgba(253, 251, 246, 0.97); border-radius: 10px; padding: 24px; position: relative;">
+        <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 10px;">
+          <div style="width: 60px; height: 40px; background: rgba(147,197,253,0.15); border: 1px solid rgba(59,130,246,0.4); border-radius: 2px;"></div>
+          <div style="flex: 1; height: 2px; background: rgba(59,130,246,0.3);"></div>
+          <div style="width: 60px; height: 40px; background: rgba(147,197,253,0.15); border: 1px solid rgba(59,130,246,0.4); border-radius: 2px;"></div>
+        </div>
+        <div style="text-align: right; margin-top: 20px;">
+          <div style="font-family: 'Brush Script MT', cursive; font-size: 20px; color: rgb(30, 30, 80);">A. Garg</div>
+          <div style="font-size: 9px; color: rgb(100, 100, 100); font-family: 'Geist Mono', monospace; margin-top: 2px;">Observer v3 · 2026-04-20</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- R10 Presentation mode native -->
+  <div class="option" data-choice="r10" onclick="toggleSelect(this)">
+    <div class="letter">R10</div>
+    <div class="content">
+      <h3>Presentation mode native · share your diagram as a deck</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Hit <code>Present</code>. Your diagram becomes a self-paced slideshow: slide 1 intro, slide 2 the problem, slide 3 reveal class A, slide 4 reveal class B with animation, slide 5 the full pattern, slide 6 the tradeoffs. All auto-generated from your diagram + lesson data. Use in interviews, team demos, docs.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+        <div style="aspect-ratio: 16/9; background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(236,72,153,0.1)); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgb(196,181,253);">Title</div>
+        <div style="aspect-ratio: 16/9; background: rgba(255,255,255,0.04); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgb(229,231,235);">Problem</div>
+        <div style="aspect-ratio: 16/9; background: rgba(255,255,255,0.04); border: 2px solid rgba(251,191,36,0.5); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgb(251,191,36);">◎ Now</div>
+        <div style="aspect-ratio: 16/9; background: rgba(255,255,255,0.04); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgb(156,163,175);">Class B</div>
+        <div style="aspect-ratio: 16/9; background: rgba(255,255,255,0.04); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: rgb(156,163,175);">Full</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- R11 Dual-view always -->
+  <div class="option" data-choice="r11" onclick="toggleSelect(this)">
+    <div class="letter">R11</div>
+    <div class="content">
+      <h3>Code ⇄ UML always in sync · dual-view as primary</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Main view is split 50/50: code on left, UML on right. Edit code → UML updates live. Drag a class → code regenerates. <strong>They're two views of the same object, never separate.</strong> Inspired by RStudio's code+plot duality.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 140px;">
+        <div style="background: rgba(0,0,0,0.4); padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6;">
+          class Singleton {<br>
+          &nbsp;&nbsp;static #instance;<br>
+          &nbsp;&nbsp;static getInstance() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;return this.#instance<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;??= new Singleton();<br>
+          &nbsp;&nbsp;}<br>
+          }
+        </div>
+        <div style="background: rgba(124,58,237,0.05); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 100px; height: 70px; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4); border-radius: 4px; padding: 8px;">
+            <div style="font-size: 9px; color: rgb(196,181,253); font-weight: 600; text-align: center;">Singleton</div>
+            <div style="height: 1px; background: rgba(196,181,253,0.3); margin: 4px 0;"></div>
+            <div style="font-size: 7px; color: rgb(229,231,235);">- #instance</div>
+            <div style="height: 1px; background: rgba(196,181,253,0.3); margin: 4px 0;"></div>
+            <div style="font-size: 7px; color: rgb(229,231,235);">+ getInstance()</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- R12 Onboarding ritual -->
+  <div class="option" data-choice="r12" onclick="toggleSelect(this)">
+    <div class="letter">R12</div>
+    <div class="content">
+      <h3>First-time ritual · you're not signing up, you're being welcomed</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Not a form. 4 screens: <strong>(1)</strong> cinematic intro (R1) <strong>(2)</strong> "Sign the guest book" — draw your signature <strong>(3)</strong> "Pick your first pattern to meet" — 3 curated choices <strong>(4)</strong> welcome to your studio, door opens to home. Total time: 90 seconds. <strong>Feels like joining an atelier, not registering a SaaS.</strong></p>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+        <div style="background: #000; border-radius: 6px; padding: 14px 10px; text-align: center; height: 70px; display: flex; flex-direction: column; justify-content: center;">
+          <div style="font-size: 9px; color: rgba(196,181,253,0.9); font-style: italic; line-height: 1.4;">"Every system<br>you've ever used..."</div>
+        </div>
+        <div style="background: rgba(253, 251, 246, 0.95); color: #333; border-radius: 6px; padding: 10px; text-align: center; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 8px; color: #666; letter-spacing: 0.2em; margin-bottom: 4px;">SIGN HERE</div>
+          <div style="font-family: 'Brush Script MT', cursive; font-size: 16px;">✎</div>
+        </div>
+        <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 10px; height: 70px; display: flex; flex-direction: column; justify-content: center;">
+          <div style="font-size: 8px; color: rgb(156,163,175); letter-spacing: 0.2em; text-align: center;">CHOOSE ONE</div>
+          <div style="display: flex; gap: 3px; justify-content: center; margin-top: 4px;">
+            <div style="width: 14px; height: 14px; background: rgba(110,231,183,0.3); border-radius: 2px;"></div>
+            <div style="width: 14px; height: 14px; background: rgba(147,197,253,0.3); border-radius: 2px;"></div>
+            <div style="width: 14px; height: 14px; background: rgba(249,168,212,0.3); border-radius: 2px;"></div>
+          </div>
+        </div>
+        <div style="background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(236,72,153,0.1)); border-radius: 6px; padding: 10px; text-align: center; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 14px;">🚪</div>
+          <div style="font-size: 8px; color: rgb(196,181,253); letter-spacing: 0.2em; margin-top: 3px;">WELCOME IN</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 32px; background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 16px 20px;">
+  <div style="font-size: 11px; color: rgb(251,191,36); letter-spacing: 0.3em; font-weight: 700; margin-bottom: 10px;">⚠ REBUILD COST REALITY CHECK</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    Ground-up rebuild of the LLD module with these 12 additions = <strong>~400-600 hours</strong> (10-15 weeks for 1 engineer, 5-8 weeks for 2). Versus additive layered approach (~60h).<br><br>
+    The rebuild <strong>will</strong> produce something iconic. But it's the biggest bet in the roadmap. I'm not dissuading — I'm flagging so the spec captures it honestly.<br><br>
+    Pick R1-R12. I'll note which are in scope. Then final consolidation.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select R1-R12. This is the final feature batch.</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">After this: spec time.</p>
+</div>

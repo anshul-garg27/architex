@@ -1,0 +1,350 @@
+<div style="background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(167,139,250,0.1)); border: 1px solid rgba(236,72,153,0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+    <div style="font-size: 22px;">🔮</div>
+    <div style="font-size: 14px; color: rgb(249, 168, 212); font-weight: 700;">Batch 13 · Wild cards · things no competitor has built</div>
+  </div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">PhD-level, ambitious, distinctive. Features that turn Architex from "good LLD tool" into "<strong>the place you go to actually become an architect</strong>".</div>
+</div>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <!-- W1 Live code trace -->
+  <div class="option" data-choice="w1" onclick="toggleSelect(this)">
+    <div class="letter">W1</div>
+    <div class="content">
+      <h3>Live code trace · scrub execution like a timeline</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Code on the left, UML on the right. Press ▶ · watch code execute line by line. As each line runs, corresponding UML class <em>pulses</em>. Method calls become animated arrows between classes. Scrubbable — drag the timeline to any moment. <strong>Patterns become verbs, not nouns.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+          <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 4px; font-family: monospace; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">
+            subject.<br>
+            &nbsp;&nbsp;<span style="background: rgba(251,191,36,0.25); color: rgb(251,191,36);">notify()</span>; ◀ here<br>
+            &nbsp;&nbsp;subs.forEach(o =&gt; <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;o.update()<br>
+            &nbsp;&nbsp;)<br>
+          </div>
+          <div style="background: rgba(147,197,253,0.05); padding: 8px; border-radius: 4px; position: relative; height: 90px;">
+            <div style="position: absolute; top: 10px; left: 10px; width: 50px; height: 20px; background: rgba(251,191,36,0.2); border: 1px solid rgb(251,191,36); border-radius: 3px; font-size: 8px; color: rgb(251,191,36); display:flex; align-items:center; justify-content:center; box-shadow: 0 0 8px rgb(251,191,36);">Subject</div>
+            <div style="position: absolute; top: 55px; left: 30px; width: 40px; height: 18px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 3px; font-size: 7px; color: rgb(110,231,183); display:flex; align-items:center; justify-content:center;">ObsA</div>
+            <div style="position: absolute; top: 55px; right: 10px; width: 40px; height: 18px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 3px; font-size: 7px; color: rgb(110,231,183); display:flex; align-items:center; justify-content:center;">ObsB</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-size: 16px;">⏮ ◀ ▶</div>
+          <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; position: relative;">
+            <div style="position: absolute; top: -2px; left: 40%; width: 10px; height: 10px; background: rgb(251,191,36); border-radius: 50%; box-shadow: 0 0 8px rgb(251,191,36);"></div>
+            <div style="width: 40%; height: 100%; background: rgb(251,191,36); border-radius: 3px;"></div>
+          </div>
+          <div style="font-size: 9px; color: rgb(156,163,175); font-family: monospace;">t=230ms · line 3 of 12</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W2 Design with constraints -->
+  <div class="option" data-choice="w2" onclick="toggleSelect(this)">
+    <div class="letter">W2</div>
+    <div class="content">
+      <h3>Design with constraints · "solve this without X"</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Drill mode variant. <em>"Design Parking Lot WITHOUT using inheritance."</em> Or <em>"...without Singleton."</em> Or <em>"...with only 6 classes max."</em> Forces creative use of alternatives. Teaches when each pattern is actually <strong>necessary</strong> vs just <em>familiar</em>.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600; margin-bottom: 10px;">🔒 Constrained Drill · Parking Lot</div>
+        <div style="display: grid; gap: 6px;">
+          <div style="background: rgba(239,68,68,0.1); border-left: 2px solid rgb(239,68,68); padding: 8px 12px; border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(252, 165, 165);">🚫 You cannot use inheritance</div>
+          <div style="background: rgba(251,146,60,0.1); border-left: 2px solid rgb(251,146,60); padding: 8px 12px; border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(251,146,60);">🚫 Max 8 classes</div>
+          <div style="background: rgba(147,197,253,0.1); border-left: 2px solid rgb(147,197,253); padding: 8px 12px; border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(147,197,253);">✓ Bonus: zero static fields</div>
+        </div>
+        <div style="margin-top: 10px; font-size: 9px; color: rgb(156, 163, 175); font-style: italic; text-align: center;">Same problem. Different constraint set. Unlocks deeper pattern fluency.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W3 Multiplayer design sprint -->
+  <div class="option" data-choice="w3" onclick="toggleSelect(this)">
+    <div class="letter">W3</div>
+    <div class="content">
+      <h3>Multiplayer design sprint · 3 engineers, 20 min, vote on best</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Match 3 learners in a room. Shared problem, individual canvases. 20-min timer. At end, each presents theirs for 2 min. Others vote: <em>"which one would you ship?"</em> Winner gets points. Losers get to see <em>why</em> the winner won. <strong>Learning = teaching + judging.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+          <div style="background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.25); border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 20px;">👩‍💻</div>
+            <div style="font-size: 9px; color: rgb(110,231,183); font-weight: 600; margin-top: 4px;">Anshul</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175);">6 classes · done</div>
+          </div>
+          <div style="background: rgba(147,197,253,0.08); border: 1px solid rgba(147,197,253,0.25); border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 20px;">👨‍💻</div>
+            <div style="font-size: 9px; color: rgb(147,197,253); font-weight: 600; margin-top: 4px;">Maya</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175);">9 classes · done</div>
+          </div>
+          <div style="background: rgba(196,181,253,0.08); border: 1px solid rgba(196,181,253,0.25); border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 20px;">🧑‍💻</div>
+            <div style="font-size: 9px; color: rgb(196,181,253); font-weight: 600; margin-top: 4px;">Kenji</div>
+            <div style="font-size: 8px; color: rgb(156, 163, 175);">7 classes · done</div>
+          </div>
+        </div>
+        <div style="text-align: center; padding: 10px; background: rgba(251,191,36,0.08); border-radius: 6px;">
+          <div style="font-size: 11px; color: rgb(251,191,36); font-weight: 600;">🗳 Vote phase · 2 min</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 3px;">Which would you ship to prod? See their design + reasoning</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W4 Mutation testing -->
+  <div class="option" data-choice="w4" onclick="toggleSelect(this)">
+    <div class="letter">W4</div>
+    <div class="content">
+      <h3>Mutation testing · "we broke something in this design · find it"</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Given a correct Observer diagram. System silently mutates it — removes unsubscribe(), changes inheritance direction, duplicates a class. <em>"Find the bug in 90s."</em> 10 random mutations possible. <strong>Trains the debugging muscle.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; position: relative;">
+        <div style="font-size: 10px; color: rgb(252,165,165); font-weight: 600; letter-spacing: 0.3px; margin-bottom: 8px;">🔎 MUTANT HUNT · 0:45 remaining</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; height: 80px;">
+          <div style="background: rgba(147,197,253,0.1); border: 1px solid rgba(147,197,253,0.3); border-radius: 3px; padding: 6px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center;">Subject<br>+subscribe()<br>+notify()</div>
+          <div style="background: rgba(147,197,253,0.1); border: 2px solid rgb(239, 68, 68); border-radius: 3px; padding: 6px; font-size: 9px; color: rgb(147, 197, 253); display:flex; flex-direction:column; align-items:center; justify-content:center; position: relative;">
+            <div>Observer</div>
+            <div style="color: rgb(252,165,165);">+update()</div>
+            <div style="font-size: 7px; color: rgb(252,165,165); position: absolute; bottom: -4px; background: rgb(239,68,68); color: white; padding: 1px 4px; border-radius: 6px;">?</div>
+          </div>
+          <div style="background: rgba(147,197,253,0.1); border: 1px solid rgba(147,197,253,0.3); border-radius: 3px; padding: 6px; font-size: 9px; color: rgb(147, 197, 253); display:flex; align-items:center; justify-content:center;">ConcreteObs<br>+update()</div>
+        </div>
+        <div style="font-size: 10px; color: rgb(156, 163, 175); font-style: italic;">Hint: something is missing from the Observer interface. What would break at runtime if you tried to clean up?</div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Mutation types: removed method, wrong direction, duplicate, wrong cardinality, missing interface, broken constraint.</div>
+    </div>
+  </div>
+
+  <!-- W5 Temporal critique -->
+  <div class="option" data-choice="w5" onclick="toggleSelect(this)">
+    <div class="letter">W5</div>
+    <div class="content">
+      <h3>Temporal critique · review your OWN 6-month-old design</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Unique opportunity: Architex remembers your past drills. 6 months later, prompts: <em>"Here's your Parking Lot design from May. What would you do differently now?"</em> You critique your past self. The most <strong>honest mirror</strong> in tech education.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <div style="font-size: 24px;">🪞</div>
+          <div>
+            <div style="font-size: 12px; color: rgb(229, 231, 235); font-weight: 700;">6-month mirror</div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175);">Your Parking Lot · designed April 2026</div>
+          </div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6; margin-bottom: 10px;">
+          <strong>Past-you wrote:</strong> <em>"Used Singleton for ParkingManager. Felt right."</em><br>
+          <strong>Score at the time:</strong> 68/100<br>
+          <strong>Now with 6 more months of experience...</strong>
+        </div>
+        <div style="background: rgba(196,181,253,0.08); padding: 10px 12px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6; border-left: 2px solid rgb(196,181,253);">
+          <em>"What would you critique if you got this as a PR today?"</em>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Most emotionally resonant feature possible. You see your own growth.</div>
+    </div>
+  </div>
+
+  <!-- W6 Pattern linter -->
+  <div class="option" data-choice="w6" onclick="toggleSelect(this)">
+    <div class="letter">W6</div>
+    <div class="content">
+      <h3>Pattern-aware linter · <code>npm install architex-patterns</code></h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Ship an ESLint plugin / Python linter. Detects anti-patterns in <em>real code</em>: god class, tight coupling, improper Singleton. Links to Architex lessons explaining what you could use instead. <strong>Brings Architex into the daily dev loop.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-family: monospace; font-size: 10px; line-height: 1.8; color: rgb(229, 231, 235);">
+          <div style="color: rgb(156, 163, 175);">$ npm run lint</div>
+          <div style="color: rgb(250, 204, 21);">⚠ architex/god-class · <span style="color: rgb(156, 163, 175);">src/services/OrderManager.ts:1</span></div>
+          <div style="color: rgb(156, 163, 175); padding-left: 20px;">Class has 47 methods. Consider splitting by responsibility (Strategy + Facade).</div>
+          <div style="color: rgb(196, 181, 253); padding-left: 20px;">→ Learn: architex.app/p/strategy</div>
+          <div style="margin-top: 8px; color: rgb(239, 68, 68);">✗ architex/missing-circuit-breaker · <span style="color: rgb(156, 163, 175);">src/api/client.ts:12</span></div>
+          <div style="color: rgb(156, 163, 175); padding-left: 20px;">3rd-party API call has no failure-threshold guard.</div>
+          <div style="color: rgb(196, 181, 253); padding-left: 20px;">→ Learn: architex.app/p/circuit-breaker</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W7 Community alternative solutions -->
+  <div class="option" data-choice="w7" onclick="toggleSelect(this)">
+    <div class="letter">W7</div>
+    <div class="content">
+      <h3>Living reference solutions · community alternatives per problem</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Official reference solution exists. Users submit <em>alternative solutions</em> too. Moderated, rated, displayed. Parking Lot gets 5 distinct community solutions — minimalist, enterprise, microservice, event-driven, functional. Learners see there's <strong>no "one right answer"</strong>.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(250,204,21); letter-spacing: 0.3px; font-weight: 600; margin-bottom: 8px;">📚 PARKING LOT · 6 SOLUTIONS</div>
+        <div style="display: grid; gap: 5px; font-size: 10px;">
+          <div style="background: rgba(251,191,36,0.1); border-left: 2px solid rgb(251,191,36); padding: 6px 10px; border-radius: 0 4px 4px 0; color: rgb(229,231,235);">
+            <strong>⭐ Official</strong> · 12 classes · textbook · score 95
+          </div>
+          <div style="background: rgba(110,231,183,0.06); border-left: 2px solid rgb(110,231,183); padding: 6px 10px; border-radius: 0 4px 4px 0; color: rgb(229,231,235);">
+            <strong>by @anshul-garg27</strong> · minimalist · 6 classes · 2.1k upvotes
+          </div>
+          <div style="background: rgba(147,197,253,0.06); border-left: 2px solid rgb(147,197,253); padding: 6px 10px; border-radius: 0 4px 4px 0; color: rgb(229,231,235);">
+            <strong>by @maya_l</strong> · microservice-ready · 14 classes · 1.4k
+          </div>
+          <div style="background: rgba(249,168,212,0.06); border-left: 2px solid rgb(249,168,212); padding: 6px 10px; border-radius: 0 4px 4px 0; color: rgb(229,231,235);">
+            <strong>by @kenji_v</strong> · event-sourced · 10 classes · 800
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W8 Hostile interviewer -->
+  <div class="option" data-choice="w8" onclick="toggleSelect(this)">
+    <div class="letter">W8</div>
+    <div class="content">
+      <h3>Hostile interviewer mode · AI grills you on your design</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">After you design. AI plays a <em>skeptical senior engineer</em> with attitude. 10 minutes of probing. <em>"Why is Payment a concrete class? Shouldn't it be an interface?"</em> · <em>"Your Singleton assumes single-process. Prove it doesn't break in my 8-server cluster."</em> · <em>"You seem tired. Want to simplify?"</em> <strong>Realistic interview stress test.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <div style="width: 32px; height: 32px; background: rgba(239,68,68,0.2); border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">😐</div>
+          <div style="flex: 1; background: rgba(239,68,68,0.06); border-radius: 8px; padding: 10px 12px; border-left: 2px solid rgb(239, 68, 68);">
+            <div style="font-size: 9px; color: rgb(252,165,165); font-weight: 600; margin-bottom: 4px;">Interviewer · minute 7/10</div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6; font-style: italic;">
+              "I'm not convinced. You said 'I'd use Singleton because there's only one parking lot.' But at scale, you'll have <em>multiple garages</em>. How does your design handle that? And don't say 'we'll refactor later.'"
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107,114,128); font-style: italic; text-align: center;">Configurable aggressive level: friendly / standard / hostile / Jeff-Bezos-in-1999.</div>
+    </div>
+  </div>
+
+  <!-- W9 Git pattern mining -->
+  <div class="option" data-choice="w9" onclick="toggleSelect(this)">
+    <div class="letter">W9</div>
+    <div class="content">
+      <h3>Pattern mining in your git history · "what patterns did you write this year?"</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Connect GitHub. Analyze your last 12 months of commits. Report: <em>"You wrote Observer 23 times. Factory Method 8 times. You've never written State or Flyweight. Here are 3 places in your codebase where State would help."</em> <strong>Your annual pattern autobiography.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 700; margin-bottom: 10px;">📊 Your 2026 in patterns</div>
+        <div style="display: grid; gap: 6px; font-size: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 80px; color: rgb(156, 163, 175);">Observer</div>
+            <div style="flex: 1; height: 12px; background: rgba(124,58,237,0.15); border-radius: 6px; overflow: hidden;"><div style="width: 80%; height: 100%; background: rgb(124,58,237);"></div></div>
+            <div style="width: 30px; text-align: right; color: rgb(229,231,235);">23</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 80px; color: rgb(156, 163, 175);">Factory</div>
+            <div style="flex: 1; height: 12px; background: rgba(124,58,237,0.15); border-radius: 6px; overflow: hidden;"><div style="width: 28%; height: 100%; background: rgb(124,58,237);"></div></div>
+            <div style="width: 30px; text-align: right; color: rgb(229,231,235);">8</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 80px; color: rgb(156, 163, 175);">Singleton</div>
+            <div style="flex: 1; height: 12px; background: rgba(124,58,237,0.15); border-radius: 6px; overflow: hidden;"><div style="width: 18%; height: 100%; background: rgb(124,58,237);"></div></div>
+            <div style="width: 30px; text-align: right; color: rgb(229,231,235);">5</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 80px; color: rgb(252, 165, 165);">State</div>
+            <div style="flex: 1; height: 12px; background: rgba(239,68,68,0.1); border-radius: 6px; overflow: hidden; border: 1px dashed rgba(239,68,68,0.3);"></div>
+            <div style="width: 30px; text-align: right; color: rgb(252, 165, 165);">0</div>
+          </div>
+        </div>
+        <div style="margin-top: 12px; background: rgba(252,165,165,0.06); padding: 8px 12px; border-radius: 4px; font-size: 10px; color: rgb(229,231,235); border-left: 2px solid rgb(252,165,165);">
+          <em>"You never wrote State this year. I see 3 switch statements in <code>OrderProcessor.ts</code> that are screaming for it. [Show me]"</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W10 ELI5 / ELI-senior toggle -->
+  <div class="option" data-choice="w10" onclick="toggleSelect(this)">
+    <div class="letter">W10</div>
+    <div class="content">
+      <h3>ELI5 / ELI-Senior toggle · same concept, different altitude</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Slider at top of lesson: <strong>Explain Like I'm 5</strong> (warm analogies, no jargon) · <strong>Standard</strong> (default) · <strong>Senior</strong> (no hand-holding, technical depth, acronyms expected). Same content, dramatically different voice. <em>Users choose their altitude per lesson.</em></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; gap: 6px; background: rgba(0,0,0,0.3); border-radius: 16px; padding: 3px; width: fit-content; margin-bottom: 12px;">
+          <div style="padding: 4px 10px; border-radius: 12px; font-size: 9px; color: rgb(156,163,175);">👶 ELI5</div>
+          <div style="padding: 4px 10px; border-radius: 12px; font-size: 9px; color: rgb(229,231,235); background: rgba(124,58,237,0.3); font-weight: 600;">📖 Standard</div>
+          <div style="padding: 4px 10px; border-radius: 12px; font-size: 9px; color: rgb(156,163,175);">🧙 ELI-Senior</div>
+        </div>
+        <div style="background: rgba(110,231,183,0.06); padding: 10px 14px; border-left: 2px solid rgb(110,231,183); border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(229,231,235); line-height: 1.6; margin-bottom: 8px;">
+          <strong style="color: rgb(110,231,183);">👶 ELI5:</strong> <em>Observer is like a newspaper subscription. You sign up, and the newspaper sends you stuff when new news happens. You don't have to keep asking "is there news yet?"</em>
+        </div>
+        <div style="background: rgba(147,197,253,0.06); padding: 10px 14px; border-left: 2px solid rgb(147,197,253); border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(229,231,235); line-height: 1.6; margin-bottom: 8px;">
+          <strong style="color: rgb(147,197,253);">📖 Standard:</strong> <em>Observer is a behavioral pattern where a subject maintains a list of dependents (observers) that are automatically notified of state changes, typically via an update() method.</em>
+        </div>
+        <div style="background: rgba(196,181,253,0.06); padding: 10px 14px; border-left: 2px solid rgb(196,181,253); border-radius: 0 4px 4px 0; font-size: 10px; color: rgb(229,231,235); line-height: 1.6;">
+          <strong style="color: rgb(196,181,253);">🧙 ELI-Senior:</strong> <em>Observer: intra-process pub-sub with hard-referenced subs → memory-leak vector; use WeakRef or explicit teardown. O(n) fan-out, blocks notifier thread — gate with executor if downstream IO. Degenerates into event bus at scale, then into Kafka. At that point you've rediscovered the whole ecosystem and should admit it.</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W11 Pattern prescribing -->
+  <div class="option" data-choice="w11" onclick="toggleSelect(this)">
+    <div class="letter">W11</div>
+    <div class="content">
+      <h3>"Prescribe me a pattern" · free-text problem → pattern recommendation</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">User types: <em>"I have a checkout flow with 5 different payment methods. Code is getting gross."</em> AI responds: <em>"Sounds like Strategy. Here's why, here's the shape, and here's 10min to learn it."</em> Takes real engineer pain → patterns that solve it. <strong>Reverse search: problem → pattern.</strong></p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235); font-style: italic; margin-bottom: 10px;">
+          "Every time we add a new shipping carrier we end up touching 6 files. It's becoming a mess."
+        </div>
+        <div style="display: grid; gap: 6px;">
+          <div style="background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.25); padding: 8px 12px; border-radius: 4px;">
+            <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 600;">Strategy Pattern · 88% match</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Encapsulate each shipping carrier, plug-and-play. You'd touch 1 file to add UPS.</div>
+          </div>
+          <div style="background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.25); padding: 8px 12px; border-radius: 4px;">
+            <div style="font-size: 10px; color: rgb(250, 204, 21); font-weight: 600;">Factory Method · 62% match</div>
+            <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">If instantiation is the pain point (not behavior).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- W12 UI REVAMP DECISION -->
+  <div class="option" data-choice="w12" onclick="toggleSelect(this)" style="border: 2px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.05);">
+    <div class="letter" style="background: rgba(239,68,68,0.3); color: rgb(252,165,165);">W12</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(239,68,68,0.25); color: rgb(252,165,165); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">🔨 META DECISION</div>
+      <h3>UI Revamp · do we rebuild or layer?</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">You asked: "frontend UI revamp karna hai kyaa?" Honest answer from live inspection:</p>
+
+      <div style="margin-top: 12px; display: grid; gap: 8px;">
+        <div style="background: rgba(110,231,183,0.08); border-left: 3px solid rgb(110,231,183); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+          <div style="font-size: 11px; color: rgb(110,231,183); font-weight: 700;">✅ What's already good (keep)</div>
+          <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6; margin-top: 4px;">
+            · UML canvas is <em>beautiful</em> · A*-routed edges work · 4-panel layout is standard &amp; clear · Pattern sidebar with category colors · Right-pane code tabs (TS/Py/Java) · Dark theme palette is sophisticated · Typography is solid
+          </div>
+        </div>
+        <div style="background: rgba(250,204,21,0.08); border-left: 3px solid rgb(250,204,21); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+          <div style="font-size: 11px; color: rgb(250,204,21); font-weight: 700;">🎨 What needs polish (layer)</div>
+          <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6; margin-top: 4px;">
+            · Header &amp; footer are thin / info-sparse · Right pane is text-wall (needs typography rhythm) · No mode switcher yet (Learn/Build/Drill/Review) · No persona-specific onboarding · No pattern constellation visual · Mobile is unusable currently
+          </div>
+        </div>
+        <div style="background: rgba(239,68,68,0.08); border-left: 3px solid rgb(239,68,68); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+          <div style="font-size: 11px; color: rgb(252,165,165); font-weight: 700;">❌ What does NOT need rebuild</div>
+          <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.6; margin-top: 4px;">
+            · Canvas engine · A* routing · Dagre layout · Pattern catalog · Grading engine · Sidebar structure · Color system
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px; background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(236,72,153,0.08)); border: 1px solid rgba(124,58,237,0.35); border-radius: 10px; padding: 14px;">
+        <div style="font-size: 11px; color: rgb(196,181,253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 MY RECOMMENDATION</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+          <strong>Do NOT rewrite UI from scratch.</strong> Current UI is 80% production-quality. What Architex needs is <strong>additive</strong>:<br><br>
+          1. <strong>Add</strong> the mode switcher (Learn/Build/Drill/Review pill in top chrome) — doesn't touch existing UI<br>
+          2. <strong>Add</strong> the lesson column as Learn mode content (new layout)<br>
+          3. <strong>Add</strong> Drill as a mode (reuses canvas + adds timer/grader wrapper)<br>
+          4. <strong>Add</strong> Review as a 4th mode (minimal, phone-friendly)<br>
+          5. <strong>Polish</strong> what exists — typography rhythm in right pane, status bar, mobile responsiveness<br>
+          6. <strong>Layer on</strong> the delight moments (motion, illustrations, constellation)<br><br>
+          <strong>Rebuild would be waste.</strong> 2 months of work for something that's already 80% there. Use those 2 months to ship Learn/Drill/Review modes + 90+ ideas from our batches.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 32px; background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(110,231,183,0.05)); border: 1px solid rgba(110,231,183,0.3); border-radius: 12px; padding: 20px; text-align: center;">
+  <div style="font-size: 14px; color: rgb(110, 231, 183); font-weight: 700; margin-bottom: 8px;">🎬 BRAINSTORM COMPLETE</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    13 batches · <strong>120+ ideas captured</strong> · 20 Q&amp;A locked · 6 design sections · UI revamp decision made.<br><br>
+    Reply with your W1-W12 picks, and any final open-field additions.<br>
+    Then I consolidate <strong>everything</strong> into <code>docs/superpowers/specs/2026-04-20-lld-beginner-mode-design.md</code> — the single document of truth.
+  </div>
+</div>

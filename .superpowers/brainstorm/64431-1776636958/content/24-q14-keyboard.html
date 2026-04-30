@@ -1,0 +1,142 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 14 of 20</strong> — keyboard navigation. Power users drive 80% of sessions.
+  </div>
+</div>
+
+<h2>Q14 · How deep is keyboard support in each mode?</h2>
+<p class="subtitle">cmdk palette exists. <code>useKeyboardNodeOps</code> hook exists. <code>KeyboardShortcutsDialog</code> exists. Question: do we build mode-specific shortcut vocabularies, or rely on the palette alone?</p>
+
+<!-- EXISTING BASELINE -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">⌨️ WHAT EXISTS IN CODEBASE</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    • <code>CommandPalette.tsx</code> with cmdk · <code>useCommandBus</code>, <code>useRecentCommands</code><br>
+    • <code>useKeyboardNodeOps</code> — node add/delete/duplicate in Build canvas<br>
+    • <code>KeyboardShortcutsDialog</code> — help overlay<br>
+    • <code>useFocusTrap</code> for modals
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Baseline only · standard web interactions</h3>
+      <p>Tab, arrows, enter, escape. No custom shortcuts. Rely entirely on mouse + cmdk palette for power actions.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Cheap. No conflicts to debug.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Wastes the palette infrastructure. Pros hate. Review-mode rapid rating via keys is essential (Anki precedent).
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Palette only · cmd+K for everything</h3>
+      <p>Everything goes through palette. No mode-specific vocabularies. Search "submit drill", "next pattern", "answer B" — palette handles it.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Zero memorization. One surface to maintain.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> cmd+K + type + enter = 3 keypresses for every action. Review mode with 50 reviews = 150 keypresses vs 50 with direct keys.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Global shortcuts + mode vocabulary + palette fallback</h3>
+      <p>Three tiers: <strong>global</strong> (always work), <strong>mode-specific</strong> (contextual, respect input focus), <strong>palette</strong> (the discovery + fallback for unmemorized actions).</p>
+
+      <!-- Shortcut matrix -->
+      <div style="margin-top: 14px;">
+        <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">GLOBAL · WORK EVERYWHERE</div>
+        <div style="background: rgb(17, 24, 39); border-radius: 8px; padding: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px; color: rgb(229, 231, 235);">⌘1</span> <span style="color: rgb(156, 163, 175);">Learn mode</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘2</span> <span style="color: rgb(156, 163, 175);">Build</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘3</span> <span style="color: rgb(156, 163, 175);">Drill</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘4</span> <span style="color: rgb(156, 163, 175);">Review</span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘K</span> <span style="color: rgb(156, 163, 175);">Command palette</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘/</span> <span style="color: rgb(156, 163, 175);">Shortcuts help</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">Esc</span> <span style="color: rgb(156, 163, 175);">Close modal</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">📖 LEARN MODE</div>
+        <div style="background: rgb(17, 24, 39); border-radius: 8px; padding: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">J/K</span> <span style="color: rgb(156, 163, 175);">Scroll sections</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">←/→</span> <span style="color: rgb(156, 163, 175);">Prev / next pattern</span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">1..4</span> <span style="color: rgb(156, 163, 175);">Answer checkpoint option A/B/C/D</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">Enter</span> <span style="color: rgb(156, 163, 175);">Submit</span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">T</span> <span style="color: rgb(156, 163, 175);">Toggle Tinker mode</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">?</span> <span style="color: rgb(156, 163, 175);">Ask the Architect</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">🎨 BUILD MODE</div>
+        <div style="background: rgb(17, 24, 39); border-radius: 8px; padding: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+          <div style="color: rgb(107, 114, 128);"># via existing useKeyboardNodeOps + new:</div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">N</span> <span style="color: rgb(156, 163, 175);">New class</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">E</span> <span style="color: rgb(156, 163, 175);">Edit selected</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">Del</span> <span style="color: rgb(156, 163, 175);">Delete</span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘Z / ⌘⇧Z</span> <span style="color: rgb(156, 163, 175);">Undo / redo</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘S</span> <span style="color: rgb(156, 163, 175);">Save as diagram</span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">F</span> <span style="color: rgb(156, 163, 175);">Fit to view</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">M</span> <span style="color: rgb(156, 163, 175);">Toggle minimap</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">⏱️ DRILL MODE</div>
+        <div style="background: rgb(17, 24, 39); border-radius: 8px; padding: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">Space</span> <span style="color: rgb(156, 163, 175);">Pause/resume timer</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">H</span> <span style="color: rgb(156, 163, 175);">Open hint panel</span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘Enter</span> <span style="color: rgb(156, 163, 175);">Submit (with confirm)</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">⌘G</span> <span style="color: rgb(156, 163, 175);">Give up (with confirm)</span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">R</span> <span style="color: rgb(156, 163, 175);">Show requirements</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">[  ]</span> <span style="color: rgb(156, 163, 175);">Prev / next problem in queue</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">🔁 REVIEW MODE · speed-optimized · Anki-inspired</div>
+        <div style="background: rgb(17, 24, 39); border-radius: 8px; padding: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.8;">
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">1..4</span> <span style="color: rgb(156, 163, 175);">Answer option A/B/C/D</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">Space</span> <span style="color: rgb(156, 163, 175);">Reveal answer</span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">A / H / G / E</span> <span style="color: rgb(156, 163, 175);">Rate FSRS: <span style="color: rgb(239, 68, 68);">Again</span> / <span style="color: rgb(251, 146, 60);">Hard</span> / <span style="color: rgb(110, 231, 183);">Good</span> / <span style="color: rgb(251, 191, 36);">Easy</span></span></div>
+          <div><span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">Enter</span> <span style="color: rgb(156, 163, 175);">Next review item</span> &nbsp;&nbsp; <span style="background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 3px;">Esc</span> <span style="color: rgb(156, 163, 175);">Exit session</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px; background: rgba(0,0,0,0.25); border-radius: 6px; padding: 10px 14px;">
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+          <strong style="color: rgb(250, 204, 21);">Discovery:</strong> Pressing <code>?</code> in any mode shows a <em>mode-specific</em> shortcuts overlay. Palette remains the "search any action" fallback for unmemorized shortcuts.
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Review mode runs at Anki speed (critical for daily habit). Drill pros submit with ⌘Enter. Palette still handles the long tail. Mode-specific means no conflicts (J in Learn = scroll; J in Build could mean something else — not collision).<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> Memorization burden. <code>?</code> overlay mitigates. Existing hooks do most of the work — new code ≈ 8h for Review shortcuts + Drill shortcuts.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Vim-style leader sequences · gf, gn, dw</h3>
+      <p>2-key sequences. G = go, N = new, D = delete. gf = fit to view, gn = next pattern, dw = delete class. For terminal-pilled users.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Vim devs love it.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> 95% of users aren't vim-pilled. Steep learning curve. Overkill.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why C -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY C · LAYERED KEYBOARD</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Review speed is critical.</strong> 1-4 to answer, A/H/G/E to rate FSRS, Enter to advance. 3 keypresses per review × 50 reviews = 150 keypresses. Via palette = 250 keypresses. Multiplier matters for a habit product.<br><br>
+    <strong>Mode-scoped shortcuts = no conflicts.</strong> J in Learn is scroll. J in Build is nothing. Context-aware bindings avoid the "global shortcut hell" of Gmail-style vocabularies.<br><br>
+    <strong>Palette is the fallback, not the primary.</strong> Press ⌘K to find "how do I...?". Learn the direct key over time. Progressive power-user unlock.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q15 — <em>frustration detection in Learn mode (adaptive help)</em>.
+  </p>
+</div>

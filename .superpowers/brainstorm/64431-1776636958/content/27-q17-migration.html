@@ -1,0 +1,135 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 17 of 20</strong> — the anonymous → authenticated migration moment. Emotional and edge-case heavy.
+  </div>
+</div>
+
+<h2>Q17 · Anonymous user signs up. What happens to their local progress?</h2>
+<p class="subtitle">Clerk is optional — a user could read 8 patterns, pass 3 drills, then decide to sign up. All of that is in localStorage. How do we handle the moment of account creation?</p>
+
+<!-- SCENARIOS -->
+<div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px; margin-top: 16px;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">🎭 THE 4 SCENARIOS</div>
+  <div style="display: grid; gap: 8px; font-size: 11px;">
+    <div style="background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 4px;">
+      <strong style="color: rgb(110, 231, 183);">S1:</strong> <span style="color: rgb(229, 231, 235);">Anonymous builds state → signs up for first time. localStorage has data, DB has nothing.</span>
+    </div>
+    <div style="background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 4px;">
+      <strong style="color: rgb(250, 204, 21);">S2:</strong> <span style="color: rgb(229, 231, 235);">Anonymous → logs into existing account from another device. localStorage has local session; DB has history.</span>
+    </div>
+    <div style="background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 4px;">
+      <strong style="color: rgb(147, 197, 253);">S3:</strong> <span style="color: rgb(229, 231, 235);">Anonymous has no state → signs up. localStorage empty, DB empty. Clean start.</span>
+    </div>
+    <div style="background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 4px;">
+      <strong style="color: rgb(252, 165, 165);">S4:</strong> <span style="color: rgb(229, 231, 235);">User logged in → logs out → uses anonymously → logs back in. Mixed state.</span>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 24px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Manual · user clicks "Sync my progress"</h3>
+      <p>After login, a banner: <em>"Bring your progress along? [Sync now] [No thanks]"</em>. User explicitly triggers migration.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Explicit.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> User might dismiss and lose progress. Banners get ignored.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Silent auto-merge · always migrate</h3>
+      <p>On login, automatically POST localStorage state to <code>/api/user-preferences/lld/migrate</code>. No user action. Toast: "Welcome! Your progress is saved."</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Zero friction. Never lose work.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> In S2 (existing account on new device), silent merge could OVERWRITE server state with stale local state. Data loss risk.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">C</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Smart hybrid · auto-merge when safe, confirm when conflicting</h3>
+      <p>Server runs a 3-case decision tree on login:</p>
+
+      <div style="margin-top: 12px; display: grid; gap: 10px;">
+
+        <div style="background: rgba(110, 231, 183, 0.08); border-left: 3px solid rgb(110, 231, 183); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+          <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; margin-bottom: 4px;">CASE 1 · localStorage has data, DB empty (S1 · first sign-up)</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;"><strong>Silent auto-merge.</strong> Welcome toast: <em>"Welcome! Your 5 patterns of progress have been saved to your account."</em> No decision asked — clearly the right move.</div>
+        </div>
+
+        <div style="background: rgba(250, 204, 21, 0.08); border-left: 3px solid rgb(250, 204, 21); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+          <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; margin-bottom: 4px;">CASE 2 · localStorage AND DB both have data (S2 · conflict)</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+            <strong>Confirmation dialog.</strong><br>
+            <em>"We found 5 patterns you worked on in this browser, and 12 patterns saved to your account. What would you like to do?"</em><br>
+            <span style="background: rgba(110,231,183,0.15); padding: 2px 8px; border-radius: 4px; font-size: 10px;">[Keep account · merge this browser's patterns if any are newer]</span>
+            <span style="background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 4px; font-size: 10px;">[Discard browser progress]</span>
+          </div>
+        </div>
+
+        <div style="background: rgba(147, 197, 253, 0.08); border-left: 3px solid rgb(147, 197, 253); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+          <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; margin-bottom: 4px;">CASE 3 · localStorage empty OR DB has everything (S3 · clean)</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;"><strong>Nothing to do.</strong> Just log in. No toast needed.</div>
+        </div>
+      </div>
+
+      <!-- Conflict resolution details -->
+      <div style="margin-top: 14px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 14px;">
+        <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">CONFLICT RESOLUTION · "KEEP ACCOUNT · MERGE IF NEWER"</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+          For each pattern:
+          <ul style="margin: 4px 0 0 16px; padding: 0; color: rgb(229, 231, 235);">
+            <li>If DB has progress but localStorage doesn't → DB wins (no change)</li>
+            <li>If localStorage has progress but DB doesn't → local wins (insert to DB)</li>
+            <li>If both have progress → <strong>higher completion tier wins</strong> (mastered &gt; completed &gt; introduced)</li>
+            <li>For equal tiers, <strong>latest `updatedAt`</strong> wins</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Never loses work without consent. Clear UX for each scenario. Smart merge rules (tier-based, not timestamp-only) preserve progress. S2 risk eliminated.<br>
+        <strong style="color: rgb(250, 204, 21);">Cons:</strong> 3 code paths to maintain. The merge algorithm needs careful testing for conflict case.
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Always start fresh · localStorage discarded on login</h3>
+      <p>On login, localStorage state is discarded. User starts from DB state only.</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">
+        <strong style="color: rgb(110, 231, 183);">Pros:</strong> Simplest code.<br>
+        <strong style="color: rgb(252, 165, 165);">Cons:</strong> Brutal. Users who built anonymous state lose it. Huge churn moment.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why C -->
+<div style="margin-top: 28px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY C · BE SMART ABOUT CASE 1 vs CASE 2</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>Case 1 is the important scenario.</strong> Most anonymous signups are first-time users. Silent merge feels magical: "my progress followed me". Never interrupt that moment with a dialog.<br><br>
+    <strong>Case 2 is the dangerous scenario.</strong> Existing user logs in on a new device that happens to have stale localStorage. Blind merge = data loss. Confirmation dialog is the right safety rail — rare enough to not annoy, critical enough to show.<br><br>
+    <strong>Tier-based merge wins over timestamp.</strong> If user on laptop completed Singleton (mastered tier), and mobile localStorage has only "introduced", timestamp could pick mobile if the phone's clock updated later. Tier-based picks the better state. Monotonic progress is preserved.
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D. Next: Q18 — <em>social &amp; sharing · post drill grades to leaderboard / share patterns?</em>
+  </p>
+</div>

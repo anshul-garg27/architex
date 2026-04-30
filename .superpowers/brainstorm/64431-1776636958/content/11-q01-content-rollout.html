@@ -1,0 +1,139 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🧠</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Deep-dive question 1 of 20</strong> — content authoring strategy. Load-bearing because it determines Phase 1 scope.
+  </div>
+</div>
+
+<h2>Q1 · How do we actually write lesson content for 36 patterns?</h2>
+<p class="subtitle">Each pattern needs an 8-section lesson (hook/analogy/UML/checkpoint/code/tradeoffs/summary/CTA). Research says 10 patterns have walkthrough data today. What about the other 26?</p>
+
+<!-- CURRENT STATE -->
+<div style="background: rgba(255, 255, 255, 0.04); border-radius: 10px; padding: 14px 18px; margin: 20px 0;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">📊 WHAT EXISTS TODAY</div>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px;">
+    <div style="background: rgba(16,185,129,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(110, 231, 183); font-weight: 600;">36/36</div>
+      <div style="color: rgb(156, 163, 175); font-size: 10px;">TypeScript code</div>
+    </div>
+    <div style="background: rgba(16,185,129,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(110, 231, 183); font-weight: 600;">36/36</div>
+      <div style="color: rgb(156, 163, 175); font-size: 10px;">Python code</div>
+    </div>
+    <div style="background: rgba(16,185,129,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(110, 231, 183); font-weight: 600;">36/36</div>
+      <div style="color: rgb(156, 163, 175); font-size: 10px;">Java code</div>
+    </div>
+    <div style="background: rgba(16,185,129,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(110, 231, 183); font-weight: 600;">36/36</div>
+      <div style="color: rgb(156, 163, 175); font-size: 10px;">UML classes + rels</div>
+    </div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px; margin-top: 10px;">
+    <div style="background: rgba(250,204,21,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(250, 204, 21); font-weight: 600;">~10/36</div>
+      <div style="color: rgb(156, 163, 175); font-size: 10px;">full walkthroughs</div>
+    </div>
+    <div style="background: rgba(250,204,21,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(250, 204, 21); font-weight: 600;">~10/36</div>
+      <div style="color: rgb(156, 163, 175); font-size: 10px;">checkpoints (30)</div>
+    </div>
+    <div style="background: rgba(239,68,68,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(252, 165, 165); font-weight: 600;">0/36</div>
+      <div style="color: rgb(156, 163, 175); font-size: 10px;">hooks (copy)</div>
+    </div>
+    <div style="background: rgba(239,68,68,0.08); padding: 8px 10px; border-radius: 6px;">
+      <div style="color: rgb(252, 165, 165); font-weight: 600;">0/36</div>
+      <div style="color: rgb(156, 163, 175); font-size: 10px;">analogies (polished)</div>
+    </div>
+  </div>
+  <div style="font-size: 11px; color: rgb(156, 163, 175); margin-top: 10px; line-height: 1.5;">
+    Takeaway: code + UML + tradeoffs all exist. <strong>Narrative content</strong> (hook, analogy, checkpoints) is the gap.
+  </div>
+</div>
+
+<h3>Four ways to fill the content gap</h3>
+
+<!-- OPTIONS -->
+<div class="options" style="margin-top: 14px;">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Hand-write all 36 before shipping</h3>
+      <p>Writer (you or hired) drafts + polishes all 36 × 8 sections = 288 sections. Quality bar highest. Ship date furthest.</p>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 10px;">
+        <div><strong style="color: rgb(110, 231, 183);">Time:</strong> 5-6 weeks full-time</div>
+        <div><strong style="color: rgb(252, 165, 165);">Ship delay:</strong> ~6 weeks</div>
+        <div><strong style="color: rgb(147, 197, 253);">Quality:</strong> Highest</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Ship Phase 1 with 10 polished patterns only</h3>
+      <p>Launch Learn mode with 10 creational+structural patterns. Other 26 show "<em>Learn mode coming soon for this pattern</em>" + link to Build mode. Add 5-10 patterns per month.</p>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 10px;">
+        <div><strong style="color: rgb(110, 231, 183);">Time:</strong> 1-2 weeks polish</div>
+        <div><strong style="color: rgb(110, 231, 183);">Ship delay:</strong> Minimal</div>
+        <div><strong style="color: rgb(250, 204, 21);">Quality:</strong> High but limited</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>AI-generate all 36 (Claude Sonnet), human QA</h3>
+      <p>Use your existing Claude integration. Build a prompt pipeline that produces all 8 sections per pattern. Human reviews &amp; edits inconsistencies.</p>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 10px;">
+        <div><strong style="color: rgb(110, 231, 183);">Time:</strong> 2-3 weeks</div>
+        <div><strong style="color: rgb(250, 204, 21);">Ship delay:</strong> Moderate</div>
+        <div><strong style="color: rgb(250, 204, 21);">Quality:</strong> Uneven — AI stumbles on nuance</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)" style="border: 2px solid rgba(124, 58, 237, 0.5); background: rgba(124, 58, 237, 0.05);">
+    <div class="letter" style="background: rgba(124, 58, 237, 0.3); color: rgb(196, 181, 253);">D</div>
+    <div class="content">
+      <div style="display: inline-block; background: rgba(124, 58, 237, 0.25); color: rgb(196, 181, 253); font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px;">⭐ MY RECOMMENDATION</div>
+      <h3>Hybrid · Top 10 polished + AI drafts for 26 + progressive polish</h3>
+      <p>Ship with <strong>10 hand-polished</strong> patterns (Singleton, Factory Method, Builder, Observer, Strategy, Decorator, Adapter, Facade, Template Method, State). Auto-generate drafts for remaining 26 using Claude <em>now</em>; they sit in a "draft" state — readable but marked. Polish on rolling basis; promote to "published" as ready.</p>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 10px;">
+        <div><strong style="color: rgb(110, 231, 183);">Time:</strong> 2 weeks to ship, ongoing</div>
+        <div><strong style="color: rgb(110, 231, 183);">Ship delay:</strong> Minimal</div>
+        <div><strong style="color: rgb(110, 231, 183);">Quality:</strong> Top 10 perfect, rest evolving in public</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Why hybrid wins -->
+<div style="margin-top: 24px; background: rgba(124, 58, 237, 0.08); border-left: 3px solid rgb(124, 58, 237); padding: 14px 16px; border-radius: 0 8px 8px 0;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">💡 WHY D IS THE PLAY</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <strong>A</strong> risks months of delay for a 10/10 launch — but Architex is 8-12% complete per your research; velocity matters more than pattern #36 being perfect on day 1.<br><br>
+    <strong>B</strong> makes Architex look incomplete — "Coming soon" badges on 72% of the catalog is weak signal.<br><br>
+    <strong>C</strong> alone is risky — pure AI content on a technical platform can introduce subtle wrong claims (Observer confused with Pub-Sub, Singleton misstated as thread-safe by default). You'd be debugging content bugs for weeks post-launch.<br><br>
+    <strong>D</strong> takes the best of each: high-quality anchor (top 10), full catalog coverage (AI drafts for 26), clear quality signaling (badge: "<em>Draft — help us polish this</em>" inviting community contributions). Each draft → published promotion is a small unit of work trackable via DB flag.
+  </div>
+</div>
+
+<!-- Schema impact -->
+<div style="margin-top: 18px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px;">
+  <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px;">SCHEMA IMPACT IF YOU PICK D</div>
+  <div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.8;">
+    <span style="color: rgb(156, 163, 175);">// Extend moduleContent:</span><br>
+    <span style="color: rgb(110, 231, 183);">contentQuality</span>: <span style="color: rgb(252, 165, 165);">"draft"</span> | <span style="color: rgb(252, 165, 165);">"polished"</span> | <span style="color: rgb(252, 165, 165);">"published"</span> <span style="color: rgb(156, 163, 175);">// DEFAULT "polished"</span><br>
+    <span style="color: rgb(110, 231, 183);">generatedBy</span>: <span style="color: rgb(252, 165, 165);">"human"</span> | <span style="color: rgb(252, 165, 165);">"ai"</span> | <span style="color: rgb(252, 165, 165);">"hybrid"</span>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0;">
+    Click A / B / C / D · or tell me in terminal. Next: Q2 — <em>learning path structure (linear · DAG · free-choice?)</em>
+  </p>
+</div>

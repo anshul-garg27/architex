@@ -1,0 +1,263 @@
+<div style="background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">📐</div>
+  <div style="font-size: 12px; color: rgb(196, 181, 253); line-height: 1.5;">
+    <strong>Design Section 4 of 6:</strong> State, routing, persistence. The actual TypeScript shape — what gets added to which store, how URL and store stay in sync.
+  </div>
+</div>
+
+<h2>State &amp; routing — the concrete shape</h2>
+<p class="subtitle">Four questions: <strong>what state is new</strong>, <strong>where does it live</strong>, <strong>what persists</strong>, and <strong>how does URL sync work</strong>.</p>
+
+<!-- ═══════════════ 1. UI STORE EXTENSIONS ═══════════════ -->
+<div style="margin-top: 32px;">
+  <h3 style="color: rgb(147, 197, 253); margin-bottom: 12px;">1 · Extend <code style="background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 4px; font-size: 15px;">ui-store.ts</code></h3>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin-bottom: 12px;">Two new fields. Mode lives here because it's UI-level state (not content, not progress).</p>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; font-family: 'Geist Mono', monospace; font-size: 12px; line-height: 1.7; color: rgb(229, 231, 235); overflow-x: auto;">
+<span style="color: rgb(156, 163, 175);">// src/stores/ui-store.ts — additions marked with ⊕</span><br><br>
+
+<span style="color: rgb(196, 181, 253);">export type</span> <span style="color: rgb(252, 165, 165);">LLDMode</span> = <span style="color: rgb(110, 231, 183);">"learn"</span> | <span style="color: rgb(110, 231, 183);">"build"</span> | <span style="color: rgb(110, 231, 183);">"drill"</span>;<br><br>
+
+<span style="color: rgb(196, 181, 253);">interface</span> <span style="color: rgb(252, 165, 165);">UIState</span> {<br>
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// ... existing fields (activeModule, theme, panels, ...)</span><br><br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> <span style="color: rgb(110, 231, 183);">lldMode</span>: <span style="color: rgb(252, 165, 165);">LLDMode</span> | <span style="color: rgb(110, 231, 183);">null</span>;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// null = first visit, not yet chosen</span><br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> <span style="color: rgb(110, 231, 183);">lldWelcomeBannerDismissed</span>: <span style="color: rgb(252, 165, 165);">boolean</span>;<br><br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> <span style="color: rgb(110, 231, 183);">setLLDMode</span>: (mode: <span style="color: rgb(252, 165, 165);">LLDMode</span>) => <span style="color: rgb(252, 165, 165);">void</span>;<br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> <span style="color: rgb(110, 231, 183);">dismissLLDWelcomeBanner</span>: () => <span style="color: rgb(252, 165, 165);">void</span>;<br>
+}
+  </div>
+
+  <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+    <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px;">
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 600; margin-bottom: 4px;">✓ Why <code>null</code> over default "build"</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+        Null = we can distinguish first-visit from returning-user-who-picked-build. Without null, migrated users would silently land in Build and miss the welcome banner.
+      </div>
+    </div>
+    <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px;">
+      <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 600; margin-bottom: 4px;">✓ Why separate dismissed flag</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+        User might dismiss banner but not pick a mode yet. Banner should stay dismissed even before mode is explicitly set.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ 2. DRILL STATE ═══════════════ -->
+<div style="margin-top: 40px;">
+  <h3 style="color: rgb(252, 165, 165); margin-bottom: 12px;">2 · Extend <code style="background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 4px; font-size: 15px;">interview-store.ts</code></h3>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin-bottom: 12px;">Drill-specific state goes here (not a new store). Interview-store already tracks challenge timer + attempts — drill is a natural extension. One cohesive "interview prep" store instead of two.</p>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; font-family: 'Geist Mono', monospace; font-size: 12px; line-height: 1.7; color: rgb(229, 231, 235); overflow-x: auto;">
+<span style="color: rgb(156, 163, 175);">// src/stores/interview-store.ts — additions</span><br><br>
+
+<span style="color: rgb(196, 181, 253);">interface</span> <span style="color: rgb(252, 165, 165);">ActiveDrill</span> {<br>
+&nbsp;&nbsp;problemId: <span style="color: rgb(252, 165, 165);">string</span>;<br>
+&nbsp;&nbsp;startedAt: <span style="color: rgb(252, 165, 165);">number</span>;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// epoch ms</span><br>
+&nbsp;&nbsp;pausedAt: <span style="color: rgb(252, 165, 165);">number</span> | <span style="color: rgb(110, 231, 183);">null</span>;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// non-null = paused (user switched modes)</span><br>
+&nbsp;&nbsp;elapsedBeforePause: <span style="color: rgb(252, 165, 165);">number</span>;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// accumulator across pause/resume</span><br>
+&nbsp;&nbsp;durationLimitMs: <span style="color: rgb(252, 165, 165);">number</span>;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// per-problem (easy: 20m, med: 30m, hard: 45m)</span><br>
+&nbsp;&nbsp;hintsUsed: { tier: <span style="color: rgb(110, 231, 183);">"nudge"</span> | <span style="color: rgb(110, 231, 183);">"guided"</span> | <span style="color: rgb(110, 231, 183);">"full"</span>; usedAt: <span style="color: rgb(252, 165, 165);">number</span> }[];<br>
+&nbsp;&nbsp;submittedAt: <span style="color: rgb(252, 165, 165);">number</span> | <span style="color: rgb(110, 231, 183);">null</span>;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// null = in progress</span><br>
+}<br><br>
+
+<span style="color: rgb(196, 181, 253);">interface</span> <span style="color: rgb(252, 165, 165);">InterviewState</span> {<br>
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// ... existing: currentChallengeId, timeElapsedSeconds, etc.</span><br><br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> activeDrill: <span style="color: rgb(252, 165, 165);">ActiveDrill</span> | <span style="color: rgb(110, 231, 183);">null</span>;<br><br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> startDrill: (problemId: <span style="color: rgb(252, 165, 165);">string</span>) => <span style="color: rgb(252, 165, 165);">void</span>;<br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> pauseDrill: () => <span style="color: rgb(252, 165, 165);">void</span>;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// called on mode switch</span><br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> resumeDrill: () => <span style="color: rgb(252, 165, 165);">void</span>;<br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> submitDrill: () => <span style="color: rgb(252, 165, 165);">void</span>;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// final, triggers AutoGrader</span><br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> abandonDrill: () => <span style="color: rgb(252, 165, 165);">void</span>;&nbsp;&nbsp;<span style="color: rgb(107, 114, 128);">// user clicks "give up"</span><br>
+&nbsp;&nbsp;<span style="color: rgb(250, 204, 21);">⊕</span> useHint: (tier: <span style="color: rgb(110, 231, 183);">"nudge"</span> | <span style="color: rgb(110, 231, 183);">"guided"</span> | <span style="color: rgb(110, 231, 183);">"full"</span>) => <span style="color: rgb(252, 165, 165);">void</span>;<br>
+}
+  </div>
+</div>
+
+<!-- ═══════════════ 3. PERSISTENCE BOUNDARIES ═══════════════ -->
+<div style="margin-top: 40px;">
+  <h3 style="color: rgb(167, 139, 250); margin-bottom: 12px;">3 · Persistence boundaries — what survives a reload</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin-bottom: 12px;">Different state has different lifetime requirements. Get this wrong and users either lose work (bad) or resume stale drills silently (confusing).</p>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr 2fr; background: rgba(255,255,255,0.05); padding: 10px 14px; font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px;">
+      <div>STATE</div>
+      <div>LIVES IN</div>
+      <div>PERSISTS WHERE</div>
+      <div>WHY</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr 2fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 12px;">
+      <div style="color: rgb(229, 231, 235); font-weight: 600;">lldMode</div>
+      <div style="color: rgb(147, 197, 253);">ui-store</div>
+      <div style="color: rgb(110, 231, 183);">localStorage</div>
+      <div style="color: rgb(156, 163, 175); line-height: 1.5;">Returning users should land on their last mode</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr 2fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 12px; background: rgba(255,255,255,0.02);">
+      <div style="color: rgb(229, 231, 235); font-weight: 600;">lldWelcomeBannerDismissed</div>
+      <div style="color: rgb(147, 197, 253);">ui-store</div>
+      <div style="color: rgb(110, 231, 183);">localStorage</div>
+      <div style="color: rgb(156, 163, 175); line-height: 1.5;">Don't re-show dismissed banner on next visit</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr 2fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 12px;">
+      <div style="color: rgb(229, 231, 235); font-weight: 600;">Canvas nodes/edges (Build)</div>
+      <div style="color: rgb(147, 197, 253);">canvas-store</div>
+      <div style="color: rgb(110, 231, 183);">localStorage (existing)</div>
+      <div style="color: rgb(156, 163, 175); line-height: 1.5;">Users expect their drawings to survive reload</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr 2fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 12px; background: rgba(255,255,255,0.02);">
+      <div style="color: rgb(229, 231, 235); font-weight: 600;">Learn scroll position per pattern</div>
+      <div style="color: rgb(147, 197, 253);">progress-store</div>
+      <div style="color: rgb(110, 231, 183);">localStorage + DB (via FSRS)</div>
+      <div style="color: rgb(156, 163, 175); line-height: 1.5;">"Resume where you left off" across devices</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr 2fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 12px;">
+      <div style="color: rgb(229, 231, 235); font-weight: 600;">Checkpoint answers per pattern</div>
+      <div style="color: rgb(147, 197, 253);">progress-store</div>
+      <div style="color: rgb(110, 231, 183);">localStorage + DB</div>
+      <div style="color: rgb(156, 163, 175); line-height: 1.5;">FSRS needs history for spaced repetition</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr 2fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 12px; background: rgba(252, 165, 165, 0.04);">
+      <div style="color: rgb(229, 231, 235); font-weight: 600;">activeDrill (in progress)</div>
+      <div style="color: rgb(147, 197, 253);">interview-store</div>
+      <div style="color: rgb(252, 165, 165);">sessionStorage only</div>
+      <div style="color: rgb(156, 163, 175); line-height: 1.5;"><strong>Intentional:</strong> closing tab = abandoning drill. No silent resume of stale attempts.</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr 2fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 12px;">
+      <div style="color: rgb(229, 231, 235); font-weight: 600;">Drill completion history</div>
+      <div style="color: rgb(147, 197, 253);">progress-store</div>
+      <div style="color: rgb(110, 231, 183);">localStorage + DB</div>
+      <div style="color: rgb(156, 163, 175); line-height: 1.5;">Part of attempts history, feeds SRS</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 14px; background: rgba(252, 165, 165, 0.06); border-left: 3px solid rgb(252, 165, 165); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong style="color: rgb(252, 165, 165);">Key decision:</strong> <code>activeDrill</code> → <strong>sessionStorage</strong>, not localStorage. If user closes tab mid-drill, next open shows no resume prompt. This prevents "ugh my 30-min timer ran while I was away" confusion. If they DO want persistence, they should click <em>"Submit now"</em> or <em>"Give up"</em> — both explicit.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ 4. URL SYNC ═══════════════ -->
+<div style="margin-top: 40px;">
+  <h3 style="color: rgb(249, 168, 212); margin-bottom: 12px;">4 · URL ↔ store sync</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin-bottom: 12px;">A single hook, mounted at the LLD module level, handles bidirectional sync.</p>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; font-family: 'Geist Mono', monospace; font-size: 12px; line-height: 1.7; color: rgb(229, 231, 235); overflow-x: auto;">
+<span style="color: rgb(156, 163, 175);">// src/hooks/useLLDModeSync.ts (new)</span><br><br>
+
+<span style="color: rgb(196, 181, 253);">export function</span> <span style="color: rgb(147, 197, 253);">useLLDModeSync</span>() {<br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> router = <span style="color: rgb(147, 197, 253);">useRouter</span>();<br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> searchParams = <span style="color: rgb(147, 197, 253);">useSearchParams</span>();<br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> { lldMode, setLLDMode } = <span style="color: rgb(147, 197, 253);">useUIStore</span>();<br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// 1. URL → store (on mount, on navigation)</span><br>
+&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">useEffect</span>(() => {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> urlMode = searchParams.<span style="color: rgb(147, 197, 253);">get</span>(<span style="color: rgb(110, 231, 183);">"mode"</span>);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (<span style="color: rgb(147, 197, 253);">isValidMode</span>(urlMode) &amp;&amp; urlMode !== lldMode) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">setLLDMode</span>(urlMode);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;}, [searchParams]);<br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// 2. store → URL (on mode change)</span><br>
+&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">useEffect</span>(() => {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (lldMode &amp;&amp; searchParams.<span style="color: rgb(147, 197, 253);">get</span>(<span style="color: rgb(110, 231, 183);">"mode"</span>) !== lldMode) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> params = <span style="color: rgb(196, 181, 253);">new</span> <span style="color: rgb(252, 165, 165);">URLSearchParams</span>(searchParams);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;params.<span style="color: rgb(147, 197, 253);">set</span>(<span style="color: rgb(110, 231, 183);">"mode"</span>, lldMode);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;router.<span style="color: rgb(147, 197, 253);">replace</span>(<span style="color: rgb(110, 231, 183);">`?${params}`</span>, { scroll: <span style="color: rgb(110, 231, 183);">false</span> });<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;}, [lldMode]);<br>
+}
+  </div>
+
+  <div style="margin-top: 12px; background: rgba(249, 168, 212, 0.06); border-left: 3px solid rgb(249, 168, 212); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong style="color: rgb(249, 168, 212);">Why <code>router.replace</code>, not <code>push</code>:</strong> Mode-switching shouldn't create back-button entries. User hits "Back" once → returns to where they came from (not the previous mode). <code>scroll: false</code> prevents jarring scroll-to-top on sync.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ 5. MODE SWITCH SIDE EFFECTS ═══════════════ -->
+<div style="margin-top: 40px;">
+  <h3 style="color: rgb(250, 204, 21); margin-bottom: 12px;">5 · Mode switch side effects</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin-bottom: 12px;">When mode changes, each mode may need to clean up. This lives as a middleware-like function, not scattered <code>useEffect</code>s.</p>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; font-family: 'Geist Mono', monospace; font-size: 12px; line-height: 1.7; color: rgb(229, 231, 235); overflow-x: auto;">
+<span style="color: rgb(156, 163, 175);">// Inside ui-store.setLLDMode action:</span><br>
+<span style="color: rgb(147, 197, 253);">setLLDMode</span>: (newMode) => {<br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> prevMode = <span style="color: rgb(147, 197, 253);">get</span>().lldMode;<br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (prevMode === newMode) <span style="color: rgb(196, 181, 253);">return</span>;<br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// Exit side effects for the OLD mode</span><br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (prevMode === <span style="color: rgb(110, 231, 183);">"drill"</span>) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">useInterviewStore</span>.getState().<span style="color: rgb(147, 197, 253);">pauseDrill</span>();<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">useNotificationStore</span>.getState().<span style="color: rgb(147, 197, 253);">show</span>({<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type: <span style="color: rgb(110, 231, 183);">"info"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;text: <span style="color: rgb(110, 231, 183);">"Drill paused. Resume when you switch back."</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;});<br>
+&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (prevMode === <span style="color: rgb(110, 231, 183);">"learn"</span>) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">useProgressStore</span>.getState().<span style="color: rgb(147, 197, 253);">saveScrollPosition</span>();<br>
+&nbsp;&nbsp;}<br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// Enter side effects for the NEW mode</span><br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (newMode === <span style="color: rgb(110, 231, 183);">"drill"</span>) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> drill = <span style="color: rgb(147, 197, 253);">useInterviewStore</span>.getState().activeDrill;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">if</span> (drill?.pausedAt) <span style="color: rgb(147, 197, 253);">useInterviewStore</span>.getState().<span style="color: rgb(147, 197, 253);">resumeDrill</span>();<br>
+&nbsp;&nbsp;}<br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">set</span>({ lldMode: newMode });<br>
+}
+  </div>
+</div>
+
+<!-- ═══════════════ 6. MIGRATION ═══════════════ -->
+<div style="margin-top: 40px;">
+  <h3 style="color: rgb(110, 231, 183); margin-bottom: 12px;">6 · Migration for existing users</h3>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin-bottom: 12px;">Before this change ships, users have no <code>lldMode</code> in their localStorage. How do they experience the upgrade?</p>
+
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+    <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 14px;">
+      <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">① OPEN /modules/lld</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+        <code>lldMode === undefined</code> in localStorage → zustand hydrates as <code>null</code>.
+      </div>
+    </div>
+    <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 14px;">
+      <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">② MODE RESOLUTION</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+        No URL param + null in store → "Learn" mode + welcome banner shown.
+      </div>
+    </div>
+    <div style="background: rgba(255,255,255,0.04); border-radius: 8px; padding: 14px;">
+      <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">③ FIRST PICK</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+        User dismisses banner or clicks a path → <code>lldMode</code> set → persisted → they never see banner again.
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 16px; background: rgba(16, 185, 129, 0.06); border-left: 3px solid rgb(16, 185, 129); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      <strong style="color: rgb(110, 231, 183);">Existing build-mode users preserved:</strong> Their canvas state is untouched (lives in <code>canvas-store</code>, not <code>ui-store</code>). When they click "Let me build" in the banner, they land in Build mode with everything intact.
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation CTA -->
+<div style="margin-top: 32px; text-align:center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">
+    State, routing, persistence — locked in?
+  </p>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin: 0;">
+    Reply "yes" → Section 5 (components: file-by-file what's new, modified, reused).<br>
+    Or flag persistence boundaries / store choices you'd change.
+  </p>
+</div>

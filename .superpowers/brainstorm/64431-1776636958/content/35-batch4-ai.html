@@ -1,0 +1,119 @@
+<div style="background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🤖</div>
+  <div style="font-size: 12px; color: rgb(249, 168, 212); line-height: 1.5;">
+    <strong>Batch 4 of 5 · AI &amp; automation depth.</strong> Beyond checkpoints + hints, what else can Claude do? Your <code>claude-client</code> already has queue, cache, cost tracking. Everything below extends that infrastructure.
+  </div>
+</div>
+
+<h2>What AI superpowers does Architex need that no competitor has?</h2>
+<p class="subtitle">Multi-select. Each idea uses existing Claude client — differences are in prompt engineering + UI surfaces.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <div class="option" data-choice="a1" onclick="toggleSelect(this)">
+    <div class="letter">A1</div>
+    <div class="content">
+      <h3>GitHub repo analysis · "what patterns are you already using?"</h3>
+      <p>User connects a GitHub repo URL. Claude analyzes code, identifies which design patterns are already present, maps them to Architex's pattern catalog. Report: "We found <strong>Singleton</strong> in <code>src/db/connection.ts:L12</code>, <strong>Observer</strong> in <code>src/events/bus.ts:L45</code>, potential <strong>Factory Method</strong> opportunity in <code>src/parsers/ParserFactory.ts</code> (currently switch statement)." <strong>Learning feels personal, not abstract.</strong></p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235); line-height: 1.7;">
+        <div style="color: rgb(110, 231, 183);">✓ <strong>Found: Singleton</strong></div>
+        <div style="color: rgb(156, 163, 175); padding-left: 16px;">db/pool.ts:L12 · thread-safe instance cache</div>
+        <div style="color: rgb(251, 146, 60); margin-top: 6px;">⚡ <strong>Opportunity: Strategy</strong></div>
+        <div style="color: rgb(156, 163, 175); padding-left: 16px;">payment/processor.ts:L23 · switch statement could be Strategy</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Costly per-call (Sonnet needed, ~10k tokens per repo). Throttle to Pro tier. ~20h build + $1-3/analysis in Claude cost. <strong>Viral demo material.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a2" onclick="toggleSelect(this)">
+    <div class="letter">A2</div>
+    <div class="content">
+      <h3>AI-generated custom scenarios · "design a hotel booking system for Mars colonies"</h3>
+      <p>User types any scenario prompt → Claude generates a fresh LLD problem with requirements, starter classes, hints, reference solution. Infinite problem pool. Pro-tier feature. Users can save their custom problems, share them to gallery.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 6px;">
+        <div style="font-size: 10px; color: rgb(196, 181, 253); margin-bottom: 6px;">PROMPT:</div>
+        <div style="font-size: 11px; color: rgb(229, 231, 235); font-style: italic; padding: 6px 10px; background: rgba(0,0,0,0.3); border-radius: 4px; margin-bottom: 8px;">"Design a restaurant order kitchen queue"</div>
+        <div style="font-size: 10px; color: rgb(110, 231, 183); margin-bottom: 4px;">CLAUDE OUTPUT (custom LLD problem):</div>
+        <div style="font-size: 10px; color: rgb(229, 231, 235); line-height: 1.5;">6 requirements · 4 starter classes (Order, Kitchen, Chef, Ticket) · 5 progressive hints · uses: Observer (ticket status updates), Command (order execution), State (order lifecycle) · reference solution 12 classes</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Pro-tier. 1 generation = ~$0.05 in Claude Sonnet. Cap at 10/day free tier, unlimited Pro. ~12h build.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a3" onclick="toggleSelect(this)">
+    <div class="letter">A3</div>
+    <div class="content">
+      <h3>Socratic rubber duck · "explain your design out loud, AI probes"</h3>
+      <p>After user builds in Drill mode, click "Explain out loud" → voice input (Whisper) or typed. Claude plays the interviewer, asks clarifying questions: <em>"Why did you choose composition over inheritance here?"</em> <em>"What happens if <code>Payment</code> fails mid-transaction?"</em> Tests your <em>explanation</em> skill — the actual interview skill, not just "can you draw it".</p>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Claude Sonnet with architect persona (from existing socratic-tutor.ts). Whisper for voice. Can also use text. ~15h + voice stack.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a4" onclick="toggleSelect(this)">
+    <div class="letter">A4</div>
+    <div class="content">
+      <h3>Anti-pattern detector · live in Build mode</h3>
+      <p>As user builds in Build mode, Claude watches (debounced 10s of inactivity). If the canvas has an anti-pattern — god class, deep inheritance, circular dependency — a subtle ⚠️ badge appears on the offending class. Click → Claude explains why it's an anti-pattern + suggests the refactor.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px; font-size: 11px; color: rgb(229, 231, 235);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 60px; height: 30px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 4px; padding: 4px; position: relative;">
+            <div style="font-size: 8px; color: rgb(252,165,165);">GodClass</div>
+            <div style="position: absolute; top: -6px; right: -6px; font-size: 12px;">⚠️</div>
+          </div>
+          <div style="font-size: 10px; color: rgb(252,165,165);">37 methods detected — consider splitting by responsibility</div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Extends existing design-reviewer.ts. ~8h. Background analysis = Haiku (cheap, ~$0.002/check).</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a5" onclick="toggleSelect(this)">
+    <div class="letter">A5</div>
+    <div class="content">
+      <h3>Pattern recommendation engine · "you might want Strategy here"</h3>
+      <p>In Build mode, as user completes a recognizable shape (3+ classes implementing the same interface, a switch on type, etc.), Claude suggests: <em>"Your design suggests <strong>Strategy</strong> — want to preview how that'd reshape this?"</em> One click → shows a "ghost preview" of the refactored diagram.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Pattern-fingerprint heuristic first (fast, free) → Claude proposes specific pattern + preview (Sonnet). ~12h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a6" onclick="toggleSelect(this)">
+    <div class="letter">A6</div>
+    <div class="content">
+      <h3>Personalized study plan · "based on your weaknesses, here's 2 weeks"</h3>
+      <p>User clicks "Generate study plan" → provides goals ("Meta interview in 3 weeks"). Claude analyzes their FSRS data, Mastered tier patterns, drill results. Returns a day-by-day 2-week plan: <em>"Day 1: Learn Observer (30min). Day 2: Drill Parking Lot (30min). Day 3: Review flashcards (15min). ..."</em> Editable, trackable.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Leverages progress-store data + Claude synthesis. ~15h incl. calendar-like UI.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a7" onclick="toggleSelect(this)">
+    <div class="letter">A7</div>
+    <div class="content">
+      <h3>Company-style mock interviews · Amazon bar-raiser, Google leveling, Meta scope</h3>
+      <p>Drill mode gets a preset: <em>"Interview Company"</em>. Pick Amazon / Google / Meta / Stripe / Uber. Claude plays the interviewer with that company's known evaluation rubric — Amazon bar-raises for design simplicity, Google probes algorithmic complexity, Meta asks about scaling. Grade reflects company's specific bar.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Claude system prompts per-company (researched from Levels.fyi, Blind). ~10-12h + ongoing rubric refinement.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a8" onclick="toggleSelect(this)">
+    <div class="letter">A8</div>
+    <div class="content">
+      <h3>AI-translated code · your pattern in Go, Rust, Kotlin, Swift, C++ on demand</h3>
+      <p>Pattern page has TS/Py/Java columns (from C7). Add a dropdown "Translate to…" → Claude generates idiomatic version in Go/Rust/Kotlin/Swift/C++/Elixir. Cached per pattern-language combo. <strong>Covers every language an engineer might work in.</strong></p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">On-demand generation, cached. 36 patterns × 6 extra languages if fully generated = 216 files (but lazy). ~8h infra.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a9" onclick="toggleSelect(this)">
+    <div class="letter">A9</div>
+    <div class="content">
+      <h3>AI flashcard generator · turn any lesson into Anki-style cards</h3>
+      <p>After completing a lesson, one-click "Generate flashcards" → Claude creates 5-8 cards from that lesson's key concepts, formatted question/answer. Cards enter the FSRS review queue. Unlike templated flashcards, these are <em>personalized per lesson content</em>.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Haiku (cheap). Cached per lesson. ~6h.</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select A1-A9. Type choices or "all" / "none".</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Next: Batch 5 — growth, polish &amp; identity (embeds, extensions, certs, community).</p>
+</div>

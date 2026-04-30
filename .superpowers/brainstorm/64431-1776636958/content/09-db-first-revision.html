@@ -1,0 +1,268 @@
+<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 12px;">
+  <div style="font-size: 20px;">🔄</div>
+  <div style="font-size: 12px; color: rgb(252, 165, 165); line-height: 1.6;">
+    <strong>Design decision revision — Section 4.5:</strong> You said "mostly DB". Flipping the persistence strategy from <strong>localStorage-primary</strong> to <strong>DB-first with localStorage as offline cache</strong>. This changes tables, API routes, and sync patterns. Locking it in before Section 5.
+  </div>
+</div>
+
+<h2>DB-first persistence — the revised strategy</h2>
+<p class="subtitle"><strong>DB is source of truth.</strong> localStorage becomes an offline cache. Mutations write through both. On mount, hydrate cache fast then reconcile from DB.</p>
+
+<!-- ═══════════════ WHY THIS IS BETTER ═══════════════ -->
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px;">
+  <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 18px; margin-bottom: 6px;">🌍</div>
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700;">CROSS-DEVICE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 4px; line-height: 1.5;">Start Learn on laptop, continue on phone. Drill results visible everywhere.</div>
+  </div>
+  <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 18px; margin-bottom: 6px;">📊</div>
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700;">ANALYTICS-READY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 4px; line-height: 1.5;">Every mode switch, drill, completion becomes queryable. Product insights by default.</div>
+  </div>
+  <div style="background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 18px; margin-bottom: 6px;">🔒</div>
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700;">DURABLE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); margin-top: 4px; line-height: 1.5;">Clear browser cache? Everything survives. Switch browsers? State follows.</div>
+  </div>
+</div>
+
+<!-- ═══════════════ REVISED PERSISTENCE TABLE ═══════════════ -->
+<h3 style="margin-top: 36px;">Revised persistence table</h3>
+<p class="subtitle">Every piece of state has a <strong>DB home</strong>. localStorage is cache only.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-top: 14px;">
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; background: rgba(255,255,255,0.05); padding: 10px 14px; font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.5px;">
+    <div>STATE</div>
+    <div>DB HOME</div>
+    <div>CACHE</div>
+    <div>SYNC PATTERN</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Mode preference<br><span style="font-size: 9px; font-weight: 400; color: rgb(156,163,175);">("learn"/"build"/"drill")</span></div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">userPreferences.preferences.lld.mode</div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">localStorage<br><span style="color: rgb(156,163,175);">(Zustand persist)</span></div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">Write-through<br>Debounce 1s</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Welcome banner dismissed</div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">userPreferences.preferences.lld.welcomeBannerDismissed</div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">localStorage</div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">Write-through<br>Immediate</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Build-mode scratch canvas<br><span style="font-size: 9px; font-weight: 400; color: rgb(156,163,175);">(unnamed workspace)</span></div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">userPreferences.preferences.lld.scratchCanvas</div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">localStorage + IndexedDB<br><span style="color: rgb(156,163,175);">(Dexie for size)</span></div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">Write-through<br>Debounce 2s</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Named saved diagrams</div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">diagrams (existing)</div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">TanStack Query<br>cache</div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">Explicit save<br>(user action)</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Learn: step + scroll position per pattern</div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">progress.fsrsState + metadata JSONB<br><span style="color: rgb(107,114,128);">(existing table, extend)</span></div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">localStorage</div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">Write-through<br>Debounce 3s</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Learn: checkpoint answers</div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">activityEvents (existing, append-only)<br>+ progress.reps / lapses</div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">TanStack Query</div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">POST on answer<br>(immediate)</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(252, 165, 165, 0.06);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Active drill (in-progress)</div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(252, 165, 165);"><strong>NEW TABLE:</strong> lld_drill_attempts</div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">localStorage +<br>10s heartbeat</div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">POST start / PATCH pause-resume-submit-abandon</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Drill completion history</div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">lld_drill_attempts<br><span style="color: rgb(107,114,128);">(same table; submittedAt IS NOT NULL)</span></div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">TanStack Query</div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">Read-heavy<br>5-min stale</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 2fr 1.5fr 1.5fr; padding: 12px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); align-items: start; gap: 10px; background: rgba(255,255,255,0.02);">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Mode-switch timeline</div>
+    <div style="font-family: monospace; font-size: 10px; color: rgb(110, 231, 183);">activityEvents (event: "lld_mode_switch")</div>
+    <div style="color: rgb(147, 197, 253); font-size: 10px;">—</div>
+    <div style="color: rgb(156, 163, 175); font-size: 10px;">Fire-and-forget<br>(analytics)</div>
+  </div>
+</div>
+
+<!-- ═══════════════ NEW TABLE ═══════════════ -->
+<h3 style="margin-top: 36px;">One new DB table: <code>lld_drill_attempts</code></h3>
+<p class="subtitle">Serves both active drills AND completion history. State machine: active → submitted | abandoned.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.7; color: rgb(229, 231, 235); overflow-x: auto; margin-top: 14px;">
+<span style="color: rgb(156, 163, 175);">// src/db/schema/lld-drill-attempts.ts (new)</span><br><br>
+
+<span style="color: rgb(196, 181, 253);">export const</span> <span style="color: rgb(147, 197, 253);">lldDrillAttempts</span> = <span style="color: rgb(147, 197, 253);">pgTable</span>(<span style="color: rgb(110, 231, 183);">"lld_drill_attempts"</span>, {<br>
+&nbsp;&nbsp;id: <span style="color: rgb(147, 197, 253);">uuid</span>(<span style="color: rgb(110, 231, 183);">"id"</span>).<span style="color: rgb(147, 197, 253);">primaryKey</span>().<span style="color: rgb(147, 197, 253);">defaultRandom</span>(),<br>
+&nbsp;&nbsp;userId: <span style="color: rgb(147, 197, 253);">uuid</span>(<span style="color: rgb(110, 231, 183);">"user_id"</span>).<span style="color: rgb(147, 197, 253);">notNull</span>().<span style="color: rgb(147, 197, 253);">references</span>(() => users.id, { onDelete: <span style="color: rgb(110, 231, 183);">"cascade"</span> }),<br>
+&nbsp;&nbsp;problemId: <span style="color: rgb(147, 197, 253);">varchar</span>(<span style="color: rgb(110, 231, 183);">"problem_id"</span>, { length: <span style="color: rgb(251, 146, 60);">100</span> }).<span style="color: rgb(147, 197, 253);">notNull</span>(),<br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// Lifecycle timestamps</span><br>
+&nbsp;&nbsp;startedAt: <span style="color: rgb(147, 197, 253);">timestamp</span>(<span style="color: rgb(110, 231, 183);">"started_at"</span>, { withTimezone: <span style="color: rgb(110, 231, 183);">true</span> }).<span style="color: rgb(147, 197, 253);">notNull</span>().<span style="color: rgb(147, 197, 253);">defaultNow</span>(),<br>
+&nbsp;&nbsp;pausedAt: <span style="color: rgb(147, 197, 253);">timestamp</span>(<span style="color: rgb(110, 231, 183);">"paused_at"</span>, { withTimezone: <span style="color: rgb(110, 231, 183);">true</span> }),<span style="color: rgb(107, 114, 128);">&nbsp;&nbsp;// null = running or done</span><br>
+&nbsp;&nbsp;lastActivityAt: <span style="color: rgb(147, 197, 253);">timestamp</span>(<span style="color: rgb(110, 231, 183);">"last_activity_at"</span>, { withTimezone: <span style="color: rgb(110, 231, 183);">true</span> }).<span style="color: rgb(147, 197, 253);">notNull</span>().<span style="color: rgb(147, 197, 253);">defaultNow</span>(),<br>
+&nbsp;&nbsp;submittedAt: <span style="color: rgb(147, 197, 253);">timestamp</span>(<span style="color: rgb(110, 231, 183);">"submitted_at"</span>, { withTimezone: <span style="color: rgb(110, 231, 183);">true</span> }),<span style="color: rgb(107, 114, 128);">&nbsp;&nbsp;// set on submit</span><br>
+&nbsp;&nbsp;abandonedAt: <span style="color: rgb(147, 197, 253);">timestamp</span>(<span style="color: rgb(110, 231, 183);">"abandoned_at"</span>, { withTimezone: <span style="color: rgb(110, 231, 183);">true</span> }),<span style="color: rgb(107, 114, 128);">&nbsp;&nbsp;// set on give-up or auto-abandon</span><br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// Timer accumulator</span><br>
+&nbsp;&nbsp;elapsedBeforePauseMs: <span style="color: rgb(147, 197, 253);">integer</span>(<span style="color: rgb(110, 231, 183);">"elapsed_before_pause_ms"</span>).<span style="color: rgb(147, 197, 253);">notNull</span>().<span style="color: rgb(147, 197, 253);">default</span>(<span style="color: rgb(251, 146, 60);">0</span>),<br>
+&nbsp;&nbsp;durationLimitMs: <span style="color: rgb(147, 197, 253);">integer</span>(<span style="color: rgb(110, 231, 183);">"duration_limit_ms"</span>).<span style="color: rgb(147, 197, 253);">notNull</span>(),<br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// Canvas snapshot + interaction log</span><br>
+&nbsp;&nbsp;canvasState: <span style="color: rgb(147, 197, 253);">jsonb</span>(<span style="color: rgb(110, 231, 183);">"canvas_state"</span>),<span style="color: rgb(107, 114, 128);">&nbsp;&nbsp;// nodes + edges as user builds</span><br>
+&nbsp;&nbsp;hintsUsed: <span style="color: rgb(147, 197, 253);">jsonb</span>(<span style="color: rgb(110, 231, 183);">"hints_used"</span>).<span style="color: rgb(147, 197, 253);">notNull</span>().<span style="color: rgb(147, 197, 253);">default</span>([]),<span style="color: rgb(107, 114, 128);">&nbsp;&nbsp;// [{tier, usedAt}]</span><br><br>
+
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// Grading result (filled after submit)</span><br>
+&nbsp;&nbsp;gradeScore: <span style="color: rgb(147, 197, 253);">real</span>(<span style="color: rgb(110, 231, 183);">"grade_score"</span>),<span style="color: rgb(107, 114, 128);">&nbsp;&nbsp;// 0-100</span><br>
+&nbsp;&nbsp;gradeBreakdown: <span style="color: rgb(147, 197, 253);">jsonb</span>(<span style="color: rgb(110, 231, 183);">"grade_breakdown"</span>),<span style="color: rgb(107, 114, 128);">&nbsp;&nbsp;// {classes, relationships, patternUsage, completeness}</span><br>
+}, (t) => [<br>
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// Enforce "only one active drill per user"</span><br>
+&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">uniqueIndex</span>(<span style="color: rgb(110, 231, 183);">"one_active_drill_per_user"</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;.<span style="color: rgb(147, 197, 253);">on</span>(t.userId)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;.<span style="color: rgb(147, 197, 253);">where</span>(<span style="color: rgb(147, 197, 253);">sql</span>`${t.submittedAt} IS NULL AND ${t.abandonedAt} IS NULL`),<br>
+&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">index</span>(<span style="color: rgb(110, 231, 183);">"drill_history_idx"</span>).<span style="color: rgb(147, 197, 253);">on</span>(t.userId, t.submittedAt),<br>
+]);
+</div>
+
+<div style="margin-top: 14px; background: rgba(124, 58, 237, 0.06); border-left: 3px solid rgb(124, 58, 237); padding: 10px 14px; border-radius: 0 6px 6px 0;">
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+    <strong style="color: rgb(196, 181, 253);">Partial unique index magic:</strong> A user can have many COMPLETED drills (submitted or abandoned) but only ONE active at a time. This is enforced at the DB level — no race conditions possible. Try to start a second drill while one is active → DB rejects with constraint violation → UI catches it, offers "Abandon current drill and start new one?"
+  </div>
+</div>
+
+<!-- ═══════════════ ABANDONMENT DETECTION ═══════════════ -->
+<h3 style="margin-top: 36px;">Handling stale drills (the key offline edge case)</h3>
+<p class="subtitle">What if user closes tab mid-drill and comes back 2 days later? DB has their drill with <code>pausedAt</code> set.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; margin-top: 14px;">
+  <div style="display: grid; gap: 10px;">
+
+    <div style="background: rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 14px;">
+      <div style="font-size: 10px; color: rgb(110, 231, 183); font-weight: 700; margin-bottom: 4px;">HEARTBEAT (every 10s while active)</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+        PATCH <code>/api/lld/drill-attempts/:id</code> with <code>{ lastActivityAt: now }</code>. Keeps a liveness signal server-side.
+      </div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 14px;">
+      <div style="font-size: 10px; color: rgb(252, 165, 165); font-weight: 700; margin-bottom: 4px;">ON USER RETURN → GET /api/lld/drill-attempts/active</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+        Server checks: if <code>lastActivityAt &lt; now - 30 minutes</code> → auto-abandon it (<code>abandonedAt = now</code>) and return fresh state. UI shows: <em>"Your last drill was abandoned. Restart?"</em>
+      </div>
+    </div>
+
+    <div style="background: rgba(255,255,255,0.04); border-radius: 6px; padding: 10px 14px;">
+      <div style="font-size: 10px; color: rgb(147, 197, 253); font-weight: 700; margin-bottom: 4px;">IF RECENTLY ACTIVE (&lt; 30 min ago)</div>
+      <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.5;">
+        Show resume prompt: <em>"You have an active drill (Parking Lot · 12:34 remaining). Resume / Submit now / Give up?"</em>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ NEW API ROUTES ═══════════════ -->
+<h3 style="margin-top: 36px;">New API routes (6 endpoints)</h3>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.9; color: rgb(229, 231, 235); margin-top: 14px;">
+<div style="color: rgb(110, 231, 183);"><span style="color: rgb(251, 146, 60);">GET&nbsp;&nbsp;&nbsp;</span>/api/user-preferences</div>
+<div style="color: rgb(156, 163, 175); font-size: 10px; margin-left: 20px;">→ { lld: { mode, welcomeBannerDismissed, scratchCanvas, ... } }</div>
+<br>
+<div style="color: rgb(110, 231, 183);"><span style="color: rgb(250, 204, 21);">PATCH&nbsp;</span>/api/user-preferences/lld</div>
+<div style="color: rgb(156, 163, 175); font-size: 10px; margin-left: 20px;">→ Partial update of lld preferences (debounced write-through)</div>
+<br>
+<div style="color: rgb(110, 231, 183);"><span style="color: rgb(251, 146, 60);">GET&nbsp;&nbsp;&nbsp;</span>/api/lld/drill-attempts/active</div>
+<div style="color: rgb(156, 163, 175); font-size: 10px; margin-left: 20px;">→ Current active drill OR null. Auto-abandons stale (&gt;30min idle).</div>
+<br>
+<div style="color: rgb(110, 231, 183);"><span style="color: rgb(110, 231, 183);">POST&nbsp;&nbsp;</span>/api/lld/drill-attempts</div>
+<div style="color: rgb(156, 163, 175); font-size: 10px; margin-left: 20px;">→ Start a new drill. 409 if one's already active.</div>
+<br>
+<div style="color: rgb(110, 231, 183);"><span style="color: rgb(250, 204, 21);">PATCH&nbsp;</span>/api/lld/drill-attempts/:id</div>
+<div style="color: rgb(156, 163, 175); font-size: 10px; margin-left: 20px;">→ Pause / resume / heartbeat / submit / abandon + canvas state snapshot</div>
+<br>
+<div style="color: rgb(110, 231, 183);"><span style="color: rgb(251, 146, 60);">GET&nbsp;&nbsp;&nbsp;</span>/api/lld/drill-attempts?status=completed</div>
+<div style="color: rgb(156, 163, 175); font-size: 10px; margin-left: 20px;">→ History for review / stats dashboard</div>
+</div>
+
+<!-- ═══════════════ WRITE-THROUGH SYNC PATTERN ═══════════════ -->
+<h3 style="margin-top: 36px;">Write-through sync hook</h3>
+<p class="subtitle">Single reusable pattern: mutate locally for instant UI, then sync to DB in background.</p>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 18px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.7; color: rgb(229, 231, 235); overflow-x: auto; margin-top: 14px;">
+<span style="color: rgb(156, 163, 175);">// hooks/useLLDPreferencesSync.ts</span><br><br>
+<span style="color: rgb(196, 181, 253);">export function</span> <span style="color: rgb(147, 197, 253);">useLLDPreferencesSync</span>() {<br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> { lldMode, lldWelcomeBannerDismissed } = <span style="color: rgb(147, 197, 253);">useUIStore</span>();<br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> mutation = <span style="color: rgb(147, 197, 253);">useMutation</span>({<br>
+&nbsp;&nbsp;&nbsp;&nbsp;mutationFn: (patch) => <span style="color: rgb(147, 197, 253);">fetch</span>(<span style="color: rgb(110, 231, 183);">"/api/user-preferences/lld"</span>, {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;method: <span style="color: rgb(110, 231, 183);">"PATCH"</span>, body: <span style="color: rgb(252, 165, 165);">JSON</span>.<span style="color: rgb(147, 197, 253);">stringify</span>(patch),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// networkMode: "offlineFirst" → queues if offline</span><br>
+&nbsp;&nbsp;});<br><br>
+&nbsp;&nbsp;<span style="color: rgb(156, 163, 175);">// Debounced sync: 1s after last change</span><br>
+&nbsp;&nbsp;<span style="color: rgb(196, 181, 253);">const</span> debouncedSync = <span style="color: rgb(147, 197, 253);">useMemo</span>(() =&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">debounce</span>((patch) =&gt; mutation.<span style="color: rgb(147, 197, 253);">mutate</span>(patch), <span style="color: rgb(251, 146, 60);">1000</span>), []);<br><br>
+&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">useEffect</span>(() => {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: rgb(147, 197, 253);">debouncedSync</span>({ mode: lldMode, welcomeBannerDismissed });<br>
+&nbsp;&nbsp;}, [lldMode, lldWelcomeBannerDismissed]);<br>
+}
+</div>
+
+<!-- ═══════════════ LOGGED-OUT STORY ═══════════════ -->
+<h3 style="margin-top: 36px;">The logged-out edge case</h3>
+<p class="subtitle">Clerk is optional. What about anonymous users?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;">
+  <div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px;">
+    <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; margin-bottom: 6px;">🔓 ANONYMOUS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      localStorage only. Full UX works except cross-device sync and SRS-tracked review queue. Mode preference, canvas, learn progress all local. Drill works but no history saved.
+    </div>
+  </div>
+  <div style="background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px 18px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; margin-bottom: 6px;">🔑 ON FIRST LOGIN</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Migration: read current localStorage state → POST to <code>/api/user-preferences/lld/migrate</code> with anonymous state. Server merges into user row. Subsequent loads = DB-first.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SUMMARY OF CHANGES ═══════════════ -->
+<div style="margin-top: 36px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 18px;">
+  <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 10px;">✅ SUMMARY OF CHANGES VS PREVIOUS SECTION</div>
+  <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: rgb(229, 231, 235); line-height: 1.8;">
+    <li><strong>1 new DB table:</strong> <code>lld_drill_attempts</code> (serves active + history)</li>
+    <li><strong>Reuse existing tables:</strong> <code>userPreferences</code> (extend JSONB), <code>progress</code> (extend JSONB metadata), <code>activityEvents</code> (log mode switches + checkpoint answers)</li>
+    <li><strong>6 new API routes</strong> for preferences + drill lifecycle</li>
+    <li><strong>Write-through pattern:</strong> every store mutation triggers debounced DB sync via TanStack Query (already configured <code>offlineFirst</code>)</li>
+    <li><strong>localStorage demoted</strong> from source-of-truth to fast cache</li>
+    <li><strong>Anonymous user support</strong> via local-only mode + migration on login</li>
+  </ul>
+</div>
+
+<!-- Confirmation CTA -->
+<div style="margin-top: 32px; text-align:center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">
+    DB-first persistence locked in?
+  </p>
+  <p style="color: rgb(156, 163, 175); font-size: 12px; margin: 0;">
+    Reply "yes" → Section 5: file-by-file component plan (what's new, modified, reused).<br>
+    Or flag if the DB table design / API shape needs changes.
+  </p>
+</div>

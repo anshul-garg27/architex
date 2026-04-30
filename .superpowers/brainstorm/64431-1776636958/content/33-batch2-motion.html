@@ -1,0 +1,119 @@
+<div style="background: rgba(124, 58, 237, 0.1); border: 1px solid rgba(124, 58, 237, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">✨</div>
+  <div style="font-size: 12px; color: rgb(196, 181, 253); line-height: 1.5;">
+    <strong>Batch 2 of 5 · Motion &amp; Interaction feel.</strong> Static UML is informational. Motion makes patterns feel <em>alive</em>. Each motion idea uses existing <code>motion/react</code> infrastructure already in your stack.
+  </div>
+</div>
+
+<h2>What makes the LLD module feel kinetic, not static?</h2>
+<p class="subtitle">Multi-select. These ideas layer motion on top of the solid visual base — subtle by default, respecting <code>prefers-reduced-motion</code>.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <div class="option" data-choice="m1" onclick="toggleSelect(this)">
+    <div class="letter">M1</div>
+    <div class="content">
+      <h3>Pattern signature animations · each pattern has a unique micro-motion</h3>
+      <p>When you open a pattern, the UML classes perform a <em>pattern-specific motion</em> that embodies the pattern's essence. This becomes a visual mnemonic — you can recognize a pattern by the way its classes arrange.</p>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 11px;">
+        <div style="background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; color: rgb(229, 231, 235);">
+          <strong style="color: rgb(110, 231, 183);">🧘 Singleton</strong> — one class pulses gently at center, alone
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; color: rgb(229, 231, 235);">
+          <strong style="color: rgb(147, 197, 253);">📢 Observer</strong> — subject emits waves toward subscribers
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; color: rgb(229, 231, 235);">
+          <strong style="color: rgb(250, 204, 21);">🏭 Factory Method</strong> — Creator "produces" concrete products cascading down
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; color: rgb(229, 231, 235);">
+          <strong style="color: rgb(252, 165, 165);">⚡ Circuit Breaker</strong> — edge pulses, then snaps/blocks on failure threshold
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; color: rgb(229, 231, 235);">
+          <strong style="color: rgb(196, 181, 253);">🔧 Strategy</strong> — concrete strategies slide in/out of context slot
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; color: rgb(229, 231, 235);">
+          <strong style="color: rgb(251, 146, 60);">🧅 Decorator</strong> — wrappers nest around core class like rings
+        </div>
+      </div>
+      <div style="margin-top: 10px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">36 patterns × 3-5s animation. Can be AI-scripted via motion.dev keyframes. Plays once on pattern open; optional "replay" button. Respects reduced-motion. <strong>~25-30h across all 36 (templates reduce per-pattern to ~45min each).</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="m2" onclick="toggleSelect(this)">
+    <div class="letter">M2</div>
+    <div class="content">
+      <h3>Runtime particle flow · "watch the pattern actually run"</h3>
+      <p>Inspired by your existing <code>ParticleLayer</code> in System Design. A "▶ Play" button on the canvas simulates the pattern at runtime — <em>particles flow through the class graph</em> representing method calls. Observer's <code>notify()</code> sends particles from subject to each subscriber simultaneously. Chain of Responsibility passes a single particle hop-by-hop until it stops. You <em>see</em> the pattern execute.</p>
+      <div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; position: relative; height: 100px;">
+        <div style="position: absolute; top: 20px; left: 30px; width: 80px; height: 30px; background: rgba(147,197,253,0.15); border: 1px solid rgba(147,197,253,0.4); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 9px; color: rgb(147,197,253);">Subject</div>
+        <div style="position: absolute; top: 20px; right: 30px; width: 80px; height: 30px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 9px; color: rgb(110,231,183);">ObsA</div>
+        <div style="position: absolute; bottom: 10px; right: 30px; width: 80px; height: 30px; background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.4); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 9px; color: rgb(110,231,183);">ObsB</div>
+        <!-- particle trail -->
+        <div style="position: absolute; top: 35px; left: 120px; width: 6px; height: 6px; background: rgb(250,204,21); border-radius: 50%; box-shadow: 0 0 8px rgb(250,204,21);"></div>
+        <div style="position: absolute; top: 55px; left: 160px; width: 4px; height: 4px; background: rgba(250,204,21,0.7); border-radius: 50%;"></div>
+        <div style="position: absolute; top: 48px; left: 200px; width: 3px; height: 3px; background: rgba(250,204,21,0.4); border-radius: 50%;"></div>
+        <div style="position: absolute; bottom: 4px; left: 12px; font-size: 9px; color: rgb(156, 163, 175); font-style: italic;">notify() fanout as particles → reaches ObsA, ObsB</div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Each pattern needs a runtime trace script (like stage directions). ~20h infra + ~10h total for 36 pattern scripts. <strong>Unique-to-Architex feature. Viral demo material.</strong></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="m3" onclick="toggleSelect(this)">
+    <div class="letter">M3</div>
+    <div class="content">
+      <h3>Progressive class reveal · classes appear as lesson introduces them</h3>
+      <p>Opening Learn mode: canvas starts near-empty. As you scroll through the lesson and it introduces each class, that class <em>fades in + scales up</em> on the canvas. By the time you finish the lesson, the complete UML has been <em>built alongside you</em>, not just presented.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Leverages Q7's <code>highlightedClassIds</code> — extend to <code>visibleClassIds</code>. Scroll position drives reveal. Motion: opacity 0→1, scale 0.9→1, 400ms ease-out with gentle stagger. ~6h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="m4" onclick="toggleSelect(this)">
+    <div class="letter">M4</div>
+    <div class="content">
+      <h3>Magnetic hover · related classes glow together</h3>
+      <p>Hover any class → it + all structurally-connected classes (via inheritance, composition, etc.) get a subtle shared glow. Non-connected classes dim to 40%. Reveals the pattern's structural "neighborhood" at a glance.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Your codebase already has "focus mode" (hover dims unrelated). This extends it: connected classes get an additional <em>accent glow</em>, not just kept-bright. ~3h polish on existing.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="m5" onclick="toggleSelect(this)">
+    <div class="letter">M5</div>
+    <div class="content">
+      <h3>Mode-switch choreography · crossfade + spatial transition</h3>
+      <p>Clicking Learn → Build → Drill → Review currently swaps content instantly. Propose: 300ms transition — old content <em>fades + slides out direction of target mode</em>, new content fades in from opposite. Subtle but gives modes a <em>spatial relationship</em> in muscle memory (Learn feels "left of" Build, Drill "right of" Build).</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Motion library handles this. Direction derived from mode index delta. <strong>Respects reduced-motion</strong> (fall back to instant crossfade). ~4h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="m6" onclick="toggleSelect(this)">
+    <div class="letter">M6</div>
+    <div class="content">
+      <h3>Tinker unlock · ceremonial permission moment</h3>
+      <p>Clicking "Tinker" in Learn mode should feel <em>deliberate</em>. Canvas briefly shimmers (gradient sweep across classes), class borders shift from solid to dashed (indicating editable state), toolbar slides down from top. Makes entering tinker mode feel like <em>unlocking something</em>, not just enabling a flag.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">~3h for the shimmer + border transition + toolbar slide.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="m7" onclick="toggleSelect(this)">
+    <div class="letter">M7</div>
+    <div class="content">
+      <h3>Drill timer · heartbeat on last 5 minutes</h3>
+      <p>Timer ticks silently for 20 min. At 5:00 remaining, it starts subtly pulsing — then at 1:00 remaining, the pulse speeds up slightly. Never hostile, just tonally urgent. Creates micro-tension at the right moments.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">CSS keyframe + setInterval to set phase. ~2h.</div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="m8" onclick="toggleSelect(this)">
+    <div class="letter">M8</div>
+    <div class="content">
+      <h3>Ambient canvas breathing · subtle idle motion</h3>
+      <p>When canvas is idle (no user interaction for 10s), existing ambient particles (already in your codebase!) drift more noticeably. When user touches canvas → particles recede. Signals "alive vs active" states without being distracting.</p>
+      <div style="margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175); line-height: 1.5;">Tune existing <code>lld-particle-drift</code> animation opacity based on interaction timer. ~2h.</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select M1-M8. Type choices or "all" / "none".</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Next: Batch 3 — content formats &amp; storytelling (playgrounds, case studies, video shorts, micro-games).</p>
+</div>

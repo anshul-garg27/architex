@@ -1,0 +1,160 @@
+<div style="background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(16,185,129,0.08)); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 12px; padding: 18px 22px; margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div style="font-size: 26px;">🏗</div>
+    <div>
+      <div style="font-size: 16px; color: rgb(229, 231, 235); font-weight: 800; letter-spacing: -0.01em;">System Design Module · PhD-Level Rebuild</div>
+      <div style="font-size: 12px; color: rgb(147, 197, 253); margin-top: 2px;">Same treatment as LLD. 16 batches planned. This is Batch 1 · Module Audit.</div>
+    </div>
+  </div>
+</div>
+
+<h2>What I found inspecting System Design today</h2>
+<p class="subtitle">Live browser + code inspection complete. Verdict: <strong>powerful infrastructure, zero instructional scaffolding.</strong></p>
+
+<!-- ====================== THE SCREENSHOT FINDING ====================== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin: 20px 0;">
+  <div style="font-size: 11px; color: rgb(147, 197, 253); letter-spacing: 0.3em; font-weight: 700; margin-bottom: 12px;">✅ WHAT EXISTS · RICH</div>
+
+  <div style="display: grid; gap: 10px; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <div style="background: rgba(110,231,183,0.08); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(110,231,183);">
+      <strong>Canvas infrastructure (excellent):</strong> React Flow + <strong>75+ node types</strong> across Compute/Messaging/Data/Networking/FinTech/AI/Observability · A*-style edges · minimap · 53 built-in templates · Cmd+K palette
+    </div>
+    <div style="background: rgba(110,231,183,0.08); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(110,231,183);">
+      <strong>Simulation engine (enormous, mostly dormant):</strong> <code>src/lib/simulation/*</code> has <strong>34 files, ~2,500 LOC</strong> — orchestrator, chaos-engine (73 events), cascade, cost-model (~75 AWS components), time-travel, queuing model, SLA calculator, capacity planner, narrative engine
+    </div>
+    <div style="background: rgba(110,231,183,0.08); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(110,231,183);">
+      <strong>Bottom panel tabs wired:</strong> Metrics · Timeline · SLA · Latency · Code · Console · Chaos · Capacity · plus more. Great UI surface area.
+    </div>
+    <div style="background: rgba(110,231,183,0.08); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(110,231,183);">
+      <strong>Visual polish:</strong> Glassmorphic dark theme, motion/react, particle layers already in codebase, smooth interactions
+    </div>
+  </div>
+</div>
+
+<div style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 20px; margin: 20px 0;">
+  <div style="font-size: 11px; color: rgb(252, 165, 165); letter-spacing: 0.3em; font-weight: 700; margin-bottom: 12px;">❌ WHAT'S MISSING · CATASTROPHIC</div>
+
+  <div style="display: grid; gap: 10px; font-size: 11px; color: rgb(229, 231, 235); line-height: 1.7;">
+    <div style="background: rgba(239,68,68,0.06); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(239,68,68);">
+      <strong>ZERO learning layer.</strong> LLD has 36 patterns as study content. System Design = just a blank canvas. No concepts to learn, no problems to solve with guidance, no lessons at all.
+    </div>
+    <div style="background: rgba(239,68,68,0.06); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(239,68,68);">
+      <strong>NO PROBLEMS CATALOG.</strong> Industry standard: "Design Netflix · Design Uber · Design Twitter · Design WhatsApp" etc. Architex has zero. LeetCode has 50+. ByteByteGo has 200+.
+    </div>
+    <div style="background: rgba(239,68,68,0.06); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(239,68,68);">
+      <strong>Simulation doesn't actually demonstrate learning.</strong> Play button exists. Start a sim → metrics MIGHT show. But there's no <em>lesson</em> tied to what you're observing. A learner sees numbers without context.
+    </div>
+    <div style="background: rgba(239,68,68,0.06); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(239,68,68);">
+      <strong>Chaos events are data-driven in code, not in UI.</strong> 73 chaos event types defined. No visible "inject Netflix-style failure here" UX. Just a Chaos tab showing what?
+    </div>
+    <div style="background: rgba(239,68,68,0.06); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(239,68,68);">
+      <strong>No scoring · no drills · no retention loop.</strong> No way to "practice system design interview" with feedback. No FSRS review. No measurable skill progression.
+    </div>
+    <div style="background: rgba(239,68,68,0.06); padding: 10px 14px; border-radius: 6px; border-left: 2px solid rgb(239,68,68);">
+      <strong>Current wrapper is 23 lines.</strong> Literally:
+      <pre style="margin: 6px 0 0 0; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 4px; font-size: 10px; line-height: 1.5;">content = {
+  sidebar: &lt;ComponentPalette /&gt;,
+  canvas: &lt;DesignCanvas /&gt;,
+  properties: &lt;PropertiesPanel /&gt;,
+  bottomPanel: &lt;BottomPanel /&gt;
+}</pre>
+      Four primitives stitched together. That's it.
+    </div>
+  </div>
+</div>
+
+<!-- ================== THE CONTRAST WITH LLD ================== -->
+<h3 style="margin-top: 32px;">The LLD vs System Design divergence</h3>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; margin-top: 14px;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; background: rgba(255,255,255,0.04); padding: 10px 14px; font-size: 10px; color: rgb(156, 163, 175); font-weight: 600; letter-spacing: 0.3em;">
+    <div>DIMENSION</div>
+    <div style="color: rgb(196, 181, 253);">📐 LLD TODAY</div>
+    <div style="color: rgb(147, 197, 253);">🏗 SYSTEM DESIGN TODAY</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); gap: 14px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Sidebar modes</div>
+    <div style="color: rgb(110, 231, 183);">Pattern / Problem / SOLID / Sequence / State / Code-to-Diagram (6 modes)</div>
+    <div style="color: rgb(252, 165, 165);">Component Palette only (1 mode)</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); gap: 14px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Content catalog</div>
+    <div style="color: rgb(110, 231, 183);">36 patterns × code (TS/Py/Java) × UML × Q&amp;A × quizzes</div>
+    <div style="color: rgb(252, 165, 165);">53 templates (unnamed scenarios, no lessons)</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); gap: 14px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Bottom panel tabs</div>
+    <div style="color: rgb(110, 231, 183);">Explain · Quiz · Confused-With · Interview Prep · AutoGrader · Mermaid · SOLID Spotter · Flashcards</div>
+    <div style="color: rgb(252, 165, 165);">Metrics · Timeline · SLA · Latency · Code · Console · Chaos · Capacity</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); gap: 14px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Nature of bottom panel</div>
+    <div style="color: rgb(110, 231, 183);"><strong>Instructional</strong> — tells you about the pattern</div>
+    <div style="color: rgb(252, 165, 165);"><strong>Operational</strong> — shows simulation numbers</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); gap: 14px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Grading</div>
+    <div style="color: rgb(110, 231, 183);">Fuzzy auto-grader with 4-category rubric</div>
+    <div style="color: rgb(252, 165, 165);"><strong>None</strong> — no "is this design good?"</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 14px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); gap: 14px;">
+    <div style="color: rgb(229, 231, 235); font-weight: 600;">Pedagogy</div>
+    <div style="color: rgb(110, 231, 183);">Walkthroughs · 4 checkpoint types · structured flow</div>
+    <div style="color: rgb(252, 165, 165);"><strong>None</strong> — pure sandbox</div>
+  </div>
+</div>
+
+<div style="margin-top: 18px; background: rgba(250, 204, 21, 0.08); border-left: 3px solid rgb(250, 204, 21); padding: 12px 16px; border-radius: 0 6px 6px 0;">
+  <div style="font-size: 11px; color: rgb(250, 204, 21); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 6px;">💡 THE INSIGHT</div>
+  <div style="font-size: 12px; color: rgb(229, 231, 235); line-height: 1.7;">
+    System Design was built as a <strong>professional drafting tool</strong> — think Figma for backend architecture. LLD was built as <strong>an educational tool</strong> — think Brilliant for design patterns. They started with different DNA.<br><br>
+    Our task: graft LLD's educational DNA onto System Design's powerful simulation muscle. Then add system-design-specific pedagogy (scalability drills, chaos stories, cost thinking) that LLD can't offer.<br><br>
+    Result: <strong>the only place in the world where you can design Netflix, simulate production traffic, break it, and get graded on it.</strong>
+  </div>
+</div>
+
+<!-- ================== BRAINSTORM PLAN ================== -->
+<h3 style="margin-top: 32px;">Brainstorm structure · 10 batches planned</h3>
+
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 18px; margin-top: 14px;">
+  <div style="display: grid; gap: 8px; font-size: 11px;">
+    <div style="background: rgba(147,197,253,0.06); padding: 8px 14px; border-radius: 4px; border-left: 2px solid rgb(147,197,253);"><strong style="color: rgb(147,197,253);">1.</strong> <span style="color: rgb(229,231,235);">Module audit <span style="color: rgb(110,231,183);">← you are here</span></span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">2.</strong> <span style="color: rgb(229,231,235);">Core architecture decisions · how many modes? simulation-as-primary-mode vs embedded?</span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">3.</strong> <span style="color: rgb(229,231,235);">Content strategy · 36 canonical system design problems? Concepts library? How do we teach "load balancer"?</span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">4.</strong> <span style="color: rgb(229,231,235);">Simulation-as-pedagogy · how the moat becomes the teacher</span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">5.</strong> <span style="color: rgb(229,231,235);">Chaos as storytelling · the 73 chaos events need UX</span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">6.</strong> <span style="color: rgb(229,231,235);">Interview prep layer · drill mode for system design</span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">7.</strong> <span style="color: rgb(229,231,235);">Cost &amp; scaling as first-class learning surfaces</span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">8.</strong> <span style="color: rgb(229,231,235);">UI layer · Studio metaphor extension, new panels, content formats</span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">9.</strong> <span style="color: rgb(229,231,235);">Cross-module seamlessness · how LLD + System Design feel like one product</span></div>
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 14px; border-radius: 4px;"><strong style="color: rgb(156,163,175);">10.</strong> <span style="color: rgb(229,231,235);">Wild cards + open field</span></div>
+  </div>
+</div>
+
+<!-- ================== COMMITMENTS FROM LLD THAT CARRY OVER ================== -->
+<div style="margin-top: 28px; background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(236,72,153,0.05)); border: 1px solid rgba(124,58,237,0.3); border-radius: 10px; padding: 16px 20px;">
+  <div style="font-size: 11px; color: rgb(196, 181, 253); letter-spacing: 0.3em; font-weight: 700; margin-bottom: 8px;">♻️ COMMITMENTS FROM LLD SPEC THAT CARRY HERE</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.8;">
+    These are already locked for LLD — same ones should apply to System Design unless you say otherwise:<br>
+    <strong>•</strong> DB-first persistence<br>
+    <strong>•</strong> 4-mode system (or 5 for System Design? TBD in Batch 2)<br>
+    <strong>•</strong> Smart cross-mode transitions<br>
+    <strong>•</strong> FSRS-5 for retention<br>
+    <strong>•</strong> "The Architect's Studio" metaphor extends here too — System Design = the <strong>studio's drafting tables + blueprint room</strong><br>
+    <strong>•</strong> Cognitive science layer (confidence-weighted, interleaving, productive failure, etc.)<br>
+    <strong>•</strong> Humane design (rest mode, quiet mode, welcome-back, trust dashboard)<br>
+    <strong>•</strong> Analytics event taxonomy (extends with SD-specific events)<br>
+    <strong>•</strong> 5-wave phased rollout
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Acknowledge &amp; advance · reply "go" to Batch 2 (core architecture decisions) · or flag anything in this audit that's wrong</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">URL: <code>http://localhost:57460</code></p>
+</div>

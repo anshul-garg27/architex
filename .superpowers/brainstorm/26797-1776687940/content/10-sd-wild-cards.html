@@ -1,0 +1,353 @@
+<div style="background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">🎲</div>
+  <div style="font-size: 12px; color: rgb(251, 146, 60); line-height: 1.5;">
+    <strong>Batch 10 of 10 · Wild cards &amp; open field.</strong> Last batch before SD spec. Things we haven't covered yet: social, mobile, extensibility, integrations, crunch mode, and the open-mic.
+  </div>
+</div>
+
+<h2>The premise · What's the one thing that would surprise a reviewer?</h2>
+<p class="subtitle">We've locked 40 questions across 9 batches. Architect's Studio is pedagogically dense, visually distinct, cinematically rendered, operationally sound. What's missing? The last batch is for <em>wild cards</em> — the features that aren't obvious from the 5-mode scaffolding but could move the product from "great" to "legendary".</p>
+
+<!-- ========== Q41 COLLABORATION ========== -->
+<h2 style="margin-top: 28px;">Q41 · Collaboration model</h2>
+<p class="subtitle">Is Architex a solo study app or a social tool? Different choices change the whole shape of the product.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · SOLO ONLY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Every session is yours. No sharing, no peer review, no public anything. Calm, private, focused. But no viral loop.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · SHAREABLE ARTIFACTS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Solo practice, but every completed drill/simulation produces a shareable link. Recipient sees the design + timer playback + rubric. Read-only. Subtle viral. Mentor-friendly.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 8px; margin-top: 8px; font-size: 10px; color: rgb(156, 163, 175);">
+      <code style="color: rgb(147, 197, 253);">architex.app/share/3f8a9b</code><br>
+      → "Daisy designed Netflix. Watch the 18-min replay + see rubric."
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · ASYNC PEER REVIEW</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Submit your design to a peer queue. Another user reviews against rubric + leaves comments on specific nodes/edges. You review someone else's to unlock yours being reviewed.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · LIVE PAIR SESSION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Two users on one canvas, real-time. One designs, one plays interviewer. Switch roles. WebRTC voice optional. Mimics mock-interview clubs.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION E · B + C + D</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Full social stack. Progressive: ship B first (easy), C next (queue), D last (real-time complexity). Most ambitious.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q42 MOBILE ========== -->
+<h2 style="margin-top: 28px;">Q42 · Mobile experience</h2>
+<p class="subtitle">Canvas-first apps struggle on mobile. 60%+ of audience is mobile at least part of the time.</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · DESKTOP ONLY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      "Designed for desktop. Mobile = read the learn content only." Honest. Polarizing.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · MOBILE READ + REVIEW</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Mobile fully supports: Learn mode, Review mode (FSRS cards), profile, share-link viewing. Build/Simulate/Drill are desktop-only (with a graceful "open on laptop" message). Flashcards during commutes — massive use case.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · MOBILE CANVAS (READ-ONLY)</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      B + mobile can view (but not edit) Build/Drill canvases. Good for reviewing your own past designs or someone else's share link.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · TABLET + STYLUS CANVAS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      C + iPad/tablet gets a real canvas mode (finger / Apple Pencil). Simulates whiteboard interviews. Unique market position, more UX work.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q43 EXTENSIBILITY ========== -->
+<h2 style="margin-top: 28px;">Q43 · Content extensibility — can users/community add content?</h2>
+<p class="subtitle">Shipping 40 concepts + 30 problems + 10 real incidents + 73 chaos events is ambitious. At some point, we might let others contribute. When/how?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · CLOSED CONTENT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Only Opus + the team author. Quality controlled. Slower to grow.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · USER-AUTHORED DRILLS ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Users can author their own problems: "Design my company's X". Private by default. Optionally submit to shared library. Moderator-curated. Grows catalog with community effort.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · CHAOS PACKS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Third-party "chaos packs" — collections of curated chaos events around themes (e.g. "Fintech Pack: 20 chaos events relevant to payment systems"). Installable.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · AI-ASSISTED AUTHORING</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User gives rough idea ("design Airbnb but for pets"). Opus drafts full problem with scale numbers, constraints, canonical solution. User refines. AI accelerates content team.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION E · B + C + D</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User drills + chaos packs + AI-assist. Full extensibility. Ship B first (basic CRUD); C + D are future bets.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q44 INTEGRATIONS ========== -->
+<h2 style="margin-top: 28px;">Q44 · Integrations — which matter?</h2>
+<p class="subtitle">Multi-select the integrations worth shipping in v1. Others deferred.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① EXPORT · IMAGE + MERMAID + JSON ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Designs export to PNG, SVG, Mermaid code, JSON. Paste into any doc, resume, portfolio, Slack. Cheap and powerful.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② IMPORT FROM DRAWIO / EXCALIDRAW / LUCID</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User drags their existing design into Architex → auto-parses to our schema → full simulation unlocked. Migrates existing designs into our sim.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ GITHUB · SAVE + PUBLISH ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Save designs as JSON/MDX to a user's Github repo. Public repos = discoverable portfolio. Integration with profile.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ NOTION · SYNC NOTES</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Learn mode bookmarks + drill rubrics push to a Notion page. User's personal SD wiki builds automatically. Notion-heavy users love this.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ OBSIDIAN · VAULT EXPORT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Export entire knowledge graph as Markdown-linked Obsidian vault. For users who want offline/local-first. Small but passionate market.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ LINKEDIN · PROFILE BADGE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Completed FAANG-Ready path → badge on LinkedIn. Recruiter-visible proof. Marketing flywheel.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ CALENDAR · STUDY BLOCKS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Connect Google Calendar → Architex schedules 20-min daily review at your free slot. Streak preservation.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ PUBLIC API</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      REST/GraphQL API over progress, designs, content. Power users + enterprise integrations. Big infra investment.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q45 INTERVIEW CRUNCH ========== -->
+<h2 style="margin-top: 28px;">Q45 · Interview-week "Crunch Mode"</h2>
+<p class="subtitle">Real users have an onsite in 7 days. They need a compressed, intense prep path. Do we ship it?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(156, 163, 175); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION A · NONE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Users self-pace. Works for months-long preparers; fails acute interviewers.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.4); border-radius: 10px; padding: 14px; box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.15);">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">⭐ OPTION B · 7-DAY CRUNCH PATH ⭐</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User inputs onsite date + target company. System generates a 7-day schedule: Day 1 foundation review · Day 2-3 drill core patterns · Day 4-5 mock full-stack loops · Day 6-7 light review + confidence drills. Honors calendar, nudges daily.
+    </div>
+    <div style="background: rgb(9, 14, 25); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 10px; line-height: 1.8;">
+      <strong style="color: rgb(110, 231, 183);">Your 7-day crunch — Meta E5</strong><br>
+      <span style="color: rgb(156, 163, 175);">Mon · Consistent hashing + CAP + 1 drill (1h)</span><br>
+      <span style="color: rgb(156, 163, 175);">Tue · Pub-sub + sharding + 1 drill (1h)</span><br>
+      <span style="color: rgb(156, 163, 175);">Wed · Chaos drill: Design Twitter (1.5h)</span><br>
+      <span style="color: rgb(156, 163, 175);">Thu · Mock: Bar-raiser + Silent Watcher (2h)</span><br>
+      <span style="color: rgb(156, 163, 175);">Fri · Full-stack loop: Uber (1.5h)</span><br>
+      <span style="color: rgb(156, 163, 175);">Sat · Light: review cards + replay (30m)</span><br>
+      <span style="color: rgb(156, 163, 175);">Sun · Confidence drill + breathe</span>
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION C · CRUNCH + COHORT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Same 7-day plan but synced with a cohort of peers. Shared progress, optional pair sessions. Gamified group accountability.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.4); border-radius: 10px; padding: 14px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">OPTION D · ADAPTIVE CRUNCH</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      User inputs start skill level (via diagnostic) + target date + hours available. AI generates a custom plan. Adjusts daily based on performance. Most personalized, most complex.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== Q46 OPEN MIC ========== -->
+<h2 style="margin-top: 28px;">Q46 · Open mic — other ideas I should know?</h2>
+<p class="subtitle">One more chance to surface anything. Pick any that resonate — multi-select — or skip and we write the spec.</p>
+
+<div style="margin-top: 16px;">
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">① "EXPLAIN LIKE I'M FIVE" MODE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Every concept has a parallel 300-word plain-English version. Toggle. For engineers learning during cross-domain transitions.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(147, 197, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(147, 197, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">② AUDIO NARRATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Every concept page has a 5-7 min audio version. Commute-friendly. TTS for draft, human-voiced for flagship pieces.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">③ SEASONS &amp; TOURNAMENTS</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Quarterly "seasons" with themed drill sets ("Q2-2026: Fintech season"). Leaderboards within cohort. Ends → new season starts. Engagement loop.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">④ PORTFOLIO MODE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Public profile page with your best designs, rubric scores, streaks, completed paths. Shareable URL. Recruiter-ready substitute for "system design on resume".
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑤ DIAGNOSTIC ENTRY QUIZ</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      First-session 15-min quiz across concepts + one quick drill. System auto-picks starting point. "You know caching well, weak on consensus — start here."
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑥ WEEKLY "DEEP-DIVE DIGEST"</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Every Monday: email with 1 real-world incident write-up + 1 concept deep dive + 1 recommended drill. 5-min read. Builds habit + retention.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑦ "BLAME AN ORG" POSTMORTEM DRILL</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      You get a real-world outage's symptoms (without attribution). Diagnose + fix in 20 min. Reveal: "this was actually Company X's 2022 outage". Teaches debugging + humility.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(252, 165, 165, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(252, 165, 165); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑧ TEACHER / BOOTCAMP MODE</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Educators create cohort accounts, assign problems, see student progress dashboards. Long-tail B2B revenue potential.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(110, 231, 183); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑨ JOB-READY CERTIFICATION</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Pass 5 Exam-mode drills with ≥4/5 rubric → earn "Architex Verified" badge. Companies can verify. Starts as vanity, becomes credential.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(196, 181, 253, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(196, 181, 253); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑩ "TALK-ALOUD" MIC + TRANSCRIPT</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      During any mode, optionally record your voice + auto-transcribe. Replay hears your reasoning. Critically: the rubric grades what you SAID, not just what you drew. Unique in market.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(249, 168, 212, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(249, 168, 212); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑪ DARK / LIGHT / EARTH-TONE THEMES</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      Dark (default) · Light (for OS light mode) · "Earth" (warm parchment for long reads). Accessibility + mood.
+    </div>
+  </div>
+
+  <div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+    <div style="font-size: 11px; color: rgb(251, 191, 36); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 4px;">⑫ "REFERENCE ARCHITECTURE" LIBRARY</div>
+    <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">
+      30+ full reference architectures for real systems (published with sources): Netflix actual 2018 CDN, Uber 2022 matching, Stripe 2023 ledger. Explorable in canvas, with author commentary.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== CTA ========== -->
+<div style="background: rgb(17, 24, 39); border: 1px solid rgba(251, 146, 60, 0.35); border-radius: 10px; padding: 16px; margin-top: 24px;">
+  <div style="font-size: 11px; color: rgb(251, 146, 60); font-weight: 700; letter-spacing: 0.3em; margin-bottom: 8px;">YOUR PICKS · BATCH 10 · FINAL</div>
+  <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.9;">
+    <strong>Q41</strong> — collaboration model: <span style="color: rgb(110, 231, 183);">A / B / C / D / E</span><br>
+    <strong>Q42</strong> — mobile experience: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q43</strong> — content extensibility: <span style="color: rgb(110, 231, 183);">A / B / C / D / E</span><br>
+    <strong>Q44</strong> — integrations (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧</span><br>
+    <strong>Q45</strong> — crunch mode: <span style="color: rgb(110, 231, 183);">A / B / C / D</span><br>
+    <strong>Q46</strong> — open-mic wild cards (multi-select): <span style="color: rgb(110, 231, 183);">① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩ ⑪ ⑫</span>
+  </div>
+  <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+    <strong style="color: rgb(251, 146, 60);">After this:</strong> I consolidate all 46 decisions across 10 batches into the <strong>System Design rebuild spec</strong> (mirroring the LLD spec structure: ~1000 lines, locked decisions, feature catalog, implementation phases). Then we write Phase 1 of SD plans. Then we merge the big LLD phase-plan agent's output and you have the full rebuild roadmap.
+  </div>
+</div>

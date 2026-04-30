@@ -1,0 +1,368 @@
+<div style="background: rgba(250, 204, 21, 0.1); border: 1px solid rgba(250, 204, 21, 0.35); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+  <div style="font-size: 20px;">✨</div>
+  <div style="font-size: 12px; color: rgb(250, 204, 21); line-height: 1.5;">
+    <strong>Batch 9 · Personalization &amp; micro-delights.</strong> The small details that turn "useful product" into "this feels <em>personal</em>". Every great product is 10% functionality + 90% texture.
+  </div>
+</div>
+
+<h2>The details that separate good from unforgettable</h2>
+<p class="subtitle">Multi-select. Each is a small polish touch that compounds into product personality.</p>
+
+<div class="options" data-multiselect style="margin-top: 20px;">
+
+  <!-- P1 Theme picker -->
+  <div class="option" data-choice="p1" onclick="toggleSelect(this)">
+    <div class="letter">P1</div>
+    <div class="content">
+      <h3>Theme picker · 6 curated themes, not just dark/light</h3>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <div style="background: rgb(17, 24, 39); border: 2px solid rgb(124,58,237); border-radius: 6px; padding: 10px; height: 60px;">
+          <div style="color: rgb(229, 231, 235); font-size: 10px; font-weight: 600;">Midnight</div>
+          <div style="color: rgb(156, 163, 175); font-size: 8px;">default dark</div>
+          <div style="display: flex; gap: 3px; margin-top: 6px;">
+            <div style="width: 12px; height: 12px; background: rgb(124,58,237); border-radius: 2px;"></div>
+            <div style="width: 12px; height: 12px; background: rgb(236,72,153); border-radius: 2px;"></div>
+          </div>
+        </div>
+        <div style="background: rgb(253, 251, 246); border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; padding: 10px; height: 60px;">
+          <div style="color: #2a2a2a; font-size: 10px; font-weight: 600;">Parchment</div>
+          <div style="color: #7a7a7a; font-size: 8px;">sepia warm</div>
+          <div style="display: flex; gap: 3px; margin-top: 6px;">
+            <div style="width: 12px; height: 12px; background: #8b4513; border-radius: 2px;"></div>
+            <div style="width: 12px; height: 12px; background: #d4a574; border-radius: 2px;"></div>
+          </div>
+        </div>
+        <div style="background: #0d1117; border: 1px solid rgba(88,255,100,0.3); border-radius: 6px; padding: 10px; height: 60px; font-family: monospace;">
+          <div style="color: #58ff64; font-size: 10px; font-weight: 600;">Terminal</div>
+          <div style="color: #6a7a6a; font-size: 8px;">green on black</div>
+          <div style="display: flex; gap: 3px; margin-top: 6px;">
+            <div style="width: 12px; height: 12px; background: #58ff64; border-radius: 2px;"></div>
+            <div style="width: 12px; height: 12px; background: #ffcc00; border-radius: 2px;"></div>
+          </div>
+        </div>
+        <div style="background: rgb(27, 18, 38); border: 1px solid rgba(249,168,212,0.3); border-radius: 6px; padding: 10px; height: 60px;">
+          <div style="color: rgb(249, 168, 212); font-size: 10px; font-weight: 600;">Neon</div>
+          <div style="color: rgb(249, 168, 212); font-size: 8px; opacity: 0.6;">cyberpunk</div>
+          <div style="display: flex; gap: 3px; margin-top: 6px;">
+            <div style="width: 12px; height: 12px; background: rgb(249,168,212); border-radius: 2px; box-shadow: 0 0 4px rgb(249,168,212);"></div>
+            <div style="width: 12px; height: 12px; background: rgb(103, 232, 249); border-radius: 2px; box-shadow: 0 0 4px rgb(103, 232, 249);"></div>
+          </div>
+        </div>
+        <div style="background: white; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; padding: 10px; height: 60px;">
+          <div style="color: #111; font-size: 10px; font-weight: 600;">Bright</div>
+          <div style="color: #666; font-size: 8px;">default light</div>
+          <div style="display: flex; gap: 3px; margin-top: 6px;">
+            <div style="width: 12px; height: 12px; background: rgb(59,130,246); border-radius: 2px;"></div>
+            <div style="width: 12px; height: 12px; background: rgb(124,58,237); border-radius: 2px;"></div>
+          </div>
+        </div>
+        <div style="background: #000; border: 2px solid #fff; border-radius: 6px; padding: 10px; height: 60px;">
+          <div style="color: white; font-size: 10px; font-weight: 700;">High Contrast</div>
+          <div style="color: #bbb; font-size: 8px;">accessibility</div>
+          <div style="display: flex; gap: 3px; margin-top: 6px;">
+            <div style="width: 12px; height: 12px; background: #ffff00; border-radius: 2px;"></div>
+            <div style="width: 12px; height: 12px; background: #00ffff; border-radius: 2px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P2 Density slider -->
+  <div class="option" data-choice="p2" onclick="toggleSelect(this)">
+    <div class="letter">P2</div>
+    <div class="content">
+      <h3>Density slider · compact / comfortable / spacious</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 12px;">
+          <div style="font-size: 10px; color: rgb(156, 163, 175);">Density</div>
+          <div style="flex: 1; position: relative; height: 20px;">
+            <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 8px;"></div>
+            <div style="position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 14px; height: 14px; background: rgb(124,58,237); border-radius: 50%; box-shadow: 0 0 12px rgb(124,58,237);"></div>
+          </div>
+          <div style="display: flex; gap: 8px; font-size: 9px;">
+            <div style="color: rgb(156,163,175);">Compact</div>
+            <div style="color: rgb(196,181,253); font-weight: 600;">Comfortable</div>
+            <div style="color: rgb(156,163,175);">Spacious</div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 8px;">
+          <div style="background: rgba(255,255,255,0.04); padding: 4px; border-radius: 4px;">
+            <div style="color: rgb(110,231,183);">Compact</div>
+            <div style="color: rgb(229,231,235); line-height: 1.2; font-size: 7px;">·Singleton<br>·Factory<br>·Observer</div>
+          </div>
+          <div style="background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.3); padding: 6px; border-radius: 4px;">
+            <div style="color: rgb(196,181,253);">Comfortable ✓</div>
+            <div style="color: rgb(229,231,235); line-height: 1.4; font-size: 8px; margin-top: 2px;">· Singleton<br>· Factory Method<br>· Observer</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); padding: 8px; border-radius: 4px;">
+            <div style="color: rgb(147,197,253);">Spacious</div>
+            <div style="color: rgb(229,231,235); line-height: 1.7; font-size: 9px; margin-top: 3px;">● Singleton<br><br>● Factory</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P3 Language default -->
+  <div class="option" data-choice="p3" onclick="toggleSelect(this)">
+    <div class="letter">P3</div>
+    <div class="content">
+      <h3>Default code language · remember user's preferred language</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Current code pane always opens on TypeScript. Propose: user preference — TS / Py / Java / Go / Rust / Kotlin. Every pattern opens in user's chosen language. 1-click switch still available.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(156, 163, 175); margin-bottom: 8px;">Preferred language:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+          <div style="background: rgba(59,130,246,0.15); color: rgb(147,197,253); padding: 4px 12px; border-radius: 16px; font-size: 10px; border: 1px solid rgba(59,130,246,0.4);">TypeScript ✓</div>
+          <div style="background: rgba(255,255,255,0.05); color: rgb(229,231,235); padding: 4px 12px; border-radius: 16px; font-size: 10px;">Python</div>
+          <div style="background: rgba(255,255,255,0.05); color: rgb(229,231,235); padding: 4px 12px; border-radius: 16px; font-size: 10px;">Java</div>
+          <div style="background: rgba(255,255,255,0.05); color: rgb(229,231,235); padding: 4px 12px; border-radius: 16px; font-size: 10px;">Go</div>
+          <div style="background: rgba(255,255,255,0.05); color: rgb(229,231,235); padding: 4px 12px; border-radius: 16px; font-size: 10px;">Rust</div>
+          <div style="background: rgba(255,255,255,0.05); color: rgb(229,231,235); padding: 4px 12px; border-radius: 16px; font-size: 10px;">Kotlin</div>
+          <div style="background: rgba(255,255,255,0.05); color: rgb(229,231,235); padding: 4px 12px; border-radius: 16px; font-size: 10px;">Swift</div>
+          <div style="background: rgba(255,255,255,0.05); color: rgb(229,231,235); padding: 4px 12px; border-radius: 16px; font-size: 10px;">C++</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P4 Custom dashboard -->
+  <div class="option" data-choice="p4" onclick="toggleSelect(this)">
+    <div class="letter">P4</div>
+    <div class="content">
+      <h3>Customizable home dashboard · pin widgets you care about</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+          <div style="background: rgba(251,191,36,0.08); border: 1px dashed rgba(251,191,36,0.35); border-radius: 4px; padding: 10px; height: 70px; cursor: grab;">
+            <div style="font-size: 8px; color: rgb(251,191,36);">🔥 Streak</div>
+            <div style="font-size: 20px; color: rgb(251,191,36); font-weight: 700; margin-top: 6px;">14</div>
+          </div>
+          <div style="background: rgba(110,231,183,0.08); border: 1px dashed rgba(110,231,183,0.35); border-radius: 4px; padding: 10px; height: 70px;">
+            <div style="font-size: 8px; color: rgb(110,231,183);">★ Mastered</div>
+            <div style="font-size: 20px; color: rgb(110,231,183); font-weight: 700; margin-top: 6px;">12/36</div>
+          </div>
+          <div style="background: rgba(196,181,253,0.08); border: 1px dashed rgba(196,181,253,0.35); border-radius: 4px; padding: 10px; height: 70px;">
+            <div style="font-size: 8px; color: rgb(196,181,253);">🔁 Due today</div>
+            <div style="font-size: 20px; color: rgb(196,181,253); font-weight: 700; margin-top: 6px;">3</div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div style="background: rgba(147,197,253,0.06); border: 1px dashed rgba(147,197,253,0.3); border-radius: 4px; padding: 12px; height: 70px;">
+            <div style="font-size: 8px; color: rgb(147,197,253);">📈 Velocity</div>
+            <div style="font-size: 9px; color: rgb(156,163,175); margin-top: 4px;">sparkline chart</div>
+          </div>
+          <div style="background: rgba(252,165,165,0.06); border: 1px dashed rgba(252,165,165,0.3); border-radius: 4px; padding: 12px; height: 70px;">
+            <div style="font-size: 8px; color: rgb(252,165,165);">⚡ Weakest</div>
+            <div style="font-size: 9px; color: rgb(156,163,175); margin-top: 4px;">Factory, Visitor</div>
+          </div>
+        </div>
+        <div style="margin-top: 10px; text-align: center; padding: 6px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; font-size: 10px; color: rgb(156, 163, 175); cursor: pointer;">+ Add widget · drag to rearrange</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P5 Skeleton loaders -->
+  <div class="option" data-choice="p5" onclick="toggleSelect(this)">
+    <div class="letter">P5</div>
+    <div class="content">
+      <h3>Skeleton loaders with personality · not generic spinners</h3>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+          <div style="font-size: 9px; color: rgb(156,163,175); margin-bottom: 4px;">GENERIC SPINNER</div>
+          <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 20px; height: 80px; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 20px; height: 20px; border: 2px solid rgba(124,58,237,0.3); border-top-color: rgb(124,58,237); border-radius: 50%;"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 9px; color: rgb(110,231,183); margin-bottom: 4px;">UML SKELETON</div>
+          <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px; height: 80px;">
+            <div style="height: 18px; background: linear-gradient(90deg, rgba(124,58,237,0.08), rgba(124,58,237,0.18), rgba(124,58,237,0.08)); background-size: 200% 100%; border-radius: 3px; margin-bottom: 4px;"></div>
+            <div style="height: 12px; background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.1), rgba(255,255,255,0.04)); background-size: 200% 100%; border-radius: 3px; margin-bottom: 4px; width: 80%;"></div>
+            <div style="height: 12px; background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.1), rgba(255,255,255,0.04)); background-size: 200% 100%; border-radius: 3px; margin-bottom: 4px; width: 70%;"></div>
+            <div style="height: 12px; background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.1), rgba(255,255,255,0.04)); background-size: 200% 100%; border-radius: 3px; width: 85%;"></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Shimmer in the <em>shape of the content</em> — reduces perceived latency · your codebase has this for algorithms, extend to LLD.</div>
+    </div>
+  </div>
+
+  <!-- P6 Empty state illustrations -->
+  <div class="option" data-choice="p6" onclick="toggleSelect(this)">
+    <div class="letter">P6</div>
+    <div class="content">
+      <h3>Empty state illustrations · personality per mode</h3>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+        <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 20px; text-align: center; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 36px;">🎨</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600; margin-top: 8px;">Build mode blank</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 4px;">"Every great system begins with a single class."</div>
+        </div>
+        <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 20px; text-align: center; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 36px;">🔁</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600; margin-top: 8px;">No reviews due</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 4px;">"All caught up. Your brain remembers everything."</div>
+        </div>
+        <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 20px; text-align: center; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 36px;">⏱️</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600; margin-top: 8px;">No drill history</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 4px;">"The first problem is the hardest. Pick one."</div>
+        </div>
+        <div style="background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 20px; text-align: center; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div style="font-size: 36px;">🔍</div>
+          <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600; margin-top: 8px;">No search results</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 4px;">"Not yet written. Want to suggest it?"</div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Each empty state has a specific encouraging line · never generic "No data"</div>
+    </div>
+  </div>
+
+  <!-- P7 Typewriter AI -->
+  <div class="option" data-choice="p7" onclick="toggleSelect(this)">
+    <div class="letter">P7</div>
+    <div class="content">
+      <h3>Typewriter effect for AI responses · AI feels alive, not instant</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <div style="width: 28px; height: 28px; background: linear-gradient(135deg, rgb(124,58,237), rgb(236,72,153)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;">🏛</div>
+          <div style="flex: 1;">
+            <div style="font-size: 10px; color: rgb(196,181,253); font-weight: 600; margin-bottom: 4px;">Ask the Architect</div>
+            <div style="font-size: 11px; color: rgb(229, 231, 235); line-height: 1.6;">The Singleton's constructor is private because<span style="background: rgb(196, 181, 253); animation: pulse 1s infinite; color: rgb(196, 181, 253); width: 2px; display: inline-block;">|</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Stream tokens with 15-25ms delay between chars · blinking cursor caret · not-instant = feels considered</div>
+    </div>
+  </div>
+
+  <!-- P8 Toast choreography -->
+  <div class="option" data-choice="p8" onclick="toggleSelect(this)">
+    <div class="letter">P8</div>
+    <div class="content">
+      <h3>Toast stack choreography · slide, offset, auto-dismiss</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; height: 140px; position: relative;">
+        <div style="position: absolute; bottom: 10px; right: 10px; display: flex; flex-direction: column-reverse; gap: 6px;">
+          <!-- newest -->
+          <div style="background: rgba(110,231,183,0.15); border: 1px solid rgba(110,231,183,0.35); padding: 8px 14px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235); display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 16px rgba(0,0,0,0.4);">
+            <span style="color: rgb(110,231,183); font-size: 12px;">✓</span>
+            <span>Progress saved</span>
+            <span style="color: rgb(156,163,175); font-size: 9px; margin-left: 14px;">2s</span>
+          </div>
+          <!-- slightly older, offset back -->
+          <div style="background: rgba(147,197,253,0.12); border: 1px solid rgba(147,197,253,0.25); padding: 8px 14px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235); display: flex; align-items: center; gap: 8px; transform: translateY(2px) scale(0.98); opacity: 0.85;">
+            <span style="color: rgb(147,197,253); font-size: 12px;">🔁</span>
+            <span>3 reviews synced to DB</span>
+          </div>
+          <!-- oldest, more faded -->
+          <div style="background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); padding: 8px 14px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235); display: flex; align-items: center; gap: 8px; transform: translateY(4px) scale(0.96); opacity: 0.65;">
+            <span style="color: rgb(251,191,36); font-size: 12px;">★</span>
+            <span>Observer mastered!</span>
+          </div>
+        </div>
+        <div style="position: absolute; top: 10px; left: 10px; font-size: 9px; color: rgb(107,114,128); font-style: italic;">Stack grows upward · older toasts fade + scale down</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P9 Hover lift -->
+  <div class="option" data-choice="p9" onclick="toggleSelect(this)">
+    <div class="letter">P9</div>
+    <div class="content">
+      <h3>Hover lift + press depth · tactile feel on every interactive element</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; text-align: center;">
+          <div>
+            <div style="background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 6px; font-size: 10px; color: rgb(229, 231, 235);">Singleton</div>
+            <div style="font-size: 8px; color: rgb(156,163,175); margin-top: 4px;">idle · no shadow</div>
+          </div>
+          <div>
+            <div style="background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.3); padding: 10px 14px; border-radius: 6px; font-size: 10px; color: rgb(196,181,253); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(124,58,237,0.25);">Singleton</div>
+            <div style="font-size: 8px; color: rgb(196,181,253); margin-top: 4px;">hover · lifts 2px + shadow</div>
+          </div>
+          <div>
+            <div style="background: rgba(124,58,237,0.25); padding: 10px 14px; border-radius: 6px; font-size: 10px; color: rgb(196,181,253); transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">Singleton</div>
+            <div style="font-size: 8px; color: rgb(156,163,175); margin-top: 4px;">press · sinks 1px</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">150ms transitions · <code>transform: translateY()</code> + shadow · reduced-motion respected</div>
+    </div>
+  </div>
+
+  <!-- P10 Loading messages -->
+  <div class="option" data-choice="p10" onclick="toggleSelect(this)">
+    <div class="letter">P10</div>
+    <div class="content">
+      <h3>Loading messages that evolve · "thinking..." with personality</h3>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px;">
+        <div style="font-size: 10px; color: rgb(156, 163, 175); letter-spacing: 0.5px; margin-bottom: 8px;">WHILE GRADING...</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="color: rgb(110,231,183); font-size: 10px;">✓</div>
+            <div style="font-size: 10px; color: rgb(110, 231, 183);">Reading your classes...</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="color: rgb(110,231,183); font-size: 10px;">✓</div>
+            <div style="font-size: 10px; color: rgb(110, 231, 183);">Checking relationships...</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="color: rgb(250,204,21); font-size: 10px;">◐</div>
+            <div style="font-size: 10px; color: rgb(250, 204, 21);">Matching patterns...</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="color: rgb(107,114,128); font-size: 10px;">○</div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175);">Composing feedback...</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="color: rgb(107,114,128); font-size: 10px;">○</div>
+            <div style="font-size: 10px; color: rgb(156, 163, 175);">Almost there...</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: rgb(107, 114, 128); font-style: italic; text-align: center;">Step-by-step progress · never a mute spinner · feels considered, not frozen</div>
+    </div>
+  </div>
+
+  <!-- P11 Haptic-like visual feedback -->
+  <div class="option" data-choice="p11" onclick="toggleSelect(this)">
+    <div class="letter">P11</div>
+    <div class="content">
+      <h3>Haptic-style visual feedback · ripple on click, shake on error</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Every click produces a subtle <em>ripple</em> from the click point — Material Design-style, but tuned subtle. Wrong answer → gentle horizontal shake of the option. Correct answer → gentle bounce. Tiny, physical, tactile feelings even on a mouse.</p>
+      <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+        <div style="background: rgba(147,197,253,0.08); border: 1px solid rgba(147,197,253,0.25); padding: 10px 14px; border-radius: 6px; font-size: 10px; color: rgb(147,197,253); position: relative; overflow: hidden;">
+          Ripple on click
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: radial-gradient(circle, rgba(147,197,253,0.3), transparent); border-radius: 50%;"></div>
+        </div>
+        <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); padding: 10px 14px; border-radius: 6px; font-size: 10px; color: rgb(252,165,165);">Shake on error</div>
+        <div style="background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.25); padding: 10px 14px; border-radius: 6px; font-size: 10px; color: rgb(110,231,183);">Bounce on correct</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P12 Ambient audio -->
+  <div class="option" data-choice="p12" onclick="toggleSelect(this)">
+    <div class="letter">P12</div>
+    <div class="content">
+      <h3>Sound design · OFF by default, optional for delight</h3>
+      <p style="color: rgb(156, 163, 175); font-size: 11px;">Settings toggle. If enabled: soft "pop" on correct answer, descending "oof" on wrong, subtle "ping" on achievement, UI click sounds. All ≤ 200ms, tasteful, never jarring. Off by default to respect enterprise / library users.</p>
+      <div style="margin-top: 10px; background: rgb(17, 24, 39); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 14px;">
+        <div style="font-size: 20px;">🔊</div>
+        <div style="flex: 1;">
+          <div style="font-size: 11px; color: rgb(229, 231, 235); font-weight: 600;">Sound effects</div>
+          <div style="font-size: 9px; color: rgb(156, 163, 175); margin-top: 2px;">Correct · wrong · achievement · click</div>
+        </div>
+        <div style="width: 32px; height: 18px; background: rgba(255,255,255,0.1); border-radius: 9px; position: relative;">
+          <div style="position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: rgb(156,163,175); border-radius: 50%;"></div>
+        </div>
+        <div style="font-size: 9px; color: rgb(156,163,175);">OFF</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 28px; text-align:center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+  <p style="color: rgb(229, 231, 235); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">Multi-select P1-P12.</p>
+  <p style="color: rgb(156, 163, 175); font-size: 11px; margin: 0;">Batch 10 next: final wrap with a summary + "anything we missed?" open field.</p>
+</div>
