@@ -1,0 +1,77 @@
+# START HERE
+
+If you are an AI agent reading this, do this first: read `README.md` (table of contents + top findings) and `09-ui-tour.md` (the canonical routing model — v2). Then jump to whichever module-specific codemap is closest to the surface you'll touch. Do not skim the rest of this directory linearly; it is descriptive, not a spec.
+
+---
+
+## 1. What this directory is
+
+The CODEMAPS directory is a 21-document map of the architex codebase, generated 2026-05-07 by 19 parallel agents. Codemaps `00`–`09` and `18` describe modules. `10`–`15` are findings reviews. `16`–`17` cover tooling and house style. `EXISTING-DOCS-INDEX.md` catalogs the 200+ pre-existing docs across the three doc trees.
+
+These files are **descriptive snapshots**, not specs. The Blueprint specs at `docs/superpowers/specs/` are the live "what's being built" surface.
+
+---
+
+## 2. Read order for future Claude/AI chats
+
+1. **This file** — confirms routing model and gotchas before you touch code.
+2. **`README.md`** — master index, four reading orders, top cross-cut findings.
+3. **`09-ui-tour.md`** — the live UI with 205 screenshots. v2 supersedes any earlier path-routing claims; trust it on routing.
+4. **`17-architecture-patterns.md`** — house style, naming, data flow, error envelopes, persistence boundary, ADR pointers.
+5. **The codemap doc closest to the surface you'll touch** — pick from the `README.md` table.
+
+For non-routine work (security, db, a11y, perf, ts), open the matching review doc (`11`–`15`) before editing.
+
+---
+
+## 3. Routing model (canonical)
+
+Module type lives in Zustand `useUIStore.activeModule` and is **not** persisted to the URL. LLD sub-state uses `?lld=<type>:<slug>` (where `<type>` is `pattern` / `solid` / `problem` / `sequence` / `state-machine`) plus optional `&mode=learn|build|drill|review`. Data Structures sub-state uses URL hash `#<ds-id>`. Path routes exist only for marketing/SEO surfaces (`/sign-in`, `/pricing`, `/blog`, `/concepts/{os,database}/<slug>`, `/interview/<company>`, `/algorithms/<category>/<slug>`) and one mode entry (`/database/[mode]`). Bare `/algorithms`, `/database`, `/ds`, `/learn` are 404 by design — only nested `[category]/[slug]` pages exist as Next routes. The interactive product is at `/`. See `09-ui-tour.md` §1 for the full table.
+
+---
+
+## 4. Gotchas
+
+- **Non-stock Next.js** — `AGENTS.md` says read `node_modules/next/dist/docs/` before writing any Next code. APIs, conventions, and file structure may differ from your training data.
+- **Neon HTTP driver silently no-ops `.transaction()`** — multi-statement Drizzle transactions become independent statements. See `12-database-review.md` §7.2.
+- **Hint-append race in `lld/drill-attempts/[id]/hint`** — read-modify-write on a JSONB array without locking; concurrent hints lose data. See `12-database-review.md` §3.1.
+- **`@playwright/test` missing from `package.json`** despite `playwright.config.ts` and 6 spec files. E2E suite cannot run as-is. See `10-test-and-build-status.md`.
+- **164 vitest fail = single React.act / testing-library mismatch** (React 19 vs `@testing-library/react@16.3.2`). One shim or upgrade unblocks all. See `10-test-and-build-status.md`.
+- **Innovation subsystem is dark code** — `src/lib/innovation/*` and `src/components/innovation/*` are completed and tested but not wired in. Don't import from a route expecting it to be live. See `18-other-modules.md` §9.
+- **JSONB `.$type<>()` annotations missing on most Drizzle JSONB columns** — only 1 of ~20 typed. Cascading `as unknown as` casts in drill / diagram / simulation routes. See `15-typescript-review.md`.
+- **`users.email` is not unique** — duplicate-account risk. See `12-database-review.md` §2.1.
+
+---
+
+## 5. Three doc trees
+
+| Tree | Purpose |
+|---|---|
+| `architex/docs/` | In-repo product/architecture docs, plus this CODEMAPS set. |
+| Parent `docs/` (one level up) | Older planning, vision, and research notes. |
+| `docs/superpowers/` | Active specs and harness configuration. **Canonical "what's being built right now":** `docs/superpowers/specs/2026-04-20-lld-architect-studio-rebuild.md` and `2026-04-20-sd-architect-studio-rebuild.md` (the Blueprint module). Pre-existing vision docs are historical. |
+
+When trees disagree, prefer the Blueprint specs over older planning docs. See `EXISTING-DOCS-INDEX.md` for the full cross-reference.
+
+---
+
+## 6. When this primer is wrong
+
+This primer was written **2026-05-07**. The CODEMAPS docs are descriptive snapshots, not specs — they describe the code as it was on that date. Treat findings older than ~3 weeks as needing verification against current source. If a claim here contradicts what you see in the working tree, the working tree wins; update the relevant codemap doc rather than working around the contradiction.
+
+The reviews (`10`–`15`) carry per-finding file:line citations; if a citation no longer matches, the issue may already be fixed.
+
+---
+
+## 7. Refreshing the CODEMAPS set
+
+The set was generated by dispatching 19 parallel agents via Claude Code's Agent tool, each scoped to one module or review surface, each writing a single markdown file independently with no inter-agent coordination. The aggregate `README.md` was the only post-hoc product.
+
+To refresh:
+1. Re-read `README.md` "How this set was generated" section for the agent inventory.
+2. Reproduce the 19 prompts from the table-of-contents rows (each row's "Covers" column is the brief).
+3. Use specialized reviewer agents where listed (`security-reviewer`, `database-reviewer`, `performance-optimizer`, `a11y-architect`, `typescript-reviewer`); use `general-purpose` for codemaps; use `e2e-runner` for the UI tour.
+4. Enforce the conventions: file:line citations, markdown tables for inventories, "Open questions" section per doc, no refactor suggestions in codemap docs (descriptive only — findings live in the reviews), 400–1500 lines per doc.
+5. Regenerate `README.md` from the aggregate and update this primer's "written" date.
+
+For a partial refresh, re-run only the docs whose surface area changed; the agent dispatch pattern composes — single-doc refreshes don't require the full 19-agent run.

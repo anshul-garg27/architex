@@ -1,10 +1,12 @@
 'use client';
 
 import React, { memo, useState, useMemo, useCallback, useRef } from 'react';
+import { GraduationCap } from 'lucide-react';
 import {
   SYSTEM_DESIGN_TEMPLATES,
   type DiagramTemplate,
 } from '@/lib/templates';
+import { useTemplateMetaStore } from '@/stores/template-meta-store';
 import { useIsMobile, useIsTablet } from '@/hooks/use-media-query';
 
 // ── Category badge colours ─────────────────────────────────
@@ -55,10 +57,20 @@ const TemplateCard = memo(function TemplateCard({
 }: TemplateCardProps) {
   const catStyle = CATEGORY_STYLES[template.category];
   const isMobile = useIsMobile();
+  const tourStepCount = template.learnSteps?.length ?? 0;
 
   const handleClick = useCallback(() => {
     onSelect(template);
   }, [onSelect, template]);
+
+  const handleTourClick = useCallback(
+    (e: React.MouseEvent<HTMLSpanElement>) => {
+      e.stopPropagation();
+      onSelect(template);
+      useTemplateMetaStore.getState().openTour();
+    },
+    [onSelect, template],
+  );
 
   return (
     <button
@@ -88,8 +100,21 @@ const TemplateCard = memo(function TemplateCard({
       {/* Footer row */}
       <div className="flex items-center justify-between pt-1">
         <DifficultyStars level={template.difficulty} />
-        <span className="text-[10px] font-medium text-foreground-subtle">
-          {template.nodes.length} nodes &middot; {template.edges.length} edges
+        <span className="flex items-center gap-2">
+          {tourStepCount > 0 && (
+            <span
+              role="button"
+              onClick={handleTourClick}
+              title="Load template and start the guided tour"
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              <GraduationCap className="h-3 w-3" />
+              {tourStepCount}-step tour
+            </span>
+          )}
+          <span className="text-[10px] font-medium text-foreground-subtle">
+            {template.nodes.length} nodes &middot; {template.edges.length} edges
+          </span>
         </span>
       </div>
     </button>

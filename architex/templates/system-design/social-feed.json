@@ -232,5 +232,481 @@
       "highlightNodes": ["cache", "database", "app-server"],
       "highlightEdges": ["e-app-cache", "e-app-db"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-feed-cache-shard-loss",
+        "name": "Feed Cache Shard Loss",
+        "description": "Crash a Redis shard holding pre-computed feeds for a slice of the user base",
+        "targetNodes": [
+          "cache"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Users mapped to the lost shard get cold feeds. Regeneration fans out to the social graph DB and post store, multiplying read load 10-20x for those users; p99 feed load jumps from ~300ms to multi-second until rewarm completes.",
+        "mitigationSteps": [
+          "Serve a degraded chronological feed from MongoDB while regeneration runs",
+          "Coalesce regeneration so each user feed is rebuilt exactly once (singleflight)",
+          "Rate-limit rebuilds to protect the PostgreSQL graph DB",
+          "Rewarm most-active users first using last-seen data"
+        ]
+      },
+      {
+        "id": "cs-ranker-brownout",
+        "name": "Ranking Model Brownout",
+        "description": "Inject latency into the feed ranking model until inference exceeds its 50ms budget",
+        "targetNodes": [
+          "ml-ranker"
+        ],
+        "faultType": "latency",
+        "severity": 2,
+        "expectedBehavior": "Inference p99 rises past the timeout. The Feed Service trips the ranking circuit breaker and serves chronological ordering; feeds stay available with degraded relevance. Engagement metrics dip but the error rate stays flat.",
+        "mitigationSteps": [
+          "Confirm the circuit breaker opened and chronological fallback is engaged",
+          "Shed ranking for long-tail users first; keep it for high-engagement cohorts",
+          "Scale inference replicas or roll back the latest model deploy",
+          "Close the breaker gradually with canary traffic"
+        ]
+      },
+      {
+        "id": "cs-fanout-backlog",
+        "name": "Fanout Worker Backlog",
+        "description": "Choke the fanout worker pool during a viral posting spike, building Kafka consumer lag",
+        "targetNodes": [
+          "fanout-worker",
+          "mq"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Post publishes succeed but delivery into follower feeds lags; consumer lag grows past tens of millions of events. Reads are unaffected — users instead complain about missing fresh posts.",
+        "mitigationSteps": [
+          "Scale fanout workers on consumer lag",
+          "Temporarily demote mega-fanout posts (100k+ followers) to read-time merge",
+          "Prioritize partitions carrying high-affinity edges if partitioning supports it",
+          "Backfill missed deliveries after the lag drains"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Cache-miss feed regenerations and follow-graph queries saturate the connection pool across the 5 replicas",
+        "resolution": "Add read replicas behind a pooler and cache follower lists separately from feeds"
+      },
+      {
+        "rpsThreshold": 250000,
+        "bottleneckNode": "ml-ranker",
+        "metric": "cpu",
+        "description": "Ranking inference becomes the per-request critical path; batching queues build and timeouts trip the fallback",
+        "resolution": "Increase batch size, prune candidate sets before scoring, and add inference replicas or a distilled model"
+      },
+      {
+        "rpsThreshold": 500000,
+        "bottleneckNode": "cache",
+        "metric": "memory",
+        "description": "The 256GB feed cache starts evicting active feeds; hit rate slides below 0.8, feeding back into graph DB load",
+        "resolution": "Scale the Redis cluster out, cap feed length per user, and store post IDs + scores only"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-celebrity-fanout",
+        "title": "Celebrity Write Amplification",
+        "description": "A single post from a 10M-follower account generates 10M cache writes if pushed, spiking Kafka and Redis simultaneously",
+        "affectedNodes": [
+          "fanout-worker",
+          "mq",
+          "cache"
+        ],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "Hybrid fanout: posts from accounts above a follower threshold are merged at read time instead of pushed"
+      },
+      {
+        "id": "ei-regen-stampede",
+        "title": "Feed Regeneration Stampede",
+        "description": "Mass eviction or a cold deploy makes thousands of users miss simultaneously, each triggering a full feed rebuild against the graph DB",
+        "affectedNodes": [
+          "cache",
+          "database"
+        ],
+        "likelihood": 3,
+        "impact": 4,
+        "mitigation": "Singleflight locks per user feed, stale-while-revalidate serving, and jittered TTLs"
+      },
+      {
+        "id": "ei-pagination-drift",
+        "title": "Pagination Drift and Duplicates",
+        "description": "Feeds mutate between page fetches (new posts fanned in, evictions), causing duplicates or gaps with naive offset pagination",
+        "affectedNodes": [
+          "app-server",
+          "cache"
+        ],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Cursor-based pagination anchored to ranking score + post ID instead of offsets"
+      },
+      {
+        "id": "ei-mongo-hot-shard",
+        "title": "Viral Post Hot Shard",
+        "description": "Read-time merges and content hydration for a viral post concentrate on the one MongoDB shard that owns it",
+        "affectedNodes": [
+          "document-db"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Post-content cache in front of MongoDB and replication of hot documents across shards"
+      },
+      {
+        "id": "ei-fanout-redelivery",
+        "title": "Duplicate Fanout Deliveries",
+        "description": "At-least-once Kafka consumption means retried fanout batches re-insert post IDs into follower feeds",
+        "affectedNodes": [
+          "fanout-worker"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Idempotent feed inserts keyed by post ID (ZADD overwrites rather than duplicates)"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 53000,
+      "components": [
+        {
+          "nodeId": "app-server",
+          "label": "Feed Service",
+          "monthlyCostUsd": 12500,
+          "costDriver": "50 instances, 8 vCPU / 32GB each"
+        },
+        {
+          "nodeId": "cache",
+          "label": "Feed Cache",
+          "monthlyCostUsd": 7200,
+          "costDriver": "256GB clustered Redis"
+        },
+        {
+          "nodeId": "database",
+          "label": "Social Graph DB",
+          "monthlyCostUsd": 9000,
+          "costDriver": "Primary + 5 replicas, 10TB"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Post Event Queue",
+          "monthlyCostUsd": 3500,
+          "costDriver": "Kafka, 128 partitions, 7-day retention"
+        },
+        {
+          "nodeId": "fanout-worker",
+          "label": "Fanout Workers",
+          "monthlyCostUsd": 2800,
+          "costDriver": "40 worker instances"
+        },
+        {
+          "nodeId": "ml-ranker",
+          "label": "Ranking Inference",
+          "monthlyCostUsd": 4500,
+          "costDriver": "GPU inference fleet"
+        },
+        {
+          "nodeId": "document-db",
+          "label": "Post Store",
+          "monthlyCostUsd": 12000,
+          "costDriver": "16 shards x 3 replicas, 20TB"
+        },
+        {
+          "nodeId": "lb",
+          "label": "Load Balancer",
+          "monthlyCostUsd": 1500,
+          "costDriver": "Request volume + data processed"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 100000,
+          "monthlyCostUsd": 18000
+        },
+        {
+          "label": "Medium",
+          "rps": 500000,
+          "monthlyCostUsd": 53000
+        },
+        {
+          "label": "High",
+          "rps": 2000000,
+          "monthlyCostUsd": 165000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 500000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 80,
+      "p99LatencyMs": 300,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 500000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 10,
+        "scaleDownStep": 5,
+        "cooldownSeconds": 180,
+        "minInstances": 30,
+        "maxInstances": 300
+      },
+      {
+        "nodeId": "fanout-worker",
+        "metric": "kafka_consumer_lag",
+        "threshold": 1000000,
+        "scaleUpStep": 5,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 120,
+        "minInstances": 20,
+        "maxInstances": 200
+      },
+      {
+        "nodeId": "ml-ranker",
+        "metric": "p99_inference_latency_ms",
+        "threshold": 40,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 4,
+        "maxInstances": 50
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Feed Load Latency",
+        "metric": "p99_feed_load_ms",
+        "target": 500,
+        "unit": "ms",
+        "penalty": "Internal SLO — feed infra review after 2h sustained breach"
+      },
+      {
+        "name": "Post Delivery Freshness",
+        "metric": "p95_fanout_seconds",
+        "target": 30,
+        "unit": "s",
+        "penalty": "Internal SLO — fanout capacity review"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.95,
+        "unit": "%",
+        "penalty": "Error-budget freeze on feature launches"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "feed_load_latency_ms",
+          "type": "histogram",
+          "description": "End-to-end feed assembly time",
+          "nodeId": "app-server"
+        },
+        {
+          "name": "feed_cache_hit_rate",
+          "type": "gauge",
+          "description": "Fraction of feed loads served from Redis",
+          "nodeId": "cache"
+        },
+        {
+          "name": "fanout_consumer_lag",
+          "type": "gauge",
+          "description": "Unprocessed post events awaiting fanout",
+          "nodeId": "mq"
+        },
+        {
+          "name": "ranker_inference_latency_ms",
+          "type": "histogram",
+          "description": "Model scoring latency per batch",
+          "nodeId": "ml-ranker"
+        },
+        {
+          "name": "posts_fanned_out_total",
+          "type": "counter",
+          "description": "Feed insertions performed by fanout workers",
+          "nodeId": "fanout-worker"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Feed Latency High",
+          "condition": "p99 feed load > 800ms for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Fanout Lag",
+          "condition": "consumer lag > 5M events for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Cache Hit Rate Low",
+          "condition": "hit rate < 0.8 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Ranker Fallback Engaged",
+          "condition": "chronological fallback > 10% of requests for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Feed Serving Overview",
+        "Fanout Pipeline Health",
+        "Ranking Model Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Feed On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "feed-oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Feed Infra Lead",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "feed-infra-lead"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "incident-commander"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Feed cache shard loss",
+          "severity": "critical",
+          "steps": [
+            "Confirm shard topology and failover state in the Redis cluster",
+            "Enable chronological degraded mode for users on the affected shard",
+            "Throttle feed regeneration to protect the graph DB",
+            "Rewarm feeds ordered by user activity"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Fanout backlog",
+          "severity": "high",
+          "steps": [
+            "Check consumer lag per partition to find skew",
+            "Scale fanout workers; verify offsets advance",
+            "Switch mega-follower accounts to read-time merge",
+            "Verify delivery backfill after the lag drains"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Ranking model regression",
+          "severity": "medium",
+          "steps": [
+            "Compare engagement metrics against the holdout cohort",
+            "Roll back to the previous model version",
+            "Replay canary traffic against the rolled-back model",
+            "Re-enable the new model gradually behind a flag"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Hybrid Fanout (Push + Pull)",
+        "context": "Pure push amplifies celebrity posts into millions of writes; pure pull makes every feed load query the social graph",
+        "decision": "Push post IDs into follower feeds for normal accounts; merge posts from high-follower accounts at read time",
+        "consequences": [
+          "Write amplification is capped regardless of follower count",
+          "Feed reads stay O(1) cache lookups for the common case",
+          "The read path has two code paths to maintain and test"
+        ]
+      },
+      {
+        "title": "Ranking Behind a Strict Timeout",
+        "context": "ML ranking improves engagement but adds an inference dependency to every feed load",
+        "decision": "Call the ranker with a hard latency budget; on timeout or error, serve chronological order",
+        "consequences": [
+          "Feed availability does not depend on model availability",
+          "Quality degrades silently, so fallback rate must be monitored as a first-class metric",
+          "Model deploys cannot add latency without tripping fallbacks"
+        ]
+      },
+      {
+        "title": "Separate Graph Store and Post Store",
+        "context": "Follow-graph queries are relational; post hydration is high-QPS document reads",
+        "decision": "PostgreSQL holds the social graph; sharded MongoDB holds post content",
+        "consequences": [
+          "Each store scales and indexes for its own access pattern",
+          "Feed assembly requires cross-store joins in the service layer",
+          "Two storage systems to operate and keep consistent"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Read Latency vs Write Cost",
+        "choice": "Pre-computed feeds (write-heavy)",
+        "benefit": "p50 feed loads around 80ms from a single cache read",
+        "cost": "Millions of speculative cache writes for posts many followers never see"
+      },
+      {
+        "dimension": "Freshness vs Stability",
+        "choice": "Eventual delivery with seconds of tolerated fanout lag",
+        "benefit": "Publish spikes queue in Kafka instead of failing posts",
+        "cost": "Followers may not see a post for 30s+ under load"
+      },
+      {
+        "dimension": "Relevance vs Dependency Risk",
+        "choice": "ML ranking with chronological fallback",
+        "benefit": "Engagement lift when the model is healthy",
+        "cost": "Extra ~10ms on every feed load plus a model-serving fleet to operate"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Pure Fanout-on-Read",
+        "description": "Assemble every feed at request time from followees recent posts",
+        "prosVsCons": "No write amplification or fanout pipeline, but every feed load hits the graph DB and post store, and latency scales with followee count",
+        "whyNotChosen": "At 500k RPS of reads, per-request graph assembly would need an order of magnitude more database capacity"
+      },
+      {
+        "name": "Pure Fanout-on-Write",
+        "description": "Push every post to every follower, including celebrity accounts",
+        "prosVsCons": "A single simple read path, but a 10M-follower post creates 10M writes and minutes of delivery lag",
+        "whyNotChosen": "Celebrity posts are frequent enough to make worst-case write amplification a steady-state problem"
+      },
+      {
+        "name": "Pre-Ranked Materialized Feeds",
+        "description": "Run ranking at fanout time and store fully ranked feeds",
+        "prosVsCons": "Removes inference from the read path, but scores go stale immediately and recomputing on every signal change multiplies fanout cost",
+        "whyNotChosen": "Ranking signals like engagement velocity change too fast for write-time scoring to stay accurate"
+      }
+    ]
+  }
 }

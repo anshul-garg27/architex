@@ -31,6 +31,10 @@ import {
   type SimulationReport,
   type NodeSimMetrics as ReportNodeSimMetrics,
 } from '@/lib/simulation/report-generator';
+import { ThresholdVerdictCard } from './ThresholdVerdictCard';
+import { PredictionResultCard } from './PredictionResultCard';
+import { ScenarioVerdictCard } from './ScenarioVerdictCard';
+import { ExpectedIssuesCard } from './ExpectedIssuesCard';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -136,6 +140,9 @@ export const PostSimulationReport = memo(function PostSimulationReport() {
       </div>
 
       <div className="flex-1 space-y-4 p-4">
+        <ThresholdVerdictCard />
+        <PredictionResultCard />
+        <ScenarioVerdictCard />
         {/* Executive Summary */}
         <section>
           <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground-muted">
@@ -169,6 +176,8 @@ export const PostSimulationReport = memo(function PostSimulationReport() {
             />
           </div>
         </section>
+
+        <ExpectedIssuesCard />
 
         {/* Incident Timeline */}
         {incidentTimeline.length > 0 && (

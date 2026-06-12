@@ -265,6 +265,28 @@ export class SimMetricsBus {
     }
   }
 
+  /**
+   * Clear metric data without removing subscribers.
+   *
+   * Used on simulation start/stop so long-lived UI subscribers
+   * (badges, overlays) stay attached but never read stale values
+   * from a previous run.
+   */
+  clearMetrics(): void {
+    this.buffer.fill(0);
+    this.nodeSlots.clear();
+    this.nextSlot = 0;
+    this.dirtyNodes.clear();
+    this.tickCounter = 0;
+    this.rafScheduled = false;
+    if (this.rafHandle) {
+      if (typeof cancelAnimationFrame !== 'undefined') {
+        cancelAnimationFrame(this.rafHandle);
+      }
+      this.rafHandle = 0;
+    }
+  }
+
   /** Reset all state (for simulation restart). */
   reset(): void {
     this.buffer.fill(0);

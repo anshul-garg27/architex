@@ -210,5 +210,412 @@
       "highlightNodes": ["database", "app-server", "transcode-worker"],
       "highlightEdges": ["e-app-db", "e-worker-db"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-spot-reclamation",
+        "name": "Spot Instance Reclamation Wave",
+        "description": "A capacity crunch reclaims 40% of the spot-based transcode fleet within minutes, killing in-flight FFmpeg jobs",
+        "targetNodes": ["transcode-worker"],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "In-flight transcodes die with their instances; their SQS messages reappear after the visibility timeout and restart from scratch on survivors. Queue depth climbs and time-to-publish stretches from minutes to over an hour. No data is lost — raw uploads remain in S3.",
+        "mitigationSteps": [
+          "Diversify the fleet across instance families and AZs to reduce correlated reclamation",
+          "Handle the 2-minute interruption notice: stop pulling work and release the current message immediately",
+          "Fall back to a bounded on-demand pool when spot capacity drops below 60% of desired",
+          "Transcode per-rendition rather than per-video so reclamation loses minutes of work, not hours"
+        ]
+      },
+      {
+        "id": "cs-upload-surge",
+        "name": "Viral Event Upload Surge",
+        "description": "A breaking-news event triggers a 10x upload spike, flooding the transcode queue far beyond fleet drain capacity",
+        "targetNodes": ["mq", "transcode-worker"],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "SQS absorbs the backlog without loss (queue is the safety valve), but time-to-publish p95 breaches the 10-minute SLO. Upload API remains healthy — pre-signed S3 uploads are unaffected by transcode backpressure.",
+        "mitigationSteps": [
+          "Autoscale the fleet on queue depth, not CPU — depth is the leading indicator",
+          "Prioritize the 360p/720p ladder rungs so videos publish fast; backfill 1080p/4K after",
+          "Defer non-urgent re-transcode and optimization jobs to a separate low-priority queue",
+          "Communicate degraded publish-time expectations via the status API"
+        ]
+      },
+      {
+        "id": "cs-corrupt-media",
+        "name": "Malformed Media File Crash Loop",
+        "description": "An adversarial or corrupt container makes FFmpeg crash or balloon memory (decompression bomb), burning retries across the fleet",
+        "targetNodes": ["transcode-worker"],
+        "faultType": "data-corruption",
+        "severity": 2,
+        "expectedBehavior": "The job fails on three different workers, consuming worker slots each time, then lands in the DLQ. Memory-bomb variants can OOM the worker and take co-scheduled jobs down with it.",
+        "mitigationSteps": [
+          "Run an ffprobe validation pass before queueing the full transcode; reject unparseable containers at upload",
+          "Enforce per-job memory/CPU cgroup limits so one job cannot kill its neighbors",
+          "Alert on DLQ arrivals and fingerprint repeat-offender codec paths",
+          "Mark the video 'failed' in metadata with a user-visible reason instead of leaving it 'processing'"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Status writes from workers plus status polls from the app tier exhaust the 300-connection metadata DB pool",
+        "resolution": "Add PgBouncer, batch worker status updates, and serve status polls from a short-TTL cache"
+      },
+      {
+        "rpsThreshold": 8000,
+        "bottleneckNode": "mq",
+        "metric": "queue-depth",
+        "description": "Transcode jobs arrive faster than the fleet drains them; backlog and time-to-publish grow without bound",
+        "resolution": "Scale workers on queue depth with a high max; split renditions into separate messages for finer-grained parallelism"
+      },
+      {
+        "rpsThreshold": 15000,
+        "bottleneckNode": "storage",
+        "metric": "network",
+        "description": "Concurrent multipart writes from hundreds of workers hit S3 per-prefix request limits, throttling rendition uploads",
+        "resolution": "Shard object keys across prefixes (hash-prefixed paths) and tune multipart part sizes"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-visibility-timeout-duplicates",
+        "title": "Visibility Timeout Duplicate Transcodes",
+        "description": "Long 4K jobs exceed the SQS visibility timeout, so a second worker picks up the same job — duplicate compute and racing S3 writes for identical keys",
+        "affectedNodes": ["mq", "transcode-worker"],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Heartbeat ChangeMessageVisibility extensions while the job runs; deterministic idempotent output keys so the race is harmless"
+      },
+      {
+        "id": "ei-stuck-processing",
+        "title": "Status State-Machine Drift",
+        "description": "A worker that dies after writing renditions to S3 but before updating PostgreSQL leaves the video stuck in 'processing' forever despite playable output existing",
+        "affectedNodes": ["database", "transcode-worker", "storage"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Periodic reconciliation sweep comparing S3 rendition manifests against DB status; auto-complete or requeue divergent records"
+      },
+      {
+        "id": "ei-transcode-cost-runaway",
+        "title": "Transcode Compute Cost Runaway",
+        "description": "4K/AV1 renditions cost 2-6 compute-hours per upload-hour; a sustained upload spike multiplies the largest line item in the budget with no natural cap",
+        "affectedNodes": ["transcode-worker"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Gate expensive renditions (4K, AV1) on view-count thresholds — transcode them lazily only for videos that earn an audience"
+      },
+      {
+        "id": "ei-cold-cdn-misses",
+        "title": "Cold CDN Misses on Fresh Uploads",
+        "description": "The first viewers of every new video miss the CDN and pull from S3 origin, paying 100ms+ extra startup latency exactly when creators are watching their own upload",
+        "affectedNodes": ["cdn", "storage"],
+        "likelihood": 5,
+        "impact": 2,
+        "mitigation": "Accept for the long tail; for subscribed/high-follower creators, pre-warm edge caches on publish"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 24300,
+      "components": [
+        {
+          "nodeId": "storage",
+          "label": "Video Storage (S3)",
+          "monthlyCostUsd": 9500,
+          "costDriver": "500TB of renditions with intelligent tiering on the cold tail"
+        },
+        {
+          "nodeId": "cdn",
+          "label": "Video CDN (CloudFront)",
+          "monthlyCostUsd": 6000,
+          "costDriver": "Egress + request volume at 85% hit rate"
+        },
+        {
+          "nodeId": "transcode-worker",
+          "label": "Transcode Workers (FFmpeg)",
+          "monthlyCostUsd": 4800,
+          "costDriver": "50 x 8-vCPU spot instances (~70% off on-demand)"
+        },
+        {
+          "nodeId": "database",
+          "label": "Video Metadata DB",
+          "monthlyCostUsd": 1500,
+          "costDriver": "Primary + 2 replicas, 2TB"
+        },
+        {
+          "nodeId": "app-server",
+          "label": "Upload / Metadata Service",
+          "monthlyCostUsd": 1400,
+          "costDriver": "10 instances issuing pre-signed URLs and serving status"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 700,
+          "costDriver": "Request volume + auth"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Transcode Job Queue (SQS)",
+          "monthlyCostUsd": 400,
+          "costDriver": "Request-based pricing incl. visibility heartbeats"
+        }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low", "rps": 1000, "monthlyCostUsd": 9000 },
+        { "label": "Medium", "rps": 10000, "monthlyCostUsd": 24300 },
+        { "label": "High", "rps": 50000, "monthlyCostUsd": 78000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 10000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 40,
+      "p99LatencyMs": 250,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 10000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "transcode-worker",
+        "metric": "sqs_queue_depth",
+        "threshold": 500,
+        "scaleUpStep": 10,
+        "scaleDownStep": 5,
+        "cooldownSeconds": 300,
+        "minInstances": 10,
+        "maxInstances": 300
+      },
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 30
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Time to Publish (720p)",
+        "metric": "p95_time_to_publish_720p",
+        "target": 600,
+        "unit": "s",
+        "penalty": "Internal SLO — pipeline incident review when breached"
+      },
+      {
+        "name": "Upload API Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Upload API Latency",
+        "metric": "p99_api_ms",
+        "target": 250,
+        "unit": "ms",
+        "penalty": "Internal SLO"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "transcode_queue_depth",
+          "type": "gauge",
+          "description": "Jobs waiting in SQS",
+          "nodeId": "mq"
+        },
+        {
+          "name": "transcode_duration",
+          "type": "histogram",
+          "description": "FFmpeg wall-clock time by resolution and codec",
+          "nodeId": "transcode-worker"
+        },
+        {
+          "name": "transcode_failures",
+          "type": "counter",
+          "description": "Failed jobs by failure class (crash, timeout, validation)",
+          "nodeId": "transcode-worker"
+        },
+        {
+          "name": "time_to_publish",
+          "type": "histogram",
+          "description": "Upload completion to first playable rendition",
+          "nodeId": "app-server"
+        },
+        {
+          "name": "cdn_hit_rate",
+          "type": "gauge",
+          "description": "CloudFront cache hit rate on video segments",
+          "nodeId": "cdn"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Transcode Backlog",
+          "condition": "transcode_queue_depth > 2000 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Time-to-Publish Breach",
+          "condition": "time_to_publish p95 > 15min for 10min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "DLQ Arrivals",
+          "condition": "DLQ receives > 50 messages in 1h",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Fleet Capacity Loss",
+          "condition": "running workers < 60% of desired for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Pipeline Funnel (Upload -> Queue -> Publish)",
+        "Transcode Fleet (Spot Health / Duration / Failures)",
+        "Delivery (CDN Hit Rate / Origin Pulls)"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Media Pipeline On-Call",
+          "responseTimeMinutes": 10,
+          "contacts": ["oncall-media"]
+        },
+        {
+          "level": 2,
+          "name": "Pipeline Team Lead",
+          "responseTimeMinutes": 30,
+          "contacts": ["pipeline-lead"]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Transcode backlog growing",
+          "severity": "high",
+          "steps": [
+            "Compare queue arrival rate vs drain rate to size the gap",
+            "Check spot fleet health — reclamation looks like a backlog problem from the queue side",
+            "Raise max fleet size and add on-demand capacity if spot is constrained",
+            "Switch to priority draining: low-res renditions first so videos publish",
+            "Pause re-transcode/optimization jobs until backlog clears"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Videos stuck in 'processing'",
+          "severity": "medium",
+          "steps": [
+            "Run the reconciliation job: diff S3 rendition manifests against DB status",
+            "Auto-complete records whose renditions exist; requeue those with partial output",
+            "Inspect worker logs for crash-after-write patterns",
+            "Verify the status-update path commits before message ack, not after"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Repeated FFmpeg crashes on specific files",
+          "severity": "medium",
+          "steps": [
+            "Pull samples from the DLQ and run ffprobe locally to classify the malformation",
+            "Add the failing container/codec signature to upload-time validation",
+            "Confirm cgroup memory limits prevented collateral worker damage",
+            "Mark affected videos failed with a user-facing reason"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Pre-Signed Direct-to-S3 Uploads",
+        "context": "Raw video files reach tens of gigabytes; proxying them through the app tier would consume its connections and bandwidth",
+        "decision": "App server issues pre-signed S3 URLs and clients upload directly; S3 event notifications trigger the transcode job",
+        "consequences": [
+          "App tier handles only small control-plane requests regardless of file size",
+          "Upload availability is S3's availability — better than anything self-hosted",
+          "Upload progress and resumability become client+S3 concerns (multipart uploads)"
+        ]
+      },
+      {
+        "title": "Queue-Decoupled Spot Transcode Fleet",
+        "context": "Transcoding is compute-heavy, embarrassingly parallel, and tolerant of minutes of delay — the ideal spot workload",
+        "decision": "Buffer all jobs in SQS and process them on a spot fleet sized by queue depth",
+        "consequences": [
+          "~70% compute cost reduction vs on-demand",
+          "Reclamation waves stretch time-to-publish rather than dropping work",
+          "Visibility-timeout tuning and idempotent outputs are required correctness work"
+        ]
+      },
+      {
+        "title": "Progressive Rendition Publishing",
+        "context": "Creators expect their video playable in minutes; a full ladder including 4K/AV1 takes hours",
+        "decision": "Publish as soon as the first low-res rendition lands; higher tiers and efficient codecs backfill asynchronously",
+        "consequences": [
+          "Time-to-publish SLO measured on 720p, not the full ladder",
+          "Early viewers get capped quality briefly",
+          "Status model must represent partially-published states"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Compute Cost vs Latency Predictability",
+        "choice": "Spot instances for the transcode fleet",
+        "benefit": "The dominant compute line item drops ~70%",
+        "cost": "Reclamation waves make time-to-publish a distribution with a long tail, requiring on-demand fallback"
+      },
+      {
+        "dimension": "Storage Cost vs Client Reach",
+        "choice": "Full multi-codec ladder (H.264, VP9, AV1) stored per video",
+        "benefit": "Every device gets an optimal stream; modern codecs cut delivery egress ~30%",
+        "cost": "Storage multiplies per codec family; 500TB and growing is the largest budget line"
+      },
+      {
+        "dimension": "Consistency vs Pipeline Simplicity",
+        "choice": "Eventually-consistent status state machine",
+        "benefit": "Workers never block on coordination; the pipeline is a simple queue-drain loop",
+        "cost": "Crash windows create stuck states that need reconciliation sweeps to repair"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Managed Transcode Service (MediaConvert-style)",
+        "description": "Outsource the entire transcode step to a cloud media service",
+        "prosVsCons": "Zero fleet operations and built-in format coverage, but per-minute pricing runs 3-5x a tuned spot fleet at this volume, with less codec/quality control",
+        "whyNotChosen": "At 50-instance sustained scale the cost delta funds the team that runs the fleet; codec tuning is also a product differentiator"
+      },
+      {
+        "name": "Just-in-Time Transcoding",
+        "description": "Store only the master and transcode renditions on first request per quality level",
+        "prosVsCons": "Massive storage savings on never-watched content, but first-viewer latency in minutes and unpredictable compute spikes",
+        "whyNotChosen": "Unacceptable first-play experience; the hybrid (lazy 4K/AV1 for low-view videos) captures most of the savings"
+      },
+      {
+        "name": "Synchronous Upload-and-Transcode",
+        "description": "Transcode inline during the upload request and return when the video is ready",
+        "prosVsCons": "Simplest possible state model, but ties up app-tier resources for hours and fails the whole upload on any transcode error",
+        "whyNotChosen": "Multi-hour HTTP requests are a non-starter; decoupling is mandatory at any real scale"
+      }
+    ]
+  }
 }

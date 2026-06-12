@@ -188,5 +188,299 @@
       "highlightNodes": ["database", "storage", "cache"],
       "highlightEdges": ["e-app-db", "e-db-storage", "e-app-cache"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-collab-server-crash",
+        "name": "Collaboration Server Crash",
+        "description": "One of the 30 WebSocket servers crashes, dropping the ~33k live editing sessions that consistent hashing had pinned to it",
+        "targetNodes": ["app-server"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Reconnect storm as ~33k clients rehash to surviving servers within seconds. New owners load CRDT state from Redis and replay Kafka operations since the last snapshot. Edit latency spikes for affected documents; unsnapshotted ops remain safe in the Kafka log.",
+        "mitigationSteps": [
+          "Clients reconnect with jittered exponential backoff to flatten the storm",
+          "Surviving servers warm CRDT state from Redis before accepting edits",
+          "Replay per-document Kafka offsets since the last snapshot to restore unpersisted ops",
+          "Auto-scale a replacement instance and let consistent hashing rebalance"
+        ]
+      },
+      {
+        "id": "cs-sync-bus-partition",
+        "name": "Sync Bus Network Partition",
+        "description": "A network partition cuts a subset of collaboration servers off from the Kafka operation bus while their client WebSockets stay healthy",
+        "targetNodes": ["mq", "app-server"],
+        "faultType": "partition",
+        "severity": 3,
+        "expectedBehavior": "Editors of the same document connected to servers on opposite sides stop seeing each other's edits; local editing keeps working. CRDT semantics guarantee deterministic convergence once the partition heals and buffered operations flush, but presence and cursors are stale for the duration.",
+        "mitigationSteps": [
+          "Surface a degraded-sync indicator to clients instead of failing edits",
+          "Buffer outbound operations locally with producer retries",
+          "On heal, drain the backlog in order and let CRDT merge converge replicas",
+          "Page if consumer lag has not returned to baseline within 5 minutes"
+        ]
+      },
+      {
+        "id": "cs-crdt-cache-loss",
+        "name": "CRDT State Cache Loss",
+        "description": "The 128GB Redis cache holding hot CRDT document state fails completely",
+        "targetNodes": ["cache"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Active sessions keep editing from in-memory server state, but every new document open becomes a cache miss: load latency jumps from ~50ms to seconds (PostgreSQL snapshot read plus Kafka replay), and the doc-open stampede pressures the 500-connection DB pool.",
+        "mitigationSteps": [
+          "Fail document opens over to PostgreSQL snapshots with rate limiting to protect the pool",
+          "Force snapshots from in-memory server state to shrink replay windows",
+          "Restore Redis and warm it with the most recently active documents first",
+          "Hold non-essential batch jobs off PostgreSQL until cache hit rate recovers"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 80000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Periodic CRDT snapshot writes across thousands of hot documents saturate the 500-connection PostgreSQL pool",
+        "resolution": "Batch snapshot writes, add PgBouncer pooling, lengthen the snapshot interval for low-activity documents"
+      },
+      {
+        "rpsThreshold": 150000,
+        "bottleneckNode": "mq",
+        "metric": "queue-depth",
+        "description": "Hot documents concentrate operations on a few of the 64 Kafka partitions; consumer lag delays cross-server sync",
+        "resolution": "Increase partition count, batch and compress small operations, shed presence/cursor traffic before document edits"
+      },
+      {
+        "rpsThreshold": 300000,
+        "bottleneckNode": "app-server",
+        "metric": "memory",
+        "description": "Per-connection buffers plus CRDT metadata (tombstones, per-character IDs) exhaust the 32GB heap on busy servers",
+        "resolution": "Scale out the fleet, run CRDT tombstone compaction, offload presence to a separate lightweight service"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hot-document",
+        "title": "Hot Document Pinned to One Server",
+        "description": "Consistent hashing routes every editor of a document to a single server, so a document with hundreds of concurrent editors cannot be spread out and saturates that instance with a broadcast per keystroke",
+        "affectedNodes": ["lb", "app-server"],
+        "likelihood": 3,
+        "impact": 4,
+        "mitigation": "Cap concurrent editors per document, coalesce broadcasts on a 50-100ms tick, demote overflow viewers to read-only follower mode"
+      },
+      {
+        "id": "ei-tombstone-growth",
+        "title": "CRDT Tombstone Accumulation",
+        "description": "Long-lived, heavily edited documents accumulate deletion tombstones and per-character metadata, inflating CRDT state in Redis and server memory far beyond the visible text size",
+        "affectedNodes": ["cache", "app-server"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Periodic state compaction during quiet periods; archive cold history to S3 revisions"
+      },
+      {
+        "id": "ei-reconnect-storm",
+        "title": "Reconnect Storm After Restart",
+        "description": "A rolling deploy or LB change drops large batches of WebSocket connections at once; simultaneous reconnects plus CRDT state loads spike server CPU and Redis traffic",
+        "affectedNodes": ["lb", "app-server", "cache"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Connection draining on deploys, client-side jittered backoff, reconnect admission control at the load balancer"
+      },
+      {
+        "id": "ei-snapshot-lag",
+        "title": "Snapshot Lag Slows Document Opens",
+        "description": "If snapshotting falls behind (DB pressure or failed jobs), opening a document requires replaying a long Kafka operation tail, turning sub-second opens into multi-second waits",
+        "affectedNodes": ["database", "mq"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Alert on snapshot age; prioritize snapshots for documents with the longest replay tails"
+      },
+      {
+        "id": "ei-op-log-gap",
+        "title": "Operation Loss Beyond Kafka Retention",
+        "description": "Operations between snapshots live only in Kafka (168h retention); a document whose snapshots fail silently for longer than retention loses acknowledged edits permanently",
+        "affectedNodes": ["mq", "database"],
+        "likelihood": 1,
+        "impact": 5,
+        "mitigation": "Monitor per-document snapshot success, alert well before the retention window closes, keep S3 revision backups"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 17600,
+      "components": [
+        { "nodeId": "app-server", "label": "Collaboration Servers", "monthlyCostUsd": 7500, "costDriver": "30 × 8-core/32GB instances for WebSocket fanout" },
+        { "nodeId": "cache", "label": "CRDT State Cache", "monthlyCostUsd": 3400, "costDriver": "128GB Redis cluster" },
+        { "nodeId": "database", "label": "Document DB", "monthlyCostUsd": 3300, "costDriver": "PostgreSQL with 3 replicas, 5TB storage" },
+        { "nodeId": "mq", "label": "Operation Sync Bus", "monthlyCostUsd": 1600, "costDriver": "3-broker Kafka cluster, 64 partitions, 7-day retention" },
+        { "nodeId": "storage", "label": "Revision Storage", "monthlyCostUsd": 1200, "costDriver": "50TB S3 plus snapshot PUT requests" },
+        { "nodeId": "lb", "label": "Load Balancer", "monthlyCostUsd": 600, "costDriver": "1M concurrent WebSocket connections (LCU-hours)" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low", "rps": 20000, "monthlyCostUsd": 6800 },
+        { "label": "Medium", "rps": 200000, "monthlyCostUsd": 17600 },
+        { "label": "High", "rps": 1000000, "monthlyCostUsd": 62000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 200000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 15,
+      "p99LatencyMs": 150,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 200000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "app-server",
+        "metric": "websocket_connections_per_instance",
+        "threshold": 40000,
+        "scaleUpStep": 3,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 10,
+        "maxInstances": 100
+      }
+    ],
+    "slaDefinitions": [
+      { "name": "Edit Propagation", "metric": "p99_op_broadcast_ms", "target": 150, "unit": "ms", "penalty": "10% credit" },
+      { "name": "Document Open", "metric": "p95_doc_load_ms", "target": 1000, "unit": "ms", "penalty": "5% credit" },
+      { "name": "Availability", "metric": "uptime", "target": 99.95, "unit": "%", "penalty": "25% credit" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "op_broadcast_latency", "type": "histogram", "description": "Keystroke-to-peer propagation time", "nodeId": "app-server" },
+        { "name": "websocket_connections", "type": "gauge", "description": "Live editing sessions per server", "nodeId": "app-server" },
+        { "name": "sync_bus_consumer_lag", "type": "gauge", "description": "Kafka lag on per-document operation topics", "nodeId": "mq" },
+        { "name": "crdt_cache_hit_rate", "type": "gauge", "description": "Document opens served from Redis", "nodeId": "cache" },
+        { "name": "snapshot_age_seconds", "type": "gauge", "description": "Max time since last persisted CRDT snapshot across hot documents", "nodeId": "database" }
+      ],
+      "alerts": [
+        { "name": "Sync Lag", "condition": "sync_bus_consumer_lag > 5000 ops for 5min", "severity": "warning", "channel": "slack" },
+        { "name": "Reconnect Storm", "condition": "ws_reconnect_rate > 10000/min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Snapshot Stale", "condition": "snapshot_age_seconds > 300 for 10min", "severity": "critical", "channel": "pagerduty" },
+        { "name": "Doc Open Slow", "condition": "p95_doc_load_ms > 2000 for 5min", "severity": "warning", "channel": "slack" }
+      ],
+      "dashboards": ["Collaboration Overview", "Sync Bus Health", "Persistence & Snapshots"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call", "responseTimeMinutes": 5, "contacts": ["oncall"] },
+        { "level": 2, "name": "Realtime Infra Lead", "responseTimeMinutes": 15, "contacts": ["realtime-lead"] },
+        { "level": 3, "name": "Engineering Manager", "responseTimeMinutes": 30, "contacts": ["eng-manager"] }
+      ],
+      "runbooks": [
+        {
+          "incident": "Collaboration server crash / reconnect storm",
+          "severity": "critical",
+          "steps": [
+            "Confirm instance loss via LB health checks and the connection-count drop",
+            "Verify client backoff is engaged — reconnect rate trending down, not sawtoothing",
+            "Watch CRDT cache hit rate: rehashed documents should warm from Redis, not PostgreSQL",
+            "Confirm Kafka replay lag for rehashed documents returns to zero",
+            "Scale out replacement capacity before declaring all-clear"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Sync bus consumer lag",
+          "severity": "high",
+          "steps": [
+            "Identify hot partitions and the documents behind them",
+            "Shed presence/cursor updates to prioritize document operations",
+            "Scale consumer threads on the affected servers",
+            "If sustained, expand the partition count during a low-traffic window"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "CRDT cache loss",
+          "severity": "critical",
+          "steps": [
+            "Enable doc-open rate limiting to protect the PostgreSQL pool",
+            "Force snapshots from in-memory state on all servers to shrink replay windows",
+            "Restore or replace the Redis cluster and warm the hottest documents first",
+            "Lift rate limits once cache hit rate exceeds 80%"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "CRDT over Operational Transformation",
+        "context": "Concurrent edits from up to 1M users must converge deterministically without a central lock or transform sequencer",
+        "decision": "Use a sequence CRDT (Yjs/Automerge-style) where each character carries a unique (clientID, sequence) identity and concurrent inserts order deterministically",
+        "consequences": [
+          "No central transformation server in the hot path",
+          "Offline and partitioned edits merge cleanly on reconnect",
+          "Per-character metadata and tombstones inflate document state, requiring compaction"
+        ]
+      },
+      {
+        "title": "Document-Sticky Routing via Consistent Hashing",
+        "context": "Broadcasting edits between co-editors is cheapest when they share a process",
+        "decision": "The load balancer consistent-hashes on document ID so all editors of a document land on one collaboration server",
+        "consequences": [
+          "Most edits fan out in-memory with no cross-server hop",
+          "Hot documents cannot be spread across servers",
+          "A server crash concentrates a reconnect storm on its rehashed documents"
+        ]
+      },
+      {
+        "title": "Kafka as Durable Operation Log",
+        "context": "Edits acknowledged to users must survive a server crash that happens between periodic snapshots",
+        "decision": "Publish every operation to a 7-day-retention Kafka bus that doubles as the cross-server sync channel and the replay source on recovery",
+        "consequences": [
+          "Snapshot plus replay-since-offset gives bounded recovery time",
+          "Cross-server sync inherits Kafka's ~2-5ms hop latency",
+          "The retention window becomes a hard durability boundary if snapshots silently fail"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Latency vs Durability",
+        "choice": "Acknowledge edits after Kafka publish, before any database snapshot",
+        "benefit": "Sub-50ms edit echo at 200k ops/sec",
+        "cost": "Durability between snapshots rests entirely on the Kafka log"
+      },
+      {
+        "dimension": "Stickiness vs Load Distribution",
+        "choice": "Pin each document to one server",
+        "benefit": "In-memory fanout and minimal cross-server coordination",
+        "cost": "Viral documents create uneven load that autoscaling cannot smooth"
+      },
+      {
+        "dimension": "Memory vs Merge Correctness",
+        "choice": "Carry full CRDT metadata per character",
+        "benefit": "Conflict-free, lock-free merges in any order",
+        "cost": "Document state several times larger than the visible text"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Central OT Sequencer",
+        "description": "Operational Transformation with a single per-document sequencer that transforms and orders all operations",
+        "prosVsCons": "Smaller document state and a mature model, but the sequencer is a per-document availability and scaling chokepoint",
+        "whyNotChosen": "CRDT removes central coordination and handles offline merges without server-side transform logic"
+      },
+      {
+        "name": "Pessimistic Section Locking",
+        "description": "Lock paragraphs or sections so only one user edits a region at a time",
+        "prosVsCons": "Trivial consistency, but blocks simultaneous character-level co-editing",
+        "whyNotChosen": "Real-time character-level collaboration is the product requirement"
+      },
+      {
+        "name": "Database as Sync Channel",
+        "description": "Persist every operation to PostgreSQL and have servers poll or LISTEN/NOTIFY for changes",
+        "prosVsCons": "Fewer moving parts, but 200k ops/sec of tiny writes overwhelms the database and polling adds latency",
+        "whyNotChosen": "Kafka absorbs the operation firehose with millisecond fanout and replayable history"
+      }
+    ]
+  }
 }

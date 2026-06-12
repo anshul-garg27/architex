@@ -157,5 +157,462 @@
       "highlightNodes": ["stream-processor", "timeseries-db", "cold-storage"],
       "highlightEdges": ["e-stream-tsdb", "e-stream-s3"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-log-storm",
+        "name": "Incident-Driven Log Storm",
+        "description": "An outage in the monitored fleet triggers 20x log volume — error storms with stack traces — exactly when engineers need the platform most",
+        "targetNodes": [
+          "app-servers",
+          "mq",
+          "stream-processor",
+          "search-engine"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Kafka absorbs the surge initially. Flink lag grows; Elasticsearch starts rejecting bulk indexing (es_rejected_execution). Ingest-to-searchable delay stretches from seconds to minutes during the very incident being debugged.",
+        "mitigationSteps": [
+          "Enable DEBUG/INFO sampling at the agents for the noisiest services",
+          "Prioritize ERROR/WARN lanes through the pipeline",
+          "Raise the ES refresh interval to 30s to trade freshness for indexing throughput",
+          "Scale indexing-tier capacity and confirm the Kafka backlog drains"
+        ]
+      },
+      {
+        "id": "cs-es-node-loss",
+        "name": "Elasticsearch Data Node Loss",
+        "description": "A data node crashes, dropping shard copies and triggering a recovery/relocation storm",
+        "targetNodes": [
+          "search-engine",
+          "stream-processor"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Cluster goes yellow (red if any primary had no replica). Shard recovery I/O competes with live indexing; bulk rejections back-pressure Flink and Kafka lag grows. Queries on affected indices return partial results or fail.",
+        "mitigationSteps": [
+          "Verify replicas were promoted and identify any red indices",
+          "Throttle shard recovery/relocation bandwidth to protect indexing",
+          "Delay index allocation if the node may return shortly (avoid pointless rebalancing)",
+          "Restore any lost indices from snapshot and replay the gap from Kafka"
+        ]
+      },
+      {
+        "id": "cs-parser-poison",
+        "name": "Poison Log Line Crash Loop",
+        "description": "A malformed multiline log record crash-loops the Flink parsing stage, halting the entire pipeline",
+        "targetNodes": [
+          "stream-processor",
+          "mq"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "All three sinks (search, metrics, archive) stall simultaneously while producers are unaffected — Kafka lag grows linearly. Classic poison-pill signature: job restarts, hits the same record, dies again.",
+        "mitigationSteps": [
+          "Identify the failing record from the task manager exception",
+          "Route it to the dead-letter queue and deploy a parser guard",
+          "Restart from the last checkpoint",
+          "Verify lag drains and spot-check the DLQ for related records"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "stream-processor",
+        "metric": "cpu",
+        "description": "Grok/regex parsing and enrichment saturate Flink CPU — parsing is the hidden hot loop of log pipelines",
+        "resolution": "Scale task managers, pre-compile patterns, push structured logging to the agents to skip parsing"
+      },
+      {
+        "rpsThreshold": 250000,
+        "bottleneckNode": "search-engine",
+        "metric": "disk-io",
+        "description": "Elasticsearch indexing throughput hits the segment-merge I/O ceiling on hot data nodes",
+        "resolution": "Add hot-tier data nodes, raise refresh interval, tune merge policy, adopt hot-warm ILM tiers"
+      },
+      {
+        "rpsThreshold": 500000,
+        "bottleneckNode": "mq",
+        "metric": "network",
+        "description": "Kafka broker network saturates from raw log throughput plus consumer fan-out",
+        "resolution": "Add brokers, enable zstd compression at producers, rebalance partitions"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-mapping-explosion",
+        "title": "Dynamic Mapping Explosion",
+        "description": "Unstructured JSON logs with arbitrary field names blow past ES field limits and bloat cluster state",
+        "affectedNodes": [
+          "search-engine"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Strict index templates, flattened field types, total-field limits, reject unknown fields to a quarantine index"
+      },
+      {
+        "id": "ei-hot-shards",
+        "title": "Hot Shard Skew on Daily Indices",
+        "description": "Date-based index patterns route all of today's writes to a handful of shards while older shards idle",
+        "affectedNodes": [
+          "search-engine"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Size-based rollover via ILM, shard counts matched to hot-tier node count"
+      },
+      {
+        "id": "ei-retention-cost",
+        "title": "Searchable Retention Cost Bloat",
+        "description": "Keeping 90 days hot-searchable multiplies storage cost; most queries only touch the last 24-48 hours",
+        "affectedNodes": [
+          "search-engine",
+          "cold-storage"
+        ],
+        "likelihood": 5,
+        "impact": 2,
+        "mitigation": "Hot-warm-cold ILM with searchable snapshots in S3; accept slower queries on old data"
+      },
+      {
+        "id": "ei-retention-loss",
+        "title": "Pipeline Outage Exceeds Kafka Retention",
+        "description": "If indexing stays down longer than topic retention, logs are lost permanently — an audit/compliance risk",
+        "affectedNodes": [
+          "mq"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "72h retention with tiered storage; alert when lag exceeds 50% of the retention window"
+      },
+      {
+        "id": "ei-expensive-queries",
+        "title": "Unbounded Wildcard Queries",
+        "description": "Leading-wildcard and wide-range dashboard queries starve indexing CPU on shared data nodes",
+        "affectedNodes": [
+          "search-engine"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Search circuit breakers, async search for long scans, dedicated coordinator nodes, query timeout policy"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 17700,
+      "components": [
+        {
+          "nodeId": "search-engine",
+          "label": "Search Engine (Elasticsearch)",
+          "monthlyCostUsd": 9500,
+          "costDriver": "Hot + warm data nodes — dominant cost of the platform"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Ingestion Queue (Kafka)",
+          "monthlyCostUsd": 2800,
+          "costDriver": "6-broker cluster + 72h retention storage"
+        },
+        {
+          "nodeId": "stream-processor",
+          "label": "Stream Processor (Flink)",
+          "monthlyCostUsd": 2400,
+          "costDriver": "Parse/enrich task manager fleet"
+        },
+        {
+          "nodeId": "timeseries-db",
+          "label": "Metrics DB (InfluxDB)",
+          "monthlyCostUsd": 1600,
+          "costDriver": "Extracted metrics, 30d hot retention"
+        },
+        {
+          "nodeId": "cold-storage",
+          "label": "Cold Storage (S3)",
+          "monthlyCostUsd": 1400,
+          "costDriver": "Compressed archive + lifecycle to Glacier"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 25000,
+          "monthlyCostUsd": 6500
+        },
+        {
+          "label": "Medium",
+          "rps": 100000,
+          "monthlyCostUsd": 17700
+        },
+        {
+          "label": "High",
+          "rps": 500000,
+          "monthlyCostUsd": 62000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 150,
+      "p99LatencyMs": 1500,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.5,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "stream-processor",
+        "metric": "kafka_consumer_lag",
+        "threshold": 2000000,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 4,
+        "maxInstances": 32
+      },
+      {
+        "nodeId": "search-engine",
+        "metric": "indexing_pressure",
+        "threshold": 75,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 900,
+        "minInstances": 6,
+        "maxInstances": 30
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Ingest-to-Searchable",
+        "metric": "p95_searchable_delay_s",
+        "target": 15,
+        "unit": "s",
+        "penalty": "Internal SLO — error budget burn blocks pipeline changes"
+      },
+      {
+        "name": "Query Latency",
+        "metric": "p95_query_ms",
+        "target": 3000,
+        "unit": "ms",
+        "penalty": "Internal SLO — query capacity review"
+      },
+      {
+        "name": "Search Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "Service credits to internal tenants"
+      },
+      {
+        "name": "Data Completeness",
+        "metric": "accepted_logs_indexed",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "Compliance incident report"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "ingest_rate",
+          "type": "counter",
+          "description": "Log events produced per second",
+          "nodeId": "mq"
+        },
+        {
+          "name": "consumer_lag",
+          "type": "gauge",
+          "description": "Kafka lag for the indexing consumer group",
+          "nodeId": "mq"
+        },
+        {
+          "name": "searchable_delay",
+          "type": "gauge",
+          "description": "End-to-end ingest-to-searchable latency",
+          "nodeId": "stream-processor"
+        },
+        {
+          "name": "bulk_rejections",
+          "type": "counter",
+          "description": "ES bulk indexing rejections (es_rejected_execution)",
+          "nodeId": "search-engine"
+        },
+        {
+          "name": "query_latency",
+          "type": "histogram",
+          "description": "Search query latency",
+          "nodeId": "search-engine"
+        },
+        {
+          "name": "archive_write_failures",
+          "type": "counter",
+          "description": "Failed S3 archive writes",
+          "nodeId": "cold-storage"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Searchable Delay High",
+          "condition": "searchable_delay > 60s for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Bulk Rejections",
+          "condition": "bulk_rejections > 0 sustained 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Lag vs Retention",
+          "condition": "consumer_lag > 50% of topic retention",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Cluster Not Green",
+          "condition": "ES cluster status != green for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Ingestion Pipeline",
+        "Cluster & Shard Health",
+        "Query Performance",
+        "Retention & Cost"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Observability On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall-observability"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Search Infra Lead",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "search-infra-lead"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "incident-commander"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Indexing rejections during log storm",
+          "severity": "high",
+          "steps": [
+            "Identify the noisiest services from Kafka topic metrics",
+            "Enable DEBUG/INFO sampling at their agents",
+            "Raise ES refresh interval to 30s and scale the indexing tier",
+            "Confirm bulk rejections stop and the Kafka backlog drains"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Elasticsearch cluster red",
+          "severity": "critical",
+          "steps": [
+            "List red indices and unassigned shards; identify the failed node",
+            "Restore replicas (restart node or allocate to peers) with throttled recovery",
+            "Restore irrecoverable indices from the latest snapshot",
+            "Replay the indexing gap from Kafka and verify document counts"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Pipeline crash loop on poison record",
+          "severity": "medium",
+          "steps": [
+            "Pull the failing record from the task manager exception trace",
+            "Add a parser guard / route to dead-letter queue and redeploy",
+            "Restart the job from the last checkpoint",
+            "Verify lag drains and audit the DLQ for similar records"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Kafka Buffer Between Producers and Indexing",
+        "context": "Log volume spikes correlate exactly with incidents — the worst possible moment for the pipeline to shed data",
+        "decision": "All agents write to Kafka; nothing downstream can block or slow a producer",
+        "consequences": [
+          "Producers are isolated from Elasticsearch health entirely",
+          "A replay window exists for reprocessing after parser fixes",
+          "Topic retention defines the data-loss boundary and must be monitored against lag"
+        ]
+      },
+      {
+        "title": "Parse Once, Fork to Three Sinks",
+        "context": "Search, dashboard metrics, and archival all need the same parsed events but with different stores",
+        "decision": "A single Flink pipeline parses and enriches, then writes to Elasticsearch, InfluxDB, and S3",
+        "consequences": [
+          "One consistent parsing path — no drift between search and metrics",
+          "S3 raw archive is the durable source of truth; Elasticsearch is a rebuildable view",
+          "The pipeline becomes a single point of processing failure, mitigated by checkpoints and the DLQ"
+        ]
+      },
+      {
+        "title": "Extract Metrics From Logs Into a TSDB",
+        "context": "Dashboards refreshing aggregations against Elasticsearch are 10-100x more expensive than reading precomputed series",
+        "decision": "Flink derives counters and latency histograms at ingest time and writes them to InfluxDB",
+        "consequences": [
+          "Dashboards are cheap and fast, independent of search-cluster load",
+          "Metric definitions live in pipeline code and require deployment to change",
+          "Cardinality discipline is needed on extracted label sets"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Freshness vs Indexing Throughput",
+        "choice": "Tunable ES refresh interval (1s normal, 30s under pressure)",
+        "benefit": "Indexing throughput headroom exactly when log storms hit",
+        "cost": "Logs appear in search up to 30s late during incidents"
+      },
+      {
+        "dimension": "Searchable Retention vs Cost",
+        "choice": "Hot-warm-cold ILM with old data in S3 snapshots",
+        "benefit": "Storage cost scales with query value — recent data fast, old data cheap",
+        "cost": "Queries over old data require snapshot mounts and run far slower"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Agents Direct to Elasticsearch",
+        "description": "Filebeat-style shippers writing straight into ES ingest pipelines",
+        "prosVsCons": "Far fewer moving parts, but log storms hit the cluster unbuffered and parsing consumes data-node CPU",
+        "whyNotChosen": "Ingest spikes coincide with incidents; an unbuffered pipeline fails exactly when it is needed"
+      },
+      {
+        "name": "Columnar Store for Logs (ClickHouse-style)",
+        "description": "Store structured logs in a columnar OLAP database with SQL queries",
+        "prosVsCons": "Cheaper storage and fast aggregations, but weaker full-text relevance scoring and a thinner log-tooling ecosystem",
+        "whyNotChosen": "Free-text incident search is the primary workload; inverted indices fit it best"
+      },
+      {
+        "name": "Query Raw Archive Directly (Athena-style)",
+        "description": "Skip the search cluster; scan compressed S3 objects on demand",
+        "prosVsCons": "Cheapest possible storage with zero cluster ops, but queries take minutes",
+        "whyNotChosen": "Minutes-latency search is unusable for live incident response"
+      }
+    ]
+  }
 }

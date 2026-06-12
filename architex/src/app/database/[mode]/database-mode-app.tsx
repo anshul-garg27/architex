@@ -12,6 +12,7 @@ import { OnboardingOverlay } from "@/components/shared/onboarding-overlay";
 import { SimulationAnnouncer } from "@/components/shared/SimulationAnnouncer";
 import { useUIStore } from "@/stores/ui-store";
 import { useCanvasStore } from "@/stores/canvas-store";
+import { useTemplateMetaStore } from "@/stores/template-meta-store";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import React, { useCallback, useEffect } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -69,6 +70,7 @@ export function DatabaseModeApp({ mode }: { mode: DatabaseMode }) {
 
   const handleClearCanvasConfirm = useCallback(() => {
     useCanvasStore.getState().clearCanvas();
+    useTemplateMetaStore.getState().clearActiveTemplate();
     setClearCanvasConfirmOpen(false);
   }, [setClearCanvasConfirmOpen]);
 

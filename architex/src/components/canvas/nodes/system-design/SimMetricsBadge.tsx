@@ -1,32 +1,59 @@
 'use client';
 
 /**
- * SimMetricsBadge — Zero Re-Render Metric Badge
+ * SimMetricsBadge — Calm Two-Tier Telemetry Badge (zero re-renders per tick)
  *
- * Displays simulation metrics (CPU, RPS, latency, error rate) on canvas nodes
- * using CSS custom properties instead of React state. After initial mount,
- * this component NEVER re-renders for value updates.
+ * DEFAULT tier (always visible during sim): one thin band-colored
+ * utilization bar plus a single number (rps). That is all.
+ * DETAIL tier (node hovered or selected): the full formatted metric row
+ * (util · rps · latency · err · queue) with noise-level values omitted
+ * (sub-1 queues, sub-0.1% error rates). No raw floats anywhere.
  *
- * Architecture:
+ * Architecture (unchanged from v1):
  *   1. SimBadgeDriver singleton subscribes to SimMetricsBus
- *   2. On dirty notification, it sets CSS custom properties on registered DOM elements
- *   3. SimMetricsBadge renders once (static HTML structure) and registers its ref
- *   4. CSS `content: var(--prop)` displays the values without React
+ *   2. On rAF-coalesced dirty notification it writes CSS custom properties
+ *      onto registered DOM elements — no React state, no re-renders
+ *   3. CSS `content: var(--prop)` / `transform: scaleX(var(--util))`
+ *      display the values without React
+ *   4. The driver also mirrors the node's worst threshold band onto the
+ *      nearest [data-sim-chrome] ancestor (BaseNode's container) as a
+ *      `data-sim-band` attribute, driving ambient health chrome via CSS.
+ *      The attribute is only touched when the band actually changes.
  */
 
 import { memo, useRef, useEffect } from 'react';
 import { SimMetricsBus } from '@/lib/simulation/sim-metrics-bus';
 import type { NodeMetricsSnapshot } from '@/lib/simulation/sim-metrics-bus';
+import {
+  formatRps,
+  formatLatency,
+  formatQueueDepth,
+  formatErrorRate,
+  formatUtilization,
+  classifyUtilizationBand,
+  classifyNodeMetrics,
+  BAND_COLOR_VAR,
+} from '@/lib/simulation/format-metrics';
+import type { ThresholdBand } from '@/lib/simulation/threshold-bands';
 
 // ---------------------------------------------------------------------------
 // SimBadgeDriver — singleton that drives CSS custom properties
 // ---------------------------------------------------------------------------
 
+interface RegisteredBadge {
+  /** Badge container that receives the CSS custom properties. */
+  el: HTMLElement;
+  /** Nearest [data-sim-chrome] ancestor (BaseNode container), if any. */
+  chrome: HTMLElement | null;
+  /** Last band written to the chrome element (avoids attribute churn). */
+  lastBand: ThresholdBand | null;
+}
+
 class SimBadgeDriver {
   private static instance: SimBadgeDriver | null = null;
 
-  /** Map of nodeId -> registered DOM element. */
-  private elements: Map<string, HTMLElement> = new Map();
+  /** Map of nodeId -> registered badge entry. */
+  private entries: Map<string, RegisteredBadge> = new Map();
 
   /** Unsubscribe handle from the metrics bus. */
   private unsubscribe: (() => void) | null = null;
@@ -44,12 +71,18 @@ class SimBadgeDriver {
 
   /** Register a DOM element for a node. */
   register(nodeId: string, element: HTMLElement): void {
-    this.elements.set(nodeId, element);
+    this.entries.set(nodeId, {
+      el: element,
+      chrome: element.closest<HTMLElement>('[data-sim-chrome]'),
+      lastBand: null,
+    });
   }
 
-  /** Unregister a DOM element for a node. */
+  /** Unregister a node and clear its ambient chrome. */
   unregister(nodeId: string): void {
-    this.elements.delete(nodeId);
+    const entry = this.entries.get(nodeId);
+    entry?.chrome?.removeAttribute('data-sim-band');
+    this.entries.delete(nodeId);
   }
 
   /** Start listening to SimMetricsBus. */
@@ -57,33 +90,47 @@ class SimBadgeDriver {
     const bus = SimMetricsBus.getInstance();
     this.unsubscribe = bus.subscribe((dirtyNodeIds) => {
       for (const nodeId of dirtyNodeIds) {
-        const el = this.elements.get(nodeId);
-        if (!el) continue;
+        const entry = this.entries.get(nodeId);
+        if (!entry) continue;
 
         const metrics = bus.readNode(nodeId);
         if (!metrics) continue;
 
-        this.applyProperties(el, metrics);
+        this.applyProperties(entry, metrics);
       }
     });
   }
 
-  /** Apply CSS custom properties to a DOM element. */
-  private applyProperties(el: HTMLElement, metrics: NodeMetricsSnapshot): void {
-    const s = el.style;
-    s.setProperty('--cpu-text', `"${Math.round(metrics.utilization * 100)}%"`);
-    s.setProperty('--rps-text', `"${Math.round(metrics.throughput)} rps"`);
-    s.setProperty('--lat-text', `"${Math.round(metrics.latency)}ms"`);
-    s.setProperty('--err-text', `"${(metrics.errorRate * 100).toFixed(1)}%"`);
-    s.setProperty('--util', String(metrics.utilization));
+  /** Apply CSS custom properties (and band chrome) for one node. */
+  private applyProperties(entry: RegisteredBadge, metrics: NodeMetricsSnapshot): void {
+    const s = entry.el.style;
 
-    // Set color based on utilization
-    if (metrics.utilization >= 0.85) {
-      s.setProperty('--badge-color', 'var(--state-error, #EF4444)');
-    } else if (metrics.utilization >= 0.6) {
-      s.setProperty('--badge-color', 'var(--state-warning, #F59E0B)');
-    } else {
-      s.setProperty('--badge-color', 'var(--state-active, #3B82F6)');
+    // ── Default tier: utilization bar + one number ──
+    const clampedUtil = Math.min(Math.max(metrics.utilization, 0), 1);
+    s.setProperty('--util', String(clampedUtil));
+    s.setProperty('--band-color', BAND_COLOR_VAR[classifyUtilizationBand(metrics.utilization)]);
+    s.setProperty('--rps-text', `"${formatRps(metrics.throughput)}"`);
+
+    // ── Detail tier: full formatted row, nulls omitted via display vars ──
+    s.setProperty('--util-text', `"${formatUtilization(metrics.utilization)}"`);
+    s.setProperty('--lat-text', `"${formatLatency(metrics.latency)}"`);
+
+    const err = formatErrorRate(metrics.errorRate);
+    s.setProperty('--err-display', err ? 'inline-block' : 'none');
+    if (err) s.setProperty('--err-text', `"err ${err}"`);
+
+    const q = formatQueueDepth(metrics.queueDepth);
+    s.setProperty('--q-display', q ? 'inline-block' : 'none');
+    if (q) s.setProperty('--q-text', `"Q:${q}"`);
+
+    // ── Ambient node chrome: write only on band transitions ──
+    const band = classifyNodeMetrics({
+      utilization: metrics.utilization,
+      errorRate: metrics.errorRate,
+    });
+    if (band !== entry.lastBand) {
+      entry.lastBand = band;
+      entry.chrome?.setAttribute('data-sim-band', band);
     }
   }
 
@@ -93,7 +140,10 @@ class SimBadgeDriver {
       this.unsubscribe();
       this.unsubscribe = null;
     }
-    this.elements.clear();
+    for (const entry of this.entries.values()) {
+      entry.chrome?.removeAttribute('data-sim-band');
+    }
+    this.entries.clear();
     SimBadgeDriver.instance = null;
   }
 }
@@ -104,13 +154,19 @@ class SimBadgeDriver {
 
 interface SimMetricsBadgeProps {
   nodeId: string;
+  /** Opens the detail tier (BaseNode passes its `selected` state). Hover opens it via CSS. */
+  expanded?: boolean;
 }
 
 /**
- * Renders a static metric badge that updates via CSS custom properties.
- * After initial mount, this component never re-renders for value changes.
+ * Renders a static two-tier badge that updates via CSS custom properties.
+ * After initial mount, this component never re-renders for value changes —
+ * only when `expanded` (selection) flips, which is user-paced, not per-tick.
  */
-export const SimMetricsBadge = memo(function SimMetricsBadge({ nodeId }: SimMetricsBadgeProps) {
+export const SimMetricsBadge = memo(function SimMetricsBadge({
+  nodeId,
+  expanded = false,
+}: SimMetricsBadgeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -128,43 +184,61 @@ export const SimMetricsBadge = memo(function SimMetricsBadge({ nodeId }: SimMetr
   return (
     <div
       ref={containerRef}
-      className="sim-badge-container"
+      className="sim-badge-container w-full"
+      data-expanded={expanded ? '' : undefined}
       style={{
-        // Initial values before first update
-        ['--cpu-text' as string]: '"—"',
-        ['--rps-text' as string]: '"—"',
-        ['--lat-text' as string]: '"—"',
-        ['--err-text' as string]: '"—"',
-        ['--badge-color' as string]: 'var(--state-idle, #6B7280)',
+        // Initial values before the first bus flush
         ['--util' as string]: '0',
+        ['--band-color' as string]: 'var(--state-idle)',
+        ['--rps-text' as string]: '"—"',
+        ['--util-text' as string]: '"—"',
+        ['--lat-text' as string]: '"—"',
+        ['--err-display' as string]: 'none',
+        ['--q-display' as string]: 'none',
       }}
     >
-      <div className="flex items-center gap-1 text-[9px] font-mono leading-none opacity-80">
+      {/* ── DEFAULT tier: thin utilization bar + one number (rps) ── */}
+      <div className="flex items-center gap-1.5">
         <span
-          className="sim-badge-cpu inline-block rounded px-1 py-0.5"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--badge-color) 15%, transparent)' }}
-        />
-        <span
-          className="sim-badge-rps inline-block rounded px-1 py-0.5"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--badge-color) 10%, transparent)' }}
-        />
-        <span
-          className="sim-badge-lat inline-block rounded px-1 py-0.5"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--badge-color) 10%, transparent)' }}
-        />
-        <span
-          className="sim-badge-err inline-block rounded px-1 py-0.5"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--badge-color) 10%, transparent)' }}
-        />
+          className="relative h-[3px] min-w-0 flex-1 overflow-hidden rounded-full"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--state-idle) 25%, transparent)' }}
+        >
+          <span
+            className="absolute inset-0 origin-left rounded-full transition-transform duration-300 ease-out motion-reduce:transition-none"
+            style={{
+              backgroundColor: 'var(--band-color)',
+              transform: 'scaleX(var(--util))',
+            }}
+          />
+        </span>
+        <span className="sim-badge-rps sim-badge-rps-default font-mono text-[9px] leading-none tabular-nums text-[var(--muted-foreground)]" />
+      </div>
+
+      {/* ── DETAIL tier: full row, only on hover (CSS) or selection (data-expanded) ── */}
+      <div className="sim-badge-detail items-center gap-1 pt-1 font-mono text-[9px] leading-none tabular-nums text-[var(--muted-foreground)]">
+        <span className="sim-badge-util" />
+        <span className="sim-badge-rps sim-badge-sep" />
+        <span className="sim-badge-lat sim-badge-sep" />
+        <span className="sim-badge-err sim-badge-sep" style={{ color: 'var(--state-warning)' }} />
+        <span className="sim-badge-q sim-badge-sep" style={{ color: 'var(--state-warning)' }} />
       </div>
 
       {/* CSS-only content display using ::after pseudo-elements.
-          The actual content is set via CSS custom properties. */}
+          The actual values arrive via CSS custom properties set by the driver. */}
       <style>{`
-        .sim-badge-cpu::after { content: var(--cpu-text); }
         .sim-badge-rps::after { content: var(--rps-text); }
+        .sim-badge-util::after { content: var(--util-text); }
         .sim-badge-lat::after { content: var(--lat-text); }
-        .sim-badge-err::after { content: var(--err-text); }
+        .sim-badge-err { display: var(--err-display, none); }
+        .sim-badge-err::after { content: var(--err-text, ""); }
+        .sim-badge-q { display: var(--q-display, none); }
+        .sim-badge-q::after { content: var(--q-text, ""); }
+        .sim-badge-sep::before { content: '·'; margin-right: 0.25rem; opacity: 0.6; }
+        .sim-badge-detail { display: none; }
+        .group:hover .sim-badge-detail,
+        .sim-badge-container[data-expanded] .sim-badge-detail { display: flex; }
+        .group:hover .sim-badge-rps-default,
+        .sim-badge-container[data-expanded] .sim-badge-rps-default { display: none; }
       `}</style>
     </div>
   );

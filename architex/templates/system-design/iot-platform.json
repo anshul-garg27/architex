@@ -157,5 +157,447 @@
       "highlightNodes": ["stream-processor", "storage"],
       "highlightEdges": ["e-stream-storage"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-reconnect-storm",
+        "name": "Device Reconnect Storm",
+        "description": "A regional network outage heals and hundreds of thousands of devices reconnect to the MQTT broker simultaneously",
+        "targetNodes": [
+          "api-gw",
+          "iot-devices"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Connection-establishment rate spikes 50x; CONNACK latency climbs to seconds and the broker sheds connections. Devices buffer telemetry locally, then flush on reconnect — ingestion dips, then surges well above steady state into Kafka.",
+        "mitigationSteps": [
+          "Enable connection rate limiting at the broker",
+          "Verify device firmware applies jittered exponential backoff",
+          "Scale broker nodes horizontally before the buffered-data flush wave",
+          "Watch CONNACK p99 and Kafka produce rate until both normalize"
+        ]
+      },
+      {
+        "id": "cs-flink-crash-recovery",
+        "name": "Stream Processor Crash and Checkpoint Restore",
+        "description": "The Flink job crashes and restores from its last checkpoint, replaying a window of already-processed events",
+        "targetNodes": [
+          "stream-processor",
+          "mq"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Ingestion into Kafka continues unaffected — the durable buffer does its job. Downstream writes stop and consumer lag grows linearly. On restore, events since the last checkpoint are reprocessed; without idempotent sinks this writes duplicate points to InfluxDB.",
+        "mitigationSteps": [
+          "Confirm automatic restart restored from the latest checkpoint",
+          "Verify InfluxDB writes are idempotent (same timestamp+tags upsert)",
+          "Track consumer lag drain rate; scale task managers if recovery is slow",
+          "Confirm Kafka retention comfortably covers the outage window"
+        ]
+      },
+      {
+        "id": "cs-tsdb-write-stall",
+        "name": "Time-Series DB Write Stall",
+        "description": "InfluxDB compaction backlog saturates disk I/O and write requests start timing out",
+        "targetNodes": [
+          "tsdb",
+          "stream-processor"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Flink sink backpressure propagates upstream and Kafka consumer lag grows; dashboards go stale but no data is lost. The S3 archival path is unaffected and stays current.",
+        "mitigationSteps": [
+          "Throttle dashboard query load to free I/O for compactions",
+          "Expand storage IOPS or add a write-capable node",
+          "Let Kafka absorb the backlog — verify retention headroom",
+          "Downsample or drop high-cardinality series contributing to compaction debt"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "api-gw",
+        "metric": "connections",
+        "description": "MQTT broker saturates on persistent connection and keepalive overhead from the device fleet",
+        "resolution": "Scale broker cluster horizontally, lengthen keepalive intervals, shard devices by region"
+      },
+      {
+        "rpsThreshold": 150000,
+        "bottleneckNode": "stream-processor",
+        "metric": "cpu",
+        "description": "Flink parallelism saturates on payload decoding, enrichment, and windowed aggregation",
+        "resolution": "Increase job parallelism, add task managers, fix key skew from chatty devices"
+      },
+      {
+        "rpsThreshold": 400000,
+        "bottleneckNode": "tsdb",
+        "metric": "disk-io",
+        "description": "InfluxDB write throughput hits the disk I/O ceiling; compactions fall behind",
+        "resolution": "Shard by device/tenant, batch writes into larger points, downsample at ingest"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-cardinality-explosion",
+        "title": "Tag Cardinality Explosion",
+        "description": "Unbounded tag combinations (device ID x firmware x location) blow up the InfluxDB series index and memory",
+        "affectedNodes": [
+          "tsdb"
+        ],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "Tag schema governance, hard cardinality limits, keep high-cardinality identifiers as fields not tags"
+      },
+      {
+        "id": "ei-clock-skew",
+        "title": "Device Clock Skew and Late Events",
+        "description": "Devices with drifting clocks or buffered offline data deliver out-of-order events that corrupt windowed aggregations",
+        "affectedNodes": [
+          "stream-processor"
+        ],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Event-time processing with watermarks and bounded allowed-lateness; quarantine wildly skewed timestamps"
+      },
+      {
+        "id": "ei-poison-payloads",
+        "title": "Malformed Firmware Payloads",
+        "description": "A bad firmware rollout emits malformed payloads that crash-loop the parse stage",
+        "affectedNodes": [
+          "stream-processor",
+          "mq"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Schema registry validation at ingest, dead-letter queue for unparseable events, per-firmware-version error metrics"
+      },
+      {
+        "id": "ei-retention-loss",
+        "title": "Consumer Outage Exceeds Kafka Retention",
+        "description": "If downstream processing stays down longer than topic retention, unconsumed telemetry is permanently lost",
+        "affectedNodes": [
+          "mq"
+        ],
+        "likelihood": 2,
+        "impact": 5,
+        "mitigation": "Size retention to 72h, enable tiered storage, alert when lag exceeds 50% of the retention window"
+      },
+      {
+        "id": "ei-hot-partition",
+        "title": "Chatty Device Partition Skew",
+        "description": "Partitioning by device ID lets a few misbehaving high-frequency devices skew load onto single partitions",
+        "affectedNodes": [
+          "mq",
+          "stream-processor"
+        ],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Composite partition keys, per-device rate limiting at the broker, partition rebalance monitoring"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 9800,
+      "components": [
+        {
+          "nodeId": "stream-processor",
+          "label": "Stream Processor (Flink)",
+          "monthlyCostUsd": 2600,
+          "costDriver": "Task manager fleet for parse/enrich/aggregate"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Ingestion Queue (Kafka)",
+          "monthlyCostUsd": 2400,
+          "costDriver": "3-broker MSK + 72h retention storage"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "MQTT Broker Fleet",
+          "monthlyCostUsd": 2200,
+          "costDriver": "Persistent connection capacity for the device fleet"
+        },
+        {
+          "nodeId": "tsdb",
+          "label": "TimeSeries DB (InfluxDB)",
+          "monthlyCostUsd": 1800,
+          "costDriver": "Write throughput + 30d hot retention"
+        },
+        {
+          "nodeId": "storage",
+          "label": "Raw Data Lake (S3)",
+          "monthlyCostUsd": 800,
+          "costDriver": "Compressed raw archive with lifecycle to Glacier"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 10000,
+          "monthlyCostUsd": 3200
+        },
+        {
+          "label": "Medium",
+          "rps": 50000,
+          "monthlyCostUsd": 9800
+        },
+        {
+          "label": "High",
+          "rps": 250000,
+          "monthlyCostUsd": 34000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 50000,
+      "trafficProfile": "steady",
+      "p50LatencyMs": 25,
+      "p99LatencyMs": 200,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.5,
+      "throughputRps": 50000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "api-gw",
+        "metric": "active_connections_per_node",
+        "threshold": 80000,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 3,
+        "maxInstances": 30
+      },
+      {
+        "nodeId": "stream-processor",
+        "metric": "kafka_consumer_lag",
+        "threshold": 1000000,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 4,
+        "maxInstances": 32
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Ingestion Availability",
+        "metric": "publish_success_rate",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "Customer service credits per contract tier"
+      },
+      {
+        "name": "End-to-End Freshness",
+        "metric": "p95_device_to_dashboard_s",
+        "target": 30,
+        "unit": "s",
+        "penalty": "Internal SLO — pipeline capacity review"
+      },
+      {
+        "name": "Data Completeness",
+        "metric": "accepted_events_persisted",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "Root-cause report owed to affected tenants"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "mqtt_connect_rate",
+          "type": "counter",
+          "description": "New device connections per second",
+          "nodeId": "api-gw"
+        },
+        {
+          "name": "connack_latency",
+          "type": "histogram",
+          "description": "MQTT CONNACK response time",
+          "nodeId": "api-gw"
+        },
+        {
+          "name": "consumer_lag",
+          "type": "gauge",
+          "description": "Kafka consumer group lag in events",
+          "nodeId": "mq"
+        },
+        {
+          "name": "checkpoint_duration",
+          "type": "histogram",
+          "description": "Flink checkpoint completion time",
+          "nodeId": "stream-processor"
+        },
+        {
+          "name": "tsdb_write_latency",
+          "type": "histogram",
+          "description": "InfluxDB batch write latency",
+          "nodeId": "tsdb"
+        },
+        {
+          "name": "series_cardinality",
+          "type": "gauge",
+          "description": "Active series count in InfluxDB",
+          "nodeId": "tsdb"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Consumer Lag Growing",
+          "condition": "consumer_lag > 5000000 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Checkpoint Failures",
+          "condition": "3 consecutive checkpoint failures",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Broker Connection Saturation",
+          "condition": "connections > 90% capacity",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Cardinality Growth",
+          "condition": "series_cardinality growth > 10%/day",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Ingestion Pipeline Health",
+        "Device Fleet Connectivity",
+        "Storage & Cardinality"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Data Platform On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall-data-platform"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Streaming Infra Lead",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "streaming-lead"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "incident-commander"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Kafka consumer lag growing",
+          "severity": "medium",
+          "steps": [
+            "Confirm the Flink job is healthy and checkpointing",
+            "Check for skewed partitions from chatty devices",
+            "Scale task managers and verify lag is draining",
+            "Extend topic retention if drain will take longer than the remaining window"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "MQTT reconnect storm",
+          "severity": "high",
+          "steps": [
+            "Enable broker connection rate limiting",
+            "Verify device backoff config is active fleet-wide",
+            "Scale broker nodes ahead of the buffered-telemetry flush",
+            "Monitor CONNACK p99 and produce rate until stable"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "InfluxDB write stall",
+          "severity": "high",
+          "steps": [
+            "Check compaction queue and disk I/O saturation",
+            "Throttle dashboard queries to free I/O headroom",
+            "Add IOPS or a write node; let Kafka buffer meanwhile",
+            "Replay lagged data and verify no gaps in series"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Kafka as the Durable Ingestion Buffer",
+        "context": "Device telemetry arrives whether or not downstream systems are healthy; dropping it is unacceptable",
+        "decision": "The MQTT broker writes everything into Kafka before any processing happens",
+        "consequences": [
+          "Downstream outages cost latency, not data — within the retention window",
+          "Replayability enables reprocessing after parser bugs or schema changes",
+          "Topic retention sizing becomes the explicit data-loss boundary"
+        ]
+      },
+      {
+        "title": "Dual Sink: Hot Time-Series Path + Raw Archive",
+        "context": "Dashboards need second-level freshness on aggregates; ML and audits need complete raw history",
+        "decision": "Flink writes rollups to InfluxDB for dashboards and the untouched raw stream to S3",
+        "consequences": [
+          "Raw S3 archive is the cheap, complete source of truth",
+          "InfluxDB stays small and fast by holding only hot, downsampled data",
+          "Reprocessing from raw data is always possible when requirements change"
+        ]
+      },
+      {
+        "title": "MQTT at the Edge Instead of HTTP",
+        "context": "Constrained devices on flaky networks need small packets, persistent sessions, and delivery semantics",
+        "decision": "Devices speak MQTT with QoS levels to a broker fleet acting as the ingestion gateway",
+        "consequences": [
+          "Far lower per-message overhead than HTTP polling",
+          "Broker connection state becomes its own scaling dimension",
+          "Reconnect storms are a first-class failure mode to engineer for"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Freshness vs Write Cost",
+        "choice": "Micro-batched writes to InfluxDB instead of per-event writes",
+        "benefit": "An order of magnitude fewer write operations and better compression",
+        "cost": "A few seconds of added dashboard latency"
+      },
+      {
+        "dimension": "Exactly-Once vs Throughput",
+        "choice": "At-least-once delivery with idempotent sinks instead of end-to-end transactions",
+        "benefit": "Higher throughput and simpler operations than two-phase commit sinks",
+        "cost": "Sinks must tolerate duplicate writes (same timestamp+tags upsert)"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Direct Broker-to-Database Writes",
+        "description": "MQTT broker writes telemetry straight into InfluxDB without Kafka or Flink",
+        "prosVsCons": "Fewer moving parts and lower latency, but any database stall drops device data on the floor",
+        "whyNotChosen": "Durability under downstream failure is the core requirement; the buffer pays for itself in the first incident"
+      },
+      {
+        "name": "Generic Wide-Column Store for Telemetry",
+        "description": "Store time-series data in Cassandra with hand-rolled rollup jobs",
+        "prosVsCons": "Flexible and horizontally scalable, but manual downsampling, retention, and compression tuning",
+        "whyNotChosen": "A purpose-built TSDB ships compression, retention policies, and downsampling out of the box"
+      }
+    ]
+  }
 }

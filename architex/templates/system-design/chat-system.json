@@ -371,7 +371,7 @@
         "name": "Message DB Latency Spike",
         "description": "Cassandra compaction causes read latency spike",
         "targetNodes": [
-          "message-store"
+          "database"
         ],
         "faultType": "latency",
         "severity": 3,
@@ -387,7 +387,7 @@
         "name": "Presence Data Stale",
         "description": "Presence heartbeat processing falls behind",
         "targetNodes": [
-          "presence-service"
+          "cache"
         ],
         "faultType": "latency",
         "severity": 2,
@@ -409,7 +409,7 @@
       },
       {
         "rpsThreshold": 100000,
-        "bottleneckNode": "message-store",
+        "bottleneckNode": "database",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -432,7 +432,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "presence-service"
+          "cache"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -460,7 +460,7 @@
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "presence-service",
+          "nodeId": "cache",
           "label": "Storage",
           "monthlyCostUsd": 11666,
           "costDriver": "Storage and I/O"

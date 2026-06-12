@@ -7,8 +7,11 @@
  * active simulation. Reads from cost-model.ts LiveCostState via the
  * orchestrator.
  *
- * Shows $/hr, cumulative cost, monthly projection, and a budget gauge.
- * Collapsible by the user. Visible only when simulation is active.
+ * Calm-telemetry default: a collapsed "$x.xx/hr" chip in the top-right
+ * lane. The full panel ($/hr, cumulative cost, monthly projection, budget
+ * gauge) opens only on user click, and the open/closed choice persists in
+ * localStorage ('architex-cost-monitor-open'). Visible only when the
+ * simulation is active.
  */
 
 import { memo, useState, useEffect, useRef, useCallback } from 'react';
@@ -28,6 +31,9 @@ import type { LiveCostState } from '@/lib/simulation/cost-model';
 
 /** Default monthly budget threshold (USD). */
 const DEFAULT_BUDGET = 10_000;
+
+/** localStorage key persisting the user's expand/collapse choice. */
+const OPEN_STORAGE_KEY = 'architex-cost-monitor-open';
 
 // ---------------------------------------------------------------------------
 // Budget gauge color
@@ -49,7 +55,18 @@ export const CostMonitor = memo(function CostMonitor() {
   const orchestratorRef = useSimulationStore((s) => s.orchestratorRef);
   const nodes = useCanvasStore((s) => s.nodes);
 
-  const [collapsed, setCollapsed] = useState(false);
+  // Panel visibility — default is the collapsed chip; the expanded panel
+  // is opt-in and the user's choice persists across sessions. Safe to read
+  // localStorage in the lazy initializer: this component only mounts
+  // client-side after the simulation leaves 'idle', so SSR never sees it.
+  const [open, setOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem(OPEN_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [costState, setCostState] = useState<LiveCostState | null>(null);
   const [expanded, setExpanded] = useState(false);
   const rafRef = useRef<number>(0);
@@ -80,7 +97,17 @@ export const CostMonitor = memo(function CostMonitor() {
     };
   }, [isActive, orchestratorRef]);
 
-  const toggleCollapsed = useCallback(() => setCollapsed((v) => !v), []);
+  const toggleOpen = useCallback(() => {
+    setOpen((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(OPEN_STORAGE_KEY, String(next));
+      } catch {
+        // Persistence is best-effort (private mode / quota) — keep UI state.
+      }
+      return next;
+    });
+  }, []);
   const toggleExpanded = useCallback(() => setExpanded((v) => !v), []);
 
   if (!isActive) return null;
@@ -104,12 +131,32 @@ export const CostMonitor = memo(function CostMonitor() {
     nodeCosts.sort((a, b) => b.cost - a.cost);
   }
 
+  // ── Collapsed chip (default) — top-right lane, one ambient number ──
+  if (!open) {
+    return (
+      <button
+        onClick={toggleOpen}
+        aria-expanded={false}
+        aria-label={`Cost monitor: $${hourly.toFixed(2)} per hour. Click to expand.`}
+        className="pointer-events-auto absolute right-4 top-20 z-30 flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-2.5 py-1 shadow-md backdrop-blur-sm transition-colors hover:bg-elevated"
+      >
+        <DollarSign className="h-3 w-3 text-node-messaging" />
+        <span className="font-mono text-[11px] font-medium tabular-nums text-foreground">
+          ${hourly.toFixed(2)}/hr
+        </span>
+        <ChevronDown className="h-3 w-3 text-foreground-muted" />
+      </button>
+    );
+  }
+
+  // ── Expanded panel (user opt-in, persisted) ──
   return (
-    <div className="pointer-events-auto absolute right-4 top-20 z-20 w-56">
+    <div className="pointer-events-auto absolute right-4 top-20 z-30 w-56">
       <div className="rounded-xl border border-border bg-background/90 shadow-lg backdrop-blur-sm">
-        {/* Header */}
+        {/* Header — click collapses back to the chip */}
         <button
-          onClick={toggleCollapsed}
+          onClick={toggleOpen}
+          aria-expanded={true}
           className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-elevated"
         >
           <DollarSign className="h-3.5 w-3.5 text-node-messaging" />
@@ -117,15 +164,10 @@ export const CostMonitor = memo(function CostMonitor() {
           <span className="ml-auto font-mono tabular-nums text-foreground-muted">
             ${hourly.toFixed(2)}/hr
           </span>
-          {collapsed ? (
-            <ChevronDown className="h-3 w-3 text-foreground-muted" />
-          ) : (
-            <ChevronUp className="h-3 w-3 text-foreground-muted" />
-          )}
+          <ChevronUp className="h-3 w-3 text-foreground-muted" />
         </button>
 
-        {!collapsed && (
-          <div className="border-t border-border px-3 pb-3 pt-2">
+        <div className="border-t border-border px-3 pb-3 pt-2">
             {/* Summary metrics */}
             <div className="space-y-1.5 text-[11px]">
               <div className="flex justify-between">
@@ -201,8 +243,7 @@ export const CostMonitor = memo(function CostMonitor() {
                 )}
               </div>
             )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

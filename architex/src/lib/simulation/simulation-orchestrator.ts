@@ -51,6 +51,7 @@ import { EdgeFlowTracker } from './edge-flow-tracker';
 import { getNodeServiceRateFromData } from './node-service-rates';
 import { SimulationMetricsBus } from './simulation-metrics-bus';
 import type { NodeSimMetrics } from './simulation-metrics-bus';
+import { SimMetricsBus } from './sim-metrics-bus';
 import { NarrativeEngine } from './narrative-engine';
 
 // ---------------------------------------------------------------------------
@@ -240,6 +241,7 @@ export class SimulationOrchestrator {
     this.v2PressureCounters.clear();
     this.edgeFlowTracker.reset();
     this.metricsBus.reset();
+    SimMetricsBus.getInstance().clearMetrics();
     this.tickHistory = [];
     this.costState = {
       currentHourlyRate: 0,
@@ -294,6 +296,7 @@ export class SimulationOrchestrator {
     this.v2PressureCounters.clear();
     this.edgeFlowTracker.reset();
     this.metricsBus.reset();
+    SimMetricsBus.getInstance().clearMetrics();
     this.tickHistory = [];
     this.currentTick = 0;
     this.timeline = null;
@@ -742,6 +745,7 @@ export class SimulationOrchestrator {
     // =====================================================================
     // STAGE 7: Metrics Bus Write (NOT to Zustand per node)
     // =====================================================================
+    const flatBus = SimMetricsBus.getInstance();
     for (const [nodeId, res] of nodeResults) {
       const busState: NodeSimMetrics['state'] = res.forceError
         ? 'down'
@@ -759,7 +763,19 @@ export class SimulationOrchestrator {
         queueDepth: res.queueDepth,
         state: busState,
       });
+
+      // Mirror into the TypedArray singleton bus that UI badges/overlays
+      // subscribe to (rAF-coalesced reads, no per-tick React renders).
+      flatBus.write(nodeId, {
+        throughput: res.throughput,
+        latency: res.effectiveLatency,
+        errorRate: res.errorRate,
+        utilization: res.utilization,
+        queueDepth: res.queueDepth,
+        cacheHitRate: 0,
+      });
     }
+    flatBus.incrementTick();
 
     // Notify bus subscribers (for RAF-based UI consumers)
     this.metricsBus.notify();

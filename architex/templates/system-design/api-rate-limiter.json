@@ -216,7 +216,7 @@
         "name": "Rate Counter Desync",
         "description": "Redis counter diverges across replicas",
         "targetNodes": [
-          "redis-counter"
+          "cache"
         ],
         "faultType": "data-corruption",
         "severity": 3,
@@ -231,7 +231,7 @@
         "name": "Redis Counter Store Crash",
         "description": "Rate limit counter store goes down",
         "targetNodes": [
-          "redis-counter"
+          "cache"
         ],
         "faultType": "crash",
         "severity": 4,
@@ -246,7 +246,7 @@
         "name": "Window Reset Thundering Herd",
         "description": "All rate limit windows reset simultaneously",
         "targetNodes": [
-          "rate-limiter-svc"
+          "app-server"
         ],
         "faultType": "resource-exhaustion",
         "severity": 2,
@@ -260,14 +260,14 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 50000,
-        "bottleneckNode": "redis-counter",
+        "bottleneckNode": "cache",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
       },
       {
         "rpsThreshold": 100000,
-        "bottleneckNode": "redis-counter",
+        "bottleneckNode": "cache",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -279,7 +279,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "redis-counter"
+          "cache"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -290,7 +290,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "rate-limiter-svc"
+          "app-server"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -301,7 +301,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "redis-counter"
+          "cache"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -312,13 +312,13 @@
       "totalMonthlyCostUsd": 2500,
       "components": [
         {
-          "nodeId": "redis-counter",
+          "nodeId": "cache",
           "label": "Primary Service",
           "monthlyCostUsd": 833,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "rate-limiter-svc",
+          "nodeId": "app-server",
           "label": "Storage",
           "monthlyCostUsd": 833,
           "costDriver": "Storage and I/O"
@@ -359,7 +359,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "redis-counter",
+        "nodeId": "cache",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -391,13 +391,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "redis-counter"
+          "nodeId": "cache"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "redis-counter"
+          "nodeId": "cache"
         }
       ],
       "alerts": [

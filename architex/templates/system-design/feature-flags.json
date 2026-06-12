@@ -229,7 +229,7 @@
         "name": "Flag Store Unavailable",
         "description": "Feature flag database becomes unreachable",
         "targetNodes": [
-          "flag-store"
+          "database"
         ],
         "faultType": "crash",
         "severity": 3,
@@ -245,7 +245,7 @@
         "name": "Bad Feature Rollout",
         "description": "Feature flag enabled for 100% causes production incident",
         "targetNodes": [
-          "flag-evaluator"
+          "app-server"
         ],
         "faultType": "error",
         "severity": 4,
@@ -261,7 +261,7 @@
         "name": "Complex Rule Evaluation Spike",
         "description": "Complex targeting rules cause evaluation latency spike",
         "targetNodes": [
-          "flag-evaluator"
+          "app-server"
         ],
         "faultType": "latency",
         "severity": 2,
@@ -276,14 +276,14 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 25000,
-        "bottleneckNode": "flag-store",
+        "bottleneckNode": "database",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
       },
       {
         "rpsThreshold": 50000,
-        "bottleneckNode": "flag-evaluator",
+        "bottleneckNode": "app-server",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -295,7 +295,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "flag-store"
+          "database"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -306,7 +306,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "flag-evaluator"
+          "app-server"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -317,7 +317,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "flag-store"
+          "database"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -328,13 +328,13 @@
       "totalMonthlyCostUsd": 2000,
       "components": [
         {
-          "nodeId": "flag-store",
+          "nodeId": "database",
           "label": "Primary Service",
           "monthlyCostUsd": 666,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "flag-evaluator",
+          "nodeId": "app-server",
           "label": "Storage",
           "monthlyCostUsd": 666,
           "costDriver": "Storage and I/O"
@@ -375,7 +375,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "flag-store",
+        "nodeId": "database",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -407,13 +407,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "flag-store"
+          "nodeId": "database"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "flag-store"
+          "nodeId": "database"
         }
       ],
       "alerts": [

@@ -157,5 +157,382 @@
       "highlightNodes": ["auth-server", "dns-resolver"],
       "highlightEdges": ["e-resolver-auth"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-auth-outage",
+        "name": "Authoritative Zone Outage",
+        "description": "The authoritative name servers for a major hosted zone stop responding — the Dyn 2016 / Facebook 2021 incident pattern",
+        "targetNodes": ["auth-server"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Cached records keep resolving until their TTL expires, then queries for the zone return SERVFAIL. Client retry storms multiply resolver query volume 3-5x because failed resolutions are retried far more aggressively than successful ones.",
+        "mitigationSteps": [
+          "Enable serve-stale (RFC 8767) so expired records keep answering for the duration of the outage",
+          "Apply per-source rate limits to cap retry amplification",
+          "Verify anycast/BGP announcements for the authoritative fleet before assuming application-level failure"
+        ]
+      },
+      {
+        "id": "cs-cache-flush",
+        "name": "Resolver Cache Flush",
+        "description": "The shared DNS cache crashes and restarts cold, dropping the 90% hit rate to zero",
+        "targetNodes": ["dns-cache"],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Every query walks the full root → TLD → authoritative chain. Median latency jumps from ~1ms to ~70ms, upstream query volume rises 10x, and resolver CPU climbs from recursion bookkeeping.",
+        "mitigationSteps": [
+          "Warm the cache from a top-domains list before readmitting full traffic",
+          "Enable query coalescing so concurrent misses for the same name trigger a single upstream lookup",
+          "Temporarily raise the minimum cache TTL to accelerate refill"
+        ]
+      },
+      {
+        "id": "cs-random-subdomain",
+        "name": "Random-Subdomain (Water Torture) DDoS",
+        "description": "A botnet floods the resolver with queries for unique random labels (x7f2a.example.com), making every query an uncacheable miss aimed at the victim zone's authoritative servers",
+        "targetNodes": ["dns-resolver", "auth-server"],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Cache hit rate collapses by design, recursion queue depth grows on the resolver, and the victim zone's authoritative servers saturate. Legitimate queries for that zone begin timing out.",
+        "mitigationSteps": [
+          "Enable aggressive NSEC caching (RFC 8198) to answer random labels from cached denial-of-existence proofs",
+          "Apply per-client query limits and response rate limiting (RRL)",
+          "Drop queries matching the random-label signature at the resolver edge"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "dns-resolver",
+        "metric": "cpu",
+        "description": "UDP packet processing and recursion state tracking saturate resolver CPU",
+        "resolution": "Scale resolver instances horizontally behind anycast addresses"
+      },
+      {
+        "rpsThreshold": 120000,
+        "bottleneckNode": "dns-cache",
+        "metric": "network",
+        "description": "Every query consults the shared cache first; Redis network throughput becomes the ceiling",
+        "resolution": "Add an in-process L1 cache on each resolver; shard the shared cache by domain hash"
+      },
+      {
+        "rpsThreshold": 250000,
+        "bottleneckNode": "auth-server",
+        "metric": "connections",
+        "description": "The 10% cache-miss stream plus attack noise saturates the 4-instance authoritative fleet",
+        "resolution": "Add authoritative instances behind anycast and raise NS record TTLs to push load into downstream caches"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-ttl-stampede",
+        "title": "TTL-Expiry Stampede on Popular Domains",
+        "description": "When a heavily queried record expires, thousands of concurrent misses trigger duplicate recursion for the same name",
+        "affectedNodes": ["dns-resolver", "dns-cache"],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Prefetch popular records shortly before TTL expiry and coalesce concurrent identical queries"
+      },
+      {
+        "id": "ei-stale-records",
+        "title": "Stale Records After Origin IP Change",
+        "description": "A zone migrates to new IPs but resolvers worldwide serve the old A record until the full TTL elapses, sending users to a dead endpoint",
+        "affectedNodes": ["dns-cache", "auth-server"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Lower the record TTL to 60s at least one full TTL window before any planned migration"
+      },
+      {
+        "id": "ei-cache-poisoning",
+        "title": "Cache Poisoning via Spoofed UDP Responses",
+        "description": "An attacker races the authoritative answer with a forged UDP response to plant a malicious record in the shared cache",
+        "affectedNodes": ["dns-resolver", "dns-cache"],
+        "likelihood": 2,
+        "impact": 5,
+        "mitigation": "Source-port randomization, 0x20 query-name encoding, and DNSSEC validation on the resolver"
+      },
+      {
+        "id": "ei-resolver-spof",
+        "title": "Resolver Tier as Single Point of Failure",
+        "description": "All client traffic funnels through one logical resolver tier; losing it takes every domain offline for clients regardless of authoritative health",
+        "affectedNodes": ["dns-resolver"],
+        "likelihood": 2,
+        "impact": 5,
+        "mitigation": "Run resolvers at multiple anycast sites and publish two resolver IPs so client stub resolvers can fail over"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 4100,
+      "components": [
+        {
+          "nodeId": "dns-resolver",
+          "label": "Recursive Resolver Fleet",
+          "monthlyCostUsd": 2400,
+          "costDriver": "Anycast compute instances + egress for 100k QPS"
+        },
+        {
+          "nodeId": "dns-cache",
+          "label": "DNS Cache (Redis)",
+          "monthlyCostUsd": 900,
+          "costDriver": "32GB memory-optimized instance with replica"
+        },
+        {
+          "nodeId": "auth-server",
+          "label": "Authoritative Servers",
+          "monthlyCostUsd": 800,
+          "costDriver": "4 instances across regions (root/TLD servers are external infrastructure)"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 10000,
+          "monthlyCostUsd": 1200
+        },
+        {
+          "label": "Medium",
+          "rps": 100000,
+          "monthlyCostUsd": 4100
+        },
+        {
+          "label": "High",
+          "rps": 1000000,
+          "monthlyCostUsd": 22000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 1,
+      "p99LatencyMs": 80,
+      "availabilityTarget": 99.999,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "dns-resolver",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 4,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 180,
+        "minInstances": 4,
+        "maxInstances": 64
+      },
+      {
+        "nodeId": "auth-server",
+        "metric": "queries_per_second",
+        "threshold": 40000,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 4,
+        "maxInstances": 16
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Cached Resolution Latency",
+        "metric": "p95_cached_response_ms",
+        "target": 5,
+        "unit": "ms",
+        "penalty": "10% service credit"
+      },
+      {
+        "name": "Full Recursion Latency",
+        "metric": "p99_uncached_response_ms",
+        "target": 100,
+        "unit": "ms",
+        "penalty": "10% service credit"
+      },
+      {
+        "name": "Resolution Availability",
+        "metric": "successful_query_rate",
+        "target": 99.999,
+        "unit": "%",
+        "penalty": "25% service credit per 0.1% below target"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "queries_per_second",
+          "type": "counter",
+          "description": "Inbound query rate at the resolver",
+          "nodeId": "dns-resolver"
+        },
+        {
+          "name": "cache_hit_rate",
+          "type": "gauge",
+          "description": "Fraction of queries answered from cache without recursion",
+          "nodeId": "dns-cache"
+        },
+        {
+          "name": "servfail_rate",
+          "type": "counter",
+          "description": "Queries answered with SERVFAIL — the primary failure signal for DNS",
+          "nodeId": "dns-resolver"
+        },
+        {
+          "name": "upstream_resolution_latency",
+          "type": "histogram",
+          "description": "Time to complete the full root/TLD/authoritative chain on cache miss",
+          "nodeId": "auth-server"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "SERVFAIL Spike",
+          "condition": "servfail_rate > 1% for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Cache Hit Collapse",
+          "condition": "cache_hit_rate < 0.8 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "NXDOMAIN Flood",
+          "condition": "nxdomain_rate > 5x hourly baseline",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Upstream Latency Degraded",
+          "condition": "p99_upstream_ms > 200 for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Resolver Overview",
+        "Cache Efficiency",
+        "Authority Health"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Network On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": ["oncall-network"]
+        },
+        {
+          "level": 2,
+          "name": "DNS Platform Lead",
+          "responseTimeMinutes": 15,
+          "contacts": ["dns-platform-lead"]
+        },
+        {
+          "level": 3,
+          "name": "Infrastructure Director",
+          "responseTimeMinutes": 30,
+          "contacts": ["infra-director"]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Authoritative zone unreachable",
+          "severity": "critical",
+          "steps": [
+            "Run dig +trace against each listed NS to confirm whether the outage is zone-wide or per-server",
+            "Enable serve-stale on the resolver so expired records keep answering",
+            "Check anycast/BGP route health for the authoritative fleet",
+            "Contact the zone owner and extend stale-answer TTLs if the outage persists",
+            "Post a status update once blast radius is confirmed"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Cache hit rate collapse",
+          "severity": "high",
+          "steps": [
+            "Verify dns-cache cluster health, memory pressure, and recent restarts",
+            "Enable per-client recursion rate limits to protect upstream servers",
+            "Warm the cache from the top-domains list",
+            "Scale the resolver fleet to absorb the temporary recursion CPU load"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Random-subdomain DDoS",
+          "severity": "high",
+          "steps": [
+            "Confirm the signature in query logs: high-entropy unique labels with NXDOMAIN answers",
+            "Enable response rate limiting and aggressive NSEC caching",
+            "Push per-client query caps to the resolver edge",
+            "Coordinate with the victim zone's operators on upstream filtering"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "TTL-Driven Hierarchical Caching",
+        "context": "100k QPS where most names are queried repeatedly; a full recursive walk costs ~70ms across three upstream round trips",
+        "decision": "Honor zone-owner TTLs and cache every response at the resolver, using volatile-ttl eviction so expiry order follows record lifetimes",
+        "consequences": [
+          "90% of queries answered in ~1ms with zero upstream traffic",
+          "Record freshness is controlled by the zone owner's TTL, not the resolver operator"
+        ]
+      },
+      {
+        "title": "UDP-First Transport with TCP Fallback",
+        "context": "Resolution sits on the critical path of nearly every network request, so per-query overhead must be minimal",
+        "decision": "Serve queries over single-round-trip UDP, falling back to TCP only on truncated responses",
+        "consequences": [
+          "Lowest possible latency for the common case",
+          "Spoofing exposure requires source-port randomization and DNSSEC validation as compensating controls"
+        ]
+      },
+      {
+        "title": "Shared Cache Tier Separate from Resolver Instances",
+        "context": "Resolver instances are stateless and scale horizontally; a per-instance cache would fragment hit rates as the fleet grows",
+        "decision": "Back all resolver instances with one shared Redis cache tier",
+        "consequences": [
+          "Cache hit rate is independent of which resolver instance receives a query",
+          "The cache becomes a shared dependency that needs its own HA and capacity story"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Freshness vs Upstream Load",
+        "choice": "Cache aggressively for the full record TTL",
+        "benefit": "10x reduction in upstream queries and ~1ms cached answers",
+        "cost": "IP changes propagate slowly; fast failover requires TTLs lowered in advance"
+      },
+      {
+        "dimension": "Availability vs Correctness",
+        "choice": "Serve stale records when authoritative servers are unreachable",
+        "benefit": "Survives authoritative outages without a SERVFAIL storm",
+        "cost": "Can hand out addresses that no longer exist during an origin incident"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "DNS-over-HTTPS Resolver",
+        "description": "Terminate DoH/TLS at the resolver edge instead of plain UDP",
+        "prosVsCons": "Privacy and spoofing resistance, but TLS handshakes and HTTP framing raise per-query compute and latency",
+        "whyNotChosen": "DoH layers onto this design without changing the cache hierarchy; the classic UDP path is the foundation to model first"
+      },
+      {
+        "name": "Client-Side Iterative Resolution",
+        "description": "Clients walk root, TLD, and authoritative servers themselves with no recursive resolver",
+        "prosVsCons": "Removes the resolver as a dependency, but destroys cache sharing and multiplies upstream load by the client count",
+        "whyNotChosen": "The shared recursive cache is the single largest latency and load win in DNS"
+      }
+    ]
+  }
 }

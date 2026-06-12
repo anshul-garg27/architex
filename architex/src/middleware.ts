@@ -21,9 +21,12 @@ const isPublicRoute = createRouteMatcher([
   "/patterns(.*)",
   "/concepts(.*)",
   "/interviews(.*)",
+  "/incidents(.*)",
   "/gallery(.*)",
   "/pricing(.*)",
   "/offline",
+  "/embed(.*)",
+  "/learn(.*)",
   "/api/webhooks(.*)",
   "/api/health",
   "/api/templates",
@@ -38,6 +41,10 @@ const isPublicRoute = createRouteMatcher([
 
 function isApiRoute(pathname: string): boolean {
   return pathname.startsWith("/api/") || pathname.startsWith("/trpc/");
+}
+
+function isEmbedRoute(pathname: string): boolean {
+  return pathname === "/embed" || pathname.startsWith("/embed/");
 }
 
 function getClientIP(req: NextRequest): string {
@@ -108,13 +115,23 @@ export default clerkMiddleware(async (auth: { protect: () => Promise<void> }, re
   // ── Build response ─────────────────────────────────────────
   const response = NextResponse.next();
 
+  // Embeds are read-only public widgets — they must be iframable
+  // from any origin, so frame-ancestors is relaxed and
+  // X-Frame-Options is omitted for /embed/* only.
+  const isEmbed = isEmbedRoute(pathname);
+
   // ── CSP header ─────────────────────────────────────────────
   const nonce = generateNonce();
   const { headerName, headerValue } = buildCSP({ nonce });
-  response.headers.set(headerName, headerValue);
+  const cspValue = isEmbed
+    ? headerValue.replace("frame-ancestors 'none'", "frame-ancestors *")
+    : headerValue;
+  response.headers.set(headerName, cspValue);
 
   // ── Security headers ───────────────────────────────────────
-  response.headers.set("X-Frame-Options", "DENY");
+  if (!isEmbed) {
+    response.headers.set("X-Frame-Options", "DENY");
+  }
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
@@ -164,7 +181,7 @@ export default clerkMiddleware(async (auth: { protect: () => Promise<void> }, re
   if (process.env.NODE_ENV === "production") {
     response.headers.set(
       "Content-Security-Policy-Report-Only",
-      `${headerValue}; report-uri /api/csp-report`,
+      `${cspValue}; report-uri /api/csp-report`,
     );
   }
 

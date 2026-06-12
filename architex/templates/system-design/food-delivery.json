@@ -232,5 +232,435 @@
       "highlightNodes": ["cache", "storage", "app-server"],
       "highlightEdges": ["e-app-cache", "e-client-storage"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-dinner-rush-backlog",
+        "name": "Dinner-Rush Dispatch Backlog",
+        "description": "Friday 7pm order surge outpaces the dispatch workers; the driver-matching pipeline falls behind the order event stream",
+        "targetNodes": ["dispatch-worker", "mq"],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Kafka consumer lag grows steadily; time-to-assign climbs from ~30s to 10+ minutes. Orders sit unassigned while food is ready, restaurants stack completed bags, customers cancel, and cancellations generate refund load on the order service.",
+        "mitigationSteps": [
+          "Scale the dispatch consumer group toward the 64-partition ceiling",
+          "Degrade matching from batch optimization to greedy nearest-driver to cut per-order compute",
+          "Widen the dispatch radius and surface longer ETAs instead of accepting orders that cannot be served",
+          "Throttle order intake per zone (mark saturated restaurants as temporarily unavailable)"
+        ]
+      },
+      {
+        "id": "cs-db-primary-failover",
+        "name": "PostgreSQL Primary Failover",
+        "description": "The orders database primary crashes mid-peak, forcing replica promotion while order writes are in flight",
+        "targetNodes": ["database"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Order placement and state-machine transitions fail for 15-60s during promotion. In-flight payments complete against orders that never persisted unless idempotency keys are honored on retry. Tracking screens freeze on the last stored state.",
+        "mitigationSteps": [
+          "Automatic replica promotion with the app retrying writes using idempotency keys",
+          "Replay missed state transitions from the Kafka order event log",
+          "Reconcile payment captures against persisted orders after recovery"
+        ]
+      },
+      {
+        "id": "cs-stale-gps",
+        "name": "Driver Location Pipeline Degradation",
+        "description": "The Redis GEO tier slows under load; 4-second driver location updates back up and the live index goes stale",
+        "targetNodes": ["cache"],
+        "faultType": "latency",
+        "severity": 3,
+        "expectedBehavior": "Dispatch matches against positions that are 30-120s old: drivers get assigned to pickups they have already driven away from, ETAs drift badly, and customer tracking maps jump or freeze. Menu reads sharing the same cache also slow down.",
+        "mitigationSteps": [
+          "Fall back to last-known position plus heading extrapolation for matching",
+          "Reduce location update frequency adaptively for idle drivers to shed write load",
+          "Split menu caching and the GEO index onto separate Redis clusters so one cannot starve the other"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 20000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Order writes, state transitions, and tracking reads exhaust the 500-connection pool",
+        "resolution": "Add PgBouncer transaction pooling and route tracking reads to the 3 replicas"
+      },
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "dispatch-worker",
+        "metric": "queue-depth",
+        "description": "Batch matching is compute-heavy; order events outpace worker throughput at meal peaks",
+        "resolution": "Scale the consumer group and switch to greedy matching when lag exceeds the SLO"
+      },
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "cache",
+        "metric": "network",
+        "description": "GPS writes every 4s per driver plus menu reads saturate the shared Redis endpoint",
+        "resolution": "Enable cluster mode with zone-keyed GEO shards; isolate menus from location data"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-mealtime-peaks",
+        "title": "Meal-Time Thundering Peaks",
+        "description": "Traffic runs 5-8x baseline for two predictable windows a day; static capacity is wasteful and reactive autoscaling lags the lunch spike",
+        "affectedNodes": ["app-server", "dispatch-worker"],
+        "likelihood": 5,
+        "impact": 3,
+        "mitigation": "Scheduled pre-scaling ahead of 11:30 and 18:00 local peaks layered under reactive policies"
+      },
+      {
+        "id": "ei-kafka-critical-path",
+        "title": "Order Topic as Critical Dispatch Path",
+        "description": "Every order reaches drivers only through the Kafka topic; broker loss or an under-replicated partition silently stalls dispatch for affected zones",
+        "affectedNodes": ["mq", "dispatch-worker"],
+        "likelihood": 2,
+        "impact": 5,
+        "mitigation": "Replication factor 3 across AZs, min.insync.replicas=2, and alerting on time-to-assign rather than broker health alone"
+      },
+      {
+        "id": "ei-hot-zone",
+        "title": "Hot-Zone Dispatch Saturation",
+        "description": "A stadium event or storm concentrates orders in one geographic zone; its partition backlog grows while other zones idle",
+        "affectedNodes": ["dispatch-worker", "mq"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Zone-keyed partitioning with per-zone lag monitoring, plus demand throttling and driver incentives for the hot zone"
+      },
+      {
+        "id": "ei-menu-stampede",
+        "title": "Menu Cache Stampede at Peak Open",
+        "description": "Popular restaurants opening at 11:00 expire their cached menus simultaneously, sending a read burst to PostgreSQL",
+        "affectedNodes": ["cache", "database"],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Jittered TTLs, request coalescing, and stale-while-revalidate for menu reads"
+      },
+      {
+        "id": "ei-gps-write-amplification",
+        "title": "GPS Write Amplification",
+        "description": "100k active drivers at a 4s update interval is ~25k location writes/sec into Redis before a single customer request is served",
+        "affectedNodes": ["cache"],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Adaptive update intervals (slower when idle or stationary) and regional GEO set sharding"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 15150,
+      "components": [
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 800,
+          "costDriver": "Request volume at 100k RPS peak"
+        },
+        {
+          "nodeId": "lb",
+          "label": "Load Balancer",
+          "monthlyCostUsd": 250,
+          "costDriver": "LCU-hours and processed bytes"
+        },
+        {
+          "nodeId": "app-server",
+          "label": "Order / Restaurant Service",
+          "monthlyCostUsd": 4900,
+          "costDriver": "20 × 8-core instances"
+        },
+        {
+          "nodeId": "cache",
+          "label": "Redis (Menus / Sessions / GEO)",
+          "monthlyCostUsd": 1300,
+          "costDriver": "64GB cluster with replica"
+        },
+        {
+          "nodeId": "database",
+          "label": "PostgreSQL (Orders / Users)",
+          "monthlyCostUsd": 3800,
+          "costDriver": "Primary + 3 replicas, 2TB storage, high IOPS"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Order Event Queue (Kafka)",
+          "monthlyCostUsd": 1500,
+          "costDriver": "Multi-AZ brokers, 64 partitions, 72h retention"
+        },
+        {
+          "nodeId": "dispatch-worker",
+          "label": "Dispatch Workers",
+          "monthlyCostUsd": 2200,
+          "costDriver": "30 compute-optimized instances for matching"
+        },
+        {
+          "nodeId": "storage",
+          "label": "Image Storage (S3)",
+          "monthlyCostUsd": 400,
+          "costDriver": "10TB storage + GET requests for food photos"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 20000,
+          "monthlyCostUsd": 7500
+        },
+        {
+          "label": "Medium",
+          "rps": 100000,
+          "monthlyCostUsd": 15150
+        },
+        {
+          "label": "High",
+          "rps": 250000,
+          "monthlyCostUsd": 32000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 25,
+      "p99LatencyMs": 250,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 60,
+        "scaleUpStep": 4,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 120,
+        "minInstances": 10,
+        "maxInstances": 60
+      },
+      {
+        "nodeId": "dispatch-worker",
+        "metric": "kafka_consumer_lag",
+        "threshold": 5000,
+        "scaleUpStep": 5,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 180,
+        "minInstances": 10,
+        "maxInstances": 64
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Order Placement Latency",
+        "metric": "p99_order_create_ms",
+        "target": 800,
+        "unit": "ms",
+        "penalty": "10% service credit"
+      },
+      {
+        "name": "Driver Assignment Time",
+        "metric": "p95_time_to_assign_seconds",
+        "target": 90,
+        "unit": "s",
+        "penalty": "Delivery fee waived on affected orders"
+      },
+      {
+        "name": "Platform Availability",
+        "metric": "uptime",
+        "target": 99.95,
+        "unit": "%",
+        "penalty": "25% service credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "orders_placed",
+          "type": "counter",
+          "description": "Order creation rate — the marketplace heartbeat",
+          "nodeId": "app-server"
+        },
+        {
+          "name": "time_to_assign",
+          "type": "histogram",
+          "description": "Seconds from OrderCreated event to driver acceptance",
+          "nodeId": "dispatch-worker"
+        },
+        {
+          "name": "order_event_lag",
+          "type": "gauge",
+          "description": "Kafka consumer lag on the order topic per zone partition",
+          "nodeId": "mq"
+        },
+        {
+          "name": "driver_location_staleness",
+          "type": "gauge",
+          "description": "Age of the freshest GPS fix per active driver in the GEO index",
+          "nodeId": "cache"
+        },
+        {
+          "name": "db_replication_lag",
+          "type": "gauge",
+          "description": "Replica lag behind the orders primary",
+          "nodeId": "database"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Dispatch Backlog",
+          "condition": "p95_time_to_assign > 180s for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Order Topic Lag",
+          "condition": "order_event_lag > 25000 for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Stale Driver Locations",
+          "condition": "p95_location_staleness > 30s for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Menu Cache Degraded",
+          "condition": "cache_hit_rate < 0.7 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Replication Lag",
+          "condition": "db_replication_lag > 10s for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Marketplace Health (Orders / Drivers)",
+        "Dispatch Pipeline",
+        "Real-Time Tracking",
+        "Peak Capacity"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call Engineer",
+          "responseTimeMinutes": 5,
+          "contacts": ["oncall-marketplace"]
+        },
+        {
+          "level": 2,
+          "name": "Dispatch Platform Lead",
+          "responseTimeMinutes": 15,
+          "contacts": ["dispatch-lead"]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander + Live Ops",
+          "responseTimeMinutes": 30,
+          "contacts": ["incident-commander", "live-ops"]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Dispatch backlog at peak",
+          "severity": "critical",
+          "steps": [
+            "Check order_event_lag per partition to see if the backlog is global or zone-local",
+            "Scale the dispatch consumer group toward the partition count",
+            "Flip matching to greedy nearest-driver mode to cut per-order compute",
+            "Coordinate with live ops: pause promos, enable longer-ETA messaging, throttle saturated zones",
+            "After drain, review whether scheduled pre-scaling missed the peak"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Database failover",
+          "severity": "critical",
+          "steps": [
+            "Confirm replica promotion completed and writes are landing on the new primary",
+            "Verify idempotent retries drained without duplicate orders",
+            "Replay missed state transitions from the Kafka order log",
+            "Reconcile payment captures against persisted orders for the failover window"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Stale driver locations",
+          "severity": "medium",
+          "steps": [
+            "Check Redis GEO cluster latency and memory; confirm whether menu traffic is starving location writes",
+            "Enable heading-extrapolation fallback for matching",
+            "Reduce GPS update frequency for idle drivers to shed write load",
+            "Notify customer-facing teams that ETAs are degraded until staleness recovers"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Event-Driven Order Lifecycle",
+        "context": "Order placement, restaurant notification, and driver dispatch have different latency budgets and independent failure modes",
+        "decision": "Publish OrderCreated to Kafka and let dispatch consume asynchronously rather than dispatching inline with checkout",
+        "consequences": [
+          "Order placement stays fast even when matching is backed up",
+          "Dispatch delay becomes a queue-lag problem that needs its own SLO and alerting"
+        ]
+      },
+      {
+        "title": "Redis GEO as the Live Driver Index",
+        "context": "Matching needs nearby-driver radius queries against positions refreshed every 4 seconds across the whole fleet",
+        "decision": "Keep live driver positions in Redis GEO sets keyed by zone; PostgreSQL stores only durable order and user state",
+        "consequences": [
+          "Sub-millisecond radius queries at dispatch time without touching the transactional database",
+          "Driver positions are ephemeral — a cache incident immediately degrades matching quality"
+        ]
+      },
+      {
+        "title": "Batch-Window Matching",
+        "context": "Greedy per-order assignment is locally optimal but produces poor marketplace-wide delivery times when orders and drivers are dense",
+        "decision": "Dispatch workers match orders to drivers in short batch windows, optimizing total delivery time across concurrent orders",
+        "consequences": [
+          "Better fleet utilization and ETAs at peak density",
+          "Every order pays a small assignment-delay floor of one batch window, even off-peak"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Matching Optimality vs Assignment Latency",
+        "choice": "Short batch windows over instant greedy assignment",
+        "benefit": "Lower total delivery time and better driver utilization across the marketplace",
+        "cost": "A deliberate 5-15s delay before any driver is assigned"
+      },
+      {
+        "dimension": "Tracking Freshness vs Write Load",
+        "choice": "4-second GPS updates into Redis, never PostgreSQL",
+        "benefit": "Tens of thousands of location writes per second stay off the transactional database",
+        "cost": "Positions can be seconds stale, and a durable location trail requires separate archiving"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Synchronous Dispatch in the Order Path",
+        "description": "Find and assign a driver inside the order placement request before responding to the customer",
+        "prosVsCons": "Simplest flow with instant assignment feedback, but couples checkout latency and availability to driver search — one slow match stalls order placement",
+        "whyNotChosen": "Meal-time peaks make matching the slowest and most variable step; it cannot sit on the checkout critical path"
+      },
+      {
+        "name": "Per-City Deployment Silos",
+        "description": "Run an independent stack per metro area for isolation",
+        "prosVsCons": "Blast-radius isolation and data locality, but N× operational overhead and inevitable configuration drift between cities",
+        "whyNotChosen": "Zone-keyed Kafka partitions deliver most of the isolation benefit without separate stacks"
+      }
+    ]
+  }
 }

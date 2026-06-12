@@ -8,6 +8,7 @@
 import type { Command, LoadTemplatePayload } from '../types';
 import { getTemplateById } from '@/lib/templates';
 import { useCanvasStore } from '@/stores/canvas-store';
+import { useTemplateMetaStore } from '@/stores/template-meta-store';
 import type { Node, Edge } from '@xyflow/react';
 
 export function handleLoadTemplate(
@@ -23,6 +24,11 @@ export function handleLoadTemplate(
   }
 
   const canvas = useCanvasStore.getState();
+
+  // Keep the full template (learnSteps, simulation metadata, rationale)
+  // available to tour/scenario/report consumers. setActiveTemplate also
+  // replaces any previously loaded template's meta.
+  useTemplateMetaStore.getState().setActiveTemplate(template);
 
   // Map template nodes to React Flow nodes
   const nodes: Node[] = template.nodes.map((n) => ({

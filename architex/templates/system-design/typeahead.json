@@ -237,7 +237,7 @@
         "name": "Trie Index Corruption",
         "description": "In-memory trie structure becomes corrupted after bad update",
         "targetNodes": [
-          "trie-server"
+          "web-server"
         ],
         "faultType": "data-corruption",
         "severity": 4,
@@ -253,7 +253,7 @@
         "name": "Keystroke Flood",
         "description": "Bot sends 100K keystrokes/sec overwhelming suggestion service",
         "targetNodes": [
-          "api-gateway"
+          "lb"
         ],
         "faultType": "resource-exhaustion",
         "severity": 3,
@@ -284,7 +284,7 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 10000,
-        "bottleneckNode": "trie-server",
+        "bottleneckNode": "web-server",
         "metric": "memory",
         "description": "Trie memory grows with vocabulary size",
         "resolution": "Shard trie by prefix range"
@@ -303,7 +303,7 @@
         "title": "Stale Trending Suggestions",
         "description": "Trending queries not reflected in suggestions quickly enough",
         "affectedNodes": [
-          "trie-server"
+          "web-server"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -314,7 +314,7 @@
         "title": "Offensive Suggestions",
         "description": "Inappropriate terms appear in autocomplete",
         "affectedNodes": [
-          "trie-server"
+          "web-server"
         ],
         "likelihood": 4,
         "impact": 4,
@@ -325,7 +325,7 @@
         "title": "Cold Start for New Terms",
         "description": "New trending topics not in trie index",
         "affectedNodes": [
-          "trie-server"
+          "web-server"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -336,7 +336,7 @@
       "totalMonthlyCostUsd": 4000,
       "components": [
         {
-          "nodeId": "trie-server",
+          "nodeId": "web-server",
           "label": "Trie Servers",
           "monthlyCostUsd": 2000,
           "costDriver": "High-memory instances"
@@ -348,13 +348,13 @@
           "costDriver": "16GB"
         },
         {
-          "nodeId": "api-gateway",
+          "nodeId": "lb",
           "label": "API Gateway",
           "monthlyCostUsd": 500,
           "costDriver": "Requests"
         },
         {
-          "nodeId": "analytics-db",
+          "nodeId": "database",
           "label": "Analytics DB",
           "monthlyCostUsd": 500,
           "costDriver": "Query logs"
@@ -389,7 +389,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "trie-server",
+        "nodeId": "web-server",
         "metric": "memory_utilization",
         "threshold": 80,
         "scaleUpStep": 1,
@@ -414,13 +414,13 @@
           "name": "suggestion_latency",
           "type": "histogram",
           "description": "Time to return suggestions",
-          "nodeId": "trie-server"
+          "nodeId": "web-server"
         },
         {
           "name": "trie_memory_usage",
           "type": "gauge",
           "description": "Trie memory consumption",
-          "nodeId": "trie-server"
+          "nodeId": "web-server"
         }
       ],
       "alerts": [

@@ -219,5 +219,511 @@
       "highlightNodes": ["serving-app", "metrics", "training-cluster"],
       "highlightEdges": ["e-serve-metrics", "e-train-metrics"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-gpu-queue-saturation",
+        "name": "Inference GPU Queue Saturation",
+        "description": "A traffic spike saturates the GPU inference fleet; dynamic batching queues grow faster than autoscaling can add nodes",
+        "targetNodes": [
+          "inference-engine",
+          "serving-app"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Batch queue depth climbs; p99 inference latency degrades from ~180ms to seconds, then serving-app requests time out. GPU autoscaling lags 5-10 minutes behind demand because node provisioning and model loading are slow.",
+        "mitigationSteps": [
+          "Enable request shedding with a hard queue-depth cap (fast-fail beats slow-fail)",
+          "Fail over to the distilled fallback model on CPU for shed traffic",
+          "Scale from the pre-provisioned warm GPU pool",
+          "Review batching parameters — larger batches raise throughput at p99 cost"
+        ]
+      },
+      {
+        "id": "cs-feature-store-outage",
+        "name": "Feature Store Outage",
+        "description": "The Redis feature store crashes; online feature lookups fail at request time",
+        "targetNodes": [
+          "feature-store",
+          "inference-engine"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Depending on policy, predictions either fail outright or silently degrade using default/stale feature values. The silent path is the dangerous one: latency and error dashboards stay green while prediction quality tanks.",
+        "mitigationSteps": [
+          "Fail over to the feature store replica",
+          "If degraded mode is enabled, tag every prediction served with default features",
+          "Watch prediction distribution metrics for shift — not just error rates",
+          "Backfill features and verify freshness before clearing the incident"
+        ]
+      },
+      {
+        "id": "cs-bad-model-rollout",
+        "name": "Regressed Model Version Promoted",
+        "description": "A corrupted or quality-regressed model version is promoted from the registry to serving",
+        "targetNodes": [
+          "model-registry",
+          "serving-app",
+          "inference-engine"
+        ],
+        "faultType": "data-corruption",
+        "severity": 4,
+        "expectedBehavior": "The nastiest ML failure mode: latency normal, error rate zero, predictions confidently wrong. Only model-quality metrics in Prometheus (drift score, prediction distribution, downstream conversion) reveal the regression.",
+        "mitigationSteps": [
+          "Freeze the rollout and pin traffic to the previous registry version",
+          "Trigger automatic rollback via the canary quality gate",
+          "Verify artifact checksum against the registry record",
+          "Replay canary traffic offline to characterize the regression before re-promoting"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 3000,
+        "bottleneckNode": "inference-engine",
+        "metric": "queue-depth",
+        "description": "GPU dynamic-batching queue saturates; inference latency degrades superlinearly past the knee",
+        "resolution": "Add GPU replicas, tune batch size/timeout, distill or quantize the model"
+      },
+      {
+        "rpsThreshold": 8000,
+        "bottleneckNode": "feature-store",
+        "metric": "network",
+        "description": "Per-request feature vector fan-out (hundreds of features per prediction) saturates Redis network throughput",
+        "resolution": "Shard the cluster, compress feature vectors, cache slow-moving features client-side"
+      },
+      {
+        "rpsThreshold": 15000,
+        "bottleneckNode": "serving-app",
+        "metric": "cpu",
+        "description": "Pre/post-processing and gRPC serialization saturate the serving API tier",
+        "resolution": "Scale horizontally; move heavy transforms offline into the feature pipeline"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-training-serving-skew",
+        "title": "Training/Serving Skew",
+        "description": "Features computed in Spark offline differ subtly from the online serving path, silently degrading accuracy",
+        "affectedNodes": [
+          "data-processor",
+          "feature-store",
+          "inference-engine"
+        ],
+        "likelihood": 4,
+        "impact": 4,
+        "mitigation": "Single shared transform library for both paths; continuous skew monitoring comparing online vs offline feature distributions"
+      },
+      {
+        "id": "ei-silent-drift",
+        "title": "Silent Data Drift",
+        "description": "Input distributions shift over weeks; the model degrades without throwing a single error",
+        "affectedNodes": [
+          "inference-engine",
+          "metrics"
+        ],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "Drift detection on inputs and prediction distributions, scheduled retraining, champion/challenger evaluation"
+      },
+      {
+        "id": "ei-feature-staleness",
+        "title": "Stale Online Features",
+        "description": "A delayed Spark pipeline run leaves the feature store serving features hours past their freshness SLA",
+        "affectedNodes": [
+          "data-processor",
+          "feature-store"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Per-feature freshness SLAs with staleness metrics; streaming computation for time-sensitive features"
+      },
+      {
+        "id": "ei-gpu-cost-creep",
+        "title": "GPU Fleet Cost Creep",
+        "description": "Serving GPUs sized for peak sit idle off-peak; training jobs hold GPUs beyond need — spend dominates the platform budget",
+        "affectedNodes": [
+          "inference-engine",
+          "training-cluster"
+        ],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Queue-depth-based autoscaling with a small warm pool, spot instances for training, fractional GPUs (MIG) for small models"
+      },
+      {
+        "id": "ei-registry-desync",
+        "title": "Registry Metadata Desync",
+        "description": "Model artifact in S3 and registry metadata disagree (partial upload, stale pointer), so serving loads the wrong version",
+        "affectedNodes": [
+          "model-registry",
+          "serving-app"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Immutable versioned artifacts, checksum validation at load time, registry as the single deployment source of truth"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 31900,
+      "components": [
+        {
+          "nodeId": "inference-engine",
+          "label": "Inference Engine (GPU)",
+          "monthlyCostUsd": 13000,
+          "costDriver": "Always-on GPU serving fleet — dominant cost line"
+        },
+        {
+          "nodeId": "training-cluster",
+          "label": "Training Cluster (GPU)",
+          "monthlyCostUsd": 9000,
+          "costDriver": "Scheduled training jobs on spot GPUs"
+        },
+        {
+          "nodeId": "data-processor",
+          "label": "Data Ingestion (Spark)",
+          "monthlyCostUsd": 3200,
+          "costDriver": "Daily feature pipeline cluster-hours"
+        },
+        {
+          "nodeId": "feature-store",
+          "label": "Feature Store (Redis)",
+          "monthlyCostUsd": 2400,
+          "costDriver": "In-memory feature vectors for online lookup"
+        },
+        {
+          "nodeId": "serving-app",
+          "label": "Model Serving API",
+          "monthlyCostUsd": 1800,
+          "costDriver": "CPU fleet for pre/post-processing"
+        },
+        {
+          "nodeId": "data-lake",
+          "label": "Data Lake (S3)",
+          "monthlyCostUsd": 1500,
+          "costDriver": "Training data + feature history storage"
+        },
+        {
+          "nodeId": "metrics",
+          "label": "Model Metrics (Prometheus)",
+          "monthlyCostUsd": 700,
+          "costDriver": "Metrics retention + drift computation"
+        },
+        {
+          "nodeId": "model-registry",
+          "label": "Model Registry",
+          "monthlyCostUsd": 300,
+          "costDriver": "Artifact storage + metadata DB"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 1000,
+          "monthlyCostUsd": 14000
+        },
+        {
+          "label": "Medium",
+          "rps": 5000,
+          "monthlyCostUsd": 31900
+        },
+        {
+          "label": "High",
+          "rps": 20000,
+          "monthlyCostUsd": 95000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 5000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 35,
+      "p99LatencyMs": 180,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.5,
+      "throughputRps": 5000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "inference-engine",
+        "metric": "batch_queue_depth",
+        "threshold": 100,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 300,
+        "minInstances": 2,
+        "maxInstances": 24
+      },
+      {
+        "nodeId": "serving-app",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 3,
+        "maxInstances": 40
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Inference Latency",
+        "metric": "p99_inference_ms",
+        "target": 200,
+        "unit": "ms",
+        "penalty": "Internal SLO — capacity review and batching audit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "Service credits to consuming teams"
+      },
+      {
+        "name": "Feature Freshness",
+        "metric": "p95_feature_age_h",
+        "target": 6,
+        "unit": "h",
+        "penalty": "Model owners notified; affected predictions flagged"
+      },
+      {
+        "name": "Rollback Time",
+        "metric": "model_rollback_minutes",
+        "target": 5,
+        "unit": "min",
+        "penalty": "Postmortem required if exceeded"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "inference_latency",
+          "type": "histogram",
+          "description": "End-to-end GPU inference latency",
+          "nodeId": "inference-engine"
+        },
+        {
+          "name": "gpu_utilization",
+          "type": "gauge",
+          "description": "GPU compute utilization across the serving fleet",
+          "nodeId": "inference-engine"
+        },
+        {
+          "name": "batch_queue_depth",
+          "type": "gauge",
+          "description": "Pending requests in the dynamic batching queue",
+          "nodeId": "inference-engine"
+        },
+        {
+          "name": "feature_lookup_latency",
+          "type": "histogram",
+          "description": "Online feature fetch latency",
+          "nodeId": "feature-store"
+        },
+        {
+          "name": "feature_staleness",
+          "type": "gauge",
+          "description": "Age of newest feature values vs pipeline schedule",
+          "nodeId": "feature-store"
+        },
+        {
+          "name": "prediction_drift_score",
+          "type": "gauge",
+          "description": "Distribution distance between live and training data",
+          "nodeId": "metrics"
+        },
+        {
+          "name": "training_job_duration",
+          "type": "histogram",
+          "description": "Wall-clock time of training runs",
+          "nodeId": "training-cluster"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Inference Latency High",
+          "condition": "p99 inference_latency > 300ms for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Drift Threshold Breached",
+          "condition": "prediction_drift_score > 0.2",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Features Stale",
+          "condition": "feature_staleness > 12h",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "GPU Saturation",
+          "condition": "gpu_utilization > 85% for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Canary Quality Gate Failure",
+          "condition": "canary metrics below champion baseline",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Online Inference Health",
+        "Feature Pipeline Freshness",
+        "Model Quality & Drift",
+        "GPU Fleet Utilization & Cost"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "ML Platform On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall-ml-platform"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Model Owner",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "model-owner"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "ML Infra Lead",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "ml-infra-lead"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Inference latency spike",
+          "severity": "high",
+          "steps": [
+            "Check GPU batch queue depth and utilization — saturation vs upstream slowness",
+            "Verify feature store lookup latency is normal (rule out the dependency)",
+            "Scale inference replicas from the warm pool",
+            "If the queue is not draining, enable the distilled fallback model for overflow traffic"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Model quality regression after rollout",
+          "severity": "critical",
+          "steps": [
+            "Freeze the rollout and pin serving to the previous registry version",
+            "Confirm automatic rollback completed within the 5-minute SLA",
+            "Snapshot live inputs and predictions for offline analysis",
+            "Replay canary traffic against both versions to characterize the regression",
+            "Open a model incident review before re-promoting"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Feature store outage",
+          "severity": "high",
+          "steps": [
+            "Fail over to the Redis replica",
+            "Enable default-feature degraded mode with per-prediction tagging",
+            "Monitor prediction distribution for shift while degraded",
+            "Backfill features after recovery and verify freshness metrics"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Stale features",
+          "severity": "medium",
+          "steps": [
+            "Check the Spark pipeline run status and failed partitions",
+            "Re-run failed partitions and validate freshness metrics recover",
+            "Notify model owners of the affected prediction window"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Separate Training and Serving Infrastructure",
+        "context": "Training is throughput-oriented batch work tolerant of interruption; serving is latency-critical and always-on — opposite scaling profiles",
+        "decision": "Independent GPU pools: spot-friendly training cluster, latency-tuned serving fleet, with the model registry as the only contract between them",
+        "consequences": [
+          "Training can use cheap interruptible capacity without risking serving SLOs",
+          "Each pool scales and is capacity-planned on its own signal",
+          "Model promotion becomes an explicit, auditable handoff through the registry"
+        ]
+      },
+      {
+        "title": "Online Feature Store Fed by the Offline Pipeline",
+        "context": "The classic MLOps failure is computing features one way for training and another way for serving",
+        "decision": "The same Spark pipeline that writes training data to the lake materializes online features into Redis",
+        "consequences": [
+          "One computation path sharply reduces training/serving skew",
+          "Sub-millisecond feature lookups at inference time",
+          "Feature freshness is bounded by pipeline cadence and must be monitored as an SLA"
+        ]
+      },
+      {
+        "title": "Model Registry as the Deployment Gate",
+        "context": "Models reaching production via ad-hoc copies are impossible to audit or roll back",
+        "decision": "Serving loads only immutable, versioned, checksummed artifacts from the registry; promotion goes through canary quality gates",
+        "consequences": [
+          "Instant rollback by repointing to the previous version",
+          "Full lineage from training run to serving deployment",
+          "Registry availability matters at deploy time only — not on the request path"
+        ]
+      },
+      {
+        "title": "Split Serving API From GPU Inference Engine",
+        "context": "Pre/post-processing is CPU-bound and cheap to scale; GPU inference is expensive and batch-sensitive",
+        "decision": "A CPU serving tier handles validation and feature assembly, calling the GPU engine over gRPC",
+        "consequences": [
+          "GPU fleet sizes purely on inference load, maximizing utilization of the costliest resource",
+          "Dynamic batching can be tuned at the engine without touching API code",
+          "The extra hop adds ~1-2ms — negligible against the latency budget"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Throughput vs Tail Latency",
+        "choice": "Dynamic batching on the GPU engine",
+        "benefit": "2-5x GPU throughput from amortizing kernel launches across batched requests",
+        "cost": "Batch-wait time directly inflates p99; batch size is a permanent tuning knob"
+      },
+      {
+        "dimension": "Feature Freshness vs Pipeline Cost",
+        "choice": "Batch feature computation with streaming reserved for time-sensitive features",
+        "benefit": "Daily Spark batch is dramatically cheaper than streaming everything",
+        "cost": "Most features are hours stale; models must be trained to tolerate that staleness"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "CPU Inference Inside the API Server",
+        "description": "Load the model into the API process and run inference on CPU — no GPU fleet, no gRPC hop",
+        "prosVsCons": "Radically simpler operations and lower fixed cost, but 10x+ latency for deep models and no independent scaling of inference",
+        "whyNotChosen": "The p99 latency target is unreachable on CPU for the model class being served"
+      },
+      {
+        "name": "Fully Managed Inference Endpoints",
+        "description": "Outsource serving to a managed platform (SageMaker-style endpoints)",
+        "prosVsCons": "Minimal ops burden and built-in autoscaling, but a significant cost premium and limited control over batching, multi-model packing, and warm pools",
+        "whyNotChosen": "At sustained 5k RPS the cost premium exceeds the ops savings, and batching control is needed to hit the latency target"
+      }
+    ]
+  }
 }

@@ -9,7 +9,6 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
           {
             key: "Referrer-Policy",
@@ -24,6 +23,15 @@ const nextConfig: NextConfig = {
             value: "max-age=63072000; includeSubDomains; preload",
           },
         ],
+      },
+      {
+        // X-Frame-Options everywhere EXCEPT /embed/* — embeds are
+        // read-only public widgets that must be iframable from any
+        // origin (middleware relaxes frame-ancestors for them too).
+        // headers() overrides can only replace values, never remove a
+        // header, so the source itself excludes the embed surface.
+        source: "/((?!embed$|embed/).*)",
+        headers: [{ key: "X-Frame-Options", value: "DENY" }],
       },
     ];
   },

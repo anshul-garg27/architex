@@ -14,6 +14,7 @@ import TemplateGallery from "@/components/shared/template-gallery";
 import PlaybookGallery from "@/components/shared/playbook-gallery";
 import { useUIStore } from "@/stores/ui-store";
 import { useCanvasStore } from "@/stores/canvas-store";
+import { useTemplateMetaStore } from "@/stores/template-meta-store";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -121,6 +122,7 @@ function TemplateGalleryOverlay() {
     (template: DiagramTemplate) => {
       useCanvasStore.getState().setNodes(template.nodes as never[]);
       useCanvasStore.getState().setEdges(template.edges as never[]);
+      useTemplateMetaStore.getState().setActiveTemplate(template);
       setOpen(false);
     },
     [setOpen],
@@ -269,6 +271,7 @@ function AppShell() {
 
   const handleClearCanvasConfirm = useCallback(() => {
     useCanvasStore.getState().clearCanvas();
+    useTemplateMetaStore.getState().clearActiveTemplate();
     setClearCanvasConfirmOpen(false);
   }, [setClearCanvasConfirmOpen]);
 

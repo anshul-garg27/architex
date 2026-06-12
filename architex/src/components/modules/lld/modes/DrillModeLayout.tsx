@@ -2,17 +2,22 @@
 
 import { memo, useEffect, useMemo, useState } from "react";
 import { useDrillStore } from "@/stores/drill-store";
+import { useLLDDrillSync } from "@/hooks/useLLDDrillSync";
 import { DrillStageStepper } from "@/components/modules/lld/drill-mode/DrillStageStepper";
 import { DrillTimer } from "@/components/modules/lld/drill-mode/DrillTimer";
 import { DrillSubmitBar } from "@/components/modules/lld/drill-mode/DrillSubmitBar";
 import { DrillHintLadder } from "@/components/modules/lld/drill-mode/DrillHintLadder";
 import { DrillVariantPicker } from "@/components/modules/lld/drill-mode/DrillVariantPicker";
+import { DrillResultsScreen } from "@/components/modules/lld/drill-mode/DrillResultsScreen";
+import { DrillResumePrompt } from "@/components/modules/lld/drill-mode/DrillResumePrompt";
 import { ClarifyStage } from "@/components/modules/lld/drill-mode/stages/ClarifyStage";
 import { RubricStage } from "@/components/modules/lld/drill-mode/stages/RubricStage";
 import { CanvasStage } from "@/components/modules/lld/drill-mode/stages/CanvasStage";
 import { WalkthroughStage } from "@/components/modules/lld/drill-mode/stages/WalkthroughStage";
 import { ReflectionStage } from "@/components/modules/lld/drill-mode/stages/ReflectionStage";
 import { VARIANT_CONFIG, type DrillVariant } from "@/lib/lld/drill-variants";
+import type { DrillStage } from "@/lib/lld/drill-stages";
+import type { RubricBreakdown } from "@/lib/lld/drill-rubric";
 
 function readProblemIdFromUrl(): string | null {
   if (typeof window === "undefined") return null;
@@ -22,13 +27,53 @@ function readProblemIdFromUrl(): string | null {
   return kind === "problem" && id ? id : null;
 }
 
+/** Drop the `?lld=problem:<id>` selection so the problem list shows. */
+function clearProblemSelection(): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("lld");
+  window.history.replaceState(null, "", url.toString());
+}
+
+interface ActiveDrillRow {
+  id: string;
+  problemId: string;
+  variant: DrillVariant;
+  currentStage: DrillStage;
+  startedAt: string;
+  durationLimitMs: number;
+}
+
 function StartDrillPanel() {
   const beginAttempt = useDrillStore((s) => s.beginAttempt);
+  const enterStage = useDrillStore((s) => s.enterStage);
   const [variant, setVariant] = useState<DrillVariant>("timed-mock");
   const [problemId, setProblemId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeConflict, setActiveConflict] = useState<string | null>(null);
+  const [resumable, setResumable] = useState<ActiveDrillRow | null>(null);
+
+  // DrillResumePrompt wiring: when nothing is in the store, check the
+  // server for an in-flight attempt (e.g. after a tab reload).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/lld/drill-attempts/active");
+        if (!res.ok) return;
+        const { active } = (await res.json()) as {
+          active: ActiveDrillRow | null;
+        };
+        if (!cancelled && active) setResumable(active);
+      } catch {
+        // Non-fatal — the user can still start a fresh drill.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setProblemId(readProblemIdFromUrl());
@@ -76,11 +121,66 @@ function StartDrillPanel() {
         attemptId: attempt.id,
         variant,
         persona: "generic",
+        problemId,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setStarting(false);
+    }
+  }
+
+  async function onResume() {
+    if (!resumable) return;
+    setStarting(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/lld/drill-attempts/${resumable.id}/resume`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      const { attempt } = (await res.json()) as {
+        attempt: {
+          id: string;
+          problemId: string;
+          variant: DrillVariant;
+          currentStage: DrillStage;
+        };
+      };
+      beginAttempt({
+        attemptId: attempt.id,
+        variant: attempt.variant,
+        persona: "generic",
+        problemId: attempt.problemId,
+      });
+      if (attempt.currentStage !== "clarify") {
+        enterStage(attempt.currentStage);
+      }
+    } catch (err) {
+      // Drop back to the start panel with the failure visible.
+      setResumable(null);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function onAbandonResumable() {
+    if (!resumable) return;
+    try {
+      await fetch(`/api/lld/drill-attempts/${resumable.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "abandon" }),
+      });
+    } finally {
+      setResumable(null);
     }
   }
 
@@ -107,6 +207,25 @@ function StartDrillPanel() {
     } finally {
       setStarting(false);
     }
+  }
+
+  if (resumable) {
+    const elapsedMs =
+      Date.now() - new Date(resumable.startedAt).getTime();
+    const remainingMinutes = Math.max(
+      0,
+      Math.round((resumable.durationLimitMs - elapsedMs) / 60_000),
+    );
+    return (
+      <div className="flex h-full w-full items-center justify-center p-8">
+        <DrillResumePrompt
+          problemTitle={resumable.problemId}
+          remainingMinutes={remainingMinutes}
+          onResume={() => void onResume()}
+          onAbandon={() => void onAbandonResumable()}
+        />
+      </div>
+    );
   }
 
   return (
@@ -181,6 +300,53 @@ function StartDrillPanel() {
 export const DrillModeLayout = memo(function DrillModeLayout() {
   const currentStage = useDrillStore((s) => s.currentStage);
   const attemptId = useDrillStore((s) => s.attemptId);
+  const rubricBreakdown = useDrillStore((s) => s.rubricBreakdown);
+  const finalScore = useDrillStore((s) => s.finalScore);
+  const setRubric = useDrillStore((s) => s.setRubric);
+  const reset = useDrillStore((s) => s.reset);
+  const [grading, setGrading] = useState(false);
+  const [gradeError, setGradeError] = useState<string | null>(null);
+
+  // Heartbeat keeps last_activity_at fresh so the server's 30-min
+  // stale-drill sweep doesn't abandon an attempt mid-canvas-work.
+  // (It self-stops once rubricBreakdown is set post-grade.)
+  useLLDDrillSync();
+
+  async function submitForGrade() {
+    if (!attemptId || grading) return;
+    setGrading(true);
+    setGradeError(null);
+    try {
+      // Use the self-grade picked in the reflection stage; 3 only if unset.
+      const selfGrade =
+        useDrillStore.getState().stageProgress.reflection?.selfGrade ?? 3;
+      const res = await fetch(`/api/lld/drill-attempts/${attemptId}/grade`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selfGrade }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      // Both fresh grades and the idempotent already-graded branch
+      // return { rubric, finalScore, band }.
+      const data = (await res.json()) as {
+        rubric: RubricBreakdown | null;
+        finalScore: number | null;
+      };
+      if (!data.rubric || typeof data.finalScore !== "number") {
+        throw new Error("Grade response was missing the rubric");
+      }
+      setRubric(data.rubric, data.finalScore);
+    } catch (err) {
+      setGradeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGrading(false);
+    }
+  }
 
   const stageScreen = useMemo(() => {
     switch (currentStage) {
@@ -201,6 +367,20 @@ export const DrillModeLayout = memo(function DrillModeLayout() {
     return <StartDrillPanel />;
   }
 
+  // Graded → swap the stage layout for the results screen.
+  if (rubricBreakdown !== null && finalScore !== null) {
+    return (
+      <DrillResultsScreen
+        attemptId={attemptId}
+        onStartNew={() => reset()}
+        onBackToProblems={() => {
+          clearProblemSelection();
+          reset();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950/40">
@@ -215,13 +395,19 @@ export const DrillModeLayout = memo(function DrillModeLayout() {
           <DrillHintLadder attemptId={attemptId} />
         </aside>
       </div>
+      {gradeError ? (
+        <div className="border-t border-red-500/30 bg-red-950/30 px-4 py-2 text-sm text-red-200">
+          Grading failed: {gradeError} — try submitting again.
+        </div>
+      ) : null}
+      {grading ? (
+        <div className="border-t border-violet-500/30 bg-violet-950/20 px-4 py-2 text-sm text-violet-200">
+          Grading your drill…
+        </div>
+      ) : null}
       <DrillSubmitBar
         onSubmit={() => {
-          void fetch(`/api/lld/drill-attempts/${attemptId}/grade`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ selfGrade: 3 }),
-          });
+          void submitForGrade();
         }}
         onPause={() => {
           void fetch(`/api/lld/drill-attempts/${attemptId}`, {
@@ -235,7 +421,7 @@ export const DrillModeLayout = memo(function DrillModeLayout() {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "abandon" }),
-          });
+          }).finally(() => reset());
         }}
       />
     </div>

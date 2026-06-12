@@ -24,7 +24,7 @@ export async function GET() {
 
     // Auto-abandon stale drills in a single UPDATE.
     const staleCutoff = new Date(Date.now() - STALE_THRESHOLD_MS);
-    await db
+    const abandoned = await db
       .update(lldDrillAttempts)
       .set({ abandonedAt: new Date() })
       .where(
@@ -34,7 +34,18 @@ export async function GET() {
           isNull(lldDrillAttempts.abandonedAt),
           lt(lldDrillAttempts.lastActivityAt, staleCutoff),
         ),
+      )
+      .returning({
+        id: lldDrillAttempts.id,
+        lastActivityAt: lldDrillAttempts.lastActivityAt,
+      });
+
+    for (const row of abandoned) {
+      const staleMs = Date.now() - row.lastActivityAt.getTime();
+      console.log(
+        `[api/lld/drill-attempts/active] auto-abandoned stale drill id=${row.id} idleMs=${staleMs} (~${Math.round(staleMs / 60_000)}min) lastActivityAt=${row.lastActivityAt.toISOString()}`,
       );
+    }
 
     // Fetch remaining active (if any).
     const [active] = await db

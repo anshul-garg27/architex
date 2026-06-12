@@ -254,5 +254,472 @@
       "highlightNodes": ["database", "cache"],
       "highlightEdges": ["e-app-db", "e-app-cache"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-cdn-regional-degradation",
+        "name": "Continental CDN Degradation at Peak",
+        "description": "An edge software rollout degrades a continent's PoP tier during evening peak, pushing a tenth of global watch traffic onto remaining regions and origin",
+        "targetNodes": ["cdn"],
+        "faultType": "partition",
+        "severity": 5,
+        "expectedBehavior": "Affected viewers re-steer to distant PoPs: video start time doubles, ABR players drop 1-2 bitrate tiers. Hit rate on receiving PoPs falls as a cold working set arrives. Origin read amplification grows until edge caches re-warm — origin egress is the metric to watch, not edge error rate.",
+        "mitigationSteps": [
+          "Halt the edge rollout and roll back — config/rollout is the first suspect in fleet-wide edge incidents",
+          "Steer traffic via anycast withdrawal and watch receiving-region utilization for cascade",
+          "Cap the top bitrate tier in affected regions to cut bytes per stream ~40%",
+          "Enable origin shield to collapse duplicate cache-fill fetches per segment"
+        ]
+      },
+      {
+        "id": "cs-mysql-primary-failover",
+        "name": "MySQL Primary Failover Under Write Load",
+        "description": "The metadata primary crashes during peak upload hours; a replica must be promoted while view-count and metadata writes queue",
+        "targetNodes": ["database"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Writes fail for 30-60s during promotion. Reads continue from replicas and the 92%-hit cache, so watching and browsing barely degrade. Replicas with replication lag serve slightly stale view counts. Queued counter increments flush after promotion, causing a visible count jump.",
+        "mitigationSteps": [
+          "Verify automated promotion selected the least-lagged replica",
+          "Fence the old primary before it can accept writes on recovery (split-brain prevention)",
+          "Flush buffered counter increments in batches to avoid a write stampede on the new primary",
+          "Audit replication topology before declaring all-clear"
+        ]
+      },
+      {
+        "id": "cs-search-cluster-degraded",
+        "name": "Elasticsearch Shard Reallocation Storm",
+        "description": "Two search data nodes fail, triggering mass shard recovery that saturates cluster I/O while search queries continue arriving",
+        "targetNodes": ["search"],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Search latency rises 10x as recovery I/O competes with queries; some shards go unassigned, returning partial results. Watch and browse paths are unaffected — search is an isolated failure domain. Indexing of new uploads backs up.",
+        "mitigationSteps": [
+          "Throttle shard recovery concurrency and bandwidth so queries keep breathing room",
+          "Serve degraded results: cached trending/popular fallback for failed query shards",
+          "Pause non-urgent reindexing jobs until cluster returns to green",
+          "Replace failed nodes; let allocation awareness rebuild across zones"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 500000,
+        "bottleneckNode": "cache",
+        "metric": "memory",
+        "description": "Hot metadata working set outgrows 256GB; eviction rate climbs and misses leak to MySQL",
+        "resolution": "Shard the Redis cluster wider and pin trending-page keys with longer TTLs"
+      },
+      {
+        "rpsThreshold": 1000000,
+        "bottleneckNode": "database",
+        "metric": "cpu",
+        "description": "View-count write contention on viral video rows saturates the MySQL primary",
+        "resolution": "Sharded approximate counters aggregated in batches; move counters off the relational primary"
+      },
+      {
+        "rpsThreshold": 2000000,
+        "bottleneckNode": "app-server",
+        "metric": "cpu",
+        "description": "Video API fleet saturates on session, manifest, and recommendation fan-out",
+        "resolution": "Scale the fleet; precompute home-feed candidates per user cohort offline"
+      },
+      {
+        "rpsThreshold": 4000000,
+        "bottleneckNode": "cdn",
+        "metric": "network",
+        "description": "Edge egress approaches PoP port capacity in dense metros at synchronized peak",
+        "resolution": "Add PoP capacity and deepen ISP-embedded caches; shift encoding mix toward AV1 to cut bytes per stream"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-viral-counter-hotspot",
+        "title": "View-Count Hotspot on Viral Videos",
+        "description": "A video going viral concentrates millions of increments per minute on one MySQL row; lock contention stalls the write path far below aggregate capacity",
+        "affectedNodes": ["database"],
+        "likelihood": 5,
+        "impact": 3,
+        "mitigation": "Approximate sharded counters buffered in the cache tier, flushed to MySQL in periodic aggregated batches"
+      },
+      {
+        "id": "ei-trending-stampede",
+        "title": "Trending-Key Cache Stampede",
+        "description": "Trending and home-row cache keys expire under massive concurrent demand; thousands of identical queries race to MySQL in the regeneration window",
+        "affectedNodes": ["cache", "database"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Jittered TTLs, stale-while-revalidate serving, and single-flight regeneration locks per key"
+      },
+      {
+        "id": "ei-transcode-backlog",
+        "title": "Transcode Backlog During Upload Spikes",
+        "description": "Breaking-news upload surges outpace the 200-way transcoder; Kafka absorbs the backlog but time-to-publish stretches from minutes to hours",
+        "affectedNodes": ["mq", "stream-proc"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Scale transcoder parallelism on consumer lag; publish low-res renditions first and backfill quality tiers"
+      },
+      {
+        "id": "ei-search-freshness-lag",
+        "title": "Search Index Freshness Lag",
+        "description": "New uploads are watchable via direct link minutes before they are searchable, because Elasticsearch indexing trails the metadata write path",
+        "affectedNodes": ["search", "app-server"],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Track indexing lag as an SLO; fast-path index of title/channel fields ahead of full enrichment (captions, topics)"
+      },
+      {
+        "id": "ei-longtail-origin-amplification",
+        "title": "Long-Tail Origin Read Amplification",
+        "description": "The 10% of requests for unpopular videos miss at 300 independent PoPs, each filling separately from origin — the same cold video can be fetched hundreds of times",
+        "affectedNodes": ["cdn", "storage"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Hierarchical caching: regional mid-tier caches between PoPs and origin collapse duplicate fills"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 733000,
+      "components": [
+        {
+          "nodeId": "cdn",
+          "label": "CDN (Video Delivery)",
+          "monthlyCostUsd": 450000,
+          "costDriver": "Multi-petabyte daily egress across 300 PoPs at deep-commit pricing"
+        },
+        {
+          "nodeId": "storage",
+          "label": "Object Storage (Video Blobs)",
+          "monthlyCostUsd": 120000,
+          "costDriver": "10PB across hot/IA/archive tiers; cold tail dominates volume"
+        },
+        {
+          "nodeId": "stream-proc",
+          "label": "Transcoder Fleet",
+          "monthlyCostUsd": 60000,
+          "costDriver": "200-way parallel FFmpeg pipeline, spot-heavy"
+        },
+        {
+          "nodeId": "search",
+          "label": "Search (Elasticsearch)",
+          "monthlyCostUsd": 30000,
+          "costDriver": "100 shards / 5TB index across memory-optimized nodes"
+        },
+        {
+          "nodeId": "app-server",
+          "label": "Video API Service",
+          "monthlyCostUsd": 25000,
+          "costDriver": "50 x 16-core instances, peak-scaled"
+        },
+        {
+          "nodeId": "database",
+          "label": "MySQL (Sharded Metadata)",
+          "monthlyCostUsd": 25000,
+          "costDriver": "Sharded primaries + 5 replicas, 10TB"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Upload Queue (Kafka)",
+          "monthlyCostUsd": 12000,
+          "costDriver": "256 partitions at 1GB/s peak ingest"
+        },
+        {
+          "nodeId": "cache",
+          "label": "Redis (Hot Metadata)",
+          "monthlyCostUsd": 7000,
+          "costDriver": "256GB clustered with replicas"
+        },
+        {
+          "nodeId": "lb",
+          "label": "Load Balancer",
+          "monthlyCostUsd": 4000,
+          "costDriver": "Connection volume at 5M RPS peak"
+        }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low", "rps": 500000, "monthlyCostUsd": 280000 },
+        { "label": "Medium", "rps": 2500000, "monthlyCostUsd": 733000 },
+        { "label": "High", "rps": 5000000, "monthlyCostUsd": 1400000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 1000000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 20,
+      "p99LatencyMs": 150,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.05,
+      "throughputRps": 5000000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 10,
+        "scaleDownStep": 5,
+        "cooldownSeconds": 120,
+        "minInstances": 30,
+        "maxInstances": 200
+      },
+      {
+        "nodeId": "stream-proc",
+        "metric": "kafka_consumer_lag",
+        "threshold": 5000,
+        "scaleUpStep": 20,
+        "scaleDownStep": 10,
+        "cooldownSeconds": 300,
+        "minInstances": 100,
+        "maxInstances": 500
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Video Start Time",
+        "metric": "p95_time_to_first_frame",
+        "target": 1500,
+        "unit": "ms",
+        "penalty": "Internal SLO — delivery incident review"
+      },
+      {
+        "name": "API Availability",
+        "metric": "uptime",
+        "target": 99.95,
+        "unit": "%",
+        "penalty": "Public status disclosure + creator support credits"
+      },
+      {
+        "name": "Search Freshness",
+        "metric": "p95_upload_to_searchable",
+        "target": 300,
+        "unit": "s",
+        "penalty": "Internal SLO"
+      },
+      {
+        "name": "Rebuffer Ratio",
+        "metric": "rebuffer_seconds_per_hour_pct",
+        "target": 0.5,
+        "unit": "%",
+        "penalty": "Internal SLO — bitrate ladder review"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "edge_cache_hit_rate",
+          "type": "gauge",
+          "description": "Byte hit rate across the CDN edge tier",
+          "nodeId": "cdn"
+        },
+        {
+          "name": "time_to_first_frame",
+          "type": "histogram",
+          "description": "Play press to first rendered frame, per region",
+          "nodeId": "cdn"
+        },
+        {
+          "name": "transcode_consumer_lag",
+          "type": "gauge",
+          "description": "Unprocessed upload jobs pending in Kafka",
+          "nodeId": "mq"
+        },
+        {
+          "name": "transcode_throughput",
+          "type": "counter",
+          "description": "Renditions completed per minute",
+          "nodeId": "stream-proc"
+        },
+        {
+          "name": "db_replication_lag",
+          "type": "gauge",
+          "description": "Replica lag behind the MySQL primary",
+          "nodeId": "database"
+        },
+        {
+          "name": "search_latency",
+          "type": "histogram",
+          "description": "Elasticsearch query response time",
+          "nodeId": "search"
+        },
+        {
+          "name": "metadata_cache_hit_rate",
+          "type": "gauge",
+          "description": "Redis hit rate on hot metadata",
+          "nodeId": "cache"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Video Start Time Degraded",
+          "condition": "time_to_first_frame p99 > 3s in any region for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Edge Hit Rate Drop",
+          "condition": "edge_cache_hit_rate < 0.85 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Replication Lag",
+          "condition": "db_replication_lag > 10s on any replica",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Transcode Lag Runaway",
+          "condition": "transcode_consumer_lag > 100000 and rising for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Search Cluster Not Green",
+          "condition": "unassigned shards > 0 for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Watch QoE (TTFF / Rebuffer / Bitrate Mix)",
+        "Upload Pipeline (Lag / Throughput / Time-to-Publish)",
+        "Metadata Tier (Cache / MySQL / Replication)",
+        "Search Health"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Service On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": ["oncall-video-platform"]
+        },
+        {
+          "level": 2,
+          "name": "Owning Team (Delivery / Metadata / Search)",
+          "responseTimeMinutes": 15,
+          "contacts": ["delivery-team", "metadata-team", "search-team"]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander + Comms",
+          "responseTimeMinutes": 30,
+          "contacts": ["incident-commander", "comms-lead"]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Regional watch degradation",
+          "severity": "critical",
+          "steps": [
+            "Check for in-flight edge rollouts first and roll back before deeper diagnosis",
+            "Confirm scope via per-PoP TTFF and hit-rate panels",
+            "Steer traffic away from degraded PoPs; watch receiving-region load",
+            "Cap top bitrate tier regionally if origin egress climbs past safe headroom",
+            "Re-warm recovered PoPs before returning them to full rotation"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "MySQL primary failover",
+          "severity": "high",
+          "steps": [
+            "Confirm automated promotion completed and the old primary is fenced",
+            "Verify cache hit rate is absorbing reads while replicas catch up",
+            "Flush buffered view-count increments in rate-limited batches",
+            "Run a replication topology audit before closing the incident"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Search cluster degraded",
+          "severity": "medium",
+          "steps": [
+            "Enable trending/popular fallback results for failing query shards",
+            "Throttle shard recovery so query latency stays bounded",
+            "Pause bulk reindex jobs; let upload indexing lag rather than fail",
+            "Replace lost nodes and verify zone-aware shard placement on recovery"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Watch Path and API Path Are Separate Systems",
+        "context": "Video bytes dwarf metadata bytes by orders of magnitude; coupling them means the API tier must scale with egress",
+        "decision": "Clients stream segments directly from CDN edges; the load-balanced API fleet handles only browse, search, upload, and session traffic",
+        "consequences": [
+          "An API-tier incident never interrupts in-progress playback",
+          "CDN capacity planning is decoupled from compute planning",
+          "Per-view authorization relies on signed segment URLs rather than inline checks"
+        ]
+      },
+      {
+        "title": "Kafka-Decoupled Transcode Pipeline",
+        "context": "Upload bursts (news events) exceed any fixed transcoder fleet, and transcoding tolerates minutes of latency",
+        "decision": "Buffer all upload jobs in a 256-partition Kafka topic consumed by a 200-way FFmpeg pipeline that scales on consumer lag",
+        "consequences": [
+          "Upload acceptance is never throttled by transcode capacity",
+          "Backlog converts surges into publish-time delay instead of failures",
+          "Consumer lag becomes the canonical pipeline health signal"
+        ]
+      },
+      {
+        "title": "Approximate Counters for View Counts",
+        "context": "Billions of daily views concentrated on popular videos make exact per-row increments a lock-contention disaster",
+        "decision": "Buffer increments in sharded cache-tier counters and flush aggregated deltas to MySQL periodically",
+        "consequences": [
+          "Write path scales with cache throughput, not row-lock throughput",
+          "Displayed counts are approximate and briefly stale by design",
+          "Counter reconciliation jobs become part of the data platform"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Count Accuracy vs Write Throughput",
+        "choice": "Approximate, batched view counters",
+        "benefit": "Viral videos cannot stall the metadata write path",
+        "cost": "Counts lag reality by seconds-to-minutes and jump visibly when batches flush"
+      },
+      {
+        "dimension": "Storage Cost vs Delivery Efficiency",
+        "choice": "Full rendition ladder (144p-4K, H.264/VP9/AV1) per video",
+        "benefit": "Optimal stream for every device and connection; modern codecs cut egress meaningfully at this scale",
+        "cost": "Storage multiplies per codec; 10PB is dominated by renditions of rarely-watched videos"
+      },
+      {
+        "dimension": "Search Freshness vs Indexing Cost",
+        "choice": "Asynchronous Elasticsearch indexing decoupled from the upload transaction",
+        "benefit": "Uploads never block on the search cluster, which can degrade independently",
+        "cost": "A freshness window where new videos are watchable but not searchable"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Exact Transactional View Counts",
+        "description": "Increment the video row inside each playback transaction",
+        "prosVsCons": "Perfectly accurate counts and zero reconciliation machinery, but single-row lock contention caps any viral video at the row's lock throughput",
+        "whyNotChosen": "The hottest videos are precisely the ones that would break it; approximate counts are an accepted product norm"
+      },
+      {
+        "name": "NoSQL Metadata Store",
+        "description": "Replace sharded MySQL with a wide-column store (Bigtable/Cassandra-style) for metadata",
+        "prosVsCons": "Native horizontal write scaling, but loses relational queries, secondary indexes, and transactional semantics that channel/playlist features rely on",
+        "whyNotChosen": "Vitess-style sharded MySQL keeps SQL semantics while scaling writes; the migration risk outweighs the benefit"
+      },
+      {
+        "name": "Synchronous Search Indexing",
+        "description": "Index into Elasticsearch within the upload request so videos are instantly searchable",
+        "prosVsCons": "Zero freshness lag, but couples upload availability to search cluster health and slows every upload by indexing latency",
+        "whyNotChosen": "Search is the least availability-critical path; letting it lag is strictly better than letting it block uploads"
+      }
+    ]
+  }
 }

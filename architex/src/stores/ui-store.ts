@@ -42,7 +42,7 @@ interface UIState {
   bottomPanelOpen: boolean;
 
   // Bottom panel active tab
-  bottomPanelTab: "code" | "timeline" | "metrics" | "console" | "chaos" | "capacity" | "cost" | "sla" | "latency" | "report";
+  bottomPanelTab: "code" | "timeline" | "metrics" | "console" | "chaos" | "capacity" | "cost" | "sla" | "latency" | "report" | "blast-radius" | "rationale";
 
   // Theme
   theme: Theme;

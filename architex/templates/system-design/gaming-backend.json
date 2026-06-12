@@ -188,5 +188,458 @@
       "highlightNodes": ["database", "game-server", "cache"],
       "highlightEdges": ["e-game-db", "e-game-cache"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-game-server-crash",
+        "name": "Game Server Instance Crash",
+        "description": "Kill one of the 50 game server instances while it hosts live sessions",
+        "targetNodes": [
+          "game-server"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "~2% of active sessions lose their authoritative server. Affected clients disconnect and trigger a reconnect surge through the LB. A replacement server loads session state from Redis; players see a 5-10s freeze and roll back to the last persisted tick.",
+        "mitigationSteps": [
+          "LB health check ejects the dead instance within 5s (5000ms interval)",
+          "Session orchestrator reassigns orphaned sessions to a healthy server, which restores state from Redis",
+          "Clients reconnect with jittered exponential backoff to avoid stampeding the LB",
+          "Capture core dump before terminating the instance; check for tick-loop deadlock"
+        ]
+      },
+      {
+        "id": "cs-state-cache-latency",
+        "name": "Game State Cache Latency Spike",
+        "description": "Inject 50ms latency on Redis state operations (simulates BGSAVE fork stall or replica sync pressure)",
+        "targetNodes": [
+          "cache"
+        ],
+        "faultType": "latency",
+        "severity": 4,
+        "expectedBehavior": "State reads/writes that normally take <1ms blow the 16ms tick budget at 60Hz. Servers skip ticks, players see rubber-banding, and per-session input queues back up. Sessions stay alive but playability degrades platform-wide.",
+        "mitigationSteps": [
+          "Game servers fall back to in-process state with write-behind flushes to Redis",
+          "Move RDB snapshots to a replica; keep AOF fsync at everysec, never always",
+          "Shed cosmetic sync (leaderboards) before gameplay-critical state",
+          "Fail over to the Redis replica if degradation persists beyond 5 minutes"
+        ]
+      },
+      {
+        "id": "cs-matchmaking-stall",
+        "name": "Matchmaking Pipeline Stall",
+        "description": "Partition the matchmaking Kafka topic from its consumer group, stalling match formation",
+        "targetNodes": [
+          "mq",
+          "matchmaking-worker"
+        ],
+        "faultType": "partition",
+        "severity": 3,
+        "expectedBehavior": "In-progress matches are unaffected. New match requests accumulate in Kafka; queue times grow from seconds to minutes. Consumer-lag alarms fire and player cancel/requeue churn rises after ~2 minutes of waiting.",
+        "mitigationSteps": [
+          "Check consumer-group lag and partition assignment; restart crash-looping workers",
+          "Widen MMR matching bands progressively to drain the backlog faster",
+          "Surface queue-time estimates to clients to reduce cancel/requeue churn",
+          "Replay unprocessed match requests after the partition heals (24h retention covers it)"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 30000,
+        "bottleneckNode": "game-server",
+        "metric": "cpu",
+        "description": "Tick loops saturate the 8-core instances; combat-heavy sessions exceed the 16ms frame budget at 60Hz",
+        "resolution": "Scale the fleet out, apply interest management (sync only entities near each player), and drop tick rate for low-activity sessions"
+      },
+      {
+        "rpsThreshold": 60000,
+        "bottleneckNode": "cache",
+        "metric": "network",
+        "description": "State delta read/write fan-out saturates Redis network throughput; replication lag grows",
+        "resolution": "Shard the state cluster by session ID, compress deltas, and pin hot sessions to dedicated shards"
+      },
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "lb",
+        "metric": "connections",
+        "description": "Persistent WebSocket connection tables exhaust LB capacity at roughly two connections per active player",
+        "resolution": "Add LB instances behind DNS/anycast and shard players by region"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-tick-overrun",
+        "title": "Tick Budget Overrun",
+        "description": "The 16ms processing time per tick leaves zero headroom at 60Hz; GC pauses or a single hot session cause skipped ticks and visible rubber-banding",
+        "affectedNodes": [
+          "game-server"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Pre-allocate object pools to avoid GC, budget 10ms per tick with alerting at 13ms, and isolate heavyweight sessions onto dedicated instances"
+      },
+      {
+        "id": "ei-reconnect-storm",
+        "title": "Reconnect Storm After Network Blip",
+        "description": "A transient LB or ISP blip disconnects tens of thousands of WebSockets that all reconnect simultaneously, spiking auth and state-restore load",
+        "affectedNodes": [
+          "lb",
+          "game-server"
+        ],
+        "likelihood": 3,
+        "impact": 4,
+        "mitigation": "Client-side jittered backoff, reconnect tokens that skip full re-auth, and connection-rate limiting at the LB"
+      },
+      {
+        "id": "ei-match-end-burst",
+        "title": "Match-End Write Bursts",
+        "description": "Synchronized session ends (mode rotations, timed events) flush thousands of match results at once, saturating the 500-connection PostgreSQL pool",
+        "affectedNodes": [
+          "game-server",
+          "database"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Stagger result writes with jitter, buffer them through the queue, and front the database with a connection pooler"
+      },
+      {
+        "id": "ei-hot-session",
+        "title": "Hot Session Concentration",
+        "description": "A single authoritative session cannot be split across servers; tournament or streamer lobbies with heavy spectator counts overload one instance",
+        "affectedNodes": [
+          "game-server",
+          "cache"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Move spectator fan-out onto a broadcast tier that reads state from Redis instead of the session-owning server"
+      },
+      {
+        "id": "ei-mmr-starvation",
+        "title": "Matchmaking Starvation at Distribution Tails",
+        "description": "Very high/low MMR players and off-peak regions wait far beyond the p95 target because candidate pools are thin",
+        "affectedNodes": [
+          "matchmaking-worker"
+        ],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Time-based MMR band widening and cross-region matching fallback with hard latency caps"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 19100,
+      "components": [
+        {
+          "nodeId": "game-server",
+          "label": "Game Server Fleet",
+          "monthlyCostUsd": 12500,
+          "costDriver": "50 instances, 8 vCPU / 32GB each"
+        },
+        {
+          "nodeId": "cache",
+          "label": "Game State Cache",
+          "monthlyCostUsd": 1800,
+          "costDriver": "64GB Redis cluster"
+        },
+        {
+          "nodeId": "database",
+          "label": "Player DB",
+          "monthlyCostUsd": 2600,
+          "costDriver": "Primary + 3 replicas, 2TB storage"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Matchmaking Queue",
+          "monthlyCostUsd": 900,
+          "costDriver": "Kafka cluster, 16 partitions"
+        },
+        {
+          "nodeId": "matchmaking-worker",
+          "label": "Matchmaking Workers",
+          "monthlyCostUsd": 700,
+          "costDriver": "10 worker instances"
+        },
+        {
+          "nodeId": "lb",
+          "label": "Load Balancer",
+          "monthlyCostUsd": 600,
+          "costDriver": "NLB hours + WebSocket data processed"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 10000,
+          "monthlyCostUsd": 6500
+        },
+        {
+          "label": "Medium",
+          "rps": 50000,
+          "monthlyCostUsd": 19100
+        },
+        {
+          "label": "High",
+          "rps": 200000,
+          "monthlyCostUsd": 64000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 50000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 25,
+      "p99LatencyMs": 80,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 50000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "game-server",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 5,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 180,
+        "minInstances": 20,
+        "maxInstances": 200
+      },
+      {
+        "nodeId": "matchmaking-worker",
+        "metric": "kafka_consumer_lag",
+        "threshold": 5000,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 40
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Action Latency",
+        "metric": "p99_input_to_state_ms",
+        "target": 100,
+        "unit": "ms",
+        "penalty": "Internal SLO — playability review if breached two consecutive weeks"
+      },
+      {
+        "name": "Matchmaking Time",
+        "metric": "p95_queue_seconds",
+        "target": 60,
+        "unit": "s",
+        "penalty": "Internal SLO — MMR bands widen automatically on breach"
+      },
+      {
+        "name": "Platform Availability",
+        "metric": "uptime",
+        "target": 99.95,
+        "unit": "%",
+        "penalty": "Player compensation (in-game currency) per outage policy"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "tick_duration_ms",
+          "type": "histogram",
+          "description": "Per-tick simulation time against the 16ms budget",
+          "nodeId": "game-server"
+        },
+        {
+          "name": "ws_connected_clients",
+          "type": "gauge",
+          "description": "Active WebSocket connections",
+          "nodeId": "lb"
+        },
+        {
+          "name": "matchmaking_consumer_lag",
+          "type": "gauge",
+          "description": "Unprocessed match requests in Kafka",
+          "nodeId": "mq"
+        },
+        {
+          "name": "state_op_latency_ms",
+          "type": "histogram",
+          "description": "Redis state read/write latency",
+          "nodeId": "cache"
+        },
+        {
+          "name": "match_results_written_total",
+          "type": "counter",
+          "description": "Match results persisted at session end",
+          "nodeId": "database"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Tick Overrun",
+          "condition": "p99 tick_duration_ms > 16 for 3min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Matchmaking Lag",
+          "condition": "consumer lag > 5000 requests for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Mass Disconnect",
+          "condition": "WebSocket disconnect rate > 5%/min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "State Cache Slow",
+          "condition": "p99 state op > 5ms for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Session Health (ticks, sessions, disconnects)",
+        "Matchmaking Funnel",
+        "State Cache Performance"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Gameplay Platform On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "gameplay-oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Gameplay Infra Lead",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "gameplay-lead"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "incident-commander"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Game server crash loop",
+          "severity": "critical",
+          "steps": [
+            "Drain new session allocation away from the failing instance group",
+            "Verify orphaned sessions resumed from Redis; manually requeue any stuck sessions",
+            "Roll back the latest server build if the crash signature matches a recent deploy",
+            "Capture core dumps before terminating instances"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Matchmaking queue stall",
+          "severity": "high",
+          "steps": [
+            "Check Kafka consumer-group lag and partition assignment",
+            "Restart stuck workers and verify offsets advance",
+            "Temporarily widen MMR bands to drain the backlog",
+            "Announce queue delays in-game if waits exceed 5 minutes"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Redis state cluster degradation",
+          "severity": "critical",
+          "steps": [
+            "Determine whether latency stems from BGSAVE/AOF activity or network saturation",
+            "Fail over to the replica if the primary is degraded",
+            "Enable server-side write-behind buffering to protect tick budgets",
+            "Audit sessions for state rollback after recovery"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Authoritative Server Model",
+        "context": "Multiplayer games must prevent client-side cheating and resolve conflicting player inputs deterministically",
+        "decision": "All game state mutations run in server-side tick loops; clients send inputs and receive state deltas over WebSocket",
+        "consequences": [
+          "Cheating via client tampering is structurally limited",
+          "Server fleet cost scales with concurrent sessions",
+          "Client-side prediction is required to hide the 30ms+ network RTT"
+        ]
+      },
+      {
+        "title": "Hot/Cold State Split (Redis vs PostgreSQL)",
+        "context": "Tick loops need sub-millisecond state access, but match results and progression must be durable",
+        "decision": "Active session state lives in Redis with TTL-based garbage collection; results and profiles persist to PostgreSQL at session end",
+        "consequences": [
+          "Sub-ms reads keep the 16ms tick budget intact",
+          "A crash between persistence points can lose a few seconds of unflushed state",
+          "Session resume after a server failure is possible by reloading from Redis"
+        ]
+      },
+      {
+        "title": "Asynchronous Matchmaking via Kafka",
+        "context": "Matchmaking tolerates seconds of latency, unlike gameplay; login rushes create extreme demand spikes",
+        "decision": "Game servers publish match requests to Kafka; a separately scaled worker pool runs MMR-based matching",
+        "consequences": [
+          "The queue absorbs login-rush spikes without affecting live sessions",
+          "Matchmaking capacity scales independently of the game server fleet",
+          "Adds seconds of queueing latency, acceptable for this workflow"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Latency vs Durability",
+        "choice": "Latency",
+        "benefit": "State operations stay in-memory and tick loops never block on disk",
+        "cost": "A server crash can roll players back several seconds of gameplay"
+      },
+      {
+        "dimension": "Server Cost vs Cheat Resistance",
+        "choice": "Cheat resistance (authoritative servers)",
+        "benefit": "A single trusted source of truth for game state",
+        "cost": "50+ instances at peak versus near-zero server cost for peer-to-peer"
+      },
+      {
+        "dimension": "Match Quality vs Queue Time",
+        "choice": "Bounded queue time",
+        "benefit": "MMR bands widen over time so players always get a match",
+        "cost": "Off-peak and tail-MMR matches are less balanced"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Peer-to-Peer Lockstep",
+        "description": "Clients exchange inputs directly and simulate the game deterministically",
+        "prosVsCons": "Near-zero server cost and minimal peer latency, but trivially cheatable, fragile under NAT and packet loss, and desyncs are hard to recover",
+        "whyNotChosen": "Competitive integrity and reconnect support require an authoritative source of truth"
+      },
+      {
+        "name": "In-Process State Only (No Redis)",
+        "description": "Keep session state purely in game-server memory",
+        "prosVsCons": "Removes a network hop per tick, but a server crash permanently kills every session it hosts",
+        "whyNotChosen": "Session resume from Redis was judged worth the ~1ms overhead per state operation"
+      },
+      {
+        "name": "Synchronous Matchmaking RPC",
+        "description": "Game servers call a matchmaking service directly and wait for assignment",
+        "prosVsCons": "Simpler to reason about, but couples login-rush spikes to gameplay capacity and retries amplify load",
+        "whyNotChosen": "Queue-based decoupling isolates matchmaking surges from live sessions"
+      }
+    ]
+  }
 }

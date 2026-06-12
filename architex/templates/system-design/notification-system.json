@@ -288,7 +288,7 @@
         "name": "APNS Provider Outage",
         "description": "Apple Push Notification service is down",
         "targetNodes": [
-          "push-provider"
+          "push-service"
         ],
         "faultType": "crash",
         "severity": 3,
@@ -305,7 +305,7 @@
         "description": "System event triggers notifications to all 10M users",
         "targetNodes": [
           "notification-service",
-          "push-provider"
+          "push-service"
         ],
         "faultType": "resource-exhaustion",
         "severity": 3,
@@ -321,7 +321,7 @@
         "name": "Duplicate Notification Bug",
         "description": "Deduplication service fails, sending same notification multiple times",
         "targetNodes": [
-          "dedup-service"
+          "notification-service"
         ],
         "faultType": "error",
         "severity": 2,
@@ -336,7 +336,7 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 25000,
-        "bottleneckNode": "push-provider",
+        "bottleneckNode": "push-service",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
@@ -355,7 +355,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "push-provider"
+          "push-service"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -366,7 +366,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "dedup-service"
+          "notification-service"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -377,7 +377,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "push-provider"
+          "push-service"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -388,13 +388,13 @@
       "totalMonthlyCostUsd": 12000,
       "components": [
         {
-          "nodeId": "push-provider",
+          "nodeId": "push-service",
           "label": "Primary Service",
           "monthlyCostUsd": 4000,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "dedup-service",
+          "nodeId": "notification-service",
           "label": "Storage",
           "monthlyCostUsd": 4000,
           "costDriver": "Storage and I/O"
@@ -435,7 +435,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "push-provider",
+        "nodeId": "push-service",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -467,13 +467,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "push-provider"
+          "nodeId": "push-service"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "push-provider"
+          "nodeId": "push-service"
         }
       ],
       "alerts": [

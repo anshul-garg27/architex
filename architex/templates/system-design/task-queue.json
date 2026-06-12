@@ -179,5 +179,406 @@
       "highlightNodes": ["message-queue", "worker-pool", "database"],
       "highlightEdges": ["e-mq-worker", "e-worker-db"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-broker-memory-alarm",
+        "name": "RabbitMQ Memory Watermark Breach",
+        "description": "Queue backlog grows until the broker hits its memory high watermark and blocks all publishers, freezing the API submit path",
+        "targetNodes": ["message-queue"],
+        "faultType": "resource-exhaustion",
+        "severity": 5,
+        "expectedBehavior": "Publisher connections are blocked, so Application Server publish calls hang until timeout. Task submission latency jumps from 25ms to the full 30s gateway timeout. Consumers keep draining, so the alarm clears once depth drops below the watermark.",
+        "mitigationSteps": [
+          "Page immediately — blocked publishers means the synchronous API path is down",
+          "Convert hot queues to lazy mode so backlog pages to disk instead of RAM",
+          "Scale the worker pool to accelerate drain",
+          "Apply queue length limits with overflow=reject-publish so future overload fails fast instead of blocking"
+        ]
+      },
+      {
+        "id": "cs-worker-mass-failure",
+        "name": "Worker Pool Mass Failure",
+        "description": "A bad deploy OOM-kills half the worker fleet mid-task; unacknowledged messages must be redelivered to survivors",
+        "targetNodes": ["worker-pool"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "RabbitMQ detects dropped connections and redelivers ~80 in-flight unacked messages to surviving workers. Queue depth climbs as 50% of drain capacity disappears. Non-idempotent tasks that had side effects before dying execute twice.",
+        "mitigationSteps": [
+          "Roll back the deploy and let autoscaling replace dead instances",
+          "Verify redelivered messages carry the redelivered flag so idempotency guards engage",
+          "Audit tasks with external side effects (emails, payments) for duplicates",
+          "Hold queue-depth alerts in acknowledged state until drain rate normalizes"
+        ]
+      },
+      {
+        "id": "cs-poison-message",
+        "name": "Poison Message Redelivery Loop",
+        "description": "A malformed payload crashes the consuming worker process before it can ack or reject, so the broker redelivers it to the next worker, serially crashing the fleet",
+        "targetNodes": ["worker-pool", "message-queue"],
+        "faultType": "data-corruption",
+        "severity": 3,
+        "expectedBehavior": "One message cycles through workers causing repeated crashes; throughput on the affected queue drops as workers spend time restarting. Retry counter in the message header eventually routes it to the DLQ after 3 attempts — if the crash happens before retry accounting, the loop is unbounded.",
+        "mitigationSteps": [
+          "Identify the message via worker crash logs and correlation IDs",
+          "Use x-death headers / delivery-count quarantine so broker-side limits apply even when workers crash pre-ack",
+          "Move the message to the DLQ manually and restore the queue",
+          "Patch payload validation to reject the malformed shape at publish time"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 2000,
+        "bottleneckNode": "worker-pool",
+        "metric": "cpu",
+        "description": "160 concurrent task slots saturate; queue depth begins growing faster than drain rate",
+        "resolution": "Scale worker instances on queue depth, not CPU — queue depth leads CPU as the demand signal"
+      },
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "message-queue",
+        "metric": "memory",
+        "description": "Backlogged classic queues hold messages in broker RAM, approaching the memory watermark",
+        "resolution": "Enable lazy queues, set per-queue length limits, and shard hot queues across the cluster"
+      },
+      {
+        "rpsThreshold": 8000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Result writes from a scaled-out worker fleet exhaust PostgreSQL's 200-connection limit",
+        "resolution": "Front the result store with PgBouncer in transaction mode and batch state-transition writes"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-unbounded-backlog",
+        "title": "Unbounded Queue Growth",
+        "description": "Producers are decoupled from consumers, so nothing inherently stops submission when workers fall behind — backlog grows until broker memory or disk is exhausted",
+        "affectedNodes": ["message-queue", "app-server"],
+        "likelihood": 4,
+        "impact": 4,
+        "mitigation": "Queue length limits with reject-publish overflow, publisher confirms, and autoscaling keyed to queue depth"
+      },
+      {
+        "id": "ei-duplicate-execution",
+        "title": "Duplicate Task Execution",
+        "description": "At-least-once delivery means a worker that dies after performing side effects but before acking causes the task to run again on another worker",
+        "affectedNodes": ["worker-pool"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Idempotency keys checked against the result store before side effects; design all tasks to be safely re-runnable"
+      },
+      {
+        "id": "ei-priority-starvation",
+        "title": "Low-Priority Starvation and Head-of-Line Blocking",
+        "description": "Sustained critical-priority traffic starves bulk queues indefinitely, and long-running tasks occupy prefetched slots that block queued short tasks behind them",
+        "affectedNodes": ["message-queue", "worker-pool"],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Dedicated worker pools per task class (short vs long-running) and minimum drain quotas for low-priority queues"
+      },
+      {
+        "id": "ei-result-store-bloat",
+        "title": "Result Store Bloat",
+        "description": "Every task writes state transitions and results to PostgreSQL; at 5k tasks/s the table grows by hundreds of millions of rows per week, degrading status-poll queries",
+        "affectedNodes": ["database"],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Time-partitioned task tables with a TTL drop policy; move large results to S3 and store only pointers"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 3700,
+      "components": [
+        {
+          "nodeId": "worker-pool",
+          "label": "Worker Pool",
+          "monthlyCostUsd": 1250,
+          "costDriver": "20 x 2-vCPU instances running 8 concurrent slots each"
+        },
+        {
+          "nodeId": "app-server",
+          "label": "Application Server",
+          "monthlyCostUsd": 750,
+          "costDriver": "5 instances handling submit + status-poll traffic"
+        },
+        {
+          "nodeId": "database",
+          "label": "Result Store (PostgreSQL)",
+          "monthlyCostUsd": 600,
+          "costDriver": "Primary + replica with 500GB storage"
+        },
+        {
+          "nodeId": "message-queue",
+          "label": "Task Broker (RabbitMQ)",
+          "monthlyCostUsd": 450,
+          "costDriver": "3-node mirrored cluster"
+        },
+        {
+          "nodeId": "object-storage",
+          "label": "Artifact Storage (S3)",
+          "monthlyCostUsd": 350,
+          "costDriver": "10TB artifacts + PUT request volume"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 300,
+          "costDriver": "Request volume + auth"
+        }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low", "rps": 500, "monthlyCostUsd": 1800 },
+        { "label": "Medium", "rps": 5000, "monthlyCostUsd": 3700 },
+        { "label": "High", "rps": 20000, "monthlyCostUsd": 9500 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 5000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 25,
+      "p99LatencyMs": 150,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 5000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "worker-pool",
+        "metric": "queue_depth",
+        "threshold": 1000,
+        "scaleUpStep": 5,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 180,
+        "minInstances": 10,
+        "maxInstances": 100
+      },
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 3,
+        "maxInstances": 15
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Task Submission Latency",
+        "metric": "p99_submit_ms",
+        "target": 150,
+        "unit": "ms",
+        "penalty": "10% credit"
+      },
+      {
+        "name": "Critical Task Start Delay",
+        "metric": "p95_critical_queue_wait",
+        "target": 5,
+        "unit": "s",
+        "penalty": "25% credit on affected workloads"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "10% credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "queue_depth",
+          "type": "gauge",
+          "description": "Ready messages per queue, by priority",
+          "nodeId": "message-queue"
+        },
+        {
+          "name": "dlq_size",
+          "type": "gauge",
+          "description": "Messages parked in the dead-letter queue",
+          "nodeId": "message-queue"
+        },
+        {
+          "name": "task_duration",
+          "type": "histogram",
+          "description": "Wall-clock task execution time by task type",
+          "nodeId": "worker-pool"
+        },
+        {
+          "name": "task_failures",
+          "type": "counter",
+          "description": "Failed task executions by task type and retry count",
+          "nodeId": "worker-pool"
+        },
+        {
+          "name": "submit_latency",
+          "type": "histogram",
+          "description": "API submit-to-202 response time",
+          "nodeId": "app-server"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Queue Depth Runaway",
+          "condition": "queue_depth > 10000 and rising for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Broker Memory Watermark",
+          "condition": "broker memory > 80% of high watermark",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "DLQ Growth",
+          "condition": "dlq_size increases by > 100 in 15min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Worker Heartbeats Missing",
+          "condition": "active workers < 50% of desired for 2min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Queue Health (Depth / Drain Rate / DLQ)",
+        "Worker Fleet (Slots / Duration / Failures)",
+        "Task Lifecycle Funnel"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Platform On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": ["oncall-platform"]
+        },
+        {
+          "level": 2,
+          "name": "Queue Infrastructure Team",
+          "responseTimeMinutes": 15,
+          "contacts": ["queue-infra-team"]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Queue backlog runaway",
+          "severity": "high",
+          "steps": [
+            "Compare drain rate vs publish rate to confirm it is a capacity problem, not a stuck consumer",
+            "Check worker fleet health — crashed consumers look identical to slow ones in depth graphs",
+            "Identify the dominant slow task type via task_duration by type",
+            "Scale workers; if broker memory is at risk, enable lazy queues before adding publishers",
+            "Shed or defer low-priority publishes until depth recovers"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Broker memory alarm (publishers blocked)",
+          "severity": "critical",
+          "steps": [
+            "Confirm publisher connections are in blocked state — API latency will show it first",
+            "Enable lazy mode on the deepest queues to page backlog to disk",
+            "Scale workers to maximum to accelerate drain",
+            "After recovery, set queue length limits so overload rejects instead of blocking"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Poison message cycling through workers",
+          "severity": "medium",
+          "steps": [
+            "Correlate worker crash timestamps with a single message ID",
+            "Pull the message into the DLQ and confirm worker crash loop stops",
+            "Reproduce the deserialization failure locally from the DLQ payload",
+            "Ship a publish-side validation fix and replay or discard the message"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Asynchronous 202-Accepted Submission",
+        "context": "Task execution time varies from milliseconds to minutes; holding HTTP connections open for task completion would exhaust server connections",
+        "decision": "Publish to the broker and return 202 with a task ID immediately; clients poll the result store for completion",
+        "consequences": [
+          "API latency stays under 50ms regardless of task complexity",
+          "Clients must implement polling or webhooks",
+          "A result store becomes mandatory infrastructure"
+        ]
+      },
+      {
+        "title": "At-Least-Once Delivery with Idempotent Tasks",
+        "context": "Exactly-once execution across a distributed broker and worker fleet is not achievable without distributed transactions",
+        "decision": "Accept redelivery of unacked messages and require all tasks to be idempotent",
+        "consequences": [
+          "No task is silently lost when workers die",
+          "Tasks with external side effects need explicit idempotency keys",
+          "Duplicate-execution auditing becomes part of incident response"
+        ]
+      },
+      {
+        "title": "Priority Queues with Per-Class Worker Routing",
+        "context": "Password resets and payment confirmations cannot wait behind hour-long report generation jobs",
+        "decision": "Route tasks to priority-tiered queues via exchange bindings, with consumer priorities favoring critical queues",
+        "consequences": [
+          "Time-sensitive tasks start within seconds even under bulk load",
+          "Sustained critical traffic can starve bulk queues without drain quotas",
+          "Queue topology becomes configuration that must be kept in sync with task definitions"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Delivery Guarantees vs Simplicity",
+        "choice": "At-least-once with idempotency requirements",
+        "benefit": "No lost tasks, no distributed transaction machinery",
+        "cost": "Every task author carries the idempotency burden; duplicates surface as user-visible bugs when they forget"
+      },
+      {
+        "dimension": "Result Queryability vs Write Load",
+        "choice": "PostgreSQL result backend instead of broker-native or Redis results",
+        "benefit": "Rich status queries, dashboards, and audit history with SQL",
+        "cost": "Every task adds DB writes; the result store becomes a scaling bottleneck before the broker does"
+      },
+      {
+        "dimension": "Worker Utilization vs Fairness",
+        "choice": "Prefetch of 4 messages per worker",
+        "benefit": "Workers rarely idle waiting on broker round-trips",
+        "cost": "Prefetched messages are invisible to other workers, so a slow task delays its prefetched neighbors"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Redis as Broker",
+        "description": "Use Redis lists or streams as the task transport instead of RabbitMQ",
+        "prosVsCons": "Operationally lighter and very fast, but weaker delivery semantics — no per-message acks with broker-side redelivery accounting, and failover can drop in-flight messages",
+        "whyNotChosen": "Reliability requirements (redelivery on worker death, DLQ routing, publisher confirms) map directly to RabbitMQ features"
+      },
+      {
+        "name": "Kafka as Broker",
+        "description": "Publish tasks to Kafka topics consumed by worker groups",
+        "prosVsCons": "Higher throughput and replayable history, but no per-message ack — one slow task blocks its partition, and consumer-group rebalances pause the whole fleet",
+        "whyNotChosen": "Heterogeneous task durations make head-of-line blocking per partition unacceptable; queue semantics fit better than log semantics"
+      },
+      {
+        "name": "Serverless Functions (Lambda-style)",
+        "description": "Execute each task as a function invocation triggered from the queue",
+        "prosVsCons": "Zero fleet management and instant scale-out, but 15-minute execution caps, cold starts, and per-invocation pricing that exceeds reserved workers at this sustained volume",
+        "whyNotChosen": "Long-running tasks (5-minute timeout today, batch jobs tomorrow) and steady 5k RPS volume favor a reserved worker fleet"
+      }
+    ]
+  }
 }

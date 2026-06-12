@@ -348,7 +348,7 @@
         "name": "Fanout Worker Lag",
         "description": "Fanout workers fall behind during celebrity tweet storm",
         "targetNodes": [
-          "fanout-workers"
+          "fanout-service"
         ],
         "faultType": "resource-exhaustion",
         "severity": 4,
@@ -380,7 +380,7 @@
         "name": "Viral Tweet Cascade",
         "description": "Single tweet gets 1M retweets in 5 minutes",
         "targetNodes": [
-          "fanout-workers",
+          "fanout-service",
           "timeline-cache"
         ],
         "faultType": "resource-exhaustion",
@@ -396,7 +396,7 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 50000,
-        "bottleneckNode": "fanout-workers",
+        "bottleneckNode": "fanout-service",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
@@ -415,7 +415,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "fanout-workers"
+          "fanout-service"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -426,7 +426,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "fanout-workers"
+          "fanout-service"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -437,7 +437,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "fanout-workers"
+          "fanout-service"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -448,13 +448,13 @@
       "totalMonthlyCostUsd": 120000,
       "components": [
         {
-          "nodeId": "fanout-workers",
+          "nodeId": "fanout-service",
           "label": "Primary Service",
           "monthlyCostUsd": 40000,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "fanout-workers",
+          "nodeId": "fanout-service",
           "label": "Storage",
           "monthlyCostUsd": 40000,
           "costDriver": "Storage and I/O"
@@ -495,7 +495,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "fanout-workers",
+        "nodeId": "fanout-service",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -527,13 +527,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "fanout-workers"
+          "nodeId": "fanout-service"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "fanout-workers"
+          "nodeId": "fanout-service"
         }
       ],
       "alerts": [

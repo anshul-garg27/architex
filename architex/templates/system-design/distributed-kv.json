@@ -179,5 +179,465 @@
       "highlightNodes": ["wide-col-db", "cache"],
       "highlightEdges": ["e-coord-storage", "e-coord-cache"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-replica-partition",
+        "name": "Storage Node Network Partition",
+        "description": "A network partition isolates one replica of an N=3 replica group from its peers",
+        "targetNodes": [
+          "wide-col-db"
+        ],
+        "faultType": "partition",
+        "severity": 4,
+        "expectedBehavior": "With W=2, writes still succeed via sloppy quorum — hinted handoffs accumulate in the hint queue for the unreachable node. R=1 reads may return stale values. On heal, hint replay and read repair reconcile divergent versions using vector clocks.",
+        "mitigationSteps": [
+          "Confirm sloppy quorum is accepting writes and hints are queueing",
+          "Monitor hint queue depth against its TTL bound",
+          "On partition heal, verify hinted handoff replay completes",
+          "Schedule Merkle-tree anti-entropy repair to catch anything hints missed"
+        ]
+      },
+      {
+        "id": "cs-coordinator-crash",
+        "name": "Coordinator Node Crash",
+        "description": "A coordinator node crashes mid-request while orchestrating quorum reads and writes",
+        "targetNodes": [
+          "app-server",
+          "lb"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "The request router redistributes traffic to surviving coordinators within seconds. In-flight requests fail; SDKs retry idempotently against a new coordinator. Brief p99 spike, no data loss — coordinators are stateless.",
+        "mitigationSteps": [
+          "Verify the router has ejected the dead coordinator from rotation",
+          "Confirm SDK retries succeeded (no client-visible error spike)",
+          "Replace the coordinator instance",
+          "Check that per-coordinator load is balanced after re-admission"
+        ]
+      },
+      {
+        "id": "cs-metadata-outage",
+        "name": "Partition Map Metadata DB Outage",
+        "description": "The metadata DB holding the partition map becomes unavailable",
+        "targetNodes": [
+          "database",
+          "app-server"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Reads and writes continue normally — coordinators serve from their cached ring. Cluster membership changes (node joins, leaves, rebalancing) are blocked. Risk grows over time: if topology changes while the map is stale, requests get misrouted.",
+        "mitigationSteps": [
+          "Freeze all membership changes and rebalancing operations",
+          "Confirm coordinators are serving from cached partition maps within TTL",
+          "Restore the metadata DB from its replica",
+          "Reconcile ring version across coordinators before re-enabling membership changes"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "cache",
+        "metric": "memory",
+        "description": "DAX item cache eviction churn — working set exceeds memory and the hit rate drop pushes reads to storage nodes",
+        "resolution": "Scale the cache cluster, tune item TTLs, and pin hot keys"
+      },
+      {
+        "rpsThreshold": 150000,
+        "bottleneckNode": "wide-col-db",
+        "metric": "disk-io",
+        "description": "LSM compaction falls behind under write load; read amplification grows and p99 reads spike",
+        "resolution": "Add storage nodes to re-shard the ring, move to faster NVMe, rate-limit compaction I/O"
+      },
+      {
+        "rpsThreshold": 300000,
+        "bottleneckNode": "app-server",
+        "metric": "cpu",
+        "description": "Coordinator CPU saturates on quorum coordination, serialization, and vector clock bookkeeping",
+        "resolution": "Scale coordinators horizontally behind the request router"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hot-partition",
+        "title": "Hot Partition From Key Skew",
+        "description": "Skewed access patterns concentrate traffic on one partition's replica group, saturating it while the rest of the ring idles",
+        "affectedNodes": [
+          "wide-col-db"
+        ],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "Key salting, adaptive partition splitting, and DAX caching absorbing hot-key reads"
+      },
+      {
+        "id": "ei-sibling-explosion",
+        "title": "Vector Clock Sibling Explosion",
+        "description": "Concurrent writes during partitions produce many divergent versions of the same key, pushing merge complexity onto clients",
+        "affectedNodes": [
+          "app-server",
+          "wide-col-db"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Cap sibling counts, use last-write-wins for low-value keys, CRDTs or server-side merge for the rest"
+      },
+      {
+        "id": "ei-compaction-stall",
+        "title": "LSM Compaction Backlog",
+        "description": "Sustained write bursts outpace compaction; SSTable counts grow and read p99 degrades across the ring",
+        "affectedNodes": [
+          "wide-col-db"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Rate-limit compaction I/O, schedule major compactions off-peak, alert on pending-SSTable counts"
+      },
+      {
+        "id": "ei-hint-overflow",
+        "title": "Hint Queue Overflow on Extended Outage",
+        "description": "A node down longer than the hint TTL leaves handoff incomplete; consistency then depends on slow anti-entropy repair",
+        "affectedNodes": [
+          "mq",
+          "wide-col-db"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Bound hint TTL explicitly, alert on queue depth, and always run Merkle-tree repair after extended outages"
+      },
+      {
+        "id": "ei-stale-reads",
+        "title": "Stale Reads at R=1",
+        "description": "Latency-optimized R=1 reads can return values that predate the latest acknowledged write within the replication window",
+        "affectedNodes": [
+          "cache",
+          "wide-col-db"
+        ],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Expose tunable consistency — clients use R+W>N on read-your-writes paths and R=1 elsewhere"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 20500,
+      "components": [
+        {
+          "nodeId": "wide-col-db",
+          "label": "Storage Nodes (LSM-Tree)",
+          "monthlyCostUsd": 12000,
+          "costDriver": "12 storage-optimized NVMe instances"
+        },
+        {
+          "nodeId": "app-server",
+          "label": "Coordinator Nodes",
+          "monthlyCostUsd": 3600,
+          "costDriver": "6 compute instances for quorum coordination"
+        },
+        {
+          "nodeId": "cache",
+          "label": "In-Memory Cache (DAX)",
+          "monthlyCostUsd": 2800,
+          "costDriver": "3-node cache cluster"
+        },
+        {
+          "nodeId": "lb",
+          "label": "Request Router",
+          "monthlyCostUsd": 900,
+          "costDriver": "Connection volume + health checking"
+        },
+        {
+          "nodeId": "database",
+          "label": "Metadata DB (Partition Map)",
+          "monthlyCostUsd": 800,
+          "costDriver": "Small HA pair — tiny data, high criticality"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Replication / Hint Queue",
+          "monthlyCostUsd": 400,
+          "costDriver": "Hint volume during node outages"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 20000,
+          "monthlyCostUsd": 7000
+        },
+        {
+          "label": "Medium",
+          "rps": 100000,
+          "monthlyCostUsd": 20500
+        },
+        {
+          "label": "High",
+          "rps": 500000,
+          "monthlyCostUsd": 78000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "steady",
+      "p50LatencyMs": 3,
+      "p99LatencyMs": 15,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.01,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 180,
+        "minInstances": 3,
+        "maxInstances": 50
+      },
+      {
+        "nodeId": "wide-col-db",
+        "metric": "disk_utilization",
+        "threshold": 70,
+        "scaleUpStep": 3,
+        "scaleDownStep": 0,
+        "cooldownSeconds": 3600,
+        "minInstances": 6,
+        "maxInstances": 60
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Read Latency",
+        "metric": "p99_get_ms",
+        "target": 10,
+        "unit": "ms",
+        "penalty": "10% service credit"
+      },
+      {
+        "name": "Write Latency",
+        "metric": "p99_put_ms",
+        "target": 20,
+        "unit": "ms",
+        "penalty": "10% service credit"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "25% service credit below target"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "request_latency",
+          "type": "histogram",
+          "description": "Per-operation latency at the coordinator",
+          "nodeId": "app-server"
+        },
+        {
+          "name": "quorum_failures",
+          "type": "counter",
+          "description": "Operations that failed to reach quorum",
+          "nodeId": "app-server"
+        },
+        {
+          "name": "hint_queue_depth",
+          "type": "gauge",
+          "description": "Pending hinted handoffs awaiting replay",
+          "nodeId": "mq"
+        },
+        {
+          "name": "pending_compactions",
+          "type": "gauge",
+          "description": "SSTable compaction backlog per storage node",
+          "nodeId": "wide-col-db"
+        },
+        {
+          "name": "cache_hit_rate",
+          "type": "gauge",
+          "description": "DAX item cache hit rate",
+          "nodeId": "cache"
+        },
+        {
+          "name": "partition_map_version",
+          "type": "gauge",
+          "description": "Ring topology version served by metadata DB",
+          "nodeId": "database"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Read Latency High",
+          "condition": "p99 get > 25ms for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Quorum Write Failures",
+          "condition": "quorum failure rate > 0.1% for 2min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Hint Queue Overflow Risk",
+          "condition": "hint_queue_depth > 100000",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Storage Node Disk Pressure",
+          "condition": "disk utilization > 80% on any node",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Ring Health & Partition Map",
+        "Quorum Latency",
+        "Storage Node Capacity",
+        "Replication & Repair"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Storage On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall-storage"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Distributed Systems Lead",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "dist-sys-lead"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "incident-commander"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Storage node down",
+          "severity": "high",
+          "steps": [
+            "Determine whether the node is dead or partitioned (avoid replacing a partitioned node)",
+            "Verify sloppy quorum is serving writes and hints are accumulating within TTL",
+            "Replace the node and stream its ranges from replica peers",
+            "Replay hints, then run read repair / Merkle-tree anti-entropy",
+            "Confirm ring rebalance completed and per-node load is even"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Hot partition",
+          "severity": "medium",
+          "steps": [
+            "Identify hot keys via per-partition request metrics",
+            "Enable DAX caching for the hot keys to absorb reads",
+            "Split the partition or work with the app team to salt keys",
+            "Verify replica group utilization returns to fleet median"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Metadata DB outage",
+          "severity": "high",
+          "steps": [
+            "Freeze membership changes and rebalancing immediately",
+            "Confirm coordinators serve from cached ring within map TTL",
+            "Restore the metadata DB from its standby replica",
+            "Reconcile partition map versions across all coordinators before unfreezing"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Consistent Hashing With Virtual Nodes",
+        "context": "The store must scale incrementally — adding capacity cannot require rehashing the whole keyspace",
+        "decision": "Keys map onto a hash ring; each physical node owns many virtual nodes, with the partition map stored in a metadata DB",
+        "consequences": [
+          "Adding a node moves only ~1/N of the data",
+          "Virtual node counts balance heterogeneous hardware",
+          "The partition map becomes critical metadata that must be cached and versioned"
+        ]
+      },
+      {
+        "title": "Tunable Quorum (N, R, W)",
+        "context": "Different workloads on the same store need different consistency/latency points",
+        "decision": "Replicate each key to N nodes; clients choose R and W per request",
+        "consequences": [
+          "R+W>N yields read-your-writes; R=1 yields fastest reads with staleness risk",
+          "Consistency becomes an application-level dial rather than a fixed property",
+          "Operators must monitor quorum failures as a first-class signal"
+        ]
+      },
+      {
+        "title": "Sloppy Quorum With Hinted Handoff",
+        "context": "The system must remain writeable through individual node failures and short partitions",
+        "decision": "Writes fall back to healthy fallback nodes that hold hints, replayed to the home replica on recovery",
+        "consequences": [
+          "\"Always writeable\" behavior during failures",
+          "Divergent versions require vector clocks, read repair, and anti-entropy",
+          "Hint TTL and queue depth define the recovery-consistency boundary"
+        ]
+      },
+      {
+        "title": "LSM-Tree Storage Engine",
+        "context": "Write-heavy KV workloads punish in-place B-tree updates",
+        "decision": "Storage nodes use log-structured merge trees with memtables, SSTables, and background compaction",
+        "consequences": [
+          "Writes are sequential appends — high sustained write throughput",
+          "Reads pay amplification across SSTable levels, mitigated by bloom filters",
+          "Compaction is a permanent background tax that must be capacity-planned"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Availability vs Consistency",
+        "choice": "Availability under partition (AP) — accept writes via sloppy quorum",
+        "benefit": "No write downtime through node failures and short partitions",
+        "cost": "Eventual consistency: stale reads, version siblings, and repair machinery"
+      },
+      {
+        "dimension": "Write Latency vs Read Latency",
+        "choice": "LSM-tree storage favoring writes",
+        "benefit": "Sequential-I/O writes sustain high throughput cheaply",
+        "cost": "Read amplification across levels, bounded by bloom filters and compaction discipline"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Single-Leader Replication",
+        "description": "One primary accepts all writes and ships them to replicas (classic RDBMS topology)",
+        "prosVsCons": "Strong, simple consistency — but the leader caps write throughput and failover means write downtime",
+        "whyNotChosen": "The target workload demands always-on writes and linear horizontal write scaling"
+      },
+      {
+        "name": "Per-Partition Consensus (Raft/Paxos)",
+        "description": "Each partition runs a consensus group providing linearizable reads and writes",
+        "prosVsCons": "Linearizability without client-side merging, but every write pays cross-replica round trips and leader elections cause availability dips",
+        "whyNotChosen": "Latency and availability targets favor the Dynamo-style AP design; apps that need stronger guarantees use R+W>N"
+      }
+    ]
+  }
 }

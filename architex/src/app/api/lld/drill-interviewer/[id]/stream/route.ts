@@ -193,13 +193,15 @@ export async function GET(
         if (!client.isConfigured()) {
           // No API key: emit a helpful opener + done.
           fullReply =
-            "(Interviewer persona requires the Anthropic API key to be configured in Settings > AI.)";
+            "(Interviewer persona requires ANTHROPIC_API_KEY to be configured on the server.)";
           send({ type: "delta", text: fullReply });
         } else {
-          const response = await client.call({
+          // Full persona system prompt + seq-ordered turn history so the
+          // interviewer has memory of the whole conversation.
+          const response = await client.callWithMessages({
             model: req.model,
             systemPrompt: req.system,
-            userMessage: req.messages[req.messages.length - 1]!.content,
+            messages: req.messages,
             maxTokens: req.maxTokens,
           });
           fullReply = response.text;

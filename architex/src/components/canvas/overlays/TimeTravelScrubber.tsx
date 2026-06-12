@@ -366,8 +366,12 @@ export const TimeTravelScrubber = memo(function TimeTravelScrubber({
   if (frameCount === 0 && status !== "running") return null;
 
   return (
-    <div className="pointer-events-auto absolute bottom-3 left-1/2 z-50 -translate-x-1/2">
-      <div className="flex w-full max-w-[600px] flex-col gap-1.5 rounded-xl border border-border bg-surface/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
+    /* Bottom-center lane: docked directly ABOVE the CanvasToolbar.
+       Offset math: toolbar bottom-6 (24px) + toolbar height (~46px:
+       2×1px border + 2×6px py-1.5 + 32px h-8) + 8px lane gap = 78px.
+       Bottom-anchored so it can never cover the canvas center. */
+    <div className="pointer-events-auto absolute bottom-[78px] left-1/2 z-30 w-[min(600px,calc(100vw-2rem))] -translate-x-1/2">
+      <div className="flex w-full flex-col gap-1.5 rounded-xl border border-border bg-surface/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
         {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">

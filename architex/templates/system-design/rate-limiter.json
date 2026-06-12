@@ -247,7 +247,7 @@
         "name": "Token Bucket Overflow",
         "description": "Token bucket refill rate misconfigured, allowing burst beyond limits",
         "targetNodes": [
-          "rate-limiter"
+          "rate-limiter-svc"
         ],
         "faultType": "error",
         "severity": 3,
@@ -263,8 +263,8 @@
         "name": "Distributed Counter Lag",
         "description": "Counter synchronization lag between rate limiter nodes",
         "targetNodes": [
-          "rate-limiter",
-          "redis-store"
+          "rate-limiter-svc",
+          "cache"
         ],
         "faultType": "latency",
         "severity": 2,
@@ -279,7 +279,7 @@
         "name": "Counter Store Crash",
         "description": "Redis backing store crashes",
         "targetNodes": [
-          "redis-store"
+          "cache"
         ],
         "faultType": "crash",
         "severity": 4,
@@ -294,14 +294,14 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 50000,
-        "bottleneckNode": "rate-limiter",
+        "bottleneckNode": "rate-limiter-svc",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
       },
       {
         "rpsThreshold": 100000,
-        "bottleneckNode": "rate-limiter",
+        "bottleneckNode": "rate-limiter-svc",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -313,7 +313,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "rate-limiter"
+          "rate-limiter-svc"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -324,7 +324,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "redis-store"
+          "cache"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -335,7 +335,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "rate-limiter"
+          "rate-limiter-svc"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -346,13 +346,13 @@
       "totalMonthlyCostUsd": 3000,
       "components": [
         {
-          "nodeId": "rate-limiter",
+          "nodeId": "rate-limiter-svc",
           "label": "Primary Service",
           "monthlyCostUsd": 1000,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "redis-store",
+          "nodeId": "cache",
           "label": "Storage",
           "monthlyCostUsd": 1000,
           "costDriver": "Storage and I/O"
@@ -393,7 +393,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "rate-limiter",
+        "nodeId": "rate-limiter-svc",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -425,13 +425,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "rate-limiter"
+          "nodeId": "rate-limiter-svc"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "rate-limiter"
+          "nodeId": "rate-limiter-svc"
         }
       ],
       "alerts": [

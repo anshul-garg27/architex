@@ -29,6 +29,8 @@ import { useCanvasStore } from '@/stores/canvas-store';
 import { useViewportStore } from '@/stores/viewport-store';
 import { useSimulationStore } from '@/stores/simulation-store';
 import { useUIStore } from '@/stores/ui-store';
+import { useRunSimulation } from '@/hooks/useRunSimulation';
+import { PredictionModal } from '@/components/canvas/overlays/PredictionModal';
 import {
   Tooltip,
   TooltipContent,
@@ -215,8 +217,6 @@ export const CanvasToolbar = memo(function CanvasToolbar({
   const zoom = useViewportStore((s) => s.zoom);
   const simStatus = useSimulationStore((s) => s.status);
   const playbackSpeed = useSimulationStore((s) => s.playbackSpeed);
-  const play = useSimulationStore((s) => s.play);
-  const pause = useSimulationStore((s) => s.pause);
   const stop = useSimulationStore((s) => s.stop);
   const heatmapEnabled = useSimulationStore((s) => s.heatmapEnabled);
   const heatmapMetric = useSimulationStore((s) => s.heatmapMetric);
@@ -287,13 +287,9 @@ export const CanvasToolbar = memo(function CanvasToolbar({
     onToggleDiff?.();
   }, [onToggleDiff]);
 
-  const handlePlayPause = useCallback(() => {
-    if (simStatus === 'running') {
-      pause();
-    } else {
-      play();
-    }
-  }, [simStatus, play, pause]);
+  // Shared run/pause entry point — includes the prediction-modal
+  // interception for fresh runs (same path as the Metrics empty state).
+  const handlePlayPause = useRunSimulation();
 
   const handleStop = useCallback(() => {
     stop();
@@ -333,44 +329,18 @@ export const CanvasToolbar = memo(function CanvasToolbar({
   const isCompact = useMediaQuery('(max-width: 1279px)');
 
   // Compute the number of toolbar items for roving tabindex.
-  // Always visible: Select, Pan, Connect, Undo, Redo, Zoom out, Zoom reset, Zoom in, Fit view, Minimap = 10
-  // Wide adds: Play/Pause, Stop, Timeline, What If, Diff, Heatmap, Trace = 7 (LayoutPicker is excluded since it's a popover trigger)
+  // Always visible: Run, Stop, Undo, Redo, Zoom out, Zoom reset, Zoom in, Fit view, Minimap, Select, Pan, Connect = 12
+  // Wide adds: Timeline, What If, Diff, Heatmap, Trace = 5 (LayoutPicker is excluded since it's a popover trigger)
   // Compact adds: More button = 1
-  const toolbarItemCount = 10 + (isCompact ? 1 : 7);
+  const toolbarItemCount = 12 + (isCompact ? 1 : 5);
   const { focusedIndex, onKeyDown: onToolbarKeyDown, toolbarRef } = useRovingTabIndex(toolbarItemCount);
 
+  // ── Hero run control state ──
+  const runLabel =
+    simStatus === 'running' ? 'Pause' : simStatus === 'paused' ? 'Resume' : 'Run';
+  const RunIcon = simStatus === 'running' ? Pause : Play;
+
   // ── Shared group renderers (used inline and in overflow popover) ──
-
-  const simulationGroup = (
-    <>
-      <ToolbarButton
-        label={simStatus === 'running' ? 'Pause' : 'Play'}
-        shortcut="Space"
-        active={simStatus === 'running'}
-        variant="success"
-        onClick={handlePlayPause}
-      >
-        {simStatus === 'running' ? (
-          <Pause className="h-4 w-4" />
-        ) : (
-          <Play className="h-4 w-4" />
-        )}
-      </ToolbarButton>
-
-      <ToolbarButton
-        label="Stop"
-        variant="danger"
-        disabled={simStatus === 'idle'}
-        onClick={handleStop}
-      >
-        <Square className="h-4 w-4" />
-      </ToolbarButton>
-
-      <span className="mx-1 min-w-[28px] text-center text-xs font-medium tabular-nums text-muted-foreground">
-        {playbackSpeed}x
-      </span>
-    </>
-  );
 
   const overlayGroup = (
     <>
@@ -458,194 +428,214 @@ export const CanvasToolbar = memo(function CanvasToolbar({
           'px-3 py-1.5',
         )}
       >
-        {/* ── Left: Tools (always visible) ── */}
-        <ToolbarButton
-          label="Select"
-          shortcut="V"
-          active={activeTool === 'select'}
-          onClick={() => setActiveTool('select')}
-          tabIndex={nextTabIndex()}
-        >
-          <MousePointer2 className="h-4 w-4" />
-        </ToolbarButton>
+        {/* ── Hero: Run / Pause / Resume + Stop (always visible) ── */}
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handlePlayPause}
+                tabIndex={nextTabIndex()}
+                data-toolbar-item
+                className={cn(
+                  'flex h-8 items-center gap-1.5 rounded-lg pl-2.5 pr-3 text-xs font-semibold',
+                  'transition-[background-color,color,box-shadow,transform] duration-150',
+                  'active:scale-[0.97]',
+                  simStatus === 'running'
+                    ? 'bg-primary/15 text-primary ring-1 ring-inset ring-primary/30 hover:bg-primary/25'
+                    : 'bg-primary text-primary-foreground shadow-md shadow-primary/30 hover:bg-primary-hover',
+                )}
+              >
+                <RunIcon className="h-4 w-4" />
+                {runLabel}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="flex items-center gap-1.5">
+              <span>
+                {simStatus === 'running'
+                  ? 'Pause simulation'
+                  : simStatus === 'paused'
+                    ? 'Resume simulation'
+                    : 'Run simulation'}
+              </span>
+              <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                Space
+              </kbd>
+            </TooltipContent>
+          </Tooltip>
 
-        <ToolbarButton
-          label="Pan"
-          shortcut="H"
-          active={activeTool === 'pan'}
-          onClick={() => setActiveTool('pan')}
-          tabIndex={nextTabIndex()}
-        >
-          <Hand className="h-4 w-4" />
-        </ToolbarButton>
+          <ToolbarButton
+            label="Stop"
+            variant="danger"
+            disabled={simStatus === 'idle'}
+            onClick={handleStop}
+            tabIndex={nextTabIndex()}
+          >
+            <Square className="h-4 w-4" />
+          </ToolbarButton>
 
-        <ToolbarButton
-          label="Connect"
-          shortcut="C"
-          active={activeTool === 'connect'}
-          onClick={() => setActiveTool('connect')}
-          tabIndex={nextTabIndex()}
-        >
-          <Link className="h-4 w-4" />
-        </ToolbarButton>
+          <span className="min-w-[26px] text-center text-[10px] font-medium tabular-nums text-muted-foreground">
+            {playbackSpeed}x
+          </span>
+        </div>
 
         <Divider />
 
-        {/* ── Undo/Redo (always visible) ── */}
-        <ToolbarButton label="Undo" shortcut="⌘Z" onClick={handleUndo} tabIndex={nextTabIndex()}>
-          <RotateCcw className="h-4 w-4" />
-        </ToolbarButton>
+        {/* ── History cluster ── */}
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton label="Undo" shortcut="⌘Z" onClick={handleUndo} tabIndex={nextTabIndex()}>
+            <RotateCcw className="h-4 w-4" />
+          </ToolbarButton>
 
-        <ToolbarButton label="Redo" shortcut="⌘⇧Z" onClick={handleRedo} tabIndex={nextTabIndex()}>
-          <RotateCw className="h-4 w-4" />
-        </ToolbarButton>
+          <ToolbarButton label="Redo" shortcut="⌘⇧Z" onClick={handleRedo} tabIndex={nextTabIndex()}>
+            <RotateCw className="h-4 w-4" />
+          </ToolbarButton>
+        </div>
 
         <Divider />
 
-        {/* ── Simulation: inline on wide, collapsed on compact ── */}
-        {!isCompact && (
-          <>
-            <ToolbarButton
-              label={simStatus === 'running' ? 'Pause' : 'Play'}
-              shortcut="Space"
-              active={simStatus === 'running'}
-              variant="success"
-              onClick={handlePlayPause}
-              tabIndex={nextTabIndex()}
-            >
-              {simStatus === 'running' ? (
-                <Pause className="h-4 w-4" />
-              ) : (
-                <Play className="h-4 w-4" />
+        {/* ── View cluster ── */}
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton label="Zoom out" shortcut="⌘-" onClick={handleZoomOut} tabIndex={nextTabIndex()}>
+            <Minus className="h-4 w-4" />
+          </ToolbarButton>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleZoomReset}
+                tabIndex={nextTabIndex()}
+                data-toolbar-item
+                className="flex h-8 min-w-[44px] items-center justify-center rounded-lg px-1.5 text-xs font-medium tabular-nums text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {zoomPercent}%
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Reset to 100%</TooltipContent>
+          </Tooltip>
+
+          <ToolbarButton label="Zoom in" shortcut="⌘+" onClick={handleZoomIn} tabIndex={nextTabIndex()}>
+            <Plus className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarButton label="Fit view" shortcut="⌘0" onClick={handleFitView} tabIndex={nextTabIndex()}>
+            <Maximize className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            label="Toggle minimap"
+            active={minimapVisible}
+            onClick={handleToggleMinimap}
+            tabIndex={nextTabIndex()}
+          >
+            <Map className="h-4 w-4" />
+          </ToolbarButton>
+        </div>
+
+        <Divider />
+
+        {/* ── Tools cluster (canvas tools always; overlays inline on wide) ── */}
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton
+            label="Select"
+            shortcut="V"
+            active={activeTool === 'select'}
+            onClick={() => setActiveTool('select')}
+            tabIndex={nextTabIndex()}
+          >
+            <MousePointer2 className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            label="Pan"
+            shortcut="H"
+            active={activeTool === 'pan'}
+            onClick={() => setActiveTool('pan')}
+            tabIndex={nextTabIndex()}
+          >
+            <Hand className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            label="Connect"
+            shortcut="C"
+            active={activeTool === 'connect'}
+            onClick={() => setActiveTool('connect')}
+            tabIndex={nextTabIndex()}
+          >
+            <Link className="h-4 w-4" />
+          </ToolbarButton>
+
+          {!isCompact && (
+            <>
+              <ToolbarButton
+                label="Evolution timeline"
+                active={timelineVisible}
+                onClick={toggleTimeline}
+                tabIndex={nextTabIndex()}
+              >
+                <History className="h-4 w-4" />
+              </ToolbarButton>
+
+              <ToolbarButton
+                label="What If?"
+                active={whatIfOpen}
+                onClick={handleToggleWhatIf}
+                tabIndex={nextTabIndex()}
+              >
+                <FlaskConical className="h-4 w-4" />
+              </ToolbarButton>
+
+              <ToolbarButton
+                label="Diff"
+                active={diffOpen}
+                onClick={handleToggleDiff}
+                tabIndex={nextTabIndex()}
+              >
+                <GitCompareArrows className="h-4 w-4" />
+              </ToolbarButton>
+
+              <ToolbarButton
+                label="Heatmap overlay"
+                active={heatmapEnabled}
+                disabled={simStatus !== 'running' && simStatus !== 'paused'}
+                onClick={handleToggleHeatmap}
+                tabIndex={nextTabIndex()}
+              >
+                <Flame className="h-4 w-4" />
+              </ToolbarButton>
+
+              {heatmapEnabled && (
+                <Select value={heatmapMetric} onValueChange={handleHeatmapMetricChange}>
+                  <SelectTrigger className="h-7 w-[90px] border-0 bg-transparent px-1.5 text-[10px] text-muted-foreground shadow-none focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="utilization">Utilization</SelectItem>
+                    <SelectItem value="latency">Latency</SelectItem>
+                    <SelectItem value="errorRate">Error Rate</SelectItem>
+                  </SelectContent>
+                </Select>
               )}
-            </ToolbarButton>
 
-            <ToolbarButton
-              label="Stop"
-              variant="danger"
-              disabled={simStatus === 'idle'}
-              onClick={handleStop}
-              tabIndex={nextTabIndex()}
-            >
-              <Square className="h-4 w-4" />
-            </ToolbarButton>
+              <ToolbarButton
+                label="Trace request"
+                active={traceActive}
+                disabled={simStatus !== 'running' && simStatus !== 'paused'}
+                onClick={handleTrace}
+                tabIndex={nextTabIndex()}
+              >
+                <Route className="h-4 w-4" />
+              </ToolbarButton>
 
-            <span className="mx-1 min-w-[28px] text-center text-xs font-medium tabular-nums text-muted-foreground">
-              {playbackSpeed}x
-            </span>
-            <Divider />
-          </>
-        )}
+              {/* ── Auto Layout ── */}
+              <LayoutPicker />
+            </>
+          )}
+        </div>
 
-        {/* ── Zoom controls (always visible) ── */}
-        <ToolbarButton label="Zoom out" shortcut="⌘-" onClick={handleZoomOut} tabIndex={nextTabIndex()}>
-          <Minus className="h-4 w-4" />
-        </ToolbarButton>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={handleZoomReset}
-              tabIndex={nextTabIndex()}
-              data-toolbar-item
-              className="flex h-8 min-w-[44px] items-center justify-center rounded-lg px-1.5 text-xs font-medium tabular-nums text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {zoomPercent}%
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="top">Reset to 100%</TooltipContent>
-        </Tooltip>
-
-        <ToolbarButton label="Zoom in" shortcut="⌘+" onClick={handleZoomIn} tabIndex={nextTabIndex()}>
-          <Plus className="h-4 w-4" />
-        </ToolbarButton>
-
-        <ToolbarButton label="Fit view" shortcut="⌘0" onClick={handleFitView} tabIndex={nextTabIndex()}>
-          <Maximize className="h-4 w-4" />
-        </ToolbarButton>
-
-        <Divider />
-
-        {/* ── Minimap (always visible) ── */}
-        <ToolbarButton
-          label="Toggle minimap"
-          active={minimapVisible}
-          onClick={handleToggleMinimap}
-          tabIndex={nextTabIndex()}
-        >
-          <Map className="h-4 w-4" />
-        </ToolbarButton>
-
-        {/* ── Wide viewport: show all remaining groups inline ── */}
+        {/* ── Export cluster (wide only) ── */}
         {!isCompact && (
           <>
-            <ToolbarButton
-              label="Evolution timeline"
-              active={timelineVisible}
-              onClick={toggleTimeline}
-              tabIndex={nextTabIndex()}
-            >
-              <History className="h-4 w-4" />
-            </ToolbarButton>
-
-            <ToolbarButton
-              label="What If?"
-              active={whatIfOpen}
-              onClick={handleToggleWhatIf}
-              tabIndex={nextTabIndex()}
-            >
-              <FlaskConical className="h-4 w-4" />
-            </ToolbarButton>
-
-            <ToolbarButton
-              label="Diff"
-              active={diffOpen}
-              onClick={handleToggleDiff}
-              tabIndex={nextTabIndex()}
-            >
-              <GitCompareArrows className="h-4 w-4" />
-            </ToolbarButton>
-
-            <Divider />
-
-            <ToolbarButton
-              label="Heatmap overlay"
-              active={heatmapEnabled}
-              disabled={simStatus !== 'running' && simStatus !== 'paused'}
-              onClick={handleToggleHeatmap}
-              tabIndex={nextTabIndex()}
-            >
-              <Flame className="h-4 w-4" />
-            </ToolbarButton>
-
-            {heatmapEnabled && (
-              <Select value={heatmapMetric} onValueChange={handleHeatmapMetricChange}>
-                <SelectTrigger className="h-7 w-[90px] border-0 bg-transparent px-1.5 text-[10px] text-muted-foreground shadow-none focus:ring-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="utilization">Utilization</SelectItem>
-                  <SelectItem value="latency">Latency</SelectItem>
-                  <SelectItem value="errorRate">Error Rate</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-
-            <ToolbarButton
-              label="Trace request"
-              active={traceActive}
-              disabled={simStatus !== 'running' && simStatus !== 'paused'}
-              onClick={handleTrace}
-              tabIndex={nextTabIndex()}
-            >
-              <Route className="h-4 w-4" />
-            </ToolbarButton>
-
-            <Divider />
-
-            {/* ── Auto Layout ── */}
-            <LayoutPicker />
-
             <Divider />
 
             {/* ── Export ── */}
@@ -720,18 +710,6 @@ export const CanvasToolbar = memo(function CanvasToolbar({
                 className="w-auto max-w-[320px] p-2"
               >
                 <div className="flex flex-col gap-2">
-                  {/* ── Simulation group ── */}
-                  <div>
-                    <span className="mb-1 block px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Simulation
-                    </span>
-                    <div className="flex items-center gap-0.5">
-                      {simulationGroup}
-                    </div>
-                  </div>
-
-                  <div className="h-px bg-border/60" />
-
                   {/* ── Overlays group ── */}
                   <div>
                     <span className="mb-1 block px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -792,6 +770,7 @@ export const CanvasToolbar = memo(function CanvasToolbar({
           </>
         )}
       </div>
+      <PredictionModal />
     </TooltipProvider>
   );
 });

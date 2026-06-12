@@ -188,5 +188,442 @@
       "highlightNodes": ["payment-app", "database", "mq"],
       "highlightEdges": ["e-app-db", "e-app-mq"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-bank-brownout",
+        "name": "Bank Network Brownout",
+        "description": "Acquirer authorization latency rises from ~800ms to 5-8s with elevated declines",
+        "targetNodes": [
+          "bank-api"
+        ],
+        "faultType": "latency",
+        "severity": 4,
+        "expectedBehavior": "The 60 in-flight worker slots (6 instances x 10 concurrency) saturate; Kafka backlog grows and charges sit PENDING for minutes. The synchronous API path is unaffected — merchants still get 202s — but confirmation-sensitive merchants see delayed outcomes.",
+        "mitigationSteps": [
+          "Cut the per-call timeout to 3s and stop retrying timeouts immediately — retries amplify brownouts",
+          "Open the acquirer circuit breaker and route eligible card types to a backup acquirer",
+          "Scale workers on consumer lag to absorb the backlog once the bank recovers",
+          "Publish degraded-processing status to merchant dashboards"
+        ]
+      },
+      {
+        "id": "cs-ledger-primary-loss",
+        "name": "Ledger Primary Failure",
+        "description": "The PostgreSQL ledger primary crashes, forcing replica promotion",
+        "targetNodes": [
+          "database"
+        ],
+        "faultType": "crash",
+        "severity": 5,
+        "expectedBehavior": "Charge creation returns 5xx (no ledger record means no 202) and workers cannot commit state transitions, so all money movement halts. Failover takes 30-60s; in-flight bank calls complete but their results queue against the new primary.",
+        "mitigationSteps": [
+          "Promote the synchronous replica; verify zero replication lag before accepting writes",
+          "Let workers replay in-flight events — idempotency keys and per-charge locks prevent double-charging",
+          "Run targeted reconciliation against bank records for every charge mid-flight during failover",
+          "Hold merchant webhooks until ledger state is verified consistent"
+        ]
+      },
+      {
+        "id": "cs-kafka-rebalance",
+        "name": "Kafka Broker Loss and Consumer Rebalance",
+        "description": "A broker drops; partitions reassign and the payment consumer group rebalances, redelivering in-flight events",
+        "targetNodes": [
+          "mq",
+          "process-worker"
+        ],
+        "faultType": "partition",
+        "severity": 3,
+        "expectedBehavior": "Replication factor 3 keeps partitions available, but in-flight events are redelivered to new consumers. The duplicate-suppression path (idempotency keys plus per-charge locks) is exercised under load, and processing p99 spikes for 1-2 minutes during the rebalance pause.",
+        "mitigationSteps": [
+          "Verify all partitions retained an in-sync replica",
+          "Audit the ledger transition log to confirm no charge reached SUCCEEDED twice",
+          "Use static consumer-group membership and cooperative rebalancing to shrink pause windows",
+          "Alert if the duplicate-suppression hit rate spikes — it indicates a redelivery storm"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 100,
+        "bottleneckNode": "process-worker",
+        "metric": "queue-depth",
+        "description": "At ~800ms per bank call, the 60 in-flight slots cap processing near 75 charges/s; Kafka lag grows beyond that",
+        "resolution": "Scale workers horizontally or raise per-instance concurrency — until the acquirer rate limit becomes the ceiling"
+      },
+      {
+        "rpsThreshold": 1000,
+        "bottleneckNode": "bank-api",
+        "metric": "connections",
+        "description": "The contracted 1000 RPS acquirer limit becomes the hard ceiling regardless of worker count",
+        "resolution": "Add a second acquirer with traffic splitting, or negotiate a higher rate tier"
+      },
+      {
+        "rpsThreshold": 3000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Serializable idempotency-key inserts and double-entry writes saturate the 300-connection ledger pool",
+        "resolution": "Front the pool with pgbouncer, batch ledger entries per transaction, and partition hot merchants"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-stuck-pending",
+        "title": "Charges Stuck in PENDING",
+        "description": "A worker that dies after the bank call but before the ledger update leaves a charge PENDING with money actually moved",
+        "affectedNodes": [
+          "process-worker",
+          "database"
+        ],
+        "likelihood": 4,
+        "impact": 4,
+        "mitigation": "A sweeper re-queries the bank by gateway reference for any charge PENDING beyond 5 minutes; daily reconciliation against settlement files catches the rest"
+      },
+      {
+        "id": "ei-idempotency-race",
+        "title": "Idempotency Key Insert Races",
+        "description": "Two concurrent retries with the same key can both pass a read-then-write existence check before either inserts",
+        "affectedNodes": [
+          "payment-app",
+          "database"
+        ],
+        "likelihood": 3,
+        "impact": 5,
+        "mitigation": "A unique constraint on idempotency_key with INSERT ... ON CONFLICT is the single source of truth — never a read-then-write check"
+      },
+      {
+        "id": "ei-retry-amplification",
+        "title": "Retry Amplification Against a Degraded Bank",
+        "description": "Up to five retry attempts per charge multiply load exactly when the acquirer is least able to handle it",
+        "affectedNodes": [
+          "process-worker",
+          "bank-api"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Exponential backoff with jitter, a global retry budget, and circuit breaking; hard declines are terminal and never retried"
+      },
+      {
+        "id": "ei-ledger-spof",
+        "title": "Single Ledger Write Primary",
+        "description": "Every money movement serializes through one PostgreSQL primary; its write throughput and failover behavior bound the whole platform",
+        "affectedNodes": [
+          "database"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Partition the ledger by merchant ID when write volume demands it, and keep failover drills on a regular schedule"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 7000,
+      "components": [
+        {
+          "nodeId": "payment-app",
+          "label": "Payment Service",
+          "monthlyCostUsd": 1600,
+          "costDriver": "8 app instances"
+        },
+        {
+          "nodeId": "process-worker",
+          "label": "Processor Workers",
+          "monthlyCostUsd": 600,
+          "costDriver": "6 worker instances"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Payment Event Queue",
+          "monthlyCostUsd": 1500,
+          "costDriver": "Kafka RF3, 30-day retention"
+        },
+        {
+          "nodeId": "database",
+          "label": "Ledger DB",
+          "monthlyCostUsd": 2800,
+          "costDriver": "Primary + 2 replicas, 2TB, high-IOPS storage"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 500,
+          "costDriver": "Request volume + WAF"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 100,
+          "monthlyCostUsd": 3200
+        },
+        {
+          "label": "Medium",
+          "rps": 1000,
+          "monthlyCostUsd": 7000
+        },
+        {
+          "label": "High",
+          "rps": 5000,
+          "monthlyCostUsd": 18500
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 1000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 60,
+      "p99LatencyMs": 300,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.05,
+      "throughputRps": 1000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "payment-app",
+        "metric": "cpu_utilization",
+        "threshold": 60,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 180,
+        "minInstances": 4,
+        "maxInstances": 32
+      },
+      {
+        "nodeId": "process-worker",
+        "metric": "kafka_consumer_lag",
+        "threshold": 1000,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 40
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "API Availability",
+        "metric": "uptime",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "Service credits per merchant agreement"
+      },
+      {
+        "name": "Charge Completion Time",
+        "metric": "p95_end_to_end_seconds",
+        "target": 5,
+        "unit": "s",
+        "penalty": "Merchant credits if breached over a monthly window"
+      },
+      {
+        "name": "Duplicate Charge Rate",
+        "metric": "duplicates_per_million",
+        "target": 0,
+        "unit": "per million charges",
+        "penalty": "Full refund plus incident report to affected merchants"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "charge_api_latency_ms",
+          "type": "histogram",
+          "description": "Synchronous charge-creation latency (to 202)",
+          "nodeId": "payment-app"
+        },
+        {
+          "name": "pending_charge_age_seconds",
+          "type": "gauge",
+          "description": "Age of the oldest charge still in PENDING",
+          "nodeId": "database"
+        },
+        {
+          "name": "payment_consumer_lag",
+          "type": "gauge",
+          "description": "Unprocessed payment events in Kafka",
+          "nodeId": "mq"
+        },
+        {
+          "name": "bank_auth_latency_ms",
+          "type": "histogram",
+          "description": "Acquirer authorization round-trip time",
+          "nodeId": "bank-api"
+        },
+        {
+          "name": "bank_decline_rate",
+          "type": "gauge",
+          "description": "Decline rate split by issuer vs network errors",
+          "nodeId": "bank-api"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Pending Charges Aging",
+          "condition": "p95 pending age > 120s for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Bank Error Rate",
+          "condition": "5xx/timeout rate > 8% for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Consumer Lag",
+          "condition": "lag > 5000 events for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Idempotency Conflicts Spike",
+          "condition": "conflict rate > 10x baseline for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Payment Funnel (created, processed, settled)",
+        "Bank / Acquirer Health",
+        "Ledger Integrity & Reconciliation"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Payments On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "payments-oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Payments Staff Engineer",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "payments-staff"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "VP Engineering + Finance Ops",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "vp-eng",
+            "finance-ops"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Bank API degradation",
+          "severity": "critical",
+          "steps": [
+            "Check acquirer status and the decline-code distribution (issuer vs network errors)",
+            "Drop timeouts to 3s and pause automatic retries",
+            "Fail over eligible traffic to the secondary acquirer",
+            "Communicate processing delays to merchants and reconcile once recovered"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Stuck PENDING charges",
+          "severity": "high",
+          "steps": [
+            "Query for charges PENDING beyond 5 minutes",
+            "Re-query the bank by gateway reference to learn the true outcome",
+            "Transition ledger state idempotently — never guess an outcome",
+            "If volume is large, run bulk reconciliation and notify finance"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Suspected duplicate charges",
+          "severity": "critical",
+          "steps": [
+            "Freeze processing for the affected merchant",
+            "Audit the ledger for duplicate idempotency keys and double SUCCEEDED transitions",
+            "Refund confirmed duplicates within the same business day",
+            "Root-cause the idempotency gap before unfreezing"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Asynchronous Processing With Synchronous Acknowledgement",
+        "context": "Bank authorization takes ~800ms with a ~3% error rate; holding client connections open couples merchant latency to acquirer health",
+        "decision": "Persist the charge as PENDING, return 202 immediately, and process via Kafka workers",
+        "consequences": [
+          "API latency is independent of bank latency",
+          "Merchants must handle an asynchronous completion model (polling or webhooks)",
+          "A backlog can form between acceptance and completion that needs its own SLO"
+        ]
+      },
+      {
+        "title": "Idempotency Keys + Transactional State Machine",
+        "context": "Network retries are routine, and a duplicate charge is the worst failure mode in payments",
+        "decision": "Merchant-supplied idempotency keys enforced by a unique constraint; all charge state transitions run in serializable transactions",
+        "consequences": [
+          "Retries are safe from both merchants and internal workers",
+          "Write contention on the ledger is higher than with looser isolation",
+          "Exactly-once effects are achieved on top of at-least-once delivery"
+        ]
+      },
+      {
+        "title": "Double-Entry Ledger in PostgreSQL",
+        "context": "Financial state must be auditable and always balance to zero",
+        "decision": "Every movement writes balanced debit/credit rows to an append-only ledger with an immutable audit table",
+        "consequences": [
+          "Reconciliation against bank settlement files is mechanical",
+          "Write throughput is bounded by a single primary",
+          "Mutable balance shortcuts are forbidden by construction"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Confirmation Latency vs Reliability",
+        "choice": "Async completion",
+        "benefit": "The API stays fast and available through acquirer brownouts",
+        "cost": "Merchants wait seconds — occasionally minutes — for the terminal charge state"
+      },
+      {
+        "dimension": "Throughput vs Consistency",
+        "choice": "Serializable ledger transactions",
+        "benefit": "No double-spend or unbalanced entries under concurrency",
+        "cost": "The ledger primary caps peak charge throughput"
+      },
+      {
+        "dimension": "Cost vs Replayability",
+        "choice": "30-day Kafka retention at replication factor 3",
+        "benefit": "Any consumer bug can be replayed weeks later for reconciliation",
+        "cost": "Meaningful broker storage spend relative to event volume"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Fully Synchronous Charge API",
+        "description": "Hold the client connection open through bank authorization",
+        "prosVsCons": "Simplest merchant integration — one call, one answer — but p99 inherits bank tail latency and timeouts create ambiguous outcomes that breed duplicate retries",
+        "whyNotChosen": "Ambiguous timeout states are unacceptable in money movement"
+      },
+      {
+        "name": "Event-Sourced Ledger",
+        "description": "Store all state as an event log and derive balances by projection",
+        "prosVsCons": "Perfect audit trail and temporal queries, but projection lag complicates current-balance reads and tooling maturity is lower",
+        "whyNotChosen": "A double-entry relational ledger achieves auditability with simpler operational semantics"
+      },
+      {
+        "name": "Saga Orchestration Service",
+        "description": "A central orchestrator coordinating each charge workflow step",
+        "prosVsCons": "Explicit workflow visibility, but adds another stateful service in the money path",
+        "whyNotChosen": "A single bank call per charge does not justify orchestration overhead; Kafka plus idempotent workers suffice"
+      }
+    ]
+  }
 }

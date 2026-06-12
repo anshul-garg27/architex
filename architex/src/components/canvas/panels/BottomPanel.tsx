@@ -2,8 +2,10 @@
 
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import {
+  Activity,
   AlertTriangle,
   BarChart3,
+  BookOpen,
   Calculator,
   ChevronDown,
   ChevronRight,
@@ -12,6 +14,7 @@ import {
   DollarSign,
   Info,
   Lightbulb,
+  Radar,
   Shield,
   Terminal,
   Timer,
@@ -28,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
 import { useSimulationStore } from "@/stores/simulation-store";
 import { useCanvasStore } from "@/stores/canvas-store";
+import { useRunSimulation } from "@/hooks/useRunSimulation";
 import { MetricsDashboard } from "@/components/visualization/charts/MetricsDashboard";
 import {
   CHAOS_EVENTS,
@@ -49,8 +53,49 @@ import {
 import { SLADashboard } from "@/components/canvas/overlays/SLADashboard";
 import { LatencyBudgetPanel } from "@/components/canvas/overlays/LatencyBudgetPanel";
 import { PostSimulationReport } from "@/components/canvas/panels/tabs/PostSimulationReport";
+import { RationalePanel } from "@/components/canvas/panels/RationalePanel";
+import { FailureModeExplorer } from "@/components/simulation/FailureModeExplorer";
+import type {
+  TopologyNode,
+  TopologyEdge,
+} from "@/lib/simulation/cascade-engine";
 
 const MetricsTab = memo(function MetricsTab() {
+  const status = useSimulationStore((s) => s.status);
+  // Same code path as the toolbar Run button — including the
+  // prediction-modal interception before fresh runs on >= 3 nodes.
+  const runSimulation = useRunSimulation();
+
+  if (status === "idle") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-elevated">
+          <Activity className="h-5 w-5 text-primary" aria-hidden />
+          <span
+            aria-hidden
+            className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary/50"
+          />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            Run the simulation to light this up
+          </p>
+          <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-foreground-muted">
+            Live throughput, latency, and error-rate charts stream here — and
+            you can drag chaos events onto nodes mid-run to stress the design.
+          </p>
+        </div>
+        <button
+          onClick={runSimulation}
+          className="mt-1 flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-[background-color,transform] duration-150 hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
+        >
+          <Play className="h-3.5 w-3.5" aria-hidden />
+          Run simulation
+        </button>
+      </div>
+    );
+  }
+
   return <MetricsDashboard />;
 });
 
@@ -970,11 +1015,50 @@ const CostTab = memo(function CostTab() {
 });
 
 // ---------------------------------------------------------------------------
+// Blast Radius Tab (Failure Mode Explorer wired to the current canvas)
+// ---------------------------------------------------------------------------
+
+const BlastRadiusTab = memo(function BlastRadiusTab() {
+  const nodes = useCanvasStore((s) => s.nodes);
+  const edges = useCanvasStore((s) => s.edges);
+
+  // Map canvas nodes/edges to the cascade engine's topology contract.
+  // When the canvas is empty, pass undefined so the explorer falls back
+  // to its built-in demo topology.
+  const topologyNodes = useMemo<TopologyNode[] | undefined>(() => {
+    if (nodes.length === 0) return undefined;
+    return nodes.map((n) => {
+      const data = n.data as Record<string, unknown> | undefined;
+      return {
+        id: n.id,
+        label: (data?.label as string) ?? n.id,
+        type: (data?.componentType as string) ?? n.type ?? "unknown",
+      };
+    });
+  }, [nodes]);
+
+  const topologyEdges = useMemo<TopologyEdge[] | undefined>(() => {
+    if (nodes.length === 0) return undefined;
+    return edges.map((e) => ({ source: e.source, target: e.target }));
+  }, [nodes.length, edges]);
+
+  return (
+    <div className="h-full overflow-y-auto p-2">
+      <FailureModeExplorer
+        nodes={topologyNodes}
+        edges={topologyEdges}
+        height={480}
+      />
+    </div>
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Tab Groups
 // ---------------------------------------------------------------------------
 
 interface TabDef {
-  id: "metrics" | "timeline" | "code" | "console" | "chaos" | "capacity" | "cost" | "sla" | "latency" | "report";
+  id: "metrics" | "timeline" | "code" | "console" | "chaos" | "capacity" | "cost" | "sla" | "latency" | "report" | "blast-radius" | "rationale";
   label: string;
   icon: typeof BarChart3;
 }
@@ -1005,10 +1089,15 @@ const TAB_GROUPS: TabGroup[] = [
     label: "Testing",
     tabs: [
       { id: "chaos", label: "Chaos", icon: AlertTriangle },
+      { id: "blast-radius", label: "Blast Radius", icon: Radar },
       { id: "capacity", label: "Capacity", icon: Calculator },
       { id: "cost", label: "Cost", icon: DollarSign },
       { id: "report", label: "Report", icon: BarChart3 },
     ],
+  },
+  {
+    label: "Learn",
+    tabs: [{ id: "rationale", label: "Why This Design", icon: BookOpen }],
   },
 ];
 
@@ -1124,11 +1213,13 @@ export const BottomPanel = memo(function BottomPanel() {
         {activeTab === "code" && <CodeTab />}
         {activeTab === "console" && <ConsoleTab />}
         {activeTab === "chaos" && <ChaosTab />}
+        {activeTab === "blast-radius" && <BlastRadiusTab />}
         {activeTab === "capacity" && <CapacityTab />}
         {activeTab === "cost" && <CostTab />}
         {activeTab === "sla" && <SLADashboard />}
         {activeTab === "latency" && <LatencyBudgetPanel />}
         {activeTab === "report" && <PostSimulationReport />}
+        {activeTab === "rationale" && <RationalePanel />}
       </div>
     </div>
   );

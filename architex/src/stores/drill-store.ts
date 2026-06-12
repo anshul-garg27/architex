@@ -19,6 +19,8 @@ export interface HintLogEntry {
 export interface DrillStoreState {
   /** null before drill is started. */
   attemptId: string | null;
+  /** Problem under drill; needed post-grade for canonical compare. */
+  problemId: string | null;
   variant: DrillVariant;
   persona: InterviewerPersona;
 
@@ -40,6 +42,7 @@ export interface DrillStoreState {
     attemptId: string;
     variant: DrillVariant;
     persona: InterviewerPersona;
+    problemId?: string;
   }) => void;
   enterStage: (stage: DrillStage) => void;
   mergeStageProgress: (patch: Partial<StageProgressBag>) => void;
@@ -59,6 +62,7 @@ const initialState = (): Omit<
   | "setRubric"
 > => ({
   attemptId: null,
+  problemId: null,
   variant: "timed-mock",
   persona: "generic",
   currentStage: "clarify",
@@ -77,12 +81,13 @@ export const useDrillStore = create<DrillStoreState>((set, get) => ({
 
   reset: () => set(initialState()),
 
-  beginAttempt: ({ attemptId, variant, persona }) =>
+  beginAttempt: ({ attemptId, variant, persona, problemId }) =>
     set({
       ...initialState(),
       attemptId,
       variant,
       persona,
+      problemId: problemId ?? null,
       stageStartedAt: Date.now(),
     }),
 

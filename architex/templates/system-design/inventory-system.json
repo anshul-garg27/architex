@@ -188,5 +188,415 @@
       "highlightNodes": ["reservation-worker", "stock-cache", "database"],
       "highlightEdges": ["e-worker-db", "e-app-cache"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-redis-counter-loss",
+        "name": "Redis Counter Loss",
+        "description": "The stock cache crashes and loses the authoritative reservation counters that gate every checkout",
+        "targetNodes": ["stock-cache"],
+        "faultType": "crash",
+        "severity": 5,
+        "expectedBehavior": "Reservations must fail closed: with counters gone, any DECRBY against a missing key risks overselling. Checkout success rate drops to zero (or falls back to slow serializable DB transactions at a fraction of the throughput) until counters are rebuilt from PostgreSQL plus unexpired reservations.",
+        "mitigationSteps": [
+          "Fail reservations closed when a counter key is absent — never default to 'in stock'",
+          "Fail over to the Redis replica; verify AOF/RDB persistence before readmitting traffic",
+          "Rebuild counters from PostgreSQL available stock minus unexpired reservations, then re-enable checkout per SKU"
+        ]
+      },
+      {
+        "id": "cs-flash-sale-hot-sku",
+        "name": "Flash Sale Hot-SKU Stampede",
+        "description": "A promoted product launches and a single SKU receives 50x normal reservation traffic concentrated on one Redis key",
+        "targetNodes": ["stock-cache", "app-server"],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "All DECRBY operations for the SKU serialize on one Redis core; command latency climbs from sub-ms to tens of ms, app-server threads block on cache calls, and p99 checkout latency blows past 1s while unrelated SKUs degrade as collateral.",
+        "mitigationSteps": [
+          "Shard the hot SKU's counter across N sub-counters and rebalance remainders",
+          "Put a checkout queue in front of the SKU so admission is throttled instead of timing out",
+          "Serve display-only stock levels from a short-TTL local cache to take reads off the hot key"
+        ]
+      },
+      {
+        "id": "cs-worker-stall",
+        "name": "Reservation Worker Stall",
+        "description": "All reservation workers crash (bad deploy), so Kafka events stop being confirmed in PostgreSQL",
+        "targetNodes": ["reservation-worker"],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Events accumulate safely in Kafka (168h retention), but DB confirmations and the reservation-expiry sweeper stop. Redis counters stay decremented past the 15-minute window, so items appear sold out while PostgreSQL still shows stock — drift grows linearly with lag.",
+        "mitigationSteps": [
+          "Roll back the worker deploy and restart the consumer group",
+          "Scale workers up to the partition count to drain the backlog",
+          "Run the reconciliation job to release expired reservations and re-sync Redis with PostgreSQL"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 15000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Cache-miss reads plus worker confirmations exhaust the 300-connection PostgreSQL pool",
+        "resolution": "Add PgBouncer transaction pooling and route stock-level reads to replicas"
+      },
+      {
+        "rpsThreshold": 35000,
+        "bottleneckNode": "stock-cache",
+        "metric": "cpu",
+        "description": "Atomic counter operations concentrate on popular SKUs and saturate the single-threaded Redis core",
+        "resolution": "Shard counters per SKU across cluster slots; move display reads to a local cache tier"
+      },
+      {
+        "rpsThreshold": 60000,
+        "bottleneckNode": "mq",
+        "metric": "queue-depth",
+        "description": "16 partitions cap consumer parallelism while reservation events outpace worker throughput",
+        "resolution": "Increase partition count and scale the reservation worker group to match"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-oversell-drift",
+        "title": "Oversell from Cache–DB Drift",
+        "description": "Duplicate Kafka delivery, counter rebuild errors, or missed invalidations let Redis report more stock than PostgreSQL actually has",
+        "affectedNodes": ["stock-cache", "database"],
+        "likelihood": 3,
+        "impact": 5,
+        "mitigation": "Keep the conditional UPDATE (WHERE available >= quantity) as the final guard, make reservation IDs idempotent, and run continuous drift reconciliation"
+      },
+      {
+        "id": "ei-hot-sku",
+        "title": "Hot-SKU Counter Contention",
+        "description": "Flash-sale traffic concentrates on a single Redis key, hitting the per-key throughput ceiling long before cluster capacity",
+        "affectedNodes": ["stock-cache"],
+        "likelihood": 4,
+        "impact": 4,
+        "mitigation": "Pre-shard counters for promoted SKUs and front the checkout with an admission queue"
+      },
+      {
+        "id": "ei-phantom-inventory",
+        "title": "Phantom Inventory from Abandoned Carts",
+        "description": "Reservations that never convert hold stock for the full 15-minute window, deflating apparent availability during peaks",
+        "affectedNodes": ["reservation-worker", "stock-cache"],
+        "likelihood": 5,
+        "impact": 2,
+        "mitigation": "Keep the expiry sweeper aggressive, release via INCRBY promptly, and shorten the hold window during flash sales"
+      },
+      {
+        "id": "ei-db-row-contention",
+        "title": "Confirmation Contention on Popular SKU Rows",
+        "description": "Serializable confirmation transactions for the same SKU contend on one row, raising serialization failures and retry load",
+        "affectedNodes": ["database", "reservation-worker"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Batch confirmations per SKU inside the worker and partition Kafka by SKU so one worker owns each row"
+      },
+      {
+        "id": "ei-rebalance-duplicates",
+        "title": "Consumer Rebalance Duplicate Processing",
+        "description": "Worker restarts trigger Kafka rebalances; redelivered events can double-confirm or double-release a reservation",
+        "affectedNodes": ["mq", "reservation-worker"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Idempotency keys per reservation and a processed-event table checked inside the confirmation transaction"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 5200,
+      "components": [
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 400,
+          "costDriver": "Gateway instances + request volume at 30k RPS"
+        },
+        {
+          "nodeId": "app-server",
+          "label": "Inventory Service",
+          "monthlyCostUsd": 1200,
+          "costDriver": "8 × 4-core instances"
+        },
+        {
+          "nodeId": "stock-cache",
+          "label": "Stock Cache (Redis)",
+          "monthlyCostUsd": 900,
+          "costDriver": "32GB memory-optimized with replica + AOF persistence"
+        },
+        {
+          "nodeId": "database",
+          "label": "Inventory DB (PostgreSQL)",
+          "monthlyCostUsd": 1700,
+          "costDriver": "Primary + 2 replicas, 500GB storage"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Order Event Queue (Kafka)",
+          "monthlyCostUsd": 700,
+          "costDriver": "3-broker managed cluster, 16 partitions, 7-day retention"
+        },
+        {
+          "nodeId": "reservation-worker",
+          "label": "Reservation Workers",
+          "monthlyCostUsd": 300,
+          "costDriver": "6 small instances"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 5000,
+          "monthlyCostUsd": 2400
+        },
+        {
+          "label": "Medium",
+          "rps": 30000,
+          "monthlyCostUsd": 5200
+        },
+        {
+          "label": "High",
+          "rps": 100000,
+          "monthlyCostUsd": 14500
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 30000,
+      "trafficProfile": "event-driven",
+      "p50LatencyMs": 10,
+      "p99LatencyMs": 80,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 30000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 32
+      },
+      {
+        "nodeId": "reservation-worker",
+        "metric": "kafka_consumer_lag",
+        "threshold": 10000,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 180,
+        "minInstances": 4,
+        "maxInstances": 16
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Stock Check Latency",
+        "metric": "p99_stock_read_ms",
+        "target": 50,
+        "unit": "ms",
+        "penalty": "10% service credit"
+      },
+      {
+        "name": "Oversell Rate",
+        "metric": "oversold_orders_per_month",
+        "target": 0,
+        "unit": "orders",
+        "penalty": "Full refund + goodwill credit per oversold order"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.95,
+        "unit": "%",
+        "penalty": "25% service credit"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "reservation_success_rate",
+          "type": "gauge",
+          "description": "Fraction of reservation attempts admitted by the Redis counter",
+          "nodeId": "app-server"
+        },
+        {
+          "name": "stock_counter_drift",
+          "type": "gauge",
+          "description": "Absolute difference between Redis counters and PostgreSQL stock found by reconciliation",
+          "nodeId": "stock-cache"
+        },
+        {
+          "name": "kafka_consumer_lag",
+          "type": "gauge",
+          "description": "Unconfirmed reservation events pending in the queue",
+          "nodeId": "mq"
+        },
+        {
+          "name": "serialization_failures",
+          "type": "counter",
+          "description": "PostgreSQL confirmation transactions aborted by row contention",
+          "nodeId": "database"
+        },
+        {
+          "name": "cache_hit_rate",
+          "type": "gauge",
+          "description": "Stock read hit rate against the 98% target",
+          "nodeId": "stock-cache"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Counter Drift Detected",
+          "condition": "stock_counter_drift > 0 for any SKU",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Consumer Lag High",
+          "condition": "kafka_consumer_lag > 50000 for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Serialization Failure Spike",
+          "condition": "serialization_failure_rate > 5% for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Cache Hit Degraded",
+          "condition": "cache_hit_rate < 0.9 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Inventory Overview",
+        "Reservation Pipeline",
+        "Cache–DB Consistency"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "On-Call Engineer",
+          "responseTimeMinutes": 5,
+          "contacts": ["oncall-inventory"]
+        },
+        {
+          "level": 2,
+          "name": "Inventory Platform Lead",
+          "responseTimeMinutes": 15,
+          "contacts": ["inventory-lead"]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander",
+          "responseTimeMinutes": 30,
+          "contacts": ["incident-commander"]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Redis counter loss",
+          "severity": "critical",
+          "steps": [
+            "Confirm checkout is failing closed — no reservations admitted without a counter",
+            "Snapshot Kafka consumer offsets before any rebuild",
+            "Rebuild counters from PostgreSQL available stock minus unexpired reservations",
+            "Re-enable checkout SKU-by-SKU while watching the drift metric",
+            "Run full reconciliation and audit orders placed in the failure window"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Consumer lag spike",
+          "severity": "high",
+          "steps": [
+            "Check worker health and recent deploys; roll back if the stall followed a release",
+            "Scale the consumer group toward the partition count",
+            "Inspect for a poison message if one partition lags alone",
+            "Verify the expiry sweeper is releasing stale reservations as lag drains"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Oversell detected",
+          "severity": "critical",
+          "steps": [
+            "Pause sales for the affected SKU immediately",
+            "Quantify oversold orders from the reconciliation report",
+            "Correct Redis counters and PostgreSQL stock, then re-enable sales",
+            "Trigger the customer-care flow for affected orders and file a postmortem"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Redis Atomic Counters as the Reservation Gate",
+        "context": "Flash sales push thousands of concurrent reservations at a single SKU; row-locked database transactions serialize on that row",
+        "decision": "Admit or reject every reservation with an atomic DECRBY against a per-SKU Redis counter, failing immediately on a negative result",
+        "consequences": [
+          "Reservation decisions in ~1ms with no row contention",
+          "Counters become operationally critical state requiring noeviction, persistence, and a rebuild procedure"
+        ]
+      },
+      {
+        "title": "Async Confirmation Through Kafka",
+        "context": "Durable confirmation in PostgreSQL does not need to block the checkout response",
+        "decision": "Publish reservation events to Kafka and confirm in the database via workers using a conditional UPDATE (WHERE available >= quantity)",
+        "consequences": [
+          "Checkout latency stays decoupled from database write load",
+          "A bounded drift window exists where Redis and PostgreSQL disagree, requiring reconciliation"
+        ]
+      },
+      {
+        "title": "Invalidate-on-Write Cache Consistency",
+        "context": "Concurrent writers updating cached stock values race and can persist stale data",
+        "decision": "Workers delete the Redis display key after database writes instead of writing through",
+        "consequences": [
+          "No stale-write races between concurrent updaters",
+          "The first read after invalidation pays a database round trip"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Throughput vs Strict Consistency",
+        "choice": "Two-tier counters: Redis fast path, PostgreSQL source of truth",
+        "benefit": "Flash-sale reservation throughput far beyond what single-row DB locking allows",
+        "cost": "Drift between tiers must be continuously detected and reconciled"
+      },
+      {
+        "dimension": "Inventory Utilization vs Checkout UX",
+        "choice": "15-minute reservation expiry",
+        "benefit": "Carts cannot hold stock hostage and cart-holding attacks are bounded",
+        "cost": "Slow shoppers occasionally lose items mid-checkout"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Serializable DB Transactions Only",
+        "description": "Every reservation runs a serializable transaction directly against PostgreSQL with no cache fast path",
+        "prosVsCons": "Correct by construction with zero drift, but row-lock contention caps a hot SKU at a few hundred reservations per second",
+        "whyNotChosen": "Cannot survive flash-sale concurrency on popular SKUs"
+      },
+      {
+        "name": "Distributed Lock per SKU",
+        "description": "Acquire a lock, read stock, decide, write, release for each reservation",
+        "prosVsCons": "Simple mental model, but adds lock-service round trips and creates a serialization point per SKU anyway",
+        "whyNotChosen": "An atomic counter gives the same admission guarantee in a single Redis operation"
+      }
+    ]
+  }
 }

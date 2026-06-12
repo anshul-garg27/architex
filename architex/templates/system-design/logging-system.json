@@ -273,7 +273,7 @@
         "name": "Elasticsearch Cluster Red",
         "description": "ES cluster goes red due to disk pressure",
         "targetNodes": [
-          "elasticsearch"
+          "search-engine"
         ],
         "faultType": "resource-exhaustion",
         "severity": 4,
@@ -290,8 +290,8 @@
         "name": "Log Flood from Bad Deploy",
         "description": "Error loop generates 100x normal log volume",
         "targetNodes": [
-          "kafka-ingest",
-          "elasticsearch"
+          "mq",
+          "search-engine"
         ],
         "faultType": "resource-exhaustion",
         "severity": 3,
@@ -307,7 +307,7 @@
         "name": "Kafka Broker Failure",
         "description": "Kafka broker crashes losing some in-flight logs",
         "targetNodes": [
-          "kafka-ingest"
+          "mq"
         ],
         "faultType": "crash",
         "severity": 3,
@@ -322,14 +322,14 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 500000,
-        "bottleneckNode": "elasticsearch",
+        "bottleneckNode": "search-engine",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
       },
       {
         "rpsThreshold": 1000000,
-        "bottleneckNode": "kafka-ingest",
+        "bottleneckNode": "mq",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -341,7 +341,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "elasticsearch"
+          "search-engine"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -352,7 +352,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "kafka-ingest"
+          "mq"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -363,7 +363,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "elasticsearch"
+          "search-engine"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -374,13 +374,13 @@
       "totalMonthlyCostUsd": 20000,
       "components": [
         {
-          "nodeId": "elasticsearch",
+          "nodeId": "search-engine",
           "label": "Primary Service",
           "monthlyCostUsd": 6666,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "kafka-ingest",
+          "nodeId": "mq",
           "label": "Storage",
           "monthlyCostUsd": 6666,
           "costDriver": "Storage and I/O"
@@ -421,7 +421,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "elasticsearch",
+        "nodeId": "search-engine",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -453,13 +453,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "elasticsearch"
+          "nodeId": "search-engine"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "elasticsearch"
+          "nodeId": "search-engine"
         }
       ],
       "alerts": [

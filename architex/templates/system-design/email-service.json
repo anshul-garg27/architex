@@ -251,7 +251,7 @@
   "learnSteps": [
     {
       "title": "API Ingestion and Validation",
-      "description": "Client applications submit email requests (recipient, template ID, variables) via the API. The Email Service validates inputs, checks the sender's domain (SPF/DKIM records), enforces per-account rate limits, and persists the email record to PostgreSQL. The API returns a 202 Accepted immediately \u2014 actual sending is asynchronous.",
+      "description": "Client applications submit email requests (recipient, template ID, variables) via the API. The Email Service validates inputs, checks the sender's domain (SPF/DKIM records), enforces per-account rate limits, and persists the email record to PostgreSQL. The API returns a 202 Accepted immediately — actual sending is asynchronous.",
       "highlightNodes": [
         "client",
         "api-gw",
@@ -310,7 +310,7 @@
         "name": "SMTP Bounce Storm",
         "description": "Bad recipient list causes mass bounces from ISP",
         "targetNodes": [
-          "smtp-relay"
+          "smtp"
         ],
         "faultType": "error",
         "severity": 4,
@@ -326,7 +326,7 @@
         "name": "Template Engine Crash",
         "description": "Email template rendering fails due to bad data",
         "targetNodes": [
-          "template-service"
+          "app-server"
         ],
         "faultType": "crash",
         "severity": 3,
@@ -342,7 +342,7 @@
         "name": "Email Queue Backlog",
         "description": "Marketing blast creates millions of queued emails",
         "targetNodes": [
-          "email-queue"
+          "mq"
         ],
         "faultType": "resource-exhaustion",
         "severity": 2,
@@ -357,14 +357,14 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 2500,
-        "bottleneckNode": "smtp-relay",
+        "bottleneckNode": "smtp",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
       },
       {
         "rpsThreshold": 5000,
-        "bottleneckNode": "template-service",
+        "bottleneckNode": "app-server",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -376,7 +376,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "smtp-relay"
+          "smtp"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -387,7 +387,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "email-queue"
+          "mq"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -398,7 +398,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "smtp-relay"
+          "smtp"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -409,13 +409,13 @@
       "totalMonthlyCostUsd": 8000,
       "components": [
         {
-          "nodeId": "smtp-relay",
+          "nodeId": "smtp",
           "label": "Primary Service",
           "monthlyCostUsd": 2666,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "email-queue",
+          "nodeId": "mq",
           "label": "Storage",
           "monthlyCostUsd": 2666,
           "costDriver": "Storage and I/O"
@@ -456,7 +456,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "smtp-relay",
+        "nodeId": "smtp",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -488,13 +488,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "smtp-relay"
+          "nodeId": "smtp"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "smtp-relay"
+          "nodeId": "smtp"
         }
       ],
       "alerts": [

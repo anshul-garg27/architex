@@ -254,7 +254,7 @@
   "learnSteps": [
     {
       "title": "URL Frontier Design",
-      "description": "The URL Frontier is a priority queue with two sub-components: a front queue (prioritizes by page importance \u2014 PageRank, freshness) and a back queue (enforces politeness \u2014 one connection per host at a time). URLs are partitioned by domain to prevent overwhelming any single server.",
+      "description": "The URL Frontier is a priority queue with two sub-components: a front queue (prioritizes by page importance — PageRank, freshness) and a back queue (enforces politeness — one connection per host at a time). URLs are partitioned by domain to prevent overwhelming any single server.",
       "highlightNodes": [
         "url-frontier",
         "scheduler"
@@ -307,7 +307,7 @@
         "name": "DNS Resolver Failure",
         "description": "DNS resolver cache expires and upstream DNS is slow",
         "targetNodes": [
-          "dns-resolver"
+          "cache"
         ],
         "faultType": "latency",
         "severity": 3,
@@ -323,7 +323,7 @@
         "name": "Spider Trap Detection Failure",
         "description": "Crawler stuck in infinite URL generation on a malicious site",
         "targetNodes": [
-          "crawler-workers"
+          "fetcher"
         ],
         "faultType": "resource-exhaustion",
         "severity": 3,
@@ -339,7 +339,7 @@
         "name": "Content Storage Full",
         "description": "Crawled content storage reaches capacity",
         "targetNodes": [
-          "content-store"
+          "page-storage"
         ],
         "faultType": "resource-exhaustion",
         "severity": 4,
@@ -354,14 +354,14 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 5000,
-        "bottleneckNode": "dns-resolver",
+        "bottleneckNode": "cache",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
       },
       {
         "rpsThreshold": 10000,
-        "bottleneckNode": "crawler-workers",
+        "bottleneckNode": "fetcher",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -373,7 +373,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "dns-resolver"
+          "cache"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -384,7 +384,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "content-store"
+          "page-storage"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -395,7 +395,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "dns-resolver"
+          "cache"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -406,13 +406,13 @@
       "totalMonthlyCostUsd": 15000,
       "components": [
         {
-          "nodeId": "dns-resolver",
+          "nodeId": "cache",
           "label": "Primary Service",
           "monthlyCostUsd": 5000,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "content-store",
+          "nodeId": "page-storage",
           "label": "Storage",
           "monthlyCostUsd": 5000,
           "costDriver": "Storage and I/O"
@@ -453,7 +453,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "dns-resolver",
+        "nodeId": "cache",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -485,13 +485,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "dns-resolver"
+          "nodeId": "cache"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "dns-resolver"
+          "nodeId": "cache"
         }
       ],
       "alerts": [

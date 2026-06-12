@@ -274,7 +274,7 @@
         "name": "Alert Storm",
         "description": "Cascading failure triggers thousands of alerts simultaneously",
         "targetNodes": [
-          "alerting-engine"
+          "batch-alert"
         ],
         "faultType": "resource-exhaustion",
         "severity": 3,
@@ -290,7 +290,7 @@
         "name": "Metrics Collector Crash",
         "description": "OpenTelemetry collectors crash across a region",
         "targetNodes": [
-          "collectors"
+          "instrumented-app"
         ],
         "faultType": "crash",
         "severity": 4,
@@ -312,7 +312,7 @@
       },
       {
         "rpsThreshold": 500000,
-        "bottleneckNode": "alerting-engine",
+        "bottleneckNode": "batch-alert",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -335,7 +335,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "collectors"
+          "instrumented-app"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -363,7 +363,7 @@
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "collectors",
+          "nodeId": "instrumented-app",
           "label": "Storage",
           "monthlyCostUsd": 8333,
           "costDriver": "Storage and I/O"

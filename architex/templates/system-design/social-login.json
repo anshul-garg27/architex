@@ -179,5 +179,424 @@
       "highlightNodes": ["auth-server", "session-cache"],
       "highlightEdges": ["e-auth-cache"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-provider-outage",
+        "name": "Identity Provider Outage",
+        "description": "Google OAuth token endpoint returns errors for all exchange attempts",
+        "targetNodes": [
+          "google-api"
+        ],
+        "faultType": "error",
+        "severity": 3,
+        "expectedBehavior": "New Google logins fail fast within the upstream timeout. Sessions already issued keep working because JWTs validate locally. Login success rate drops roughly in proportion to Google share of the provider mix; GitHub logins are unaffected.",
+        "mitigationSteps": [
+          "Circuit-break Google calls after consecutive failures so requests fail fast instead of timing out",
+          "Show provider-specific outage messaging and steer users to GitHub or other fallback",
+          "Do not retry authorization codes — they are single-use; ask the user to restart the flow",
+          "Watch the provider status page and close the breaker gradually on recovery"
+        ]
+      },
+      {
+        "id": "cs-session-cache-down",
+        "name": "Session Cache Failure",
+        "description": "Redis session store becomes unavailable",
+        "targetNodes": [
+          "session-cache"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Access-token validation is unaffected (local JWT signature checks), but refresh, logout, and revocation checks fail. Users get logged out as 15-minute access tokens expire, and revoked sessions cannot be enforced until Redis recovers.",
+        "mitigationSteps": [
+          "Fail over to the Redis replica",
+          "Temporarily fall back to PostgreSQL session lookup for refresh (degraded latency)",
+          "Extend the access-token grace window only with explicit security-team approval",
+          "Audit and apply the revocation backlog once the cache returns"
+        ]
+      },
+      {
+        "id": "cs-github-slowdown",
+        "name": "Provider Token Endpoint Slowdown",
+        "description": "GitHub token exchange latency rises from ~300ms to 3s+",
+        "targetNodes": [
+          "github-api"
+        ],
+        "faultType": "latency",
+        "severity": 2,
+        "expectedBehavior": "In-flight upstream calls pile up and hold auth-server connection slots; login p99 climbs toward the 15s gateway timeout while Google logins stay fast. Without bulkheading, GitHub slowness starves capacity for every provider.",
+        "mitigationSteps": [
+          "Enforce a 2s upstream timeout; never auto-retry the code exchange POST",
+          "Bulkhead per-provider connection pools so GitHub exhaustion cannot starve Google flows",
+          "Prioritize session refresh traffic ahead of new interactive logins",
+          "Open the GitHub circuit breaker if p99 stays elevated beyond 5 minutes"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 5000,
+        "bottleneckNode": "auth-server",
+        "metric": "cpu",
+        "description": "JWT signing, TLS to providers, and token-exchange handling saturate the 6-instance fleet",
+        "resolution": "Scale instances; cache provider JWKS and OpenID discovery documents to cut per-login work"
+      },
+      {
+        "rpsThreshold": 10000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Account lookup and identity-link writes exhaust the 200-connection pool during login surges",
+        "resolution": "Add a connection pooler and route account lookups to a read replica"
+      },
+      {
+        "rpsThreshold": 18000,
+        "bottleneckNode": "api-gw",
+        "metric": "cpu",
+        "description": "TLS termination and rate-limit evaluation saturate the gateway as traffic approaches its 20k RPS configuration",
+        "resolution": "Scale the gateway horizontally and push coarse rate limiting to the edge"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-unverified-email-link",
+        "title": "Account Takeover via Unverified Email Linking",
+        "description": "Auto-linking provider identities by email lets an attacker claim a victim account through a provider that does not verify email ownership",
+        "affectedNodes": [
+          "auth-server",
+          "database"
+        ],
+        "likelihood": 2,
+        "impact": 5,
+        "mitigation": "Only auto-link when the provider asserts email_verified; otherwise require authentication to the existing account before linking"
+      },
+      {
+        "id": "ei-provider-rate-limits",
+        "title": "Provider Rate Limit Ceilings",
+        "description": "GitHub (5k RPS) and Google (10k RPS) quotas cap login bursts from marketing pushes or incident-driven re-login storms below platform capacity",
+        "affectedNodes": [
+          "github-api",
+          "google-api"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Spread re-auth with jittered token expiry, pre-negotiate quota increases, and queue non-interactive refreshes"
+      },
+      {
+        "id": "ei-refresh-token-replay",
+        "title": "Refresh Token Theft and Replay",
+        "description": "A stolen refresh token grants up to 7 days of access if undetected",
+        "affectedNodes": [
+          "auth-server",
+          "database"
+        ],
+        "likelihood": 2,
+        "impact": 5,
+        "mitigation": "Rotate refresh tokens on every use and revoke the entire session family when reuse is detected"
+      },
+      {
+        "id": "ei-jwks-rotation",
+        "title": "Provider Signing Key Rotation",
+        "description": "If provider JWKS are cached too aggressively, ID-token verification fails platform-wide when the provider rotates keys",
+        "affectedNodes": [
+          "auth-server"
+        ],
+        "likelihood": 2,
+        "impact": 3,
+        "mitigation": "Honor JWKS cache-control headers and re-fetch on unknown kid before rejecting a token"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 3150,
+      "components": [
+        {
+          "nodeId": "auth-server",
+          "label": "Auth Server",
+          "monthlyCostUsd": 900,
+          "costDriver": "6 instances, 4 vCPU / 8GB"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 450,
+          "costDriver": "Request volume + WAF rules"
+        },
+        {
+          "nodeId": "session-cache",
+          "label": "Session Cache",
+          "monthlyCostUsd": 800,
+          "costDriver": "16GB Redis with replica"
+        },
+        {
+          "nodeId": "database",
+          "label": "User DB",
+          "monthlyCostUsd": 1000,
+          "costDriver": "Primary + 2 replicas, 500GB, encryption at rest"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 2000,
+          "monthlyCostUsd": 1400
+        },
+        {
+          "label": "Medium",
+          "rps": 15000,
+          "monthlyCostUsd": 3150
+        },
+        {
+          "label": "High",
+          "rps": 50000,
+          "monthlyCostUsd": 8500
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 15000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 30,
+      "p99LatencyMs": 800,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.5,
+      "throughputRps": 15000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "auth-server",
+        "metric": "cpu_utilization",
+        "threshold": 60,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 24
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Login Success Rate",
+        "metric": "login_success_rate",
+        "target": 99.5,
+        "unit": "%",
+        "penalty": "Error-budget review; provider mix rebalancing"
+      },
+      {
+        "name": "Interactive Login Latency",
+        "metric": "p99_login_ms",
+        "target": 2000,
+        "unit": "ms",
+        "penalty": "Internal SLO — provider timeout tuning review"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.95,
+        "unit": "%",
+        "penalty": "Service credits to API customers"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "login_attempts_total",
+          "type": "counter",
+          "description": "Login attempts by provider and outcome",
+          "nodeId": "auth-server"
+        },
+        {
+          "name": "google_exchange_latency_ms",
+          "type": "histogram",
+          "description": "Google token-exchange round-trip time",
+          "nodeId": "google-api"
+        },
+        {
+          "name": "github_exchange_latency_ms",
+          "type": "histogram",
+          "description": "GitHub token-exchange round-trip time",
+          "nodeId": "github-api"
+        },
+        {
+          "name": "session_cache_hit_rate",
+          "type": "gauge",
+          "description": "Session lookups served from Redis",
+          "nodeId": "session-cache"
+        },
+        {
+          "name": "active_sessions",
+          "type": "gauge",
+          "description": "Live sessions in the store",
+          "nodeId": "session-cache"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Login Success Drop",
+          "condition": "success rate < 97% for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Provider Circuit Open",
+          "condition": "any provider breaker open > 2min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Token Exchange Slow",
+          "condition": "p99 exchange > 2s for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Session Cache Memory",
+          "condition": "memory > 85% for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Auth Funnel (initiate, consent, exchange, session)",
+        "Provider Health",
+        "Session Store"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Identity On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "identity-oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Security Engineer",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "security-oncall"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "Engineering Director",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "eng-director"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Identity provider outage",
+          "severity": "high",
+          "steps": [
+            "Confirm against the provider status page and error signatures in logs",
+            "Verify the circuit breaker opened so logins fail fast instead of timing out",
+            "Enable the outage banner steering users to healthy providers",
+            "After recovery, watch for a re-login surge against provider rate limits"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Session cache failure",
+          "severity": "critical",
+          "steps": [
+            "Fail over to the Redis replica and confirm replication health",
+            "Enable DB-backed session fallback for refresh traffic",
+            "Monitor login latency for the fallback penalty",
+            "Apply queued revocations and audit for gaps once Redis returns"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Suspected signing key compromise",
+          "severity": "critical",
+          "steps": [
+            "Rotate the JWT signing key immediately and publish the new JWKS",
+            "Force-expire all refresh tokens, requiring re-authentication",
+            "Audit token issuance logs for anomalous grants",
+            "Engage the security incident process and preserve evidence"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Server-Side Authorization Code Exchange",
+        "context": "Provider tokens must never transit the browser, where they can leak via XSS or history",
+        "decision": "Clients deliver only the one-time authorization code; the Auth Server holds client secrets and performs the exchange",
+        "consequences": [
+          "Provider tokens and client secrets stay server-side",
+          "The Auth Server becomes a hard dependency for every login",
+          "PKCE can be layered on for public clients without changing the architecture"
+        ]
+      },
+      {
+        "title": "First-Party JWTs Instead of Proxying Provider Tokens",
+        "context": "Provider tokens differ in format, lifetime, and validation cost",
+        "decision": "After exchange, mint a short-lived first-party JWT (15 min) plus refresh token, normalized across providers",
+        "consequences": [
+          "Downstream services validate one token format locally with zero provider calls",
+          "Provider-specific quirks (GitHub needing a separate /user call) are isolated in the Auth Server",
+          "Session lifetime is decoupled from provider session lifetime"
+        ]
+      },
+      {
+        "title": "Hybrid Stateless JWT + Redis Session",
+        "context": "Pure stateless JWTs cannot be revoked before expiry; pure server-side sessions hit the store on every request",
+        "decision": "Local JWT validation for access; Redis consulted only for refresh and revocation",
+        "consequences": [
+          "Steady-state request validation costs no network calls",
+          "A revoked session can remain usable up to one access-token TTL",
+          "Redis failure degrades refresh and logout, not active sessions"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Revocation Speed vs Validation Cost",
+        "choice": "15-minute access tokens with Redis-backed refresh",
+        "benefit": "No per-request session-store lookup",
+        "cost": "Revocation takes effect up to 15 minutes late for access tokens already issued"
+      },
+      {
+        "dimension": "Provider Breadth vs Maintenance",
+        "choice": "Normalize providers behind one profile schema",
+        "benefit": "Adding a provider never touches downstream services",
+        "cost": "Per-provider adapters must be built and maintained"
+      },
+      {
+        "dimension": "Availability vs Third-Party Dependency",
+        "choice": "Accept provider dependency for new logins only",
+        "benefit": "Existing sessions survive any provider outage",
+        "cost": "New-login availability is capped by the weakest provider"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Hosted Identity (Auth0 / Cognito)",
+        "description": "Outsource the entire OAuth aggregation layer to a managed identity provider",
+        "prosVsCons": "Fastest to ship and professionally audited, but per-MAU pricing scales poorly and account-linking rules are constrained",
+        "whyNotChosen": "At 100k+ concurrent users, per-MAU cost and control over linking logic favored building in-house"
+      },
+      {
+        "name": "Implicit / Front-Channel Flow",
+        "description": "The provider returns tokens directly to the browser",
+        "prosVsCons": "Removes the server exchange hop, but exposes tokens to the user agent; deprecated by the OAuth 2.0 Security BCP",
+        "whyNotChosen": "A deprecated pattern with well-documented token-leak vectors"
+      },
+      {
+        "name": "SAML Federation",
+        "description": "Enterprise SSO via SAML assertions",
+        "prosVsCons": "Strong enterprise IdP support, but XML signature complexity and a poor fit for consumer providers like GitHub",
+        "whyNotChosen": "Target providers are OAuth/OIDC-native consumer identity providers"
+      }
+    ]
+  }
 }

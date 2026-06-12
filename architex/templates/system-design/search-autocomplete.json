@@ -166,5 +166,432 @@
       "highlightNodes": ["client", "lb", "autocomplete-service"],
       "highlightEdges": ["e-client-lb", "e-lb-service"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-trie-flush",
+        "name": "Trie Cache Flush",
+        "description": "Redis loses the prefix index — failover without persistence or an accidental FLUSHALL",
+        "targetNodes": [
+          "trie-cache"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "The 92% hit rate drops to zero and 100k RPS of suggestion traffic falls through to Elasticsearch, which can serve only a fraction of it. Suggestion latency jumps from ~5ms to 100ms+, then times out. Correct behavior is silent degradation: clients show no suggestions while search itself stays unaffected.",
+        "mitigationSteps": [
+          "Fail open — return empty suggestion lists on timeout rather than erroring the search box",
+          "Rate-limit fallback traffic into Elasticsearch to protect full-text search",
+          "Rebuild the trie from the latest hourly score snapshot (bulk ZADD)",
+          "Rewarm the highest-volume prefixes first — the head of the query distribution covers most traffic"
+        ]
+      },
+      {
+        "id": "cs-hot-prefix",
+        "name": "Trending-Event Hot Prefix",
+        "description": "Breaking news drives a large share of all queries through a handful of prefixes on one Redis shard",
+        "targetNodes": [
+          "trie-cache"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "The shard owning the hot keys saturates its single-threaded CPU; p99 spikes for those prefixes while others stay fast — a partial brownout that aggregate dashboards can miss.",
+        "mitigationSteps": [
+          "Serve hot prefixes from a per-instance in-process LRU on the autocomplete service",
+          "Replicate hot keys across N shards and randomize reads",
+          "Verify client debouncing and prefix-result reuse are blunting per-keystroke load",
+          "Pre-warm predicted follow-on prefixes when the trending pipeline flags a spike"
+        ]
+      },
+      {
+        "id": "cs-es-node-loss",
+        "name": "Elasticsearch Node Loss",
+        "description": "A data node drops out of the cluster configured with 10 shards and 1 replica",
+        "targetNodes": [
+          "search-engine"
+        ],
+        "faultType": "crash",
+        "severity": 2,
+        "expectedBehavior": "The cluster goes yellow; some shards run without redundancy while reallocation proceeds. Long-tail (cache-miss) suggestions — roughly 8% of traffic — slow or fail for affected shards. Cached head queries are unaffected.",
+        "mitigationSteps": [
+          "Confirm shard reallocation is progressing; throttle recovery if it competes with serving",
+          "Serve cache-only (skip the ES fallback) if the cluster goes red",
+          "Backfill missed trie write-backs after recovery",
+          "Consider replicas: 2 if node loss makes yellow states routine"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 80000,
+        "bottleneckNode": "autocomplete-service",
+        "metric": "cpu",
+        "description": "The 10-instance fleet saturates under per-keystroke request rates; queueing pushes p99 past the perceptible threshold",
+        "resolution": "Scale horizontally — the service is stateless — and confirm client debouncing (100-150ms) is deployed to cut request volume"
+      },
+      {
+        "rpsThreshold": 120000,
+        "bottleneckNode": "trie-cache",
+        "metric": "cpu",
+        "description": "Single-threaded Redis shards bottleneck on ZREVRANGE for popular prefixes",
+        "resolution": "Add cluster shards and read replicas; cache the head of the prefix distribution in-process on the service tier"
+      },
+      {
+        "rpsThreshold": 150000,
+        "bottleneckNode": "search-engine",
+        "metric": "cpu",
+        "description": "Even an 8% miss rate exceeds the comfortable Elasticsearch QPS; fallback queries queue behind index refreshes",
+        "resolution": "Raise the cache hit rate first (more memory, longer TTL) before adding ES data nodes"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hot-short-prefixes",
+        "title": "Hot Short Prefixes",
+        "description": "One- and two-character prefixes concentrate a huge share of lookups onto few keys, defeating uniform sharding",
+        "affectedNodes": [
+          "trie-cache"
+        ],
+        "likelihood": 5,
+        "impact": 3,
+        "mitigation": "Shard short prefixes across multiple keys (as designed) and add in-process caching for the head of the distribution"
+      },
+      {
+        "id": "ei-stale-trending",
+        "title": "Trending Lag from Hourly Rebuilds",
+        "description": "Popularity scores refresh hourly, so suggestions trail breaking events by up to 60 minutes",
+        "affectedNodes": [
+          "database",
+          "trie-cache"
+        ],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Layer a lightweight streaming bump for query counts on top of the hourly full rebuild; apply trending multipliers out-of-band"
+      },
+      {
+        "id": "ei-cold-rewarm-stampede",
+        "title": "Cold-Cache Stampede",
+        "description": "After a flush or failover, simultaneous misses stampede Elasticsearch with lookups and write-backs",
+        "affectedNodes": [
+          "trie-cache",
+          "search-engine"
+        ],
+        "likelihood": 2,
+        "impact": 4,
+        "mitigation": "Singleflight per prefix, bounded ES fallback concurrency, and a bulk rewarm job instead of organic refill"
+      },
+      {
+        "id": "ei-suggestion-poisoning",
+        "title": "Suggestion Poisoning",
+        "description": "Coordinated query spam can push offensive or manipulative completions into the popularity index",
+        "affectedNodes": [
+          "database",
+          "trie-cache"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Denylist filtering at rebuild time, per-IP/user query frequency caps, and anomaly detection on sudden score jumps"
+      },
+      {
+        "id": "ei-es-thin-redundancy",
+        "title": "Thin Elasticsearch Redundancy",
+        "description": "With replicas: 1, any single data-node loss removes redundancy for the shards it hosted",
+        "affectedNodes": [
+          "search-engine"
+        ],
+        "likelihood": 2,
+        "impact": 3,
+        "mitigation": "Raise the replica count or ensure fast automated node replacement"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 6200,
+      "components": [
+        {
+          "nodeId": "autocomplete-service",
+          "label": "Autocomplete Service",
+          "monthlyCostUsd": 1000,
+          "costDriver": "10 small instances"
+        },
+        {
+          "nodeId": "trie-cache",
+          "label": "Trie Cache",
+          "monthlyCostUsd": 1800,
+          "costDriver": "64GB Redis cluster"
+        },
+        {
+          "nodeId": "search-engine",
+          "label": "Elasticsearch",
+          "monthlyCostUsd": 2200,
+          "costDriver": "Data nodes for 10 shards / 500GB"
+        },
+        {
+          "nodeId": "database",
+          "label": "Primary DB",
+          "monthlyCostUsd": 800,
+          "costDriver": "Primary + replica, 1TB"
+        },
+        {
+          "nodeId": "lb",
+          "label": "Load Balancer",
+          "monthlyCostUsd": 400,
+          "costDriver": "L7 LB hours + data processed"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 20000,
+          "monthlyCostUsd": 2600
+        },
+        {
+          "label": "Medium",
+          "rps": 100000,
+          "monthlyCostUsd": 6200
+        },
+        {
+          "label": "High",
+          "rps": 500000,
+          "monthlyCostUsd": 21000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 5,
+      "p99LatencyMs": 30,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.5,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "autocomplete-service",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 4,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 120,
+        "minInstances": 6,
+        "maxInstances": 60
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Suggestion Latency",
+        "metric": "p99_suggest_ms",
+        "target": 50,
+        "unit": "ms",
+        "penalty": "Internal SLO — suggestions slower than ~100ms are dropped client-side and worthless mid-typing"
+      },
+      {
+        "name": "Availability (Fail-Open)",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "Internal SLO — outages degrade to empty suggestions, never block search"
+      },
+      {
+        "name": "Index Freshness",
+        "metric": "suggestion_index_age_minutes",
+        "target": 90,
+        "unit": "minutes",
+        "penalty": "Stale-index review with the search quality team"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "suggest_latency_ms",
+          "type": "histogram",
+          "description": "Server-side suggestion latency",
+          "nodeId": "autocomplete-service"
+        },
+        {
+          "name": "empty_response_rate",
+          "type": "gauge",
+          "description": "Share of requests returning no suggestions (fail-open indicator)",
+          "nodeId": "autocomplete-service"
+        },
+        {
+          "name": "trie_hit_rate",
+          "type": "gauge",
+          "description": "Prefix lookups served from Redis",
+          "nodeId": "trie-cache"
+        },
+        {
+          "name": "es_fallback_qps",
+          "type": "counter",
+          "description": "Cache-miss queries hitting Elasticsearch",
+          "nodeId": "search-engine"
+        },
+        {
+          "name": "index_refresh_age_minutes",
+          "type": "gauge",
+          "description": "Time since the last successful score rebuild",
+          "nodeId": "database"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Hit Rate Drop",
+          "condition": "trie hit rate < 0.85 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Suggest Latency",
+          "condition": "p99 > 50ms for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Index Stale",
+          "condition": "refresh age > 3h",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "ES Cluster Red",
+          "condition": "cluster status red",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Suggest Serving (latency, hit rate, empty rate)",
+        "Index Freshness Pipeline",
+        "Elasticsearch Cluster Health"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Search On-Call",
+          "responseTimeMinutes": 10,
+          "contacts": [
+            "search-oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Search Infra Lead",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "search-infra-lead"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Trie cache flush / cold cache",
+          "severity": "high",
+          "steps": [
+            "Confirm fail-open behavior — the search box should degrade, not error",
+            "Cap ES fallback concurrency to protect full-text search",
+            "Kick off the bulk rewarm from the latest score snapshot",
+            "Watch hit rate recover; prioritize head prefixes"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Hot prefix event",
+          "severity": "medium",
+          "steps": [
+            "Identify hot keys (redis-cli --hotkeys, latency by prefix)",
+            "Enable in-process caching for the affected prefixes",
+            "Replicate hot keys across shards",
+            "Pre-warm the follow-on prefixes the event will generate next"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Score refresh pipeline stall",
+          "severity": "low",
+          "steps": [
+            "Check the hourly rebuild job logs and PostgreSQL query health",
+            "Re-run the rebuild manually and verify score updates land in Redis",
+            "If prolonged, notify search quality about trending lag"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Two-Tier Lookup: Redis Trie + Elasticsearch Fallback",
+        "context": "Head queries need single-digit-millisecond responses per keystroke; long-tail prefixes need coverage without holding everything in RAM",
+        "decision": "Precomputed prefix-to-completions sorted sets in Redis serve ~92% of traffic; the ES completion suggester handles misses, with results written back to the cache",
+        "consequences": [
+          "p99 stays around 5ms for the vast majority of lookups",
+          "Long-tail prefixes still answer in 10-20ms via ES",
+          "Two systems must stay consistent through the write-back and rebuild paths"
+        ]
+      },
+      {
+        "title": "Hourly Batch Scoring from the Primary DB",
+        "context": "Popularity ranking blends frequency, recency decay, and trending boosts",
+        "decision": "An hourly job recomputes scores from PostgreSQL and rebuilds the Redis sorted sets",
+        "consequences": [
+          "A simple, restartable pipeline with one source of truth",
+          "Trending suggestions lag real events by up to an hour",
+          "Rebuilds create predictable bursts of Redis write load"
+        ]
+      },
+      {
+        "title": "Fail-Open Degradation",
+        "context": "Autocomplete is an enhancement; the search box must never break because suggestions are down",
+        "decision": "Timeouts return empty suggestion lists; clients render nothing and search proceeds normally",
+        "consequences": [
+          "Cache or ES outages become UX degradations, not user-facing outages",
+          "Failures can go unnoticed without empty-response-rate monitoring",
+          "The availability target can be 99.9% instead of 99.99%, saving redundancy cost"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Latency vs Freshness",
+        "choice": "Precomputed hourly rankings",
+        "benefit": "O(1) lookups with no scoring work at read time",
+        "cost": "Suggestions trail real-world trends by up to an hour"
+      },
+      {
+        "dimension": "Memory Cost vs Coverage",
+        "choice": "Cache only the head of the query distribution (64GB)",
+        "benefit": "An order of magnitude cheaper than holding the full corpus in RAM",
+        "cost": "Roughly 8% of lookups pay the ES fallback latency"
+      },
+      {
+        "dimension": "Simplicity vs Real-Time Trending",
+        "choice": "Batch rebuilds over streaming updates",
+        "benefit": "No stream-processing infrastructure to operate",
+        "cost": "Cannot reflect breaking events within minutes"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Pure Elasticsearch Completion Suggester",
+        "description": "Serve all suggestions from the FST-based ES suggester with no Redis tier",
+        "prosVsCons": "One system and good relevance tooling, but a 10-20ms baseline plus JVM GC tails make per-keystroke p99 at 100k RPS expensive",
+        "whyNotChosen": "Redis head caching cuts both latency and the required ES fleet size dramatically"
+      },
+      {
+        "name": "In-Process Tries on Service Nodes",
+        "description": "Ship the full trie inside each autocomplete instance",
+        "prosVsCons": "The fastest possible lookups with no network hop, but every node holds the full index and rebuilds require coordinated rollouts",
+        "whyNotChosen": "Centralized Redis simplifies refresh and keeps service instances stateless and cheap to scale"
+      },
+      {
+        "name": "Streaming Popularity Updates (Kafka + Flink)",
+        "description": "Update scores continuously from the live query log stream",
+        "prosVsCons": "Minutes-fresh trending, but adds a stream-processing platform for a feature where hourly freshness is mostly acceptable",
+        "whyNotChosen": "Deferred until product data shows trending lag materially hurts engagement"
+      }
+    ]
+  }
 }

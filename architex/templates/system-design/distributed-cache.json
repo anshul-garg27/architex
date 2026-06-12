@@ -144,5 +144,292 @@
       "highlightNodes": ["app-server", "cache-cluster", "database"],
       "highlightEdges": ["e-app-cache", "e-app-db", "e-cache-db"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-master-failover",
+        "name": "Master Shard Failure",
+        "description": "One of the 3 Redis master nodes crashes, taking its ~5,461 hash slots offline until the replica is promoted",
+        "targetNodes": ["cache-cluster"],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Gossip marks the master failed within cluster-node-timeout (~5-15s) and the replica promotes automatically. Reads and writes to that shard's slots error briefly; cluster-aware clients refresh slot maps on MOVED responses. Writes still in async replication flight at crash time are lost.",
+        "mitigationSteps": [
+          "Application retries with exponential backoff through the promotion window",
+          "Clients refresh slot-to-node topology on MOVED/CLUSTERDOWN errors",
+          "Provision a replacement node and attach it as replica of the promoted master",
+          "Audit the lost-write window — the cache must never be the source of truth"
+        ]
+      },
+      {
+        "id": "cs-cache-avalanche",
+        "name": "Cache Avalanche on Synchronized TTL Expiry",
+        "description": "A large keyset written at the same moment (e.g., after a deploy or bulk warm) expires together at the 3600s TTL, collapsing the hit rate",
+        "targetNodes": ["cache-cluster", "database"],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Hit rate drops from ~95% toward zero for the affected keyset; miss traffic multiplies database queries 10-20x and the 500-connection PostgreSQL pool saturates. Request latency climbs from ~20ms to seconds as queries queue behind the pool.",
+        "mitigationSteps": [
+          "Add random jitter (±10%) to TTLs on re-population",
+          "Coalesce concurrent misses per key (singleflight) at the application layer",
+          "Rate-limit the miss path to protect the database pool",
+          "Warm the hottest keys from access logs before lifting limits"
+        ]
+      },
+      {
+        "id": "cs-split-brain",
+        "name": "Split-Brain Network Partition",
+        "description": "A partition isolates one master from the cluster majority while some application servers can still reach it",
+        "targetNodes": ["cache-cluster"],
+        "faultType": "partition",
+        "severity": 3,
+        "expectedBehavior": "The majority side promotes the replica; the isolated master keeps accepting writes until it detects the partition and demotes itself. Writes accepted on the minority side during that window are discarded on heal — a silent lost-update anomaly.",
+        "mitigationSteps": [
+          "Tune cluster-node-timeout to bound the dirty-write window",
+          "Treat cache contents as reconstructable, never durable state",
+          "Verify full slot coverage and replica topology after the partition heals",
+          "Invalidate keys written during the partition window where correctness matters"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 60000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "At ~95% hit rate the miss traffic plus write-backs already hold hundreds of PostgreSQL connections; any hit-rate dip saturates the 500-connection pool",
+        "resolution": "Add PgBouncer pooling, jitter TTLs, coalesce duplicate miss queries"
+      },
+      {
+        "rpsThreshold": 120000,
+        "bottleneckNode": "app-server",
+        "metric": "cpu",
+        "description": "10 application instances at ~15ms processing per request run out of CPU headroom",
+        "resolution": "Scale out instances, pipeline Redis commands, trim per-request serialization"
+      },
+      {
+        "rpsThreshold": 250000,
+        "bottleneckNode": "cache-cluster",
+        "metric": "cpu",
+        "description": "Hot-key skew drives one shard's single-threaded Redis command loop to 100% while the other shards idle",
+        "resolution": "Reshard slots, serve hot keys from replicas or a client-side near cache, split jumbo keys"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hot-key",
+        "title": "Hot Key Skew",
+        "description": "A handful of celebrity keys hash to a single slot, pinning load on one shard no matter how many shards exist",
+        "affectedNodes": ["cache-cluster"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Client-side near cache for top-N keys, read hot keys from replicas, replicate hot keys under derived names"
+      },
+      {
+        "id": "ei-stampede",
+        "title": "Thundering Herd on Popular Key Expiry",
+        "description": "When a popular key expires, every app instance misses simultaneously and all issue the same database query",
+        "affectedNodes": ["app-server", "database"],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Singleflight request coalescing, probabilistic early refresh before TTL, mutex-guarded rebuild"
+      },
+      {
+        "id": "ei-stale-after-failover",
+        "title": "Lost Writes After Failover",
+        "description": "Async replication means a promoted replica can be missing the final moments of writes; readers silently see older values",
+        "affectedNodes": ["cache-cluster"],
+        "likelihood": 2,
+        "impact": 3,
+        "mitigation": "Design the cache as disposable, use WAIT for rare critical writes, fall back to DB reads when in doubt"
+      },
+      {
+        "id": "ei-eviction-churn",
+        "title": "Silent Hit-Rate Decay From LRU Eviction",
+        "description": "When the working set outgrows 128GB, allkeys-lru evicts warm keys and the hit rate degrades gradually with no hard failure to alert on",
+        "affectedNodes": ["cache-cluster", "database"],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Alert on evicted_keys rate and hit-rate trend, add shards before memory pressure, audit TTLs on bulky keysets"
+      },
+      {
+        "id": "ei-cache-aside-race",
+        "title": "Cache-Aside Read/Write Race",
+        "description": "A read-miss racing a concurrent database update can repopulate the cache with the pre-update value, pinning stale data until TTL expiry",
+        "affectedNodes": ["app-server", "cache-cluster"],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Delete (not update) cache entries on write, keep TTLs short for mutable data, version keys"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 8500,
+      "components": [
+        { "nodeId": "cache-cluster", "label": "Redis Cluster", "monthlyCostUsd": 4400, "costDriver": "6 × r6g.2xlarge (3 shards + replicas, 128GB)" },
+        { "nodeId": "database", "label": "PostgreSQL", "monthlyCostUsd": 2200, "costDriver": "Primary + 2 replicas, 2TB storage" },
+        { "nodeId": "app-server", "label": "Application Servers", "monthlyCostUsd": 1300, "costDriver": "10 instances" },
+        { "nodeId": "lb", "label": "Load Balancer", "monthlyCostUsd": 600, "costDriver": "LCU-hours at 100k RPS" }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low", "rps": 10000, "monthlyCostUsd": 3200 },
+        { "label": "Medium", "rps": 100000, "monthlyCostUsd": 8500 },
+        { "label": "High", "rps": 500000, "monthlyCostUsd": 29000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 20,
+      "p99LatencyMs": 100,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 100000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 180,
+        "minInstances": 4,
+        "maxInstances": 40
+      },
+      {
+        "nodeId": "cache-cluster",
+        "metric": "memory_utilization",
+        "threshold": 80,
+        "scaleUpStep": 2,
+        "scaleDownStep": 0,
+        "cooldownSeconds": 3600,
+        "minInstances": 6,
+        "maxInstances": 18
+      }
+    ],
+    "slaDefinitions": [
+      { "name": "Cache Read Latency", "metric": "p99_cache_read_ms", "target": 5, "unit": "ms", "penalty": "5% credit" },
+      { "name": "End-to-End Latency", "metric": "p99_request_ms", "target": 100, "unit": "ms", "penalty": "10% credit" },
+      { "name": "Availability", "metric": "uptime", "target": 99.95, "unit": "%", "penalty": "25% credit" }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        { "name": "cache_hit_rate", "type": "gauge", "description": "Fraction of reads served from Redis", "nodeId": "cache-cluster" },
+        { "name": "evicted_keys_total", "type": "counter", "description": "Keys evicted by allkeys-lru under memory pressure", "nodeId": "cache-cluster" },
+        { "name": "shard_cpu_utilization", "type": "gauge", "description": "Per-shard Redis main-thread CPU — the hot-key detector", "nodeId": "cache-cluster" },
+        { "name": "db_pool_in_use", "type": "gauge", "description": "PostgreSQL connections consumed by miss traffic", "nodeId": "database" },
+        { "name": "request_latency", "type": "histogram", "description": "End-to-end request latency including the miss path", "nodeId": "app-server" }
+      ],
+      "alerts": [
+        { "name": "Hit Rate Degradation", "condition": "cache_hit_rate < 0.90 for 10min", "severity": "warning", "channel": "slack" },
+        { "name": "Eviction Spike", "condition": "rate(evicted_keys_total) > 1000/s for 5min", "severity": "warning", "channel": "slack" },
+        { "name": "Cluster State Not OK", "condition": "redis_cluster_state != ok", "severity": "critical", "channel": "pagerduty" },
+        { "name": "DB Pool Saturation", "condition": "db_pool_in_use > 450 for 2min", "severity": "critical", "channel": "pagerduty" }
+      ],
+      "dashboards": ["Cache Cluster Health", "Hit Rate & Evictions", "Database Fallback Load"]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        { "level": 1, "name": "On-Call", "responseTimeMinutes": 5, "contacts": ["oncall"] },
+        { "level": 2, "name": "Platform Infra", "responseTimeMinutes": 15, "contacts": ["platform-infra"] },
+        { "level": 3, "name": "Engineering Manager", "responseTimeMinutes": 30, "contacts": ["eng-manager"] }
+      ],
+      "runbooks": [
+        {
+          "incident": "Shard failover",
+          "severity": "high",
+          "steps": [
+            "Run CLUSTER INFO / CLUSTER NODES — confirm promotion finished and all 16,384 slots are covered",
+            "Check application error rates and confirm retries absorbed the promotion window",
+            "Provision a replacement node and attach it as replica of the promoted master",
+            "Review the async-replication lost-write window with owning teams",
+            "Capture the timeline for the postmortem"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Hit rate collapse / cache avalanche",
+          "severity": "critical",
+          "steps": [
+            "Determine whether the drop is expiry-driven (expired_keys spike) or eviction-driven (evicted_keys spike)",
+            "Enable miss-path rate limiting and request coalescing to protect PostgreSQL",
+            "Re-populate with jittered TTLs to break expiry synchronization",
+            "Warm the hottest keys from access logs",
+            "Lift limits once hit rate exceeds 90%"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Memory pressure / eviction storm",
+          "severity": "medium",
+          "steps": [
+            "Identify oversized keysets with redis-cli --bigkeys and MEMORY USAGE sampling",
+            "Shorten TTLs or drop low-value keysets",
+            "Add a shard pair and rebalance slots during low traffic",
+            "Verify hit rate and eviction rate return to baseline"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Cache-Aside as the Default Access Pattern",
+        "context": "Read-heavy workload tolerant of brief staleness; cache memory is the scarce resource",
+        "decision": "Lazy-load on miss with a 1-hour TTL; only the application writes to the cache",
+        "consequences": [
+          "Only actively-read data occupies the 128GB of memory",
+          "First access to any key pays a full database round-trip",
+          "Staleness is bounded by TTL unless writes invalidate explicitly"
+        ]
+      },
+      {
+        "title": "Redis Cluster: 3 Shards × 1 Replica",
+        "context": "The working set exceeds a single node and the layer needs automatic failover",
+        "decision": "Partition 16,384 slots across 3 masters with one replica each; gossip-driven promotion on failure",
+        "consequences": [
+          "Capacity and throughput scale by resharding slots",
+          "Multi-key operations restricted to keys in the same slot (hash tags)",
+          "Brief per-shard write unavailability during failover"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Consistency vs Availability",
+        "choice": "Asynchronous replication with automatic failover",
+        "benefit": "Sub-millisecond writes and seconds-level recovery",
+        "cost": "Acknowledged writes can vanish on failover — the cache can never be the source of truth"
+      },
+      {
+        "dimension": "Freshness vs Database Load",
+        "choice": "1-hour TTL with ~95% hit rate",
+        "benefit": "The database sees only ~5% of read traffic",
+        "cost": "Readers may see data up to an hour old unless writes invalidate"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Memcached Fleet",
+        "description": "Client-side consistent hashing over stateless Memcached nodes",
+        "prosVsCons": "Simpler and multithreaded per node, but no replication or failover — a node loss is a cold-start miss storm",
+        "whyNotChosen": "Built-in replication, automatic failover, and richer data types favor Redis Cluster"
+      },
+      {
+        "name": "Write-Through Cache",
+        "description": "Synchronously update the cache on every database write",
+        "prosVsCons": "Fresher data and fewer misses, but adds latency to every write and caches keys that may never be read",
+        "whyNotChosen": "The workload is read-heavy and tolerates TTL-bounded staleness"
+      },
+      {
+        "name": "Single Large Redis Instance + Replica",
+        "description": "One 128GB primary with a single replica instead of a sharded cluster",
+        "prosVsCons": "Simplest topology with no cross-slot limits, but full-sync and failover of 128GB is slow and one main thread caps throughput",
+        "whyNotChosen": "Sharding bounds the blast radius and scales single-threaded command processing horizontally"
+      }
+    ]
+  }
 }

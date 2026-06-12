@@ -44,9 +44,11 @@ import { TimeTravelScrubber } from "@/components/canvas/overlays/TimeTravelScrub
 import { CanvasDescription } from "@/components/canvas/CanvasDescription";
 import { NodeCreationPulse } from "@/components/canvas/NodeCreationPulse";
 import { SimulationDashboard } from "@/components/canvas/overlays/SimulationDashboard";
-import { NodeMetricsOverlay } from "@/components/canvas/overlays/NodeMetricsOverlay";
 import { ChaosQuickBar } from "@/components/canvas/overlays/ChaosQuickBar";
 import { CostMonitor } from "@/components/canvas/overlays/CostMonitor";
+import { ChaosScenarioPicker } from "@/components/canvas/overlays/ChaosScenarioPicker";
+import { GuidedTourOverlay } from "@/components/canvas/overlays/GuidedTourOverlay";
+import { TourButton } from "@/components/canvas/overlays/TourButton";
 import { useUIStore } from "@/stores/ui-store";
 import { useTheme } from "next-themes";
 
@@ -63,6 +65,16 @@ function generateNodeId() {
   return `node-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// Map a node's category to its design-token color for the minimap.
+// CSS var() references stay theme-reactive (unlike getComputedStyle reads)
+// and fall back to the muted foreground token for uncategorized nodes.
+function minimapNodeColor(node: Node): string {
+  const category = (node.data as Record<string, unknown> | undefined)?.category;
+  return typeof category === "string" && category.length > 0
+    ? `var(--node-${category}, var(--foreground-muted))`
+    : "var(--foreground-muted)";
+}
+
 export const DesignCanvas = memo(function DesignCanvas() {
   const { resolvedTheme } = useTheme();
   const nodes = useCanvasStore((s) => s.nodes);
@@ -77,6 +89,8 @@ export const DesignCanvas = memo(function DesignCanvas() {
   const simulationStatus = useSimulationStore((s) => s.status);
   const timelineVisible = useUIStore((s) => s.timelineVisible);
   const minimapVisible = useUIStore((s) => s.minimapVisible);
+  const setBottomPanelOpen = useUIStore((s) => s.setBottomPanelOpen);
+  const setBottomPanelTab = useUIStore((s) => s.setBottomPanelTab);
   const heatmapEnabled = useSimulationStore((s) => s.heatmapEnabled);
   const heatmapMetric = useSimulationStore((s) => s.heatmapMetric);
   const traceActive = useSimulationStore((s) => s.traceActive);
@@ -106,6 +120,27 @@ export const DesignCanvas = memo(function DesignCanvas() {
     }
   }, [nodesInitialized]);
 
+  // ── Auto-surface the post-run report ──
+  // When a run finishes (natural completion or user Stop), expand the
+  // bottom panel and switch to the Report tab so the payoff is visible.
+  const prevSimStatus = useRef(simulationStatus);
+  useEffect(() => {
+    const prev = prevSimStatus.current;
+    prevSimStatus.current = simulationStatus;
+    if (simulationStatus === "completed" && prev !== "completed") {
+      setBottomPanelOpen(true);
+      setBottomPanelTab("report");
+    }
+  }, [simulationStatus, setBottomPanelOpen, setBottomPanelTab]);
+
+  // ── Clear kept simulation results when the canvas is cleared ──
+  // A preserved post-run orchestrator is meaningless without its topology.
+  useEffect(() => {
+    if (nodes.length === 0 && useSimulationStore.getState().orchestratorRef) {
+      useSimulationStore.getState().reset();
+    }
+  }, [nodes.length]);
+
   // ── Time-travel scrubber ──
   const timeTravelInstance = useMemo(
     () => orchestratorRef?.getTimeTravel() ?? null,
@@ -130,6 +165,26 @@ export const DesignCanvas = memo(function DesignCanvas() {
   }, []);
 
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
+
+  // ── Sim-start camera ──
+  // On the idle → running transition, fit the whole graph into the free
+  // zone between the top KPI strip and the bottom lane (padding 0.22) so
+  // the run starts with every node in view. Runs once per transition.
+  // Honors prefers-reduced-motion by snapping instead of animating.
+  const prevStatusForCamera = useRef(simulationStatus);
+  useEffect(() => {
+    const prev = prevStatusForCamera.current;
+    prevStatusForCamera.current = simulationStatus;
+    if (prev === "idle" && simulationStatus === "running") {
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      void reactFlowRef.current?.fitView({
+        padding: 0.22,
+        duration: prefersReducedMotion ? 0 : 350,
+      });
+    }
+  }, [simulationStatus]);
 
   // ── Alignment guides state ──
   const [guides, setGuides] = useState<AlignmentGuide[]>([]);
@@ -329,28 +384,46 @@ export const DesignCanvas = memo(function DesignCanvas() {
             />
             {minimapVisible && (
               <MiniMap
-                nodeColor={(node) => {
-                  const category = (node.data as Record<string, unknown>)?.category as string | undefined;
-                  if (category) {
-                    const value = getComputedStyle(document.documentElement)
-                      .getPropertyValue(`--node-${category}`)
-                      .trim();
-                    if (value) return value;
-                  }
-                  return getComputedStyle(document.documentElement)
-                    .getPropertyValue('--foreground-muted')
-                    .trim() || '#6B7280';
-                }}
+                style={{ width: 180, height: 120 }}
+                bgColor="transparent"
+                maskColor="color-mix(in srgb, var(--surface) 78%, transparent)"
+                nodeColor={minimapNodeColor}
+                nodeStrokeColor={minimapNodeColor}
                 nodeStrokeWidth={2}
                 zoomable
                 pannable
-                className="!rounded-lg !border !border-border !bg-background"
+                className="!overflow-hidden !rounded-lg !border !border-border !bg-surface/90 !shadow-lg backdrop-blur"
               />
             )}
             <CanvasToolbar whatIfOpen={whatIfOpen} onToggleWhatIf={handleToggleWhatIf} diffOpen={diffOpen} onToggleDiff={handleToggleDiff} />
           </ReactFlow>
         </div>
       </CanvasContextMenu>
+      {/* ─────────────────────────────────────────────────────────────
+          CANVAS LANE SYSTEM — calm telemetry layout contract.
+          The canvas center is sacred: panels live in fixed lanes and
+          must never float over the graph during a run.
+
+          Lanes (anchored to the canvas viewport):
+            • Top strip      — SimulationDashboard KPI bar (includes the
+                               Incident jump cluster): left-4 → right-4, top-4.
+            • Top-right rail — CostMonitor (collapsed chip by default),
+                               ChaosScenarioPicker (idle only), Diff/WhatIf.
+            • Bottom-center  — CanvasToolbar (bottom-6) with the
+                               TimeTravelScrubber docked directly above it
+                               (8px gap; see scrubber for the offset math).
+            • Full-bleed FX  — ParticleLayer / HeatmapOverlay / RequestTrace
+                               sweep: pointer-events-none, visuals only.
+
+          Z hierarchy (low → high):
+            canvas content (React Flow) < edge chips (in-edge) <
+            node badges (in-node SimMetricsBadge) < full-bleed FX (z-10/20)
+            < lane panels (z-30) < canvas toolbar (z-50) <
+            modals/dialogs (Radix portals at body level).
+
+          Per-node telemetry renders ONLY inside nodes (SimMetricsBadge);
+          the detached NodeMetricsOverlay (UI-002) is retired.
+         ───────────────────────────────────────────────────────────── */}
       {nodes.length === 0 && <EmptyState />}
       {simulationStatus === "running" && <ParticleLayer />}
       {heatmapEnabled &&
@@ -361,15 +434,16 @@ export const DesignCanvas = memo(function DesignCanvas() {
         (simulationStatus === "running" || simulationStatus === "paused") && (
           <RequestTrace traceType={traceType} onComplete={handleTraceComplete} />
         )}
-      {/* Simulation UI overlays (UI-001 through UI-004) */}
+      {/* Simulation UI overlays (UI-001, UI-003, UI-004 — UI-002 retired,
+          node telemetry lives in the in-node SimMetricsBadge) */}
       {(simulationStatus === "running" || simulationStatus === "paused") && (
         <>
           <SimulationDashboard />
-          <NodeMetricsOverlay />
           <ChaosQuickBar />
           <CostMonitor />
         </>
       )}
+      <ChaosScenarioPicker />
       {whatIfOpen && <WhatIfPanel onClose={handleToggleWhatIf} />}
       {diffOpen && <DiffPanel onClose={handleToggleDiff} />}
       {timelineVisible && <EvolutionTimeline />}
@@ -380,6 +454,8 @@ export const DesignCanvas = memo(function DesignCanvas() {
       <AlignmentGuides guides={guides} distanceIndicators={distanceIndicators} />
       <NodeCreationPulse />
       <CanvasDescription />
+      <TourButton />
+      <GuidedTourOverlay />
     </div>
   );
 });

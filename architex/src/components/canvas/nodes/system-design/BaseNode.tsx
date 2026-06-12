@@ -5,7 +5,9 @@ import { motion, useReducedMotion } from 'motion/react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { useViewportStore } from '@/stores/viewport-store';
+import { useSimulationStore } from '@/stores/simulation-store';
 import { NodeContextMenu } from '@/components/canvas/overlays/NodeContextMenu';
+import { SimMetricsBadge } from './SimMetricsBadge';
 import { animations, reducedMotion } from '@/lib/constants/motion';
 import type { NodeCategory, SystemDesignNodeData } from '@/lib/types';
 
@@ -70,56 +72,87 @@ const STATE_VAR: Record<SystemDesignNodeData['state'], string> = {
 };
 
 // ── State glow CSS ──────────────────────────────────────────
+// Glows render on a dedicated overlay element so degraded/down states
+// can pulse via `opacity` only (compositor-friendly) instead of
+// animating box-shadow on the node container.
 
 const STATE_GLOW_STYLES: Record<
   SystemDesignNodeData['state'],
-  { animation?: string; boxShadow?: string; bgTint?: string }
+  { boxShadow?: string; bgTint?: string; pulse?: boolean }
 > = {
   idle: {},
   active: {
-    boxShadow: '0 0 8px 2px hsla(217, 91%, 60%, 0.3)',
-    bgTint: 'hsla(217, 91%, 60%, 0.06)',
+    boxShadow: '0 0 8px 2px color-mix(in srgb, var(--state-active) 30%, transparent)',
+    bgTint: 'color-mix(in srgb, var(--state-active) 6%, transparent)',
   },
   success: {
-    boxShadow: '0 0 8px 2px hsla(142, 71%, 45%, 0.3)',
-    bgTint: 'hsla(142, 71%, 45%, 0.06)',
+    boxShadow: '0 0 8px 2px color-mix(in srgb, var(--state-success) 30%, transparent)',
+    bgTint: 'color-mix(in srgb, var(--state-success) 6%, transparent)',
   },
   warning: {
-    animation: 'node-warning-glow 2s ease-in-out infinite',
-    bgTint: 'hsla(38, 92%, 50%, 0.08)',
+    boxShadow: '0 0 8px 2px color-mix(in srgb, var(--state-warning) 30%, transparent)',
+    bgTint: 'color-mix(in srgb, var(--state-warning) 8%, transparent)',
+    pulse: true,
   },
   error: {
-    animation: 'node-error-pulse 1.5s ease-in-out infinite',
-    bgTint: 'hsla(0, 72%, 51%, 0.08)',
+    boxShadow: '0 0 10px 2px color-mix(in srgb, var(--state-error) 38%, transparent)',
+    bgTint: 'color-mix(in srgb, var(--state-error) 8%, transparent)',
+    pulse: true,
   },
   processing: {
-    animation: 'node-processing-spin 2s linear infinite',
-    bgTint: 'hsla(271, 81%, 56%, 0.06)',
+    boxShadow: '0 0 8px 2px color-mix(in srgb, var(--state-processing) 30%, transparent)',
+    bgTint: 'color-mix(in srgb, var(--state-processing) 6%, transparent)',
+    pulse: true,
   },
 };
 
 // ── Keyframes injected once ─────────────────────────────────
 
-const KEYFRAMES_ID = 'architex-node-state-keyframes';
+const KEYFRAMES_ID = 'architex-node-state-keyframes-v3';
 
 function ensureKeyframes() {
   if (typeof document === 'undefined') return;
   if (document.getElementById(KEYFRAMES_ID)) return;
   const style = document.createElement('style');
   style.id = KEYFRAMES_ID;
+  // The .sim-band-chrome rules implement ambient band-driven health chrome
+  // during simulation. The `data-sim-band` attribute is written onto the
+  // node container ([data-sim-chrome]) by SimBadgeDriver (SimMetricsBadge)
+  // on band transitions only — no React state, no per-tick re-renders.
+  // healthy = no chrome; watch = subtle amber border; concerning = amber
+  // glow; critical = red glow + gentle opacity pulse (compositor-only,
+  // disabled under prefers-reduced-motion).
   style.textContent = `
-@keyframes node-error-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 hsla(0, 72%, 51%, 0.4); }
-  50% { box-shadow: 0 0 0 6px hsla(0, 72%, 51%, 0); }
+@keyframes node-glow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
-@keyframes node-warning-glow {
-  0%, 100% { box-shadow: 0 0 4px 0 hsla(38, 92%, 50%, 0.3); }
-  50% { box-shadow: 0 0 8px 2px hsla(38, 92%, 50%, 0.2); }
+.sim-band-chrome {
+  opacity: 0;
+  transition: opacity 300ms ease, box-shadow 300ms ease;
 }
-@keyframes node-processing-spin {
-  0% { box-shadow: 0 0 4px 1px hsla(271, 81%, 56%, 0.3); }
-  50% { box-shadow: 0 0 10px 3px hsla(271, 81%, 56%, 0.2); }
-  100% { box-shadow: 0 0 4px 1px hsla(271, 81%, 56%, 0.3); }
+[data-sim-band='watch'] > .sim-band-chrome {
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning) 60%, transparent);
+}
+[data-sim-band='concerning'] > .sim-band-chrome {
+  opacity: 1;
+  box-shadow:
+    inset 0 0 0 1px var(--state-warning),
+    0 0 10px 2px color-mix(in srgb, var(--state-warning) 35%, transparent);
+  background-color: color-mix(in srgb, var(--state-warning) 6%, transparent);
+}
+[data-sim-band='critical'] > .sim-band-chrome {
+  opacity: 1;
+  box-shadow:
+    inset 0 0 0 1px var(--state-error),
+    0 0 12px 3px color-mix(in srgb, var(--state-error) 40%, transparent);
+  background-color: color-mix(in srgb, var(--state-error) 7%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-sim-band='critical'] > .sim-band-chrome {
+    animation: node-glow-pulse 2.4s ease-in-out infinite;
+  }
 }`;
   document.head.appendChild(style);
 }
@@ -205,6 +238,67 @@ function formatMetric(value: number): string {
   return value.toFixed(0);
 }
 
+// ── Idle config summary ─────────────────────────────────────
+// Surfaces the 1-2 most telling config values under the label at full
+// LOD (e.g. "×20 · 50ms" or "8GB · TTL 1h"). Priority order matters:
+// scale first, then timing, then capacity, then string descriptors.
+
+const MAX_SUMMARY_PARTS = 2;
+
+type ConfigValue = SystemDesignNodeData['config'][string];
+
+function asNumber(value: ConfigValue): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function formatSeconds(seconds: number): string {
+  if (seconds >= 3600) return `${Math.round(seconds / 3600)}h`;
+  if (seconds >= 60) return `${Math.round(seconds / 60)}m`;
+  return `${seconds}s`;
+}
+
+const CONFIG_SUMMARY_RULES: ReadonlyArray<{
+  key: string;
+  format: (value: ConfigValue) => string | null;
+}> = [
+  { key: 'instances', format: (v) => { const n = asNumber(v); return n != null && n > 0 ? `×${n}` : null; } },
+  { key: 'replicas', format: (v) => { const n = asNumber(v); return n != null && n > 0 ? `${n} repl` : null; } },
+  { key: 'shards', format: (v) => { const n = asNumber(v); return n != null && n > 0 ? `${n} shard${n === 1 ? '' : 's'}` : null; } },
+  { key: 'partitions', format: (v) => { const n = asNumber(v); return n != null && n > 0 ? `${n} part` : null; } },
+  { key: 'processingTimeMs', format: (v) => { const n = asNumber(v); return n != null ? `${n}ms` : null; } },
+  { key: 'memoryGB', format: (v) => { const n = asNumber(v); return n != null ? `${n}GB` : null; } },
+  { key: 'memoryMB', format: (v) => { const n = asNumber(v); return n != null ? `${n}MB` : null; } },
+  { key: 'storageTB', format: (v) => { const n = asNumber(v); return n != null ? `${n}TB` : null; } },
+  { key: 'storageGB', format: (v) => { const n = asNumber(v); return n != null ? `${n}GB` : null; } },
+  { key: 'replicationFactor', format: (v) => { const n = asNumber(v); return n != null ? `RF ${n}` : null; } },
+  { key: 'maxConnections', format: (v) => { const n = asNumber(v); return n != null ? `${formatMetric(n)} conn` : null; } },
+  { key: 'rateLimitRps', format: (v) => { const n = asNumber(v); return n != null ? `${formatMetric(n)} rps cap` : null; } },
+  { key: 'ttlSeconds', format: (v) => { const n = asNumber(v); return n != null ? `TTL ${formatSeconds(n)}` : null; } },
+  { key: 'algorithm', format: (v) => (typeof v === 'string' && v.length > 0 ? v : null) },
+  { key: 'type', format: (v) => (typeof v === 'string' && v.length > 0 ? v : null) },
+];
+
+function getConfigSummary(config: SystemDesignNodeData['config'] | undefined): string {
+  if (!config) return '';
+  const parts: string[] = [];
+  for (const rule of CONFIG_SUMMARY_RULES) {
+    if (parts.length >= MAX_SUMMARY_PARTS) break;
+    const raw = config[rule.key];
+    if (raw === undefined) continue;
+    const formatted = rule.format(raw);
+    if (formatted) parts.push(formatted);
+  }
+  return parts.join(' · ');
+}
+
+// Shapes with a straight left edge can carry the 2px category accent bar;
+// clip-path and heavily rounded shapes rely on the tinted icon well instead.
+const ACCENT_BAR_SHAPES: ReadonlySet<NodeShape> = new Set<NodeShape>([
+  'rectangle',
+  'dashed-rect',
+  'parallelogram',
+]);
+
 // ── LOD tiers ───────────────────────────────────────────────
 
 type LODTier = 'full' | 'simplified' | 'dot';
@@ -240,6 +334,9 @@ const BaseNode = memo(function BaseNode({ id, data, selected, icon, shape: shape
 
   const zoom = useViewportStore((s) => s.zoom);
   const prefersReducedMotion = useReducedMotion();
+  // Lifecycle status only changes on start/pause/stop — NOT per tick,
+  // so this subscription does not cause per-tick re-renders.
+  const simStatus = useSimulationStore((s) => s.status);
 
   const [, /* unused — kept for hook-count stability */] = useState(true);
 
@@ -269,6 +366,9 @@ const BaseNode = memo(function BaseNode({ id, data, selected, icon, shape: shape
     if (isError) return animations.simulation.errorFlash.transition;
     return undefined;
   }, [prefersReducedMotion, isChaos, isError]);
+
+  // Cheap derived string — recomputes only when the config object is replaced.
+  const configSummary = useMemo(() => getConfigSummary(data.config), [data.config]);
 
   // ── END OF HOOKS — all hooks above, conditional logic below ──
 
@@ -356,6 +456,7 @@ const BaseNode = memo(function BaseNode({ id, data, selected, icon, shape: shape
   }
 
   // ── Full detail view (zoom > 0.6) ──
+  const isSimActive = simStatus === 'running' || simStatus === 'paused';
   const hasThroughput =
     data.metrics?.throughput != null && data.metrics.throughput > 0;
 
@@ -378,8 +479,15 @@ const BaseNode = memo(function BaseNode({ id, data, selected, icon, shape: shape
   );
 
   const full = (
-    <div className={cn('group transition-opacity duration-150', lodFadeClass)}>
+    <div
+      className={cn(
+        'group transition-[opacity,transform] duration-150 ease-out',
+        'motion-safe:hover:-translate-y-0.5',
+        lodFadeClass,
+      )}
+    >
       <motion.div
+        data-sim-chrome=""
         animate={motionAnimate}
         exit={
           prefersReducedMotion
@@ -391,21 +499,54 @@ const BaseNode = memo(function BaseNode({ id, data, selected, icon, shape: shape
           'relative min-w-[180px] max-w-[260px] w-auto rounded-lg border bg-[var(--surface)] text-[var(--foreground)]',
           'transition-shadow duration-200',
           selected && 'ring-2 ring-[var(--ring)]',
+          !selected && 'shadow-md shadow-black/20 group-hover:shadow-lg group-hover:shadow-black/40',
           getShapeClass(shape),
         )}
         style={{
           borderColor: categoryColor,
           ...shapeContainerStyle,
-          backgroundColor: stateGlow.bgTint
-            ? stateGlow.bgTint
-            : undefined,
           boxShadow: selected
-            ? `0 0 12px 2px color-mix(in srgb, ${categoryColor} 35%, transparent)`
-            : stateGlow.boxShadow,
-          animation: stateGlow.animation,
+            ? '0 0 18px 2px color-mix(in srgb, var(--primary) 32%, transparent)'
+            : undefined,
         }}
         onAnimationComplete={isDeleting ? handleExitComplete : undefined}
       >
+        {/* ── Sim band chrome (ambient health during sim; driven by data-sim-band,
+               written by SimBadgeDriver on band transitions — zero React state) ── */}
+        {isSimActive && (
+          <span
+            aria-hidden
+            className="sim-band-chrome pointer-events-none absolute inset-0"
+            style={{ borderRadius: 'inherit' }}
+          />
+        )}
+
+        {/* ── State glow overlay (pulses via opacity only — compositor-friendly) ── */}
+        {(stateGlow.boxShadow || stateGlow.bgTint) && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              borderRadius: 'inherit',
+              backgroundColor: stateGlow.bgTint,
+              boxShadow: stateGlow.boxShadow,
+              animation:
+                stateGlow.pulse && !prefersReducedMotion
+                  ? 'node-glow-pulse 2.2s ease-in-out infinite'
+                  : undefined,
+            }}
+          />
+        )}
+
+        {/* ── Category accent bar (straight-edged shapes only) ── */}
+        {ACCENT_BAR_SHAPES.has(shape) && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-r-full"
+            style={{ backgroundColor: categoryColor }}
+          />
+        )}
+
         {/* ── Source handles (filled circle, category colored) ── */}
         <Handle
           type="source"
@@ -479,16 +620,27 @@ const BaseNode = memo(function BaseNode({ id, data, selected, icon, shape: shape
             )}
             style={{ backgroundColor: `color-mix(in srgb, ${categoryColor} 12%, transparent)` }}
           >
-            {/* Icon */}
+            {/* Icon — tinted category well */}
             <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center"
-              style={{ color: categoryColor }}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+              style={{
+                color: categoryColor,
+                backgroundColor: `color-mix(in srgb, ${categoryColor} 16%, transparent)`,
+                boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${categoryColor} 30%, transparent)`,
+              }}
             >
               {icon}
             </span>
 
-            {/* Label */}
-            <span className="text-xs font-semibold whitespace-nowrap">{data.label}</span>
+            {/* Label + idle config summary */}
+            <span className="flex min-w-0 flex-col">
+              <span className="text-xs font-semibold whitespace-nowrap">{data.label}</span>
+              {!isSimActive && configSummary && (
+                <span className="truncate text-[9px] font-medium leading-tight tabular-nums text-[var(--muted-foreground)]">
+                  {configSummary}
+                </span>
+              )}
+            </span>
 
             {/* State indicator ring — replaces the old 8px dot */}
             <span
@@ -503,18 +655,25 @@ const BaseNode = memo(function BaseNode({ id, data, selected, icon, shape: shape
                   boxShadow: data.state !== 'idle'
                     ? `0 0 4px 1px color-mix(in srgb, ${stateColor} 40%, transparent)`
                     : undefined,
-                  animation: data.state === 'error'
-                    ? 'node-error-pulse 1.5s ease-in-out infinite'
-                    : data.state === 'warning'
-                      ? 'node-warning-glow 2s ease-in-out infinite'
+                  animation:
+                    !prefersReducedMotion && (data.state === 'error' || data.state === 'warning')
+                      ? 'node-glow-pulse 1.6s ease-in-out infinite'
                       : undefined,
                 }}
               />
             </span>
           </div>
 
-          {/* ── Metrics badge ── */}
-          {hasThroughput && (
+          {/* ── Live sim metrics badge (rAF-driven via SimMetricsBus, zero re-renders).
+                 Detail tier opens on hover (CSS group-hover) or selection. ── */}
+          {isSimActive && id && (
+            <div className="px-3 py-1.5">
+              <SimMetricsBadge nodeId={id} expanded={selected} />
+            </div>
+          )}
+
+          {/* ── Static metrics badge (only when sim is not active) ── */}
+          {!isSimActive && hasThroughput && (
             <div className="flex items-center justify-center px-3 py-1.5">
               <span
                 className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium"

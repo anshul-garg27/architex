@@ -305,7 +305,7 @@
         "name": "Build Agent Pool Exhaustion",
         "description": "All build agents crash or become unresponsive",
         "targetNodes": [
-          "build-agents"
+          "build-worker"
         ],
         "faultType": "crash",
         "severity": 4,
@@ -337,7 +337,7 @@
         "name": "Widespread Test Flakiness",
         "description": "Flaky tests block all pipelines",
         "targetNodes": [
-          "test-runner"
+          "build-worker"
         ],
         "faultType": "error",
         "severity": 2,
@@ -352,7 +352,7 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 100,
-        "bottleneckNode": "build-agents",
+        "bottleneckNode": "build-worker",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
@@ -371,7 +371,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "build-agents"
+          "build-worker"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -382,7 +382,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "test-runner"
+          "build-worker"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -393,7 +393,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "build-agents"
+          "build-worker"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -404,13 +404,13 @@
       "totalMonthlyCostUsd": 15000,
       "components": [
         {
-          "nodeId": "build-agents",
+          "nodeId": "build-worker",
           "label": "Primary Service",
           "monthlyCostUsd": 5000,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "test-runner",
+          "nodeId": "artifact-store",
           "label": "Storage",
           "monthlyCostUsd": 5000,
           "costDriver": "Storage and I/O"
@@ -451,7 +451,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "build-agents",
+        "nodeId": "build-worker",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -483,13 +483,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "build-agents"
+          "nodeId": "build-worker"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "build-agents"
+          "nodeId": "build-worker"
         }
       ],
       "alerts": [

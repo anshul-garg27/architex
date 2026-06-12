@@ -210,5 +210,432 @@
       "highlightNodes": ["cache", "tsdb", "app-server"],
       "highlightEdges": ["e-tsdb-cache", "e-app-cache"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-matching-engine-crash",
+        "name": "Matching Engine JobManager Crash",
+        "description": "The Flink matching engine crashes mid-session and must restore from its last checkpoint, halting all order matching during recovery",
+        "targetNodes": ["stream-processor"],
+        "faultType": "crash",
+        "severity": 5,
+        "expectedBehavior": "Matching halts for 10-30s while the job restores from the last checkpoint (up to 1s of orders replayed from Kafka). Orders continue to accumulate in the Order Book Queue. Price Cache quotes go stale because no new trades execute. Exactly-once semantics prevent duplicate fills on replay.",
+        "mitigationSteps": [
+          "Gateway circuit breaker pauses new order acceptance (trading halt semantics)",
+          "Restore Flink job from last completed checkpoint and replay Kafka from committed offsets",
+          "Reconcile engine state against persisted trades in PostgreSQL before resuming",
+          "Resume order intake gradually with per-symbol rate limits"
+        ]
+      },
+      {
+        "id": "cs-kafka-broker-loss",
+        "name": "Kafka Broker Loss on Hot Partitions",
+        "description": "A broker hosting leaders for high-volume symbol partitions dies, forcing leader election while producers block on acks=all",
+        "targetNodes": ["mq"],
+        "faultType": "partition",
+        "severity": 4,
+        "expectedBehavior": "Order submission latency spikes from ~1ms to 1-5s for affected symbols during leader election. ISR shrinks; with min.insync.replicas enforced, no acknowledged orders are lost. Per-symbol ordering is preserved because partition assignment does not change.",
+        "mitigationSteps": [
+          "Automatic leader election promotes in-sync replicas",
+          "Order Service retries publishes with idempotent producer enabled",
+          "Verify under-replicated partition count returns to zero before declaring recovery",
+          "Replace failed broker and trigger partition reassignment off-peak"
+        ]
+      },
+      {
+        "id": "cs-market-open-stampede",
+        "name": "Market Open Quote Stampede",
+        "description": "At market open, quote lookups spike 20x while 1-second TTLs on the Price Cache expire simultaneously, stampeding the read path",
+        "targetNodes": ["cache", "app-server"],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Redis CPU saturates on the hottest symbol keys. Cache misses cascade to TimescaleDB aggregation queries. Quote latency p99 degrades from 1ms to 50ms+. Order flow is unaffected because it bypasses the quote path.",
+        "mitigationSteps": [
+          "Pre-warm the Price Cache with opening auction prices before 9:30",
+          "Enable request coalescing so one rebuild serves all waiters per symbol",
+          "Add jitter to TTL expiry to spread refresh load",
+          "Shed quote-polling traffic before order traffic if saturation persists"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "app-server",
+        "metric": "cpu",
+        "description": "Order Service CPU saturates on validation, sequencing, and risk-check fan-out",
+        "resolution": "Scale Order Service instances horizontally; risk checks are stateless per order"
+      },
+      {
+        "rpsThreshold": 150000,
+        "bottleneckNode": "mq",
+        "metric": "network",
+        "description": "Kafka cluster approaches its 500 MB/s throughput ceiling as order volume grows",
+        "resolution": "Add brokers, enable producer compression, and split cold symbols to a second cluster"
+      },
+      {
+        "rpsThreshold": 300000,
+        "bottleneckNode": "stream-processor",
+        "metric": "cpu",
+        "description": "Matching engine subtasks pinned to hot symbol partitions saturate; per-symbol matching cannot be parallelized further",
+        "resolution": "Isolate the hottest symbols onto dedicated high-clock-speed task slots; scale parallelism for the long tail"
+      },
+      {
+        "rpsThreshold": 450000,
+        "bottleneckNode": "tsdb",
+        "metric": "disk-io",
+        "description": "Tick-by-tick ingest into TimescaleDB falls behind during volatility spikes",
+        "resolution": "Batch tick inserts, enable compression on older chunks, and move OHLCV rollups to continuous aggregates"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-hot-symbol-skew",
+        "title": "Hot Symbol Partition Skew",
+        "description": "A single viral symbol (meme-stock event) concentrates order flow onto one Kafka partition and one matching engine subtask, capping throughput for that symbol regardless of cluster size",
+        "affectedNodes": ["mq", "stream-processor"],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "Dedicated task slots for hot symbols, per-symbol rate limiting at the gateway, and queue-depth alerts keyed by partition"
+      },
+      {
+        "id": "ei-stale-risk-data",
+        "title": "Stale Position Data in Pre-Trade Risk Checks",
+        "description": "Gateway risk checks read cached positions; during settlement write lag a trader can submit orders against margin already consumed, passing checks that should fail",
+        "affectedNodes": ["api-gw", "database"],
+        "likelihood": 3,
+        "impact": 4,
+        "mitigation": "Bound the staleness window with synchronous position reservations for large orders; reconcile and auto-liquidate breaches post-trade"
+      },
+      {
+        "id": "ei-settlement-write-lag",
+        "title": "Settlement Write Lag Under Peak Load",
+        "description": "Async trade persistence to PostgreSQL falls behind the matching engine during peak volume; serializable transaction retries compound the backlog and delay P&L visibility",
+        "affectedNodes": ["database", "stream-processor"],
+        "likelihood": 3,
+        "impact": 4,
+        "mitigation": "Batch trade inserts per symbol, monitor settlement lag as a first-class SLO, and alert before the lag exceeds the checkpoint retention window"
+      },
+      {
+        "id": "ei-stale-quotes-recovery",
+        "title": "Stale Quotes Displayed During Engine Recovery",
+        "description": "While the matching engine restores from checkpoint, the Price Cache continues serving last-known prices with no staleness indicator, misleading traders",
+        "affectedNodes": ["cache", "tsdb"],
+        "likelihood": 2,
+        "impact": 5,
+        "mitigation": "Publish a market-state flag (open/halted/recovering) alongside quotes; clients must render stale-price warnings when the flag is not 'open'"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 35000,
+      "components": [
+        {
+          "nodeId": "stream-processor",
+          "label": "Matching Engine (Flink)",
+          "monthlyCostUsd": 8000,
+          "costDriver": "64-slot Flink cluster on memory-optimized instances with checkpoint storage"
+        },
+        {
+          "nodeId": "database",
+          "label": "Trade DB (PostgreSQL)",
+          "monthlyCostUsd": 7500,
+          "costDriver": "Multi-AZ primary + 3 replicas, 5TB provisioned IOPS storage"
+        },
+        {
+          "nodeId": "app-server",
+          "label": "Order Service",
+          "monthlyCostUsd": 5000,
+          "costDriver": "10 x 16-core compute-optimized instances"
+        },
+        {
+          "nodeId": "mq",
+          "label": "Order Book Queue (Kafka)",
+          "monthlyCostUsd": 4500,
+          "costDriver": "6-broker cluster, 128 partitions, 7-day retention"
+        },
+        {
+          "nodeId": "tsdb",
+          "label": "Market Data (TimescaleDB)",
+          "monthlyCostUsd": 4000,
+          "costDriver": "10TB tick history with compression, 365-day retention"
+        },
+        {
+          "nodeId": "cache",
+          "label": "Price Cache (Redis)",
+          "monthlyCostUsd": 3200,
+          "costDriver": "128GB clustered Redis with replicas"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway (Risk Check)",
+          "monthlyCostUsd": 2800,
+          "costDriver": "Self-hosted gateway fleet sized for 100k RPS rate limiting + JWT auth"
+        }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low", "rps": 10000, "monthlyCostUsd": 12000 },
+        { "label": "Medium", "rps": 100000, "monthlyCostUsd": 35000 },
+        { "label": "High", "rps": 500000, "monthlyCostUsd": 110000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 100000,
+      "trafficProfile": "bursty",
+      "p50LatencyMs": 2,
+      "p99LatencyMs": 10,
+      "availabilityTarget": 99.99,
+      "maxErrorRatePercent": 0.001,
+      "throughputRps": 500000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "app-server",
+        "metric": "cpu_utilization",
+        "threshold": 60,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 6,
+        "maxInstances": 40
+      },
+      {
+        "nodeId": "stream-processor",
+        "metric": "kafka_consumer_lag",
+        "threshold": 10000,
+        "scaleUpStep": 8,
+        "scaleDownStep": 4,
+        "cooldownSeconds": 300,
+        "minInstances": 32,
+        "maxInstances": 128
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Order Acknowledgement Latency",
+        "metric": "p99_order_ack_ms",
+        "target": 10,
+        "unit": "ms",
+        "penalty": "Fee rebate for affected order flow"
+      },
+      {
+        "name": "Market Data Freshness",
+        "metric": "quote_staleness_ms",
+        "target": 1000,
+        "unit": "ms",
+        "penalty": "Regulatory reporting + market data fee credit"
+      },
+      {
+        "name": "Market Hours Availability",
+        "metric": "uptime_market_hours",
+        "target": 99.99,
+        "unit": "%",
+        "penalty": "Regulatory disclosure and incident review"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "order_ack_latency",
+          "type": "histogram",
+          "description": "Time from order receipt to sequenced acknowledgement",
+          "nodeId": "app-server"
+        },
+        {
+          "name": "kafka_consumer_lag",
+          "type": "gauge",
+          "description": "Unmatched orders pending per partition",
+          "nodeId": "mq"
+        },
+        {
+          "name": "match_throughput",
+          "type": "counter",
+          "description": "Trades executed per second by the matching engine",
+          "nodeId": "stream-processor"
+        },
+        {
+          "name": "checkpoint_duration",
+          "type": "histogram",
+          "description": "Flink checkpoint completion time",
+          "nodeId": "stream-processor"
+        },
+        {
+          "name": "quote_staleness",
+          "type": "gauge",
+          "description": "Age of the freshest price per symbol in the Price Cache",
+          "nodeId": "cache"
+        },
+        {
+          "name": "settlement_write_lag",
+          "type": "gauge",
+          "description": "Delay between trade execution and PostgreSQL persistence",
+          "nodeId": "database"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Consumer Lag Spike",
+          "condition": "kafka_consumer_lag > 50000 on any partition for 1min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Checkpoint Slowdown",
+          "condition": "checkpoint_duration p99 > 5s for 3 consecutive checkpoints",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Stale Quotes",
+          "condition": "quote_staleness > 2s on any active symbol",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Settlement Lag",
+          "condition": "settlement_write_lag > 30s for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Order Flow Health",
+        "Matching Engine (Lag / Checkpoints / Throughput)",
+        "Market Data Freshness",
+        "Settlement Pipeline"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Trading Platform On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": ["oncall-trading"]
+        },
+        {
+          "level": 2,
+          "name": "Matching Engine Lead",
+          "responseTimeMinutes": 10,
+          "contacts": ["matching-engine-lead"]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander + Compliance",
+          "responseTimeMinutes": 15,
+          "contacts": ["incident-commander", "compliance-officer"]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Matching engine crash / checkpoint restore",
+          "severity": "critical",
+          "steps": [
+            "Halt new order intake at the API Gateway (declare trading pause)",
+            "Confirm last completed Flink checkpoint and committed Kafka offsets",
+            "Restore the job and replay; verify no duplicate fills via trade sequence numbers",
+            "Reconcile engine order book state against PostgreSQL trade records",
+            "Resume intake gradually per symbol and notify compliance of the halt window"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Kafka consumer lag spike on hot symbol",
+          "severity": "high",
+          "steps": [
+            "Identify the lagging partition and its symbol",
+            "Check broker health and ISR status before assuming engine slowness",
+            "Apply per-symbol rate limiting at the gateway if a single symbol dominates",
+            "Scale matching engine parallelism for unaffected partitions"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Stale price cache",
+          "severity": "high",
+          "steps": [
+            "Verify trades are still executing (rule out engine halt first)",
+            "Check the TimescaleDB-to-cache update pipeline for backlog",
+            "Set the market-state flag to 'degraded' so clients show staleness warnings",
+            "Rebuild affected symbol keys from the latest TimescaleDB aggregates"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Kafka Partition-per-Symbol for Order Sequencing",
+        "context": "Order matching requires strict price-time priority; orders for the same symbol must be processed in arrival order",
+        "decision": "Partition the Order Book Queue by symbol key so each symbol's orders flow through exactly one partition and one matching subtask",
+        "consequences": [
+          "Strict per-symbol ordering with no distributed locking",
+          "Throughput for any single symbol is capped by one partition/subtask (hot symbol skew)",
+          "Cross-symbol scaling is trivially horizontal"
+        ]
+      },
+      {
+        "title": "In-Memory Order Book with Exactly-Once Checkpointing",
+        "context": "Matching must run at millions of operations per second; disk-backed order books cannot meet latency targets",
+        "decision": "Keep order books entirely in Flink managed state, with 1s checkpoints providing exactly-once recovery from Kafka offsets",
+        "consequences": [
+          "Sub-millisecond match decisions",
+          "Crash recovery replays at most ~1s of orders, bounded and deterministic",
+          "Checkpoint duration becomes a critical health signal — slow checkpoints precede outages"
+        ]
+      },
+      {
+        "title": "Asynchronous Settlement off the Matching Critical Path",
+        "context": "Serializable PostgreSQL writes take milliseconds; placing them inline would cap matching throughput at DB speed",
+        "decision": "Persist executed trades to PostgreSQL and TimescaleDB asynchronously after the match is sequenced",
+        "consequences": [
+          "Matching throughput is independent of DB write latency",
+          "A settlement lag window exists where positions/P&L trail executions",
+          "Risk checks reading positions must tolerate bounded staleness"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Latency vs Durability",
+        "choice": "1-second Flink checkpoint interval",
+        "benefit": "Negligible runtime overhead on the matching hot path",
+        "cost": "Up to 1s of orders must be replayed (not lost) on engine failure, extending recovery time"
+      },
+      {
+        "dimension": "Quote Freshness vs Read Throughput",
+        "choice": "Redis price cache with 1s TTL serving all quote reads",
+        "benefit": "Millions of price lookups per second never touch the time-series store",
+        "cost": "Quotes can lag true market state by up to 1s, and go silently stale if the engine halts"
+      },
+      {
+        "dimension": "Throughput vs Per-Symbol Parallelism",
+        "choice": "Single-threaded matching per symbol",
+        "benefit": "Deterministic price-time priority without locks or conflict resolution",
+        "cost": "A single viral symbol cannot exceed one subtask's throughput no matter how large the cluster"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Monolithic Single-Process Matching Engine (LMAX-style)",
+        "description": "Run the entire order book in one process using a ring-buffer event loop, with replicated state machines for HA",
+        "prosVsCons": "Microsecond-class latency and total determinism, but failover, multi-symbol scaling, and operational tooling must all be built from scratch",
+        "whyNotChosen": "Flink provides checkpointing, replay, and horizontal scaling out of the box; this platform targets ms-class retail latency, not HFT microseconds"
+      },
+      {
+        "name": "Synchronous Per-Trade Database Writes",
+        "description": "Commit each executed trade to PostgreSQL inside the matching transaction before acknowledging",
+        "prosVsCons": "Zero settlement lag and simpler reconciliation, but matching throughput collapses to DB commit rate (~10k/s)",
+        "whyNotChosen": "Would cap the engine two orders of magnitude below target; bounded settlement lag is acceptable and monitored"
+      },
+      {
+        "name": "Distributed Order Book with Optimistic Concurrency",
+        "description": "Shard the order book across nodes and resolve conflicting matches via compare-and-swap",
+        "prosVsCons": "Removes the per-symbol throughput cap, but conflict retries break price-time fairness guarantees under contention",
+        "whyNotChosen": "Fairness is a regulatory requirement; nondeterministic match ordering under load is disqualifying"
+      }
+    ]
+  }
 }

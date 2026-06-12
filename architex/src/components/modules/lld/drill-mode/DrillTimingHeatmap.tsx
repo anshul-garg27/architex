@@ -1,6 +1,7 @@
 "use client";
 
 import { useDrillTimingHeatmap } from "@/hooks/useDrillTimingHeatmap";
+import type { TimingHeatmap } from "@/lib/lld/drill-timing";
 import { cn } from "@/lib/utils";
 
 const STAGE_LABEL: Record<string, string> = {
@@ -17,8 +18,17 @@ function fmt(ms: number) {
   return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
 }
 
-export function DrillTimingHeatmap() {
-  const heatmap = useDrillTimingHeatmap();
+export function DrillTimingHeatmap({
+  heatmap: heatmapProp,
+}: {
+  /**
+   * Inject a precomputed heatmap (see lib/lld/drill-results-timing).
+   * Falls back to useDrillTimingHeatmap when omitted.
+   */
+  heatmap?: TimingHeatmap | null;
+} = {}) {
+  const hookHeatmap = useDrillTimingHeatmap();
+  const heatmap = heatmapProp ?? hookHeatmap;
   if (!heatmap) return null;
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4">

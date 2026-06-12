@@ -165,7 +165,20 @@ export const useSimulationStore = create<SimulationState>()((set, get) => ({
   },
 
   stop: () => {
-    const { orchestratorRef } = get();
+    const { orchestratorRef, status } = get();
+    if (orchestratorRef && (status === "running" || status === "paused")) {
+      // Soft stop: halt ticking but KEEP the orchestrator alive so the
+      // time-travel scrubber, tick history, cost state and post-run report
+      // survive. Cleared only on reset() or the next fresh play().
+      orchestratorRef.pause();
+      get().addConsoleMessage(
+        "info",
+        `Simulation stopped at tick ${get().currentTick} — results preserved`,
+      );
+      set({ status: "completed" });
+      return;
+    }
+    // No live run (idle / completed / error): full teardown
     if (orchestratorRef) {
       orchestratorRef.stop();
       // Status is set by orchestrator.stop()

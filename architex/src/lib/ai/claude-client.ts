@@ -5,6 +5,13 @@
 // - Cost tracking (input/output tokens, per-model pricing)
 // - IndexedDB cache integration (check cache before calling API)
 // - Graceful degradation when no API key is configured
+//
+// Runs in both environments:
+// - Browser: key set via Settings > AI (ai-store), IndexedDB caching on
+// - Server: auto-configured from process.env.ANTHROPIC_API_KEY; the
+//   IndexedDB cache is skipped (no `window`). The key never reaches the
+//   client — it is read only where `window` is undefined and is not
+//   NEXT_PUBLIC-prefixed, so Next.js never inlines it into bundles.
 
 import Anthropic from '@anthropic-ai/sdk';
 import { AIResponseCache } from './indexeddb-cache';
@@ -13,10 +20,24 @@ import { AIResponseCache } from './indexeddb-cache';
 
 export type ClaudeModel = 'claude-haiku-4-5' | 'claude-sonnet-4-20250514';
 
+export interface ClaudeMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface ClaudeRequest {
   model: ClaudeModel;
   systemPrompt: string;
   userMessage: string;
+  maxTokens: number;
+  cacheKey?: string;
+  cacheTtlMs?: number;
+}
+
+export interface ClaudeMessagesRequest {
+  model: ClaudeModel;
+  systemPrompt: string;
+  messages: ClaudeMessage[];
   maxTokens: number;
   cacheKey?: string;
   cacheTtlMs?: number;
@@ -116,6 +137,17 @@ export class ClaudeClient {
     requestCount: 0,
   };
 
+  constructor() {
+    // Server-side: auto-configure from the environment so API routes get
+    // a real client. Browser bundles never see this key — the branch only
+    // runs where `window` is undefined, and ANTHROPIC_API_KEY is not
+    // NEXT_PUBLIC-prefixed so Next.js never inlines it client-side.
+    if (typeof window === 'undefined' && process.env.ANTHROPIC_API_KEY) {
+      this.apiKey = process.env.ANTHROPIC_API_KEY;
+      this.client = new Anthropic({ apiKey: this.apiKey });
+    }
+  }
+
   // Singleton access
   static getInstance(): ClaudeClient {
     if (!ClaudeClient.instance) {
@@ -168,14 +200,31 @@ export class ClaudeClient {
   // ── Main call method ─────────────────────────────────────────
 
   /**
-   * Send a request to Claude. Checks IndexedDB cache first, then
-   * queues the API call with concurrency limiting and retry logic.
+   * Send a single-turn request to Claude. Checks IndexedDB cache first,
+   * then queues the API call with concurrency limiting and retry logic.
    *
    * Throws if no API key is configured.
    */
   async call(request: ClaudeRequest): Promise<ClaudeResponse> {
-    // 1. Check cache
-    if (request.cacheKey) {
+    return this.callWithMessages({
+      model: request.model,
+      systemPrompt: request.systemPrompt,
+      messages: [{ role: 'user', content: request.userMessage }],
+      maxTokens: request.maxTokens,
+      cacheKey: request.cacheKey,
+      cacheTtlMs: request.cacheTtlMs,
+    });
+  }
+
+  /**
+   * Send a multi-turn conversation (full messages array + system prompt)
+   * to Claude. Same cache/queue/retry semantics as `call()`.
+   */
+  async callWithMessages(
+    request: ClaudeMessagesRequest,
+  ): Promise<ClaudeResponse> {
+    // 1. Check cache (browser only — IndexedDB does not exist server-side)
+    if (request.cacheKey && this.canUseCache()) {
       const cached = await this.cache.get<ClaudeResponse>(request.cacheKey);
       if (cached) {
         return { ...cached, cached: true };
@@ -195,7 +244,7 @@ export class ClaudeClient {
     );
 
     // 4. Cache the response
-    if (request.cacheKey) {
+    if (request.cacheKey && this.canUseCache()) {
       const ttl = request.cacheTtlMs ?? 3_600_000; // 1 hour default
       await this.cache.set(request.cacheKey, response, ttl);
     }
@@ -205,8 +254,13 @@ export class ClaudeClient {
 
   // ── Internal ─────────────────────────────────────────────────
 
+  /** The IndexedDB cache is a browser-only path — no-op on the server. */
+  private canUseCache(): boolean {
+    return typeof window !== 'undefined';
+  }
+
   private async executeWithRetry(
-    request: ClaudeRequest,
+    request: ClaudeMessagesRequest,
     attempt = 0,
   ): Promise<ClaudeResponse> {
     try {
@@ -226,14 +280,16 @@ export class ClaudeClient {
     }
   }
 
-  private async executeApiCall(request: ClaudeRequest): Promise<ClaudeResponse> {
+  private async executeApiCall(
+    request: ClaudeMessagesRequest,
+  ): Promise<ClaudeResponse> {
     const client = this.client!;
 
     const message = await client.messages.create({
       model: request.model,
       max_tokens: request.maxTokens,
       system: request.systemPrompt,
-      messages: [{ role: 'user', content: request.userMessage }],
+      messages: request.messages,
     });
 
     // Extract text from the response

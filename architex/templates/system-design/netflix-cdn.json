@@ -219,5 +219,432 @@
       "highlightNodes": ["api-gw", "load-balancer", "content-service", "object-storage"],
       "highlightEdges": ["e-client-gw", "e-gw-lb", "e-lb-content", "e-content-storage"]
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-edge-pop-outage",
+        "name": "Regional Edge PoP Outage",
+        "description": "A regional cluster of CDN edge servers goes dark during evening peak, forcing clients onto farther PoPs and the origin",
+        "targetNodes": ["cdn"],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Affected clients re-resolve to neighboring PoPs with 30-80ms higher RTT. Video start time degrades and ABR players step down a bitrate tier. Cache hit rate on neighbor PoPs drops as they absorb a cold working set, amplifying origin fetch traffic.",
+        "mitigationSteps": [
+          "Steer traffic away from the failed PoP via DNS/anycast withdrawal",
+          "Watch neighbor PoP load — cascading saturation is the real risk, not the dead PoP",
+          "Temporarily cap the top bitrate tier in the affected region to cut bytes per stream",
+          "Enable origin shield to collapse duplicate cache-fill requests"
+        ]
+      },
+      {
+        "id": "cs-premiere-stampede",
+        "name": "Season Premiere Cold-Cache Stampede",
+        "description": "Millions of viewers hit play on a new release simultaneously before edge caches are warm, sending cache-miss traffic to origin storage",
+        "targetNodes": ["cdn", "object-storage"],
+        "faultType": "resource-exhaustion",
+        "severity": 4,
+        "expectedBehavior": "Identical segment requests from 200 PoPs converge on S3. Origin egress spikes 20x; segment fetch latency climbs, players stall on initial buffering. Hit rate recovers within minutes as segments populate edge caches.",
+        "mitigationSteps": [
+          "Pre-position premiere content to all edge locations during off-peak hours before release",
+          "Request coalescing at each PoP so one origin fetch serves all concurrent waiters per segment",
+          "Stagger regional release times if origin headroom is insufficient",
+          "Serve lower-bitrate ladder rungs first while higher tiers warm"
+        ]
+      },
+      {
+        "id": "cs-metadata-cache-loss",
+        "name": "Metadata Cache Cluster Failure",
+        "description": "The Redis metadata cache fails completely, sending all browse, search, and playback-manifest lookups to PostgreSQL",
+        "targetNodes": ["cache", "database"],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Database read QPS rises ~12x (92% hit rate lost). Home screen and title detail latency climbs from 30ms to 300ms+. Connection pool saturation begins rejecting queries. In-progress video streams are unaffected — only new browse/play actions degrade.",
+        "mitigationSteps": [
+          "Fail over to the Redis replica; verify replication was current",
+          "Enable per-instance request coalescing in the Content Service to deduplicate identical DB queries",
+          "Warm the cache with the trending/home-row working set first — it covers most traffic",
+          "Serve a static fallback home row from CDN if DB saturation persists"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 10000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Cache-miss browse queries exhaust the metadata DB connection pool as API traffic doubles",
+        "resolution": "Add read replicas, front with a connection pooler, and raise the cache TTL on stable catalog data"
+      },
+      {
+        "rpsThreshold": 25000,
+        "bottleneckNode": "content-service",
+        "metric": "cpu",
+        "description": "Content Service instances saturate on personalization and manifest assembly",
+        "resolution": "Scale instances horizontally; precompute home-row recommendations per cohort instead of per request"
+      },
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "api-gw",
+        "metric": "cpu",
+        "description": "API Gateway saturates on TLS termination and JWT validation at peak browse hours",
+        "resolution": "Scale gateway fleet and cache JWT validation results for token lifetime"
+      },
+      {
+        "rpsThreshold": 100000,
+        "bottleneckNode": "object-storage",
+        "metric": "network",
+        "description": "Origin egress saturates when edge hit rate dips during simultaneous regional cache-fill events",
+        "resolution": "Raise edge cache retention for the long tail, add an origin shield tier, and replicate origin to a second region"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-longtail-misses",
+        "title": "Long-Tail Content Cache Misses",
+        "description": "The 5% of requests for unpopular catalog titles miss edge caches, adding 50-100ms segment latency and paying origin egress on every view",
+        "affectedNodes": ["cdn", "object-storage"],
+        "likelihood": 5,
+        "impact": 2,
+        "mitigation": "Accept it — pinning the full catalog at every edge costs more than the misses; tier rarely-watched titles to regional mid-tier caches"
+      },
+      {
+        "id": "ei-evening-peak",
+        "title": "Diurnal Peak Concentration",
+        "description": "70% of daily playback starts land in a 4-hour evening window, so capacity must be provisioned for ~3x the daily average and sits idle overnight",
+        "affectedNodes": ["cdn", "content-service", "api-gw"],
+        "likelihood": 5,
+        "impact": 3,
+        "mitigation": "Schedule-based pre-scaling ahead of the predictable peak; use overnight idle for content pre-positioning and batch work"
+      },
+      {
+        "id": "ei-single-region-origin",
+        "title": "Single-Region Origin Storage",
+        "description": "All 200 edge locations fill from one S3 region; a regional storage outage halts cache fill globally and long-tail content becomes unplayable as edge TTLs expire",
+        "affectedNodes": ["object-storage"],
+        "likelihood": 1,
+        "impact": 5,
+        "mitigation": "Cross-region origin replication with automatic edge failover to the secondary origin"
+      },
+      {
+        "id": "ei-stale-catalog",
+        "title": "Stale Catalog Metadata",
+        "description": "With a 1-hour cache TTL, titles removed for licensing reasons can still appear in browse rows, producing playback errors when selected",
+        "affectedNodes": ["cache", "database"],
+        "likelihood": 3,
+        "impact": 2,
+        "mitigation": "Event-driven cache invalidation for catalog removals; TTL remains the safety net, not the primary mechanism"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 86000,
+      "components": [
+        {
+          "nodeId": "cdn",
+          "label": "CDN (Edge Servers)",
+          "monthlyCostUsd": 60000,
+          "costDriver": "Petabyte-scale video egress across 200 PoPs at committed-volume pricing"
+        },
+        {
+          "nodeId": "object-storage",
+          "label": "Object Storage (S3)",
+          "monthlyCostUsd": 18000,
+          "costDriver": "1PB of transcoded masters with infrequent-access tiering"
+        },
+        {
+          "nodeId": "database",
+          "label": "Content Metadata DB",
+          "monthlyCostUsd": 2500,
+          "costDriver": "Primary + 3 replicas, 500GB"
+        },
+        {
+          "nodeId": "content-service",
+          "label": "Content Service",
+          "monthlyCostUsd": 2000,
+          "costDriver": "10 instances, peak-scaled"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 1800,
+          "costDriver": "TLS + auth at 50k RPS peak"
+        },
+        {
+          "nodeId": "cache",
+          "label": "Metadata Cache (Redis)",
+          "monthlyCostUsd": 900,
+          "costDriver": "32GB with replica"
+        },
+        {
+          "nodeId": "load-balancer",
+          "label": "Load Balancer",
+          "monthlyCostUsd": 800,
+          "costDriver": "L7 processing + connection volume"
+        }
+      ],
+      "scalingCostTiers": [
+        { "label": "Low", "rps": 5000, "monthlyCostUsd": 28000 },
+        { "label": "Medium", "rps": 25000, "monthlyCostUsd": 86000 },
+        { "label": "High", "rps": 100000, "monthlyCostUsd": 290000 }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 5000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 30,
+      "p99LatencyMs": 200,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 25000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "content-service",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 4,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 120,
+        "minInstances": 6,
+        "maxInstances": 60
+      },
+      {
+        "nodeId": "api-gw",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 180,
+        "minInstances": 3,
+        "maxInstances": 20
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Video Start Time",
+        "metric": "p95_time_to_first_frame",
+        "target": 2000,
+        "unit": "ms",
+        "penalty": "Internal SLO — triggers delivery-team incident review"
+      },
+      {
+        "name": "Rebuffer Ratio",
+        "metric": "rebuffer_seconds_per_hour_pct",
+        "target": 0.5,
+        "unit": "%",
+        "penalty": "Internal SLO — bitrate ladder and PoP capacity review"
+      },
+      {
+        "name": "API Availability",
+        "metric": "uptime",
+        "target": 99.95,
+        "unit": "%",
+        "penalty": "Subscriber credit per published terms"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "edge_cache_hit_rate",
+          "type": "gauge",
+          "description": "Byte hit rate across edge PoPs",
+          "nodeId": "cdn"
+        },
+        {
+          "name": "time_to_first_frame",
+          "type": "histogram",
+          "description": "Play press to first rendered frame, reported per region",
+          "nodeId": "cdn"
+        },
+        {
+          "name": "rebuffer_ratio",
+          "type": "gauge",
+          "description": "Stall seconds per playback hour",
+          "nodeId": "cdn"
+        },
+        {
+          "name": "origin_egress_bytes",
+          "type": "counter",
+          "description": "Cache-fill bytes served by origin storage",
+          "nodeId": "object-storage"
+        },
+        {
+          "name": "api_latency",
+          "type": "histogram",
+          "description": "Browse/search/manifest API response time",
+          "nodeId": "content-service"
+        },
+        {
+          "name": "metadata_cache_hit_rate",
+          "type": "gauge",
+          "description": "Redis hit rate on catalog metadata",
+          "nodeId": "cache"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Rebuffer Ratio High",
+          "condition": "rebuffer_ratio > 1% in any region for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Edge Hit Rate Drop",
+          "condition": "edge_cache_hit_rate < 0.90 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Origin Egress Surge",
+          "condition": "origin_egress_bytes > 3x trailing-hour baseline",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "API Latency Degraded",
+          "condition": "api_latency p99 > 500ms for 5min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Playback QoE (TTFF / Rebuffer / Bitrate Mix)",
+        "Edge Fleet (Hit Rate / PoP Health)",
+        "Origin Load",
+        "Browse API Health"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Streaming On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": ["oncall-streaming"]
+        },
+        {
+          "level": 2,
+          "name": "Edge Delivery Team",
+          "responseTimeMinutes": 15,
+          "contacts": ["edge-delivery-team"]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander",
+          "responseTimeMinutes": 30,
+          "contacts": ["incident-commander"]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Edge PoP outage",
+          "severity": "high",
+          "steps": [
+            "Confirm scope from per-PoP health checks — distinguish PoP failure from ISP routing issues",
+            "Withdraw the PoP from DNS/anycast steering",
+            "Monitor neighbor PoP utilization and origin egress for cascade pressure",
+            "Cap top bitrate tier in the region if neighbors approach saturation",
+            "Restore and re-warm the PoP before returning it to rotation"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Origin overload from cache-fill storm",
+          "severity": "critical",
+          "steps": [
+            "Identify the title/segments driving misses from origin access logs",
+            "Enable request coalescing and origin shield if not already active",
+            "Throttle cache-fill concurrency per PoP to protect origin",
+            "Pre-position the hot title to remaining cold PoPs"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Browse latency spike",
+          "severity": "medium",
+          "steps": [
+            "Check metadata cache hit rate first — most browse incidents are cache incidents",
+            "Verify DB connection pool headroom and replica lag",
+            "Warm trending/home-row keys, then long-tail",
+            "Scale Content Service if CPU-bound after cache recovery"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Separate Video Path from API Path",
+        "context": "Video bytes outweigh API bytes by 4-5 orders of magnitude and have completely different scaling, caching, and latency profiles",
+        "decision": "Stream video directly from client to CDN edge; route only browse/search/manifest API calls through the gateway and Content Service",
+        "consequences": [
+          "Each path scales and fails independently — an API outage doesn't stop in-progress streams",
+          "App servers never proxy video bytes",
+          "Two distinct monitoring and capacity models must be maintained"
+        ]
+      },
+      {
+        "title": "Pre-Positioned Edge Content",
+        "context": "Release schedules are known in advance and the popularity distribution is extremely top-heavy",
+        "decision": "Push predicted-popular content to edge servers during off-peak windows instead of relying purely on demand-driven caching",
+        "consequences": [
+          "95% byte hit rate; most video traffic never leaves the local ISP network",
+          "Premiere stampedes hit warm caches instead of origin",
+          "Requires popularity prediction and consumes edge storage for content that may underperform"
+        ]
+      },
+      {
+        "title": "Cache-Aside Metadata with 1-Hour TTL",
+        "context": "Catalog metadata is read millions of times per hour but changes rarely",
+        "decision": "Serve metadata from Redis with TTL-based expiry, falling back to PostgreSQL on miss",
+        "consequences": [
+          "92% of metadata reads never touch the database",
+          "Catalog changes can lag up to an hour without explicit invalidation",
+          "Cache loss converts instantly into a database load incident"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Edge Storage Cost vs Origin Egress",
+        "choice": "Large edge caches with pre-positioning",
+        "benefit": "Origin egress and inter-region transfer reduced to a trickle; best-possible video start times",
+        "cost": "Hundreds of edge servers carrying mostly-duplicate copies of the hot catalog"
+      },
+      {
+        "dimension": "Freshness vs Database Load",
+        "choice": "1-hour metadata TTL",
+        "benefit": "Database sized for 8% of read traffic",
+        "cost": "Removed or relicensed titles can surface stale for up to an hour without event-driven invalidation"
+      },
+      {
+        "dimension": "Peak Provisioning vs Utilization",
+        "choice": "Capacity sized for the 4-hour evening peak",
+        "benefit": "No QoE degradation during the window when nearly all viewing happens",
+        "cost": "Significant idle capacity overnight, partially reclaimed for pre-positioning and batch jobs"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Stream Video Through the App Tier",
+        "description": "Proxy all video bytes through the Content Service for unified auth and logging",
+        "prosVsCons": "Single code path and simple session enforcement, but app servers would need 1000x the network capacity and become a global bottleneck",
+        "whyNotChosen": "Bandwidth economics are disqualifying; signed URLs give per-session auth without proxying bytes"
+      },
+      {
+        "name": "Peer-to-Peer Assisted Delivery",
+        "description": "Let viewers serve video chunks to nearby peers, WebRTC-style, reducing CDN egress",
+        "prosVsCons": "Dramatic egress savings on hot content, but unpredictable QoE, upstream-bandwidth consumption on customer connections, and DRM complications",
+        "whyNotChosen": "QoE control is the product; delegating delivery to uncontrolled peers undermines it"
+      },
+      {
+        "name": "Multi-CDN from Day One",
+        "description": "Split traffic across two or more commercial CDNs with real-time performance steering",
+        "prosVsCons": "Vendor leverage and failure independence, but doubles integration surface, complicates pre-positioning, and splits committed-volume discounts",
+        "whyNotChosen": "Single CDN with regional PoP failover meets the availability target; multi-CDN is the planned next step if scale or risk profile changes"
+      }
+    ]
+  }
 }

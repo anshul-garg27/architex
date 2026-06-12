@@ -162,5 +162,441 @@
       "type": "data-flow",
       "data": { "edgeType": "db-query", "latency": 5, "animated": false }
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-bank-slowdown",
+        "name": "Synchronous Bank Call Slowdown",
+        "description": "Bank / card network latency rises from ~500ms to 5s while authorization runs inline on the request path",
+        "targetNodes": [
+          "bank-api",
+          "payment-service"
+        ],
+        "faultType": "latency",
+        "severity": 5,
+        "expectedBehavior": "Payment-service threads block on the inline bank call; in-flight requests stack toward the 30s gateway timeout, instance connection pools fill, and new requests queue or 5xx. Client retries amplify the pile-up — the classic synchronous-coupling failure.",
+        "mitigationSteps": [
+          "Enforce a 3s bank-call timeout — fail the request rather than hold connections",
+          "Shed load at the API gateway to keep the service inside its concurrency budget",
+          "Treat timed-out charges as UNKNOWN, not FAILED: re-query the bank by reference before permitting a retry",
+          "Structural fix: move bank calls behind a queue and worker pool so client latency decouples from acquirer health"
+        ]
+      },
+      {
+        "id": "cs-ledger-failure",
+        "name": "Ledger Database Failure",
+        "description": "The shared PostgreSQL ledger primary crashes",
+        "targetNodes": [
+          "database"
+        ],
+        "faultType": "crash",
+        "severity": 5,
+        "expectedBehavior": "Both payment-service and notification-service lose their backing store: charges fail outright and webhook bookkeeping halts. Replica promotion takes 30-60s; any charge between bank approval and ledger commit is left in limbo.",
+        "mitigationSteps": [
+          "Promote the replica and verify replication lag was zero",
+          "Re-drive limbo charges by querying the bank with the gateway reference (idempotent)",
+          "Replay queued events from Kafka — 30-day retention covers any realistic outage",
+          "Reconcile the ledger against bank records before resuming webhooks"
+        ]
+      },
+      {
+        "id": "cs-webhook-outage",
+        "name": "Webhook Service Outage",
+        "description": "The notification service crashes; merchant webhooks stop flowing",
+        "targetNodes": [
+          "notification-service"
+        ],
+        "faultType": "crash",
+        "severity": 3,
+        "expectedBehavior": "Charges keep processing, but merchants stop receiving confirmations while Kafka buffers events durably. Merchant systems that gate fulfillment on webhooks stall and support volume rises. On recovery, the backlog delivers as a burst — at-least-once, so merchants see duplicates.",
+        "mitigationSteps": [
+          "Restart or scale notification instances; the consumer group resumes from committed offsets",
+          "Throttle the backlog drain so merchant endpoints are not flooded",
+          "Verify merchants deduplicate by event ID; signed payloads let them trust replays",
+          "Advise merchants to poll the charge API as a fallback during the outage"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 400,
+        "bottleneckNode": "bank-api",
+        "metric": "connections",
+        "description": "Traffic approaches the contracted 500 RPS acquirer ceiling; authorizations queue or get throttled upstream",
+        "resolution": "Negotiate a higher rate tier or add a second acquirer with routing"
+      },
+      {
+        "rpsThreshold": 600,
+        "bottleneckNode": "payment-service",
+        "metric": "connections",
+        "description": "Each in-flight request holds a connection for the full ~500ms bank round trip; required concurrency grows linearly with RPS (Little’s law)",
+        "resolution": "Add instances, adopt non-blocking IO, or restructure to async queue-based processing"
+      },
+      {
+        "rpsThreshold": 2000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "payment-service and notification-service share the 200-connection ledger pool; webhook bookkeeping competes with money movement",
+        "resolution": "Add a connection pooler, split webhook delivery state into its own store, and scale read replicas"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-sync-coupling",
+        "title": "Availability Coupled to the Bank",
+        "description": "The inline bank call means the acquirer 2% baseline error rate and tail latency surface directly as client-visible failures and slow requests",
+        "affectedNodes": [
+          "payment-service",
+          "bank-api"
+        ],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "Strict timeouts and circuit breaking now; an async worker tier (return 202, process from the queue) as the structural fix"
+      },
+      {
+        "id": "ei-limbo-charges",
+        "title": "Limbo Charges on Mid-Flight Crashes",
+        "description": "A crash after bank approval but before the ledger commit moves money with no record of it",
+        "affectedNodes": [
+          "payment-service",
+          "database"
+        ],
+        "likelihood": 3,
+        "impact": 5,
+        "mitigation": "Write a pre-authorization intent row before calling the bank; sweep intents without outcomes and re-query the bank by reference"
+      },
+      {
+        "id": "ei-webhook-duplicates",
+        "title": "Duplicate Webhook Deliveries",
+        "description": "At-least-once consumption from Kafka plus delivery retries means merchants receive duplicate events",
+        "affectedNodes": [
+          "notification-service"
+        ],
+        "likelihood": 4,
+        "impact": 2,
+        "mitigation": "Stable event IDs, HMAC-signed payloads, documented merchant-side dedup, and exponential backoff per endpoint"
+      },
+      {
+        "id": "ei-shared-ledger-contention",
+        "title": "Shared Ledger Contention",
+        "description": "Webhook delivery-state writes share the ledger connection pool and IOPS with charge processing",
+        "affectedNodes": [
+          "database",
+          "notification-service"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Move delivery tracking to a separate schema or store and cap the notification-service pool share"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 4600,
+      "components": [
+        {
+          "nodeId": "payment-service",
+          "label": "Payment Service",
+          "monthlyCostUsd": 1000,
+          "costDriver": "5 web instances"
+        },
+        {
+          "nodeId": "notification-service",
+          "label": "Webhook / Notification",
+          "monthlyCostUsd": 450,
+          "costDriver": "3 instances"
+        },
+        {
+          "nodeId": "message-queue",
+          "label": "Event Queue",
+          "monthlyCostUsd": 1200,
+          "costDriver": "Kafka RF3, 30-day retention"
+        },
+        {
+          "nodeId": "database",
+          "label": "Ledger DB",
+          "monthlyCostUsd": 1600,
+          "costDriver": "Primary + 2 replicas, 1TB"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 350,
+          "costDriver": "Request volume"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 100,
+          "monthlyCostUsd": 2100
+        },
+        {
+          "label": "Medium",
+          "rps": 1000,
+          "monthlyCostUsd": 4600
+        },
+        {
+          "label": "High",
+          "rps": 5000,
+          "monthlyCostUsd": 14000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 1000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 600,
+      "p99LatencyMs": 2000,
+      "availabilityTarget": 99.9,
+      "maxErrorRatePercent": 0.5,
+      "throughputRps": 1000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "payment-service",
+        "metric": "in_flight_request_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 3,
+        "maxInstances": 20
+      },
+      {
+        "nodeId": "notification-service",
+        "metric": "kafka_consumer_lag",
+        "threshold": 5000,
+        "scaleUpStep": 1,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 180,
+        "minInstances": 2,
+        "maxInstances": 10
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Charge API Latency",
+        "metric": "p99_charge_ms",
+        "target": 3000,
+        "unit": "ms",
+        "penalty": "Internal SLO — merchant-facing latency review"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.9,
+        "unit": "%",
+        "penalty": "Service credits per merchant agreement"
+      },
+      {
+        "name": "Webhook Delivery",
+        "metric": "p95_webhook_delivery_seconds",
+        "target": 30,
+        "unit": "s",
+        "penalty": "Merchant credits after sustained breach"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "charge_latency_ms",
+          "type": "histogram",
+          "description": "End-to-end charge latency including the inline bank call",
+          "nodeId": "payment-service"
+        },
+        {
+          "name": "in_flight_requests",
+          "type": "gauge",
+          "description": "Concurrent requests held open on bank calls",
+          "nodeId": "payment-service"
+        },
+        {
+          "name": "bank_error_rate",
+          "type": "gauge",
+          "description": "Bank 5xx/timeout rate, distinct from declines",
+          "nodeId": "bank-api"
+        },
+        {
+          "name": "webhook_delivery_lag_seconds",
+          "type": "gauge",
+          "description": "Delay between charge outcome and webhook delivery",
+          "nodeId": "notification-service"
+        },
+        {
+          "name": "event_queue_lag",
+          "type": "gauge",
+          "description": "Unconsumed events in Kafka",
+          "nodeId": "message-queue"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Bank Latency High",
+          "condition": "p99 bank call > 2s for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Connection Pool Saturation",
+          "condition": "in-flight utilization > 85% for 3min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "Webhook Backlog",
+          "condition": "consumer lag > 10k events for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Decline Anomaly",
+          "condition": "decline rate > 2x 7-day baseline for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        }
+      ],
+      "dashboards": [
+        "Charge Path Health",
+        "Bank Dependency",
+        "Webhook Delivery Pipeline"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Payments On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "payments-oncall"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Payments Lead",
+          "responseTimeMinutes": 15,
+          "contacts": [
+            "payments-lead"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander + Finance Ops",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "incident-commander",
+            "finance-ops"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Bank slowdown saturating the service",
+          "severity": "critical",
+          "steps": [
+            "Confirm elevated latency on the acquirer status dashboard",
+            "Tighten the bank-call timeout and lower the gateway rate limit to protect concurrency headroom",
+            "Mark timed-out charges UNKNOWN and run the bank re-query sweeper",
+            "Restore rate limits gradually as bank latency recovers"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "Webhook backlog",
+          "severity": "medium",
+          "steps": [
+            "Check consumer lag and notification-service health",
+            "Scale instances; drain the backlog throttled to protect merchant endpoints",
+            "Spot-check merchant dedup behavior on replayed events"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Ledger failover",
+          "severity": "critical",
+          "steps": [
+            "Promote the replica and verify replication lag was zero",
+            "Sweep intent rows without outcomes; re-query the bank per reference",
+            "Reconcile ledger against bank records before re-enabling webhooks",
+            "Document limbo-charge resolution for the audit trail"
+          ],
+          "automatedRecovery": true
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Synchronous Authorization in the Request Path",
+        "context": "Merchants want a single API call that returns the charge outcome immediately",
+        "decision": "The Payment Service calls the bank inline (~500ms) and returns the terminal result in the response",
+        "consequences": [
+          "Simplest possible merchant integration — no polling or completion webhooks needed for the happy path",
+          "Client-visible latency and availability inherit the bank tail behavior",
+          "Required concurrency scales with bank latency (Little’s law)"
+        ]
+      },
+      {
+        "title": "Async Webhooks via Kafka",
+        "context": "Downstream notifications must not slow or fail the money path",
+        "decision": "Charge outcomes publish to Kafka; a separate notification service delivers webhooks with retries",
+        "consequences": [
+          "Webhook outages never block charging",
+          "30-day retention enables replay and audit",
+          "At-least-once delivery requires merchant-side deduplication"
+        ]
+      },
+      {
+        "title": "Relational Ledger as Source of Truth",
+        "context": "Payment state must survive crashes and support reconciliation",
+        "decision": "All charge state and accounting rows live in PostgreSQL with replicas",
+        "consequences": [
+          "Strong consistency for money state",
+          "A single write primary is the scaling and availability choke point",
+          "Both services share one database, so contention must be managed"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Integration Simplicity vs Resilience",
+        "choice": "Synchronous charge API",
+        "benefit": "One-call integration with an immediate answer",
+        "cost": "Bank brownouts directly degrade client latency and availability"
+      },
+      {
+        "dimension": "Delivery Guarantees vs Merchant Effort",
+        "choice": "At-least-once webhooks",
+        "benefit": "No confirmation is ever silently lost",
+        "cost": "Merchants must implement event-ID deduplication"
+      },
+      {
+        "dimension": "Operational Simplicity vs Isolation",
+        "choice": "Shared ledger DB for both services",
+        "benefit": "One database to operate, with transactional consistency across charge and delivery state",
+        "cost": "Webhook load can contend with charge processing"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Async Worker Processing (202 + Queue)",
+        "description": "Accept the charge, return 202, and process bank calls from a worker pool",
+        "prosVsCons": "Decouples client latency from the bank and absorbs brownouts, but merchants must handle asynchronous completion",
+        "whyNotChosen": "This design optimizes for integration simplicity; the async variant is the documented evolution path once volume or bank instability demands it"
+      },
+      {
+        "name": "Direct Webhook Calls (No Queue)",
+        "description": "The payment service calls merchant webhooks directly after charging",
+        "prosVsCons": "Fewer moving parts, but webhook failures would complicate the charge path and retry logic would live inside the money service",
+        "whyNotChosen": "Durable buffering and replay justify the queue"
+      },
+      {
+        "name": "Distributed / NoSQL Ledger",
+        "description": "Shard charge state across a NoSQL store for write scale",
+        "prosVsCons": "Higher write ceilings, but losing multi-row ACID transactions makes balanced accounting and reconciliation far harder",
+        "whyNotChosen": "Transactional integrity outweighs raw throughput at this scale"
+      }
+    ]
+  }
 }

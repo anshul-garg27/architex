@@ -289,7 +289,7 @@
         "name": "Search Index Corruption",
         "description": "ES index segment corruption after disk failure",
         "targetNodes": [
-          "elasticsearch"
+          "search-index"
         ],
         "faultType": "data-corruption",
         "severity": 4,
@@ -305,7 +305,7 @@
         "name": "Query of Death",
         "description": "Complex regex query causes ES thread pool exhaustion",
         "targetNodes": [
-          "elasticsearch"
+          "search-index"
         ],
         "faultType": "resource-exhaustion",
         "severity": 4,
@@ -321,7 +321,7 @@
         "name": "Ranking Model Degraded",
         "description": "ML ranking model returns poor relevance scores",
         "targetNodes": [
-          "ranking-service"
+          "query-service"
         ],
         "faultType": "error",
         "severity": 2,
@@ -336,14 +336,14 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 25000,
-        "bottleneckNode": "elasticsearch",
+        "bottleneckNode": "search-index",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
       },
       {
         "rpsThreshold": 50000,
-        "bottleneckNode": "elasticsearch",
+        "bottleneckNode": "search-index",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -355,7 +355,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "elasticsearch"
+          "search-index"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -366,7 +366,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "ranking-service"
+          "query-service"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -377,7 +377,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "elasticsearch"
+          "search-index"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -388,13 +388,13 @@
       "totalMonthlyCostUsd": 30000,
       "components": [
         {
-          "nodeId": "elasticsearch",
+          "nodeId": "search-index",
           "label": "Primary Service",
           "monthlyCostUsd": 10000,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "ranking-service",
+          "nodeId": "query-service",
           "label": "Storage",
           "monthlyCostUsd": 10000,
           "costDriver": "Storage and I/O"
@@ -435,7 +435,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "elasticsearch",
+        "nodeId": "search-index",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -467,13 +467,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "elasticsearch"
+          "nodeId": "search-index"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "elasticsearch"
+          "nodeId": "search-index"
         }
       ],
       "alerts": [

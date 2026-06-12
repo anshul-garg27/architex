@@ -246,5 +246,493 @@
       "type": "data-flow",
       "data": { "edgeType": "http", "latency": 50, "animated": false }
     }
-  ]
+  ],
+  "simulation": {
+    "chaosScenarios": [
+      {
+        "id": "cs-feed-cache-flush",
+        "name": "Feed Cache Cluster Failure",
+        "description": "Redis cluster holding precomputed user timelines fails; all feed reads fall through to PostgreSQL",
+        "targetNodes": [
+          "cache",
+          "feed-service",
+          "database"
+        ],
+        "faultType": "crash",
+        "severity": 4,
+        "expectedBehavior": "Feed p99 climbs from ~150ms to multi-second as feed-service recomputes timelines from the Post DB. DB read IOPS spike 10x; recompute storms threaten to take the database down with the cache. Some users see stale or truncated feeds.",
+        "mitigationSteps": [
+          "Switch feed-service to degraded chronological reads from DB with strict row limits",
+          "Enable per-user recompute rate limiting to protect PostgreSQL",
+          "Rebuild the Redis cluster and warm timelines for the most active users first",
+          "Verify hit rate > 80% before disabling degraded mode"
+        ]
+      },
+      {
+        "id": "cs-cdn-origin-surge",
+        "name": "CDN Cache Flush / POP Outage",
+        "description": "A regional CDN POP outage or mass cache eviction sends media requests straight to the S3 origin",
+        "targetNodes": [
+          "cdn",
+          "object-storage"
+        ],
+        "faultType": "resource-exhaustion",
+        "severity": 3,
+        "expectedBehavior": "Origin egress jumps 20x. S3 returns 503 SlowDown on hot prefixes; media time-to-first-byte degrades from ~50ms to 500ms+. App tier is unaffected since media bypasses it entirely.",
+        "mitigationSteps": [
+          "Enable origin shield / tiered caching to coalesce origin fetches",
+          "Raise cache TTLs on hot media objects",
+          "Verify S3 SlowDown rate is subsiding as the cache refills",
+          "Coordinate with CDN vendor on POP status and traffic steering"
+        ]
+      },
+      {
+        "id": "cs-fanout-lag",
+        "name": "Event Bus Fan-out Lag",
+        "description": "Kafka partition leader loss plus consumer lag delays fan-out of new posts into follower feeds",
+        "targetNodes": [
+          "message-queue",
+          "feed-service"
+        ],
+        "faultType": "partition",
+        "severity": 3,
+        "expectedBehavior": "Posting succeeds (write path is healthy) but new posts take minutes instead of seconds to appear in follower feeds. No user-visible errors — only freshness degrades, so the issue surfaces via lag metrics, not error rates.",
+        "mitigationSteps": [
+          "Confirm partition leader re-election completed",
+          "Scale the feed-service consumer group to drain lag",
+          "Switch highest-follower accounts to pull-based merge while lag persists",
+          "Backfill missed posts from the Post DB by timestamp once lag clears"
+        ]
+      }
+    ],
+    "bottleneckProgression": [
+      {
+        "rpsThreshold": 20000,
+        "bottleneckNode": "database",
+        "metric": "connections",
+        "description": "Post metadata and social graph queries saturate the PostgreSQL connection pool",
+        "resolution": "Add read replicas, route reads through PgBouncer, and cache social graph edges"
+      },
+      {
+        "rpsThreshold": 50000,
+        "bottleneckNode": "cache",
+        "metric": "memory",
+        "description": "Feed cache eviction churn — per-user timelines exceed cluster memory and hit rate drops",
+        "resolution": "Shard the Redis cluster, cap timeline length per user, and compress entries"
+      },
+      {
+        "rpsThreshold": 150000,
+        "bottleneckNode": "api-gw",
+        "metric": "cpu",
+        "description": "API gateway CPU saturates on TLS termination, auth, and routing at peak",
+        "resolution": "Scale gateways horizontally and deploy regional gateway pools"
+      }
+    ],
+    "expectedIssues": [
+      {
+        "id": "ei-celebrity-fanout",
+        "title": "Celebrity Fan-out Explosion",
+        "description": "A post from an account with 100M followers requires 100M timeline writes; push fan-out floods Kafka and the feed cache",
+        "affectedNodes": [
+          "message-queue",
+          "feed-service",
+          "cache"
+        ],
+        "likelihood": 5,
+        "impact": 4,
+        "mitigation": "Hybrid push/pull — fan-out on write for normal accounts, pull-and-merge at read time for high-follower accounts"
+      },
+      {
+        "id": "ei-hot-media",
+        "title": "Viral Media Hot Object",
+        "description": "A viral Reel concentrates millions of requests on one CDN object and a single S3 key prefix",
+        "affectedNodes": [
+          "cdn",
+          "object-storage"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Replicate hot objects across POPs, randomize S3 key prefixes, serve multiple renditions to spread load"
+      },
+      {
+        "id": "ei-feed-staleness",
+        "title": "Deleted Content Lingers in Cached Feeds",
+        "description": "Deleted or moderated posts remain in precomputed timelines until invalidation propagates",
+        "affectedNodes": [
+          "cache",
+          "feed-service"
+        ],
+        "likelihood": 3,
+        "impact": 3,
+        "mitigation": "Tombstone filtering at read time plus async timeline scrubbing on delete events"
+      },
+      {
+        "id": "ei-counter-contention",
+        "title": "Like Counter Row Contention",
+        "description": "Like/comment counters on viral posts create row-level lock contention in PostgreSQL",
+        "affectedNodes": [
+          "database"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Sharded counters aggregated asynchronously through the event bus; serve approximate counts"
+      },
+      {
+        "id": "ei-upload-burst",
+        "title": "Calendar-Event Upload Bursts",
+        "description": "New Year's Eve-style events spike uploads 5-10x, saturating the media service and S3 PUT throughput",
+        "affectedNodes": [
+          "media-service",
+          "object-storage"
+        ],
+        "likelihood": 4,
+        "impact": 3,
+        "mitigation": "Pre-scale on known calendar events, client retry with backoff, queue transcoding work"
+      }
+    ],
+    "costBreakdown": {
+      "totalMonthlyCostUsd": 45000,
+      "components": [
+        {
+          "nodeId": "cdn",
+          "label": "CDN (Media)",
+          "monthlyCostUsd": 12000,
+          "costDriver": "Media egress — dominant cost at photo/video scale"
+        },
+        {
+          "nodeId": "object-storage",
+          "label": "Object Storage (S3)",
+          "monthlyCostUsd": 9000,
+          "costDriver": "Media storage growth + request volume"
+        },
+        {
+          "nodeId": "media-service",
+          "label": "Media Service",
+          "monthlyCostUsd": 5000,
+          "costDriver": "Upload handling and transcoding compute"
+        },
+        {
+          "nodeId": "database",
+          "label": "Post DB (PostgreSQL)",
+          "monthlyCostUsd": 4500,
+          "costDriver": "Sharded primaries + read replicas"
+        },
+        {
+          "nodeId": "feed-service",
+          "label": "Feed Service",
+          "monthlyCostUsd": 4000,
+          "costDriver": "Fan-out consumers + feed assembly fleet"
+        },
+        {
+          "nodeId": "cache",
+          "label": "Feed Cache (Redis)",
+          "monthlyCostUsd": 3500,
+          "costDriver": "Timeline storage for active users"
+        },
+        {
+          "nodeId": "api-gw",
+          "label": "API Gateway",
+          "monthlyCostUsd": 3000,
+          "costDriver": "Request volume + TLS termination"
+        },
+        {
+          "nodeId": "message-queue",
+          "label": "Event Bus (Kafka)",
+          "monthlyCostUsd": 2500,
+          "costDriver": "Fan-out event throughput, 6-broker cluster"
+        },
+        {
+          "nodeId": "load-balancer",
+          "label": "Load Balancer",
+          "monthlyCostUsd": 1500,
+          "costDriver": "LCU consumption at peak"
+        }
+      ],
+      "scalingCostTiers": [
+        {
+          "label": "Low",
+          "rps": 10000,
+          "monthlyCostUsd": 12000
+        },
+        {
+          "label": "Medium",
+          "rps": 50000,
+          "monthlyCostUsd": 45000
+        },
+        {
+          "label": "High",
+          "rps": 250000,
+          "monthlyCostUsd": 165000
+        }
+      ]
+    },
+    "performanceTargets": {
+      "defaultRps": 50000,
+      "trafficProfile": "diurnal",
+      "p50LatencyMs": 80,
+      "p99LatencyMs": 400,
+      "availabilityTarget": 99.95,
+      "maxErrorRatePercent": 0.1,
+      "throughputRps": 50000
+    },
+    "scalingPolicies": [
+      {
+        "nodeId": "media-service",
+        "metric": "cpu_utilization",
+        "threshold": 65,
+        "scaleUpStep": 4,
+        "scaleDownStep": 2,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 80
+      },
+      {
+        "nodeId": "feed-service",
+        "metric": "kafka_consumer_lag",
+        "threshold": 100000,
+        "scaleUpStep": 4,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 180,
+        "minInstances": 6,
+        "maxInstances": 120
+      },
+      {
+        "nodeId": "api-gw",
+        "metric": "cpu_utilization",
+        "threshold": 70,
+        "scaleUpStep": 2,
+        "scaleDownStep": 1,
+        "cooldownSeconds": 120,
+        "minInstances": 4,
+        "maxInstances": 60
+      }
+    ],
+    "slaDefinitions": [
+      {
+        "name": "Feed Load Latency",
+        "metric": "p99_feed_load_ms",
+        "target": 400,
+        "unit": "ms",
+        "penalty": "Internal SLO — error budget burn freezes feature rollouts"
+      },
+      {
+        "name": "Media Time-to-First-Byte",
+        "metric": "p95_media_ttfb_ms",
+        "target": 120,
+        "unit": "ms",
+        "penalty": "CDN vendor service credits"
+      },
+      {
+        "name": "Feed Freshness",
+        "metric": "p95_post_visibility_lag_s",
+        "target": 60,
+        "unit": "s",
+        "penalty": "Internal SLO — fan-out capacity review"
+      },
+      {
+        "name": "Availability",
+        "metric": "uptime",
+        "target": 99.95,
+        "unit": "%",
+        "penalty": "Public incident report"
+      }
+    ],
+    "monitoringConfig": {
+      "metrics": [
+        {
+          "name": "feed_load_latency",
+          "type": "histogram",
+          "description": "End-to-end feed assembly latency",
+          "nodeId": "feed-service"
+        },
+        {
+          "name": "cdn_hit_ratio",
+          "type": "gauge",
+          "description": "CDN cache hit ratio for media",
+          "nodeId": "cdn"
+        },
+        {
+          "name": "fanout_consumer_lag",
+          "type": "gauge",
+          "description": "Kafka lag on post-created events",
+          "nodeId": "message-queue"
+        },
+        {
+          "name": "upload_errors",
+          "type": "counter",
+          "description": "Failed media uploads",
+          "nodeId": "media-service"
+        },
+        {
+          "name": "feed_cache_hit_rate",
+          "type": "gauge",
+          "description": "Redis timeline cache hit rate",
+          "nodeId": "cache"
+        },
+        {
+          "name": "db_replica_lag",
+          "type": "gauge",
+          "description": "PostgreSQL replication lag",
+          "nodeId": "database"
+        }
+      ],
+      "alerts": [
+        {
+          "name": "Feed Latency High",
+          "condition": "p99 feed_load_latency > 800ms for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        },
+        {
+          "name": "CDN Hit Ratio Drop",
+          "condition": "cdn_hit_ratio < 0.85 for 10min",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Fan-out Lag Growing",
+          "condition": "fanout_consumer_lag > 5000000",
+          "severity": "warning",
+          "channel": "slack"
+        },
+        {
+          "name": "Upload Failures",
+          "condition": "upload error rate > 1% for 5min",
+          "severity": "critical",
+          "channel": "pagerduty"
+        }
+      ],
+      "dashboards": [
+        "Feed Delivery Overview",
+        "Media Pipeline",
+        "Fan-out Health",
+        "Storage & CDN Economics"
+      ]
+    },
+    "incidentPlaybook": {
+      "escalationPolicy": [
+        {
+          "level": 1,
+          "name": "Feed On-Call",
+          "responseTimeMinutes": 5,
+          "contacts": [
+            "oncall-feed"
+          ]
+        },
+        {
+          "level": 2,
+          "name": "Media Platform On-Call",
+          "responseTimeMinutes": 10,
+          "contacts": [
+            "oncall-media"
+          ]
+        },
+        {
+          "level": 3,
+          "name": "Incident Commander",
+          "responseTimeMinutes": 30,
+          "contacts": [
+            "incident-commander"
+          ]
+        }
+      ],
+      "runbooks": [
+        {
+          "incident": "Feed cache cluster failure",
+          "severity": "critical",
+          "steps": [
+            "Switch feed-service to degraded chronological DB reads with row limits",
+            "Enable per-user recompute throttling to protect the Post DB",
+            "Rebuild Redis cluster and warm timelines for top-decile active users",
+            "Verify cache hit rate > 80%, then disable degraded mode"
+          ],
+          "automatedRecovery": false
+        },
+        {
+          "incident": "CDN origin overload",
+          "severity": "high",
+          "steps": [
+            "Enable origin shield and request coalescing",
+            "Raise TTLs on hot media objects",
+            "Watch S3 SlowDown (503) rate until it subsides",
+            "Escalate to CDN vendor if a POP is degraded"
+          ],
+          "automatedRecovery": true
+        },
+        {
+          "incident": "Fan-out lag",
+          "severity": "medium",
+          "steps": [
+            "Identify lagging Kafka partitions and confirm leadership is stable",
+            "Scale the feed-service consumer group",
+            "Move highest-follower accounts to pull-based merge",
+            "Backfill missed posts from the Post DB once lag drains"
+          ],
+          "automatedRecovery": false
+        }
+      ]
+    }
+  },
+  "rationale": {
+    "decisions": [
+      {
+        "title": "Fan-out on Write via Event Bus",
+        "context": "Feeds are read orders of magnitude more often than posts are created; feed load latency defines the product",
+        "decision": "On post creation, publish an event to Kafka; feed-service consumers precompute follower timelines into Redis",
+        "consequences": [
+          "Feed read is a single cache lookup — O(1) at request time",
+          "Write amplification: one post becomes N timeline writes",
+          "Freshness is eventually consistent; propagation lag becomes a first-class SLO"
+        ]
+      },
+      {
+        "title": "CDN-First Media Delivery",
+        "context": "Media bytes dwarf API traffic by orders of magnitude; serving them through the app tier would be ruinous",
+        "decision": "Clients fetch media directly from the CDN with S3 as origin, fully bypassing the API path",
+        "consequences": [
+          "App tier is sized for metadata, not media bandwidth",
+          "CDN hit ratio directly drives both latency and cost",
+          "Cache invalidation for moderated media requires CDN purge workflows"
+        ]
+      },
+      {
+        "title": "Separate Media and Feed Services",
+        "context": "Uploads are CPU/IO-heavy and bursty; feed reads are latency-sensitive and constant",
+        "decision": "Split media-service (upload/transcode) and feed-service (assembly/fan-out) behind one API gateway",
+        "consequences": [
+          "Each service scales on its own signal (CPU vs consumer lag)",
+          "An upload surge cannot degrade feed latency",
+          "Two deployment surfaces to operate instead of one"
+        ]
+      }
+    ],
+    "tradeoffs": [
+      {
+        "dimension": "Freshness vs Read Latency",
+        "choice": "Precomputed timelines (read latency wins)",
+        "benefit": "Feed loads in one Redis round trip regardless of how many accounts a user follows",
+        "cost": "Posts take seconds to minutes to propagate; deletes need tombstone filtering"
+      },
+      {
+        "dimension": "Storage vs Write Amplification",
+        "choice": "Store a copy of each post ID in every follower timeline",
+        "benefit": "No scatter-gather at read time",
+        "cost": "N-times write amplification and large Redis memory footprint, unbounded for celebrity accounts"
+      }
+    ],
+    "alternatives": [
+      {
+        "name": "Fan-out on Read (Pull Model)",
+        "description": "Assemble feeds at request time by querying recent posts from every followed account",
+        "prosVsCons": "No write amplification, perfectly fresh — but read latency scales with followee count and p99 collapses for users following thousands",
+        "whyNotChosen": "The read path utterly dominates; precomputation moves cost to the cheap async path. Pull is kept only as the celebrity-account fallback"
+      },
+      {
+        "name": "Media Blobs in the Database",
+        "description": "Store images and video as binary columns alongside post metadata",
+        "prosVsCons": "Transactional consistency between post and media, but PostgreSQL cannot serve petabyte-scale media economically",
+        "whyNotChosen": "S3 + CDN is orders of magnitude cheaper per GB delivered and offloads bandwidth entirely"
+      }
+    ]
+  }
 }

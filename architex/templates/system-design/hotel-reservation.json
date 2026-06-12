@@ -266,7 +266,7 @@
     },
     {
       "title": "Idempotent Booking with Reservation ID",
-      "description": "The API Gateway assigns a unique idempotency key to each booking request. If a client retries (network timeout, 5xx), the service checks for an existing reservation with that key before creating a new one. This prevents duplicate charges and ghost bookings \u2014 essential for payment-adjacent workflows.",
+      "description": "The API Gateway assigns a unique idempotency key to each booking request. If a client retries (network timeout, 5xx), the service checks for an existing reservation with that key before creating a new one. This prevents duplicate charges and ghost bookings — essential for payment-adjacent workflows.",
       "highlightNodes": [
         "api-gw",
         "app-server"
@@ -309,8 +309,8 @@
         "name": "Double Booking Race Condition",
         "description": "Concurrent reservations for last room succeed simultaneously",
         "targetNodes": [
-          "reservation-service",
-          "inventory-db"
+          "app-server",
+          "database"
         ],
         "faultType": "data-corruption",
         "severity": 5,
@@ -326,7 +326,7 @@
         "name": "Payment Gateway Timeout",
         "description": "Payment provider experiences widespread latency",
         "targetNodes": [
-          "payment-service"
+          "app-server"
         ],
         "faultType": "latency",
         "severity": 3,
@@ -342,7 +342,7 @@
         "name": "Search Index Degraded",
         "description": "Elasticsearch cluster loses a node during peak search",
         "targetNodes": [
-          "search-service"
+          "cache"
         ],
         "faultType": "crash",
         "severity": 3,
@@ -357,14 +357,14 @@
     "bottleneckProgression": [
       {
         "rpsThreshold": 5000,
-        "bottleneckNode": "reservation-service",
+        "bottleneckNode": "app-server",
         "metric": "cpu",
         "description": "Primary service CPU saturates",
         "resolution": "Horizontal scaling, optimize hot paths"
       },
       {
         "rpsThreshold": 10000,
-        "bottleneckNode": "payment-service",
+        "bottleneckNode": "database",
         "metric": "connections",
         "description": "Connection pool exhaustion on storage tier",
         "resolution": "Add connection pooling, increase limits"
@@ -376,7 +376,7 @@
         "title": "Peak Traffic Degradation",
         "description": "Service degrades during traffic spikes",
         "affectedNodes": [
-          "reservation-service"
+          "app-server"
         ],
         "likelihood": 3,
         "impact": 3,
@@ -387,7 +387,7 @@
         "title": "Data Consistency Issue",
         "description": "Eventual consistency causes brief stale reads",
         "affectedNodes": [
-          "search-service"
+          "cache"
         ],
         "likelihood": 3,
         "impact": 2,
@@ -398,7 +398,7 @@
         "title": "Dependency Failure Impact",
         "description": "Upstream dependency failure cascades to this service",
         "affectedNodes": [
-          "reservation-service"
+          "app-server"
         ],
         "likelihood": 2,
         "impact": 4,
@@ -409,13 +409,13 @@
       "totalMonthlyCostUsd": 18000,
       "components": [
         {
-          "nodeId": "reservation-service",
+          "nodeId": "app-server",
           "label": "Primary Service",
           "monthlyCostUsd": 6000,
           "costDriver": "Compute instances"
         },
         {
-          "nodeId": "search-service",
+          "nodeId": "cache",
           "label": "Storage",
           "monthlyCostUsd": 6000,
           "costDriver": "Storage and I/O"
@@ -456,7 +456,7 @@
     },
     "scalingPolicies": [
       {
-        "nodeId": "reservation-service",
+        "nodeId": "app-server",
         "metric": "cpu_utilization",
         "threshold": 70,
         "scaleUpStep": 2,
@@ -488,13 +488,13 @@
           "name": "request_latency",
           "type": "histogram",
           "description": "Request processing time",
-          "nodeId": "reservation-service"
+          "nodeId": "app-server"
         },
         {
           "name": "error_rate",
           "type": "gauge",
           "description": "Error percentage",
-          "nodeId": "reservation-service"
+          "nodeId": "app-server"
         }
       ],
       "alerts": [

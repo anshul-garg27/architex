@@ -1,5 +1,7 @@
 'use client';
 
+/** @deprecated UI-002 retired — no longer mounted; the in-node SimMetricsBadge is the single source of node telemetry. Kept only because tests may import it. */
+
 /**
  * NodeMetricsOverlay (UI-002)
  *
